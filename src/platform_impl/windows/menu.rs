@@ -73,38 +73,42 @@ pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler:
                 let sub_menu = winuser::CreateMenu();
 
                 for item in &menu.items {
-                    match item {
+                    let sub_item = match item {
                         MenuItem::Custom(custom_menu) => {
+                            // it's a custom menu, let's add it to our hashmap
                             let mut current_id = 0;
                             MENU_INDEX.with(|cell| {
                                 current_id = cell.replace_with(|&mut i| i + 1);
                             });
 
-                            let sub_item = winuser::MENUITEMINFOW {
-                                cbSize: std::mem::size_of::<winuser::MENUITEMINFOW>() as u32,
-                                fMask: winuser::MIIM_STRING | winuser::MIIM_ID,
-                                fType: winuser::MFT_STRING,
-                                fState: winuser::MFS_ENABLED,
-                                // Received on low-word of wParam when WM_COMMAND
-                                // It represent the unique menu ID
-                                wID: current_id.clone(),
-                                hSubMenu: std::ptr::null_mut(),
-                                hbmpChecked: std::ptr::null_mut(),
-                                hbmpUnchecked: std::ptr::null_mut(),
-                                dwItemData: 0,
-                                dwTypeData: to_wstring(custom_menu.name.as_str()).as_mut_ptr(),
-                                cch: 5,
-                                hbmpItem: std::ptr::null_mut(),
-                            };
-                            winuser::InsertMenuItemW(sub_menu, 0, 0, &sub_item as *const _);
                             // save our reference to match later in the click event
                             MENU_MAP.with(|cell| {
-                                cell.borrow_mut()
-                                    .insert(current_id, custom_menu.id.clone());
+                                cell.borrow_mut().insert(current_id, custom_menu.id.clone());
                             });
+
+                            make_menu_item(Some(current_id.clone()), custom_menu.name.as_str())
                         }
-                        _ => {}
+                        MenuItem::Separator => None,
+                        MenuItem::About(_app_name) => make_menu_item(None, "About"),
+                        MenuItem::CloseWindow => make_menu_item(None, "Close"),
+                        MenuItem::Quit => make_menu_item(None, "Quit"),
+                        MenuItem::Hide => make_menu_item(None, "Hide"),
+                        MenuItem::HideOthers => make_menu_item(None, "Hide Others"),
+                        MenuItem::ShowAll => make_menu_item(None, "Show All"),
+                        MenuItem::EnterFullScreen => make_menu_item(None, "Enter Full Screen"),
+                        MenuItem::Minimize => make_menu_item(None, "Minimize"),
+                        MenuItem::Zoom => make_menu_item(None, "Zoom"),
+                        MenuItem::Copy => make_menu_item(None, "Copy"),
+                        MenuItem::Cut => make_menu_item(None, "Cut"),
+                        MenuItem::Paste => make_menu_item(None, "Paste"),
+                        MenuItem::Undo => make_menu_item(None, "Undo"),
+                        MenuItem::Redo => make_menu_item(None, "Redo"),
+                        MenuItem::SelectAll => make_menu_item(None, "Select All"),
+                        MenuItem::Services => None,
                     };
+                    if let Some(sub_item) = sub_item {
+                        winuser::InsertMenuItemW(sub_menu, 0, 0, &sub_item as *const _);
+                    }
                 }
 
                 let item = winuser::MENUITEMINFOW {
@@ -127,6 +131,30 @@ pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler:
 
             winuser::SetMenu(handle.hwnd as *mut _, app_menu);
         }
+    }
+}
+
+fn make_menu_item(id: Some(String), title: &str) -> *mut Object {
+    let mut real_id = 0;
+    if let Some(id) = id {
+        real_id = id;
+    }
+
+    winuser::MENUITEMINFOW {
+        cbSize: std::mem::size_of::<winuser::MENUITEMINFOW>() as u32,
+        fMask: winuser::MIIM_STRING | winuser::MIIM_ID,
+        fType: winuser::MFT_STRING,
+        fState: winuser::MFS_ENABLED,
+        // Received on low-word of wParam when WM_COMMAND
+        // It represent the unique menu ID
+        wID: real_id,
+        hSubMenu: std::ptr::null_mut(),
+        hbmpChecked: std::ptr::null_mut(),
+        hbmpUnchecked: std::ptr::null_mut(),
+        dwItemData: 0,
+        dwTypeData: to_wstring(title).as_mut_ptr(),
+        cch: 5,
+        hbmpItem: std::ptr::null_mut(),
     }
 }
 
