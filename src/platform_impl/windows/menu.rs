@@ -34,32 +34,32 @@ use crate::{event::Event, window::WindowId as SuperWindowId};
 pub struct MenuHandler {
     window: HWND,
     send_event: Box<dyn Fn(Event<'static, ()>)>,
-    id_hash_map: RefCell<HashMap<u32, String>>,
-    last_id: RefCell<u32>,
+}
+
+thread_local! {
+  static MENU_INDEX: RefCell<u32> = RefCell::new(0);
+  static MENU_MAP: RefCell<HashMap<u32, String>> = RefCell::new(HashMap::new());
 }
 
 #[allow(non_snake_case)]
 impl MenuHandler {
     pub fn new(window: HWND, send_event: Box<dyn Fn(Event<'static, ()>)>) -> MenuHandler {
-        MenuHandler {
-            window,
-            send_event,
-            last_id: RefCell::new(0),
-            id_hash_map: RefCell::new(HashMap::new()),
-        }
+        MenuHandler { window, send_event }
     }
     fn send_click_event(&self, menu_id: u32) {
-      let current_hash_map = self.id_hash_map.borrow();
-      if let Some(real_menu_id) = current_hash_map.get(&menu_id) {
-         (self.send_event)(Event::MenuEvent(real_menu_id.to_string()));
-      }
+        MENU_MAP.with(|cell| {
+            let current_hash_map = cell.borrow();
+            if let Some(real_menu_id) = current_hash_map.get(&menu_id) {
+                (self.send_event)(Event::MenuEvent(real_menu_id.to_string()));
+            }
+        });
     }
 }
 
 pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler: MenuHandler) {
     if let RawWindowHandle::Windows(handle) = window_handle {
-       let last_id = menu_handler.last_id.clone();
-       let hash_map = menu_handler.id_hash_map.clone();
+        let last_id = menu_handler.last_id.clone();
+        let hash_map = menu_handler.id_hash_map.clone();
         let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
 
         unsafe {
@@ -77,8 +77,10 @@ pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler:
                 for item in &menu.items {
                     match item {
                         MenuItem::Custom(custom_menu) => {
-                            let mut current_id = last_id.borrow_mut();
-                            *current_id += 1;
+                            let mut current_id = 0;
+                            MENU_INDEX.with(|cell| {
+                                current_id = cell.replace_with(|&mut i| i + 1);
+                            });
 
                             let sub_item = winuser::MENUITEMINFOW {
                                 cbSize: std::mem::size_of::<winuser::MENUITEMINFOW>() as u32,
@@ -98,8 +100,10 @@ pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler:
                             };
                             winuser::InsertMenuItemW(sub_menu, 0, 0, &sub_item as *const _);
                             // save our reference to match later in the click event
-                            let mut handler = hash_map.borrow_mut();
-                            handler.insert(*current_id, custom_menu.id.clone());
+                            MENU_MAP.with(|cell| {
+                                cell.borrow_mut()
+                                    .insert(*current_id, custom_menu.id.clone());
+                            });
                         }
                         _ => {}
                     };
