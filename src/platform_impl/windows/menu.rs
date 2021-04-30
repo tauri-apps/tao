@@ -22,6 +22,7 @@ use winapi::{
 };
 
 use std::{
+    cell::RefCell,
     ptr,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -32,15 +33,28 @@ use crate::{event::Event, window::WindowId as SuperWindowId};
 pub struct MenuHandler {
     window: HWND,
     send_event: Box<dyn Fn(Event<'static, ()>)>,
+    id_hash_map: RefCell<HashMap<u32, String>>,
+    last_id: RefCell<u32>,
 }
 
 #[allow(non_snake_case)]
 impl MenuHandler {
     pub fn new(window: HWND, send_event: Box<dyn Fn(Event<'static, ()>)>) -> MenuHandler {
-        MenuHandler { window, send_event }
+        MenuHandler {
+            window,
+            send_event,
+            last_id: RefCell::new(0),
+            id_hash_map: RefCell::new(HashMap::new()),
+        }
     }
-    fn send_event(&self, event: Event<'static, ()>) {
-        (self.send_event)(event);
+    fn send_click_event(&self, menu_id: u32) {
+      self.id_hash_map.with(|cell| {
+         let id_map = cell.borrow();
+         if let Some(real_menu_id) = id_map.get(&menu_id) {
+            (self.send_event)(Event::MenuEvent(real_menu_id));
+         }
+       })
+        
     }
 }
 
@@ -58,43 +72,62 @@ pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler:
                 sender as basetsd::DWORD_PTR,
             );
 
-            let testing_menu = winuser::CreateMenu();
-            let subitem = winuser::MENUITEMINFOW {
-                cbSize: std::mem::size_of::<winuser::MENUITEMINFOW>() as u32,
-                fMask: winuser::MIIM_STRING | winuser::MIIM_ID,
-                fType: winuser::MFT_STRING,
-                fState: winuser::MFS_ENABLED,
-                // Received on low-word of wParam when WM_COMMAND
-                // It could represent the menu ID
-                wID: 3653,
-                hSubMenu: std::ptr::null_mut(),
-                hbmpChecked: std::ptr::null_mut(),
-                hbmpUnchecked: std::ptr::null_mut(),
-                dwItemData: 0,
-                dwTypeData: to_wstring("&Close\tAlt+C").as_mut_ptr(),
-                cch: 5,
-                hbmpItem: std::ptr::null_mut(),
-            };
-            winuser::InsertMenuItemW(testing_menu, 0, 0, &subitem as *const _);
+            let app_menu = winuser::CreateMenu();
+            for menu in menu {
+                let sub_menu = winuser::CreateMenu();
 
-            let system_menu = winuser::CreateMenu();
-            let item = winuser::MENUITEMINFOW {
-                cbSize: std::mem::size_of::<winuser::MENUITEMINFOW>() as u32,
-                fMask: winuser::MIIM_STRING | winuser::MIIM_SUBMENU,
-                fType: winuser::MFT_STRING,
-                fState: winuser::MFS_ENABLED,
-                wID: 0,
-                hSubMenu: testing_menu,
-                hbmpChecked: std::ptr::null_mut(),
-                hbmpUnchecked: std::ptr::null_mut(),
-                dwItemData: 0,
-                dwTypeData: to_wstring("Outer").as_mut_ptr(),
-                cch: 5,
-                hbmpItem: std::ptr::null_mut(),
-            };
-            winuser::InsertMenuItemW(system_menu, 0, 0, &item as *const _);
+                for item in &menu.items {
+                    match item {
+                        MenuItem::Custom(custom_menu) => {
+                            let mut current_id = 0;
+                            menu_handler.last_id.with(|cell| {
+                                current_id = cell.replace_with(|&mut i| i + 1);
+                            });
+                            let sub_item = winuser::MENUITEMINFOW {
+                                cbSize: std::mem::size_of::<winuser::MENUITEMINFOW>() as u32,
+                                fMask: winuser::MIIM_STRING | winuser::MIIM_ID,
+                                fType: winuser::MFT_STRING,
+                                fState: winuser::MFS_ENABLED,
+                                // Received on low-word of wParam when WM_COMMAND
+                                // It represent the unique menu ID
+                                wID: current_id.clone(),
+                                hSubMenu: std::ptr::null_mut(),
+                                hbmpChecked: std::ptr::null_mut(),
+                                hbmpUnchecked: std::ptr::null_mut(),
+                                dwItemData: 0,
+                                dwTypeData: to_wstring(custom_menu.name.as_str()).as_mut_ptr(),
+                                cch: 5,
+                                hbmpItem: std::ptr::null_mut(),
+                            };
+                            winuser::InsertMenuItemW(sub_menu, 0, 0, &sub_item as *const _);
+                            // save our reference to match later in the click event
+                            menu_handler.id_hash_map.with(|cell| {
+                                cell.borrow_mut().insert(current_id, custom_menu.id.clone());
+                            });
+                        }
+                        _ => {}
+                    };
+                }
 
-            winuser::SetMenu(handle.hwnd as *mut _, system_menu);
+                let item = winuser::MENUITEMINFOW {
+                    cbSize: std::mem::size_of::<winuser::MENUITEMINFOW>() as u32,
+                    fMask: winuser::MIIM_STRING | winuser::MIIM_SUBMENU,
+                    fType: winuser::MFT_STRING,
+                    fState: winuser::MFS_ENABLED,
+                    wID: 0,
+                    hSubMenu: sub_menu,
+                    hbmpChecked: std::ptr::null_mut(),
+                    hbmpUnchecked: std::ptr::null_mut(),
+                    dwItemData: 0,
+                    dwTypeData: to_wstring("Outer").as_mut_ptr(),
+                    cch: 5,
+                    hbmpItem: std::ptr::null_mut(),
+                };
+
+                winuser::InsertMenuItemW(app_menu, 0, 0, &item as *const _);
+            }
+
+            winuser::SetMenu(handle.hwnd as *mut _, app_menu);
         }
     }
 }
@@ -119,7 +152,7 @@ unsafe extern "system" fn subclass_proc(
         winuser::WM_COMMAND => {
             let proxy = &mut *(data as *mut MenuHandler);
             let lo_word = minwindef::LOWORD(w_param as u32);
-            proxy.send_event(Event::MenuEvent(lo_word.to_string()));
+            proxy.send_click_event(lo_word);
             0
         }
         winuser::WM_DESTROY => {
