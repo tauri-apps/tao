@@ -37,7 +37,6 @@ pub struct MenuHandler {
 #[allow(non_snake_case)]
 impl MenuHandler {
     pub fn new(window: HWND, send_event: Box<dyn Fn(Event<'static, ()>)>) -> MenuHandler {
-        let data = Box::new(MenuHandler { window, send_event });
         MenuHandler { window, send_event }
     }
     fn send_event(&self, event: Event<'static, ()>) {
