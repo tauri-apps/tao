@@ -137,7 +137,7 @@ impl Window {
 
     pub fn set_menu(&self, new_menu: Option<Vec<Menu>>) {
         if let Some(window_menu) = menu {
-            menu::initialize(window_menu);
+            //menu::initialize(window_menu);
         }
     }
 
@@ -857,7 +857,17 @@ unsafe fn init<T: 'static>(
     if let Some(window_menu) = attributes.window_menu {
         let event_loop_runner = event_loop.runner_shared.clone();
         let window_handle = win.raw_window_handle();
-        menu::initialize(window_menu, window_handle, event_loop_runner);
+        
+        let menu_handler = MenuHandler::new(
+            win.window.0,
+            Box::new(move |event| {
+                if let Ok(e) = event.map_nonuser_event() {
+                    event_loop_runner.send_event(e)
+                }
+            }),
+        );
+
+        menu::initialize(window_menu, window_handle, menu_handler);
     }
 
     Ok(win)
