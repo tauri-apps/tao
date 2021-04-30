@@ -38,9 +38,7 @@ pub struct MenuHandler {
 impl MenuHandler {
     pub fn new(window: HWND, send_event: Box<dyn Fn(Event<'static, ()>)>) -> MenuHandler {
         let data = Box::new(MenuHandlerData { window, send_event });
-        MenuHandler {
-            data: Box::into_raw(data),
-        }
+        MenuHandler { window, send_event }
     }
     fn send_event(&self, event: Event<'static, ()>) {
         (self.send_event)(event);
