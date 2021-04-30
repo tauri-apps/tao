@@ -1,6 +1,6 @@
 [package]
-name = "winit"
-version = "0.24.0"
+name = "tauri-winit"
+version = "0.24.1"
 authors = ["The winit contributors", "Pierre Krieger <pierre.krieger1708@gmail.com>"]
 description = "Cross-platform window creation library."
 edition = "2018"
@@ -10,6 +10,9 @@ readme = "README.md"
 repository = "https://github.com/rust-windowing/winit"
 documentation = "https://docs.rs/winit"
 categories = ["gui"]
+
+[lib]
+name = "winit"
 
 [package.metadata.docs.rs]
 features = ["serde", "web-sys"]
