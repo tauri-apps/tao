@@ -64,6 +64,9 @@ pub fn initialize(
     dbg!(menu);
 
     if let RawWindowHandle::Windows(handle) = window_handle {
+      
+      let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
+
       commctrl::SetWindowSubclass(
          handle.hwnd as *mut _,
          Some(subclass_proc),

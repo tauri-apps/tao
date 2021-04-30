@@ -136,7 +136,7 @@ impl Window {
     }
 
     pub fn set_menu(&self, new_menu: Option<Vec<Menu>>) {
-        if let Some(window_menu) = menu {
+        if let Some(window_menu) = new_menu {
             //menu::initialize(window_menu);
         }
     }
@@ -858,7 +858,7 @@ unsafe fn init<T: 'static>(
         let event_loop_runner = event_loop.runner_shared.clone();
         let window_handle = win.raw_window_handle();
         
-        let menu_handler = MenuHandler::new(
+        let menu_handler = menu::MenuHandler::new(
             win.window.0,
             Box::new(move |event| {
                 if let Ok(e) = event.map_nonuser_event() {
