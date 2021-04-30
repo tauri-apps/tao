@@ -69,9 +69,10 @@ pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler:
             );
 
             let app_menu = winuser::CreateMenu();
+            let mut main_menu_position = 0;
             for menu in menu {
                 let sub_menu = winuser::CreateMenu();
-
+                let mut sub_menu_position = 0;
                 for item in &menu.items {
                     let sub_item = match item {
                         MenuItem::Custom(custom_menu) => {
@@ -107,7 +108,13 @@ pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler:
                         MenuItem::Services => None,
                     };
                     if let Some(sub_item) = sub_item {
-                        winuser::InsertMenuItemW(sub_menu, 0, 0, &sub_item as *const _);
+                        sub_menu_position += 1;
+                        winuser::InsertMenuItemW(
+                            sub_menu,
+                            sub_menu_position,
+                            0,
+                            &sub_item as *const _,
+                        );
                     }
                 }
 
@@ -121,12 +128,12 @@ pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler:
                     hbmpChecked: std::ptr::null_mut(),
                     hbmpUnchecked: std::ptr::null_mut(),
                     dwItemData: 0,
-                    dwTypeData: to_wstring("Outer").as_mut_ptr(),
+                    dwTypeData: to_wstring(&menu.title).as_mut_ptr(),
                     cch: 5,
                     hbmpItem: std::ptr::null_mut(),
                 };
-
-                winuser::InsertMenuItemW(app_menu, 0, 0, &item as *const _);
+                main_menu_position += 1;
+                winuser::InsertMenuItemW(app_menu, main_menu_position, 0, &item as *const _);
             }
 
             winuser::SetMenu(handle.hwnd as *mut _, app_menu);
@@ -134,13 +141,13 @@ pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler:
     }
 }
 
-fn make_menu_item(id: Some(String), title: &str) -> *mut Object {
+fn make_menu_item(id: Option<u32>, title: &str) -> Option<winuser::MENUITEMINFOW> {
     let mut real_id = 0;
     if let Some(id) = id {
         real_id = id;
     }
 
-    winuser::MENUITEMINFOW {
+    Some(winuser::MENUITEMINFOW {
         cbSize: std::mem::size_of::<winuser::MENUITEMINFOW>() as u32,
         fMask: winuser::MIIM_STRING | winuser::MIIM_ID,
         fType: winuser::MFT_STRING,
@@ -155,7 +162,7 @@ fn make_menu_item(id: Some(String), title: &str) -> *mut Object {
         dwTypeData: to_wstring(title).as_mut_ptr(),
         cch: 5,
         hbmpItem: std::ptr::null_mut(),
-    }
+    })
 }
 
 fn to_wstring(str: &str) -> Vec<u16> {
