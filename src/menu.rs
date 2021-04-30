@@ -15,6 +15,10 @@ impl Menu {
 
 #[derive(Debug, Clone)]
 pub struct CustomMenu {
+    // todo: replace id by a type that
+    // we can send from the with_menu::<T>()
+    // or we could check to use the UserEvent::<T> but
+    // my latest test failed
     pub id: String,
     pub name: String,
     pub key: Option<String>,
@@ -22,15 +26,10 @@ pub struct CustomMenu {
 
 #[derive(Debug, Clone)]
 pub enum MenuItem {
-    /// A custom MenuItem. This type functions as a builder, so you can customize it easier.
-    /// You can (and should) create this variant via the `new(title)` method, but if you need to do
-    /// something crazier, then wrap it in this and you can hook into the Cacao menu system
-    /// accordingly.
+    /// A custom MenuItem
     Custom(CustomMenu),
 
-    /// Shows a standard "About" item,  which will bring up the necessary window when clicked
-    /// (include a `credits.html` in your App to make use of here). The argument baked in here
-    /// should be your app name.
+    /// Shows a standard "About" item
     About(String),
 
     /// A standard "hide the app" menu item.
@@ -77,18 +76,17 @@ pub enum MenuItem {
     /// An item for minimizing the window with the standard system controls.
     Minimize,
 
-    /// An item for instructing the app to zoom. Your app must react to this with necessary window
-    /// lifecycle events.
+    /// An item for instructing the app to zoom
     Zoom,
 
-    /// Represents a Separator. It's useful nonetheless for
-    /// separating out pieces of the `NSMenu` structure.
+    /// Represents a Separator
     Separator,
 }
 
 impl MenuItem {
     pub fn new(unique_menu_id: String, title: String) -> Self {
         MenuItem::Custom(CustomMenu {
+            // todo: would be great if we could pass a type?
             id: unique_menu_id,
             key: None,
             name: title,

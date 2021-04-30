@@ -18,12 +18,10 @@ fn main() {
         .with_title("A fantastic window!")
         .with_menu(vec![
             Menu::new(
-                "",
+                // on macOS first menu is always app name
+                "my custom app",
                 vec![
                     MenuItem::About("Todos".to_string()),
-                    MenuItem::Separator,
-                    MenuItem::new("preferences".to_string(), "Preferences".to_string()).key(","),
-                    MenuItem::Separator,
                     MenuItem::Services,
                     MenuItem::Separator,
                     MenuItem::Hide,
@@ -34,9 +32,9 @@ fn main() {
                 ],
             ),
             Menu::new(
-                "Custom menu",
+                "File",
                 vec![
-                    MenuItem::new("add_todo".to_string(), "Add Todo".to_string()).key("+"),
+                    MenuItem::new("change_menu".to_string(), "Change menu".to_string()).key("+"),
                     MenuItem::Separator,
                     MenuItem::CloseWindow,
                 ],
@@ -56,7 +54,10 @@ fn main() {
             ),
             Menu::new("View", vec![MenuItem::EnterFullScreen]),
             Menu::new("Window", vec![MenuItem::Minimize, MenuItem::Zoom]),
-            Menu::new("Help", vec![]),
+            Menu::new(
+                "Help",
+                vec![MenuItem::new("help_me".to_string(), "Custom help".to_string()).key("-")],
+            ),
         ])
         .build(&event_loop)
         .unwrap();
@@ -72,7 +73,21 @@ fn main() {
             Event::MainEventsCleared => {
                 window.request_redraw();
             }
+            // not sure if we should add a new event type?
+            // or try to re-use the UserEvent::<T>
             Event::MenuEvent(menu_id) => {
+                if menu_id == "change_menu" {
+                    // update menu
+                    window.set_menu(Some(vec![Menu::new(
+                        "File",
+                        vec![
+                            MenuItem::new("add_todo".to_string(), "Add Todo".to_string()).key("+"),
+                            MenuItem::Separator,
+                            MenuItem::CloseWindow,
+                        ],
+                    )]))
+                }
+
                 println!("Clicked on {}", menu_id);
                 window.set_title("New window title!");
             }

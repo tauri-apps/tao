@@ -15,7 +15,7 @@ use objc::runtime::NO;
 use crate::{
     dpi::LogicalSize,
     menu::Menu,
-    platform_impl::platform::{ffi, util::IdRef, window::SharedState},
+    platform_impl::platform::{ffi, menu, util::IdRef, window::SharedState},
 };
 
 // Unsafe wrapper type that allows us to dispatch things that aren't Send.
@@ -208,7 +208,13 @@ pub unsafe fn set_title_async(ns_window: id, title: String) {
 
 // `setMenu:` isn't thread-safe.
 pub unsafe fn set_menu_async(_ns_window: id, menu: Option<Vec<Menu>>) {
-    dbg!(menu);
+    // todo: if None we should set an empty menu maybe?
+    // on windows we can remove it, in macOS we can't
+    if let Some(menu) = menu {
+        Queue::main().exec_async(move || {
+            menu::initialize(menu);
+        });
+    }
 }
 
 // `close:` is thread-safe, but we want the event to be triggered from the main
