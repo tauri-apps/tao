@@ -35,6 +35,7 @@ use crate::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
     error::{ExternalError, NotSupportedError, OsError as RootOsError},
     icon::Icon,
+    menu::Menu,
     monitor::MonitorHandle as RootMonitorHandle,
     platform_impl::platform::{
         dark_mode::try_theme,
@@ -857,7 +858,7 @@ unsafe fn init<T: 'static>(
     if let Some(window_menu) = attributes.window_menu {
         let event_loop_runner = event_loop.runner_shared.clone();
         let window_handle = win.raw_window_handle();
-        
+
         let menu_handler = menu::MenuHandler::new(
             win.window.0,
             Box::new(move |event| {
