@@ -58,8 +58,6 @@ impl MenuHandler {
 
 pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler: MenuHandler) {
     if let RawWindowHandle::Windows(handle) = window_handle {
-        let last_id = menu_handler.last_id.clone();
-        let hash_map = menu_handler.id_hash_map.clone();
         let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
 
         unsafe {
@@ -102,7 +100,7 @@ pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler:
                             // save our reference to match later in the click event
                             MENU_MAP.with(|cell| {
                                 cell.borrow_mut()
-                                    .insert(*current_id, custom_menu.id.clone());
+                                    .insert(current_id, custom_menu.id.clone());
                             });
                         }
                         _ => {}
