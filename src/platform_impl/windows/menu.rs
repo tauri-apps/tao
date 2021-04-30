@@ -37,7 +37,7 @@ pub struct MenuHandler {
 }
 
 thread_local! {
-  static MENU_INDEX: RefCell<u32> = RefCell::new(0);
+  static MENU_INDEX: RefCell<u32> = RefCell::new(1);
   static MENU_MAP: RefCell<HashMap<u32, String>> = RefCell::new(HashMap::new());
 }
 
