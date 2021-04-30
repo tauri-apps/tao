@@ -57,8 +57,6 @@ impl MenuHandler {
 }
 
 pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler: MenuHandler) {
-    dbg!(menu);
-
     if let RawWindowHandle::Windows(handle) = window_handle {
        let last_id = menu_handler.last_id.clone();
        let hash_map = menu_handler.id_hash_map.clone();
