@@ -23,6 +23,7 @@ use winapi::{
 
 use std::{
     cell::RefCell,
+    collections::HashMap,
     ptr,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -48,13 +49,10 @@ impl MenuHandler {
         }
     }
     fn send_click_event(&self, menu_id: u32) {
-      self.id_hash_map.with(|cell| {
-         let id_map = cell.borrow();
-         if let Some(real_menu_id) = id_map.get(&menu_id) {
-            (self.send_event)(Event::MenuEvent(real_menu_id));
-         }
-       })
-        
+      let current_hash_map = self.id_hash_map.borrow();
+      if let Some(real_menu_id) = current_hash_map.get(&menu_id) {
+         (self.send_event)(Event::MenuEvent(real_menu_id.to_string()));
+      }
     }
 }
 
@@ -62,6 +60,8 @@ pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler:
     dbg!(menu);
 
     if let RawWindowHandle::Windows(handle) = window_handle {
+       let last_id = menu_handler.last_id.clone();
+       let hash_map = menu_handler.id_hash_map.clone();
         let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
 
         unsafe {
@@ -79,10 +79,9 @@ pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler:
                 for item in &menu.items {
                     match item {
                         MenuItem::Custom(custom_menu) => {
-                            let mut current_id = 0;
-                            menu_handler.last_id.with(|cell| {
-                                current_id = cell.replace_with(|&mut i| i + 1);
-                            });
+                            let mut current_id = last_id.borrow_mut();
+                            *current_id += 1;
+
                             let sub_item = winuser::MENUITEMINFOW {
                                 cbSize: std::mem::size_of::<winuser::MENUITEMINFOW>() as u32,
                                 fMask: winuser::MIIM_STRING | winuser::MIIM_ID,
@@ -101,9 +100,8 @@ pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler:
                             };
                             winuser::InsertMenuItemW(sub_menu, 0, 0, &sub_item as *const _);
                             // save our reference to match later in the click event
-                            menu_handler.id_hash_map.with(|cell| {
-                                cell.borrow_mut().insert(current_id, custom_menu.id.clone());
-                            });
+                            let mut handler = hash_map.borrow_mut();
+                            handler.insert(*current_id, custom_menu.id.clone());
                         }
                         _ => {}
                     };
@@ -152,7 +150,7 @@ unsafe extern "system" fn subclass_proc(
         winuser::WM_COMMAND => {
             let proxy = &mut *(data as *mut MenuHandler);
             let lo_word = minwindef::LOWORD(w_param as u32);
-            proxy.send_click_event(lo_word);
+            proxy.send_click_event(lo_word.into());
             0
         }
         winuser::WM_DESTROY => {
