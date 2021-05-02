@@ -237,7 +237,11 @@ impl Window {
             window.set_icon(Some(&icon.inner.into()));
         }
 
-        window.show_all();
+        if attributes.visible {
+            window.show_all();
+        } else {
+            window.hide();
+        }
 
         let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
 
