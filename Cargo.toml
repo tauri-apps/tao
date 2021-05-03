@@ -16,7 +16,7 @@ targets = ["i686-pc-windows-msvc", "x86_64-pc-windows-msvc", "i686-unknown-linux
 [dependencies]
 instant = "0.1"
 lazy_static = "1"
-libc = "0.2.64"
+libc = "0.2.94"
 log = "0.4"
 serde = { version = "1", optional = true, features = ["serde_derive"] }
 raw-window-handle = "0.3"
