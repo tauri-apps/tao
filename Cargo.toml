@@ -11,7 +11,7 @@ categories = ["gui"]
 [package.metadata.docs.rs]
 features = ["serde"]
 default-target = "x86_64-unknown-linux-gnu"
-targets = ["i686-pc-windows-msvc", "x86_64-pc-windows-msvc", "i686-unknown-linux-gnu", "x86_64-unknown-linux-gnu", "x86_64-apple-darwin", "wasm32-unknown-unknown"]
+targets = ["i686-pc-windows-msvc", "x86_64-pc-windows-msvc", "i686-unknown-linux-gnu", "x86_64-unknown-linux-gnu", "x86_64-apple-darwin"]
 
 [dependencies]
 instant = "0.1"

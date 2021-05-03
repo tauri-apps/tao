@@ -6,7 +6,7 @@
 //! [`EventLoop::new()`] function.
 //!
 //! ```no_run
-//! use winit::event_loop::EventLoop;
+//! use tao::event_loop::EventLoop;
 //! let event_loop = EventLoop::new();
 //! ```
 //!
@@ -42,7 +42,7 @@
 //!
 //!
 //! ```no_run
-//! use winit::{
+//! use tao::{
 //!     event::{Event, WindowEvent},
 //!     event_loop::{ControlFlow, EventLoop},
 //!     window::WindowBuilder,
@@ -146,8 +146,6 @@ extern crate bitflags;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 #[macro_use]
 extern crate objc;
-#[cfg(all(target_arch = "wasm32", feature = "std_web"))]
-extern crate std_web as stdweb;
 
 pub mod dpi;
 #[macro_use]

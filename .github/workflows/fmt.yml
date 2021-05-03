@@ -1,0 +1,30 @@
+name: fmt check
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'Cargo.toml'
+
+jobs:
+  clippy_fmt_check:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+            profile: minimal
+            toolchain: nightly
+            override: true
+            components: rustfmt, clippy
+      - name: clippy check
+        uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-targets -- -D warnings
+      - name: fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check

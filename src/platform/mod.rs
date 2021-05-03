@@ -7,7 +7,6 @@
 //!  - `macos`
 //!  - `unix`
 //!  - `windows`
-//!  - `web`
 //!
 //! And the following platform-specific module:
 //!

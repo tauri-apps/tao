@@ -1,8 +1,8 @@
 #![cfg(any(target_os = "android"))]
 
 use crate::{
-    event_loop::{EventLoop, EventLoopWindowTarget},
-    window::{Window, WindowBuilder},
+  event_loop::{EventLoop, EventLoopWindowTarget},
+  window::{Window, WindowBuilder},
 };
 use ndk::configuration::Configuration;
 use ndk_glue::Rect;
@@ -17,19 +17,19 @@ pub trait EventLoopWindowTargetExtAndroid {}
 
 /// Additional methods on `Window` that are specific to Android.
 pub trait WindowExtAndroid {
-    fn content_rect(&self) -> Rect;
+  fn content_rect(&self) -> Rect;
 
-    fn config(&self) -> Configuration;
+  fn config(&self) -> Configuration;
 }
 
 impl WindowExtAndroid for Window {
-    fn content_rect(&self) -> Rect {
-        self.window.content_rect()
-    }
+  fn content_rect(&self) -> Rect {
+    self.window.content_rect()
+  }
 
-    fn config(&self) -> Configuration {
-        self.window.config()
-    }
+  fn config(&self) -> Configuration {
+    self.window.config()
+  }
 }
 
 impl<T> EventLoopWindowTargetExtAndroid for EventLoopWindowTarget<T> {}
