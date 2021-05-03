@@ -9,13 +9,9 @@ readme = "README.md"
 categories = ["gui"]
 
 [package.metadata.docs.rs]
-features = ["serde", "web-sys"]
+features = ["serde"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = ["i686-pc-windows-msvc", "x86_64-pc-windows-msvc", "i686-unknown-linux-gnu", "x86_64-unknown-linux-gnu", "x86_64-apple-darwin", "wasm32-unknown-unknown"]
-
-[features]
-web-sys = ["web_sys", "wasm-bindgen", "instant/wasm-bindgen"]
-stdweb = ["std_web", "instant/stdweb"]
 
 [dependencies]
 instant = "0.1"
@@ -86,43 +82,3 @@ gtk = "0.9"
 gdk = "0.13"
 gdk-pixbuf = "0.9"
 image = "0.23"
-
-[target.'cfg(target_arch = "wasm32")'.dependencies.web_sys]
-package = "web-sys"
-version = "0.3.22"
-optional = true
-features = [
-    'console',
-    "AddEventListenerOptions",
-    'CssStyleDeclaration',
-    'BeforeUnloadEvent',
-    'Document',
-    'DomRect',
-    'Element',
-    'Event',
-    'EventTarget',
-    'FocusEvent',
-    'HtmlCanvasElement',
-    'HtmlElement',
-    'KeyboardEvent',
-    'MediaQueryList',
-    'MediaQueryListEvent',
-    'MouseEvent',
-    'Node',
-    'PointerEvent',
-    'Window',
-    'WheelEvent'
-]
-
-[target.'cfg(target_arch = "wasm32")'.dependencies.wasm-bindgen]
-version = "0.2.45"
-optional = true
-
-[target.'cfg(target_arch = "wasm32")'.dependencies.std_web]
-package = "stdweb"
-version = "=0.4.20"
-optional = true
-features = ["experimental_features_which_may_break_on_minor_version_bumps"]
-
-[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
-console_log = "0.2"
