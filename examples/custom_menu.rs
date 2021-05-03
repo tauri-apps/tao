@@ -1,5 +1,5 @@
 use simple_logger::SimpleLogger;
-use winit::{
+use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     menu::{Menu, MenuItem},
