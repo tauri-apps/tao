@@ -21,7 +21,7 @@ fn main() {
                 // on macOS first menu is always app name
                 "my custom app",
                 vec![
-                    MenuItem::About("Todos".to_string()),
+                    MenuItem::About("Todos"),
                     MenuItem::Services,
                     MenuItem::Separator,
                     MenuItem::Hide,
@@ -34,7 +34,7 @@ fn main() {
             Menu::new(
                 "File",
                 vec![
-                    MenuItem::new("change_menu".to_string(), "Change menu".to_string()).key("+"),
+                    MenuItem::new("change_menu", "Change menu").key("+"),
                     MenuItem::Separator,
                     MenuItem::CloseWindow,
                 ],
@@ -56,7 +56,7 @@ fn main() {
             Menu::new("Window", vec![MenuItem::Minimize, MenuItem::Zoom]),
             Menu::new(
                 "Help",
-                vec![MenuItem::new("help_me".to_string(), "Custom help".to_string()).key("-")],
+                vec![MenuItem::new("help_me", "Custom help").key("-")],
             ),
         ])
         .build(&event_loop)
@@ -81,7 +81,7 @@ fn main() {
                     window.set_menu(Some(vec![Menu::new(
                         "File",
                         vec![
-                            MenuItem::new("add_todo".to_string(), "Add Todo".to_string()).key("+"),
+                            MenuItem::new("add_todo", "Add Todo").key("+"),
                             MenuItem::Separator,
                             MenuItem::CloseWindow,
                         ],

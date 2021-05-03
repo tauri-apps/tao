@@ -30,12 +30,14 @@ pub enum MenuItem {
     Custom(CustomMenu),
 
     /// Shows a standard "About" item
-    About(String),
+    About(&'static str),
 
     /// A standard "hide the app" menu item.
     Hide,
 
     /// A standard "Services" menu item.
+    /// ## Platform-specific
+    /// macOS only.
     Services,
 
     /// A "hide all other windows" menu item.
@@ -84,15 +86,21 @@ pub enum MenuItem {
 }
 
 impl MenuItem {
-    pub fn new(unique_menu_id: String, title: String) -> Self {
+    /// Create new custom menu item.
+    /// unique_menu_id is the unique ID for the menu item returned in the EventLoop `Event::MenuEvent(unique_menu_id)`
+    pub fn new<T>(unique_menu_id: T, title: T) -> Self
+    where
+        T: Into<String>,
+    {
         MenuItem::Custom(CustomMenu {
-            // todo: would be great if we could pass a type?
-            id: unique_menu_id,
+            // todo: would be great if we could pass a type instead of an ID?
+            id: unique_menu_id.into(),
+            name: title.into(),
             key: None,
-            name: title,
         })
     }
 
+    /// Assign keyboard shortcut
     pub fn key(mut self, key: &str) -> Self {
         if let MenuItem::Custom(ref mut custom_menu) = self {
             custom_menu.key = Some(key.to_string());
