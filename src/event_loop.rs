@@ -115,6 +115,12 @@ impl EventLoop<()> {
   }
 }
 
+impl Default for EventLoop<()> {
+  fn default() -> Self {
+    EventLoop::<()>::new()
+  }
+}
+
 impl<T> EventLoop<T> {
   /// Builds a new event loop.
   ///

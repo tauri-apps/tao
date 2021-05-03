@@ -5,6 +5,7 @@ use tao::event::{Event, VirtualKeyCode, WindowEvent};
 use tao::event_loop::{ControlFlow, EventLoop};
 use tao::window::WindowBuilder;
 
+#[allow(clippy::single_match)]
 fn main() {
   SimpleLogger::new().init().unwrap();
   let event_loop = EventLoop::new();

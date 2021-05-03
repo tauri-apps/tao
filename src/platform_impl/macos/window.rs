@@ -124,7 +124,7 @@ fn create_window(
         video_mode: VideoMode { ref monitor, .. },
       })) => {
         let monitor_screen = monitor.ns_screen();
-        Some(monitor_screen.unwrap_or(appkit::NSScreen::mainScreen(nil)))
+        Some(monitor_screen.unwrap_or_else(|| appkit::NSScreen::mainScreen(nil)))
       }
       Some(Fullscreen::Borderless(None)) => Some(appkit::NSScreen::mainScreen(nil)),
       None => None,
@@ -155,7 +155,7 @@ fn create_window(
       }
     };
 
-    let mut masks = if !attrs.decorations && !screen.is_some() || pl_attrs.titlebar_hidden {
+    let mut masks = if !attrs.decorations && screen.is_none() || pl_attrs.titlebar_hidden {
       // Resizable UnownedWindow without a titlebar or borders
       // if decorations is set to false, ignore pl_attrs
       NSWindowStyleMask::NSBorderlessWindowMask

@@ -8,6 +8,7 @@
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
+#[allow(clippy::single_match)]
 fn main() {
   use std::{thread::sleep, time::Duration};
 

@@ -8,6 +8,7 @@ use tao::{
   window::{Icon, WindowBuilder},
 };
 
+#[allow(clippy::single_match)]
 fn main() {
   SimpleLogger::new().init().unwrap();
 

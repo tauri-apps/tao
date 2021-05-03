@@ -71,6 +71,7 @@ impl Drop for IdRef {
 
 impl Deref for IdRef {
   type Target = id;
+  #[allow(clippy::clippy::needless_lifetimes)]
   fn deref<'a>(&'a self) -> &'a id {
     &self.0
   }

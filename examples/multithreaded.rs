@@ -1,3 +1,5 @@
+#[allow(clippy::single_match)]
+#[allow(clippy::iter_nth)]
 fn main() {
   use std::{collections::HashMap, sync::mpsc, thread, time::Duration};
 

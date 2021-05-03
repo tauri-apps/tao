@@ -184,11 +184,11 @@ impl Handler {
   }
 
   fn take_events(&self) -> VecDeque<EventWrapper> {
-    mem::replace(&mut *self.events(), Default::default())
+    mem::take(&mut *self.events())
   }
 
   fn should_redraw(&self) -> Vec<WindowId> {
-    mem::replace(&mut *self.redraw(), Default::default())
+    mem::take(&mut *self.redraw())
   }
 
   fn get_in_callback(&self) -> bool {

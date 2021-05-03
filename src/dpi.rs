@@ -207,7 +207,7 @@ impl<P: Pixel, X: Pixel> From<(X, X)> for LogicalPosition<P> {
 }
 
 impl<P: Pixel, X: Pixel> Into<(X, X)> for LogicalPosition<P> {
-  fn into(self: Self) -> (X, X) {
+  fn into(self) -> (X, X) {
     (self.x.cast(), self.y.cast())
   }
 }
@@ -219,7 +219,7 @@ impl<P: Pixel, X: Pixel> From<[X; 2]> for LogicalPosition<P> {
 }
 
 impl<P: Pixel, X: Pixel> Into<[X; 2]> for LogicalPosition<P> {
-  fn into(self: Self) -> [X; 2] {
+  fn into(self) -> [X; 2] {
     [self.x.cast(), self.y.cast()]
   }
 }
@@ -272,7 +272,7 @@ impl<P: Pixel, X: Pixel> From<(X, X)> for PhysicalPosition<P> {
 }
 
 impl<P: Pixel, X: Pixel> Into<(X, X)> for PhysicalPosition<P> {
-  fn into(self: Self) -> (X, X) {
+  fn into(self) -> (X, X) {
     (self.x.cast(), self.y.cast())
   }
 }
@@ -284,7 +284,7 @@ impl<P: Pixel, X: Pixel> From<[X; 2]> for PhysicalPosition<P> {
 }
 
 impl<P: Pixel, X: Pixel> Into<[X; 2]> for PhysicalPosition<P> {
-  fn into(self: Self) -> [X; 2] {
+  fn into(self) -> [X; 2] {
     [self.x.cast(), self.y.cast()]
   }
 }
@@ -346,7 +346,7 @@ impl<P: Pixel, X: Pixel> From<[X; 2]> for LogicalSize<P> {
 }
 
 impl<P: Pixel, X: Pixel> Into<[X; 2]> for LogicalSize<P> {
-  fn into(self: Self) -> [X; 2] {
+  fn into(self) -> [X; 2] {
     [self.width.cast(), self.height.cast()]
   }
 }
@@ -396,7 +396,7 @@ impl<P: Pixel, X: Pixel> From<(X, X)> for PhysicalSize<P> {
 }
 
 impl<P: Pixel, X: Pixel> Into<(X, X)> for PhysicalSize<P> {
-  fn into(self: Self) -> (X, X) {
+  fn into(self) -> (X, X) {
     (self.width.cast(), self.height.cast())
   }
 }
@@ -408,7 +408,7 @@ impl<P: Pixel, X: Pixel> From<[X; 2]> for PhysicalSize<P> {
 }
 
 impl<P: Pixel, X: Pixel> Into<[X; 2]> for PhysicalSize<P> {
-  fn into(self: Self) -> [X; 2] {
+  fn into(self) -> [X; 2] {
     [self.width.cast(), self.height.cast()]
   }
 }

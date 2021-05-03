@@ -581,7 +581,9 @@ fn get_characters(event: id, ignore_modifiers: bool) -> String {
   }
 }
 
+
 // As defined in: https://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/CORPCHAR.TXT
+#[allow(clippy::clippy::match_like_matches_macro)]
 fn is_corporate_character(c: char) -> bool {
   match c {
     '\u{F700}'..='\u{F747}'
@@ -601,7 +603,7 @@ fn retrieve_keycode(event: id) -> Option<VirtualKeyCode> {
   #[inline]
   fn get_code(ev: id, raw: bool) -> Option<VirtualKeyCode> {
     let characters = get_characters(ev, raw);
-    characters.chars().next().and_then(|c| char_to_keycode(c))
+    characters.chars().next().and_then(char_to_keycode)
   }
 
   // Cmd switches Roman letters for Dvorak-QWERTY layout, so we try modified characters first.

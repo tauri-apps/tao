@@ -17,6 +17,7 @@ enum Mode {
 const WAIT_TIME: time::Duration = time::Duration::from_millis(100);
 const POLL_SLEEP_TIME: time::Duration = time::Duration::from_millis(100);
 
+#[allow(clippy::single_match)]
 fn main() {
   SimpleLogger::new().init().unwrap();
 

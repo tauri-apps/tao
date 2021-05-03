@@ -1,3 +1,4 @@
+#[allow(clippy::single_match)]
 fn main() {
   use simple_logger::SimpleLogger;
   use tao::{

@@ -69,6 +69,7 @@ impl Drop for Window {
 pub struct WindowId(pub(crate) platform_impl::WindowId);
 
 impl WindowId {
+  /// # Safety
   /// Returns a dummy `WindowId`, useful for unit testing. The only guarantee made about the return
   /// value of this function is that it will always be equal to itself and to future values returned
   /// by this function.  No other guarantees are made. This may be equal to a real `WindowId`.
@@ -850,6 +851,7 @@ impl Window {
   }
 }
 
+// Safety: objc runtime calls are unsafe
 unsafe impl raw_window_handle::HasRawWindowHandle for Window {
   /// Returns a `raw_window_handle::RawWindowHandle` for the Window
   ///

@@ -5,7 +5,8 @@ use tao::event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent
 use tao::event_loop::{ControlFlow, EventLoop};
 use tao::monitor::{MonitorHandle, VideoMode};
 use tao::window::{Fullscreen, WindowBuilder};
-
+#[allow(clippy::single_match)]
+#[allow(clippy::ok_expect)]
 fn main() {
   SimpleLogger::new().init().unwrap();
   let event_loop = EventLoop::new();
@@ -75,6 +76,7 @@ fn main() {
 }
 
 // Enumerate monitors and prompt user to choose one
+#[allow(clippy::ok_expect)]
 fn prompt_for_monitor(event_loop: &EventLoop<()>) -> MonitorHandle {
   for (num, monitor) in event_loop.available_monitors().enumerate() {
     println!("Monitor #{}: {:?}", num, monitor.name());
@@ -96,6 +98,7 @@ fn prompt_for_monitor(event_loop: &EventLoop<()>) -> MonitorHandle {
   monitor
 }
 
+#[allow(clippy::ok_expect)]
 fn prompt_for_video_mode(monitor: &MonitorHandle) -> VideoMode {
   for (i, video_mode) in monitor.video_modes().enumerate() {
     println!("Video mode #{}: {}", i, video_mode);

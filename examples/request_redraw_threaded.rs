@@ -7,6 +7,8 @@ use tao::{
   window::WindowBuilder,
 };
 
+#[allow(clippy::single_match)]
+#[allow(clippy::collapsible_match)]
 fn main() {
   SimpleLogger::new().init().unwrap();
   let event_loop = EventLoop::new();
