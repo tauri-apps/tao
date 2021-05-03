@@ -28,7 +28,7 @@ simple_logger = "1.9"
 
 [target.'cfg(target_os = "android")'.dependencies]
 ndk = "0.3"
-ndk-sys = "0.2.0"
+ndk-sys = "0.2.1"
 ndk-glue = "0.3"
 
 [target.'cfg(any(target_os = "ios", target_os = "macos"))'.dependencies]
