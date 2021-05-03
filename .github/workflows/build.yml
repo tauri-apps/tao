@@ -92,7 +92,7 @@ jobs:
         shell: bash
         if: (
           !contains(matrix.platform.target, 'android') &&
-          !contains(matrix.platform.target, 'ios')
+          !contains(matrix.platform.target, 'ios'))
         run: cargo $CMD test --verbose --target ${{ matrix.platform.target }} $OPTIONS --features $FEATURES
 
       - name: Build with serde enabled
@@ -106,5 +106,5 @@ jobs:
         shell: bash
         if: (
           !contains(matrix.platform.target, 'android') &&
-          !contains(matrix.platform.target, 'ios')
+          !contains(matrix.platform.target, 'ios'))
         run: cargo $CMD test --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,$FEATURES
