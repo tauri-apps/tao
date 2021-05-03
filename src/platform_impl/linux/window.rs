@@ -601,7 +601,7 @@ pub enum WindowRequest {
     Redraw,
 }
 
-fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
+pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
     let (left, top) = window.get_position();
     let (w, h) = (window.get_width(), window.get_height());
     let (right, bottom) = (left + w, top + h);
