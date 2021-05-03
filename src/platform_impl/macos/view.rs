@@ -581,7 +581,6 @@ fn get_characters(event: id, ignore_modifiers: bool) -> String {
   }
 }
 
-
 // As defined in: https://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/CORPCHAR.TXT
 #[allow(clippy::clippy::match_like_matches_macro)]
 fn is_corporate_character(c: char) -> bool {
