@@ -48,6 +48,12 @@ impl Inner {
     debug!("`Window::set_title` is ignored on iOS")
   }
 
+  /// Set menu
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows/Linux:** Unsupported (noop).
+  ///
   pub fn set_menu(&self, _menu: Option<Vec<Menu>>) {
     debug!("`Window::set_menu` is ignored on iOS")
   }

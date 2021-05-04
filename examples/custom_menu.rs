@@ -79,8 +79,8 @@ fn main() {
       }
       // not sure if we should add a new event type?
       // or try to re-use the UserEvent::<T>
-      Event::MenuEvent(menu_id) => {
-        if menu_id == "change_menu" {
+      Event::MenuEvent(unique_menu_id) => {
+        if unique_menu_id == "change_menu" {
           // update menu
           window.set_menu(Some(vec![Menu::new(
             "File",
@@ -92,7 +92,7 @@ fn main() {
           )]))
         }
 
-        println!("Clicked on {}", menu_id);
+        println!("Clicked on {}", unique_menu_id);
         window.set_title("New window title!");
       }
       _ => (),

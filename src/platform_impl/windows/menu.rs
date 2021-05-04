@@ -1,32 +1,11 @@
 use raw_window_handle::RawWindowHandle;
 use std::os::windows::ffi::OsStrExt;
 use winapi::{
-  ctypes::c_void,
-  shared::{
-    basetsd,
-    guiddef::REFIID,
-    minwindef,
-    minwindef::{DWORD, UINT, ULONG},
-    windef,
-    windef::{HWND, POINTL},
-    winerror::S_OK,
-  },
-  um::{
-    commctrl,
-    objidl::IDataObject,
-    oleidl::{IDropTarget, IDropTargetVtbl, DROPEFFECT_COPY, DROPEFFECT_NONE},
-    shellapi, unknwnbase,
-    winnt::HRESULT,
-    winuser,
-  },
+  shared::{basetsd, minwindef, windef, windef::HWND},
+  um::{commctrl, winuser},
 };
 
-use std::{
-  cell::RefCell,
-  collections::HashMap,
-  ptr,
-  sync::atomic::{AtomicUsize, Ordering},
-};
+use std::{cell::RefCell, collections::HashMap};
 
 use crate::menu::{Menu, MenuItem};
 use crate::{event::Event, window::WindowId as SuperWindowId};
@@ -89,23 +68,8 @@ pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler:
 
               make_menu_item(Some(current_id.clone()), custom_menu.name.as_str())
             }
-            MenuItem::Separator => None,
-            MenuItem::About(_app_name) => make_menu_item(None, "About"),
-            MenuItem::CloseWindow => make_menu_item(None, "Close"),
-            MenuItem::Quit => make_menu_item(None, "Quit"),
-            MenuItem::Hide => make_menu_item(None, "Hide"),
-            MenuItem::HideOthers => make_menu_item(None, "Hide Others"),
-            MenuItem::ShowAll => make_menu_item(None, "Show All"),
-            MenuItem::EnterFullScreen => make_menu_item(None, "Enter Full Screen"),
-            MenuItem::Minimize => make_menu_item(None, "Minimize"),
-            MenuItem::Zoom => make_menu_item(None, "Zoom"),
-            MenuItem::Copy => make_menu_item(None, "Copy"),
-            MenuItem::Cut => make_menu_item(None, "Cut"),
-            MenuItem::Paste => make_menu_item(None, "Paste"),
-            MenuItem::Undo => make_menu_item(None, "Undo"),
-            MenuItem::Redo => make_menu_item(None, "Redo"),
-            MenuItem::SelectAll => make_menu_item(None, "Select All"),
-            MenuItem::Services => None,
+            // Let's support only custom menu in windows for now
+            _ => None,
           };
           if let Some(sub_item) = sub_item {
             sub_menu_position += 1;

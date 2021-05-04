@@ -4,8 +4,8 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error, event,
   event_loop::{self, ControlFlow},
-  monitor, window,
   menu::Menu,
+  monitor, window,
 };
 use ndk::{
   configuration::Configuration,
@@ -495,6 +495,12 @@ impl Window {
 
   pub fn set_title(&self, _title: &str) {}
 
+  /// Set menu
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows/Linux:** Unsupported (noop).
+  ///
   pub fn set_menu(&self, _menu: Option<Vec<Menu>>) {}
 
   pub fn set_visible(&self, _visibility: bool) {}

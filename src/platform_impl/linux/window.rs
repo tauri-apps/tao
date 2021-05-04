@@ -21,9 +21,9 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::{BadIcon, Icon},
+  menu::Menu,
   monitor::MonitorHandle as RootMonitorHandle,
   window::{CursorIcon, Fullscreen, UserAttentionType, WindowAttributes},
-  menu::Menu,
 };
 
 use super::{event_loop::EventLoopWindowTarget, monitor::MonitorHandle};
@@ -403,6 +403,12 @@ impl Window {
     }
   }
 
+  /// Set menu
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows/Linux:** Unsupported (noop).
+  ///
   pub fn set_menu(&self, _menu: Option<Vec<Menu>>) {
     debug!("`Window::set_menu` is ignored on linux")
   }

@@ -135,7 +135,12 @@ impl Window {
     }
   }
 
-  /// Noop on windows
+  /// Set menu
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows/Linux:** Unsupported (noop).
+  ///  
   // todo(lemarier): allow menu update
   pub fn set_menu(&self, new_menu: Option<Vec<Menu>>) {}
 
