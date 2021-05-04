@@ -160,8 +160,8 @@ impl Window {
   #[inline]
   pub fn outer_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
     util::get_window_rect(self.window.0)
-            .map(|rect| Ok(PhysicalPosition::new(rect.left as i32, rect.top as i32)))
-            .expect("Unexpected GetWindowRect failure")
+      .map(|rect| Ok(PhysicalPosition::new(rect.left as i32, rect.top as i32)))
+      .expect("Unexpected GetWindowRect failure")
   }
 
   #[inline]

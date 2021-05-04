@@ -411,8 +411,8 @@ unsafe fn get_window_class() -> &'static Class {
       }
     }
 
-    let mut decl = ClassDecl::new("TaoUIWindow", uiwindow_class)
-      .expect("Failed to declare class `TaoUIWindow`");
+    let mut decl =
+      ClassDecl::new("TaoUIWindow", uiwindow_class).expect("Failed to declare class `TaoUIWindow`");
     decl.add_method(
       sel!(becomeKeyWindow),
       become_key_window as extern "C" fn(&Object, Sel),
