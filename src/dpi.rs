@@ -35,7 +35,7 @@
 //!
 //! ### Position and Size types
 //!
-//! Winit's `Physical(Position|Size)` types correspond with the actual pixels on the device, and the
+//! Tao's `Physical(Position|Size)` types correspond with the actual pixels on the device, and the
 //! `Logical(Position|Size)` types correspond to the physical pixels divided by the scale factor.
 //! All of Winit's functions return physical types, but can take either logical or physical
 //! coordinates as input, allowing you to use the most convenient coordinate system for your
@@ -89,9 +89,6 @@
 //!   information.
 //! - **Android:** Scale factors are set by the manufacturer to the value that best suits the
 //!   device, and range from `1.0` to `4.0`. See [this article][android_1] for more information.
-//! - **Web:** The scale factor is the ratio between CSS pixels and the physical device pixels.
-//!   In other words, it is the value of [`window.devicePixelRatio`][web_1]. It is affected by
-//!   both the screen scaling and the browser zoom level and can go below `1.0`.
 //!
 //! [points]: https://en.wikipedia.org/wiki/Point_(typography)
 //! [picas]: https://en.wikipedia.org/wiki/Pica_(typography)
@@ -99,54 +96,53 @@
 //! [apple_1]: https://developer.apple.com/library/archive/documentation/DeviceInformation/Reference/iOSDeviceCompatibility/Displays/Displays.html
 //! [apple_2]: https://developer.apple.com/design/human-interface-guidelines/macos/icons-and-images/image-size-and-resolution/
 //! [android_1]: https://developer.android.com/training/multiscreen/screendensities
-//! [web_1]: https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio
 
 pub trait Pixel: Copy + Into<f64> {
-    fn from_f64(f: f64) -> Self;
-    fn cast<P: Pixel>(self) -> P {
-        P::from_f64(self.into())
-    }
+  fn from_f64(f: f64) -> Self;
+  fn cast<P: Pixel>(self) -> P {
+    P::from_f64(self.into())
+  }
 }
 
 impl Pixel for u8 {
-    fn from_f64(f: f64) -> Self {
-        f.round() as u8
-    }
+  fn from_f64(f: f64) -> Self {
+    f.round() as u8
+  }
 }
 impl Pixel for u16 {
-    fn from_f64(f: f64) -> Self {
-        f.round() as u16
-    }
+  fn from_f64(f: f64) -> Self {
+    f.round() as u16
+  }
 }
 impl Pixel for u32 {
-    fn from_f64(f: f64) -> Self {
-        f.round() as u32
-    }
+  fn from_f64(f: f64) -> Self {
+    f.round() as u32
+  }
 }
 impl Pixel for i8 {
-    fn from_f64(f: f64) -> Self {
-        f.round() as i8
-    }
+  fn from_f64(f: f64) -> Self {
+    f.round() as i8
+  }
 }
 impl Pixel for i16 {
-    fn from_f64(f: f64) -> Self {
-        f.round() as i16
-    }
+  fn from_f64(f: f64) -> Self {
+    f.round() as i16
+  }
 }
 impl Pixel for i32 {
-    fn from_f64(f: f64) -> Self {
-        f.round() as i32
-    }
+  fn from_f64(f: f64) -> Self {
+    f.round() as i32
+  }
 }
 impl Pixel for f32 {
-    fn from_f64(f: f64) -> Self {
-        f as f32
-    }
+  fn from_f64(f: f64) -> Self {
+    f as f32
+  }
 }
 impl Pixel for f64 {
-    fn from_f64(f: f64) -> Self {
-        f
-    }
+  fn from_f64(f: f64) -> Self {
+    f
+  }
 }
 
 /// Checks that the scale factor is a normal positive `f64`.
@@ -156,7 +152,7 @@ impl Pixel for f64 {
 /// otherwise, you risk panics.
 #[inline]
 pub fn validate_scale_factor(scale_factor: f64) -> bool {
-    scale_factor.is_sign_positive() && scale_factor.is_normal()
+  scale_factor.is_sign_positive() && scale_factor.is_normal()
 }
 
 /// A position represented in logical pixels.
@@ -167,339 +163,336 @@ pub fn validate_scale_factor(scale_factor: f64) -> bool {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct LogicalPosition<P> {
-    pub x: P,
-    pub y: P,
+  pub x: P,
+  pub y: P,
 }
 
 impl<P> LogicalPosition<P> {
-    #[inline]
-    pub const fn new(x: P, y: P) -> Self {
-        LogicalPosition { x, y }
-    }
+  #[inline]
+  pub const fn new(x: P, y: P) -> Self {
+    LogicalPosition { x, y }
+  }
 }
 
 impl<P: Pixel> LogicalPosition<P> {
-    #[inline]
-    pub fn from_physical<T: Into<PhysicalPosition<X>>, X: Pixel>(
-        physical: T,
-        scale_factor: f64,
-    ) -> Self {
-        physical.into().to_logical(scale_factor)
-    }
+  #[inline]
+  pub fn from_physical<T: Into<PhysicalPosition<X>>, X: Pixel>(
+    physical: T,
+    scale_factor: f64,
+  ) -> Self {
+    physical.into().to_logical(scale_factor)
+  }
 
-    #[inline]
-    pub fn to_physical<X: Pixel>(&self, scale_factor: f64) -> PhysicalPosition<X> {
-        assert!(validate_scale_factor(scale_factor));
-        let x = self.x.into() * scale_factor;
-        let y = self.y.into() * scale_factor;
-        PhysicalPosition::new(x, y).cast()
-    }
+  #[inline]
+  pub fn to_physical<X: Pixel>(&self, scale_factor: f64) -> PhysicalPosition<X> {
+    assert!(validate_scale_factor(scale_factor));
+    let x = self.x.into() * scale_factor;
+    let y = self.y.into() * scale_factor;
+    PhysicalPosition::new(x, y).cast()
+  }
 
-    #[inline]
-    pub fn cast<X: Pixel>(&self) -> LogicalPosition<X> {
-        LogicalPosition {
-            x: self.x.cast(),
-            y: self.y.cast(),
-        }
+  #[inline]
+  pub fn cast<X: Pixel>(&self) -> LogicalPosition<X> {
+    LogicalPosition {
+      x: self.x.cast(),
+      y: self.y.cast(),
     }
+  }
 }
 
 impl<P: Pixel, X: Pixel> From<(X, X)> for LogicalPosition<P> {
-    fn from((x, y): (X, X)) -> LogicalPosition<P> {
-        LogicalPosition::new(x.cast(), y.cast())
-    }
+  fn from((x, y): (X, X)) -> LogicalPosition<P> {
+    LogicalPosition::new(x.cast(), y.cast())
+  }
 }
 
 impl<P: Pixel, X: Pixel> Into<(X, X)> for LogicalPosition<P> {
-    fn into(self: Self) -> (X, X) {
-        (self.x.cast(), self.y.cast())
-    }
+  fn into(self) -> (X, X) {
+    (self.x.cast(), self.y.cast())
+  }
 }
 
 impl<P: Pixel, X: Pixel> From<[X; 2]> for LogicalPosition<P> {
-    fn from([x, y]: [X; 2]) -> LogicalPosition<P> {
-        LogicalPosition::new(x.cast(), y.cast())
-    }
+  fn from([x, y]: [X; 2]) -> LogicalPosition<P> {
+    LogicalPosition::new(x.cast(), y.cast())
+  }
 }
 
 impl<P: Pixel, X: Pixel> Into<[X; 2]> for LogicalPosition<P> {
-    fn into(self: Self) -> [X; 2] {
-        [self.x.cast(), self.y.cast()]
-    }
+  fn into(self) -> [X; 2] {
+    [self.x.cast(), self.y.cast()]
+  }
 }
 
 /// A position represented in physical pixels.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PhysicalPosition<P> {
-    pub x: P,
-    pub y: P,
+  pub x: P,
+  pub y: P,
 }
 
 impl<P> PhysicalPosition<P> {
-    #[inline]
-    pub const fn new(x: P, y: P) -> Self {
-        PhysicalPosition { x, y }
-    }
+  #[inline]
+  pub const fn new(x: P, y: P) -> Self {
+    PhysicalPosition { x, y }
+  }
 }
 
 impl<P: Pixel> PhysicalPosition<P> {
-    #[inline]
-    pub fn from_logical<T: Into<LogicalPosition<X>>, X: Pixel>(
-        logical: T,
-        scale_factor: f64,
-    ) -> Self {
-        logical.into().to_physical(scale_factor)
-    }
+  #[inline]
+  pub fn from_logical<T: Into<LogicalPosition<X>>, X: Pixel>(
+    logical: T,
+    scale_factor: f64,
+  ) -> Self {
+    logical.into().to_physical(scale_factor)
+  }
 
-    #[inline]
-    pub fn to_logical<X: Pixel>(&self, scale_factor: f64) -> LogicalPosition<X> {
-        assert!(validate_scale_factor(scale_factor));
-        let x = self.x.into() / scale_factor;
-        let y = self.y.into() / scale_factor;
-        LogicalPosition::new(x, y).cast()
-    }
+  #[inline]
+  pub fn to_logical<X: Pixel>(&self, scale_factor: f64) -> LogicalPosition<X> {
+    assert!(validate_scale_factor(scale_factor));
+    let x = self.x.into() / scale_factor;
+    let y = self.y.into() / scale_factor;
+    LogicalPosition::new(x, y).cast()
+  }
 
-    #[inline]
-    pub fn cast<X: Pixel>(&self) -> PhysicalPosition<X> {
-        PhysicalPosition {
-            x: self.x.cast(),
-            y: self.y.cast(),
-        }
+  #[inline]
+  pub fn cast<X: Pixel>(&self) -> PhysicalPosition<X> {
+    PhysicalPosition {
+      x: self.x.cast(),
+      y: self.y.cast(),
     }
+  }
 }
 
 impl<P: Pixel, X: Pixel> From<(X, X)> for PhysicalPosition<P> {
-    fn from((x, y): (X, X)) -> PhysicalPosition<P> {
-        PhysicalPosition::new(x.cast(), y.cast())
-    }
+  fn from((x, y): (X, X)) -> PhysicalPosition<P> {
+    PhysicalPosition::new(x.cast(), y.cast())
+  }
 }
 
 impl<P: Pixel, X: Pixel> Into<(X, X)> for PhysicalPosition<P> {
-    fn into(self: Self) -> (X, X) {
-        (self.x.cast(), self.y.cast())
-    }
+  fn into(self) -> (X, X) {
+    (self.x.cast(), self.y.cast())
+  }
 }
 
 impl<P: Pixel, X: Pixel> From<[X; 2]> for PhysicalPosition<P> {
-    fn from([x, y]: [X; 2]) -> PhysicalPosition<P> {
-        PhysicalPosition::new(x.cast(), y.cast())
-    }
+  fn from([x, y]: [X; 2]) -> PhysicalPosition<P> {
+    PhysicalPosition::new(x.cast(), y.cast())
+  }
 }
 
 impl<P: Pixel, X: Pixel> Into<[X; 2]> for PhysicalPosition<P> {
-    fn into(self: Self) -> [X; 2] {
-        [self.x.cast(), self.y.cast()]
-    }
+  fn into(self) -> [X; 2] {
+    [self.x.cast(), self.y.cast()]
+  }
 }
 
 /// A size represented in logical pixels.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct LogicalSize<P> {
-    pub width: P,
-    pub height: P,
+  pub width: P,
+  pub height: P,
 }
 
 impl<P> LogicalSize<P> {
-    #[inline]
-    pub const fn new(width: P, height: P) -> Self {
-        LogicalSize { width, height }
-    }
+  #[inline]
+  pub const fn new(width: P, height: P) -> Self {
+    LogicalSize { width, height }
+  }
 }
 
 impl<P: Pixel> LogicalSize<P> {
-    #[inline]
-    pub fn from_physical<T: Into<PhysicalSize<X>>, X: Pixel>(
-        physical: T,
-        scale_factor: f64,
-    ) -> Self {
-        physical.into().to_logical(scale_factor)
-    }
+  #[inline]
+  pub fn from_physical<T: Into<PhysicalSize<X>>, X: Pixel>(physical: T, scale_factor: f64) -> Self {
+    physical.into().to_logical(scale_factor)
+  }
 
-    #[inline]
-    pub fn to_physical<X: Pixel>(&self, scale_factor: f64) -> PhysicalSize<X> {
-        assert!(validate_scale_factor(scale_factor));
-        let width = self.width.into() * scale_factor;
-        let height = self.height.into() * scale_factor;
-        PhysicalSize::new(width, height).cast()
-    }
+  #[inline]
+  pub fn to_physical<X: Pixel>(&self, scale_factor: f64) -> PhysicalSize<X> {
+    assert!(validate_scale_factor(scale_factor));
+    let width = self.width.into() * scale_factor;
+    let height = self.height.into() * scale_factor;
+    PhysicalSize::new(width, height).cast()
+  }
 
-    #[inline]
-    pub fn cast<X: Pixel>(&self) -> LogicalSize<X> {
-        LogicalSize {
-            width: self.width.cast(),
-            height: self.height.cast(),
-        }
+  #[inline]
+  pub fn cast<X: Pixel>(&self) -> LogicalSize<X> {
+    LogicalSize {
+      width: self.width.cast(),
+      height: self.height.cast(),
     }
+  }
 }
 
 impl<P: Pixel, X: Pixel> From<(X, X)> for LogicalSize<P> {
-    fn from((x, y): (X, X)) -> LogicalSize<P> {
-        LogicalSize::new(x.cast(), y.cast())
-    }
+  fn from((x, y): (X, X)) -> LogicalSize<P> {
+    LogicalSize::new(x.cast(), y.cast())
+  }
 }
 
 impl<P: Pixel, X: Pixel> Into<(X, X)> for LogicalSize<P> {
-    fn into(self: LogicalSize<P>) -> (X, X) {
-        (self.width.cast(), self.height.cast())
-    }
+  fn into(self: LogicalSize<P>) -> (X, X) {
+    (self.width.cast(), self.height.cast())
+  }
 }
 
 impl<P: Pixel, X: Pixel> From<[X; 2]> for LogicalSize<P> {
-    fn from([x, y]: [X; 2]) -> LogicalSize<P> {
-        LogicalSize::new(x.cast(), y.cast())
-    }
+  fn from([x, y]: [X; 2]) -> LogicalSize<P> {
+    LogicalSize::new(x.cast(), y.cast())
+  }
 }
 
 impl<P: Pixel, X: Pixel> Into<[X; 2]> for LogicalSize<P> {
-    fn into(self: Self) -> [X; 2] {
-        [self.width.cast(), self.height.cast()]
-    }
+  fn into(self) -> [X; 2] {
+    [self.width.cast(), self.height.cast()]
+  }
 }
 
 /// A size represented in physical pixels.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PhysicalSize<P> {
-    pub width: P,
-    pub height: P,
+  pub width: P,
+  pub height: P,
 }
 
 impl<P> PhysicalSize<P> {
-    #[inline]
-    pub const fn new(width: P, height: P) -> Self {
-        PhysicalSize { width, height }
-    }
+  #[inline]
+  pub const fn new(width: P, height: P) -> Self {
+    PhysicalSize { width, height }
+  }
 }
 
 impl<P: Pixel> PhysicalSize<P> {
-    #[inline]
-    pub fn from_logical<T: Into<LogicalSize<X>>, X: Pixel>(logical: T, scale_factor: f64) -> Self {
-        logical.into().to_physical(scale_factor)
-    }
+  #[inline]
+  pub fn from_logical<T: Into<LogicalSize<X>>, X: Pixel>(logical: T, scale_factor: f64) -> Self {
+    logical.into().to_physical(scale_factor)
+  }
 
-    #[inline]
-    pub fn to_logical<X: Pixel>(&self, scale_factor: f64) -> LogicalSize<X> {
-        assert!(validate_scale_factor(scale_factor));
-        let width = self.width.into() / scale_factor;
-        let height = self.height.into() / scale_factor;
-        LogicalSize::new(width, height).cast()
-    }
+  #[inline]
+  pub fn to_logical<X: Pixel>(&self, scale_factor: f64) -> LogicalSize<X> {
+    assert!(validate_scale_factor(scale_factor));
+    let width = self.width.into() / scale_factor;
+    let height = self.height.into() / scale_factor;
+    LogicalSize::new(width, height).cast()
+  }
 
-    #[inline]
-    pub fn cast<X: Pixel>(&self) -> PhysicalSize<X> {
-        PhysicalSize {
-            width: self.width.cast(),
-            height: self.height.cast(),
-        }
+  #[inline]
+  pub fn cast<X: Pixel>(&self) -> PhysicalSize<X> {
+    PhysicalSize {
+      width: self.width.cast(),
+      height: self.height.cast(),
     }
+  }
 }
 
 impl<P: Pixel, X: Pixel> From<(X, X)> for PhysicalSize<P> {
-    fn from((x, y): (X, X)) -> PhysicalSize<P> {
-        PhysicalSize::new(x.cast(), y.cast())
-    }
+  fn from((x, y): (X, X)) -> PhysicalSize<P> {
+    PhysicalSize::new(x.cast(), y.cast())
+  }
 }
 
 impl<P: Pixel, X: Pixel> Into<(X, X)> for PhysicalSize<P> {
-    fn into(self: Self) -> (X, X) {
-        (self.width.cast(), self.height.cast())
-    }
+  fn into(self) -> (X, X) {
+    (self.width.cast(), self.height.cast())
+  }
 }
 
 impl<P: Pixel, X: Pixel> From<[X; 2]> for PhysicalSize<P> {
-    fn from([x, y]: [X; 2]) -> PhysicalSize<P> {
-        PhysicalSize::new(x.cast(), y.cast())
-    }
+  fn from([x, y]: [X; 2]) -> PhysicalSize<P> {
+    PhysicalSize::new(x.cast(), y.cast())
+  }
 }
 
 impl<P: Pixel, X: Pixel> Into<[X; 2]> for PhysicalSize<P> {
-    fn into(self: Self) -> [X; 2] {
-        [self.width.cast(), self.height.cast()]
-    }
+  fn into(self) -> [X; 2] {
+    [self.width.cast(), self.height.cast()]
+  }
 }
 
 /// A size that's either physical or logical.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Size {
-    Physical(PhysicalSize<u32>),
-    Logical(LogicalSize<f64>),
+  Physical(PhysicalSize<u32>),
+  Logical(LogicalSize<f64>),
 }
 
 impl Size {
-    pub fn new<S: Into<Size>>(size: S) -> Size {
-        size.into()
-    }
+  pub fn new<S: Into<Size>>(size: S) -> Size {
+    size.into()
+  }
 
-    pub fn to_logical<P: Pixel>(&self, scale_factor: f64) -> LogicalSize<P> {
-        match *self {
-            Size::Physical(size) => size.to_logical(scale_factor),
-            Size::Logical(size) => size.cast(),
-        }
+  pub fn to_logical<P: Pixel>(&self, scale_factor: f64) -> LogicalSize<P> {
+    match *self {
+      Size::Physical(size) => size.to_logical(scale_factor),
+      Size::Logical(size) => size.cast(),
     }
+  }
 
-    pub fn to_physical<P: Pixel>(&self, scale_factor: f64) -> PhysicalSize<P> {
-        match *self {
-            Size::Physical(size) => size.cast(),
-            Size::Logical(size) => size.to_physical(scale_factor),
-        }
+  pub fn to_physical<P: Pixel>(&self, scale_factor: f64) -> PhysicalSize<P> {
+    match *self {
+      Size::Physical(size) => size.cast(),
+      Size::Logical(size) => size.to_physical(scale_factor),
     }
+  }
 }
 
 impl<P: Pixel> From<PhysicalSize<P>> for Size {
-    #[inline]
-    fn from(size: PhysicalSize<P>) -> Size {
-        Size::Physical(size.cast())
-    }
+  #[inline]
+  fn from(size: PhysicalSize<P>) -> Size {
+    Size::Physical(size.cast())
+  }
 }
 
 impl<P: Pixel> From<LogicalSize<P>> for Size {
-    #[inline]
-    fn from(size: LogicalSize<P>) -> Size {
-        Size::Logical(size.cast())
-    }
+  #[inline]
+  fn from(size: LogicalSize<P>) -> Size {
+    Size::Logical(size.cast())
+  }
 }
 
 /// A position that's either physical or logical.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Position {
-    Physical(PhysicalPosition<i32>),
-    Logical(LogicalPosition<f64>),
+  Physical(PhysicalPosition<i32>),
+  Logical(LogicalPosition<f64>),
 }
 
 impl Position {
-    pub fn new<S: Into<Position>>(position: S) -> Position {
-        position.into()
-    }
+  pub fn new<S: Into<Position>>(position: S) -> Position {
+    position.into()
+  }
 
-    pub fn to_logical<P: Pixel>(&self, scale_factor: f64) -> LogicalPosition<P> {
-        match *self {
-            Position::Physical(position) => position.to_logical(scale_factor),
-            Position::Logical(position) => position.cast(),
-        }
+  pub fn to_logical<P: Pixel>(&self, scale_factor: f64) -> LogicalPosition<P> {
+    match *self {
+      Position::Physical(position) => position.to_logical(scale_factor),
+      Position::Logical(position) => position.cast(),
     }
+  }
 
-    pub fn to_physical<P: Pixel>(&self, scale_factor: f64) -> PhysicalPosition<P> {
-        match *self {
-            Position::Physical(position) => position.cast(),
-            Position::Logical(position) => position.to_physical(scale_factor),
-        }
+  pub fn to_physical<P: Pixel>(&self, scale_factor: f64) -> PhysicalPosition<P> {
+    match *self {
+      Position::Physical(position) => position.cast(),
+      Position::Logical(position) => position.to_physical(scale_factor),
     }
+  }
 }
 
 impl<P: Pixel> From<PhysicalPosition<P>> for Position {
-    #[inline]
-    fn from(position: PhysicalPosition<P>) -> Position {
-        Position::Physical(position.cast())
-    }
+  #[inline]
+  fn from(position: PhysicalPosition<P>) -> Position {
+    Position::Physical(position.cast())
+  }
 }
 
 impl<P: Pixel> From<LogicalPosition<P>> for Position {
-    #[inline]
-    fn from(position: LogicalPosition<P>) -> Position {
-        Position::Logical(position.cast())
-    }
+  #[inline]
+  fn from(position: LogicalPosition<P>) -> Position {
+    Position::Logical(position.cast())
+  }
 }

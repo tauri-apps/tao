@@ -78,24 +78,24 @@ mod window;
 use std::fmt;
 
 pub use self::{
-    event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
-    monitor::{MonitorHandle, VideoMode},
-    window::{PlatformSpecificWindowBuilderAttributes, Window, WindowId},
+  event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
+  monitor::{MonitorHandle, VideoMode},
+  window::{PlatformSpecificWindowBuilderAttributes, Window, WindowId},
 };
 
 pub(crate) use crate::icon::NoIcon as PlatformIcon;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DeviceId {
-    uiscreen: ffi::id,
+  uiscreen: ffi::id,
 }
 
 impl DeviceId {
-    pub unsafe fn dummy() -> Self {
-        DeviceId {
-            uiscreen: std::ptr::null_mut(),
-        }
+  pub unsafe fn dummy() -> Self {
+    DeviceId {
+      uiscreen: std::ptr::null_mut(),
     }
+  }
 }
 
 unsafe impl Send for DeviceId {}
@@ -105,9 +105,9 @@ unsafe impl Sync for DeviceId {}
 pub enum OsError {}
 
 impl fmt::Display for OsError {
-    fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            _ => unreachable!(),
-        }
+  fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      _ => unreachable!(),
     }
+  }
 }

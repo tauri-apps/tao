@@ -6,7 +6,7 @@
 //! [`EventLoop::new()`] function.
 //!
 //! ```no_run
-//! use winit::event_loop::EventLoop;
+//! use tao::event_loop::EventLoop;
 //! let event_loop = EventLoop::new();
 //! ```
 //!
@@ -42,7 +42,7 @@
 //!
 //!
 //! ```no_run
-//! use winit::{
+//! use tao::{
 //!     event::{Event, WindowEvent},
 //!     event_loop::{ControlFlow, EventLoop},
 //!     window::WindowBuilder,
@@ -128,7 +128,15 @@
 //! [`LoopDestroyed`]: event::Event::LoopDestroyed
 //! [`platform`]: platform
 //! [`raw_window_handle`]: ./window/struct.Window.html#method.raw_window_handle
-
+#![allow(
+  clippy::upper_case_acronyms,
+  clippy::from_over_into,
+  clippy::option_map_unit_fn,
+  clippy::needless_lifetimes,
+  clippy::type_complexity,
+  clippy::identity_op,
+  clippy::wrong_self_convention
+)]
 #![deny(rust_2018_idioms)]
 #![deny(broken_intra_doc_links)]
 
@@ -146,8 +154,6 @@ extern crate bitflags;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 #[macro_use]
 extern crate objc;
-#[cfg(all(target_arch = "wasm32", feature = "std_web"))]
-extern crate std_web as stdweb;
 
 pub mod dpi;
 #[macro_use]

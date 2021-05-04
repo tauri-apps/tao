@@ -1,8 +1,36 @@
-- [ ] Tested on all platforms changed
-- [ ] Compilation warnings were addressed
-- [ ] `cargo fmt` has been run on this branch
-- [ ] `cargo doc` builds successfully
-- [ ] Added an entry to `CHANGELOG.md` if knowledge of this change could be valuable to users
-- [ ] Updated documentation to reflect any user-facing changes, including notes of platform-specific behavior
-- [ ] Created or updated an example program if it would help users understand this functionality
-- [ ] Updated [feature matrix](https://github.com/rust-windowing/winit/blob/master/FEATURES.md), if new features were added or implemented
+<!--
+Please make sure to read the Pull Request Guidelines:
+https://github.com/tauri-apps/tauri/blob/dev/.github/CONTRIBUTING.md#pull-request-guidelines
+-->
+
+<!-- PULL REQUEST TEMPLATE -->
+<!-- (Update "[ ]" to "[x]" to check a box) -->
+
+**What kind of change does this PR introduce?** (check at least one)
+
+- [ ] Bugfix
+- [ ] Feature
+- [ ] Code style update
+- [ ] Refactor
+- [ ] Documentation
+- [ ] Build-related changes
+- [ ] Other, please describe:
+
+**Does this PR introduce a breaking change?** (check one)
+<!--
+If yes, please describe the impact and migration path for existing applications in an attached issue. Filing a PR with breaking changes that has not been discussed and approved by the maintainers in an issue will be immediately closed.
+-->
+
+- [ ] Yes. Issue #___
+- [ ] No
+
+
+**The PR fulfills these requirements:**
+
+- [ ] When resolving a specific issue, it's referenced in the PR's title (e.g. `fix: #xxx[,#xxx]`, where "xxx" is the issue number)
+- [ ] A change file is added if any packages will require a version bump due to this PR per [the instructions in the readme](https://github.com/tauri-apps/tauri/blob/dev/.changes/readme.md).
+
+If adding a **new feature**, the PR's description includes:
+- [ ] A convincing reason for adding this feature (to avoid wasting your time, it's best to open a suggestion issue first and wait for approval before working on it)
+
+**Other information:**
