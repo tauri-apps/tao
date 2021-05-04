@@ -18,8 +18,7 @@ use crate::{
   dpi::{LogicalPosition, LogicalSize},
   event::{Event, ModifiersState, WindowEvent},
   platform_impl::platform::{
-    app_state::AppState,
-    app_state::INTERRUPT_EVENT_LOOP_EXIT,
+    app_state::{AppState, INTERRUPT_EVENT_LOOP_EXIT},
     event::{EventProxy, EventWrapper},
     util::{self, IdRef},
     view::ViewState,

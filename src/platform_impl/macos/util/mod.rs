@@ -13,8 +13,7 @@ use cocoa::{
 use core_graphics::display::CGDisplay;
 use objc::runtime::{Class, Object, Sel, BOOL, YES};
 
-use crate::dpi::LogicalPosition;
-use crate::platform_impl::platform::ffi;
+use crate::{dpi::LogicalPosition, platform_impl::platform::ffi};
 
 // Replace with `!` once stable
 #[derive(Debug)]

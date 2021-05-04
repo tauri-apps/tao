@@ -3,7 +3,7 @@ use cocoa::{
   base::{id, nil},
   foundation::{NSDictionary, NSPoint, NSString},
 };
-use objc::{runtime::Sel, runtime::NO};
+use objc::runtime::{Sel, NO};
 use std::cell::RefCell;
 
 use crate::window::CursorIcon;

@@ -6,12 +6,10 @@ use winapi::{
     minwindef::{BYTE, LPARAM, WORD, WPARAM},
     windef::{HICON, HWND},
   },
-  um::libloaderapi,
-  um::winuser,
+  um::{libloaderapi, winuser},
 };
 
-use crate::dpi::PhysicalSize;
-use crate::icon::*;
+use crate::{dpi::PhysicalSize, icon::*};
 
 impl Pixel {
   fn to_bgra(&mut self) {

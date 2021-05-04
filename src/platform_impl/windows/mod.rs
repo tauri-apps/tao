@@ -1,6 +1,9 @@
 #![cfg(target_os = "windows")]
 
-use winapi::{self, shared::windef::HMENU, shared::windef::HWND};
+use winapi::{
+  self,
+  shared::windef::{HMENU, HWND},
+};
 
 pub use self::{
   event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
@@ -11,9 +14,7 @@ pub use self::{
 
 pub use self::icon::WinIcon as PlatformIcon;
 
-use crate::event::DeviceId as RootDeviceId;
-use crate::icon::Icon;
-use crate::window::Theme;
+use crate::{event::DeviceId as RootDeviceId, icon::Icon, window::Theme};
 
 #[derive(Clone)]
 pub enum Parent {

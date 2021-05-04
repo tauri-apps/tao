@@ -25,8 +25,7 @@ use crate::{
   window::{CursorIcon, Fullscreen, UserAttentionType, WindowAttributes},
 };
 
-use super::event_loop::EventLoopWindowTarget;
-use super::monitor::MonitorHandle;
+use super::{event_loop::EventLoopWindowTarget, monitor::MonitorHandle};
 
 #[derive(Clone, Default)]
 pub struct PlatformSpecificWindowBuilderAttributes {}

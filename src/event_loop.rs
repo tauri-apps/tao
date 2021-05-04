@@ -10,8 +10,7 @@
 //! [event_loop_proxy]: crate::event_loop::EventLoopProxy
 //! [send_event]: crate::event_loop::EventLoopProxy::send_event
 use instant::Instant;
-use std::ops::Deref;
-use std::{error, fmt};
+use std::{error, fmt, ops::Deref};
 
 use crate::{event::Event, monitor::MonitorHandle, platform_impl};
 

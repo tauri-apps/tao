@@ -1,10 +1,12 @@
 use std::io::{stdin, stdout, Write};
 
 use simple_logger::SimpleLogger;
-use tao::event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent};
-use tao::event_loop::{ControlFlow, EventLoop};
-use tao::monitor::{MonitorHandle, VideoMode};
-use tao::window::{Fullscreen, WindowBuilder};
+use tao::{
+  event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
+  event_loop::{ControlFlow, EventLoop},
+  monitor::{MonitorHandle, VideoMode},
+  window::{Fullscreen, WindowBuilder},
+};
 #[allow(clippy::single_match)]
 #[allow(clippy::ok_expect)]
 fn main() {

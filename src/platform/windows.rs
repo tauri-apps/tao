@@ -1,11 +1,12 @@
 #![cfg(target_os = "windows")]
 
-use std::os::raw::c_void;
-use std::path::Path;
+use std::{os::raw::c_void, path::Path};
 
 use libc;
-use winapi::shared::minwindef::WORD;
-use winapi::shared::windef::{HMENU, HWND};
+use winapi::shared::{
+  minwindef::WORD,
+  windef::{HMENU, HWND},
+};
 
 use crate::{
   dpi::PhysicalSize,

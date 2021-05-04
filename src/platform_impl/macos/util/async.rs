@@ -9,8 +9,7 @@ use cocoa::{
   foundation::{NSPoint, NSSize, NSString},
 };
 use dispatch::Queue;
-use objc::rc::autoreleasepool;
-use objc::runtime::NO;
+use objc::{rc::autoreleasepool, runtime::NO};
 
 use crate::{
   dpi::LogicalSize,

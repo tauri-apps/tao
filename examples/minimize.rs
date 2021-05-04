@@ -1,9 +1,11 @@
 extern crate tao;
 
 use simple_logger::SimpleLogger;
-use tao::event::{Event, VirtualKeyCode, WindowEvent};
-use tao::event_loop::{ControlFlow, EventLoop};
-use tao::window::WindowBuilder;
+use tao::{
+  event::{Event, VirtualKeyCode, WindowEvent},
+  event_loop::{ControlFlow, EventLoop},
+  window::WindowBuilder,
+};
 
 #[allow(clippy::single_match)]
 fn main() {

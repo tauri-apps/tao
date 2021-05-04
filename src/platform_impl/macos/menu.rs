@@ -1,6 +1,8 @@
-use cocoa::appkit::{NSApp, NSApplication, NSEventModifierFlags, NSMenu, NSMenuItem};
-use cocoa::base::{nil, selector};
-use cocoa::foundation::{NSAutoreleasePool, NSProcessInfo, NSString};
+use cocoa::{
+  appkit::{NSApp, NSApplication, NSEventModifierFlags, NSMenu, NSMenuItem},
+  base::{nil, selector},
+  foundation::{NSAutoreleasePool, NSProcessInfo, NSString},
+};
 use objc::{
   rc::autoreleasepool,
   runtime::{Object, Sel},
