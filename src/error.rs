@@ -2,7 +2,7 @@ use std::{error, fmt};
 
 use crate::platform_impl;
 
-/// An error whose cause it outside Winit's control.
+/// An error whose cause it outside Tao's control.
 #[derive(Debug)]
 pub enum ExternalError {
   /// The operation is not supported by the backend.
@@ -73,7 +73,7 @@ impl fmt::Debug for NotSupportedError {
 
 impl fmt::Display for NotSupportedError {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-    f.pad("the requested operation is not supported by Winit")
+    f.pad("the requested operation is not supported by Tao")
   }
 }
 

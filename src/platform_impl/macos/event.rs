@@ -266,7 +266,7 @@ pub fn event_mods(event: id) -> ModifiersState {
 pub fn get_scancode(event: cocoa::base::id) -> c_ushort {
   // In AppKit, `keyCode` refers to the position (scancode) of a key rather than its character,
   // and there is no easy way to navtively retrieve the layout-dependent character.
-  // In winit, we use keycode to refer to the key's character, and so this function aligns
+  // In tao, we use keycode to refer to the key's character, and so this function aligns
   // AppKit's terminology with ours.
   unsafe { msg_send![event, keyCode] }
 }

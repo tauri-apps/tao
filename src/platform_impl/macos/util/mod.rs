@@ -92,8 +92,8 @@ pub fn bottom_left_to_top_left(rect: NSRect) -> f64 {
   CGDisplay::main().pixels_high() as f64 - (rect.origin.y + rect.size.height)
 }
 
-/// Converts from winit screen-coordinates to macOS screen-coordinates.
-/// Winit: top-left is (0, 0) and y increasing downwards
+/// Converts from tao screen-coordinates to macOS screen-coordinates.
+/// Tao: top-left is (0, 0) and y increasing downwards
 /// macOS: bottom-left is (0, 0) and y increasing upwards
 pub fn window_position(position: LogicalPosition<f64>) -> NSPoint {
   NSPoint::new(

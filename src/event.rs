@@ -55,7 +55,7 @@ pub enum Event<'a, T: 'static> {
   /// [`ControlFlow::WaitUntil`](crate::event_loop::ControlFlow::WaitUntil) has elapsed.
   NewEvents(StartCause),
 
-  /// Emitted when the OS sends an event to a winit window.
+  /// Emitted when the OS sends an event to a tao window.
   WindowEvent {
     window_id: WindowId,
     event: WindowEvent<'a>,
@@ -99,7 +99,7 @@ pub enum Event<'a, T: 'static> {
   /// - The application has explicitly requested a redraw via
   ///   [`Window::request_redraw`](crate::window::Window::request_redraw).
   ///
-  /// During each iteration of the event loop, Winit will aggregate duplicate redraw requests
+  /// During each iteration of the event loop, Tao will aggregate duplicate redraw requests
   /// into a single event, to help avoid duplicating rendering work.
   ///
   /// Mainly of interest to applications with mostly-static graphics that avoid redrawing unless
@@ -257,13 +257,13 @@ pub enum WindowEvent<'a> {
   KeyboardInput {
     device_id: DeviceId,
     input: KeyboardInput,
-    /// If `true`, the event was generated synthetically by winit
+    /// If `true`, the event was generated synthetically by tao
     /// in one of the following circumstances:
     ///
     /// * Synthetic key press events are generated for all keys pressed
     ///   when a window gains focus. Likewise, synthetic key release events
     ///   are generated for all keys pressed when a window goes out of focus.
-    ///   ***Currently, this is only functional on X11 and Windows***
+    ///   ***Currently, this is only functional on Linux and Windows***
     ///
     /// Otherwise, this value is always `false`.
     is_synthetic: bool,
@@ -545,7 +545,7 @@ impl DeviceId {
   /// value of this function is that it will always be equal to itself and to future values returned
   /// by this function.  No other guarantees are made. This may be equal to a real `DeviceId`.
   ///
-  /// **Passing this into a winit function will result in undefined behavior.**
+  /// **Passing this into a tao function will result in undefined behavior.**
   pub unsafe fn dummy() -> Self {
     DeviceId(platform_impl::DeviceId::dummy())
   }
@@ -580,7 +580,7 @@ pub enum DeviceEvent {
   },
 
   /// Motion on some analog axis.  This event will be reported for all arbitrary input devices
-  /// that winit supports on this platform, including mouse devices.  If the device is a mouse
+  /// that tao supports on this platform, including mouse devices.  If the device is a mouse
   /// device then this will be reported alongside the MouseMotion event.
   Motion {
     axis: AxisId,

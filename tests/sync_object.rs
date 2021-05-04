@@ -3,6 +3,6 @@ fn needs_sync<T: Sync>() {}
 
 #[test]
 fn window_sync() {
-  // ensures that `winit::Window` implements `Sync`
+  // ensures that `Window` implements `Sync`
   needs_sync::<tao::window::Window>();
 }

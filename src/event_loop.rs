@@ -18,8 +18,7 @@ use crate::{event::Event, monitor::MonitorHandle, platform_impl};
 /// the events loop.
 ///
 /// An `EventLoop` can be seen more or less as a "context". Calling `EventLoop::new()`
-/// initializes everything that will be required to create windows. For example on Linux creating
-/// an event loop opens a connection to the X or Wayland server.
+/// initializes everything that will be required to create windows.
 ///
 /// To wake up an `EventLoop` from a another thread, see the `EventLoopProxy` docs.
 ///
@@ -35,7 +34,7 @@ pub struct EventLoop<T: 'static> {
 
 /// Target that associates windows with an `EventLoop`.
 ///
-/// This type exists to allow you to create new windows while Winit executes
+/// This type exists to allow you to create new windows while Tao executes
 /// your callback. `EventLoop` will coerce into this type (`impl<T> Deref for
 /// EventLoop<T>`), so functions that take this as a parameter can also take
 /// `&EventLoop`.
@@ -101,11 +100,6 @@ impl EventLoop<()> {
   /// in the relevant `platform` module if the target platform supports creating an event loop on
   /// any thread.
   ///
-  /// Usage will result in display backend initialisation, this can be controlled on linux
-  /// using an environment variable `WINIT_UNIX_BACKEND`. Legal values are `x11` and `wayland`.
-  /// If it is not set, winit will try to connect to a wayland connection, and if it fails will
-  /// fallback on x11. If this variable is set with any other value, winit will panic.
-  ///
   /// ## Platform-specific
   ///
   /// - **iOS:** Can only be called on the main thread.
@@ -135,7 +129,7 @@ impl<T> EventLoop<T> {
     }
   }
 
-  /// Hijacks the calling thread and initializes the winit event loop with the provided
+  /// Hijacks the calling thread and initializes the tao event loop with the provided
   /// closure. Since the closure is `'static`, it must be a `move` closure if it needs to
   /// access any data from the calling context.
   ///
@@ -182,10 +176,6 @@ impl<T> EventLoopWindowTarget<T> {
   /// Returns the primary monitor of the system.
   ///
   /// Returns `None` if it can't identify any monitor as a primary one.
-  ///
-  /// ## Platform-specific
-  ///
-  /// **Wayland:** Always returns `None`.
   #[inline]
   pub fn primary_monitor(&self) -> Option<MonitorHandle> {
     self.p.primary_monitor()

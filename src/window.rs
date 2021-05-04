@@ -75,7 +75,7 @@ impl WindowId {
   /// value of this function is that it will always be equal to itself and to future values returned
   /// by this function.  No other guarantees are made. This may be equal to a real `WindowId`.
   ///
-  /// **Passing this into a winit function will result in undefined behavior.**
+  /// **Passing this into a tao function will result in undefined behavior.**
   pub unsafe fn dummy() -> Self {
     WindowId(platform_impl::WindowId::dummy())
   }
@@ -136,7 +136,7 @@ pub struct WindowAttributes {
   /// position.
   /// There may be a small gap between this position and the window due to the specifics of the
   /// Window Manager.
-  /// - **X11**: The top left corner of the window, the window's "outer" position.
+  /// - **Linux**: The top left corner of the window, the window's "outer" position.
   /// - **Others**: Ignored.
   ///
   /// See [`Window::set_outer_position`].
@@ -156,7 +156,7 @@ pub struct WindowAttributes {
 
   /// The title of the window in the title bar.
   ///
-  /// The default is `"winit window"`.
+  /// The default is `"tao window"`.
   pub title: String,
 
   /// Whether the window should be maximized upon creation.
@@ -205,7 +205,7 @@ impl Default for WindowAttributes {
       max_inner_size: None,
       position: None,
       resizable: true,
-      title: "winit window".to_owned(),
+      title: "tao window".to_owned(),
       maximized: false,
       fullscreen: None,
       visible: true,
@@ -424,7 +424,6 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **X11:** This respects Xft.dpi, and can be overridden using the `WINIT_X11_SCALE_FACTOR` environment variable.
   /// - **Android:** Always returns 1.0.
   /// - **iOS:** Can only be called on the main thread. Returns the underlying `UIView`'s
   ///   [`contentScaleFactor`].
@@ -468,7 +467,7 @@ impl Window {
   ///
   /// - **iOS:** Can only be called on the main thread. Returns the top left coordinates of the
   ///   window's [safe area] in the screen space coordinate system.
-  /// - **Android / Wayland:** Always returns [`NotSupportedError`].
+  /// - **Android:** Always returns [`NotSupportedError`].
   ///
   /// [safe area]: https://developer.apple.com/documentation/uikit/uiview/2891103-safeareainsets?language=objc
   #[inline]
@@ -490,7 +489,7 @@ impl Window {
   ///
   /// - **iOS:** Can only be called on the main thread. Returns the top left coordinates of the
   ///   window in the screen space coordinate system.
-  /// - **Android / Wayland:** Always returns [`NotSupportedError`].
+  /// - **Android:** Always returns [`NotSupportedError`].
   #[inline]
   pub fn outer_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
     self.window.outer_position()
@@ -505,7 +504,7 @@ impl Window {
   ///
   /// - **iOS:** Can only be called on the main thread. Sets the top left coordinates of the
   ///   window in the screen space coordinate system.
-  /// - **Android / Wayland:** Unsupported.
+  /// - **Android:** Unsupported.
   #[inline]
   pub fn set_outer_position<P: Into<Position>>(&self, position: P) {
     self.window.set_outer_position(position.into())
@@ -602,7 +601,7 @@ impl Window {
   /// If `false`, this will hide the window. If `true`, this will show the window.
   /// ## Platform-specific
   ///
-  /// - **Android / Wayland:** Unsupported.
+  /// - **Android:** Unsupported.
   /// - **iOS:** Can only be called on the main thread.
   #[inline]
   pub fn set_visible(&self, visible: bool) {
@@ -633,7 +632,6 @@ impl Window {
   /// ## Platform-specific
   ///
   /// - **iOS / Android:** Unsupported.
-  /// - **Wayland:** Un-minimize is unsupported.
   #[inline]
   pub fn set_minimized(&self, minimized: bool) {
     self.window.set_minimized(minimized);
@@ -653,7 +651,6 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **Wayland / X11:** Not implemented.
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn is_maximized(&self) -> bool {
@@ -677,7 +674,6 @@ impl Window {
   ///
   ///   The dock and the menu bar are always disabled in fullscreen mode.
   /// - **iOS:** Can only be called on the main thread.
-  /// - **Wayland:** Does not support exclusive fullscreen mode and will no-op a request.
   /// - **Windows:** Screen saver is disabled in fullscreen mode.
   /// - **Android:** Unsupported.
   #[inline]
@@ -691,7 +687,6 @@ impl Window {
   ///
   /// - **iOS:** Can only be called on the main thread.
   /// - **Android:** Will always return `None`.
-  /// - **Wayland:** Can return `Borderless(None)` when there are no monitors.
   #[inline]
   pub fn fullscreen(&self) -> Option<Fullscreen> {
     self.window.fullscreen()
@@ -713,24 +708,21 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **iOS / Android / Wayland:** Unsupported.
+  /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_always_on_top(&self, always_on_top: bool) {
     self.window.set_always_on_top(always_on_top)
   }
 
-  /// Sets the window icon. On Windows and X11, this is typically the small icon in the top-left
-  /// corner of the titlebar.
+  /// Sets the window icon. On Windows and Linux, this is typically the small icon in the top-left
+  /// corner of the title bar.
   ///
   /// ## Platform-specific
   ///
-  /// - **iOS / Android / Wayland / macOS:** Unsupported.
+  /// - **iOS / Android / macOS:** Unsupported.
   ///
   /// On Windows, this sets `ICON_SMALL`. The base size for a window icon is 16x16, but it's
   /// recommended to account for screen scaling and pick a multiple of that, i.e. 32x32.
-  ///
-  /// X11 has no universal guidelines for icon sizes, so you're at the whims of the WM. That
-  /// said, it's usually in the same ballpark as on Windows.
   #[inline]
   pub fn set_window_icon(&self, window_icon: Option<Icon>) {
     self.window.set_window_icon(window_icon)
@@ -755,9 +747,8 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **iOS / Android / Wayland:** Unsupported.
+  /// - **iOS / Android:** Unsupported.
   /// - **macOS:** `None` has no effect.
-  /// - **X11:** Requests for user attention must be manually cleared.
   #[inline]
   pub fn request_user_attention(&self, request_type: Option<UserAttentionType>) {
     self.window.request_user_attention(request_type)
@@ -780,7 +771,7 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **iOS / Android / Wayland:** Always returns an [`ExternalError::NotSupported`].
+  /// - **iOS / Android:** Always returns an [`ExternalError::NotSupported`].
   #[inline]
   pub fn set_cursor_position<P: Into<Position>>(&self, position: P) -> Result<(), ExternalError> {
     self.window.set_cursor_position(position.into())
@@ -807,8 +798,6 @@ impl Window {
   /// ## Platform-specific
   ///
   /// - **Windows:** The cursor is only hidden within the confines of the window.
-  /// - **X11:** The cursor is only hidden within the confines of the window.
-  /// - **Wayland:** The cursor is only hidden within the confines of the window.
   /// - **macOS:** The cursor is hidden as long as the window has input focus, even if the cursor is
   ///   outside of the window.
   /// - **iOS / Android:** Unsupported.
@@ -824,8 +813,6 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **X11:** Un-grabs the cursor.
-  /// - **Wayland:** Requires the cursor to be inside the window to be dragged.
   /// - **macOS:** May prevent the button release event to be triggered.
   /// - **iOS / Android:** Always returns an [`ExternalError::NotSupported`].
   #[inline]
@@ -873,7 +860,6 @@ impl Window {
   /// ## Platform-specific
   ///
   /// **iOS:** Can only be called on the main thread.
-  /// **Wayland:** Always returns `None`.
   #[inline]
   pub fn primary_monitor(&self) -> Option<MonitorHandle> {
     self.window.primary_monitor()
@@ -973,9 +959,6 @@ pub enum Theme {
   Dark,
 }
 
-/// ## Platform-specific
-///
-/// - **X11:** Sets the WM's `XUrgencyHint`. No distinction between `Critical` and `Informational`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UserAttentionType {
   /// ## Platform-specific

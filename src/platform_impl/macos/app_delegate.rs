@@ -28,7 +28,7 @@ unsafe impl Sync for AppDelegateClass {}
 lazy_static! {
   pub static ref APP_DELEGATE_CLASS: AppDelegateClass = unsafe {
     let superclass = class!(NSResponder);
-    let mut decl = ClassDecl::new("WinitAppDelegate", superclass).unwrap();
+    let mut decl = ClassDecl::new("TaoAppDelegate", superclass).unwrap();
 
     decl.add_class_method(sel!(new), new as extern "C" fn(&Class, Sel) -> id);
     decl.add_method(sel!(dealloc), dealloc as extern "C" fn(&Object, Sel));

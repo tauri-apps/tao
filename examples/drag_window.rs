@@ -70,5 +70,5 @@ fn name_windows(window_id: WindowId, switched: bool, window_1: &Window, window_2
       (&window_1, &window_2)
     };
   drag_target.set_title("drag target");
-  other.set_title("winit window");
+  other.set_title("tao window");
 }
