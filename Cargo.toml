@@ -16,33 +16,33 @@ targets = ["i686-pc-windows-msvc", "x86_64-pc-windows-msvc", "i686-unknown-linux
 [dependencies]
 instant = "0.1"
 lazy_static = "1"
-libc = "0.2.64"
+libc = "0.2"
 log = "0.4"
 serde = { version = "1", optional = true, features = ["serde_derive"] }
 raw-window-handle = "0.3"
 bitflags = "1"
 
 [dev-dependencies]
-image = "0.23.12"
+image = "0.23"
 simple_logger = "1.9"
 
 [target.'cfg(target_os = "android")'.dependencies]
 ndk = "0.3"
-ndk-sys = "0.2.0"
+ndk-sys = "0.2"
 ndk-glue = "0.3"
 
 [target.'cfg(any(target_os = "ios", target_os = "macos"))'.dependencies]
-objc = "0.2.7"
+objc = "0.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 cocoa = "0.24"
 core-foundation = "0.9"
 core-graphics = "0.22"
-dispatch = "0.2.0"
+dispatch = "0.2"
 scopeguard = "1.1"
 
 [target.'cfg(target_os = "macos")'.dependencies.core-video-sys]
-version = "0.1.4"
+version = "0.1"
 default_features = false
 features = ["display_link"]
 
@@ -50,7 +50,7 @@ features = ["display_link"]
 parking_lot = "0.11"
 
 [target.'cfg(target_os = "windows")'.dependencies.winapi]
-version = "0.3.6"
+version = "0.3"
 features = [
     "combaseapi",
     "commctrl",
@@ -82,3 +82,4 @@ gtk = "0.9"
 gdk = "0.13"
 gdk-pixbuf = "0.9"
 image = "0.23"
+
