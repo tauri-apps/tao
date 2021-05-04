@@ -6,10 +6,6 @@ use tao::{
   window::WindowBuilder,
 };
 
-pub enum Message {
-  MenuClickAddNewItem,
-}
-
 fn main() {
   SimpleLogger::new().init().unwrap();
   let event_loop = EventLoop::new();
