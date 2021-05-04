@@ -11,6 +11,7 @@ use crate::{
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   event::{Event, WindowEvent},
   icon::Icon,
+  menu::Menu,
   monitor::MonitorHandle as RootMonitorHandle,
   platform::ios::{MonitorHandleExtIOS, ScreenEdge, ValidOrientations},
   platform_impl::platform::{
@@ -45,6 +46,10 @@ impl Drop for Inner {
 impl Inner {
   pub fn set_title(&self, _title: &str) {
     debug!("`Window::set_title` is ignored on iOS")
+  }
+
+  pub fn set_menu(&self, _menu: Option<Vec<Menu>>) {
+    debug!("`Window::set_menu` is ignored on iOS")
   }
 
   pub fn set_visible(&self, visible: bool) {

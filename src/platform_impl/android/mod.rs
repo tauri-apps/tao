@@ -5,6 +5,7 @@ use crate::{
   error, event,
   event_loop::{self, ControlFlow},
   monitor, window,
+  menu::Menu,
 };
 use ndk::{
   configuration::Configuration,
@@ -493,6 +494,8 @@ impl Window {
   pub fn set_max_inner_size(&self, _: Option<Size>) {}
 
   pub fn set_title(&self, _title: &str) {}
+
+  pub fn set_menu(&self, _menu: Option<Vec<Menu>>) {}
 
   pub fn set_visible(&self, _visibility: bool) {}
 

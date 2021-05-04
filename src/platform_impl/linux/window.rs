@@ -23,6 +23,7 @@ use crate::{
   icon::{BadIcon, Icon},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{CursorIcon, Fullscreen, UserAttentionType, WindowAttributes},
+  menu::Menu,
 };
 
 use super::{event_loop::EventLoopWindowTarget, monitor::MonitorHandle};
@@ -400,6 +401,10 @@ impl Window {
     {
       log::warn!("Fail to send title request: {}", e);
     }
+  }
+
+  pub fn set_menu(&self, _menu: Option<Vec<Menu>>) {
+    debug!("`Window::set_menu` is ignored on linux")
   }
 
   pub fn set_visible(&self, visible: bool) {
