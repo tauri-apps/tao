@@ -1,7 +1,7 @@
 use raw_window_handle::RawWindowHandle;
 use std::os::windows::ffi::OsStrExt;
 use winapi::{
-  shared::{basetsd, minwindef, windef, windef::HWND},
+  shared::{basetsd, minwindef, windef},
   um::{commctrl, winuser},
 };
 
@@ -10,11 +10,9 @@ use std::{cell::RefCell, collections::HashMap};
 use crate::{
   event::Event,
   menu::{Menu, MenuItem},
-  window::WindowId as SuperWindowId,
 };
 
 pub struct MenuHandler {
-  window: HWND,
   send_event: Box<dyn Fn(Event<'static, ()>)>,
 }
 
@@ -25,8 +23,8 @@ thread_local! {
 
 #[allow(non_snake_case)]
 impl MenuHandler {
-  pub fn new(window: HWND, send_event: Box<dyn Fn(Event<'static, ()>)>) -> MenuHandler {
-    MenuHandler { window, send_event }
+  pub fn new(send_event: Box<dyn Fn(Event<'static, ()>)>) -> MenuHandler {
+    MenuHandler { send_event }
   }
   fn send_click_event(&self, menu_id: u32) {
     MENU_MAP.with(|cell| {
