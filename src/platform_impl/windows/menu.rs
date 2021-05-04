@@ -7,8 +7,11 @@ use winapi::{
 
 use std::{cell::RefCell, collections::HashMap};
 
-use crate::menu::{Menu, MenuItem};
-use crate::{event::Event, window::WindowId as SuperWindowId};
+use crate::{
+  event::Event,
+  menu::{Menu, MenuItem},
+  window::WindowId as SuperWindowId,
+};
 
 pub struct MenuHandler {
   window: HWND,

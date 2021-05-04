@@ -1,6 +1,8 @@
-use cocoa::appkit::{NSApp, NSApplication, NSEventModifierFlags, NSMenu, NSMenuItem};
-use cocoa::base::{id, nil, selector};
-use cocoa::foundation::{NSAutoreleasePool, NSString};
+use cocoa::{
+  appkit::{NSApp, NSApplication, NSEventModifierFlags, NSMenu, NSMenuItem},
+  base::{id, nil, selector},
+  foundation::{NSAutoreleasePool, NSString},
+};
 use objc::{
   declare::ClassDecl,
   rc::autoreleasepool,
@@ -8,8 +10,10 @@ use objc::{
 };
 use std::sync::Once;
 
-use crate::event::Event;
-use crate::menu::{Menu, MenuItem};
+use crate::{
+  event::Event,
+  menu::{Menu, MenuItem},
+};
 
 use super::{app_state::AppState, event::EventWrapper};
 
