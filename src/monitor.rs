@@ -69,8 +69,6 @@ impl VideoMode {
   /// systems, depending on whether the alpha channel is counted or not.
   ///
   /// ## Platform-specific
-  ///
-  /// - **Wayland:** Always returns 32.
   /// - **iOS:** Always returns 32.
   #[inline]
   pub fn bit_depth(&self) -> u16 {
@@ -144,7 +142,6 @@ impl MonitorHandle {
   ///
   /// ## Platform-specific
   ///
-  /// - **X11:** Can be overridden using the `WINIT_X11_SCALE_FACTOR` environment variable.
   /// - **Android:** Always returns 1.0.
   #[inline]
   pub fn scale_factor(&self) -> f64 {

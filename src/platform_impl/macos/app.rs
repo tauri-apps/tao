@@ -19,7 +19,7 @@ unsafe impl Sync for AppClass {}
 lazy_static! {
   pub static ref APP_CLASS: AppClass = unsafe {
     let superclass = class!(NSApplication);
-    let mut decl = ClassDecl::new("WinitApp", superclass).unwrap();
+    let mut decl = ClassDecl::new("TaoApp", superclass).unwrap();
 
     decl.add_method(
       sel!(sendEvent:),

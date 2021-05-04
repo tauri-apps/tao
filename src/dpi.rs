@@ -37,11 +37,11 @@
 //!
 //! Tao's `Physical(Position|Size)` types correspond with the actual pixels on the device, and the
 //! `Logical(Position|Size)` types correspond to the physical pixels divided by the scale factor.
-//! All of Winit's functions return physical types, but can take either logical or physical
+//! All of Tao's functions return physical types, but can take either logical or physical
 //! coordinates as input, allowing you to use the most convenient coordinate system for your
 //! particular application.
 //!
-//! Winit's position and size types types are generic over their exact pixel type, `P`, to allow the
+//! Tao's position and size types types are generic over their exact pixel type, `P`, to allow the
 //! API to have integer precision where appropriate (e.g. most window manipulation functions) and
 //! floating precision when necessary (e.g. logical sizes for fractional scale factors and touch
 //! input). If `P` is a floating-point type, please do not cast the values with `as {int}`. Doing so
@@ -52,7 +52,7 @@
 //!
 //! ### Events
 //!
-//! Winit will dispatch a [`ScaleFactorChanged`](crate::event::WindowEvent::ScaleFactorChanged)
+//! Tao will dispatch a [`ScaleFactorChanged`](crate::event::WindowEvent::ScaleFactorChanged)
 //! event whenever a window's scale factor has changed. This can happen if the user drags their
 //! window from a standard-resolution monitor to a high-DPI monitor, or if the user changes their
 //! DPI settings. This gives you a chance to rescale your application's UI elements and adjust how
@@ -73,17 +73,7 @@
 //!   displays. When this is available, the user may pick a per-monitor scaling factor from a set
 //!   of pre-defined settings. All "retina displays" have a scaling factor above 1.0 by default but
 //!   the specific value varies across devices.
-//! - **X11:** Many man-hours have been spent trying to figure out how to handle DPI in X11. Winit
-//!   currently uses a three-pronged approach:
-//!   + Use the value in the `WINIT_X11_SCALE_FACTOR` environment variable, if present.
-//!   + If not present, use the value set in `Xft.dpi` in Xresources.
-//!   + Otherwise, calcuate the scale factor based on the millimeter monitor dimensions provided by XRandR.
-//!
-//!   If `WINIT_X11_SCALE_FACTOR` is set to `randr`, it'll ignore the `Xft.dpi` field and use the
-//!   XRandR scaling method. Generally speaking, you should try to configure the standard system
-//!   variables to do what you want before resorting to `WINIT_X11_SCALE_FACTOR`.
-//! - **Wayland:** On Wayland, scale factors are set per-screen by the server, and are always
-//!   integers (most often 1 or 2).
+//! - **Linux:** TODO
 //! - **iOS:** Scale factors are set by Apple to the value that best suits the device, and range
 //!   from `1.0` to `3.0`. See [this article][apple_1] and [this article][apple_2] for more
 //!   information.
@@ -148,7 +138,7 @@ impl Pixel for f64 {
 /// Checks that the scale factor is a normal positive `f64`.
 ///
 /// All functions that take a scale factor assert that this will return `true`. If you're sourcing scale factors from
-/// anywhere other than winit, it's recommended to validate them using this function before passing them to winit;
+/// anywhere other than tao, it's recommended to validate them using this function before passing them to tao;
 /// otherwise, you risk panics.
 #[inline]
 pub fn validate_scale_factor(scale_factor: f64) -> bool {
@@ -158,7 +148,7 @@ pub fn validate_scale_factor(scale_factor: f64) -> bool {
 /// A position represented in logical pixels.
 ///
 /// The position is stored as floats, so please be careful. Casting floats to integers truncates the
-/// fractional part, which can cause noticable issues. To help with that, an `Into<(i32, i32)>`
+/// fractional part, which can cause noticeable issues. To help with that, an `Into<(i32, i32)>`
 /// implementation is provided which does the rounding for you.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]

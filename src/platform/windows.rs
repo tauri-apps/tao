@@ -30,7 +30,7 @@ pub trait EventLoopExtWindows {
   where
     Self: Sized;
 
-  /// By default, winit on Windows will attempt to enable process-wide DPI awareness. If that's
+  /// By default, tao on Windows will attempt to enable process-wide DPI awareness. If that's
   /// undesirable, you can create an `EventLoop` using this function instead.
   fn new_dpi_unaware() -> Self
   where
@@ -169,9 +169,9 @@ pub trait WindowBuilderExtWindows {
 
   /// Enables or disables drag and drop support (enabled by default). Will interfere with other crates
   /// that use multi-threaded COM API (`CoInitializeEx` with `COINIT_MULTITHREADED` instead of
-  /// `COINIT_APARTMENTTHREADED`) on the same thread. Note that winit may still attempt to initialize
+  /// `COINIT_APARTMENTTHREADED`) on the same thread. Note that tao may still attempt to initialize
   /// COM API regardless of this option. Currently only fullscreen mode does that, but there may be more in the future.
-  /// If you need COM API with `COINIT_MULTITHREADED` you must initialize it before calling any winit functions.
+  /// If you need COM API with `COINIT_MULTITHREADED` you must initialize it before calling any tao functions.
   /// See <https://docs.microsoft.com/en-us/windows/win32/api/objbase/nf-objbase-coinitialize#remarks> for more information.
   fn with_drag_and_drop(self, flag: bool) -> WindowBuilder;
 

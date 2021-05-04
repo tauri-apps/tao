@@ -160,7 +160,7 @@ fn layout_uses_altgr() -> bool {
   }
 }
 
-pub fn vkey_to_winit_vkey(vkey: c_int) -> Option<VirtualKeyCode> {
+pub fn vkey_to_tao_vkey(vkey: c_int) -> Option<VirtualKeyCode> {
   // VK_* codes are documented here https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731(v=vs.85).aspx
   match vkey {
     //winuser::VK_LBUTTON => Some(VirtualKeyCode::Lbutton),
@@ -395,7 +395,7 @@ pub fn process_key_params(
   let scancode = ((lparam >> 16) & 0xff) as UINT;
   let extended = (lparam & 0x01000000) != 0;
   handle_extended_keys(wparam as _, scancode, extended)
-    .map(|(vkey, scancode)| (scancode, vkey_to_winit_vkey(vkey)))
+    .map(|(vkey, scancode)| (scancode, vkey_to_tao_vkey(vkey)))
 }
 
 // This is needed as windows doesn't properly distinguish

@@ -83,14 +83,14 @@ pub fn new_view(ns_window: id) -> (IdRef, Weak<Mutex<CursorState>>) {
     let state_ptr = Box::into_raw(Box::new(state)) as *mut c_void;
     let ns_view: id = msg_send![VIEW_CLASS.0, alloc];
     (
-      IdRef::new(msg_send![ns_view, initWithWinit: state_ptr]),
+      IdRef::new(msg_send![ns_view, initWithTao: state_ptr]),
       cursor_access,
     )
   }
 }
 
 pub unsafe fn set_ime_position(ns_view: id, input_context: id, x: f64, y: f64) {
-  let state_ptr: *mut c_void = *(*ns_view).get_mut_ivar("winitState");
+  let state_ptr: *mut c_void = *(*ns_view).get_mut_ivar("taoState");
   let state = &mut *(state_ptr as *mut ViewState);
   let content_rect =
     NSWindow::contentRectForFrameRect_(state.ns_window, NSWindow::frame(state.ns_window));
@@ -107,11 +107,11 @@ unsafe impl Sync for ViewClass {}
 lazy_static! {
   static ref VIEW_CLASS: ViewClass = unsafe {
     let superclass = class!(NSView);
-    let mut decl = ClassDecl::new("WinitView", superclass).unwrap();
+    let mut decl = ClassDecl::new("TaoView", superclass).unwrap();
     decl.add_method(sel!(dealloc), dealloc as extern "C" fn(&Object, Sel));
     decl.add_method(
-      sel!(initWithWinit:),
-      init_with_winit as extern "C" fn(&Object, Sel, *mut c_void) -> id,
+      sel!(initWithTao:),
+      init_with_tao as extern "C" fn(&Object, Sel, *mut c_void) -> id,
     );
     decl.add_method(
       sel!(viewDidMoveToWindow),
@@ -258,7 +258,7 @@ lazy_static! {
       sel!(acceptsFirstMouse:),
       accepts_first_mouse as extern "C" fn(&Object, Sel, id) -> BOOL,
     );
-    decl.add_ivar::<*mut c_void>("winitState");
+    decl.add_ivar::<*mut c_void>("taoState");
     decl.add_ivar::<id>("markedText");
     let protocol = Protocol::get("NSTextInputClient").unwrap();
     decl.add_protocol(&protocol);
@@ -268,18 +268,18 @@ lazy_static! {
 
 extern "C" fn dealloc(this: &Object, _sel: Sel) {
   unsafe {
-    let state: *mut c_void = *this.get_ivar("winitState");
+    let state: *mut c_void = *this.get_ivar("taoState");
     let marked_text: id = *this.get_ivar("markedText");
     let _: () = msg_send![marked_text, release];
     Box::from_raw(state as *mut ViewState);
   }
 }
 
-extern "C" fn init_with_winit(this: &Object, _sel: Sel, state: *mut c_void) -> id {
+extern "C" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void) -> id {
   unsafe {
     let this: id = msg_send![this, init];
     if this != nil {
-      (*this).set_ivar("winitState", state);
+      (*this).set_ivar("taoState", state);
       let marked_text =
         <id as NSMutableAttributedString>::init(NSMutableAttributedString::alloc(nil));
       (*this).set_ivar("markedText", marked_text);
@@ -302,7 +302,7 @@ extern "C" fn init_with_winit(this: &Object, _sel: Sel, state: *mut c_void) -> i
 extern "C" fn view_did_move_to_window(this: &Object, _sel: Sel) {
   trace!("Triggered `viewDidMoveToWindow`");
   unsafe {
-    let state_ptr: *mut c_void = *this.get_ivar("winitState");
+    let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
     if let Some(tracking_rect) = state.tracking_rect.take() {
@@ -323,7 +323,7 @@ extern "C" fn view_did_move_to_window(this: &Object, _sel: Sel) {
 
 extern "C" fn frame_did_change(this: &Object, _sel: Sel, _event: id) {
   unsafe {
-    let state_ptr: *mut c_void = *this.get_ivar("winitState");
+    let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
     if let Some(tracking_rect) = state.tracking_rect.take() {
@@ -344,7 +344,7 @@ extern "C" fn frame_did_change(this: &Object, _sel: Sel, _event: id) {
 
 extern "C" fn draw_rect(this: &Object, _sel: Sel, rect: NSRect) {
   unsafe {
-    let state_ptr: *mut c_void = *this.get_ivar("winitState");
+    let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
     AppState::handle_redraw(WindowId(get_window_id(state.ns_window)));
@@ -367,7 +367,7 @@ extern "C" fn touch_bar(_this: &Object, _sel: Sel) -> BOOL {
 
 extern "C" fn reset_cursor_rects(this: &Object, _sel: Sel) {
   unsafe {
-    let state_ptr: *mut c_void = *this.get_ivar("winitState");
+    let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
     let bounds: NSRect = msg_send![this, bounds];
@@ -479,7 +479,7 @@ extern "C" fn first_rect_for_character_range(
 ) -> NSRect {
   unsafe {
     trace!("Triggered `firstRectForCharacterRange`");
-    let state_ptr: *mut c_void = *this.get_ivar("winitState");
+    let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
     let (x, y) = state.ime_spot.unwrap_or_else(|| {
       let content_rect =
@@ -496,7 +496,7 @@ extern "C" fn first_rect_for_character_range(
 extern "C" fn insert_text(this: &Object, _sel: Sel, string: id, _replacement_range: NSRange) {
   trace!("Triggered `insertText`");
   unsafe {
-    let state_ptr: *mut c_void = *this.get_ivar("winitState");
+    let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
     let has_attr = msg_send![string, isKindOfClass: class!(NSAttributedString)];
@@ -533,7 +533,7 @@ extern "C" fn do_command_by_selector(this: &Object, _sel: Sel, command: Sel) {
   // Basically, we're sent this message whenever a keyboard event that doesn't generate a "human readable" character
   // happens, i.e. newlines, tabs, and Ctrl+C.
   unsafe {
-    let state_ptr: *mut c_void = *this.get_ivar("winitState");
+    let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
     let mut events = VecDeque::with_capacity(1);
@@ -637,7 +637,7 @@ fn update_potentially_stale_modifiers(state: &mut ViewState, event: id) {
 extern "C" fn key_down(this: &Object, _sel: Sel, event: id) {
   trace!("Triggered `keyDown`");
   unsafe {
-    let state_ptr: *mut c_void = *this.get_ivar("winitState");
+    let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
     let window_id = WindowId(get_window_id(state.ns_window));
     let characters = get_characters(event, false);
@@ -696,7 +696,7 @@ extern "C" fn key_down(this: &Object, _sel: Sel, event: id) {
 extern "C" fn key_up(this: &Object, _sel: Sel, event: id) {
   trace!("Triggered `keyUp`");
   unsafe {
-    let state_ptr: *mut c_void = *this.get_ivar("winitState");
+    let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
     state.is_key_down = false;
@@ -729,7 +729,7 @@ extern "C" fn key_up(this: &Object, _sel: Sel, event: id) {
 extern "C" fn flags_changed(this: &Object, _sel: Sel, event: id) {
   trace!("Triggered `flagsChanged`");
   unsafe {
-    let state_ptr: *mut c_void = *this.get_ivar("winitState");
+    let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
     let mut events = VecDeque::with_capacity(4);
@@ -814,7 +814,7 @@ extern "C" fn insert_back_tab(this: &Object, _sel: Sel, _sender: id) {
 extern "C" fn cancel_operation(this: &Object, _sel: Sel, _sender: id) {
   trace!("Triggered `cancelOperation`");
   unsafe {
-    let state_ptr: *mut c_void = *this.get_ivar("winitState");
+    let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
     let scancode = 0x2f;
@@ -847,7 +847,7 @@ extern "C" fn cancel_operation(this: &Object, _sel: Sel, _sender: id) {
 
 fn mouse_click(this: &Object, event: id, button: MouseButton, button_state: ElementState) {
   unsafe {
-    let state_ptr: *mut c_void = *this.get_ivar("winitState");
+    let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
     update_potentially_stale_modifiers(state, event);
@@ -898,7 +898,7 @@ extern "C" fn other_mouse_up(this: &Object, _sel: Sel, event: id) {
 
 fn mouse_motion(this: &Object, event: id) {
   unsafe {
-    let state_ptr: *mut c_void = *this.get_ivar("winitState");
+    let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
     // We have to do this to have access to the `NSView` trait...
@@ -958,7 +958,7 @@ extern "C" fn other_mouse_dragged(this: &Object, _sel: Sel, event: id) {
 extern "C" fn mouse_entered(this: &Object, _sel: Sel, _event: id) {
   trace!("Triggered `mouseEntered`");
   unsafe {
-    let state_ptr: *mut c_void = *this.get_ivar("winitState");
+    let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
     let enter_event = Event::WindowEvent {
@@ -976,7 +976,7 @@ extern "C" fn mouse_entered(this: &Object, _sel: Sel, _event: id) {
 extern "C" fn mouse_exited(this: &Object, _sel: Sel, _event: id) {
   trace!("Triggered `mouseExited`");
   unsafe {
-    let state_ptr: *mut c_void = *this.get_ivar("winitState");
+    let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
     let window_event = Event::WindowEvent {
@@ -997,11 +997,11 @@ extern "C" fn scroll_wheel(this: &Object, _sel: Sel, event: id) {
   mouse_motion(this, event);
 
   unsafe {
-    let state_ptr: *mut c_void = *this.get_ivar("winitState");
+    let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
     let delta = {
-      // macOS horizontal sign convention is the inverse of winit.
+      // macOS horizontal sign convention is the inverse of tao.
       let (x, y) = (event.scrollingDeltaX() * -1.0, event.scrollingDeltaY());
       if event.hasPreciseScrollingDeltas() == YES {
         let delta = LogicalPosition::new(x, y).to_physical(state.get_scale_factor());
@@ -1021,7 +1021,7 @@ extern "C" fn scroll_wheel(this: &Object, _sel: Sel, event: id) {
       event: DeviceEvent::MouseWheel { delta },
     };
 
-    let state_ptr: *mut c_void = *this.get_ivar("winitState");
+    let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
     update_potentially_stale_modifiers(state, event);
@@ -1048,7 +1048,7 @@ extern "C" fn pressure_change_with_event(this: &Object, _sel: Sel, event: id) {
   mouse_motion(this, event);
 
   unsafe {
-    let state_ptr: *mut c_void = *this.get_ivar("winitState");
+    let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
     let pressure = event.pressure();

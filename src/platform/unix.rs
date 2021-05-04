@@ -13,8 +13,6 @@ pub use crate::platform_impl::hit_test;
 /// Additional methods on `Window` that are specific to Unix.
 pub trait WindowExtUnix {
   /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
-  ///
-  /// Returns `None` if the window doesn't use xlib (if it uses wayland for example).
   fn gtk_window(&self) -> &gtk::ApplicationWindow;
 
   /// Not to display window icon in the task bar.

@@ -160,15 +160,15 @@ impl Window {
   #[inline]
   pub fn outer_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
     util::get_window_rect(self.window.0)
-            .map(|rect| Ok(PhysicalPosition::new(rect.left as i32, rect.top as i32)))
-            .expect("Unexpected GetWindowRect failure; please report this error to https://github.com/rust-windowing/winit")
+      .map(|rect| Ok(PhysicalPosition::new(rect.left as i32, rect.top as i32)))
+      .expect("Unexpected GetWindowRect failure")
   }
 
   #[inline]
   pub fn inner_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
     let mut position: POINT = unsafe { mem::zeroed() };
     if unsafe { winuser::ClientToScreen(self.window.0, &mut position) } == 0 {
-      panic!("Unexpected ClientToScreen failure: please report this error to https://github.com/rust-windowing/winit")
+      panic!("Unexpected ClientToScreen failure")
     }
     Ok(PhysicalPosition::new(position.x as i32, position.y as i32))
   }
@@ -206,7 +206,7 @@ impl Window {
   pub fn inner_size(&self) -> PhysicalSize<u32> {
     let mut rect: RECT = unsafe { mem::zeroed() };
     if unsafe { winuser::GetClientRect(self.window.0, &mut rect) } == 0 {
-      panic!("Unexpected GetClientRect failure: please report this error to https://github.com/rust-windowing/winit")
+      panic!("Unexpected GetClientRect failure")
     }
     PhysicalSize::new(
       (rect.right - rect.left) as u32,
