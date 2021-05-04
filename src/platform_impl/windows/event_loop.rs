@@ -2082,7 +2082,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
           // Left, middle, and right, respectively.
           for (index, state) in button_state.iter().enumerate() {
             if let Some(state) = *state {
-              // This gives us consistency with X11, since there doesn't
+              // This gives us consistency with Linux, since there doesn't
               // seem to be anything else reasonable to do for a mouse
               // button ID.
               let button = (index + 1) as _;

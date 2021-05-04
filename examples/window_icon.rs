@@ -12,8 +12,9 @@ use tao::{
 fn main() {
   SimpleLogger::new().init().unwrap();
 
-  // You'll have to choose an icon size at your own discretion. On X11, the desired size varies
-  // by WM, and on Windows, you still have to account for screen scaling. Here we use 32px,
+  // You'll have to choose an icon size at your own discretion. On Linux, the icon should be
+  // provided in whatever size it was naturally drawn; that is, don’t scale the image before passing
+  // it to Tao. But on Windows, you will have to account for screen scaling. Here we use 32px,
   // since it seems to work well enough in most cases. Be careful about going too high, or
   // you'll be bitten by the low-quality downscaling built into the WM.
   let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
@@ -24,7 +25,7 @@ fn main() {
 
   let window = WindowBuilder::new()
     .with_title("An iconic window!")
-    // At present, this only does anything on Windows and X11, so if you want to save load
+    // At present, this only does anything on Windows and Linux, so if you want to save load
     // time, you can put icon loading behind a function that returns `None` on other platforms.
     .with_window_icon(Some(icon))
     .build(&event_loop)

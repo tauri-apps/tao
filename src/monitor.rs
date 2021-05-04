@@ -69,8 +69,6 @@ impl VideoMode {
   /// systems, depending on whether the alpha channel is counted or not.
   ///
   /// ## Platform-specific
-  ///
-  /// - **Wayland:** Always returns 32.
   /// - **iOS:** Always returns 32.
   #[inline]
   pub fn bit_depth(&self) -> u16 {

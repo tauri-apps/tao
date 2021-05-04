@@ -257,7 +257,7 @@ pub enum WindowEvent<'a> {
     /// * Synthetic key press events are generated for all keys pressed
     ///   when a window gains focus. Likewise, synthetic key release events
     ///   are generated for all keys pressed when a window goes out of focus.
-    ///   ***Currently, this is only functional on X11 and Windows***
+    ///   ***Currently, this is only functional on Linux and Windows***
     ///
     /// Otherwise, this value is always `false`.
     is_synthetic: bool,

@@ -18,8 +18,7 @@ use crate::{event::Event, monitor::MonitorHandle, platform_impl};
 /// the events loop.
 ///
 /// An `EventLoop` can be seen more or less as a "context". Calling `EventLoop::new()`
-/// initializes everything that will be required to create windows. For example on Linux creating
-/// an event loop opens a connection to the X or Wayland server.
+/// initializes everything that will be required to create windows.
 ///
 /// To wake up an `EventLoop` from a another thread, see the `EventLoopProxy` docs.
 ///
@@ -177,10 +176,6 @@ impl<T> EventLoopWindowTarget<T> {
   /// Returns the primary monitor of the system.
   ///
   /// Returns `None` if it can't identify any monitor as a primary one.
-  ///
-  /// ## Platform-specific
-  ///
-  /// **Wayland:** Always returns `None`.
   #[inline]
   pub fn primary_monitor(&self) -> Option<MonitorHandle> {
     self.p.primary_monitor()
