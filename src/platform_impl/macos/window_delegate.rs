@@ -132,7 +132,7 @@ pub fn new_delegate(window: &Arc<UnownedWindow>, initial_fullscreen: bool) -> Id
     // This is free'd in `dealloc`
     let state_ptr = Box::into_raw(Box::new(state)) as *mut c_void;
     let delegate: id = msg_send![WINDOW_DELEGATE_CLASS.0, alloc];
-    IdRef::new(msg_send![delegate, initWithWinit: state_ptr])
+    IdRef::new(msg_send![delegate, initWithTao: state_ptr])
   }
 }
 
@@ -143,12 +143,12 @@ unsafe impl Sync for WindowDelegateClass {}
 lazy_static! {
   static ref WINDOW_DELEGATE_CLASS: WindowDelegateClass = unsafe {
     let superclass = class!(NSResponder);
-    let mut decl = ClassDecl::new("WinitWindowDelegate", superclass).unwrap();
+    let mut decl = ClassDecl::new("TaoWindowDelegate", superclass).unwrap();
 
     decl.add_method(sel!(dealloc), dealloc as extern "C" fn(&Object, Sel));
     decl.add_method(
-      sel!(initWithWinit:),
-      init_with_winit as extern "C" fn(&Object, Sel, *mut c_void) -> id,
+      sel!(initWithTao:),
+      init_with_tao as extern "C" fn(&Object, Sel, *mut c_void) -> id,
     );
 
     decl.add_method(
@@ -227,7 +227,7 @@ lazy_static! {
       window_did_fail_to_enter_fullscreen as extern "C" fn(&Object, Sel, id),
     );
 
-    decl.add_ivar::<*mut c_void>("winitState");
+    decl.add_ivar::<*mut c_void>("taoState");
     WindowDelegateClass(decl.register())
   };
 }
@@ -236,7 +236,7 @@ lazy_static! {
 // boilerplate and wouldn't really clarify anything...
 fn with_state<F: FnOnce(&mut WindowDelegateState) -> T, T>(this: &Object, callback: F) {
   let state_ptr = unsafe {
-    let state_ptr: *mut c_void = *this.get_ivar("winitState");
+    let state_ptr: *mut c_void = *this.get_ivar("taoState");
     &mut *(state_ptr as *mut WindowDelegateState)
   };
   callback(state_ptr);
@@ -248,11 +248,11 @@ extern "C" fn dealloc(this: &Object, _sel: Sel) {
   });
 }
 
-extern "C" fn init_with_winit(this: &Object, _sel: Sel, state: *mut c_void) -> id {
+extern "C" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void) -> id {
   unsafe {
     let this: id = msg_send![this, init];
     if this != nil {
-      (*this).set_ivar("winitState", state);
+      (*this).set_ivar("taoState", state);
       with_state(&*this, |state| {
         let () = msg_send![*state.ns_window, setDelegate: this];
       });
@@ -329,12 +329,12 @@ extern "C" fn window_did_resign_key(this: &Object, _: Sel, _: id) {
     // easily fall out of synchrony with reality.  This requires us to emit
     // a synthetic ModifiersChanged event when we lose focus.
     //
-    // Here we (very unsafely) acquire the winitState (a ViewState) from the
+    // Here we (very unsafely) acquire the taoState (a ViewState) from the
     // Object referenced by state.ns_view (an IdRef, which is dereferenced
     // to an id)
     let view_state: &mut ViewState = unsafe {
       let ns_view: &Object = (*state.ns_view).as_ref().expect("failed to deref");
-      let state_ptr: *mut c_void = *ns_view.get_ivar("winitState");
+      let state_ptr: *mut c_void = *ns_view.get_ivar("taoState");
       &mut *(state_ptr as *mut ViewState)
     };
 

@@ -1,4 +1,4 @@
-//! Winit is a cross-platform window creation and event loop management library.
+//! Tao is a cross-platform application window creation and event loop management library.
 //!
 //! # Building windows
 //!
@@ -34,7 +34,7 @@
 //! [`ControlFlow`]`::`[`Exit`], at which point [`Event`]`::`[`LoopDestroyed`] is emitted and the
 //! entire program terminates.
 //!
-//! Winit no longer uses a `EventLoop::poll_events() -> impl Iterator<Event>`-based event loop
+//! Tao no longer uses a `EventLoop::poll_events() -> impl Iterator<Event>`-based event loop
 //! model, since that can't be implemented properly on some platforms (e.g web, iOS) and works poorly on
 //! most other platforms. However, this model can be re-implemented to an extent with
 //! [`EventLoopExtRunReturn::run_return`]. See that method's documentation for more reasons about why
@@ -97,7 +97,7 @@
 //!
 //! # Drawing on the window
 //!
-//! Winit doesn't directly provide any methods for drawing on a [`Window`]. However it allows you to
+//! Tao doesn't directly provide any methods for drawing on a [`Window`]. However it allows you to
 //! retrieve the raw handle of the window (see the [`platform`] module and/or the
 //! [`raw_window_handle`] method), which in turn allows you to create an
 //! OpenGL/Vulkan/DirectX/Metal/etc. context that can be used to render graphics.

@@ -244,7 +244,7 @@ unsafe impl Sync for WindowClass {}
 lazy_static! {
   static ref WINDOW_CLASS: WindowClass = unsafe {
     let window_superclass = class!(NSWindow);
-    let mut decl = ClassDecl::new("WinitWindow", window_superclass).unwrap();
+    let mut decl = ClassDecl::new("TaoWindow", window_superclass).unwrap();
     decl.add_method(
       sel!(canBecomeMainWindow),
       util::yes as extern "C" fn(&Object, Sel) -> BOOL,

@@ -279,8 +279,8 @@ unsafe fn get_view_class(root_view_class: &'static Class) -> &'static Class {
       }
     }
 
-    let mut decl = ClassDecl::new(&format!("WinitUIView{}", ID), root_view_class)
-      .expect("Failed to declare class `WinitUIView`");
+    let mut decl = ClassDecl::new(&format!("TaoUIView{}", ID), root_view_class)
+      .expect("Failed to declare class `TaoUIView`");
     ID += 1;
     decl.add_method(
       sel!(drawRect:),
@@ -328,8 +328,8 @@ unsafe fn get_view_controller_class() -> &'static Class {
       YES
     }
 
-    let mut decl = ClassDecl::new("WinitUIViewController", uiviewcontroller_class)
-      .expect("Failed to declare class `WinitUIViewController`");
+    let mut decl = ClassDecl::new("TaoUIViewController", uiviewcontroller_class)
+      .expect("Failed to declare class `TaoUIViewController`");
     decl.add_method(
       sel!(shouldAutorotate),
       should_autorotate as extern "C" fn(&Object, Sel) -> BOOL,
@@ -411,8 +411,8 @@ unsafe fn get_window_class() -> &'static Class {
       }
     }
 
-    let mut decl = ClassDecl::new("WinitUIWindow", uiwindow_class)
-      .expect("Failed to declare class `WinitUIWindow`");
+    let mut decl = ClassDecl::new("TaoUIWindow", uiwindow_class)
+      .expect("Failed to declare class `TaoUIWindow`");
     decl.add_method(
       sel!(becomeKeyWindow),
       become_key_window as extern "C" fn(&Object, Sel),
@@ -573,8 +573,8 @@ pub fn create_delegate_class() {
         if window == nil {
           break;
         }
-        let is_winit_window: BOOL = msg_send![window, isKindOfClass: class!(WinitUIWindow)];
-        if is_winit_window == YES {
+        let is_tao_window: BOOL = msg_send![window, isKindOfClass: class!(TaoUIWindow)];
+        if is_tao_window == YES {
           events.push(EventWrapper::StaticEvent(Event::WindowEvent {
             window_id: RootWindowId(window.into()),
             event: WindowEvent::Destroyed,

@@ -40,7 +40,7 @@ use crate::{
     dark_mode::try_theme,
     dpi::{become_dpi_aware, dpi_to_scale_factor, enable_non_client_dpi_scaling},
     drop_handler::FileDropHandler,
-    event::{self, handle_extended_keys, process_key_params, vkey_to_winit_vkey},
+    event::{self, handle_extended_keys, process_key_params, vkey_to_tao_vkey},
     monitor::{self, MonitorHandle},
     raw_input, util,
     window_state::{CursorFlags, WindowFlags, WindowState},
@@ -291,7 +291,7 @@ fn get_wait_thread_id() -> DWORD {
     );
     assert_eq!(
       msg.message, *SEND_WAIT_THREAD_ID_MSG_ID,
-      "this shouldn't be possible. please open an issue with Winit. error code: {}",
+      "this shouldn't be possible. please open an issue with Tao. error code: {}",
       result
     );
     msg.lParam as DWORD
@@ -492,7 +492,7 @@ lazy_static! {
     // WPARAM and LPARAM are unused.
     static ref USER_EVENT_MSG_ID: u32 = {
         unsafe {
-            winuser::RegisterWindowMessageA("Winit::WakeupMsg\0".as_ptr() as LPCSTR)
+            winuser::RegisterWindowMessageA("Tao::WakeupMsg\0".as_ptr() as LPCSTR)
         }
     };
     // Message sent when we want to execute a closure in the thread.
@@ -500,49 +500,49 @@ lazy_static! {
     // and LPARAM is unused.
     static ref EXEC_MSG_ID: u32 = {
         unsafe {
-            winuser::RegisterWindowMessageA("Winit::ExecMsg\0".as_ptr() as *const i8)
+            winuser::RegisterWindowMessageA("Tao::ExecMsg\0".as_ptr() as *const i8)
         }
     };
     static ref PROCESS_NEW_EVENTS_MSG_ID: u32 = {
         unsafe {
-            winuser::RegisterWindowMessageA("Winit::ProcessNewEvents\0".as_ptr() as *const i8)
+            winuser::RegisterWindowMessageA("Tao::ProcessNewEvents\0".as_ptr() as *const i8)
         }
     };
     /// lparam is the wait thread's message id.
     static ref SEND_WAIT_THREAD_ID_MSG_ID: u32 = {
         unsafe {
-            winuser::RegisterWindowMessageA("Winit::SendWaitThreadId\0".as_ptr() as *const i8)
+            winuser::RegisterWindowMessageA("Tao::SendWaitThreadId\0".as_ptr() as *const i8)
         }
     };
     /// lparam points to a `Box<Instant>` signifying the time `PROCESS_NEW_EVENTS_MSG_ID` should
     /// be sent.
     static ref WAIT_UNTIL_MSG_ID: u32 = {
         unsafe {
-            winuser::RegisterWindowMessageA("Winit::WaitUntil\0".as_ptr() as *const i8)
+            winuser::RegisterWindowMessageA("Tao::WaitUntil\0".as_ptr() as *const i8)
         }
     };
     static ref CANCEL_WAIT_UNTIL_MSG_ID: u32 = {
         unsafe {
-            winuser::RegisterWindowMessageA("Winit::CancelWaitUntil\0".as_ptr() as *const i8)
+            winuser::RegisterWindowMessageA("Tao::CancelWaitUntil\0".as_ptr() as *const i8)
         }
     };
     // Message sent by a `Window` when it wants to be destroyed by the main thread.
     // WPARAM and LPARAM are unused.
     pub static ref DESTROY_MSG_ID: u32 = {
         unsafe {
-            winuser::RegisterWindowMessageA("Winit::DestroyMsg\0".as_ptr() as LPCSTR)
+            winuser::RegisterWindowMessageA("Tao::DestroyMsg\0".as_ptr() as LPCSTR)
         }
     };
     // WPARAM is a bool specifying the `WindowFlags::MARKER_RETAIN_STATE_ON_SIZE` flag. See the
     // documentation in the `window_state` module for more information.
     pub static ref SET_RETAIN_STATE_ON_SIZE_MSG_ID: u32 = unsafe {
-        winuser::RegisterWindowMessageA("Winit::SetRetainMaximized\0".as_ptr() as LPCSTR)
+        winuser::RegisterWindowMessageA("Tao::SetRetainMaximized\0".as_ptr() as LPCSTR)
     };
     static ref THREAD_EVENT_TARGET_WINDOW_CLASS: Vec<u16> = unsafe {
         use std::ffi::OsStr;
         use std::os::windows::ffi::OsStrExt;
 
-        let class_name: Vec<_> = OsStr::new("Winit Thread Event Target")
+        let class_name: Vec<_> = OsStr::new("Tao Thread Event Target")
             .encode_wide()
             .chain(Some(0).into_iter())
             .collect();
@@ -683,14 +683,14 @@ fn normalize_pointer_pressure(pressure: u32) -> Option<Force> {
   }
 }
 
-/// Flush redraw events for Winit's windows.
+/// Flush redraw events for Tao's windows.
 ///
-/// Winit's API guarantees that all redraw events will be clustered together and dispatched all at
+/// Tao's API guarantees that all redraw events will be clustered together and dispatched all at
 /// once, but the standard Windows message loop doesn't always exhibit that behavior. If multiple
 /// windows have had redraws scheduled, but an input event is pushed to the message queue between
 /// the `WM_PAINT` call for the first window and the `WM_PAINT` call for the second window, Windows
 /// will dispatch the input event immediately instead of flushing all the redraw events. This
-/// function explicitly pulls all of Winit's redraw events out of the event queue so that they
+/// function explicitly pulls all of Tao's redraw events out of the event queue so that they
 /// always all get processed in one fell swoop.
 ///
 /// Returns `true` if this invocation flushed all the redraw events. If this function is re-entrant,
@@ -1572,7 +1572,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       use crate::event::{ElementState::Released, WindowEvent::Focused};
       for windows_keycode in event::get_pressed_keys() {
         let scancode = winuser::MapVirtualKeyA(windows_keycode as _, winuser::MAPVK_VK_TO_VSC);
-        let virtual_keycode = event::vkey_to_winit_vkey(windows_keycode);
+        let virtual_keycode = event::vkey_to_tao_vkey(windows_keycode);
 
         update_modifiers(window, subclass_input);
 
@@ -1608,7 +1608,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       };
       for windows_keycode in event::get_pressed_keys() {
         let scancode = winuser::MapVirtualKeyA(windows_keycode as _, winuser::MAPVK_VK_TO_VSC);
-        let virtual_keycode = event::vkey_to_winit_vkey(windows_keycode);
+        let virtual_keycode = event::vkey_to_tao_vkey(windows_keycode);
 
         #[allow(deprecated)]
         subclass_input.send_event(Event::WindowEvent {
@@ -2110,7 +2110,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
             if let Some((vkey, scancode)) =
               handle_extended_keys(keyboard.VKey as _, scancode, extended)
             {
-              let virtual_keycode = vkey_to_winit_vkey(vkey);
+              let virtual_keycode = vkey_to_tao_vkey(vkey);
 
               #[allow(deprecated)]
               subclass_input.send_event(Event::DeviceEvent {
