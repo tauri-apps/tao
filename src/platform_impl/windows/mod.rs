@@ -15,6 +15,7 @@ pub use self::{
 pub use self::icon::WinIcon as PlatformIcon;
 
 use crate::{event::DeviceId as RootDeviceId, icon::Icon, window::Theme};
+mod menu;
 
 #[derive(Clone)]
 pub enum Parent {
