@@ -1,4 +1,5 @@
 use raw_window_handle::RawWindowHandle;
+use std::os::windows::ffi::OsStrExt;
 use winapi::{
   shared::{basetsd, minwindef, windef},
   um::{commctrl, winuser},
