@@ -604,7 +604,7 @@ pub enum WindowRequest {
   CursorIcon(Option<CursorIcon>),
   WireUpEvents,
   Redraw,
-  Menu(MenuItem<'static>),
+  Menu(MenuItem),
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
