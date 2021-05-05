@@ -83,6 +83,15 @@ fn main() {
       } => {
         if menu_id == custom_change_menu.id() {
           println!("Clicked on custom change menu");
+          window.set_menu(Some(vec![Menu::new(
+            "File",
+            vec![
+              MenuItem::new("Add Todo").with_accelerators("<Primary>+"),
+              MenuItem::Separator,
+              MenuItem::CloseWindow,
+            ],
+          )]))
+
         }
 
         println!("Clicked on {:?}", menu_id);
