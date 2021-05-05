@@ -21,14 +21,11 @@ fn main() {
 
     match event {
       Event::WindowEvent { event, window_id } => {
-        match event {
-          WindowEvent::CloseRequested => {
-            println!("Window {:?} has received the signal to close", window_id);
+        if event == WindowEvent::CloseRequested {
+          println!("Window {:?} has received the signal to close", window_id);
 
-            // Remove window from our hashmap
-            windows.remove(&window_id);
-          }
-          _ => (),
+          // Remove window from our hashmap
+          windows.remove(&window_id);
         }
       }
       Event::MenuEvent {
