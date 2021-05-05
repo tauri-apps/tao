@@ -52,7 +52,7 @@ impl Inner {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   pub fn set_menu(&self, _menu: Option<Vec<Menu>>) {
     debug!("`Window::set_menu` is ignored on iOS")

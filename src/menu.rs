@@ -36,7 +36,7 @@ pub enum MenuItem<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   About(&'a str),
 
@@ -44,7 +44,7 @@ pub enum MenuItem<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   Hide,
 
@@ -52,7 +52,7 @@ pub enum MenuItem<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   Services,
 
@@ -60,7 +60,7 @@ pub enum MenuItem<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   HideOthers,
 
@@ -68,7 +68,7 @@ pub enum MenuItem<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   ShowAll,
 
@@ -76,7 +76,7 @@ pub enum MenuItem<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   CloseWindow,
 
@@ -84,7 +84,7 @@ pub enum MenuItem<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   Quit,
 
@@ -92,7 +92,7 @@ pub enum MenuItem<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   Copy,
 
@@ -100,12 +100,17 @@ pub enum MenuItem<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   Cut,
 
   /// An "undo" menu item; particularly useful for supporting the cut/copy/paste/undo lifecycle
   /// of events.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  ///
   Undo,
 
   /// An "redo" menu item; particularly useful for supporting the cut/copy/paste/undo lifecycle
@@ -113,7 +118,7 @@ pub enum MenuItem<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   Redo,
 
@@ -121,7 +126,7 @@ pub enum MenuItem<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   SelectAll,
 
@@ -129,7 +134,7 @@ pub enum MenuItem<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   Paste,
 
@@ -137,7 +142,7 @@ pub enum MenuItem<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   EnterFullScreen,
 
@@ -145,7 +150,7 @@ pub enum MenuItem<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   Minimize,
 
@@ -153,7 +158,7 @@ pub enum MenuItem<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   Zoom,
 
@@ -161,7 +166,7 @@ pub enum MenuItem<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   Separator,
 }
@@ -182,7 +187,7 @@ impl<'a> MenuItem<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   pub fn with_accelerators(mut self, keyboard_accelerators: &'static str) -> Self {
     if let MenuItem::Custom(ref mut custom_menu) = self {
@@ -195,7 +200,7 @@ impl<'a> MenuItem<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   pub fn id(mut self) -> MenuId {
     if let MenuItem::Custom(ref mut custom_menu) = self {

@@ -444,7 +444,7 @@ impl UnownedWindow {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows/Linux:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
   pub fn set_menu(&self, menu: Option<Vec<Menu<'static>>>) {
     unsafe {
