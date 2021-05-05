@@ -1,24 +1,16 @@
 use raw_window_handle::RawWindowHandle;
-use std::os::windows::ffi::OsStrExt;
 use winapi::{
   shared::{basetsd, minwindef, windef},
   um::{commctrl, winuser},
 };
 
-use std::{cell::RefCell, collections::HashMap};
-
 use crate::{
   event::Event,
-  menu::{Menu, MenuItem},
+  menu::{Menu, MenuItem, MenuId, MenuType},
 };
 
 pub struct MenuHandler {
   send_event: Box<dyn Fn(Event<'static, ()>)>,
-}
-
-thread_local! {
-  static MENU_INDEX: RefCell<u32> = RefCell::new(1);
-  static MENU_MAP: RefCell<HashMap<u32, String>> = RefCell::new(HashMap::new());
 }
 
 #[allow(non_snake_case)]
@@ -27,16 +19,14 @@ impl MenuHandler {
     MenuHandler { send_event }
   }
   fn send_click_event(&self, menu_id: u32) {
-    MENU_MAP.with(|cell| {
-      let current_hash_map = cell.borrow();
-      if let Some(real_menu_id) = current_hash_map.get(&menu_id) {
-        (self.send_event)(Event::MenuEvent(real_menu_id.to_string()));
-      }
+    (self.send_event)(Event::MenuEvent {
+      menu_id: MenuId(menu_id),
+      origin: MenuType::Menubar,
     });
   }
 }
 
-pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler: MenuHandler) {
+pub fn initialize(menu: Vec<Menu<'_>>, window_handle: RawWindowHandle, menu_handler: MenuHandler) {
   if let RawWindowHandle::Windows(handle) = window_handle {
     let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
 
@@ -55,20 +45,7 @@ pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler:
         let mut sub_menu_position = 0;
         for item in &menu.items {
           let sub_item = match item {
-            MenuItem::Custom(custom_menu) => {
-              // it's a custom menu, let's add it to our hashmap
-              let mut current_id = 0;
-              MENU_INDEX.with(|cell| {
-                current_id = cell.replace_with(|&mut i| i + 1);
-              });
-
-              // save our reference to match later in the click event
-              MENU_MAP.with(|cell| {
-                cell.borrow_mut().insert(current_id, custom_menu.id.clone());
-              });
-
-              make_menu_item(Some(current_id.clone()), custom_menu.name.as_str())
-            }
+            MenuItem::Custom(custom_menu) => make_menu_item(Some(custom_menu._id.0), custom_menu.name),
             // Let's support only custom menu in windows for now
             _ => None,
           };
@@ -112,8 +89,8 @@ fn make_menu_item(id: Option<u32>, title: &str) -> Option<winuser::MENUITEMINFOW
     fMask: winuser::MIIM_STRING | winuser::MIIM_ID,
     fType: winuser::MFT_STRING,
     fState: winuser::MFS_ENABLED,
-    // Received on low-word of wParam when WM_COMMAND
     // It represent the unique menu ID
+    // that we can get inside our w_param from the subclass_proc
     wID: real_id,
     hSubMenu: std::ptr::null_mut(),
     hbmpChecked: std::ptr::null_mut(),
@@ -144,8 +121,7 @@ unsafe extern "system" fn subclass_proc(
   match u_msg {
     winuser::WM_COMMAND => {
       let proxy = &mut *(data as *mut MenuHandler);
-      let lo_word = minwindef::LOWORD(w_param as u32);
-      proxy.send_click_event(lo_word.into());
+      proxy.send_click_event(w_param as u32);
       0
     }
     winuser::WM_DESTROY => {
