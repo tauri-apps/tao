@@ -7,6 +7,7 @@
 ))]
 
 mod event_loop;
+mod menu;
 mod monitor;
 mod window;
 

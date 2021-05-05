@@ -144,333 +144,330 @@ impl<T: 'static> EventLoop<T> {
 
       // Widnow Request
       if let Ok((id, request)) = window_target.p.window_requests_rx.try_recv() {
-        let window = window_target
-          .p
-          .app
-          .get_window_by_id(id.0)
-          .expect("Failed to send closed window event!");
-
-        match request {
-          WindowRequest::Title(title) => window.set_title(&title),
-          WindowRequest::Position((x, y)) => window.move_(x, y),
-          WindowRequest::Size((w, h)) => window.resize(w, h),
-          WindowRequest::MinSize((min_width, min_height)) => window
-            .set_geometry_hints::<ApplicationWindow>(
-              None,
-              Some(&gdk::Geometry {
-                min_width,
-                min_height,
-                max_width: 0,
-                max_height: 0,
-                base_width: 0,
-                base_height: 0,
-                width_inc: 0,
-                height_inc: 0,
-                min_aspect: 0f64,
-                max_aspect: 0f64,
-                win_gravity: gdk::Gravity::Center,
-              }),
-              gdk::WindowHints::MIN_SIZE,
-            ),
-          WindowRequest::MaxSize((max_width, max_height)) => window
-            .set_geometry_hints::<ApplicationWindow>(
-              None,
-              Some(&gdk::Geometry {
-                min_width: 0,
-                min_height: 0,
-                max_width,
-                max_height,
-                base_width: 0,
-                base_height: 0,
-                width_inc: 0,
-                height_inc: 0,
-                min_aspect: 0f64,
-                max_aspect: 0f64,
-                win_gravity: gdk::Gravity::Center,
-              }),
-              gdk::WindowHints::MAX_SIZE,
-            ),
-          WindowRequest::Visible(visible) => {
-            if visible {
-              window.show_all();
-            } else {
-              window.hide();
+        if let Some(window) = window_target.p.app.get_window_by_id(id.0) {
+          match request {
+            WindowRequest::Title(title) => window.set_title(&title),
+            WindowRequest::Position((x, y)) => window.move_(x, y),
+            WindowRequest::Size((w, h)) => window.resize(w, h),
+            WindowRequest::MinSize((min_width, min_height)) => window
+              .set_geometry_hints::<ApplicationWindow>(
+                None,
+                Some(&gdk::Geometry {
+                  min_width,
+                  min_height,
+                  max_width: 0,
+                  max_height: 0,
+                  base_width: 0,
+                  base_height: 0,
+                  width_inc: 0,
+                  height_inc: 0,
+                  min_aspect: 0f64,
+                  max_aspect: 0f64,
+                  win_gravity: gdk::Gravity::Center,
+                }),
+                gdk::WindowHints::MIN_SIZE,
+              ),
+            WindowRequest::MaxSize((max_width, max_height)) => window
+              .set_geometry_hints::<ApplicationWindow>(
+                None,
+                Some(&gdk::Geometry {
+                  min_width: 0,
+                  min_height: 0,
+                  max_width,
+                  max_height,
+                  base_width: 0,
+                  base_height: 0,
+                  width_inc: 0,
+                  height_inc: 0,
+                  min_aspect: 0f64,
+                  max_aspect: 0f64,
+                  win_gravity: gdk::Gravity::Center,
+                }),
+                gdk::WindowHints::MAX_SIZE,
+              ),
+            WindowRequest::Visible(visible) => {
+              if visible {
+                window.show_all();
+              } else {
+                window.hide();
+              }
             }
-          }
-          WindowRequest::Resizable(resizable) => window.set_resizable(resizable),
-          WindowRequest::Minimized(minimized) => {
-            if minimized {
-              window.iconify();
-            } else {
-              window.deiconify();
+            WindowRequest::Resizable(resizable) => window.set_resizable(resizable),
+            WindowRequest::Minimized(minimized) => {
+              if minimized {
+                window.iconify();
+              } else {
+                window.deiconify();
+              }
             }
-          }
-          WindowRequest::Maximized(maximized) => {
-            if maximized {
-              window.maximize();
-            } else {
-              window.unmaximize();
+            WindowRequest::Maximized(maximized) => {
+              if maximized {
+                window.maximize();
+              } else {
+                window.unmaximize();
+              }
             }
-          }
-          WindowRequest::DragWindow => {
-            let display = window.get_display();
-            if let Some(cursor) = display
-              .get_device_manager()
-              .and_then(|device_manager| device_manager.get_client_pointer())
-            {
-              let (_, x, y) = cursor.get_position();
-              window.begin_move_drag(1, x, y, 0);
-            }
-          }
-          WindowRequest::Fullscreen(fullscreen) => match fullscreen {
-            Some(_) => window.fullscreen(),
-            None => window.unfullscreen(),
-          },
-          WindowRequest::Decorations(decorations) => window.set_decorated(decorations),
-          WindowRequest::AlwaysOnTop(always_on_top) => window.set_keep_above(always_on_top),
-          WindowRequest::WindowIcon(window_icon) => {
-            if let Some(icon) = window_icon {
-              window.set_icon(Some(&icon.inner.into()));
-            }
-          }
-          WindowRequest::UserAttention(request_type) => {
-            if request_type.is_some() {
-              window.set_urgency_hint(true)
-            }
-          }
-          WindowRequest::SkipTaskbar => window.set_skip_taskbar_hint(true),
-          WindowRequest::CursorIcon(cursor) => {
-            if let Some(gdk_window) = window.get_window() {
-              let display = window.get_display();
-              match cursor {
-                Some(cr) => gdk_window.set_cursor(
-                  Cursor::from_name(
-                    &display,
-                    match cr {
-                      CursorIcon::Crosshair => "crosshair",
-                      CursorIcon::Hand => "pointer",
-                      CursorIcon::Arrow => "crosshair",
-                      CursorIcon::Move => "move",
-                      CursorIcon::Text => "text",
-                      CursorIcon::Wait => "wait",
-                      CursorIcon::Help => "help",
-                      CursorIcon::Progress => "progress",
-                      CursorIcon::NotAllowed => "not-allowed",
-                      CursorIcon::ContextMenu => "context-menu",
-                      CursorIcon::Cell => "cell",
-                      CursorIcon::VerticalText => "vertical-text",
-                      CursorIcon::Alias => "alias",
-                      CursorIcon::Copy => "copy",
-                      CursorIcon::NoDrop => "no-drop",
-                      CursorIcon::Grab => "grab",
-                      CursorIcon::Grabbing => "grabbing",
-                      CursorIcon::AllScroll => "all-scroll",
-                      CursorIcon::ZoomIn => "zoom-in",
-                      CursorIcon::ZoomOut => "zoom-out",
-                      CursorIcon::EResize => "e-resize",
-                      CursorIcon::NResize => "n-resize",
-                      CursorIcon::NeResize => "ne-resize",
-                      CursorIcon::NwResize => "nw-resize",
-                      CursorIcon::SResize => "s-resize",
-                      CursorIcon::SeResize => "se-resize",
-                      CursorIcon::SwResize => "sw-resize",
-                      CursorIcon::WResize => "w-resize",
-                      CursorIcon::EwResize => "ew-resize",
-                      CursorIcon::NsResize => "ns-resize",
-                      CursorIcon::NeswResize => "nesw-resize",
-                      CursorIcon::NwseResize => "nwse-resize",
-                      CursorIcon::ColResize => "col-resize",
-                      CursorIcon::RowResize => "row-resize",
-                      CursorIcon::Default => "default",
-                    },
-                  )
-                  .as_ref(),
-                ),
-                None => gdk_window.set_cursor(Some(&Cursor::new_for_display(
-                  &display,
-                  CursorType::BlankCursor,
-                ))),
-              }
-            };
-          }
-          WindowRequest::WireUpEvents => {
-            let windows_rc = window_target.p.windows.clone();
-            let tx_clone = event_tx.clone();
-
-            window.connect_delete_event(move |_, _| {
-              windows_rc.borrow_mut().remove(&id);
-              if let Err(e) = tx_clone.send(Event::WindowEvent {
-                window_id: RootWindowId(id),
-                event: WindowEvent::CloseRequested,
-              }) {
-                log::warn!("Failed to send window close event to event channel: {}", e);
-              }
-              Inhibit(false)
-            });
-
-            let tx_clone = event_tx.clone();
-            window.connect_configure_event(move |_, event| {
-              let (x, y) = event.get_position();
-              if let Err(e) = tx_clone.send(Event::WindowEvent {
-                window_id: RootWindowId(id),
-                event: WindowEvent::Moved(PhysicalPosition::new(x, y)),
-              }) {
-                log::warn!("Failed to send window moved event to event channel: {}", e);
-              }
-
-              let (w, h) = event.get_size();
-              if let Err(e) = tx_clone.send(Event::WindowEvent {
-                window_id: RootWindowId(id),
-                event: WindowEvent::Resized(PhysicalSize::new(w, h)),
-              }) {
-                log::warn!(
-                  "Failed to send window resized event to event channel: {}",
-                  e
-                );
-              }
-              false
-            });
-
-            let tx_clone = event_tx.clone();
-            window.connect_window_state_event(move |_window, event| {
-              let state = event.get_new_window_state();
-
-              if let Err(e) = tx_clone.send(Event::WindowEvent {
-                window_id: RootWindowId(id),
-                event: WindowEvent::Focused(state.contains(WindowState::FOCUSED)),
-              }) {
-                log::warn!(
-                  "Failed to send window focused event to event channel: {}",
-                  e
-                );
-              }
-              Inhibit(false)
-            });
-
-            let tx_clone = event_tx.clone();
-            window.connect_destroy_event(move |_, _| {
-              if let Err(e) = tx_clone.send(Event::WindowEvent {
-                window_id: RootWindowId(id),
-                event: WindowEvent::Destroyed,
-              }) {
-                log::warn!(
-                  "Failed to send window destroyed event to event channel: {}",
-                  e
-                );
-              }
-              Inhibit(false)
-            });
-
-            let tx_clone = event_tx.clone();
-            window.connect_enter_notify_event(move |_, _| {
-              if let Err(e) = tx_clone.send(Event::WindowEvent {
-                window_id: RootWindowId(id),
-                event: WindowEvent::CursorEntered {
-                  // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                  device_id: RootDeviceId(DeviceId(0)),
-                },
-              }) {
-                log::warn!(
-                  "Failed to send cursor entered event to event channel: {}",
-                  e
-                );
-              }
-              Inhibit(false)
-            });
-
-            let tx_clone = event_tx.clone();
-            window.connect_motion_notify_event(move |window, _| {
+            WindowRequest::DragWindow => {
               let display = window.get_display();
               if let Some(cursor) = display
                 .get_device_manager()
                 .and_then(|device_manager| device_manager.get_client_pointer())
               {
                 let (_, x, y) = cursor.get_position();
+                window.begin_move_drag(1, x, y, 0);
+              }
+            }
+            WindowRequest::Fullscreen(fullscreen) => match fullscreen {
+              Some(_) => window.fullscreen(),
+              None => window.unfullscreen(),
+            },
+            WindowRequest::Decorations(decorations) => window.set_decorated(decorations),
+            WindowRequest::AlwaysOnTop(always_on_top) => window.set_keep_above(always_on_top),
+            WindowRequest::WindowIcon(window_icon) => {
+              if let Some(icon) = window_icon {
+                window.set_icon(Some(&icon.inner.into()));
+              }
+            }
+            WindowRequest::UserAttention(request_type) => {
+              if request_type.is_some() {
+                window.set_urgency_hint(true)
+              }
+            }
+            WindowRequest::SkipTaskbar => window.set_skip_taskbar_hint(true),
+            WindowRequest::CursorIcon(cursor) => {
+              if let Some(gdk_window) = window.get_window() {
+                let display = window.get_display();
+                match cursor {
+                  Some(cr) => gdk_window.set_cursor(
+                    Cursor::from_name(
+                      &display,
+                      match cr {
+                        CursorIcon::Crosshair => "crosshair",
+                        CursorIcon::Hand => "pointer",
+                        CursorIcon::Arrow => "crosshair",
+                        CursorIcon::Move => "move",
+                        CursorIcon::Text => "text",
+                        CursorIcon::Wait => "wait",
+                        CursorIcon::Help => "help",
+                        CursorIcon::Progress => "progress",
+                        CursorIcon::NotAllowed => "not-allowed",
+                        CursorIcon::ContextMenu => "context-menu",
+                        CursorIcon::Cell => "cell",
+                        CursorIcon::VerticalText => "vertical-text",
+                        CursorIcon::Alias => "alias",
+                        CursorIcon::Copy => "copy",
+                        CursorIcon::NoDrop => "no-drop",
+                        CursorIcon::Grab => "grab",
+                        CursorIcon::Grabbing => "grabbing",
+                        CursorIcon::AllScroll => "all-scroll",
+                        CursorIcon::ZoomIn => "zoom-in",
+                        CursorIcon::ZoomOut => "zoom-out",
+                        CursorIcon::EResize => "e-resize",
+                        CursorIcon::NResize => "n-resize",
+                        CursorIcon::NeResize => "ne-resize",
+                        CursorIcon::NwResize => "nw-resize",
+                        CursorIcon::SResize => "s-resize",
+                        CursorIcon::SeResize => "se-resize",
+                        CursorIcon::SwResize => "sw-resize",
+                        CursorIcon::WResize => "w-resize",
+                        CursorIcon::EwResize => "ew-resize",
+                        CursorIcon::NsResize => "ns-resize",
+                        CursorIcon::NeswResize => "nesw-resize",
+                        CursorIcon::NwseResize => "nwse-resize",
+                        CursorIcon::ColResize => "col-resize",
+                        CursorIcon::RowResize => "row-resize",
+                        CursorIcon::Default => "default",
+                      },
+                    )
+                    .as_ref(),
+                  ),
+                  None => gdk_window.set_cursor(Some(&Cursor::new_for_display(
+                    &display,
+                    CursorType::BlankCursor,
+                  ))),
+                }
+              };
+            }
+            WindowRequest::WireUpEvents => {
+              let windows_rc = window_target.p.windows.clone();
+              let tx_clone = event_tx.clone();
+
+              window.connect_delete_event(move |_, _| {
+                windows_rc.borrow_mut().remove(&id);
                 if let Err(e) = tx_clone.send(Event::WindowEvent {
                   window_id: RootWindowId(id),
-                  event: WindowEvent::CursorMoved {
-                    position: PhysicalPosition::new(x as f64, y as f64),
+                  event: WindowEvent::CloseRequested,
+                }) {
+                  log::warn!("Failed to send window close event to event channel: {}", e);
+                }
+                Inhibit(false)
+              });
+
+              let tx_clone = event_tx.clone();
+              window.connect_configure_event(move |_, event| {
+                let (x, y) = event.get_position();
+                if let Err(e) = tx_clone.send(Event::WindowEvent {
+                  window_id: RootWindowId(id),
+                  event: WindowEvent::Moved(PhysicalPosition::new(x, y)),
+                }) {
+                  log::warn!("Failed to send window moved event to event channel: {}", e);
+                }
+
+                let (w, h) = event.get_size();
+                if let Err(e) = tx_clone.send(Event::WindowEvent {
+                  window_id: RootWindowId(id),
+                  event: WindowEvent::Resized(PhysicalSize::new(w, h)),
+                }) {
+                  log::warn!(
+                    "Failed to send window resized event to event channel: {}",
+                    e
+                  );
+                }
+                false
+              });
+
+              let tx_clone = event_tx.clone();
+              window.connect_window_state_event(move |_window, event| {
+                let state = event.get_new_window_state();
+
+                if let Err(e) = tx_clone.send(Event::WindowEvent {
+                  window_id: RootWindowId(id),
+                  event: WindowEvent::Focused(state.contains(WindowState::FOCUSED)),
+                }) {
+                  log::warn!(
+                    "Failed to send window focused event to event channel: {}",
+                    e
+                  );
+                }
+                Inhibit(false)
+              });
+
+              let tx_clone = event_tx.clone();
+              window.connect_destroy_event(move |_, _| {
+                if let Err(e) = tx_clone.send(Event::WindowEvent {
+                  window_id: RootWindowId(id),
+                  event: WindowEvent::Destroyed,
+                }) {
+                  log::warn!(
+                    "Failed to send window destroyed event to event channel: {}",
+                    e
+                  );
+                }
+                Inhibit(false)
+              });
+
+              let tx_clone = event_tx.clone();
+              window.connect_enter_notify_event(move |_, _| {
+                if let Err(e) = tx_clone.send(Event::WindowEvent {
+                  window_id: RootWindowId(id),
+                  event: WindowEvent::CursorEntered {
+                    // FIXME: currently we use a dummy device id, find if we can get device id from gtk
+                    device_id: RootDeviceId(DeviceId(0)),
+                  },
+                }) {
+                  log::warn!(
+                    "Failed to send cursor entered event to event channel: {}",
+                    e
+                  );
+                }
+                Inhibit(false)
+              });
+
+              let tx_clone = event_tx.clone();
+              window.connect_motion_notify_event(move |window, _| {
+                let display = window.get_display();
+                if let Some(cursor) = display
+                  .get_device_manager()
+                  .and_then(|device_manager| device_manager.get_client_pointer())
+                {
+                  let (_, x, y) = cursor.get_position();
+                  if let Err(e) = tx_clone.send(Event::WindowEvent {
+                    window_id: RootWindowId(id),
+                    event: WindowEvent::CursorMoved {
+                      position: PhysicalPosition::new(x as f64, y as f64),
+                      // FIXME: currently we use a dummy device id, find if we can get device id from gtk
+                      device_id: RootDeviceId(DeviceId(0)),
+                      // this field is depracted so it is fine to pass empty state
+                      modifiers: ModifiersState::empty(),
+                    },
+                  }) {
+                    log::warn!("Failed to send cursor moved event to event channel: {}", e);
+                  }
+                }
+                Inhibit(false)
+              });
+
+              let tx_clone = event_tx.clone();
+              window.connect_leave_notify_event(move |_, _| {
+                if let Err(e) = tx_clone.send(Event::WindowEvent {
+                  window_id: RootWindowId(id),
+                  event: WindowEvent::CursorLeft {
+                    // FIXME: currently we use a dummy device id, find if we can get device id from gtk
+                    device_id: RootDeviceId(DeviceId(0)),
+                  },
+                }) {
+                  log::warn!("Failed to send cursor left event to event channel: {}", e);
+                }
+                Inhibit(false)
+              });
+
+              let tx_clone = event_tx.clone();
+              window.connect_button_press_event(move |_, event| {
+                let button = event.get_button();
+                if let Err(e) = tx_clone.send(Event::WindowEvent {
+                  window_id: RootWindowId(id),
+                  event: WindowEvent::MouseInput {
+                    button: match button {
+                      1 => MouseButton::Left,
+                      2 => MouseButton::Middle,
+                      3 => MouseButton::Right,
+                      _ => MouseButton::Other(button as u16),
+                    },
+                    state: ElementState::Pressed,
                     // FIXME: currently we use a dummy device id, find if we can get device id from gtk
                     device_id: RootDeviceId(DeviceId(0)),
                     // this field is depracted so it is fine to pass empty state
                     modifiers: ModifiersState::empty(),
                   },
                 }) {
-                  log::warn!("Failed to send cursor moved event to event channel: {}", e);
+                  log::warn!(
+                    "Failed to send mouse input preseed event to event channel: {}",
+                    e
+                  );
                 }
-              }
-              Inhibit(false)
-            });
+                Inhibit(false)
+              });
 
-            let tx_clone = event_tx.clone();
-            window.connect_leave_notify_event(move |_, _| {
-              if let Err(e) = tx_clone.send(Event::WindowEvent {
-                window_id: RootWindowId(id),
-                event: WindowEvent::CursorLeft {
-                  // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                  device_id: RootDeviceId(DeviceId(0)),
-                },
-              }) {
-                log::warn!("Failed to send cursor left event to event channel: {}", e);
-              }
-              Inhibit(false)
-            });
-
-            let tx_clone = event_tx.clone();
-            window.connect_button_press_event(move |_, event| {
-              let button = event.get_button();
-              if let Err(e) = tx_clone.send(Event::WindowEvent {
-                window_id: RootWindowId(id),
-                event: WindowEvent::MouseInput {
-                  button: match button {
-                    1 => MouseButton::Left,
-                    2 => MouseButton::Middle,
-                    3 => MouseButton::Right,
-                    _ => MouseButton::Other(button as u16),
+              let tx_clone = event_tx.clone();
+              window.connect_button_release_event(move |_, event| {
+                let button = event.get_button();
+                if let Err(e) = tx_clone.send(Event::WindowEvent {
+                  window_id: RootWindowId(id),
+                  event: WindowEvent::MouseInput {
+                    button: match button {
+                      1 => MouseButton::Left,
+                      2 => MouseButton::Middle,
+                      3 => MouseButton::Right,
+                      _ => MouseButton::Other(button as u16),
+                    },
+                    state: ElementState::Released,
+                    // FIXME: currently we use a dummy device id, find if we can get device id from gtk
+                    device_id: RootDeviceId(DeviceId(0)),
+                    // this field is depracted so it is fine to pass empty state
+                    modifiers: ModifiersState::empty(),
                   },
-                  state: ElementState::Pressed,
-                  // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                  device_id: RootDeviceId(DeviceId(0)),
-                  // this field is depracted so it is fine to pass empty state
-                  modifiers: ModifiersState::empty(),
-                },
-              }) {
-                log::warn!(
-                  "Failed to send mouse input preseed event to event channel: {}",
-                  e
-                );
-              }
-              Inhibit(false)
-            });
-
-            let tx_clone = event_tx.clone();
-            window.connect_button_release_event(move |_, event| {
-              let button = event.get_button();
-              if let Err(e) = tx_clone.send(Event::WindowEvent {
-                window_id: RootWindowId(id),
-                event: WindowEvent::MouseInput {
-                  button: match button {
-                    1 => MouseButton::Left,
-                    2 => MouseButton::Middle,
-                    3 => MouseButton::Right,
-                    _ => MouseButton::Other(button as u16),
-                  },
-                  state: ElementState::Released,
-                  // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                  device_id: RootDeviceId(DeviceId(0)),
-                  // this field is depracted so it is fine to pass empty state
-                  modifiers: ModifiersState::empty(),
-                },
-              }) {
-                log::warn!(
-                  "Failed to send mouse input released event to event channel: {}",
-                  e
-                );
-              }
-              Inhibit(false)
-            });
+                }) {
+                  log::warn!(
+                    "Failed to send mouse input released event to event channel: {}",
+                    e
+                  );
+                }
+                Inhibit(false)
+              });
+            }
+            WindowRequest::Redraw => window.queue_draw(),
+            WindowRequest::Close => window.close(),
           }
-          WindowRequest::Redraw => window.queue_draw(),
         }
       }
 
