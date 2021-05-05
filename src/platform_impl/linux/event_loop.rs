@@ -23,7 +23,7 @@ use crate::{
     WindowEvent,
   },
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
-  menu::{MenuId, MenuItem, MenuType},
+  menu::{MenuItem, MenuType},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{CursorIcon, WindowId as RootWindowId},
 };

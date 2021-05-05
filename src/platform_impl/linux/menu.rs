@@ -7,7 +7,7 @@ use crate::menu::{Menu as RootMenu, MenuItem as RootMenuItem};
 
 pub fn initialize(
   window: &ApplicationWindow,
-  menus: Vec<RootMenu<'_>>,
+  menus: Vec<RootMenu<'static>>,
   tx: Sender<(WindowId, WindowRequest)>,
 ) {
   let id = WindowId(window.get_id());
