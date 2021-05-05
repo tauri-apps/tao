@@ -91,7 +91,6 @@ fn main() {
               MenuItem::CloseWindow,
             ],
           )]))
-
         }
 
         println!("Clicked on {:?}", menu_id);

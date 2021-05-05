@@ -7,7 +7,7 @@ use winapi::{
 
 use crate::{
   event::Event,
-  menu::{Menu, MenuItem, MenuId, MenuType},
+  menu::{Menu, MenuId, MenuItem, MenuType},
 };
 
 pub struct MenuHandler {
@@ -46,7 +46,9 @@ pub fn initialize(menu: Vec<Menu<'_>>, window_handle: RawWindowHandle, menu_hand
         let mut sub_menu_position = 0;
         for item in &menu.items {
           let sub_item = match item {
-            MenuItem::Custom(custom_menu) => make_menu_item(Some(custom_menu._id.0), custom_menu.name),
+            MenuItem::Custom(custom_menu) => {
+              make_menu_item(Some(custom_menu._id.0), custom_menu.name)
+            }
             // Let's support only custom menu in windows for now
             _ => None,
           };
