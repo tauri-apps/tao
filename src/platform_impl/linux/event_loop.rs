@@ -73,7 +73,7 @@ impl<T: 'static> EventLoop<T> {
   }
 
   fn new_gtk() -> Result<EventLoop<T>, Box<dyn Error>> {
-    let app = gtk::Application::new(Some("org.tauri"), gio::ApplicationFlags::empty())?;
+    let app = gtk::Application::new(None, gio::ApplicationFlags::empty())?;
     let cancellable: Option<&Cancellable> = None;
     app.register(cancellable)?;
 
