@@ -12,7 +12,7 @@ use std::sync::Once;
 
 use crate::{
   event::Event,
-  menu::{Menu, MenuItem},
+  menu::{Menu, MenuId, MenuItem, MenuType},
 };
 
 use super::{app_state::AppState, event::EventWrapper};
@@ -24,9 +24,9 @@ struct KeyEquivalent<'a> {
   masks: Option<NSEventModifierFlags>,
 }
 #[derive(Debug)]
-struct Action(Box<String>);
+struct Action(Box<u32>);
 
-pub fn initialize(menu: Vec<Menu>) {
+pub fn initialize(menu: Vec<Menu<'_>>) {
   autoreleasepool(|| unsafe {
     let menubar = NSMenu::new(nil).autorelease();
 
@@ -76,12 +76,7 @@ pub fn initialize(menu: Vec<Menu>) {
               });
             }
 
-            make_custom_menu_item(
-              custom_menu.id.clone(),
-              custom_menu.name.as_str(),
-              None,
-              key_equivalent,
-            )
+            make_custom_menu_item(custom_menu._id, custom_menu.name, None, key_equivalent)
           }
           // Separator
           MenuItem::Separator => NSMenuItem::separatorItem(nil),
@@ -226,13 +221,13 @@ fn make_menu_alloc() -> *mut Object {
 }
 
 fn make_custom_menu_item(
-  id: String,
+  id: MenuId,
   title: &str,
   selector: Option<Sel>,
   key_equivalent: Option<KeyEquivalent<'_>>,
 ) -> *mut Object {
   let alloc = make_menu_alloc();
-  let menu_id = Box::new(Action(Box::new(id)));
+  let menu_id = Box::new(Action(Box::new(id.0)));
   let ptr = Box::into_raw(menu_id);
 
   unsafe {
@@ -313,7 +308,10 @@ extern "C" fn fire_custom_menu_click(this: &Object, _: Sel, _item: id) {
     let obj = ptr as *const Action;
     &*obj
   };
-  let event = Event::MenuEvent(menu_id.0.to_string());
+  let event = Event::MenuEvent {
+    menu_id: MenuId(*menu_id.0),
+    origin: MenuType::Menubar,
+  };
   AppState::queue_event(EventWrapper::StaticEvent(event));
 }
 

@@ -23,9 +23,9 @@ use crate::{
     WindowEvent,
   },
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
+  menu::{MenuId, MenuItem, MenuType},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{CursorIcon, WindowId as RootWindowId},
-  menu::MenuItem
 };
 
 use super::{
@@ -468,16 +468,19 @@ impl<T: 'static> EventLoop<T> {
             }
             WindowRequest::Redraw => window.queue_draw(),
             WindowRequest::Menu(m) => {
-                // TODO other MenuItem variant
-                match m {
-                    MenuItem::Custom(c) => {
-                        if let Err(e) = event_tx.send(Event::MenuEvent(c.id)) {
-                            log::warn!("Failed to send menu event to event channel: {}", e);
-                        }
-                    } 
-                    _ => window.close(),
+              // TODO other MenuItem variant
+              match m {
+                MenuItem::Custom(c) => {
+                  if let Err(e) = event_tx.send(Event::MenuEvent {
+                    menu_id: c._id,
+                    origin: MenuType::Menubar,
+                  }) {
+                    log::warn!("Failed to send menu event to event channel: {}", e);
+                  }
                 }
-            },
+                _ => window.close(),
+              }
+            }
           }
         }
       }

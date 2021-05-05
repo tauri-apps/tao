@@ -40,7 +40,6 @@ pub fn initialize(
         _ => MenuItem::with_label("Close Window"),
       };
 
-
       let tx_ = tx.clone();
       item.connect_activate(move |_| {
         if let Err(e) = tx_.send((id, WindowRequest::Menu(i.clone()))) {

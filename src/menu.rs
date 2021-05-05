@@ -1,11 +1,16 @@
+use std::{
+  collections::hash_map::DefaultHasher,
+  hash::{Hash, Hasher},
+};
+
 #[derive(Debug, Clone)]
-pub struct Menu {
+pub struct Menu<'a> {
   pub title: String,
-  pub items: Vec<MenuItem>,
+  pub items: Vec<MenuItem<'a>>,
 }
 
-impl Menu {
-  pub fn new(title: &str, items: Vec<MenuItem>) -> Self {
+impl<'a> Menu<'a> {
+  pub fn new(title: &str, items: Vec<MenuItem<'a>>) -> Self {
     Self {
       title: String::from(title),
       items,
@@ -13,23 +18,19 @@ impl Menu {
   }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, Copy)]
 /// CustomMenu is a custom menu who emit an event inside the EventLoop.
-pub struct CustomMenu {
-  // todo: replace id by a type that
-  // we can send from the with_menu::<T>()
-  // or we could check to use the UserEvent::<T> but
-  // my latest test failed
-  pub id: String,
-  pub name: String,
+pub struct CustomMenu<'a> {
+  pub _id: MenuId,
+  pub name: &'a str,
   pub keyboard_accelerators: Option<&'static str>,
 }
 
 /// A menu item, binded to a pre-defined action or `Custom` emit an event.
-#[derive(Debug, Clone)]
-pub enum MenuItem {
+#[derive(Debug, Clone, Copy)]
+pub enum MenuItem<'a> {
   /// A custom menu emit an event inside the EventLoop.
-  Custom(CustomMenu),
+  Custom(CustomMenu<'a>),
 
   /// Shows a standard "About" item
   ///
@@ -37,7 +38,7 @@ pub enum MenuItem {
   ///
   /// - **Windows/Linux:** Unsupported (noop).
   ///
-  About(&'static str),
+  About(&'a str),
 
   /// A standard "hide the app" menu item.
   ///
@@ -165,17 +166,14 @@ pub enum MenuItem {
   Separator,
 }
 
-impl MenuItem {
+impl<'a> MenuItem<'a> {
   /// Create new custom menu item.
   /// unique_menu_id is the unique ID for the menu item returned in the EventLoop `Event::MenuEvent(unique_menu_id)`
-  pub fn new<T>(unique_menu_id: T, title: T) -> Self
-  where
-    T: Into<String>,
-  {
+  pub fn new(title: &'a str) -> Self {
     MenuItem::Custom(CustomMenu {
       // todo: would be great if we could pass a type instead of an ID?
-      id: unique_menu_id.into(),
-      name: title.into(),
+      _id: MenuId::new(title),
+      name: title,
       keyboard_accelerators: None,
     })
   }
@@ -192,4 +190,52 @@ impl MenuItem {
     }
     self
   }
+
+  /// Return unique menu ID. Works only with `MenuItem::Custom`.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows/Linux:** Unsupported (noop).
+  ///
+  pub fn id(mut self) -> MenuId {
+    if let MenuItem::Custom(ref mut custom_menu) = self {
+      return custom_menu._id;
+    }
+
+    // return blank menu id if we request under a non-custom menu
+    // this prevent to wrap it inside an Option<>
+    MenuId { 0: 4294967295 }
+  }
+}
+
+/// Identifier of a menu item.
+///
+/// Whenever you receive an event arising from a particular menu, this event contains a `MenuId` which
+/// identifies its origin.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct MenuId(pub u32);
+
+impl From<MenuId> for u32 {
+  fn from(s: MenuId) -> u32 {
+    s.0
+  }
+}
+
+impl MenuId {
+  fn new<T: Into<String>>(menu_title: T) -> MenuId {
+    MenuId(hash_string_to_u32(menu_title.into()))
+  }
+}
+
+/// Type of menu the click is originating from.
+#[derive(Clone, Debug, PartialEq)]
+pub enum MenuType {
+  /// Menubar menu item.
+  Menubar,
+}
+
+fn hash_string_to_u32(title: String) -> u32 {
+  let mut s = DefaultHasher::new();
+  title.hash(&mut s);
+  s.finish() as u32
 }

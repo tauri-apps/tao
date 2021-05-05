@@ -2,13 +2,15 @@ use simple_logger::SimpleLogger;
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
-  menu::{Menu, MenuItem},
+  menu::{Menu, MenuItem, MenuType},
   window::WindowBuilder,
 };
 
 fn main() {
   SimpleLogger::new().init().unwrap();
   let event_loop = EventLoop::new();
+
+  let custom_change_menu = MenuItem::new("Change menu").with_accelerators("F1");
 
   let window = WindowBuilder::new()
     .with_title("A fantastic window!")
@@ -30,7 +32,7 @@ fn main() {
       Menu::new(
         "File",
         vec![
-          MenuItem::new("change_menu", "Change menu").with_accelerators("F1"),
+          custom_change_menu,
           MenuItem::Separator,
           MenuItem::CloseWindow,
         ],
@@ -52,7 +54,7 @@ fn main() {
       Menu::new("Window", vec![MenuItem::Minimize, MenuItem::Zoom]),
       Menu::new(
         "Help",
-        vec![MenuItem::new("help_me", "Custom help")
+        vec![MenuItem::new("Custom help")
           // `Primary` is a platform-agnostic accelerator modifier.
           // On Windows and Linux, `Primary` maps to the `Ctrl` key,
           // and on macOS it maps to the `command` key.
@@ -75,20 +77,15 @@ fn main() {
       }
       // not sure if we should add a new event type?
       // or try to re-use the UserEvent::<T>
-      Event::MenuEvent(unique_menu_id) => {
-        if unique_menu_id == "change_menu" {
-          // update menu
-          window.set_menu(Some(vec![Menu::new(
-            "File",
-            vec![
-              MenuItem::new("add_todo", "Add Todo").with_accelerators("<Primary>+"),
-              MenuItem::Separator,
-              MenuItem::CloseWindow,
-            ],
-          )]))
+      Event::MenuEvent {
+        menu_id,
+        origin: MenuType::Menubar,
+      } => {
+        if menu_id == custom_change_menu.id() {
+          println!("Clicked on custom change menu");
         }
 
-        println!("Clicked on {}", unique_menu_id);
+        println!("Clicked on {:?}", menu_id);
         window.set_title("New window title!");
       }
       _ => (),

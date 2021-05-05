@@ -446,7 +446,7 @@ impl UnownedWindow {
   ///
   /// - **Windows/Linux:** Unsupported (noop).
   ///
-  pub fn set_menu(&self, menu: Option<Vec<Menu>>) {
+  pub fn set_menu(&self, menu: Option<Vec<Menu<'static>>>) {
     unsafe {
       util::set_menu_async(*self.ns_window, menu);
     }
