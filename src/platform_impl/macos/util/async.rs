@@ -206,7 +206,7 @@ pub unsafe fn set_title_async(ns_window: id, title: String) {
 }
 
 // `setMenu:` isn't thread-safe.
-pub unsafe fn set_menu_async(_ns_window: id, menu: Option<Vec<Menu<'static>>>) {
+pub unsafe fn set_menu_async(_ns_window: id, menu: Option<Vec<Menu>>) {
   // todo: if None we should set an empty menu maybe?
   // on windows we can remove it, in macOS we can't
   if let Some(menu) = menu {

@@ -26,7 +26,7 @@ struct KeyEquivalent<'a> {
 #[derive(Debug)]
 struct Action(Box<u32>);
 
-pub fn initialize(menu: Vec<Menu<'_>>) {
+pub fn initialize(menu: Vec<Menu>) {
   autoreleasepool(|| unsafe {
     let menubar = NSMenu::new(nil).autorelease();
 

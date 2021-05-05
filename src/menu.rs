@@ -4,13 +4,13 @@ use std::{
 };
 
 #[derive(Debug, Clone)]
-pub struct Menu<'a> {
+pub struct Menu {
   pub title: String,
-  pub items: Vec<MenuItem<'a>>,
+  pub items: Vec<MenuItem>,
 }
 
-impl<'a> Menu<'a> {
-  pub fn new(title: &str, items: Vec<MenuItem<'a>>) -> Self {
+impl Menu {
+  pub fn new(title: &str, items: Vec<MenuItem>) -> Self {
     Self {
       title: String::from(title),
       items,
@@ -20,17 +20,17 @@ impl<'a> Menu<'a> {
 
 #[derive(Debug, Clone, Hash, Copy)]
 /// CustomMenu is a custom menu who emit an event inside the EventLoop.
-pub struct CustomMenu<'a> {
+pub struct CustomMenu {
   pub _id: MenuId,
-  pub name: &'a str,
+  pub name: &'static str,
   pub keyboard_accelerators: Option<&'static str>,
 }
 
 /// A menu item, binded to a pre-defined action or `Custom` emit an event.
 #[derive(Debug, Clone, Copy)]
-pub enum MenuItem<'a> {
+pub enum MenuItem {
   /// A custom menu emit an event inside the EventLoop.
-  Custom(CustomMenu<'a>),
+  Custom(CustomMenu),
 
   /// Shows a standard "About" item
   ///
@@ -38,7 +38,7 @@ pub enum MenuItem<'a> {
   ///
   /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
-  About(&'a str),
+  About(&'static str),
 
   /// A standard "hide the app" menu item.
   ///
@@ -171,10 +171,10 @@ pub enum MenuItem<'a> {
   Separator,
 }
 
-impl<'a> MenuItem<'a> {
+impl MenuItem {
   /// Create new custom menu item.
   /// unique_menu_id is the unique ID for the menu item returned in the EventLoop `Event::MenuEvent(unique_menu_id)`
-  pub fn new(title: &'a str) -> Self {
+  pub fn new(title: &'static str) -> Self {
     MenuItem::Custom(CustomMenu {
       _id: MenuId::new(title),
       name: title,

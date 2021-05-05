@@ -501,7 +501,7 @@ impl Window {
   ///
   /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
-  pub fn set_menu(&self, _menu: Option<Vec<Menu<'_>>>) {}
+  pub fn set_menu(&self, _menu: Option<Vec<Menu>>) {}
 
   pub fn set_visible(&self, _visibility: bool) {}
 

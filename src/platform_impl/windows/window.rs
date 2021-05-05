@@ -142,7 +142,7 @@ impl Window {
   /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///  
   // todo(lemarier): allow menu update
-  pub fn set_menu(&self, _new_menu: Option<Vec<Menu<'_>>>) {}
+  pub fn set_menu(&self, _new_menu: Option<Vec<Menu>>) {}
 
   #[inline]
   pub fn set_visible(&self, visible: bool) {

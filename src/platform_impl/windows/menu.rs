@@ -27,7 +27,7 @@ impl MenuHandler {
   }
 }
 
-pub fn initialize(menu: Vec<Menu<'_>>, window_handle: RawWindowHandle, menu_handler: MenuHandler) {
+pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler: MenuHandler) {
   if let RawWindowHandle::Windows(handle) = window_handle {
     let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
 

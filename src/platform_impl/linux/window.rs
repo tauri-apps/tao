@@ -413,7 +413,7 @@ impl Window {
   ///
   /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
   ///
-  pub fn set_menu(&self, _menu: Option<Vec<Menu<'_>>>) {
+  pub fn set_menu(&self, _menu: Option<Vec<Menu>>) {
     debug!("`Window::set_menu` is ignored on linux")
   }
 

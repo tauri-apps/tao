@@ -193,7 +193,7 @@ pub struct WindowAttributes {
   /// The window menu.
   ///
   /// The default is `None`.
-  pub window_menu: Option<Vec<Menu<'static>>>,
+  pub window_menu: Option<Vec<Menu>>,
 }
 
 impl Default for WindowAttributes {
@@ -297,7 +297,7 @@ impl WindowBuilder {
   ///
   /// [`Window::set_menu`]: crate::window::Window::set_menu
   #[inline]
-  pub fn with_menu<M: Into<Vec<Menu<'static>>>>(mut self, menu: M) -> Self {
+  pub fn with_menu<M: Into<Vec<Menu>>>(mut self, menu: M) -> Self {
     self.window.window_menu = Some(menu.into());
     self
   }
@@ -592,7 +592,7 @@ impl Window {
   /// - **Windows:** Unsupported.
 
   #[inline]
-  pub fn set_menu(&self, menu: Option<Vec<Menu<'static>>>) {
+  pub fn set_menu(&self, menu: Option<Vec<Menu>>) {
     self.window.set_menu(menu)
   }
 
