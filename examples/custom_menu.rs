@@ -75,8 +75,6 @@ fn main() {
       Event::MainEventsCleared => {
         window.request_redraw();
       }
-      // not sure if we should add a new event type?
-      // or try to re-use the UserEvent::<T>
       Event::MenuEvent {
         menu_id,
         origin: MenuType::Menubar,

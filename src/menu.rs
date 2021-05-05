@@ -176,7 +176,6 @@ impl<'a> MenuItem<'a> {
   /// unique_menu_id is the unique ID for the menu item returned in the EventLoop `Event::MenuEvent(unique_menu_id)`
   pub fn new(title: &'a str) -> Self {
     MenuItem::Custom(CustomMenu {
-      // todo: would be great if we could pass a type instead of an ID?
       _id: MenuId::new(title),
       name: title,
       keyboard_accelerators: None,
@@ -197,11 +196,6 @@ impl<'a> MenuItem<'a> {
   }
 
   /// Return unique menu ID. Works only with `MenuItem::Custom`.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
-  ///
   pub fn id(mut self) -> MenuId {
     if let MenuItem::Custom(ref mut custom_menu) = self {
       return custom_menu._id;
@@ -213,7 +207,7 @@ impl<'a> MenuItem<'a> {
   }
 }
 
-/// Identifier of a menu item.
+/// Identifier of a custom menu item.
 ///
 /// Whenever you receive an event arising from a particular menu, this event contains a `MenuId` which
 /// identifies its origin.
