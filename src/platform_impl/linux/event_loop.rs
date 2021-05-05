@@ -466,7 +466,13 @@ impl<T: 'static> EventLoop<T> {
               });
             }
             WindowRequest::Redraw => window.queue_draw(),
-            WindowRequest::Close => window.close(),
+            WindowRequest::Menu(m) => {
+                // TODO other MenuItem variant
+                match m {
+                    
+                    _ => window.close(),
+                }
+            },
           }
         }
       }
