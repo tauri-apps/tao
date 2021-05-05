@@ -3,6 +3,7 @@
 use crate::{
   event::Event,
   event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
+  status_bar::Statusbar,
 };
 
 /// Additional methods on `EventLoop` to return control flow to the caller.
@@ -24,7 +25,7 @@ pub trait EventLoopExtRunReturn {
   /// underlying OS APIs, which cannot be hidden by `tao` without severe stability repercussions.
   ///
   /// You are strongly encouraged to use `run`, unless the use of this is absolutely necessary.
-  fn run_return<F>(&mut self, event_handler: F)
+  fn run_return<F>(&mut self, event_handler: F, status_bar: Option<Statusbar>)
   where
     F: FnMut(Event<'_, Self::UserEvent>, &EventLoopWindowTarget<Self::UserEvent>, &mut ControlFlow);
 }
@@ -32,10 +33,10 @@ pub trait EventLoopExtRunReturn {
 impl<T> EventLoopExtRunReturn for EventLoop<T> {
   type UserEvent = T;
 
-  fn run_return<F>(&mut self, event_handler: F)
+  fn run_return<F>(&mut self, event_handler: F, status_bar: Option<Statusbar>)
   where
     F: FnMut(Event<'_, Self::UserEvent>, &EventLoopWindowTarget<Self::UserEvent>, &mut ControlFlow),
   {
-    self.event_loop.run_return(event_handler)
+    self.event_loop.run_return(event_handler, status_bar)
   }
 }

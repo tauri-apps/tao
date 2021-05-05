@@ -42,7 +42,7 @@ fn main() {
         }
         _ => (),
       }
-    });
+    }, None);
 
     // Sleep for 1/60 second to simulate rendering
     println!("rendering");

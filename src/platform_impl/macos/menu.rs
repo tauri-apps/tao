@@ -19,9 +19,9 @@ use super::{app_state::AppState, event::EventWrapper};
 
 static BLOCK_PTR: &str = "taoMenuItemBlockPtr";
 
-struct KeyEquivalent<'a> {
-  key: &'a str,
-  masks: Option<NSEventModifierFlags>,
+pub(crate) struct KeyEquivalent<'a> {
+  pub(crate) key: &'a str,
+  pub(crate) masks: Option<NSEventModifierFlags>,
 }
 #[derive(Debug)]
 struct Action(Box<u32>);
@@ -76,7 +76,7 @@ pub fn initialize(menu: Vec<Menu>) {
               });
             }
 
-            make_custom_menu_item(custom_menu._id, custom_menu.name, None, key_equivalent)
+            make_custom_menu_item(custom_menu._id, custom_menu.name, None, key_equivalent, MenuType::Menubar)
           }
           // Separator
           MenuItem::Separator => NSMenuItem::separatorItem(nil),
@@ -87,6 +87,7 @@ pub fn initialize(menu: Vec<Menu>) {
               title.as_str(),
               Some(selector("orderFrontStandardAboutPanel:")),
               None,
+              MenuType::Menubar,
             )
           }
           // Close window
@@ -97,6 +98,7 @@ pub fn initialize(menu: Vec<Menu>) {
               key: "w",
               masks: None,
             }),
+            MenuType::Menubar,
           ),
           MenuItem::Quit => make_menu_item(
             "Quit",
@@ -105,6 +107,7 @@ pub fn initialize(menu: Vec<Menu>) {
               key: "q",
               masks: None,
             }),
+            MenuType::Menubar,
           ),
           MenuItem::Hide => make_menu_item(
             "Hide",
@@ -113,6 +116,7 @@ pub fn initialize(menu: Vec<Menu>) {
               key: "h",
               masks: None,
             }),
+            MenuType::Menubar,
           ),
           MenuItem::HideOthers => make_menu_item(
             "Hide Others",
@@ -123,9 +127,10 @@ pub fn initialize(menu: Vec<Menu>) {
                 NSEventModifierFlags::NSAlternateKeyMask | NSEventModifierFlags::NSCommandKeyMask,
               ),
             }),
+            MenuType::Menubar,
           ),
           MenuItem::ShowAll => {
-            make_menu_item("Show All", Some(selector("unhideAllApplications:")), None)
+            make_menu_item("Show All", Some(selector("unhideAllApplications:")), None, MenuType::Menubar)
           }
           MenuItem::EnterFullScreen => make_menu_item(
             "Enter Full Screen",
@@ -136,6 +141,7 @@ pub fn initialize(menu: Vec<Menu>) {
                 NSEventModifierFlags::NSCommandKeyMask | NSEventModifierFlags::NSControlKeyMask,
               ),
             }),
+            MenuType::Menubar,
           ),
           MenuItem::Minimize => make_menu_item(
             "Minimize",
@@ -144,8 +150,9 @@ pub fn initialize(menu: Vec<Menu>) {
               key: "m",
               masks: None,
             }),
+            MenuType::Menubar,
           ),
-          MenuItem::Zoom => make_menu_item("Zoom", Some(selector("performZoom:")), None),
+          MenuItem::Zoom => make_menu_item("Zoom", Some(selector("performZoom:")), None, MenuType::Menubar),
           MenuItem::Copy => make_menu_item(
             "Copy",
             Some(selector("copy:")),
@@ -153,6 +160,7 @@ pub fn initialize(menu: Vec<Menu>) {
               key: "c",
               masks: None,
             }),
+            MenuType::Menubar,
           ),
           MenuItem::Cut => make_menu_item(
             "Cut",
@@ -161,6 +169,7 @@ pub fn initialize(menu: Vec<Menu>) {
               key: "x",
               masks: None,
             }),
+            MenuType::Menubar,
           ),
           MenuItem::Paste => make_menu_item(
             "Paste",
@@ -169,6 +178,7 @@ pub fn initialize(menu: Vec<Menu>) {
               key: "v",
               masks: None,
             }),
+            MenuType::Menubar,
           ),
           MenuItem::Undo => make_menu_item(
             "Undo",
@@ -177,6 +187,7 @@ pub fn initialize(menu: Vec<Menu>) {
               key: "z",
               masks: None,
             }),
+            MenuType::Menubar,
           ),
           MenuItem::Redo => make_menu_item(
             "Redo",
@@ -185,6 +196,7 @@ pub fn initialize(menu: Vec<Menu>) {
               key: "Z",
               masks: None,
             }),
+            MenuType::Menubar,
           ),
           MenuItem::SelectAll => make_menu_item(
             "Select All",
@@ -193,9 +205,10 @@ pub fn initialize(menu: Vec<Menu>) {
               key: "a",
               masks: None,
             }),
+            MenuType::Menubar,
           ),
           MenuItem::Services => {
-            let item = make_menu_item("Services", None, None);
+            let item = make_menu_item("Services", None, None, MenuType::Menubar);
             let app_class = class!(NSApplication);
             let app: id = msg_send![app_class, sharedApplication];
             let services: id = msg_send![app, servicesMenu];
@@ -220,11 +233,12 @@ fn make_menu_alloc() -> *mut Object {
   unsafe { msg_send![make_menu_item_class(), alloc] }
 }
 
-fn make_custom_menu_item(
+pub(crate) fn make_custom_menu_item(
   id: MenuId,
   title: &str,
   selector: Option<Sel>,
   key_equivalent: Option<KeyEquivalent<'_>>,
+  menu_type: MenuType,
 ) -> *mut Object {
   let alloc = make_menu_alloc();
   let menu_id = Box::new(Action(Box::new(id.0)));
@@ -234,19 +248,20 @@ fn make_custom_menu_item(
     (&mut *alloc).set_ivar(BLOCK_PTR, ptr as usize);
     let _: () = msg_send![&*alloc, setTarget:&*alloc];
     let title = NSString::alloc(nil).init_str(title);
-    make_menu_item_from_alloc(alloc, title, selector, key_equivalent)
+    make_menu_item_from_alloc(alloc, title, selector, key_equivalent, menu_type)
   }
 }
 
-fn make_menu_item(
+pub(crate) fn make_menu_item(
   title: &str,
   selector: Option<Sel>,
   key_equivalent: Option<KeyEquivalent<'_>>,
+  menu_type: MenuType,
 ) -> *mut Object {
   let alloc = make_menu_alloc();
   unsafe {
     let title = NSString::alloc(nil).init_str(title);
-    make_menu_item_from_alloc(alloc, title, selector, key_equivalent)
+    make_menu_item_from_alloc(alloc, title, selector, key_equivalent, menu_type)
   }
 }
 
@@ -255,6 +270,7 @@ fn make_menu_item_from_alloc(
   title: *mut Object,
   selector: Option<Sel>,
   key_equivalent: Option<KeyEquivalent<'_>>,
+  menu_type: MenuType,
 ) -> *mut Object {
   unsafe {
     let (key, masks) = match key_equivalent {
@@ -265,7 +281,10 @@ fn make_menu_item_from_alloc(
     // menu so fire our handler
     let selector = match selector {
       Some(selector) => selector,
-      None => sel!(fireCustomMenuAction:),
+      None => match menu_type {
+        MenuType::Menubar => sel!(fireMenubarAction:),
+        MenuType::Statusbar => sel!(fireStatusbarAction:),
+      },
     };
 
     // allocate our item to our class
@@ -291,9 +310,15 @@ fn make_menu_item_class() -> *const Class {
       sel!(dealloc),
       dealloc_custom_menuitem as extern "C" fn(&Object, _),
     );
+
     decl.add_method(
-      sel!(fireCustomMenuAction:),
-      fire_custom_menu_click as extern "C" fn(&Object, _, id),
+      sel!(fireMenubarAction:),
+      fire_menu_bar_click as extern "C" fn(&Object, _, id),
+    );
+
+    decl.add_method(
+      sel!(fireStatusbarAction:),
+      fire_status_bar_click as extern "C" fn(&Object, _, id),
     );
 
     APP_CLASS = decl.register();
@@ -302,7 +327,15 @@ fn make_menu_item_class() -> *const Class {
   unsafe { APP_CLASS }
 }
 
-extern "C" fn fire_custom_menu_click(this: &Object, _: Sel, _item: id) {
+extern "C" fn fire_status_bar_click(this: &Object, _: Sel, _item: id) {
+  send_event(this, MenuType::Statusbar);
+}
+
+extern "C" fn fire_menu_bar_click(this: &Object, _: Sel, _item: id) {
+  send_event(this, MenuType::Menubar);
+}
+
+fn send_event(this: &Object, origin: MenuType) {
   let menu_id = unsafe {
     let ptr: usize = *this.get_ivar(BLOCK_PTR);
     let obj = ptr as *const Action;
@@ -310,7 +343,7 @@ extern "C" fn fire_custom_menu_click(this: &Object, _: Sel, _item: id) {
   };
   let event = Event::MenuEvent {
     menu_id: MenuId(*menu_id.0),
-    origin: MenuType::Menubar,
+    origin,
   };
   AppState::queue_event(EventWrapper::StaticEvent(event));
 }

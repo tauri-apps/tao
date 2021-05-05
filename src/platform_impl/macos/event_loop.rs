@@ -29,8 +29,10 @@ use crate::{
     app_state::AppState,
     monitor::{self, MonitorHandle},
     observer::*,
+    status_bar,
     util::IdRef,
   },
+  status_bar::Statusbar,
 };
 
 #[derive(Default)]
@@ -137,15 +139,15 @@ impl<T> EventLoop<T> {
     &self.window_target
   }
 
-  pub fn run<F>(mut self, callback: F) -> !
+  pub fn run<F>(mut self, callback: F, status_bar: Option<Statusbar>) -> !
   where
     F: 'static + FnMut(Event<'_, T>, &RootWindowTarget<T>, &mut ControlFlow),
   {
-    self.run_return(callback);
+    self.run_return(callback, status_bar);
     process::exit(0);
   }
 
-  pub fn run_return<F>(&mut self, callback: F)
+  pub fn run_return<F>(&mut self, callback: F, status_bar: Option<Statusbar>)
   where
     F: FnMut(Event<'_, T>, &RootWindowTarget<T>, &mut ControlFlow),
   {
@@ -161,6 +163,10 @@ impl<T> EventLoop<T> {
     };
 
     self._callback = Some(Rc::clone(&callback));
+
+    if let Some(status_bar) = status_bar {
+      status_bar::initialize(status_bar);
+    }
 
     unsafe {
       let pool = NSAutoreleasePool::new(nil);

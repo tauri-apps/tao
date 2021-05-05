@@ -9,6 +9,7 @@ mod ffi;
 mod menu;
 mod monitor;
 mod observer;
+mod status_bar;
 mod util;
 mod view;
 mod window;

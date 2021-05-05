@@ -231,6 +231,8 @@ impl MenuId {
 pub enum MenuType {
   /// Menubar menu item.
   Menubar,
+  /// Statusbar menu item.
+  Statusbar,
 }
 
 fn hash_string_to_u32(title: String) -> u32 {
