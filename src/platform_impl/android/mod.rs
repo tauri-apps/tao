@@ -5,7 +5,9 @@ use crate::{
   error, event,
   event_loop::{self, ControlFlow},
   menu::Menu,
-  monitor, window,
+  monitor,
+  status_bar::Statusbar,
+  window,
 };
 use ndk::{
   configuration::Configuration,

@@ -13,6 +13,7 @@ use crate::{
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootEventLoopWindowTarget},
   monitor::MonitorHandle as RootMonitorHandle,
   platform::ios::Idiom,
+  status_bar::Statusbar,
 };
 
 use crate::platform_impl::platform::{

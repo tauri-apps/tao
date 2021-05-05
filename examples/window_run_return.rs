@@ -22,27 +22,30 @@ fn main() {
   let mut quit = false;
 
   while !quit {
-    event_loop.run_return(|event, _, control_flow| {
-      *control_flow = ControlFlow::Wait;
+    event_loop.run_return(
+      |event, _, control_flow| {
+        *control_flow = ControlFlow::Wait;
 
-      if let Event::WindowEvent { event, .. } = &event {
-        // Print only Window events to reduce noise
-        println!("{:?}", event);
-      }
+        if let Event::WindowEvent { event, .. } = &event {
+          // Print only Window events to reduce noise
+          println!("{:?}", event);
+        }
 
-      match event {
-        Event::WindowEvent {
-          event: WindowEvent::CloseRequested,
-          ..
-        } => {
-          quit = true;
+        match event {
+          Event::WindowEvent {
+            event: WindowEvent::CloseRequested,
+            ..
+          } => {
+            quit = true;
+          }
+          Event::MainEventsCleared => {
+            *control_flow = ControlFlow::Exit;
+          }
+          _ => (),
         }
-        Event::MainEventsCleared => {
-          *control_flow = ControlFlow::Exit;
-        }
-        _ => (),
-      }
-    }, None);
+      },
+      None,
+    );
 
     // Sleep for 1/60 second to simulate rendering
     println!("rendering");

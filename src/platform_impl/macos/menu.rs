@@ -76,7 +76,13 @@ pub fn initialize(menu: Vec<Menu>) {
               });
             }
 
-            make_custom_menu_item(custom_menu._id, custom_menu.name, None, key_equivalent, MenuType::Menubar)
+            make_custom_menu_item(
+              custom_menu._id,
+              custom_menu.name,
+              None,
+              key_equivalent,
+              MenuType::Menubar,
+            )
           }
           // Separator
           MenuItem::Separator => NSMenuItem::separatorItem(nil),
@@ -129,9 +135,12 @@ pub fn initialize(menu: Vec<Menu>) {
             }),
             MenuType::Menubar,
           ),
-          MenuItem::ShowAll => {
-            make_menu_item("Show All", Some(selector("unhideAllApplications:")), None, MenuType::Menubar)
-          }
+          MenuItem::ShowAll => make_menu_item(
+            "Show All",
+            Some(selector("unhideAllApplications:")),
+            None,
+            MenuType::Menubar,
+          ),
           MenuItem::EnterFullScreen => make_menu_item(
             "Enter Full Screen",
             Some(selector("toggleFullScreen:")),
@@ -152,7 +161,12 @@ pub fn initialize(menu: Vec<Menu>) {
             }),
             MenuType::Menubar,
           ),
-          MenuItem::Zoom => make_menu_item("Zoom", Some(selector("performZoom:")), None, MenuType::Menubar),
+          MenuItem::Zoom => make_menu_item(
+            "Zoom",
+            Some(selector("performZoom:")),
+            None,
+            MenuType::Menubar,
+          ),
           MenuItem::Copy => make_menu_item(
             "Copy",
             Some(selector("copy:")),

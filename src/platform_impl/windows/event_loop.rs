@@ -9,7 +9,6 @@ use std::{
   marker::PhantomData,
   mem, panic, ptr,
   rc::Rc,
-  status_bar::Statusbar,
   sync::{
     mpsc::{self, Receiver, Sender},
     Arc,
@@ -47,6 +46,7 @@ use crate::{
     window_state::{CursorFlags, WindowFlags, WindowState},
     wrap_device_id, WindowId, DEVICE_ID,
   },
+  status_bar::Statusbar,
   window::{Fullscreen, WindowId as RootWindowId},
 };
 use runner::{EventLoopRunner, EventLoopRunnerShared};

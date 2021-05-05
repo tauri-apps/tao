@@ -79,7 +79,13 @@ pub fn initialize(status_bar: Statusbar) {
             });
           }
 
-          make_custom_menu_item(custom_menu._id, custom_menu.name, None, key_equivalent, MenuType::Statusbar)
+          make_custom_menu_item(
+            custom_menu._id,
+            custom_menu.name,
+            None,
+            key_equivalent,
+            MenuType::Statusbar,
+          )
         }
         _ => make_menu_item("Not supported", None, None, MenuType::Statusbar),
       };
