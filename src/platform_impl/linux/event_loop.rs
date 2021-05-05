@@ -25,6 +25,7 @@ use crate::{
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
   menu::{MenuItem, MenuType},
   monitor::MonitorHandle as RootMonitorHandle,
+  status_bar::Statusbar,
   window::{CursorIcon, WindowId as RootWindowId},
 };
 
@@ -105,15 +106,15 @@ impl<T: 'static> EventLoop<T> {
   }
 
   #[inline]
-  pub fn run<F>(self, callback: F) -> !
+  pub fn run<F>(self, callback: F, status_bar: Option<Statusbar>) -> !
   where
     F: FnMut(Event<'_, T>, &RootELW<T>, &mut ControlFlow) + 'static,
   {
-    self.run_return(callback);
+    self.run_return(callback, status_bar);
     process::exit(0)
   }
 
-  pub(crate) fn run_return<F>(self, mut callback: F)
+  pub(crate) fn run_return<F>(self, mut callback: F, _status_bar: Option<Statusbar>)
   where
     F: FnMut(Event<'_, T>, &RootELW<T>, &mut ControlFlow) + 'static,
   {

@@ -78,16 +78,16 @@ impl<T: 'static> EventLoop<T> {
     }
   }
 
-  pub fn run<F>(mut self, event_handler: F) -> !
+  pub fn run<F>(mut self, event_handler: F, status_bar: Option<Statusbar>) -> !
   where
     F:
       'static + FnMut(event::Event<'_, T>, &event_loop::EventLoopWindowTarget<T>, &mut ControlFlow),
   {
-    self.run_return(event_handler);
+    self.run_return(event_handler, status_bar);
     ::std::process::exit(0);
   }
 
-  pub fn run_return<F>(&mut self, mut event_handler: F)
+  pub fn run_return<F>(&mut self, mut event_handler: F, _status_bar: Option<Statusbar>)
   where
     F: FnMut(event::Event<'_, T>, &event_loop::EventLoopWindowTarget<T>, &mut ControlFlow),
   {

@@ -96,7 +96,7 @@ impl<T: 'static> EventLoop<T> {
     }
   }
 
-  pub fn run<F>(self, event_handler: F) -> !
+  pub fn run<F>(self, event_handler: F, _status_bar: Option<Statusbar>) -> !
   where
     F: 'static + FnMut(Event<'_, T>, &RootEventLoopWindowTarget<T>, &mut ControlFlow),
   {

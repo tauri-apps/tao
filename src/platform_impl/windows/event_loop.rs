@@ -9,6 +9,7 @@ use std::{
   marker::PhantomData,
   mem, panic, ptr,
   rc::Rc,
+  status_bar::Statusbar,
   sync::{
     mpsc::{self, Receiver, Sender},
     Arc,
@@ -183,15 +184,15 @@ impl<T: 'static> EventLoop<T> {
     &self.window_target
   }
 
-  pub fn run<F>(mut self, event_handler: F) -> !
+  pub fn run<F>(mut self, event_handler: F, status_bar: Option<Statusbar>) -> !
   where
     F: 'static + FnMut(Event<'_, T>, &RootELW<T>, &mut ControlFlow),
   {
-    self.run_return(event_handler);
+    self.run_return(event_handler, status_bar);
     ::std::process::exit(0);
   }
 
-  pub fn run_return<F>(&mut self, mut event_handler: F)
+  pub fn run_return<F>(&mut self, mut event_handler: F, _status_bar: Option<Statusbar>)
   where
     F: FnMut(Event<'_, T>, &RootELW<T>, &mut ControlFlow),
   {
