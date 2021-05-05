@@ -25,6 +25,7 @@ use crate::{
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{CursorIcon, WindowId as RootWindowId},
+  menu::MenuItem
 };
 
 use super::{
@@ -469,7 +470,11 @@ impl<T: 'static> EventLoop<T> {
             WindowRequest::Menu(m) => {
                 // TODO other MenuItem variant
                 match m {
-                    
+                    MenuItem::Custom(c) => {
+                        if let Err(e) = event_tx.send(Event::MenuEvent(c.id)) {
+                            log::warn!("Failed to send menu event to event channel: {}", e);
+                        }
+                    } 
                     _ => window.close(),
                 }
             },
