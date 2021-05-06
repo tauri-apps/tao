@@ -76,7 +76,7 @@ pub fn initialize(menu: Vec<Menu>) {
               });
             }
 
-            make_custom_menu_item(custom_menu._id, custom_menu.name, None, key_equivalent)
+            make_custom_menu_item(custom_menu.id, custom_menu.name, None, key_equivalent)
           }
           // Separator
           MenuItem::Separator => NSMenuItem::separatorItem(nil),
