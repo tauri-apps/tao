@@ -135,13 +135,7 @@ impl Window {
     }
   }
 
-  /// Set menu
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
-  ///  
-  // todo(lemarier): allow menu update
+  // TODO (lemarier): allow menu update
   pub fn set_menu(&self, _new_menu: Option<Vec<Menu>>) {}
 
   #[inline]
