@@ -42,6 +42,7 @@ impl Statusbar {
     window_target: &EventLoopWindowTarget<T>,
     status_bar: &RootStatusbar,
   ) -> Result<(), OsError> {
+    // create the handler
     let event_loop_runner = window_target.runner_shared.clone();
     let menu_handler = MenuHandler::new(Box::new(move |event| {
       if let Ok(e) = event.map_nonuser_event() {
@@ -118,6 +119,7 @@ impl Statusbar {
         dwContextHelpID: 0 as DWORD,
         dwMenuData: 0 as ULONG_PTR,
       };
+
       if winuser::SetMenuInfo(hmenu, &m as *const MENUINFO) == 0 {
         debug!("Error setting up menu");
         return Ok(());
@@ -171,7 +173,7 @@ impl Statusbar {
             LR_DEFAULTCOLOR,
           ) {
             // windows is really tough on icons
-            // if a bad icon is provided it'll failed here or in
+            // if a bad icon is provided it'll fail here or in
             // the LookupIconIdFromDirectoryEx if this is a bad format (example png's)
             // with my tests, even some ICO's were failing...
             hicon if hicon.is_null() => {
@@ -278,7 +280,7 @@ unsafe extern "system" fn subclass_proc(
             0,
             p.x,
             p.y,
-            // align bottom / right, maybe we could make expose this later..
+            // align bottom / right, maybe we could expose this later..
             (winuser::TPM_BOTTOMALIGN | winuser::TPM_LEFTALIGN) as i32,
             h_wnd,
             std::ptr::null_mut(),
@@ -291,8 +293,10 @@ unsafe extern "system" fn subclass_proc(
   return winuser::DefWindowProcW(h_wnd, msg, w_param, l_param);
 }
 
-// when doing hard kill it doesnt work
-// icon disapear only we hover it if the process is killed
+// FIXME: when doing hard kill it doesnt work
+// icon disapear only when hovering the icon,
+// once the process is killed
+// maybe a drop on the thread_local ?
 impl Drop for WindowsLoopData {
   fn drop(&mut self) {
     self.status_bar.shutdown();
