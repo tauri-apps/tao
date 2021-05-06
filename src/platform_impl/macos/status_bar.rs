@@ -21,7 +21,6 @@ impl Statusbar {
     _window_target: &EventLoopWindowTarget<T>,
     status_bar: &RootStatusbar,
   ) -> Result<(), OsError> {
-    // todo(lemarier): make it dynamic?
     const ICON_WIDTH: f64 = 18.0;
     const ICON_HEIGHT: f64 = 18.0;
     unsafe {

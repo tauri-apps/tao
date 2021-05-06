@@ -293,10 +293,6 @@ unsafe extern "system" fn subclass_proc(
   return winuser::DefWindowProcW(h_wnd, msg, w_param, l_param);
 }
 
-// FIXME: when doing hard kill it doesnt work
-// icon disapear only when hovering the icon,
-// once the process is killed
-// maybe a drop on the thread_local ?
 impl Drop for WindowsLoopData {
   fn drop(&mut self) {
     self.status_bar.shutdown();
