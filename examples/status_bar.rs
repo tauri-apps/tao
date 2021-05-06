@@ -14,7 +14,14 @@ fn main() {
   let mut windows = HashMap::new();
 
   let open_new_window = MenuItem::new("Open new window");
-  let _statusbar = StatusbarBuilder::new(PathBuf::from("examples/icon.png"), vec![open_new_window])
+
+  // Windows always need his special touch!
+  #[cfg(target_os = "windows")]
+  let icon = PathBuf::from("examples/icon.ico");
+  #[cfg(not(target_os = "windows"))]
+  let icon = PathBuf::from("examples/icon.png");
+
+  let _statusbar = StatusbarBuilder::new(icon, vec![open_new_window])
     .unwrap()
     .build(&event_loop)
     .unwrap();
