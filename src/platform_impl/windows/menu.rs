@@ -18,7 +18,7 @@ impl MenuHandler {
   pub fn new(send_event: Box<dyn Fn(Event<'static, ()>)>) -> MenuHandler {
     MenuHandler { send_event }
   }
-  fn send_click_event(&self, menu_id: u32) {
+  pub fn send_click_event(&self, menu_id: u32) {
     (self.send_event)(Event::MenuEvent {
       menu_id: MenuId(menu_id),
       origin: MenuType::Menubar,
