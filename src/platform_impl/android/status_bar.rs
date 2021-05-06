@@ -8,6 +8,7 @@ impl Statusbar {
     _window_target: &EventLoopWindowTarget<T>,
     _status_bar: &RootStatusbar,
   ) -> Result<(), OsError> {
-    debug!("`Statusbar` is ignored on android")
+    debug!("`Statusbar` is ignored on android");
+    Ok(())
   }
 }
