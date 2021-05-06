@@ -13,8 +13,8 @@ use std::{
 
 use gdk::{Cursor, CursorType, WindowExt, WindowState};
 use gio::{prelude::*, Cancellable};
-use glib::{source::idle_add_local, Continue, MainContext};
-use gtk::{prelude::*, AboutDialog, ApplicationWindow, Inhibit};
+use glib::{source::idle_add_local, Cast, Continue, MainContext};
+use gtk::{prelude::*, AboutDialog, ApplicationWindow, Clipboard, Entry, Inhibit};
 
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize},
@@ -483,8 +483,73 @@ impl<T: 'static> EventLoop<T> {
                   about.show_all();
                   window_target.p.app.add_window(&about);
                 }
+                MenuItem::Hide => window.hide(),
                 MenuItem::CloseWindow => window.close(),
-                _ => window.close(),
+                MenuItem::Quit => {
+                  keep_running_.replace(false);
+                }
+                MenuItem::Cut => {
+                  if let Some(widget) = window.get_focus() {
+                    if widget.has_focus() {
+                      if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
+                        if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
+                          if let Some(buf) = view.get_buffer() {
+                            buf.cut_clipboard(&clipboard, true);
+                          }
+                        }
+                      } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
+                        entry.cut_clipboard();
+                      }
+                    }
+                  }
+                }
+                MenuItem::Copy => {
+                  if let Some(widget) = window.get_focus() {
+                    if widget.has_focus() {
+                      if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
+                        if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
+                          if let Some(buf) = view.get_buffer() {
+                            buf.copy_clipboard(&clipboard);
+                          }
+                        }
+                      } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
+                        entry.copy_clipboard();
+                      }
+                    }
+                  }
+                }
+                MenuItem::Paste => {
+                  if let Some(widget) = window.get_focus() {
+                    if widget.has_focus() {
+                      if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
+                        if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
+                          if let Some(buf) = view.get_buffer() {
+                            buf.paste_clipboard(&clipboard, None, true);
+                          }
+                        }
+                      } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
+                        entry.paste_clipboard();
+                      }
+                    }
+                  }
+                }
+                MenuItem::SelectAll => {
+                  if let Some(widget) = window.get_focus() {
+                    if widget.has_focus() {
+                      if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
+                        if let Some(buf) = view.get_buffer() {
+                          buf.select_range(&buf.get_start_iter(), &buf.get_end_iter());
+                        }
+                      } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
+                        entry.select_region(0, -1);
+                      }
+                    }
+                  }
+                }
+                // TODO toggle fullscreen
+                MenuItem::EnterFullScreen => window.fullscreen(),
+                MenuItem::Minimize => window.iconify(),
+                _ => {}
               }
             }
           }

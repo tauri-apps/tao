@@ -2,6 +2,7 @@ use std::sync::mpsc::Sender;
 
 use gtk::{
   prelude::*, AccelFlags, AccelGroup, ApplicationWindow, Menu, MenuBar, MenuItem, Orientation,
+  SeparatorMenuItem,
 };
 
 use super::window::{WindowId, WindowRequest};
@@ -12,7 +13,7 @@ macro_rules! menuitem {
     let item = MenuItem::with_label($description);
     let (key, mods) = gtk::accelerator_parse($key);
     item.add_accelerator("activate", &$accel_group, key, mods, AccelFlags::VISIBLE);
-    item
+    Some(item)
   }};
 }
 
@@ -35,35 +36,36 @@ pub fn initialize(
       let item = match &i {
         RootMenuItem::Custom(m) => match m.keyboard_accelerators {
           Some(accel) => menuitem!(&m.name, accel, accel_group),
-          None => MenuItem::with_label(&m.name),
+          None => Some(MenuItem::with_label(&m.name)),
         },
-        RootMenuItem::About(s) => MenuItem::with_label(&format!("About {}", s)),
+        RootMenuItem::About(s) => Some(MenuItem::with_label(&format!("About {}", s))),
         RootMenuItem::Hide => menuitem!("Hide", "<Ctrl>H", accel_group),
-        RootMenuItem::Services => MenuItem::with_label("Services"),
-        RootMenuItem::HideOthers => menuitem!("Hide Others", "<Ctrl><Alt>H", accel_group),
-        RootMenuItem::ShowAll => MenuItem::with_label("Show All"),
         RootMenuItem::CloseWindow => menuitem!("Close Window", "<Ctrl>W", accel_group),
         RootMenuItem::Quit => menuitem!("Quit", "Q", accel_group),
         RootMenuItem::Copy => menuitem!("Copy", "<Ctrl>C", accel_group),
         RootMenuItem::Cut => menuitem!("Cut", "<Ctrl>X", accel_group),
-        RootMenuItem::Undo => menuitem!("Undo", "<Ctrl>Z", accel_group),
-        RootMenuItem::Redo => menuitem!("Redo", "<Ctrl><Shift>Z", accel_group),
         RootMenuItem::SelectAll => menuitem!("Select All", "<Ctrl>A", accel_group),
         RootMenuItem::Paste => menuitem!("Paste", "<Ctrl>V", accel_group),
-        RootMenuItem::Zoom => MenuItem::with_label("Zoom"),
-        RootMenuItem::Separator => MenuItem::with_label("Separator"),
+        RootMenuItem::Separator => {
+          let item = SeparatorMenuItem::new();
+          submenu.append(&item);
+          None
+        }
         RootMenuItem::EnterFullScreen => menuitem!("Fullscreen", "F11", accel_group),
         RootMenuItem::Minimize => menuitem!("Minimize", "<Ctrl>M", accel_group),
+        _ => None,
       };
 
-      let tx_ = tx.clone();
-      item.connect_activate(move |_| {
-        if let Err(e) = tx_.send((id, WindowRequest::Menu(i.clone()))) {
-          log::warn!("Fail to send menu request: {}", e);
-        }
-      });
+      if let Some(item) = item {
+        let tx_ = tx.clone();
+        item.connect_activate(move |_| {
+          if let Err(e) = tx_.send((id, WindowRequest::Menu(i.clone()))) {
+            log::warn!("Fail to send menu request: {}", e);
+          }
+        });
 
-      submenu.append(&item);
+        submenu.append(&item);
+      }
     }
 
     title.set_submenu(Some(&submenu));

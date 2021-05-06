@@ -49,6 +49,7 @@ pub enum MenuItem {
   Hide,
 
   /// A standard "Services" menu item.
+  /// TODO Move to platform trait
   ///
   /// ## Platform-specific
   ///
@@ -57,6 +58,7 @@ pub enum MenuItem {
   Services,
 
   /// A "hide all other windows" menu item.
+  /// TODO Move to platform trait
   ///
   /// ## Platform-specific
   ///
@@ -65,6 +67,7 @@ pub enum MenuItem {
   HideOthers,
 
   /// A menu item to show all the windows for this app.
+  /// TODO Move to platform trait
   ///
   /// ## Platform-specific
   ///
@@ -106,6 +109,7 @@ pub enum MenuItem {
 
   /// An "undo" menu item; particularly useful for supporting the cut/copy/paste/undo lifecycle
   /// of events.
+  /// TODO Move to platform trait
   ///
   /// ## Platform-specific
   ///
@@ -115,6 +119,7 @@ pub enum MenuItem {
 
   /// An "redo" menu item; particularly useful for supporting the cut/copy/paste/undo lifecycle
   /// of events.
+  /// TODO Move to platform trait
   ///
   /// ## Platform-specific
   ///
@@ -155,6 +160,7 @@ pub enum MenuItem {
   Minimize,
 
   /// An item for instructing the app to zoom
+  /// TODO Move to platform trait
   ///
   /// ## Platform-specific
   ///
