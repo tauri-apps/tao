@@ -18,6 +18,8 @@ use std::{
   sync::{Arc, Mutex, RwLock},
   time::{Duration, Instant},
 };
+
+mod status_bar;
 pub use self::status_bar::Statusbar;
 
 lazy_static! {

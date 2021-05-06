@@ -1,7 +1,5 @@
 use crate::{
-  error::OsError, 
-  platform_impl::EventLoopWindowTarget, 
-  status_bar::Statusbar as RootStatusbar,
+  error::OsError, platform_impl::EventLoopWindowTarget, status_bar::Statusbar as RootStatusbar,
 };
 
 pub struct Statusbar {}

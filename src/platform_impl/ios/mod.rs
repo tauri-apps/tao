@@ -72,6 +72,7 @@ mod app_state;
 mod event_loop;
 mod ffi;
 mod monitor;
+mod status_bar;
 mod view;
 mod window;
 

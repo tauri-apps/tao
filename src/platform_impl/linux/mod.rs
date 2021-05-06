@@ -9,6 +9,7 @@
 mod event_loop;
 mod menu;
 mod monitor;
+mod status_bar;
 mod window;
 
 pub use self::status_bar::Statusbar;
