@@ -144,7 +144,7 @@ impl<T: Clone> Clone for Event<'static, T> {
       Resumed => Resumed,
       MenuEvent { menu_id, origin } => MenuEvent {
         menu_id: *menu_id,
-        origin: origin.clone(),
+        origin: *origin,
       },
     }
   }

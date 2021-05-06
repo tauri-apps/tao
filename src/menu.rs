@@ -21,7 +21,7 @@ impl Menu {
 #[derive(Debug, Clone, Hash, Copy)]
 /// CustomMenu is a custom menu who emit an event inside the EventLoop.
 pub struct CustomMenu {
-  pub _id: MenuId,
+  pub id: MenuId,
   pub name: &'static str,
   pub keyboard_accelerators: Option<&'static str>,
 }
@@ -176,7 +176,7 @@ impl MenuItem {
   /// unique_menu_id is the unique ID for the menu item returned in the EventLoop `Event::MenuEvent(unique_menu_id)`
   pub fn new(title: &'static str) -> Self {
     MenuItem::Custom(CustomMenu {
-      _id: MenuId::new(title),
+      id: MenuId::new(title),
       name: title,
       keyboard_accelerators: None,
     })
@@ -198,12 +198,12 @@ impl MenuItem {
   /// Return unique menu ID. Works only with `MenuItem::Custom`.
   pub fn id(mut self) -> MenuId {
     if let MenuItem::Custom(ref mut custom_menu) = self {
-      return custom_menu._id;
+      return custom_menu.id;
     }
 
     // return blank menu id if we request under a non-custom menu
     // this prevent to wrap it inside an Option<>
-    MenuId { 0: 4294967295 }
+    MenuId(4294967295)
   }
 }
 
@@ -227,7 +227,7 @@ impl MenuId {
 }
 
 /// Type of menu the click is originating from.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum MenuType {
   /// Menubar menu item.
   Menubar,
