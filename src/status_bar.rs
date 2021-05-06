@@ -7,13 +7,16 @@ pub struct Statusbar {
   pub items: Vec<MenuItem>,
 }
 
-impl Statusbar {}
-
 pub struct StatusbarBuilder {
   status_bar: Statusbar,
 }
 
 impl StatusbarBuilder {
+  /// Creates a new Statusbar for platforms where this is appropriate.
+  ///
+  /// Error should be very rare and only occur in case of permission denied, incompatible system,
+  /// out of memory, invalid icon.
+  #[inline]
   pub fn new(icon: PathBuf, items: Vec<MenuItem>) -> Result<Self, io::Error> {
     let icon = std::fs::read(icon)?;
     Ok(Self {

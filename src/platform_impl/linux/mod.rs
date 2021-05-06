@@ -11,6 +11,7 @@ mod menu;
 mod monitor;
 mod window;
 
+pub use self::status_bar::Statusbar;
 pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
 pub use monitor::{MonitorHandle, VideoMode};
 pub use window::{

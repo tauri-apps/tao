@@ -9,6 +9,7 @@ pub use self::{
   event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
   icon::WinIcon,
   monitor::{MonitorHandle, VideoMode},
+  status_bar::Statusbar,
   window::Window,
 };
 
