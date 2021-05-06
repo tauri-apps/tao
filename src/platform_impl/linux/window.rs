@@ -410,12 +410,7 @@ impl Window {
     }
   }
 
-  /// Set menu
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
-  ///
+  // TODO
   pub fn set_menu(&self, _menu: Option<Vec<Menu>>) {
     debug!("`Window::set_menu` is ignored on linux")
   }

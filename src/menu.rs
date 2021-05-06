@@ -26,7 +26,8 @@ pub struct CustomMenu {
   pub keyboard_accelerators: Option<&'static str>,
 }
 
-/// A menu item, binded to a pre-defined action or `Custom` emit an event.
+/// A menu item, bound to a pre-defined action or `Custom` emit an event. Unsupported variant will
+/// be no-op on such platform.
 #[derive(Debug, Clone, Copy)]
 pub enum MenuItem {
   /// A custom menu emit an event inside the EventLoop.
@@ -36,7 +37,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   About(&'static str),
 
@@ -44,34 +45,31 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   Hide,
 
   /// A standard "Services" menu item.
-  /// TODO Move to platform trait
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported
   ///
   Services,
 
   /// A "hide all other windows" menu item.
-  /// TODO Move to platform trait
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported
   ///
   HideOthers,
 
   /// A menu item to show all the windows for this app.
-  /// TODO Move to platform trait
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported
   ///
   ShowAll,
 
@@ -79,7 +77,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   CloseWindow,
 
@@ -87,7 +85,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   Quit,
 
@@ -95,7 +93,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   Copy,
 
@@ -103,27 +101,25 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   Cut,
 
   /// An "undo" menu item; particularly useful for supporting the cut/copy/paste/undo lifecycle
   /// of events.
-  /// TODO Move to platform trait
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported
   ///
   Undo,
 
   /// An "redo" menu item; particularly useful for supporting the cut/copy/paste/undo lifecycle
   /// of events.
-  /// TODO Move to platform trait
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported
   ///
   Redo,
 
@@ -131,7 +127,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   SelectAll,
 
@@ -139,7 +135,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   Paste,
 
@@ -147,7 +143,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported
   ///
   EnterFullScreen,
 
@@ -155,16 +151,15 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   Minimize,
 
   /// An item for instructing the app to zoom
-  /// TODO Move to platform trait
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported
   ///
   Zoom,
 
@@ -172,7 +167,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   Separator,
 }
@@ -192,7 +187,7 @@ impl MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   pub fn with_accelerators(mut self, keyboard_accelerators: &'static str) -> Self {
     if let MenuItem::Custom(ref mut custom_menu) = self {
