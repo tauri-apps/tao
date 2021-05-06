@@ -18,10 +18,10 @@ impl MenuHandler {
   pub fn new(send_event: Box<dyn Fn(Event<'static, ()>)>) -> MenuHandler {
     MenuHandler { send_event }
   }
-  pub fn send_click_event(&self, menu_id: u32) {
+  pub fn send_click_event(&self, menu_id: u32, menu_type: MenuType) {
     (self.send_event)(Event::MenuEvent {
       menu_id: MenuId(menu_id),
-      origin: MenuType::Menubar,
+      origin: menu_type,
     });
   }
 }
@@ -123,7 +123,7 @@ unsafe extern "system" fn subclass_proc(
   match u_msg {
     winuser::WM_COMMAND => {
       let proxy = &mut *(data as *mut MenuHandler);
-      proxy.send_click_event(w_param as u32);
+      proxy.send_click_event(w_param as u32, MenuType::Menubar);
       0
     }
     winuser::WM_DESTROY => {
