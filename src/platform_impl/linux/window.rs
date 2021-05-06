@@ -21,11 +21,12 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::{BadIcon, Icon},
+  menu::{Menu, MenuItem},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{CursorIcon, Fullscreen, UserAttentionType, WindowAttributes},
 };
 
-use super::{event_loop::EventLoopWindowTarget, monitor::MonitorHandle};
+use super::{event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle};
 
 #[derive(Clone, Default)]
 pub struct PlatformSpecificWindowBuilderAttributes {}
@@ -107,6 +108,7 @@ impl Window {
     _pl_attribs: PlatformSpecificWindowBuilderAttributes,
   ) -> Result<Self, RootOsError> {
     let app = &event_loop_window_target.app;
+    let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
     let window = gtk::ApplicationWindow::new(app);
     let window_id = WindowId(window.get_id());
     event_loop_window_target
@@ -187,6 +189,11 @@ impl Window {
       window.set_app_paintable(true);
     }
 
+    // Set Menu Bar
+    if let Some(menus) = attributes.window_menu {
+      menu::initialize(&window, menus, window_requests_tx.clone());
+    }
+
     // Rest attributes
     window.set_title(&attributes.title);
     if attributes.fullscreen.is_some() {
@@ -235,8 +242,6 @@ impl Window {
     } else {
       window.hide();
     }
-
-    let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
 
     let w_pos = window.get_position();
     let position: Rc<(AtomicI32, AtomicI32)> = Rc::new((w_pos.0.into(), w_pos.1.into()));
@@ -400,6 +405,16 @@ impl Window {
     {
       log::warn!("Fail to send title request: {}", e);
     }
+  }
+
+  /// Set menu
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  ///
+  pub fn set_menu(&self, _menu: Option<Vec<Menu>>) {
+    debug!("`Window::set_menu` is ignored on linux")
   }
 
   pub fn set_visible(&self, visible: bool) {
@@ -589,6 +604,7 @@ pub enum WindowRequest {
   CursorIcon(Option<CursorIcon>),
   WireUpEvents,
   Redraw,
+  Menu(MenuItem),
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {

@@ -38,6 +38,7 @@ use std::path::PathBuf;
 
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize},
+  menu::{MenuId, MenuType},
   platform_impl,
   window::{Theme, WindowId},
 };
@@ -69,6 +70,9 @@ pub enum Event<'a, T: 'static> {
 
   /// Emitted when an event is sent from [`EventLoopProxy::send_event`](crate::event_loop::EventLoopProxy::send_event)
   UserEvent(T),
+
+  /// Emitted when a menu has been clicked.
+  MenuEvent { menu_id: MenuId, origin: MenuType },
 
   /// Emitted when the application has been suspended.
   Suspended,
@@ -138,6 +142,10 @@ impl<T: Clone> Clone for Event<'static, T> {
       LoopDestroyed => LoopDestroyed,
       Suspended => Suspended,
       Resumed => Resumed,
+      MenuEvent { menu_id, origin } => MenuEvent {
+        menu_id: *menu_id,
+        origin: origin.clone(),
+      },
     }
   }
 }
@@ -156,6 +164,7 @@ impl<'a, T> Event<'a, T> {
       LoopDestroyed => Ok(LoopDestroyed),
       Suspended => Ok(Suspended),
       Resumed => Ok(Resumed),
+      MenuEvent { menu_id, origin } => Ok(MenuEvent { menu_id, origin }),
     }
   }
 
@@ -176,6 +185,7 @@ impl<'a, T> Event<'a, T> {
       LoopDestroyed => Some(LoopDestroyed),
       Suspended => Some(Suspended),
       Resumed => Some(Resumed),
+      MenuEvent { menu_id, origin } => Some(MenuEvent { menu_id, origin }),
     }
   }
 }

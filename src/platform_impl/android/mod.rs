@@ -4,6 +4,7 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error, event,
   event_loop::{self, ControlFlow},
+  menu::Menu,
   monitor, window,
 };
 use ndk::{
@@ -493,6 +494,14 @@ impl Window {
   pub fn set_max_inner_size(&self, _: Option<Size>) {}
 
   pub fn set_title(&self, _title: &str) {}
+
+  /// Set menu
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  ///
+  pub fn set_menu(&self, _menu: Option<Vec<Menu>>) {}
 
   pub fn set_visible(&self, _visibility: bool) {}
 
