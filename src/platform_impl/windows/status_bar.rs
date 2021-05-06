@@ -71,7 +71,7 @@ impl Statusbar {
       let hwnd = winuser::CreateWindowExW(
         0,
         class_name.as_ptr(),
-        to_wstring("rust_systray_window").as_ptr(),
+        to_wstring("tao_status_bar_window").as_ptr(),
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         0,
