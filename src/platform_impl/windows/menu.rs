@@ -14,7 +14,6 @@ pub struct MenuHandler {
   send_event: Box<dyn Fn(Event<'static, ()>)>,
 }
 
-#[allow(non_snake_case)]
 impl MenuHandler {
   pub fn new(send_event: Box<dyn Fn(Event<'static, ()>)>) -> MenuHandler {
     MenuHandler { send_event }
