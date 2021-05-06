@@ -1,6 +1,8 @@
 use super::menu::{make_menu_item, to_wstring, MenuHandler};
 use crate::{
-  error::OsError, menu::MenuItem, menu::MenuType, platform_impl::EventLoopWindowTarget,
+  error::OsError,
+  menu::{MenuItem, MenuType},
+  platform_impl::EventLoopWindowTarget,
   status_bar::Statusbar as RootStatusbar,
 };
 use std::cell::RefCell;

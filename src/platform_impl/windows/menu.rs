@@ -80,7 +80,7 @@ pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler:
   }
 }
 
-fn make_menu_item(id: Option<u32>, title: &str) -> Option<winuser::MENUITEMINFOW> {
+pub(crate) fn make_menu_item(id: Option<u32>, title: &str) -> Option<winuser::MENUITEMINFOW> {
   let mut real_id = 0;
   if let Some(id) = id {
     real_id = id;
@@ -104,7 +104,7 @@ fn make_menu_item(id: Option<u32>, title: &str) -> Option<winuser::MENUITEMINFOW
   })
 }
 
-fn to_wstring(str: &str) -> Vec<u16> {
+pub(crate) fn to_wstring(str: &str) -> Vec<u16> {
   let v: Vec<u16> = std::ffi::OsStr::new(str)
     .encode_wide()
     .chain(Some(0).into_iter())
