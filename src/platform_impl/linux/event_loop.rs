@@ -472,7 +472,7 @@ impl<T: 'static> EventLoop<T> {
               match m {
                 MenuItem::Custom(c) => {
                   if let Err(e) = event_tx.send(Event::MenuEvent {
-                    menu_id: c._id,
+                    menu_id: c.id,
                     origin: MenuType::Menubar,
                   }) {
                     log::warn!("Failed to send menu event to event channel: {}", e);
