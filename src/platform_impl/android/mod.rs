@@ -5,9 +5,7 @@ use crate::{
   error, event,
   event_loop::{self, ControlFlow},
   menu::Menu,
-  monitor,
-  status_bar::Statusbar,
-  window,
+  monitor, window,
 };
 use ndk::{
   configuration::Configuration,
@@ -80,16 +78,16 @@ impl<T: 'static> EventLoop<T> {
     }
   }
 
-  pub fn run<F>(mut self, event_handler: F, status_bar: Option<Statusbar>) -> !
+  pub fn run<F>(mut self, event_handler: F) -> !
   where
     F:
       'static + FnMut(event::Event<'_, T>, &event_loop::EventLoopWindowTarget<T>, &mut ControlFlow),
   {
-    self.run_return(event_handler, status_bar);
+    self.run_return(event_handler);
     ::std::process::exit(0);
   }
 
-  pub fn run_return<F>(&mut self, mut event_handler: F, _status_bar: Option<Statusbar>)
+  pub fn run_return<F>(&mut self, mut event_handler: F)
   where
     F: FnMut(event::Event<'_, T>, &event_loop::EventLoopWindowTarget<T>, &mut ControlFlow),
   {

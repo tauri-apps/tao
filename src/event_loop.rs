@@ -12,7 +12,7 @@
 use instant::Instant;
 use std::{error, fmt, ops::Deref};
 
-use crate::{event::Event, monitor::MonitorHandle, platform_impl, status_bar::Statusbar};
+use crate::{event::Event, monitor::MonitorHandle, platform_impl};
 
 /// Provides a way to retrieve events from the system and from the windows that were registered to
 /// the events loop.
@@ -144,15 +144,7 @@ impl<T> EventLoop<T> {
   where
     F: 'static + FnMut(Event<'_, T>, &EventLoopWindowTarget<T>, &mut ControlFlow),
   {
-    self.event_loop.run(event_handler, None)
-  }
-
-  #[inline]
-  pub fn run_with_status_bar<F>(self, status_bar: Statusbar, event_handler: F) -> !
-  where
-    F: 'static + FnMut(Event<'_, T>, &EventLoopWindowTarget<T>, &mut ControlFlow),
-  {
-    self.event_loop.run(event_handler, Some(status_bar))
+    self.event_loop.run(event_handler)
   }
 
   /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.

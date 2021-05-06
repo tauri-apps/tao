@@ -13,7 +13,6 @@ use crate::{
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootEventLoopWindowTarget},
   monitor::MonitorHandle as RootMonitorHandle,
   platform::ios::Idiom,
-  status_bar::Statusbar,
 };
 
 use crate::platform_impl::platform::{
@@ -97,7 +96,7 @@ impl<T: 'static> EventLoop<T> {
     }
   }
 
-  pub fn run<F>(self, event_handler: F, _status_bar: Option<Statusbar>) -> !
+  pub fn run<F>(self, event_handler: F) -> !
   where
     F: 'static + FnMut(Event<'_, T>, &RootEventLoopWindowTarget<T>, &mut ControlFlow),
   {

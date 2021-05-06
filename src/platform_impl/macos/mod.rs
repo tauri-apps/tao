@@ -21,6 +21,7 @@ pub use self::{
   app_delegate::{get_aux_state_mut, AuxDelegateState},
   event_loop::{EventLoop, EventLoopWindowTarget, Proxy as EventLoopProxy},
   monitor::{MonitorHandle, VideoMode},
+  status_bar::Statusbar,
   window::{Id as WindowId, PlatformSpecificWindowBuilderAttributes, UnownedWindow},
 };
 use crate::{

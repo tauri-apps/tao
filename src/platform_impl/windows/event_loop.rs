@@ -46,7 +46,6 @@ use crate::{
     window_state::{CursorFlags, WindowFlags, WindowState},
     wrap_device_id, WindowId, DEVICE_ID,
   },
-  status_bar::Statusbar,
   window::{Fullscreen, WindowId as RootWindowId},
 };
 use runner::{EventLoopRunner, EventLoopRunnerShared};
@@ -184,7 +183,7 @@ impl<T: 'static> EventLoop<T> {
     &self.window_target
   }
 
-  pub fn run<F>(mut self, event_handler: F, status_bar: Option<Statusbar>) -> !
+  pub fn run<F>(mut self, event_handler: F) -> !
   where
     F: 'static + FnMut(Event<'_, T>, &RootELW<T>, &mut ControlFlow),
   {
@@ -192,7 +191,7 @@ impl<T: 'static> EventLoop<T> {
     ::std::process::exit(0);
   }
 
-  pub fn run_return<F>(&mut self, mut event_handler: F, _status_bar: Option<Statusbar>)
+  pub fn run_return<F>(&mut self, mut event_handler: F)
   where
     F: FnMut(Event<'_, T>, &RootELW<T>, &mut ControlFlow),
   {

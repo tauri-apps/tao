@@ -4,7 +4,7 @@ use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   menu::{MenuItem, MenuType},
-  status_bar::Statusbar,
+  status_bar::StatusbarBuilder,
   window::Window,
 };
 
@@ -14,9 +14,12 @@ fn main() {
   let mut windows = HashMap::new();
 
   let open_new_window = MenuItem::new("Open new window");
-  let status_bar = Statusbar::new(PathBuf::from("examples/icon.png"), vec![open_new_window]);
+  let _statusbar = StatusbarBuilder::new(PathBuf::from("examples/icon.png"), vec![open_new_window])
+    .unwrap()
+    .build(&event_loop)
+    .unwrap();
 
-  event_loop.run_with_status_bar(status_bar, move |event, event_loop, control_flow| {
+  event_loop.run(move |event, event_loop, control_flow| {
     *control_flow = ControlFlow::Wait;
 
     match event {
