@@ -84,7 +84,7 @@ fn main() {
           window.set_menu(Some(vec![Menu::new(
             "File",
             vec![
-              MenuItem::new("Add Todo").with_accelerators("<Primary>+"),
+              MenuItem::new("Add Todo").with_accelerators("<Primary>T"),
               MenuItem::Separator,
               MenuItem::CloseWindow,
             ],

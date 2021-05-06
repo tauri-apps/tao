@@ -87,7 +87,7 @@ impl Statusbar {
             }
 
             make_custom_menu_item(
-              custom_menu._id,
+              custom_menu.id,
               custom_menu.name,
               None,
               key_equivalent,

@@ -77,7 +77,7 @@ pub fn initialize(menu: Vec<Menu>) {
             }
 
             make_custom_menu_item(
-              custom_menu._id,
+              custom_menu.id,
               custom_menu.name,
               None,
               key_equivalent,
@@ -145,7 +145,7 @@ pub fn initialize(menu: Vec<Menu>) {
             "Enter Full Screen",
             Some(selector("toggleFullScreen:")),
             Some(KeyEquivalent {
-              key: "h",
+              key: "f",
               masks: Some(
                 NSEventModifierFlags::NSCommandKeyMask | NSEventModifierFlags::NSControlKeyMask,
               ),

@@ -440,12 +440,6 @@ impl UnownedWindow {
     }
   }
 
-  /// Set menu
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
-  ///
   pub fn set_menu(&self, menu: Option<Vec<Menu>>) {
     unsafe {
       util::set_menu_async(*self.ns_window, menu);

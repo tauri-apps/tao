@@ -21,12 +21,13 @@ impl Menu {
 #[derive(Debug, Clone, Hash, Copy)]
 /// CustomMenu is a custom menu who emit an event inside the EventLoop.
 pub struct CustomMenu {
-  pub _id: MenuId,
+  pub id: MenuId,
   pub name: &'static str,
   pub keyboard_accelerators: Option<&'static str>,
 }
 
-/// A menu item, binded to a pre-defined action or `Custom` emit an event.
+/// A menu item, bound to a pre-defined action or `Custom` emit an event. Unsupported variant will
+/// be no-op on such platform.
 #[derive(Debug, Clone, Copy)]
 pub enum MenuItem {
   /// A custom menu emit an event inside the EventLoop.
@@ -36,7 +37,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   About(&'static str),
 
@@ -44,7 +45,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   Hide,
 
@@ -52,7 +53,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported
   ///
   Services,
 
@@ -60,7 +61,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported
   ///
   HideOthers,
 
@@ -68,7 +69,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported
   ///
   ShowAll,
 
@@ -76,7 +77,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   CloseWindow,
 
@@ -84,7 +85,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   Quit,
 
@@ -92,7 +93,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   Copy,
 
@@ -100,7 +101,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   Cut,
 
@@ -109,7 +110,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported
   ///
   Undo,
 
@@ -118,7 +119,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported
   ///
   Redo,
 
@@ -126,7 +127,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   SelectAll,
 
@@ -134,7 +135,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   Paste,
 
@@ -142,7 +143,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported
   ///
   EnterFullScreen,
 
@@ -150,7 +151,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   Minimize,
 
@@ -158,7 +159,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Linux / Android / iOS:** Unsupported
   ///
   Zoom,
 
@@ -166,7 +167,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   Separator,
 }
@@ -176,7 +177,7 @@ impl MenuItem {
   /// unique_menu_id is the unique ID for the menu item returned in the EventLoop `Event::MenuEvent(unique_menu_id)`
   pub fn new(title: &'static str) -> Self {
     MenuItem::Custom(CustomMenu {
-      _id: MenuId::new(title),
+      id: MenuId::new(title),
       name: title,
       keyboard_accelerators: None,
     })
@@ -186,7 +187,7 @@ impl MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported (noop).
+  /// - **Windows / Android / iOS:** Unsupported
   ///
   pub fn with_accelerators(mut self, keyboard_accelerators: &'static str) -> Self {
     if let MenuItem::Custom(ref mut custom_menu) = self {
@@ -198,12 +199,12 @@ impl MenuItem {
   /// Return unique menu ID. Works only with `MenuItem::Custom`.
   pub fn id(mut self) -> MenuId {
     if let MenuItem::Custom(ref mut custom_menu) = self {
-      return custom_menu._id;
+      return custom_menu.id;
     }
 
     // return blank menu id if we request under a non-custom menu
     // this prevent to wrap it inside an Option<>
-    MenuId { 0: 4294967295 }
+    MenuId(4294967295)
   }
 }
 
@@ -227,7 +228,7 @@ impl MenuId {
 }
 
 /// Type of menu the click is originating from.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum MenuType {
   /// Menubar menu item.
   Menubar,

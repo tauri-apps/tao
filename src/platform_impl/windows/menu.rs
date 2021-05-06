@@ -47,7 +47,7 @@ pub fn initialize(menu: Vec<Menu>, window_handle: RawWindowHandle, menu_handler:
         for item in &menu.items {
           let sub_item = match item {
             MenuItem::Custom(custom_menu) => {
-              make_menu_item(Some(custom_menu._id.0), custom_menu.name)
+              make_menu_item(Some(custom_menu.id.0), custom_menu.name)
             }
             // Let's support only custom menu in windows for now
             _ => None,
