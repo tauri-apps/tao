@@ -1,9 +1,6 @@
 use std::sync::mpsc::Sender;
 
-use gtk::{
-  prelude::*, AccelFlags, AccelGroup, ApplicationWindow, Menu, MenuBar, MenuItem, Orientation,
-  SeparatorMenuItem,
-};
+use gtk::{prelude::*, AccelFlags, AccelGroup, Menu, MenuBar, MenuItem, SeparatorMenuItem};
 
 use super::window::{WindowId, WindowRequest};
 use crate::menu::{Menu as RootMenu, MenuItem as RootMenuItem};
@@ -12,22 +9,18 @@ macro_rules! menuitem {
   ( $description:expr, $key:expr, $accel_group:ident ) => {{
     let item = MenuItem::with_label($description);
     let (key, mods) = gtk::accelerator_parse($key);
-    item.add_accelerator("activate", &$accel_group, key, mods, AccelFlags::VISIBLE);
+    item.add_accelerator("activate", $accel_group, key, mods, AccelFlags::VISIBLE);
     Some(item)
   }};
 }
 
 pub fn initialize(
-  window: &ApplicationWindow,
+  id: WindowId,
   menus: Vec<RootMenu>,
-  tx: Sender<(WindowId, WindowRequest)>,
-  accel_group: AccelGroup,
-) {
-  let id = WindowId(window.get_id());
-  let vbox = gtk::Box::new(Orientation::Vertical, 0);
+  tx: &Sender<(WindowId, WindowRequest)>,
+  accel_group: &AccelGroup,
+) -> MenuBar {
   let menubar = MenuBar::new();
-  window.add(&vbox);
-
   for menu in menus {
     let title = MenuItem::with_label(&menu.title);
     let submenu = Menu::new();
@@ -72,5 +65,5 @@ pub fn initialize(
     menubar.append(&title);
   }
 
-  vbox.pack_start(&menubar, false, false, 0);
+  menubar
 }

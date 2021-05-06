@@ -15,7 +15,7 @@ use std::{
 
 use gdk::{Cursor, EventMask, WindowEdge, WindowExt, WindowState};
 use gdk_pixbuf::Pixbuf;
-use gtk::{prelude::*, AccelGroup, ApplicationWindow};
+use gtk::{prelude::*, AccelGroup, ApplicationWindow, Orientation};
 
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
@@ -94,6 +94,10 @@ pub struct Window {
   pub(crate) window: gtk::ApplicationWindow,
   /// Window requests sender
   pub(crate) window_requests_tx: Sender<(WindowId, WindowRequest)>,
+  /// Gtk Acceleration Group
+  pub(crate) accel_group: AccelGroup,
+  /// Gtk Menu
+  pub(crate) menu: gtk::Box,
   scale_factor: Rc<AtomicI32>,
   position: Rc<(AtomicI32, AtomicI32)>,
   size: Rc<(AtomicI32, AtomicI32)>,
@@ -116,8 +120,8 @@ impl Window {
       .borrow_mut()
       .insert(window_id);
 
-    let group = AccelGroup::new();
-    window.add_accel_group(&group);
+    let accel_group = AccelGroup::new();
+    window.add_accel_group(&accel_group);
 
     // Set Width/Height & Resizable
     let win_scale_factor = window.get_scale_factor();
@@ -193,8 +197,11 @@ impl Window {
     }
 
     // Set Menu Bar
+    let menu = gtk::Box::new(Orientation::Vertical, 0);
     if let Some(menus) = attributes.window_menu {
-      menu::initialize(&window, menus, window_requests_tx.clone(), group);
+      window.add(&menu);
+      let menubar = menu::initialize(window_id, menus, &window_requests_tx, &accel_group);
+      menu.pack_start(&menubar, false, false, 0);
     }
 
     // Rest attributes
@@ -292,6 +299,8 @@ impl Window {
       window_id,
       window,
       window_requests_tx,
+      accel_group,
+      menu,
       scale_factor,
       position,
       size,
@@ -410,9 +419,13 @@ impl Window {
     }
   }
 
-  // TODO
-  pub fn set_menu(&self, _menu: Option<Vec<Menu>>) {
-    debug!("`Window::set_menu` is ignored on linux")
+  pub fn set_menu(&self, menu: Option<Vec<Menu>>) {
+    if let Err(e) = self.window_requests_tx.send((
+      self.window_id,
+      WindowRequest::SetMenu((menu, self.accel_group.clone(), self.menu.clone())),
+    )) {
+      log::warn!("Fail to send menu request: {}", e);
+    }
   }
 
   pub fn set_visible(&self, visible: bool) {
@@ -603,6 +616,7 @@ pub enum WindowRequest {
   WireUpEvents,
   Redraw,
   Menu(MenuItem),
+  SetMenu((Option<Vec<Menu>>, AccelGroup, gtk::Box)),
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {

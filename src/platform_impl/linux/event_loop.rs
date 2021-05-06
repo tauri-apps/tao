@@ -29,6 +29,7 @@ use crate::{
 };
 
 use super::{
+  menu,
   monitor::MonitorHandle,
   window::{WindowId, WindowRequest},
   DeviceId,
@@ -468,7 +469,6 @@ impl<T: 'static> EventLoop<T> {
             }
             WindowRequest::Redraw => window.queue_draw(),
             WindowRequest::Menu(m) => {
-              // TODO other MenuItem variant
               match m {
                 MenuItem::Custom(c) => {
                   if let Err(e) = event_tx.send(Event::MenuEvent {
@@ -550,6 +550,19 @@ impl<T: 'static> EventLoop<T> {
                 MenuItem::EnterFullScreen => window.fullscreen(),
                 MenuItem::Minimize => window.iconify(),
                 _ => {}
+              }
+            }
+            WindowRequest::SetMenu((menus, accel_group, menu)) => {
+              for i in menu.get_children() {
+                menu.remove(&i);
+              }
+
+              if let Some(menus) = menus {
+                let menubar =
+                  menu::initialize(id, menus, &window_target.p.window_requests_tx, &accel_group);
+                dbg!("gell");
+                menu.pack_start(&menubar, false, false, 0);
+                menu.show_all();
               }
             }
           }
