@@ -1,14 +1,26 @@
 use std::sync::mpsc::Sender;
 
-use gtk::{prelude::*, ApplicationWindow, Menu, MenuBar, MenuItem, Orientation};
+use gtk::{
+  prelude::*, AccelFlags, AccelGroup, ApplicationWindow, Menu, MenuBar, MenuItem, Orientation,
+};
 
 use super::window::{WindowId, WindowRequest};
 use crate::menu::{Menu as RootMenu, MenuItem as RootMenuItem};
+
+macro_rules! menuitem {
+  ( $description:expr, $key:expr, $accel_group:ident ) => {{
+    let item = MenuItem::with_label($description);
+    let (key, mods) = gtk::accelerator_parse($key);
+    item.add_accelerator("activate", &$accel_group, key, mods, AccelFlags::VISIBLE);
+    item
+  }};
+}
 
 pub fn initialize(
   window: &ApplicationWindow,
   menus: Vec<RootMenu>,
   tx: Sender<(WindowId, WindowRequest)>,
+  accel_group: AccelGroup,
 ) {
   let id = WindowId(window.get_id());
   let vbox = gtk::Box::new(Orientation::Vertical, 0);
@@ -21,23 +33,27 @@ pub fn initialize(
 
     for i in menu.items {
       let item = match &i {
-        RootMenuItem::Custom(m) => MenuItem::with_label(&m.name),
+        RootMenuItem::Custom(m) => match m.keyboard_accelerators {
+          Some(accel) => menuitem!(&m.name, accel, accel_group),
+          None => MenuItem::with_label(&m.name),
+        },
         RootMenuItem::About(s) => MenuItem::with_label(&format!("About {}", s)),
-        RootMenuItem::Hide => MenuItem::with_label("Hide"),
+        RootMenuItem::Hide => menuitem!("Hide", "<Ctrl>H", accel_group),
         RootMenuItem::Services => MenuItem::with_label("Services"),
-        RootMenuItem::HideOthers => MenuItem::with_label("Hide Others"),
+        RootMenuItem::HideOthers => menuitem!("Hide Others", "<Ctrl><Alt>H", accel_group),
         RootMenuItem::ShowAll => MenuItem::with_label("Show All"),
-        RootMenuItem::CloseWindow => MenuItem::with_label("Close Window"),
-        RootMenuItem::Quit => MenuItem::with_label("Quit"),
-        RootMenuItem::Copy => MenuItem::with_label("Copy"),
-        RootMenuItem::Cut => MenuItem::with_label("Cut"),
-        RootMenuItem::Undo => MenuItem::with_label("Undo"),
-        RootMenuItem::Redo => MenuItem::with_label("Redo"),
-        RootMenuItem::SelectAll => MenuItem::with_label("Select All"),
-        RootMenuItem::Paste => MenuItem::with_label("Paste"),
+        RootMenuItem::CloseWindow => menuitem!("Close Window", "<Ctrl>W", accel_group),
+        RootMenuItem::Quit => menuitem!("Quit", "Q", accel_group),
+        RootMenuItem::Copy => menuitem!("Copy", "<Ctrl>C", accel_group),
+        RootMenuItem::Cut => menuitem!("Cut", "<Ctrl>X", accel_group),
+        RootMenuItem::Undo => menuitem!("Undo", "<Ctrl>Z", accel_group),
+        RootMenuItem::Redo => menuitem!("Redo", "<Ctrl><Shift>Z", accel_group),
+        RootMenuItem::SelectAll => menuitem!("Select All", "<Ctrl>A", accel_group),
+        RootMenuItem::Paste => menuitem!("Paste", "<Ctrl>V", accel_group),
         RootMenuItem::Zoom => MenuItem::with_label("Zoom"),
         RootMenuItem::Separator => MenuItem::with_label("Separator"),
-        _ => MenuItem::with_label("Close Window"),
+        RootMenuItem::EnterFullScreen => menuitem!("Fullscreen", "F11", accel_group),
+        RootMenuItem::Minimize => menuitem!("Minimize", "<Ctrl>M", accel_group),
       };
 
       let tx_ = tx.clone();

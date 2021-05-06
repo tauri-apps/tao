@@ -14,7 +14,7 @@ use std::{
 use gdk::{Cursor, CursorType, WindowExt, WindowState};
 use gio::{prelude::*, Cancellable};
 use glib::{source::idle_add_local, Continue, MainContext};
-use gtk::{prelude::*, ApplicationWindow, Inhibit};
+use gtk::{prelude::*, AboutDialog, ApplicationWindow, Inhibit};
 
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize},
@@ -478,6 +478,12 @@ impl<T: 'static> EventLoop<T> {
                     log::warn!("Failed to send menu event to event channel: {}", e);
                   }
                 }
+                MenuItem::About(_) => {
+                  let about = AboutDialog::new();
+                  about.show_all();
+                  window_target.p.app.add_window(&about);
+                }
+                MenuItem::CloseWindow => window.close(),
                 _ => window.close(),
               }
             }

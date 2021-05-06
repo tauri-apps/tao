@@ -15,7 +15,7 @@ use std::{
 
 use gdk::{Cursor, EventMask, WindowEdge, WindowExt, WindowState};
 use gdk_pixbuf::Pixbuf;
-use gtk::{prelude::*, ApplicationWindow};
+use gtk::{prelude::*, AccelGroup, ApplicationWindow};
 
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
@@ -116,6 +116,9 @@ impl Window {
       .borrow_mut()
       .insert(window_id);
 
+    let group = AccelGroup::new();
+    window.add_accel_group(&group);
+
     // Set Width/Height & Resizable
     let win_scale_factor = window.get_scale_factor();
     let (width, height) = attributes
@@ -191,7 +194,7 @@ impl Window {
 
     // Set Menu Bar
     if let Some(menus) = attributes.window_menu {
-      menu::initialize(&window, menus, window_requests_tx.clone());
+      menu::initialize(&window, menus, window_requests_tx.clone(), group);
     }
 
     // Rest attributes
