@@ -2,4 +2,4 @@
 "tao": patch
 ---
 
-Implement status bar on Linux
+Implement basic menu builder for macOS, Windows and Linux.
