@@ -23,7 +23,6 @@ impl StatusbarBuilder {
   /// out of memory, invalid icon.
   #[inline]
   pub fn new(icon: PathBuf, items: Vec<MenuItem>) -> Self {
-    //let icon = std::fs::read(icon)?;
     Self {
       status_bar: Statusbar { icon, items },
     }

@@ -22,7 +22,6 @@ fn main() {
   let icon = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/icon.png");
 
   let _statusbar = StatusbarBuilder::new(icon, vec![open_new_window])
-    .unwrap()
     .build(&event_loop)
     .unwrap();
 
