@@ -99,9 +99,7 @@ impl Statusbar {
 
       let hmenu = winuser::CreatePopupMenu();
       let app_statusbar = Statusbar { hwnd, hmenu };
-      let icon =
-        std::fs::read(&status_bar.icon).map_err(|e| OsError::new(102, "status bar icon", e))?;
-      app_statusbar.set_icon_from_buffer(&icon, 32, 32);
+      app_statusbar.set_icon_from_buffer(&status_bar.icon, 32, 32);
 
       WININFO_STASH.with(|stash| {
         let data = WindowsLoopData {

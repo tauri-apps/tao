@@ -2,15 +2,15 @@ use crate::{
   error::OsError, menu::MenuItem, platform_impl::EventLoopWindowTarget,
   status_bar::Statusbar as RootStatusbar,
 };
-
 use gtk::prelude::*;
 use libappindicator::{AppIndicator, AppIndicatorStatus};
 
 use super::window::{WindowId, WindowRequest};
 
 pub struct Statusbar {}
+
 impl Statusbar {
-  pub fn initialize<T>(
+  pub(crate) fn initialize<T>(
     window_target: &EventLoopWindowTarget<T>,
     status_bar: &RootStatusbar,
   ) -> Result<(), OsError> {
@@ -22,7 +22,7 @@ impl Statusbar {
       Some(name) => name.to_string_lossy(),
       None => return Err(OsError::new(20, "status bar icon", super::OsError)),
     };
-    let mut indicator = AppIndicator::with_path("libappindicator test application", &icon, &path);
+    let mut indicator = AppIndicator::with_path("tao application", &icon, &path);
     indicator.set_status(AppIndicatorStatus::Active);
     let mut m = gtk::Menu::new();
 
