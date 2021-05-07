@@ -3,7 +3,6 @@ use crate::{
   error::OsError,
   menu::{MenuItem, MenuType},
   platform_impl::EventLoopWindowTarget,
-  status_bar::Statusbar as RootStatusbar,
 };
 use std::cell::RefCell;
 use winapi::{
@@ -34,6 +33,9 @@ use winapi::{
 pub struct Statusbar {
   pub(crate) icon: Vec<u8>,
   pub(crate) items: Vec<MenuItem>,
+}
+
+pub struct LocalStatusbar {
   hwnd: HWND,
   hmenu: HMENU,
 }
@@ -41,14 +43,14 @@ pub struct Statusbar {
 thread_local!(static WININFO_STASH: RefCell<Option<WindowsLoopData>> = RefCell::new(None));
 
 struct WindowsLoopData {
-  status_bar: Statusbar,
+  status_bar: LocalStatusbar,
   handler: MenuHandler,
 }
 
 impl Statusbar {
   pub fn initialize<T>(
     window_target: &EventLoopWindowTarget<T>,
-    status_bar: &RootStatusbar,
+    status_bar: &Statusbar,
   ) -> Result<(), OsError> {
     // create the handler
     let event_loop_runner = window_target.runner_shared.clone();
@@ -106,7 +108,7 @@ impl Statusbar {
       }
 
       let hmenu = winuser::CreatePopupMenu();
-      let app_statusbar = Statusbar { hwnd, hmenu };
+      let app_statusbar = LocalStatusbar { hwnd, hmenu };
       app_statusbar.set_icon_from_buffer(&status_bar.icon, 32, 32);
 
       WININFO_STASH.with(|stash| {

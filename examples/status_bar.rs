@@ -1,5 +1,7 @@
 use simple_logger::SimpleLogger;
 use std::collections::HashMap;
+#[cfg(target_os = "linux")]
+use std::path::Path;
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
@@ -15,13 +17,19 @@ fn main() {
 
   let open_new_window = MenuItem::new("Open new window");
 
-  // Windows always need his special touch!
+  // Windows require Vec<u8> ICO file
   #[cfg(target_os = "windows")]
-  let icon = include_bytes!("icon.ico");
-  #[cfg(not(target_os = "windows"))]
-  let icon = include_bytes!("icon.png");
+  let icon = include_bytes!("icon.ico").to_vec();
+  // macOS require Vec<u8> PNG file
+  #[cfg(target_os = "macos")]
+  let icon = include_bytes!("icon.png").to_vec();
+  // Linux require Pathbuf to PNG file
+  #[cfg(target_os = "linux")]
+  let icon = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/icon.png");
 
-  let _statusbar = StatusbarBuilder::new(icon.to_vec(), vec![open_new_window])
+  // Only supported on macOS, linux and windows
+  #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+  let _statusbar = StatusbarBuilder::new(icon, vec![open_new_window])
     .build(&event_loop)
     .unwrap();
 

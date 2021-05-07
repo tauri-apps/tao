@@ -1,3 +1,4 @@
+#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
 pub use crate::platform_impl::Statusbar;
 use crate::{error::OsError, event_loop::EventLoopWindowTarget, menu::MenuItem};
 #[cfg(target_os = "linux")]
@@ -40,7 +41,7 @@ impl StatusbarBuilder {
     self,
     window_target: &EventLoopWindowTarget<T>,
   ) -> Result<Statusbar, OsError> {
-    #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux",))]
+    #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
     Statusbar::initialize(&window_target.p, &self.status_bar)?;
     #[cfg(any(target_os = "android", target_os = "ios"))]
     debug!("`StatusBar` is not supported on this platform");
