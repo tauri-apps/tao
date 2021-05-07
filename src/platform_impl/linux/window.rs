@@ -214,6 +214,10 @@ impl Window {
     }
     window.set_visible(attributes.visible);
     window.set_decorated(attributes.decorations);
+    if attributes.focus {
+      // FIXME: replace with present_with_timestamp
+      window.present();
+    }
 
     if !attributes.decorations && attributes.resizable {
       window.add_events(EventMask::POINTER_MOTION_MASK | EventMask::BUTTON_MOTION_MASK);
@@ -437,6 +441,15 @@ impl Window {
     }
   }
 
+  pub fn set_focus(&self) {
+    if let Err(e) = self
+      .window_requests_tx
+      .send((self.window_id, WindowRequest::Focus))
+    {
+      log::warn!("Fail to send visible request: {}", e);
+    }
+  }
+
   pub fn set_resizable(&self, resizable: bool) {
     if let Err(e) = self
       .window_requests_tx
@@ -602,6 +615,7 @@ pub enum WindowRequest {
   MinSize((i32, i32)),
   MaxSize((i32, i32)),
   Visible(bool),
+  Focus,
   Resizable(bool),
   Minimized(bool),
   Maximized(bool),

@@ -150,6 +150,11 @@ impl Window {
   }
 
   #[inline]
+  pub fn set_focus(&self) {
+    force_window_active(self.window.0);
+  }
+
+  #[inline]
   pub fn request_redraw(&self) {
     unsafe {
       winuser::RedrawWindow(
@@ -856,6 +861,10 @@ unsafe fn init<T: 'static>(
     }));
 
     menu::initialize(window_menu, window_handle, menu_handler);
+  }
+
+  if attributes.focus {
+    force_window_active(win.window.0);
   }
 
   Ok(win)

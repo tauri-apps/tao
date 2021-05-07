@@ -385,6 +385,7 @@ impl UnownedWindow {
     let fullscreen = win_attribs.fullscreen.take();
     let maximized = win_attribs.maximized;
     let visible = win_attribs.visible;
+    let focus = win_attribs.focus;
     let decorations = win_attribs.decorations;
     let inner_rect = win_attribs
       .inner_size
@@ -411,6 +412,17 @@ impl UnownedWindow {
     if visible {
       // Tightly linked with `app_state::window_activation_hack`
       unsafe { window.ns_window.makeKeyAndOrderFront_(nil) };
+    }
+
+    if focus {
+      unsafe {
+        // if visible, we already send it
+        if !visible {
+          window.ns_window.makeKeyAndOrderFront_(nil);
+        }
+        let app: id = msg_send![class!(NSApplication), sharedApplication];
+        let () = msg_send![app, activateIgnoringOtherApps: YES];
+      };
     }
 
     if maximized {
@@ -450,6 +462,14 @@ impl UnownedWindow {
     match visible {
       true => unsafe { util::make_key_and_order_front_async(*self.ns_window) },
       false => unsafe { util::order_out_async(*self.ns_window) },
+    }
+  }
+
+  #[inline]
+  // Shortener for set_visible(true)
+  pub fn set_focus(&self) {
+    unsafe {
+      util::set_focus(*self.ns_window);
     }
   }
 

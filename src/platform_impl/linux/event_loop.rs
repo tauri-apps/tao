@@ -194,6 +194,10 @@ impl<T: 'static> EventLoop<T> {
                 window.hide();
               }
             }
+            WindowRequest::Focus => {
+              // FIXME: replace with present_with_timestamp
+              window.present();
+            }
             WindowRequest::Resizable(resizable) => window.set_resizable(resizable),
             WindowRequest::Minimized(minimized) => {
               if minimized {

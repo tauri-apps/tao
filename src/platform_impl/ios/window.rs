@@ -63,6 +63,11 @@ impl Inner {
     }
   }
 
+  pub fn set_focus(&self) {
+    //FIXME: implementation goes here
+    warn!("set_focus not yet implemented on iOS");
+  }
+
   pub fn request_redraw(&self) {
     unsafe {
       if self.gl_or_metal_backed {

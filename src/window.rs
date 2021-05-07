@@ -169,6 +169,11 @@ pub struct WindowAttributes {
   /// The default is `true`.
   pub visible: bool,
 
+  /// Whether the window should get focus upon creation.
+  ///
+  /// The default is `true`.
+  pub focus: bool,
+
   /// Whether the the window should be transparent. If this is true, writing colors
   /// with alpha values different than `1.0` will produce a transparent window.
   ///
@@ -209,6 +214,7 @@ impl Default for WindowAttributes {
       maximized: false,
       fullscreen: None,
       visible: true,
+      focus: true,
       transparent: false,
       decorations: true,
       always_on_top: false,
@@ -332,6 +338,18 @@ impl WindowBuilder {
   #[inline]
   pub fn with_visible(mut self, visible: bool) -> Self {
     self.window.visible = visible;
+    self
+  }
+
+  /// Sets whether the window will be initially hidden or focus.
+  ///
+  /// See [`Window::set_focus`] for details.
+  ///
+  /// [`Window::set_focus`]: crate::window::Window::set_focus
+  #[inline]
+  pub fn with_focus(mut self) -> Self {
+    // in macOS with_focus and with_visible do the same thing
+    self.window.visible = true;
     self
   }
 
@@ -606,6 +624,16 @@ impl Window {
   #[inline]
   pub fn set_visible(&self, visible: bool) {
     self.window.set_visible(visible)
+  }
+
+  /// Bring the window to front and focus.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_focus(&self) {
+    self.window.set_focus()
   }
 
   /// Sets whether the window is resizable or not.

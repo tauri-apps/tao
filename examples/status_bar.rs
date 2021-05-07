@@ -17,6 +17,7 @@ fn main() {
   let mut windows = HashMap::new();
 
   let open_new_window = MenuItem::new("Open new window");
+  let focus_window = MenuItem::new("Focus windows");
 
   // Windows require Vec<u8> ICO file
   #[cfg(target_os = "windows")]
@@ -30,7 +31,7 @@ fn main() {
 
   // Only supported on macOS, linux and windows
   #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-  let _statusbar = StatusbarBuilder::new(icon, vec![open_new_window])
+  let _statusbar = StatusbarBuilder::new(icon, vec![open_new_window, focus_window])
     .build(&event_loop)
     .unwrap();
 
@@ -53,6 +54,11 @@ fn main() {
         if menu_id == open_new_window.id() {
           let window = Window::new(&event_loop).unwrap();
           windows.insert(window.id(), window);
+        }
+        if menu_id == focus_window.id() {
+          for (_, window) in &windows {
+            window.set_focus();
+          }
         }
         println!("Clicked on {:?}", menu_id);
       }

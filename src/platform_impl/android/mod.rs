@@ -499,6 +499,8 @@ impl Window {
 
   pub fn set_visible(&self, _visibility: bool) {}
 
+  pub fn set_focus(&self) {}
+
   pub fn set_resizable(&self, _resizeable: bool) {}
 
   pub fn set_minimized(&self, _minimized: bool) {}
