@@ -26,8 +26,9 @@ pub struct CustomMenu {
   pub keyboard_accelerators: Option<&'static str>,
 }
 
-/// A menu item, bound to a pre-defined action or `Custom` emit an event. Unsupported variant will
-/// be no-op on such platform.
+/// A menu item, bound to a pre-defined action or `Custom` emit an event. Note that status bar only
+/// supports `Custom` menu item variants. And on the menu bar, some platforms might not support some
+/// of the variants. Unsupported variant will be no-op on such platform.
 #[derive(Debug, Clone, Copy)]
 pub enum MenuItem {
   /// A custom menu emit an event inside the EventLoop.

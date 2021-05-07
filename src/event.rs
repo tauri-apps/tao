@@ -71,7 +71,8 @@ pub enum Event<'a, T: 'static> {
   /// Emitted when an event is sent from [`EventLoopProxy::send_event`](crate::event_loop::EventLoopProxy::send_event)
   UserEvent(T),
 
-  /// Emitted when a menu has been clicked.
+  /// Emitted when a menu has been clicked. There are two types of menu event. One comes from the
+  /// menu bar, the other comes from the status bar.
   MenuEvent { menu_id: MenuId, origin: MenuType },
 
   /// Emitted when the application has been suspended.
