@@ -29,10 +29,6 @@ impl Statusbar {
         .statusItemWithLength_(NSSquareStatusItemLength)
         .autorelease();
 
-      // set the button title
-      //let title = NSString::alloc(nil).init_str(title);
-      //status_item.setTitle_(title);
-
       let button = status_item.button();
 
       // set our icon
