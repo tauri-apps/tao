@@ -349,7 +349,7 @@ impl WindowBuilder {
   #[inline]
   pub fn with_focus(mut self) -> Self {
     // in macOS with_focus and with_visible do the same thing
-    self.window.visible = true;
+    self.window.focus = true;
     self
   }
 
