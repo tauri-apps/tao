@@ -25,7 +25,15 @@ use winapi::{
   },
 };
 
+/// Status bar is a system tray icon usually display on top right or bottom right of the screen.
+///
+/// ## Platform-specific
+///
+/// - **Android / iOS:** Unsupported
+#[derive(Debug, Clone)]
 pub struct Statusbar {
+  pub(crate) icon: Vec<u8>,
+  pub(crate) items: Vec<MenuItem>,
   hwnd: HWND,
   hmenu: HMENU,
 }

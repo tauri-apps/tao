@@ -3,7 +3,6 @@ use crate::{
   error::OsError,
   menu::{MenuItem, MenuType},
   platform_impl::EventLoopWindowTarget,
-  status_bar::Statusbar as RootStatusbar,
 };
 use cocoa::{
   appkit::{
@@ -15,11 +14,21 @@ use cocoa::{
 };
 use objc::runtime::Object;
 
-pub struct Statusbar {}
+/// Status bar is a system tray icon usually display on top right or bottom right of the screen.
+///
+/// ## Platform-specific
+///
+/// - **Android / iOS:** Unsupported
+#[derive(Debug, Clone)]
+pub struct Statusbar {
+  pub(crate) icon: Vec<u8>,
+  pub(crate) items: Vec<MenuItem>,
+}
+
 impl Statusbar {
   pub fn initialize<T>(
     _window_target: &EventLoopWindowTarget<T>,
-    status_bar: &RootStatusbar,
+    status_bar: &Statusbar,
   ) -> Result<(), OsError> {
     const ICON_WIDTH: f64 = 18.0;
     const ICON_HEIGHT: f64 = 18.0;
