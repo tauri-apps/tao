@@ -8,8 +8,8 @@ use std::{io, path::PathBuf};
 /// - **Android / iOS:** Unsupported
 #[derive(Debug, Clone)]
 pub struct Statusbar {
-  icon: Vec<u8>,
-  items: Vec<MenuItem>,
+  pub(crate) icon: Vec<u8>,
+  pub(crate) items: Vec<MenuItem>,
 }
 
 pub struct StatusbarBuilder {
