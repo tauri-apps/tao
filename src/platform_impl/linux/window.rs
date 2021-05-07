@@ -35,8 +35,8 @@ pub struct PlatformSpecificWindowBuilderAttributes {}
 pub struct WindowId(pub(crate) u32);
 
 impl WindowId {
-  pub unsafe fn dummy() -> Self {
-    WindowId(0)
+  pub fn dummy() -> Self {
+    WindowId(u32::MAX)
   }
 }
 

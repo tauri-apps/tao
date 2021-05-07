@@ -84,3 +84,5 @@ gdk = "0.13"
 gdk-pixbuf = "0.9"
 image = "0.23"
 sourceview = "0.9"
+libappindicator = "0.5"
+

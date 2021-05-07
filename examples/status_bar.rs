@@ -1,5 +1,5 @@
 use simple_logger::SimpleLogger;
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::Path};
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
@@ -17,9 +17,9 @@ fn main() {
 
   // Windows always need his special touch!
   #[cfg(target_os = "windows")]
-  let icon = PathBuf::from("examples/icon.ico");
+  let icon = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/icon.ico");
   #[cfg(not(target_os = "windows"))]
-  let icon = PathBuf::from("examples/icon.png");
+  let icon = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/icon.png");
 
   let _statusbar = StatusbarBuilder::new(icon, vec![open_new_window])
     .unwrap()
