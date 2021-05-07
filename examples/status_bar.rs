@@ -6,6 +6,8 @@ use std::path::Path;
 use tao::platform::macos::StatusbarBuilder;
 #[cfg(target_os = "linux")]
 use tao::platform::unix::StatusbarBuilder;
+#[cfg(target_os = "windows")]
+use tao::platform::windows::StatusbarBuilder;
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},

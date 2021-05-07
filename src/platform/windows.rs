@@ -10,10 +10,12 @@ use winapi::shared::{
 
 use crate::{
   dpi::PhysicalSize,
+  error::OsError,
   event::DeviceId,
-  event_loop::EventLoop,
+  event_loop::{EventLoop, EventLoopWindowTarget},
+  menu::MenuItem,
   monitor::MonitorHandle,
-  platform_impl::{EventLoop as WindowsEventLoop, Parent, WinIcon},
+  platform_impl::{self, EventLoop as WindowsEventLoop, Parent, WinIcon},
   window::{BadIcon, Icon, Theme, Window, WindowBuilder},
 };
 
@@ -289,5 +291,39 @@ impl IconExtWindows for Icon {
   fn from_resource(ordinal: WORD, size: Option<PhysicalSize<u32>>) -> Result<Self, BadIcon> {
     let win_icon = WinIcon::from_resource(ordinal, size)?;
     Ok(Icon { inner: win_icon })
+  }
+}
+
+/// Status bar is a system tray icon usually display on top right or bottom right of the screen.
+#[derive(Debug, Clone)]
+#[cfg(not(target_os = "linux"))]
+pub struct Statusbar {
+  pub(crate) icon: Vec<u8>,
+  pub(crate) items: Vec<MenuItem>,
+}
+
+pub struct StatusbarBuilder {
+  status_bar: Statusbar,
+}
+
+impl StatusbarBuilder {
+  /// Creates a new Statusbar for platforms where this is appropriate.
+  pub fn new(icon: Vec<u8>, items: Vec<MenuItem>) -> Self {
+    Self {
+      status_bar: Statusbar { icon, items },
+    }
+  }
+
+  /// Builds the status bar.
+  ///
+  /// Possible causes of error include denied permission, incompatible system, and lack of memory.
+  #[inline]
+  pub fn build<T: 'static>(
+    self,
+    _window_target: &EventLoopWindowTarget<T>,
+  ) -> Result<Statusbar, OsError> {
+    #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+    platform_impl::Statusbar::initialize(&_window_target.p, &self.status_bar)?;
+    Ok(self.status_bar)
   }
 }
