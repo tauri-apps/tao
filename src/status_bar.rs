@@ -1,6 +1,8 @@
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+use crate::platform_impl;
 #[cfg(target_os = "linux")]
 pub use crate::platform_impl::Statusbar;
-use crate::{error::OsError, event_loop::EventLoopWindowTarget, menu::MenuItem, platform_impl};
+use crate::{error::OsError, event_loop::EventLoopWindowTarget, menu::MenuItem};
 #[cfg(target_os = "linux")]
 use std::path::PathBuf;
 
@@ -51,10 +53,10 @@ impl StatusbarBuilder {
   #[inline]
   pub fn build<T: 'static>(
     self,
-    window_target: &EventLoopWindowTarget<T>,
+    _window_target: &EventLoopWindowTarget<T>,
   ) -> Result<Statusbar, OsError> {
     #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
-    platform_impl::Statusbar::initialize(&window_target.p, &self.status_bar)?;
+    platform_impl::Statusbar::initialize(&_window_target.p, &self.status_bar)?;
     #[cfg(any(target_os = "android", target_os = "ios"))]
     debug!("`StatusBar` is not supported on this platform");
     Ok(self.status_bar)
