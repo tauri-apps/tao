@@ -4,7 +4,6 @@ use crate::{
 };
 use gtk::prelude::*;
 use libappindicator::{AppIndicator, AppIndicatorStatus};
-use std::path::PathBuf;
 
 use super::window::{WindowId, WindowRequest};
 
