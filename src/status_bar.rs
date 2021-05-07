@@ -1,5 +1,5 @@
 use crate::{error::OsError, event_loop::EventLoopWindowTarget, menu::MenuItem, platform_impl};
-use std::{io, path::PathBuf};
+use std::path::PathBuf;
 
 /// Status bar is a system tray icon usually display on top right or bottom right of the screen.
 ///
@@ -8,7 +8,7 @@ use std::{io, path::PathBuf};
 /// - **Android / iOS:** Unsupported
 #[derive(Debug, Clone)]
 pub struct Statusbar {
-  pub(crate) icon: Vec<u8>,
+  pub(crate) icon: PathBuf,
   pub(crate) items: Vec<MenuItem>,
 }
 
@@ -22,11 +22,10 @@ impl StatusbarBuilder {
   /// Error should be very rare and only occur in case of permission denied, incompatible system,
   /// out of memory, invalid icon.
   #[inline]
-  pub fn new(icon: PathBuf, items: Vec<MenuItem>) -> Result<Self, io::Error> {
-    let icon = std::fs::read(icon)?;
-    Ok(Self {
+  pub fn new(icon: PathBuf, items: Vec<MenuItem>) -> Self {
+    Self {
       status_bar: Statusbar { icon, items },
-    })
+    }
   }
 
   /// Builds the status bar.

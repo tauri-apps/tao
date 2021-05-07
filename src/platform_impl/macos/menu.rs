@@ -23,6 +23,7 @@ pub(crate) struct KeyEquivalent<'a> {
   pub(crate) key: &'a str,
   pub(crate) masks: Option<NSEventModifierFlags>,
 }
+
 #[derive(Debug)]
 struct Action(Box<u32>);
 
