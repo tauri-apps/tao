@@ -32,12 +32,10 @@ impl Statusbar {
       let button = status_item.button();
 
       // set our icon
-      let icon = std::fs::read(&status_bar.icon)
-        .map_err(|e| OsError::new(35, "status bar icon", super::OsError::IOError(e)))?;
       let nsdata = NSData::dataWithBytes_length_(
         nil,
-        icon.as_ptr() as *const std::os::raw::c_void,
-        icon.len() as u64,
+        status_bar.icon.as_ptr() as *const std::os::raw::c_void,
+        status_bar.icon.len() as u64,
       )
       .autorelease();
 

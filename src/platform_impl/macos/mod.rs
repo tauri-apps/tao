@@ -52,7 +52,6 @@ pub struct Window {
 pub enum OsError {
   CGError(core_graphics::base::CGError),
   CreationError(&'static str),
-  IOError(std::io::Error),
 }
 
 unsafe impl Send for Window {}
@@ -82,7 +81,6 @@ impl fmt::Display for OsError {
     match self {
       OsError::CGError(e) => f.pad(&format!("CGError {}", e)),
       OsError::CreationError(e) => f.pad(e),
-      OsError::IOError(e) => f.pad(&format!("{}", e)),
     }
   }
 }
