@@ -1,10 +1,15 @@
 use crate::{error::OsError, event_loop::EventLoopWindowTarget, menu::MenuItem, platform_impl};
 use std::{io, path::PathBuf};
 
+/// Status bar is a system tray icon usually display on top right or bottom right of the screen.
+///
+/// ## Platform-specific
+///
+/// - **Android / iOS:** Unsupported
 #[derive(Debug, Clone)]
 pub struct Statusbar {
-  pub icon: Vec<u8>,
-  pub items: Vec<MenuItem>,
+  icon: Vec<u8>,
+  items: Vec<MenuItem>,
 }
 
 pub struct StatusbarBuilder {
@@ -32,7 +37,10 @@ impl StatusbarBuilder {
     self,
     window_target: &EventLoopWindowTarget<T>,
   ) -> Result<Statusbar, OsError> {
+    #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux",))]
     platform_impl::Statusbar::initialize(&window_target.p, &self.status_bar)?;
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    debug!("`StatusBar` is not supported on this platform");
     Ok(self.status_bar)
   }
 }

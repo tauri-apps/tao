@@ -72,7 +72,6 @@ mod app_state;
 mod event_loop;
 mod ffi;
 mod monitor;
-mod status_bar;
 mod view;
 mod window;
 
@@ -81,7 +80,6 @@ use std::fmt;
 pub use self::{
   event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
   monitor::{MonitorHandle, VideoMode},
-  status_bar::Statusbar,
   window::{PlatformSpecificWindowBuilderAttributes, Window, WindowId},
 };
 

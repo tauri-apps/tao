@@ -19,9 +19,6 @@ use std::{
   time::{Duration, Instant},
 };
 
-mod status_bar;
-pub use self::status_bar::Statusbar;
-
 lazy_static! {
   static ref CONFIG: RwLock<Configuration> = RwLock::new(Configuration::new());
 }
