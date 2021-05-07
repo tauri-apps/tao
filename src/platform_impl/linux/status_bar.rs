@@ -22,7 +22,7 @@ impl Statusbar {
       Some(name) => name.to_string_lossy(),
       None => return Err(OsError::new(20, "status bar icon", super::OsError)),
     };
-    let mut indicator = AppIndicator::with_path("libappindicator test application", &icon, &path);
+    let mut indicator = AppIndicator::with_path("tao application", &icon, &path);
     indicator.set_status(AppIndicatorStatus::Active);
     let mut m = gtk::Menu::new();
 
