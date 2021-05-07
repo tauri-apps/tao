@@ -56,7 +56,7 @@ fn main() {
           windows.insert(window.id(), window);
         }
         if menu_id == focus_window.id() {
-          for (_, window) in &windows {
+          for window in windows.values() {
             window.set_focus();
           }
         }

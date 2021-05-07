@@ -151,7 +151,9 @@ impl Window {
 
   #[inline]
   pub fn set_focus(&self) {
-    force_window_active(self.window.0);
+    unsafe {
+      force_window_active(self.window.0);
+    }
   }
 
   #[inline]
