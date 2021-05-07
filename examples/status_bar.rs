@@ -24,6 +24,7 @@ fn main() {
   let mut windows = HashMap::new();
 
   let open_new_window = MenuItem::new("Open new window");
+  let open_new_window_id = open_new_window.id();
 
   // Windows require Vec<u8> ICO file
   #[cfg(target_os = "windows")]
@@ -37,11 +38,10 @@ fn main() {
 
   // Only supported on macOS, linux and windows
   #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-  let _statusbar = StatusbarBuilder::new(icon, vec![open_new_window.clone()])
+  let _statusbar = StatusbarBuilder::new(icon, vec![open_new_window])
     .build(&event_loop)
     .unwrap();
 
-  let open_new_window_id = open_new_window.id();
   event_loop.run(move |event, event_loop, control_flow| {
     *control_flow = ControlFlow::Wait;
 

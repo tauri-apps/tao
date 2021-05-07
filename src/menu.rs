@@ -199,8 +199,8 @@ impl MenuItem {
   }
 
   /// Return unique menu ID. Works only with `MenuItem::Custom`.
-  pub fn id(mut self) -> MenuId {
-    if let MenuItem::Custom(ref mut custom_menu) = self {
+  pub fn id(&self) -> MenuId {
+    if let MenuItem::Custom(custom_menu) = self {
       return custom_menu.id;
     }
 

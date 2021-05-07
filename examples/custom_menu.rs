@@ -11,6 +11,7 @@ fn main() {
   let event_loop = EventLoop::new();
 
   let custom_change_menu = MenuItem::new("Change menu").with_accelerators("F1");
+  let custom_change_menu_id = custom_change_menu.id();
 
   let window = WindowBuilder::new()
     .with_title("A fantastic window!")
@@ -32,7 +33,7 @@ fn main() {
       Menu::new(
         "File",
         vec![
-          custom_change_menu.clone(),
+          custom_change_menu,
           MenuItem::Separator,
           MenuItem::CloseWindow,
         ],
@@ -64,7 +65,6 @@ fn main() {
     .build(&event_loop)
     .unwrap();
 
-  let custom_change_menu_id = custom_change_menu.id();
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Wait;
 
