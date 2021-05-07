@@ -17,7 +17,7 @@ pub struct Statusbar {
 }
 
 impl Statusbar {
-  pub fn initialize<T>(
+  pub(crate) fn initialize<T>(
     window_target: &EventLoopWindowTarget<T>,
     status_bar: &Statusbar,
   ) -> Result<(), OsError> {
