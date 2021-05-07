@@ -9,6 +9,7 @@ pub use self::{
   event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
   icon::WinIcon,
   monitor::{MonitorHandle, VideoMode},
+  status_bar::Statusbar,
   window::Window,
 };
 
@@ -16,6 +17,7 @@ pub use self::icon::WinIcon as PlatformIcon;
 
 use crate::{event::DeviceId as RootDeviceId, icon::Icon, window::Theme};
 mod menu;
+mod status_bar;
 
 #[derive(Clone)]
 pub enum Parent {
