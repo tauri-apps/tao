@@ -1,25 +1,19 @@
-use crate::{error::OsError, menu::MenuItem, platform_impl::EventLoopWindowTarget};
+use crate::{
+  error::OsError, menu::MenuItem, platform_impl::EventLoopWindowTarget,
+  status_bar::Statusbar as RootStatusbar,
+};
 use gtk::prelude::*;
 use libappindicator::{AppIndicator, AppIndicatorStatus};
 use std::path::PathBuf;
 
 use super::window::{WindowId, WindowRequest};
 
-/// Status bar is a system tray icon usually display on top right or bottom right of the screen.
-///
-/// ## Platform-specific
-///
-/// - **Android / iOS:** Unsupported
-#[derive(Debug, Clone)]
-pub struct Statusbar {
-  pub(crate) icon: PathBuf,
-  pub(crate) items: Vec<MenuItem>,
-}
+pub struct Statusbar {}
 
 impl Statusbar {
   pub(crate) fn initialize<T>(
     window_target: &EventLoopWindowTarget<T>,
-    status_bar: &Statusbar,
+    status_bar: &RootStatusbar,
   ) -> Result<(), OsError> {
     let icon = match status_bar.icon.file_stem() {
       Some(name) => name.to_string_lossy(),

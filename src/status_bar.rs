@@ -1,7 +1,5 @@
-#[cfg(any(target_os = "windows", target_os = "macos"))]
+#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
 use crate::platform_impl;
-#[cfg(target_os = "linux")]
-pub use crate::platform_impl::Statusbar;
 use crate::{error::OsError, event_loop::EventLoopWindowTarget, menu::MenuItem};
 #[cfg(target_os = "linux")]
 use std::path::PathBuf;
@@ -15,6 +13,18 @@ use std::path::PathBuf;
 #[cfg(not(target_os = "linux"))]
 pub struct Statusbar {
   pub(crate) icon: Vec<u8>,
+  pub(crate) items: Vec<MenuItem>,
+}
+
+/// Status bar is a system tray icon usually display on top right or bottom right of the screen.
+///
+/// ## Platform-specific
+///
+/// - **Android / iOS:** Unsupported
+#[derive(Debug, Clone)]
+#[cfg(target_os = "linux")]
+pub struct Statusbar {
+  pub(crate) icon: PathBuf,
   pub(crate) items: Vec<MenuItem>,
 }
 
