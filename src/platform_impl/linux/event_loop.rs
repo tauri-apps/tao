@@ -570,7 +570,7 @@ impl<T: 'static> EventLoop<T> {
           if let WindowRequest::Menu(MenuItem::Custom(c)) = request {
             if let Err(e) = event_tx.send(Event::MenuEvent {
               menu_id: c.id,
-              origin: MenuType::Statusbar,
+              origin: MenuType::SystemTray,
             }) {
               log::warn!("Failed to send status bar event to event channel: {}", e);
             }

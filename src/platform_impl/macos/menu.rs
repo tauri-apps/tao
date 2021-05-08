@@ -298,7 +298,7 @@ fn make_menu_item_from_alloc(
       Some(selector) => selector,
       None => match menu_type {
         MenuType::Menubar => sel!(fireMenubarAction:),
-        MenuType::Statusbar => sel!(fireStatusbarAction:),
+        MenuType::SystemTray => sel!(fireStatusbarAction:),
       },
     };
 
@@ -343,7 +343,7 @@ fn make_menu_item_class() -> *const Class {
 }
 
 extern "C" fn fire_status_bar_click(this: &Object, _: Sel, _item: id) {
-  send_event(this, MenuType::Statusbar);
+  send_event(this, MenuType::SystemTray);
 }
 
 extern "C" fn fire_menu_bar_click(this: &Object, _: Sel, _item: id) {

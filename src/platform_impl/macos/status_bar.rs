@@ -2,7 +2,7 @@ use super::menu::{make_custom_menu_item, make_menu_item, KeyEquivalent};
 use crate::{
   error::OsError,
   menu::{MenuItem, MenuType},
-  platform::status_bar::Statusbar as RootStatusbar,
+  platform::system_tray::SystemTray as RootStatusbar,
   platform_impl::EventLoopWindowTarget,
 };
 use cocoa::{
@@ -84,14 +84,14 @@ impl Statusbar {
             }
 
             make_custom_menu_item(
-              custom_menu.id,
-              &custom_menu.name,
-              None,
-              key_equivalent,
-              MenuType::Statusbar,
+                custom_menu.id,
+                &custom_menu.name,
+                None,
+                key_equivalent,
+                MenuType::SystemTray,
             )
           }
-          _ => make_menu_item("Not supported", None, None, MenuType::Statusbar),
+          _ => make_menu_item("Not supported", None, None, MenuType::SystemTray),
         };
 
         menu.addItem_(item_obj);
