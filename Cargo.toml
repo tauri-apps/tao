@@ -1,11 +1,14 @@
 [package]
 name = "tao"
 version = "0.1.0"
-description = "Cross-platform window creation library."
+description = "Cross-platform window manager library."
+authors = [ "Tauri Programme within The Commons Conservancy", "The winit contributors", "Pierre Krieger <pierre.krieger1708@gmail.com>"]
 edition = "2018"
 keywords = ["windowing"]
 license = "Apache-2.0"
 readme = "README.md"
+repository = "https://github.com/tauri-apps/tao"
+documentation = "https://docs.rs/tao"
 categories = ["gui"]
 
 [package.metadata.docs.rs]

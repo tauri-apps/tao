@@ -1,6 +1,5 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-License-Identifier: MIT
 
 //! UI scaling is important, so read the docs for this module if you don't want to be confused.
 //!

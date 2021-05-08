@@ -5,7 +5,6 @@ DataFormat: SPDXRef-1
 PackageSupplier: Organization: The Tauri Programme in the Commons Conservancy
 PackageHomePage: https://tauri.app
 PackageLicenseDeclared: Apache-2.0
-PackageLicenseDeclared: MIT
 PackageCopyrightText: 2019-2021, The Tauri Programme in the Commons Conservancy
 PackageSummary: <text>Tao is the official, rust-based window manager for Wry.
                 </text>

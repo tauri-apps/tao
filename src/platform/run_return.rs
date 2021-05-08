@@ -1,6 +1,5 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-License-Identifier: MIT
 
 #![cfg(any(target_os = "windows", target_os = "macos", target_os = "android",))]
 
