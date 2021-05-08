@@ -2,7 +2,7 @@ use super::menu::{make_menu_item, to_wstring, MenuHandler};
 use crate::{
   error::OsError,
   menu::{MenuItem, MenuType},
-  platform::windows::Statusbar as RootStatusbar,
+  platform::status_bar::Statusbar as RootStatusbar,
   platform_impl::EventLoopWindowTarget,
 };
 use std::cell::RefCell;

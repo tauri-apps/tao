@@ -2,16 +2,11 @@ use simple_logger::SimpleLogger;
 use std::collections::HashMap;
 #[cfg(target_os = "linux")]
 use std::path::Path;
-#[cfg(target_os = "macos")]
-use tao::platform::macos::StatusbarBuilder;
-#[cfg(target_os = "linux")]
-use tao::platform::unix::StatusbarBuilder;
-#[cfg(target_os = "windows")]
-use tao::platform::windows::StatusbarBuilder;
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   menu::{MenuItem, MenuType},
+  platform::status_bar::StatusbarBuilder,
   window::Window,
 };
 
@@ -34,7 +29,7 @@ fn main() {
 
   // Only supported on macOS, linux and windows
   #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-  let _statusbar = StatusbarBuilder::new(icon, vec![open_new_window])
+  let _statusbar = StatusbarBuilder::new(icon, vec![open_new_window.clone()])
     .build(&event_loop)
     .unwrap();
 
@@ -54,7 +49,7 @@ fn main() {
         menu_id,
         origin: MenuType::Statusbar,
       } => {
-        if menu_id == open_new_window.id() {
+        if menu_id == open_new_window.clone().id() {
           let window = Window::new(&event_loop).unwrap();
           windows.insert(window.id(), window);
         }

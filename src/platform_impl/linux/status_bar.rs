@@ -1,5 +1,5 @@
 use crate::{
-  error::OsError, menu::MenuItem, platform::unix::Statusbar as RootStatusbar,
+  error::OsError, menu::MenuItem, platform::status_bar::Statusbar as RootStatusbar,
   platform_impl::EventLoopWindowTarget,
 };
 use gtk::prelude::*;
