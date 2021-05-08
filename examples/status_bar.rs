@@ -1,17 +1,24 @@
-use simple_logger::SimpleLogger;
-use std::collections::HashMap;
-#[cfg(target_os = "linux")]
-use std::path::Path;
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-use tao::status_bar::StatusbarBuilder;
-use tao::{
-  event::{Event, WindowEvent},
-  event_loop::{ControlFlow, EventLoop},
-  menu::{MenuItem, MenuType},
-  window::Window,
-};
-
+#[cfg(any(
+  target_os = "macos",
+  target_os = "windows",
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
 fn main() {
+  use simple_logger::SimpleLogger;
+  use std::collections::HashMap;
+  #[cfg(target_os = "linux")]
+  use std::path::Path;
+  use tao::{
+    event::{Event, WindowEvent},
+    event_loop::{ControlFlow, EventLoop},
+    menu::{MenuItem, MenuType},
+    platform::status_bar::StatusbarBuilder,
+    window::Window,
+  };
   SimpleLogger::new().init().unwrap();
   let event_loop = EventLoop::new();
   let mut windows = HashMap::new();
@@ -30,10 +37,11 @@ fn main() {
 
   // Only supported on macOS, linux and windows
   #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-  let _statusbar = StatusbarBuilder::new(icon, vec![open_new_window])
+  let _statusbar = StatusbarBuilder::new(icon, vec![open_new_window.clone()])
     .build(&event_loop)
     .unwrap();
 
+  let open_new_window_id = open_new_window.id();
   event_loop.run(move |event, event_loop, control_flow| {
     *control_flow = ControlFlow::Wait;
 
@@ -50,7 +58,7 @@ fn main() {
         menu_id,
         origin: MenuType::Statusbar,
       } => {
-        if menu_id == open_new_window.id() {
+        if menu_id == open_new_window_id {
           let window = Window::new(&event_loop).unwrap();
           windows.insert(window.id(), window);
         }
@@ -59,4 +67,9 @@ fn main() {
       _ => (),
     }
   });
+}
+
+#[cfg(any(target_os = "ios", target_os = "android",))]
+fn main() {
+  println!("This platform doesn't support run_return.");
 }

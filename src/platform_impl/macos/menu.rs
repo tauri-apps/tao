@@ -47,8 +47,8 @@ pub fn initialize(menu: Vec<Menu>) {
             // build accelerators if provided
             let mut key_equivalent = None;
             let mut accelerator_string: String;
-            if let Some(accelerator) = custom_menu.keyboard_accelerators {
-              accelerator_string = String::from(accelerator);
+            if let Some(accelerator) = &custom_menu.keyboard_accelerators {
+              accelerator_string = accelerator.clone();
               let mut ns_modifier_flags: NSEventModifierFlags = NSEventModifierFlags::empty();
 
               if accelerator_string.contains("<Primary>") {
@@ -79,7 +79,7 @@ pub fn initialize(menu: Vec<Menu>) {
 
             make_custom_menu_item(
               custom_menu.id,
-              custom_menu.name,
+              &custom_menu.name,
               None,
               key_equivalent,
               MenuType::Menubar,
