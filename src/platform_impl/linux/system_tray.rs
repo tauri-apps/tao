@@ -1,5 +1,5 @@
 use crate::{
-  error::OsError, menu::MenuItem, platform::system_tray::SystemTray as RootStatusbar,
+  error::OsError, menu::MenuItem, platform::system_tray::SystemTray as RootSystemTray,
   platform_impl::EventLoopWindowTarget,
 };
 use gtk::prelude::*;
@@ -7,26 +7,26 @@ use libappindicator::{AppIndicator, AppIndicatorStatus};
 
 use super::window::{WindowId, WindowRequest};
 
-pub struct Statusbar {}
+pub struct SystemTray {}
 
-impl Statusbar {
+impl SystemTray {
   pub(crate) fn initialize<T>(
     window_target: &EventLoopWindowTarget<T>,
-    status_bar: &RootStatusbar,
+    system_tray: &RootSystemTray,
   ) -> Result<(), OsError> {
-    let icon = match status_bar.icon.file_stem() {
+    let icon = match system_tray.icon.file_stem() {
       Some(name) => name.to_string_lossy(),
-      None => return Err(OsError::new(16, "status bar icon", super::OsError)),
+      None => return Err(OsError::new(16, "system tray icon", super::OsError)),
     };
-    let path = match status_bar.icon.parent() {
+    let path = match system_tray.icon.parent() {
       Some(name) => name.to_string_lossy(),
-      None => return Err(OsError::new(20, "status bar icon", super::OsError)),
+      None => return Err(OsError::new(20, "system tray icon", super::OsError)),
     };
     let mut indicator = AppIndicator::with_path("tao application", &icon, &path);
     indicator.set_status(AppIndicatorStatus::Active);
     let mut m = gtk::Menu::new();
 
-    for i in status_bar.items.iter() {
+    for i in system_tray.items.iter() {
       match i {
         MenuItem::Custom(c) => {
           let item = gtk::MenuItem::with_label(&c.name);
