@@ -38,7 +38,7 @@ fn main() {
 
   // Only supported on macOS, linux and windows
   #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-  let _statusbar = SystemTrayBuilder::new(icon, vec![open_new_window])
+  let _systemtray = SystemTrayBuilder::new(icon, vec![open_new_window])
     .build(&event_loop)
     .unwrap();
 
