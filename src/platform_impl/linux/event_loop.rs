@@ -17,9 +17,9 @@ use glib::{source::idle_add_local, Continue, MainContext};
 use gtk::{prelude::*, AboutDialog, ApplicationWindow, Inhibit};
 
 #[cfg(feature = "menu")]
-use gtk::{Clipboard, Entry};
-#[cfg(feature = "menu")]
 use glib::Cast;
+#[cfg(feature = "menu")]
+use gtk::{Clipboard, Entry};
 
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize},

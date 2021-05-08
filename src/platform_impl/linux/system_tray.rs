@@ -1,5 +1,6 @@
 use crate::{
-  error::OsError, platform_impl::EventLoopWindowTarget, platform::system_tray::SystemTray as RootSystemTray,
+  error::OsError, platform::system_tray::SystemTray as RootSystemTray,
+  platform_impl::EventLoopWindowTarget,
 };
 
 pub struct SystemTray {}
