@@ -14,6 +14,10 @@ use crate::{error::OsError, event_loop::EventLoopWindowTarget, menu::MenuItem, p
 use std::path::PathBuf;
 
 /// System tray is a status icon that can show popup menu. It is usually displayed on top right or bottom right of the screen.
+///
+/// ## Platform-specific
+///
+/// - **Linux:**: require `menu` feature flag. Otherwise, it's a no-op.
 #[derive(Debug, Clone)]
 pub struct SystemTray {
   #[cfg(target_os = "linux")]

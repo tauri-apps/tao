@@ -95,6 +95,7 @@ pub enum MenuItem {
   /// ## Platform-specific
   ///
   /// - **Windows / Android / iOS:** Unsupported
+  /// - **Linux**: require `menu` feature flag
   ///
   Copy,
 
@@ -103,6 +104,7 @@ pub enum MenuItem {
   /// ## Platform-specific
   ///
   /// - **Windows / Android / iOS:** Unsupported
+  /// - **Linux**: require `menu` feature flag
   ///
   Cut,
 
@@ -129,6 +131,7 @@ pub enum MenuItem {
   /// ## Platform-specific
   ///
   /// - **Windows / Android / iOS:** Unsupported
+  /// - **Linux**: require `menu` feature flag
   ///
   SelectAll,
 
@@ -137,6 +140,7 @@ pub enum MenuItem {
   /// ## Platform-specific
   ///
   /// - **Windows / Android / iOS:** Unsupported
+  /// - **Linux**: require `menu` feature flag
   ///
   Paste,
 

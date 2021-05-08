@@ -13,8 +13,13 @@ use std::{
 
 use gdk::{Cursor, CursorType, WindowExt, WindowState};
 use gio::{prelude::*, Cancellable};
-use glib::{source::idle_add_local, Cast, Continue, MainContext};
-use gtk::{prelude::*, AboutDialog, ApplicationWindow, Clipboard, Entry, Inhibit};
+use glib::{source::idle_add_local, Continue, MainContext};
+use gtk::{prelude::*, AboutDialog, ApplicationWindow, Inhibit};
+
+#[cfg(feature = "menu")]
+use gtk::{Clipboard, Entry};
+#[cfg(feature = "menu")]
+use glib::Cast;
 
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize},
@@ -488,6 +493,7 @@ impl<T: 'static> EventLoop<T> {
                 MenuItem::Quit => {
                   keep_running_.replace(false);
                 }
+                #[cfg(feature = "menu")]
                 MenuItem::Cut => {
                   if let Some(widget) = window.get_focus() {
                     if widget.has_focus() {
@@ -503,6 +509,7 @@ impl<T: 'static> EventLoop<T> {
                     }
                   }
                 }
+                #[cfg(feature = "menu")]
                 MenuItem::Copy => {
                   if let Some(widget) = window.get_focus() {
                     if widget.has_focus() {
@@ -518,6 +525,7 @@ impl<T: 'static> EventLoop<T> {
                     }
                   }
                 }
+                #[cfg(feature = "menu")]
                 MenuItem::Paste => {
                   if let Some(widget) = window.get_focus() {
                     if widget.has_focus() {
@@ -533,6 +541,7 @@ impl<T: 'static> EventLoop<T> {
                     }
                   }
                 }
+                #[cfg(feature = "menu")]
                 MenuItem::SelectAll => {
                   if let Some(widget) = window.get_focus() {
                     if widget.has_focus() {

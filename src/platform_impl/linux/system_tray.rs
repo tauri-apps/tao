@@ -1,19 +1,21 @@
 use crate::{
-  error::OsError, menu::MenuItem, platform::system_tray::SystemTray as RootSystemTray,
-  platform_impl::EventLoopWindowTarget,
+  error::OsError, platform_impl::EventLoopWindowTarget, platform::system_tray::SystemTray as RootSystemTray,
 };
-use gtk::prelude::*;
-use libappindicator::{AppIndicator, AppIndicatorStatus};
-
-use super::window::{WindowId, WindowRequest};
 
 pub struct SystemTray {}
 
 impl SystemTray {
+  #[cfg(feature = "menu")]
   pub(crate) fn initialize<T>(
     window_target: &EventLoopWindowTarget<T>,
     system_tray: &RootSystemTray,
   ) -> Result<(), OsError> {
+    use crate::menu::MenuItem;
+    use gtk::prelude::*;
+    use libappindicator::{AppIndicator, AppIndicatorStatus};
+
+    use super::window::{WindowId, WindowRequest};
+
     let icon = match system_tray.icon.file_stem() {
       Some(name) => name.to_string_lossy(),
       None => return Err(OsError::new(16, "system tray icon", super::OsError)),
@@ -49,6 +51,14 @@ impl SystemTray {
 
     indicator.set_menu(&mut m);
     m.show_all();
+    Ok(())
+  }
+
+  #[cfg(not(feature = "menu"))]
+  pub(crate) fn initialize<T>(
+    _window_target: &EventLoopWindowTarget<T>,
+    _system_tray: &RootSystemTray,
+  ) -> Result<(), OsError> {
     Ok(())
   }
 }
