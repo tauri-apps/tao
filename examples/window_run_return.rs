@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 // Limit this example to only compatible platforms.
 #[cfg(any(target_os = "windows", target_os = "macos",))]
 #[allow(clippy::single_match)]
