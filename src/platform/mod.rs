@@ -22,4 +22,4 @@ pub mod unix;
 pub mod windows;
 
 pub mod run_return;
-pub mod status_bar;
+pub mod system_tray;

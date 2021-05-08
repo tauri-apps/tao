@@ -13,9 +13,13 @@ use crate::{error::OsError, event_loop::EventLoopWindowTarget, menu::MenuItem, p
 #[cfg(target_os = "linux")]
 use std::path::PathBuf;
 
-/// Status bar is a system tray icon usually display on top right or bottom right of the screen.
+/// System tray is a status icon that can show popup menu. It is usually displayed on top right or bottom right of the screen.
+///
+/// ## Platform-specific
+///
+/// - **Linux:**: require `menu` feature flag. Otherwise, it's a no-op.
 #[derive(Debug, Clone)]
-pub struct Statusbar {
+pub struct SystemTray {
   #[cfg(target_os = "linux")]
   pub(crate) icon: PathBuf,
   #[cfg(not(target_os = "linux"))]
@@ -23,12 +27,12 @@ pub struct Statusbar {
   pub(crate) items: Vec<MenuItem>,
 }
 
-pub struct StatusbarBuilder {
-  status_bar: Statusbar,
+pub struct SystemTrayBuilder {
+  system_tray: SystemTray,
 }
 
-impl StatusbarBuilder {
-  /// Creates a new Statusbar for platforms where this is appropriate.
+impl SystemTrayBuilder {
+  /// Creates a new SystemTray for platforms where this is appropriate.
   /// ## Platform-specific
   ///
   /// - **macOS / Windows:**: receive icon as bytes (`Vec<u8>`)
@@ -37,28 +41,28 @@ impl StatusbarBuilder {
   #[cfg(not(target_os = "linux"))]
   pub fn new(icon: Vec<u8>, items: Vec<MenuItem>) -> Self {
     Self {
-      status_bar: Statusbar { icon, items },
+      system_tray: SystemTray { icon, items },
     }
   }
 
-  /// Creates a new Statusbar for platforms where this is appropriate.
+  /// Creates a new SystemTray for platforms where this is appropriate.
   #[inline]
   #[cfg(target_os = "linux")]
   pub fn new(icon: PathBuf, items: Vec<MenuItem>) -> Self {
     Self {
-      status_bar: Statusbar { icon, items },
+      system_tray: SystemTray { icon, items },
     }
   }
 
-  /// Builds the status bar.
+  /// Builds the system tray.
   ///
   /// Possible causes of error include denied permission, incompatible system, and lack of memory.
   #[inline]
   pub fn build<T: 'static>(
     self,
     _window_target: &EventLoopWindowTarget<T>,
-  ) -> Result<Statusbar, OsError> {
-    platform_impl::Statusbar::initialize(&_window_target.p, &self.status_bar)?;
-    Ok(self.status_bar)
+  ) -> Result<SystemTray, OsError> {
+    platform_impl::SystemTray::initialize(&_window_target.p, &self.system_tray)?;
+    Ok(self.system_tray)
   }
 }

@@ -16,7 +16,7 @@ fn main() {
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     menu::{MenuItem, MenuType},
-    platform::status_bar::StatusbarBuilder,
+    platform::system_tray::SystemTrayBuilder,
     window::Window,
   };
   SimpleLogger::new().init().unwrap();
@@ -38,7 +38,7 @@ fn main() {
 
   // Only supported on macOS, linux and windows
   #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-  let _statusbar = StatusbarBuilder::new(icon, vec![open_new_window])
+  let _systemtray = SystemTrayBuilder::new(icon, vec![open_new_window])
     .build(&event_loop)
     .unwrap();
 
@@ -56,7 +56,7 @@ fn main() {
       }
       Event::MenuEvent {
         menu_id,
-        origin: MenuType::Statusbar,
+        origin: MenuType::SystemTray,
       } => {
         if menu_id == open_new_window_id {
           let window = Window::new(&event_loop).unwrap();
