@@ -294,7 +294,7 @@ impl WindowBuilder {
     self
   }
 
-  /// Requests a specific title for the window.
+  /// Requests a specific menu for the window.
   ///
   /// See [`Window::set_menu`] for details.
   ///
