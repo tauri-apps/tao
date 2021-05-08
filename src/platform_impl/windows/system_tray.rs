@@ -254,7 +254,9 @@ unsafe extern "system" fn subclass_proc(
       let stash = stash.as_ref();
       if let Some(stash) = stash {
         let menu_id = winuser::GetMenuItemID(stash.system_tray.hmenu, w_param as i32) as u32;
-        stash.handler.send_click_event(menu_id, MenuType::SystemTray);
+        stash
+          .handler
+          .send_click_event(menu_id, MenuType::SystemTray);
       }
     });
   }
