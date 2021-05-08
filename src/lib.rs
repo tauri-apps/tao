@@ -164,7 +164,6 @@ mod icon;
 pub mod menu;
 pub mod monitor;
 mod platform_impl;
-pub mod status_bar;
 pub mod window;
 
 pub mod platform;

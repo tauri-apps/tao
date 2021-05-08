@@ -1,6 +1,6 @@
 use crate::{
-  error::OsError, menu::MenuItem, platform_impl::EventLoopWindowTarget,
-  status_bar::Statusbar as RootStatusbar,
+  error::OsError, menu::MenuItem, platform::unix::Statusbar as RootStatusbar,
+  platform_impl::EventLoopWindowTarget,
 };
 use gtk::prelude::*;
 use libappindicator::{AppIndicator, AppIndicatorStatus};

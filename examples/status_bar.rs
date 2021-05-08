@@ -3,7 +3,7 @@ use std::collections::HashMap;
 #[cfg(target_os = "linux")]
 use std::path::Path;
 #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-use tao::status_bar::StatusbarBuilder;
+use tao::platform::unix::StatusbarBuilder;
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
