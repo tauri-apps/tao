@@ -1,3 +1,6 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 // This example is used by developers to test various window functions.
 
 use simple_logger::SimpleLogger;

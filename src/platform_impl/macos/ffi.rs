@@ -1,3 +1,6 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 // TODO: Upstream these
 
 #![allow(dead_code, non_snake_case, non_upper_case_globals)]

@@ -1,6 +1,8 @@
-# Tao
+# tao
 
-TODO
+[![](https://img.shields.io/crates/v/tao?style=flat-square)](https://crates.io/crates/tao) [![](https://img.shields.io/docsrs/tao?style=flat-square)](https://docs.rs/tao/) ![](https://img.shields.io/crates/l/tao?style=flat-square)
+
+Cross-platform Window manager library in Rust that supports all major desktop platforms like Windows, macOS, Linux, iOS and Android.
 
 ### Cargo Features
 

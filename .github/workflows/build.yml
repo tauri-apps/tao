@@ -3,17 +3,6 @@ name: test
 on: pull_request
 
 jobs:
-  Check_Formatting:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: hecrj/setup-rust-action@v1
-        with:
-          rust-version: stable
-          components: rustfmt
-      - name: Check Formatting
-        run: cargo +stable fmt --all -- --check
-
   Tests:
     strategy:
       fail-fast: false

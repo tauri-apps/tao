@@ -1,3 +1,6 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::{
   error::OsError, platform::system_tray::SystemTray as RootSystemTray,
   platform_impl::EventLoopWindowTarget,

@@ -1,3 +1,6 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 //! The `EventLoop` struct and assorted supporting types, including `ControlFlow`.
 //!
 //! If you want to send custom events to the event loop, use [`EventLoop::create_proxy()`][create_proxy]

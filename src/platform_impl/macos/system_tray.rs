@@ -1,3 +1,6 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 use super::menu::{make_custom_menu_item, make_menu_item, KeyEquivalent};
 use crate::{
   error::OsError,

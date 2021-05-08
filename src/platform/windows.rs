@@ -1,3 +1,6 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 #![cfg(target_os = "windows")]
 
 use std::{os::raw::c_void, path::Path};

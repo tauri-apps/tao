@@ -1,3 +1,6 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 use std::sync::mpsc::Sender;
 
 use gtk::{prelude::*, AccelFlags, AccelGroup, Menu, MenuBar, MenuItem, SeparatorMenuItem};
