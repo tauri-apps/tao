@@ -2,7 +2,8 @@
 
 [![](https://img.shields.io/crates/v/tao?style=flat-square)](https://crates.io/crates/tao) [![](https://img.shields.io/docsrs/tao?style=flat-square)](https://docs.rs/tao/) ![](https://img.shields.io/crates/l/tao?style=flat-square)
 
-Cross-platform application window creation library in Rust that supports all major platforms like Windows, macOS, Linux, iOS and Android.
+Cross-platform application window creation library in Rust that supports all major platforms like 
+Windows, macOS, Linux, iOS and Android. Built for you, maintained for Tauri.
 
 ### Cargo Features
 
@@ -58,9 +59,11 @@ To ensure compatibility with older MacOS systems, tao links to
 CGDisplayCreateUUIDFromDisplayID through the CoreGraphics framework.
 However, under certain setups this function is only available to be linked
 through the newer ColorSync framework. So, tao provides the
-`TAO_LINK_COLORSYNC` environment variable which can be set to `1` or `true` 
+`TAO_LINK_COLORSYNC` environment variable which can be set to `1` or `true`
 while compiling to enable linking via ColorSync.
 
 ### Acknowledgement
 
-This crate is inspired the work form [winit](https://crates.io/crates/winit).
+We would like to thank the authors and contributors to [winit](https://crates.io/crates/winit)
+for their groundbreaking work upon which this crate is not only based, but
+also leans heavily upon. Thankyou!!!
