@@ -2,8 +2,8 @@ use super::menu::{make_menu_item, to_wstring, MenuHandler};
 use crate::{
   error::OsError,
   menu::{MenuItem, MenuType},
-  platform_impl::EventLoopWindowTarget,
   platform::windows::Statusbar as RootStatusbar,
+  platform_impl::EventLoopWindowTarget,
 };
 use std::cell::RefCell;
 use winapi::{
@@ -128,7 +128,9 @@ impl Statusbar {
       for menu_item in &status_bar.items {
         let sub_item = match menu_item {
           // we support only custom menu on windows for now
-          MenuItem::Custom(custom_menu) => make_menu_item(Some(custom_menu.id.0), &custom_menu.name),
+          MenuItem::Custom(custom_menu) => {
+            make_menu_item(Some(custom_menu.id.0), &custom_menu.name)
+          }
           _ => None,
         };
 

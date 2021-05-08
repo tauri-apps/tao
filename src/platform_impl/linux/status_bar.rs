@@ -29,11 +29,11 @@ impl Statusbar {
     for i in status_bar.items.iter() {
       match i {
         MenuItem::Custom(c) => {
-          let item = gtk::MenuItem::with_label(c.name);
+          let item = gtk::MenuItem::with_label(&c.name);
           let tx_ = window_target.window_requests_tx.clone();
-          let request = *i;
+          let request = i.clone();
           item.connect_activate(move |_| {
-            if let Err(e) = tx_.send((WindowId::dummy(), WindowRequest::Menu(request))) {
+            if let Err(e) = tx_.send((WindowId::dummy(), WindowRequest::Menu(request.clone()))) {
               log::warn!("Fail to send menu request: {}", e);
             }
           });
