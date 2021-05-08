@@ -1,6 +1,15 @@
-#![cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+#![cfg(any(
+  target_os = "windows",
+  target_os = "macos",
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
 
 use crate::{error::OsError, event_loop::EventLoopWindowTarget, menu::MenuItem, platform_impl};
+//TODO exhaustively match the targets
 #[cfg(target_os = "linux")]
 use std::path::PathBuf;
 

@@ -19,7 +19,7 @@ fn main() {
         // on macOS first menu is always app name
         "my custom app",
         vec![
-          MenuItem::About("Todos"),
+          MenuItem::About("Todos".to_string()),
           MenuItem::Services,
           MenuItem::Separator,
           MenuItem::Hide,
@@ -32,7 +32,7 @@ fn main() {
       Menu::new(
         "File",
         vec![
-          custom_change_menu,
+          custom_change_menu.clone(),
           MenuItem::Separator,
           MenuItem::CloseWindow,
         ],
@@ -64,6 +64,7 @@ fn main() {
     .build(&event_loop)
     .unwrap();
 
+  let custom_change_menu_id = custom_change_menu.id();
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Wait;
 
@@ -79,7 +80,7 @@ fn main() {
         menu_id,
         origin: MenuType::Menubar,
       } => {
-        if menu_id == custom_change_menu.id() {
+        if menu_id == custom_change_menu_id {
           println!("Clicked on custom change menu");
           window.set_menu(Some(vec![Menu::new(
             "File",
