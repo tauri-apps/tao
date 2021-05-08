@@ -46,7 +46,6 @@ pub struct StatusbarBuilder {
 
 impl StatusbarBuilder {
   /// Creates a new Statusbar for platforms where this is appropriate.
-  #[cfg(target_os = "linux")]
   pub fn new(icon: PathBuf, items: Vec<MenuItem>) -> Self {
     Self {
       status_bar: Statusbar { icon, items },

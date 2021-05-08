@@ -2,7 +2,9 @@ use simple_logger::SimpleLogger;
 use std::collections::HashMap;
 #[cfg(target_os = "linux")]
 use std::path::Path;
-#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+#[cfg(target_os = "macos")]
+use tao::platform::macos::StatusbarBuilder;
+#[cfg(target_os = "linux")]
 use tao::platform::unix::StatusbarBuilder;
 use tao::{
   event::{Event, WindowEvent},

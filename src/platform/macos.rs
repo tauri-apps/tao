@@ -4,9 +4,11 @@ use std::os::raw::c_void;
 
 use crate::{
   dpi::LogicalSize,
+  error::OsError,
   event_loop::{EventLoop, EventLoopWindowTarget},
+  menu::MenuItem,
   monitor::MonitorHandle,
-  platform_impl::get_aux_state_mut,
+  platform_impl::{self, get_aux_state_mut},
   window::{Window, WindowBuilder},
 };
 
@@ -249,5 +251,37 @@ impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
     let cls = objc::runtime::Class::get("NSApplication").unwrap();
     let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
     unsafe { msg_send![app, hideOtherApplications: 0] }
+  }
+}
+
+/// Status bar is a system tray icon usually display on top right or bottom right of the screen.
+#[derive(Debug, Clone)]
+pub struct Statusbar {
+  pub(crate) icon: Vec<u8>,
+  pub(crate) items: Vec<MenuItem>,
+}
+
+pub struct StatusbarBuilder {
+  status_bar: Statusbar,
+}
+
+impl StatusbarBuilder {
+  /// Creates a new Statusbar for platforms where this is appropriate.
+  pub fn new(icon: Vec<u8>, items: Vec<MenuItem>) -> Self {
+    Self {
+      status_bar: Statusbar { icon, items },
+    }
+  }
+
+  /// Builds the status bar.
+  ///
+  /// Possible causes of error include denied permission, incompatible system, and lack of memory.
+  #[inline]
+  pub fn build<T: 'static>(
+    self,
+    _window_target: &EventLoopWindowTarget<T>,
+  ) -> Result<Statusbar, OsError> {
+    platform_impl::Statusbar::initialize(&_window_target.p, &self.status_bar)?;
+    Ok(self.status_bar)
   }
 }
