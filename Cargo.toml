@@ -15,7 +15,7 @@ documentation = "https://docs.rs/tao"
 categories = [ "gui" ]
 
 [package.metadata.docs.rs]
-features = [ "serde", "menu" ]
+features = [ "serde", "menu", "dox" ]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
   "i686-pc-windows-msvc",
@@ -28,6 +28,7 @@ targets = [
 [features]
 default = [ "menu" ]
 menu = [ "sourceview", "libappindicator" ]
+dox = [ "gtk/dox", "sourceview/dox" ]
 
 [dependencies]
 instant = "0.1"
