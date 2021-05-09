@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.2.2]
+
+- Add dox flag to skip link lib when building doc.
+  - [565114c1](https://github.com/tauri-apps/tao/commit/565114c16a27b321e326195ad1f248ffa721c3a3) Add dox flag on 2021-05-09
+
 ## \[0.2.1]
 
 - Update covector script to fix doc build.
