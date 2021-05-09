@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.2.1]
+
+- Update covector script to fix doc build.
+  - [25f291f2](https://github.com/tauri-apps/tao/commit/25f291f2385b9505b31b8db2c74fd2aad4b7d699) Update covector script to fix doc build on 2021-05-09
+
 ## \[0.2.0]
 
 - Update README and bump version.
