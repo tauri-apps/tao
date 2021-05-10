@@ -15,9 +15,9 @@ use gio::{prelude::*, Cancellable};
 use glib::{source::idle_add_local, Continue, MainContext};
 use gtk::{prelude::*, AboutDialog, ApplicationWindow, Inhibit};
 
-#[cfg(feature = "menu")]
+#[cfg(any(feature = "menu", feature = "tray"))]
 use glib::Cast;
-#[cfg(feature = "menu")]
+#[cfg(any(feature = "menu", feature = "tray"))]
 use gtk::{Clipboard, Entry};
 
 use crate::{
@@ -492,7 +492,7 @@ impl<T: 'static> EventLoop<T> {
                 MenuItem::Quit => {
                   keep_running_.replace(false);
                 }
-                #[cfg(feature = "menu")]
+                #[cfg(any(feature = "menu", feature = "tray"))]
                 MenuItem::Cut => {
                   if let Some(widget) = window.get_focus() {
                     if widget.has_focus() {
@@ -508,7 +508,7 @@ impl<T: 'static> EventLoop<T> {
                     }
                   }
                 }
-                #[cfg(feature = "menu")]
+                #[cfg(any(feature = "menu", feature = "tray"))]
                 MenuItem::Copy => {
                   if let Some(widget) = window.get_focus() {
                     if widget.has_focus() {
@@ -524,7 +524,7 @@ impl<T: 'static> EventLoop<T> {
                     }
                   }
                 }
-                #[cfg(feature = "menu")]
+                #[cfg(any(feature = "menu", feature = "tray"))]
                 MenuItem::Paste => {
                   if let Some(widget) = window.get_focus() {
                     if widget.has_focus() {
@@ -540,7 +540,7 @@ impl<T: 'static> EventLoop<T> {
                     }
                   }
                 }
-                #[cfg(feature = "menu")]
+                #[cfg(any(feature = "menu", feature = "tray"))]
                 MenuItem::SelectAll => {
                   if let Some(widget) = window.get_focus() {
                     if widget.has_focus() {
