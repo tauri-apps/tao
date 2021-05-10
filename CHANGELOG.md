@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.2.3]
+
+- Split feature flags (menu and tray).
+  - [0035ac31](https://github.com/tauri-apps/tao/commit/0035ac31ea32fd1b04339a678e321411b779a5b6) Add changefile on 2021-05-10
+
 ## \[0.2.2]
 
 - Add dox flag to skip link lib when building doc.
