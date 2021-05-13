@@ -512,7 +512,7 @@ impl Window {
     false
   }
   pub fn is_decorated(&self) -> bool {
-    warn!("`Window::is_maximized` is ignored on Android");
+    warn!("`Window::is_decorated` is ignored on Android");
     false
   }
 

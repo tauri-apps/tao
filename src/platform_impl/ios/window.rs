@@ -205,7 +205,7 @@ impl Inner {
     false
   }
   pub fn is_decorated(&self) -> bool {
-    warn!("`Window::is_maximized` is ignored on iOS");
+    warn!("`Window::is_decorated` is ignored on iOS");
     false
   }
 
