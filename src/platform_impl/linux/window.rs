@@ -376,6 +376,7 @@ impl Window {
 
   pub fn outer_size(&self) -> PhysicalSize<u32> {
     let (width, height) = &*self.size;
+
     PhysicalSize::new(
       width.load(Ordering::Acquire) as u32,
       height.load(Ordering::Acquire) as u32,
