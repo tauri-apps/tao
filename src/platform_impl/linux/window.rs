@@ -467,6 +467,10 @@ impl Window {
     self.maximized.load(Ordering::Acquire)
   }
 
+  pub fn is_resizable(&self) -> bool {
+    self.window.get_resizable()
+  }
+
   pub fn drag_window(&self) -> Result<(), ExternalError> {
     if let Err(e) = self
       .window_requests_tx
