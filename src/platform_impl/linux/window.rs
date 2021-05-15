@@ -6,10 +6,7 @@ use std::{
   collections::VecDeque,
   io,
   rc::Rc,
-  sync::{
-    atomic::{AtomicBool, AtomicI32, Ordering},
-    mpsc::Sender,
-  },
+  sync::atomic::{AtomicBool, AtomicI32, Ordering},
 };
 
 use gdk::{Cursor, EventMask, WindowEdge, WindowExt, WindowState};
@@ -92,7 +89,7 @@ pub struct Window {
   /// Gtk application window.
   pub(crate) window: gtk::ApplicationWindow,
   /// Window requests sender
-  pub(crate) window_requests_tx: Sender<(WindowId, WindowRequest)>,
+  pub(crate) window_requests_tx: glib::Sender<(WindowId, WindowRequest)>,
   /// Gtk Acceleration Group
   pub(crate) accel_group: AccelGroup,
   /// Gtk Menu

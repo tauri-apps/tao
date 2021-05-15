@@ -7,12 +7,12 @@ use std::{
   error::Error,
   process,
   rc::Rc,
-  sync::mpsc::{channel, Receiver, SendError, Sender},
+  sync::mpsc::SendError,
 };
 
 use gdk::{Cursor, CursorType, WindowExt, WindowState};
 use gio::{prelude::*, Cancellable};
-use glib::{source::idle_add_local, Continue, MainContext};
+use glib::{Continue, MainContext};
 use gtk::{prelude::*, AboutDialog, ApplicationWindow, Inhibit};
 
 #[cfg(any(feature = "menu", feature = "tray"))]
@@ -45,9 +45,7 @@ pub struct EventLoopWindowTarget<T> {
   /// Window Ids of the application
   pub(crate) windows: Rc<RefCell<HashSet<WindowId>>>,
   /// Window requests sender
-  pub(crate) window_requests_tx: Sender<(WindowId, WindowRequest)>,
-  /// Window requests receiver
-  pub(crate) window_requests_rx: Receiver<(WindowId, WindowRequest)>,
+  pub(crate) window_requests_tx: glib::Sender<(WindowId, WindowRequest)>,
   _marker: std::marker::PhantomData<T>,
 }
 
@@ -70,6 +68,8 @@ pub struct EventLoop<T: 'static> {
   user_event_tx: glib::Sender<T>,
   /// User event receiver
   user_event_rx: glib::Receiver<T>,
+  /// Window requests receiver
+  window_requests_rx: glib::Receiver<(WindowId, WindowRequest)>,
 }
 
 impl<T: 'static> EventLoop<T> {
@@ -84,12 +84,11 @@ impl<T: 'static> EventLoop<T> {
     app.register(cancellable)?;
 
     // Create event loop window target.
-    let (window_requests_tx, window_requests_rx) = channel();
+    let (window_requests_tx, window_requests_rx) = glib::MainContext::channel(Priority::default());
     let window_target = EventLoopWindowTarget {
       app,
       windows: Rc::new(RefCell::new(HashSet::new())),
       window_requests_tx,
-      window_requests_rx,
       _marker: std::marker::PhantomData,
     };
 
@@ -104,6 +103,7 @@ impl<T: 'static> EventLoop<T> {
       },
       user_event_tx,
       user_event_rx,
+      window_requests_rx,
     };
 
     Ok(event_loop)
@@ -124,12 +124,12 @@ impl<T: 'static> EventLoop<T> {
   {
     let mut control_flow = ControlFlow::default();
     let window_target = self.window_target;
-    let (event_tx, event_rx) = channel::<Event<'_, T>>();
+    let (event_tx, event_rx) = glib::MainContext::channel::<Event<'_, T>>(Priority::default());
 
     // Send StartCause::Init event
-    let tx_clone = event_tx.clone();
+    let event_tx_ = event_tx.clone();
     window_target.p.app.connect_activate(move |_| {
-      if let Err(e) = tx_clone.send(Event::NewEvents(StartCause::Init)) {
+      if let Err(e) = event_tx_.send(Event::NewEvents(StartCause::Init)) {
         log::warn!("Failed to send init event to event channel: {}", e);
       }
     });
@@ -138,7 +138,7 @@ impl<T: 'static> EventLoop<T> {
     let context = MainContext::default();
     context.push_thread_default();
     let keep_running = Rc::new(RefCell::new(true));
-    let keep_running_ = keep_running.clone();
+
     // User event
     let event_tx_ = event_tx.clone();
     self.user_event_rx.attach(Some(&context), move |event| {
@@ -147,15 +147,19 @@ impl<T: 'static> EventLoop<T> {
       }
       Continue(true)
     });
-    idle_add_local(move || {
-      // Window Request
-      if let Ok((id, request)) = window_target.p.window_requests_rx.try_recv() {
-        if let Some(window) = window_target.p.app.get_window_by_id(id.0) {
-          match request {
-            WindowRequest::Title(title) => window.set_title(&title),
-            WindowRequest::Position((x, y)) => window.move_(x, y),
-            WindowRequest::Size((w, h)) => window.resize(w, h),
-            WindowRequest::MinSize((min_width, min_height)) => window
+
+    // Window Request
+    let app = window_target.p.app.clone();
+    let windows = window_target.p.windows.clone();
+    let window_requests_tx = window_target.p.window_requests_tx.clone();
+    let keep_running_ = keep_running.clone();
+    self.window_requests_rx.attach(Some(&context), move |(id, request)| {
+      if let Some(window) = app.get_window_by_id(id.0) {
+        match request {
+          WindowRequest::Title(title) => window.set_title(&title),
+          WindowRequest::Position((x, y)) => window.move_(x, y),
+          WindowRequest::Size((w, h)) => window.resize(w, h),
+          WindowRequest::MinSize((min_width, min_height)) => window
               .set_geometry_hints::<ApplicationWindow>(
                 None,
                 Some(&gdk::Geometry {
@@ -173,7 +177,7 @@ impl<T: 'static> EventLoop<T> {
                 }),
                 gdk::WindowHints::MIN_SIZE,
               ),
-            WindowRequest::MaxSize((max_width, max_height)) => window
+          WindowRequest::MaxSize((max_width, max_height)) => window
               .set_geometry_hints::<ApplicationWindow>(
                 None,
                 Some(&gdk::Geometry {
@@ -191,414 +195,411 @@ impl<T: 'static> EventLoop<T> {
                 }),
                 gdk::WindowHints::MAX_SIZE,
               ),
-            WindowRequest::Visible(visible) => {
-              if visible {
-                window.show_all();
-              } else {
-                window.hide();
-              }
-            }
-            WindowRequest::Resizable(resizable) => window.set_resizable(resizable),
-            WindowRequest::Minimized(minimized) => {
-              if minimized {
-                window.iconify();
-              } else {
-                window.deiconify();
-              }
-            }
-            WindowRequest::Maximized(maximized) => {
-              if maximized {
-                window.maximize();
-              } else {
-                window.unmaximize();
-              }
-            }
-            WindowRequest::DragWindow => {
-              let display = window.get_display();
-              if let Some(cursor) = display
-                .get_device_manager()
-                .and_then(|device_manager| device_manager.get_client_pointer())
-              {
-                let (_, x, y) = cursor.get_position();
-                window.begin_move_drag(1, x, y, 0);
-              }
-            }
-            WindowRequest::Fullscreen(fullscreen) => match fullscreen {
-              Some(_) => window.fullscreen(),
-              None => window.unfullscreen(),
-            },
-            WindowRequest::Decorations(decorations) => window.set_decorated(decorations),
-            WindowRequest::AlwaysOnTop(always_on_top) => window.set_keep_above(always_on_top),
-            WindowRequest::WindowIcon(window_icon) => {
-              if let Some(icon) = window_icon {
-                window.set_icon(Some(&icon.inner.into()));
-              }
-            }
-            WindowRequest::UserAttention(request_type) => {
-              if request_type.is_some() {
-                window.set_urgency_hint(true)
-              }
-            }
-            WindowRequest::SkipTaskbar => window.set_skip_taskbar_hint(true),
-            WindowRequest::CursorIcon(cursor) => {
-              if let Some(gdk_window) = window.get_window() {
-                let display = window.get_display();
-                match cursor {
-                  Some(cr) => gdk_window.set_cursor(
-                    Cursor::from_name(
-                      &display,
-                      match cr {
-                        CursorIcon::Crosshair => "crosshair",
-                        CursorIcon::Hand => "pointer",
-                        CursorIcon::Arrow => "crosshair",
-                        CursorIcon::Move => "move",
-                        CursorIcon::Text => "text",
-                        CursorIcon::Wait => "wait",
-                        CursorIcon::Help => "help",
-                        CursorIcon::Progress => "progress",
-                        CursorIcon::NotAllowed => "not-allowed",
-                        CursorIcon::ContextMenu => "context-menu",
-                        CursorIcon::Cell => "cell",
-                        CursorIcon::VerticalText => "vertical-text",
-                        CursorIcon::Alias => "alias",
-                        CursorIcon::Copy => "copy",
-                        CursorIcon::NoDrop => "no-drop",
-                        CursorIcon::Grab => "grab",
-                        CursorIcon::Grabbing => "grabbing",
-                        CursorIcon::AllScroll => "all-scroll",
-                        CursorIcon::ZoomIn => "zoom-in",
-                        CursorIcon::ZoomOut => "zoom-out",
-                        CursorIcon::EResize => "e-resize",
-                        CursorIcon::NResize => "n-resize",
-                        CursorIcon::NeResize => "ne-resize",
-                        CursorIcon::NwResize => "nw-resize",
-                        CursorIcon::SResize => "s-resize",
-                        CursorIcon::SeResize => "se-resize",
-                        CursorIcon::SwResize => "sw-resize",
-                        CursorIcon::WResize => "w-resize",
-                        CursorIcon::EwResize => "ew-resize",
-                        CursorIcon::NsResize => "ns-resize",
-                        CursorIcon::NeswResize => "nesw-resize",
-                        CursorIcon::NwseResize => "nwse-resize",
-                        CursorIcon::ColResize => "col-resize",
-                        CursorIcon::RowResize => "row-resize",
-                        CursorIcon::Default => "default",
-                      },
-                    )
-                    .as_ref(),
-                  ),
-                  None => gdk_window.set_cursor(Some(&Cursor::new_for_display(
-                    &display,
-                    CursorType::BlankCursor,
-                  ))),
-                }
-              };
-            }
-            WindowRequest::WireUpEvents => {
-              let windows_rc = window_target.p.windows.clone();
-              let tx_clone = event_tx.clone();
-
-              window.connect_delete_event(move |_, _| {
-                windows_rc.borrow_mut().remove(&id);
-                if let Err(e) = tx_clone.send(Event::WindowEvent {
-                  window_id: RootWindowId(id),
-                  event: WindowEvent::CloseRequested,
-                }) {
-                  log::warn!("Failed to send window close event to event channel: {}", e);
-                }
-                Inhibit(false)
-              });
-
-              let tx_clone = event_tx.clone();
-              window.connect_configure_event(move |_, event| {
-                let (x, y) = event.get_position();
-                if let Err(e) = tx_clone.send(Event::WindowEvent {
-                  window_id: RootWindowId(id),
-                  event: WindowEvent::Moved(PhysicalPosition::new(x, y)),
-                }) {
-                  log::warn!("Failed to send window moved event to event channel: {}", e);
-                }
-
-                let (w, h) = event.get_size();
-                if let Err(e) = tx_clone.send(Event::WindowEvent {
-                  window_id: RootWindowId(id),
-                  event: WindowEvent::Resized(PhysicalSize::new(w, h)),
-                }) {
-                  log::warn!(
-                    "Failed to send window resized event to event channel: {}",
-                    e
-                  );
-                }
-                false
-              });
-
-              let tx_clone = event_tx.clone();
-              window.connect_window_state_event(move |_window, event| {
-                let state = event.get_new_window_state();
-
-                if let Err(e) = tx_clone.send(Event::WindowEvent {
-                  window_id: RootWindowId(id),
-                  event: WindowEvent::Focused(state.contains(WindowState::FOCUSED)),
-                }) {
-                  log::warn!(
-                    "Failed to send window focused event to event channel: {}",
-                    e
-                  );
-                }
-                Inhibit(false)
-              });
-
-              let tx_clone = event_tx.clone();
-              window.connect_destroy_event(move |_, _| {
-                if let Err(e) = tx_clone.send(Event::WindowEvent {
-                  window_id: RootWindowId(id),
-                  event: WindowEvent::Destroyed,
-                }) {
-                  log::warn!(
-                    "Failed to send window destroyed event to event channel: {}",
-                    e
-                  );
-                }
-                Inhibit(false)
-              });
-
-              let tx_clone = event_tx.clone();
-              window.connect_enter_notify_event(move |_, _| {
-                if let Err(e) = tx_clone.send(Event::WindowEvent {
-                  window_id: RootWindowId(id),
-                  event: WindowEvent::CursorEntered {
-                    // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                    device_id: RootDeviceId(DeviceId(0)),
-                  },
-                }) {
-                  log::warn!(
-                    "Failed to send cursor entered event to event channel: {}",
-                    e
-                  );
-                }
-                Inhibit(false)
-              });
-
-              let tx_clone = event_tx.clone();
-              window.connect_motion_notify_event(move |window, _| {
-                let display = window.get_display();
-                if let Some(cursor) = display
-                  .get_device_manager()
-                  .and_then(|device_manager| device_manager.get_client_pointer())
-                {
-                  let (_, x, y) = cursor.get_position();
-                  if let Err(e) = tx_clone.send(Event::WindowEvent {
-                    window_id: RootWindowId(id),
-                    event: WindowEvent::CursorMoved {
-                      position: PhysicalPosition::new(x as f64, y as f64),
-                      // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                      device_id: RootDeviceId(DeviceId(0)),
-                      // this field is depracted so it is fine to pass empty state
-                      modifiers: ModifiersState::empty(),
-                    },
-                  }) {
-                    log::warn!("Failed to send cursor moved event to event channel: {}", e);
-                  }
-                }
-                Inhibit(false)
-              });
-
-              let tx_clone = event_tx.clone();
-              window.connect_leave_notify_event(move |_, _| {
-                if let Err(e) = tx_clone.send(Event::WindowEvent {
-                  window_id: RootWindowId(id),
-                  event: WindowEvent::CursorLeft {
-                    // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                    device_id: RootDeviceId(DeviceId(0)),
-                  },
-                }) {
-                  log::warn!("Failed to send cursor left event to event channel: {}", e);
-                }
-                Inhibit(false)
-              });
-
-              let tx_clone = event_tx.clone();
-              window.connect_button_press_event(move |_, event| {
-                let button = event.get_button();
-                if let Err(e) = tx_clone.send(Event::WindowEvent {
-                  window_id: RootWindowId(id),
-                  event: WindowEvent::MouseInput {
-                    button: match button {
-                      1 => MouseButton::Left,
-                      2 => MouseButton::Middle,
-                      3 => MouseButton::Right,
-                      _ => MouseButton::Other(button as u16),
-                    },
-                    state: ElementState::Pressed,
-                    // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                    device_id: RootDeviceId(DeviceId(0)),
-                    // this field is depracted so it is fine to pass empty state
-                    modifiers: ModifiersState::empty(),
-                  },
-                }) {
-                  log::warn!(
-                    "Failed to send mouse input preseed event to event channel: {}",
-                    e
-                  );
-                }
-                Inhibit(false)
-              });
-
-              let tx_clone = event_tx.clone();
-              window.connect_button_release_event(move |_, event| {
-                let button = event.get_button();
-                if let Err(e) = tx_clone.send(Event::WindowEvent {
-                  window_id: RootWindowId(id),
-                  event: WindowEvent::MouseInput {
-                    button: match button {
-                      1 => MouseButton::Left,
-                      2 => MouseButton::Middle,
-                      3 => MouseButton::Right,
-                      _ => MouseButton::Other(button as u16),
-                    },
-                    state: ElementState::Released,
-                    // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                    device_id: RootDeviceId(DeviceId(0)),
-                    // this field is depracted so it is fine to pass empty state
-                    modifiers: ModifiersState::empty(),
-                  },
-                }) {
-                  log::warn!(
-                    "Failed to send mouse input released event to event channel: {}",
-                    e
-                  );
-                }
-                Inhibit(false)
-              });
-            }
-            WindowRequest::Redraw => window.queue_draw(),
-            WindowRequest::Menu(m) => {
-              match m {
-                MenuItem::Custom(c) => {
-                  if let Err(e) = event_tx.send(Event::MenuEvent {
-                    menu_id: c.id,
-                    origin: MenuType::Menubar,
-                  }) {
-                    log::warn!("Failed to send menu event to event channel: {}", e);
-                  }
-                }
-                MenuItem::About(_) => {
-                  let about = AboutDialog::new();
-                  about.show_all();
-                  window_target.p.app.add_window(&about);
-                }
-                MenuItem::Hide => window.hide(),
-                MenuItem::CloseWindow => window.close(),
-                MenuItem::Quit => {
-                  keep_running_.replace(false);
-                }
-                #[cfg(any(feature = "menu", feature = "tray"))]
-                MenuItem::Cut => {
-                  if let Some(widget) = window.get_focus() {
-                    if widget.has_focus() {
-                      if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
-                        if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
-                          if let Some(buf) = view.get_buffer() {
-                            buf.cut_clipboard(&clipboard, true);
-                          }
-                        }
-                      } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
-                        entry.cut_clipboard();
-                      }
-                    }
-                  }
-                }
-                #[cfg(any(feature = "menu", feature = "tray"))]
-                MenuItem::Copy => {
-                  if let Some(widget) = window.get_focus() {
-                    if widget.has_focus() {
-                      if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
-                        if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
-                          if let Some(buf) = view.get_buffer() {
-                            buf.copy_clipboard(&clipboard);
-                          }
-                        }
-                      } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
-                        entry.copy_clipboard();
-                      }
-                    }
-                  }
-                }
-                #[cfg(any(feature = "menu", feature = "tray"))]
-                MenuItem::Paste => {
-                  if let Some(widget) = window.get_focus() {
-                    if widget.has_focus() {
-                      if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
-                        if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
-                          if let Some(buf) = view.get_buffer() {
-                            buf.paste_clipboard(&clipboard, None, true);
-                          }
-                        }
-                      } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
-                        entry.paste_clipboard();
-                      }
-                    }
-                  }
-                }
-                #[cfg(any(feature = "menu", feature = "tray"))]
-                MenuItem::SelectAll => {
-                  if let Some(widget) = window.get_focus() {
-                    if widget.has_focus() {
-                      if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
-                        if let Some(buf) = view.get_buffer() {
-                          buf.select_range(&buf.get_start_iter(), &buf.get_end_iter());
-                        }
-                      } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
-                        entry.select_region(0, -1);
-                      }
-                    }
-                  }
-                }
-                // TODO toggle fullscreen
-                MenuItem::EnterFullScreen => window.fullscreen(),
-                MenuItem::Minimize => window.iconify(),
-                _ => {}
-              }
-            }
-            WindowRequest::SetMenu((menus, accel_group, menu)) => {
-              for i in menu.get_children() {
-                menu.remove(&i);
-              }
-
-              if let Some(menus) = menus {
-                let menubar =
-                  menu::initialize(id, menus, &window_target.p.window_requests_tx, &accel_group);
-                dbg!("gell");
-                menu.pack_start(&menubar, false, false, 0);
-                menu.show_all();
-              }
+          WindowRequest::Visible(visible) => {
+            if visible {
+              window.show_all();
+            } else {
+              window.hide();
             }
           }
-        } else if id == WindowId::dummy() {
-          if let WindowRequest::Menu(MenuItem::Custom(c)) = request {
-            if let Err(e) = event_tx.send(Event::MenuEvent {
-              menu_id: c.id,
-              origin: MenuType::SystemTray,
-            }) {
-              log::warn!("Failed to send status bar event to event channel: {}", e);
+          WindowRequest::Resizable(resizable) => window.set_resizable(resizable),
+          WindowRequest::Minimized(minimized) => {
+            if minimized {
+              window.iconify();
+            } else {
+              window.deiconify();
+            }
+          }
+          WindowRequest::Maximized(maximized) => {
+            if maximized {
+              window.maximize();
+            } else {
+              window.unmaximize();
+            }
+          }
+          WindowRequest::DragWindow => {
+            let display = window.get_display();
+            if let Some(cursor) = display
+                .get_device_manager()
+                .and_then(|device_manager| device_manager.get_client_pointer())
+            {
+              let (_, x, y) = cursor.get_position();
+              window.begin_move_drag(1, x, y, 0);
+            }
+          }
+          WindowRequest::Fullscreen(fullscreen) => match fullscreen {
+            Some(_) => window.fullscreen(),
+            None => window.unfullscreen(),
+          },
+          WindowRequest::Decorations(decorations) => window.set_decorated(decorations),
+          WindowRequest::AlwaysOnTop(always_on_top) => window.set_keep_above(always_on_top),
+          WindowRequest::WindowIcon(window_icon) => {
+            if let Some(icon) = window_icon {
+              window.set_icon(Some(&icon.inner.into()));
+            }
+          }
+          WindowRequest::UserAttention(request_type) => {
+            if request_type.is_some() {
+              window.set_urgency_hint(true)
+            }
+          }
+          WindowRequest::SkipTaskbar => window.set_skip_taskbar_hint(true),
+          WindowRequest::CursorIcon(cursor) => {
+            if let Some(gdk_window) = window.get_window() {
+              let display = window.get_display();
+              match cursor {
+                Some(cr) => gdk_window.set_cursor(
+                  Cursor::from_name(
+                    &display,
+                    match cr {
+                      CursorIcon::Crosshair => "crosshair",
+                      CursorIcon::Hand => "pointer",
+                      CursorIcon::Arrow => "crosshair",
+                      CursorIcon::Move => "move",
+                      CursorIcon::Text => "text",
+                      CursorIcon::Wait => "wait",
+                      CursorIcon::Help => "help",
+                      CursorIcon::Progress => "progress",
+                      CursorIcon::NotAllowed => "not-allowed",
+                      CursorIcon::ContextMenu => "context-menu",
+                      CursorIcon::Cell => "cell",
+                      CursorIcon::VerticalText => "vertical-text",
+                      CursorIcon::Alias => "alias",
+                      CursorIcon::Copy => "copy",
+                      CursorIcon::NoDrop => "no-drop",
+                      CursorIcon::Grab => "grab",
+                      CursorIcon::Grabbing => "grabbing",
+                      CursorIcon::AllScroll => "all-scroll",
+                      CursorIcon::ZoomIn => "zoom-in",
+                      CursorIcon::ZoomOut => "zoom-out",
+                      CursorIcon::EResize => "e-resize",
+                      CursorIcon::NResize => "n-resize",
+                      CursorIcon::NeResize => "ne-resize",
+                      CursorIcon::NwResize => "nw-resize",
+                      CursorIcon::SResize => "s-resize",
+                      CursorIcon::SeResize => "se-resize",
+                      CursorIcon::SwResize => "sw-resize",
+                      CursorIcon::WResize => "w-resize",
+                      CursorIcon::EwResize => "ew-resize",
+                      CursorIcon::NsResize => "ns-resize",
+                      CursorIcon::NeswResize => "nesw-resize",
+                      CursorIcon::NwseResize => "nwse-resize",
+                      CursorIcon::ColResize => "col-resize",
+                      CursorIcon::RowResize => "row-resize",
+                      CursorIcon::Default => "default",
+                    },
+                  )
+                      .as_ref(),
+                ),
+                None => gdk_window.set_cursor(Some(&Cursor::new_for_display(
+                  &display,
+                  CursorType::BlankCursor,
+                ))),
+              }
+            };
+          }
+          WindowRequest::WireUpEvents => {
+            let windows_rc = windows.clone();
+            let tx_clone = event_tx.clone();
+
+            window.connect_delete_event(move |_, _| {
+              windows_rc.borrow_mut().remove(&id);
+              if let Err(e) = tx_clone.send(Event::WindowEvent {
+                window_id: RootWindowId(id),
+                event: WindowEvent::CloseRequested,
+              }) {
+                log::warn!("Failed to send window close event to event channel: {}", e);
+              }
+              Inhibit(false)
+            });
+
+            let tx_clone = event_tx.clone();
+            window.connect_configure_event(move |_, event| {
+              let (x, y) = event.get_position();
+              if let Err(e) = tx_clone.send(Event::WindowEvent {
+                window_id: RootWindowId(id),
+                event: WindowEvent::Moved(PhysicalPosition::new(x, y)),
+              }) {
+                log::warn!("Failed to send window moved event to event channel: {}", e);
+              }
+
+              let (w, h) = event.get_size();
+              if let Err(e) = tx_clone.send(Event::WindowEvent {
+                window_id: RootWindowId(id),
+                event: WindowEvent::Resized(PhysicalSize::new(w, h)),
+              }) {
+                log::warn!(
+                  "Failed to send window resized event to event channel: {}",
+                  e
+                );
+              }
+              false
+            });
+
+            let tx_clone = event_tx.clone();
+            window.connect_window_state_event(move |_window, event| {
+              let state = event.get_new_window_state();
+
+              if let Err(e) = tx_clone.send(Event::WindowEvent {
+                window_id: RootWindowId(id),
+                event: WindowEvent::Focused(state.contains(WindowState::FOCUSED)),
+              }) {
+                log::warn!(
+                  "Failed to send window focused event to event channel: {}",
+                  e
+                );
+              }
+              Inhibit(false)
+            });
+
+            let tx_clone = event_tx.clone();
+            window.connect_destroy_event(move |_, _| {
+              if let Err(e) = tx_clone.send(Event::WindowEvent {
+                window_id: RootWindowId(id),
+                event: WindowEvent::Destroyed,
+              }) {
+                log::warn!(
+                  "Failed to send window destroyed event to event channel: {}",
+                  e
+                );
+              }
+              Inhibit(false)
+            });
+
+            let tx_clone = event_tx.clone();
+            window.connect_enter_notify_event(move |_, _| {
+              if let Err(e) = tx_clone.send(Event::WindowEvent {
+                window_id: RootWindowId(id),
+                event: WindowEvent::CursorEntered {
+                  // FIXME: currently we use a dummy device id, find if we can get device id from gtk
+                  device_id: RootDeviceId(DeviceId(0)),
+                },
+              }) {
+                log::warn!(
+                  "Failed to send cursor entered event to event channel: {}",
+                  e
+                );
+              }
+              Inhibit(false)
+            });
+
+            let tx_clone = event_tx.clone();
+            window.connect_motion_notify_event(move |window, _| {
+              let display = window.get_display();
+              if let Some(cursor) = display
+                  .get_device_manager()
+                  .and_then(|device_manager| device_manager.get_client_pointer())
+              {
+                let (_, x, y) = cursor.get_position();
+                if let Err(e) = tx_clone.send(Event::WindowEvent {
+                  window_id: RootWindowId(id),
+                  event: WindowEvent::CursorMoved {
+                    position: PhysicalPosition::new(x as f64, y as f64),
+                    // FIXME: currently we use a dummy device id, find if we can get device id from gtk
+                    device_id: RootDeviceId(DeviceId(0)),
+                    // this field is depracted so it is fine to pass empty state
+                    modifiers: ModifiersState::empty(),
+                  },
+                }) {
+                  log::warn!("Failed to send cursor moved event to event channel: {}", e);
+                }
+              }
+              Inhibit(false)
+            });
+
+            let tx_clone = event_tx.clone();
+            window.connect_leave_notify_event(move |_, _| {
+              if let Err(e) = tx_clone.send(Event::WindowEvent {
+                window_id: RootWindowId(id),
+                event: WindowEvent::CursorLeft {
+                  // FIXME: currently we use a dummy device id, find if we can get device id from gtk
+                  device_id: RootDeviceId(DeviceId(0)),
+                },
+              }) {
+                log::warn!("Failed to send cursor left event to event channel: {}", e);
+              }
+              Inhibit(false)
+            });
+
+            let tx_clone = event_tx.clone();
+            window.connect_button_press_event(move |_, event| {
+              let button = event.get_button();
+              if let Err(e) = tx_clone.send(Event::WindowEvent {
+                window_id: RootWindowId(id),
+                event: WindowEvent::MouseInput {
+                  button: match button {
+                    1 => MouseButton::Left,
+                    2 => MouseButton::Middle,
+                    3 => MouseButton::Right,
+                    _ => MouseButton::Other(button as u16),
+                  },
+                  state: ElementState::Pressed,
+                  // FIXME: currently we use a dummy device id, find if we can get device id from gtk
+                  device_id: RootDeviceId(DeviceId(0)),
+                  // this field is depracted so it is fine to pass empty state
+                  modifiers: ModifiersState::empty(),
+                },
+              }) {
+                log::warn!(
+                  "Failed to send mouse input preseed event to event channel: {}",
+                  e
+                );
+              }
+              Inhibit(false)
+            });
+
+            let tx_clone = event_tx.clone();
+            window.connect_button_release_event(move |_, event| {
+              let button = event.get_button();
+              if let Err(e) = tx_clone.send(Event::WindowEvent {
+                window_id: RootWindowId(id),
+                event: WindowEvent::MouseInput {
+                  button: match button {
+                    1 => MouseButton::Left,
+                    2 => MouseButton::Middle,
+                    3 => MouseButton::Right,
+                    _ => MouseButton::Other(button as u16),
+                  },
+                  state: ElementState::Released,
+                  // FIXME: currently we use a dummy device id, find if we can get device id from gtk
+                  device_id: RootDeviceId(DeviceId(0)),
+                  // this field is depracted so it is fine to pass empty state
+                  modifiers: ModifiersState::empty(),
+                },
+              }) {
+                log::warn!(
+                  "Failed to send mouse input released event to event channel: {}",
+                  e
+                );
+              }
+              Inhibit(false)
+            });
+          }
+          WindowRequest::Redraw => window.queue_draw(),
+          WindowRequest::Menu(m) => {
+            match m {
+              MenuItem::Custom(c) => {
+                if let Err(e) = event_tx.send(Event::MenuEvent {
+                  menu_id: c.id,
+                  origin: MenuType::Menubar,
+                }) {
+                  log::warn!("Failed to send menu event to event channel: {}", e);
+                }
+              }
+              MenuItem::About(_) => {
+                let about = AboutDialog::new();
+                about.show_all();
+                app.add_window(&about);
+              }
+              MenuItem::Hide => window.hide(),
+              MenuItem::CloseWindow => window.close(),
+              MenuItem::Quit => {
+                keep_running_.replace(false);
+              }
+              #[cfg(any(feature = "menu", feature = "tray"))]
+              MenuItem::Cut => {
+                if let Some(widget) = window.get_focus() {
+                  if widget.has_focus() {
+                    if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
+                      if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
+                        if let Some(buf) = view.get_buffer() {
+                          buf.cut_clipboard(&clipboard, true);
+                        }
+                      }
+                    } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
+                      entry.cut_clipboard();
+                    }
+                  }
+                }
+              }
+              #[cfg(any(feature = "menu", feature = "tray"))]
+              MenuItem::Copy => {
+                if let Some(widget) = window.get_focus() {
+                  if widget.has_focus() {
+                    if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
+                      if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
+                        if let Some(buf) = view.get_buffer() {
+                          buf.copy_clipboard(&clipboard);
+                        }
+                      }
+                    } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
+                      entry.copy_clipboard();
+                    }
+                  }
+                }
+              }
+              #[cfg(any(feature = "menu", feature = "tray"))]
+              MenuItem::Paste => {
+                if let Some(widget) = window.get_focus() {
+                  if widget.has_focus() {
+                    if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
+                      if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
+                        if let Some(buf) = view.get_buffer() {
+                          buf.paste_clipboard(&clipboard, None, true);
+                        }
+                      }
+                    } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
+                      entry.paste_clipboard();
+                    }
+                  }
+                }
+              }
+              #[cfg(any(feature = "menu", feature = "tray"))]
+              MenuItem::SelectAll => {
+                if let Some(widget) = window.get_focus() {
+                  if widget.has_focus() {
+                    if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
+                      if let Some(buf) = view.get_buffer() {
+                        buf.select_range(&buf.get_start_iter(), &buf.get_end_iter());
+                      }
+                    } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
+                      entry.select_region(0, -1);
+                    }
+                  }
+                }
+              }
+              // TODO toggle fullscreen
+              MenuItem::EnterFullScreen => window.fullscreen(),
+              MenuItem::Minimize => window.iconify(),
+              _ => {}
+            }
+          }
+          WindowRequest::SetMenu((menus, accel_group, menu)) => {
+            for i in menu.get_children() {
+              menu.remove(&i);
+            }
+
+            if let Some(menus) = menus {
+              let menubar =
+                  menu::initialize(id, menus, &window_requests_tx, &accel_group);
+              menu.pack_start(&menubar, false, false, 0);
+              menu.show_all();
             }
           }
         }
+      } else if id == WindowId::dummy() {
+        if let WindowRequest::Menu(MenuItem::Custom(c)) = request {
+          if let Err(e) = event_tx.send(Event::MenuEvent {
+            menu_id: c.id,
+            origin: MenuType::SystemTray,
+          }) {
+            log::warn!("Failed to send status bar event to event channel: {}", e);
+          }
+        }
       }
+      Continue(true)
+    });
 
-      // Event control flow
+    // Event control flow
+    let keep_running_ = keep_running.clone();
+    event_rx.attach(Some(&context),move |event| {
       match control_flow {
         ControlFlow::Exit => {
           keep_running_.replace(false);
           Continue(false)
         }
-        // TODO better control flow handling
         _ => {
-          if let Ok(event) = event_rx.try_recv() {
-            callback(event, &window_target, &mut control_flow);
-          } else {
-            callback(Event::MainEventsCleared, &window_target, &mut control_flow);
-          }
+          callback(event, &window_target, &mut control_flow);
           Continue(true)
         }
       }
