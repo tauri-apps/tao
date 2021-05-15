@@ -607,6 +607,7 @@ impl<T: 'static> EventLoop<T> {
     context.pop_thread_default();
 
     while *keep_running.borrow() {
+      // TODO dispatch
       gtk::main_iteration();
     }
   }
