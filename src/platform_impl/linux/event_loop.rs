@@ -606,7 +606,7 @@ impl<T: 'static> EventLoop<T> {
     context.pop_thread_default();
 
     while *keep_running.borrow() {
-      // TODO dispatch
+      // TODO perhaps use a vecdeque to receive the event from event_rx and then send here
       gtk::main_iteration();
     }
   }
