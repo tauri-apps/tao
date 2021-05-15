@@ -16,7 +16,7 @@ use glib::{source::idle_add_local, Continue, MainContext};
 use gtk::{prelude::*, AboutDialog, ApplicationWindow, Inhibit};
 
 #[cfg(any(feature = "menu", feature = "tray"))]
-use glib::Cast;
+use glib::{Cast, source::Priority};
 #[cfg(any(feature = "menu", feature = "tray"))]
 use gtk::{Clipboard, Entry};
 
@@ -67,9 +67,9 @@ pub struct EventLoop<T: 'static> {
   /// Window target.
   window_target: RootELW<T>,
   /// User event sender for EventLoopProxy
-  user_event_tx: Sender<T>,
+  user_event_tx: glib::Sender<T>,
   /// User event receiver
-  user_event_rx: Receiver<T>,
+  user_event_rx: glib::Receiver<T>,
 }
 
 impl<T: 'static> EventLoop<T> {
@@ -94,7 +94,7 @@ impl<T: 'static> EventLoop<T> {
     };
 
     // Create user event channel
-    let (user_event_tx, user_event_rx) = channel();
+    let (user_event_tx, user_event_rx) = glib::MainContext::channel(Priority::default());
 
     // Create event loop itself.
     let event_loop = Self {
@@ -139,16 +139,16 @@ impl<T: 'static> EventLoop<T> {
     context.push_thread_default();
     let keep_running = Rc::new(RefCell::new(true));
     let keep_running_ = keep_running.clone();
-    let user_event_rx = self.user_event_rx;
-    idle_add_local(move || {
-      // User event
-      if let Ok(event) = user_event_rx.try_recv() {
-        if let Err(e) = event_tx.send(Event::UserEvent(event)) {
-          log::warn!("Failed to send user event to event channel: {}", e);
-        }
+    // User event
+    let event_tx_ = event_tx.clone();
+    self.user_event_rx.attach(Some(&context), move |event| {
+      if let Err(e) = event_tx_.send(Event::UserEvent(event)) {
+        log::warn!("Failed to send user event to event channel: {}", e);
       }
-
-      // Widnow Request
+      Continue(true)
+    });
+    idle_add_local(move || {
+      // Window Request
       if let Ok((id, request)) = window_target.p.window_requests_rx.try_recv() {
         if let Some(window) = window_target.p.app.get_window_by_id(id.0) {
           match request {
@@ -626,7 +626,7 @@ impl<T: 'static> EventLoop<T> {
 /// Used to send custom events to `EventLoop`.
 #[derive(Debug)]
 pub struct EventLoopProxy<T: 'static> {
-  user_event_tx: Sender<T>,
+  user_event_tx: glib::Sender<T>,
 }
 
 impl<T: 'static> Clone for EventLoopProxy<T> {
