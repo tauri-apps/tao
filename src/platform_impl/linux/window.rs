@@ -9,7 +9,7 @@ use std::{
 };
 
 use gdk::{Cursor, EventMask, WindowEdge, WindowExt, WindowState};
-use gdk_pixbuf::{Pixbuf, Colorspace};
+use gdk_pixbuf::{Colorspace, Pixbuf};
 use gtk::{prelude::*, AccelGroup, ApplicationWindow, Orientation};
 
 use crate::{
@@ -64,8 +64,8 @@ impl PlatformIcon {
   /// The length of `rgba` must be divisible by 4, and `width * height` must equal
   /// `rgba.len() / 4`. Otherwise, this will return a `BadIcon` error.
   pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
-
-    let row_stride = Pixbuf::calculate_rowstride(Colorspace::Rgb, true, 8, width as i32, height as i32);
+    let row_stride =
+      Pixbuf::calculate_rowstride(Colorspace::Rgb, true, 8, width as i32, height as i32);
     Ok(Self {
       raw: rgba,
       width: width as i32,

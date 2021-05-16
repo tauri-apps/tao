@@ -592,22 +592,33 @@ impl<T: 'static> EventLoop<T> {
       });
 
     // Event control flow
-    let keep_running_ = keep_running.clone();
-    event_rx.attach(Some(&context), move |event| match control_flow {
-      ControlFlow::Exit => {
-        keep_running_.replace(false);
-        Continue(false)
-      }
-      _ => {
-        callback(event, &window_target, &mut control_flow);
-        Continue(true)
-      }
+    let event_queue = Rc::new(RefCell::new(Vec::new()));
+    let event_queue_ = event_queue.clone();
+    event_rx.attach(Some(&context), move |event| {
+      event_queue_.borrow_mut().push(event);
+      Continue(true)
     });
     context.pop_thread_default();
 
     while *keep_running.borrow() {
-      // TODO perhaps use a vecdeque to receive the event from event_rx and then send here
       gtk::main_iteration();
+
+      let mut events = event_queue.borrow_mut();
+      if !events.is_empty() {
+        for event in events.drain(..) {
+          callback(event, &window_target, &mut control_flow);
+        }
+        callback(Event::MainEventsCleared, &window_target, &mut control_flow)
+      }
+
+      match control_flow {
+        ControlFlow::Exit => {
+          keep_running.replace(false);
+        }
+        ControlFlow::Poll => callback(Event::MainEventsCleared, &window_target, &mut control_flow),
+        // TODO WaitUntil
+        _ => (),
+      }
     }
   }
 
