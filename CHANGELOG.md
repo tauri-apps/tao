@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.2.5]
+
+- Fix Priority import on Linux.
+  - [20128896](https://github.com/tauri-apps/tao/commit/201288960e6af87a2e4ae9a75b3d53a874edbd3e) Add change file on 2021-05-17
+
 ## \[0.2.4]
 
 - Refactor control flow implementation to wait.
