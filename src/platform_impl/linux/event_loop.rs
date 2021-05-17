@@ -12,11 +12,11 @@ use std::{
 
 use gdk::{Cursor, CursorType, WindowExt, WindowState};
 use gio::{prelude::*, Cancellable};
-use glib::{Continue, MainContext};
+use glib::{source::Priority, Continue, MainContext};
 use gtk::{prelude::*, AboutDialog, ApplicationWindow, Inhibit};
 
 #[cfg(any(feature = "menu", feature = "tray"))]
-use glib::{source::Priority, Cast};
+use glib::Cast;
 #[cfg(any(feature = "menu", feature = "tray"))]
 use gtk::{Clipboard, Entry};
 
