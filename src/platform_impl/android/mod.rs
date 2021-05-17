@@ -502,7 +502,10 @@ impl Window {
 
   pub fn set_visible(&self, _visibility: bool) {}
 
-  pub fn set_focus(&self) {}
+  pub fn set_focus(&self) {
+    //FIXME: implementation goes here
+    warn!("set_focus not yet implemented on Android");
+  }
 
   pub fn set_resizable(&self, _resizeable: bool) {}
 
