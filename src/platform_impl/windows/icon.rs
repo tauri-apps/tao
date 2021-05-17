@@ -1,3 +1,6 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 use std::{fmt, io, iter::once, mem, os::windows::ffi::OsStrExt, path::Path, ptr, sync::Arc};
 
 use winapi::{

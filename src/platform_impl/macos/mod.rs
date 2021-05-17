@@ -1,3 +1,6 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 #![cfg(target_os = "macos")]
 
 mod app;
@@ -9,7 +12,7 @@ mod ffi;
 mod menu;
 mod monitor;
 mod observer;
-mod status_bar;
+mod system_tray;
 mod util;
 mod view;
 mod window;
@@ -21,7 +24,7 @@ pub use self::{
   app_delegate::{get_aux_state_mut, AuxDelegateState},
   event_loop::{EventLoop, EventLoopWindowTarget, Proxy as EventLoopProxy},
   monitor::{MonitorHandle, VideoMode},
-  status_bar::Statusbar,
+  system_tray::SystemTray,
   window::{Id as WindowId, PlatformSpecificWindowBuilderAttributes, UnownedWindow},
 };
 use crate::{

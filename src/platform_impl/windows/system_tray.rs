@@ -1,9 +1,12 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 use super::menu::{make_menu_item, to_wstring, MenuHandler};
 use crate::{
   error::OsError,
   menu::{MenuItem, MenuType},
+  platform::system_tray::SystemTray as RootSystemTray,
   platform_impl::EventLoopWindowTarget,
-  status_bar::Statusbar as RootStatusbar,
 };
 use std::cell::RefCell;
 use winapi::{
@@ -25,7 +28,7 @@ use winapi::{
   },
 };
 
-pub struct Statusbar {
+pub struct SystemTray {
   hwnd: HWND,
   hmenu: HMENU,
 }
@@ -33,14 +36,14 @@ pub struct Statusbar {
 thread_local!(static WININFO_STASH: RefCell<Option<WindowsLoopData>> = RefCell::new(None));
 
 struct WindowsLoopData {
-  status_bar: Statusbar,
+  system_tray: SystemTray,
   handler: MenuHandler,
 }
 
-impl Statusbar {
+impl SystemTray {
   pub fn initialize<T>(
     window_target: &EventLoopWindowTarget<T>,
-    status_bar: &RootStatusbar,
+    system_tray: &RootSystemTray,
   ) -> Result<(), OsError> {
     // create the handler
     let event_loop_runner = window_target.runner_shared.clone();
@@ -49,7 +52,7 @@ impl Statusbar {
         unsafe { event_loop_runner.send_event(e) }
       }
     }));
-    let class_name = to_wstring("tao_status_bar_app");
+    let class_name = to_wstring("tao_system_tray_app");
     unsafe {
       let _hinstance: HINSTANCE = libloaderapi::GetModuleHandleA(std::ptr::null_mut());
       let wnd = WNDCLASSW {
@@ -72,7 +75,7 @@ impl Statusbar {
       let hwnd = winuser::CreateWindowExW(
         0,
         class_name.as_ptr(),
-        to_wstring("tao_status_bar_window").as_ptr(),
+        to_wstring("tao_system_tray_window").as_ptr(),
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         0,
@@ -98,12 +101,12 @@ impl Statusbar {
       }
 
       let hmenu = winuser::CreatePopupMenu();
-      let app_statusbar = Statusbar { hwnd, hmenu };
-      app_statusbar.set_icon_from_buffer(&status_bar.icon, 32, 32);
+      let app_system_tray = SystemTray { hwnd, hmenu };
+      app_system_tray.set_icon_from_buffer(&system_tray.icon, 32, 32);
 
       WININFO_STASH.with(|stash| {
         let data = WindowsLoopData {
-          status_bar: app_statusbar,
+          system_tray: app_system_tray,
           handler: menu_handler,
         };
         (*stash.borrow_mut()) = Some(data);
@@ -125,10 +128,12 @@ impl Statusbar {
         return Ok(());
       }
 
-      for menu_item in &status_bar.items {
+      for menu_item in &system_tray.items {
         let sub_item = match menu_item {
           // we support only custom menu on windows for now
-          MenuItem::Custom(custom_menu) => make_menu_item(Some(custom_menu.id.0), custom_menu.name),
+          MenuItem::Custom(custom_menu) => {
+            make_menu_item(Some(custom_menu.id.0), &custom_menu.name)
+          }
           _ => None,
         };
 
@@ -251,8 +256,10 @@ unsafe extern "system" fn subclass_proc(
       let stash = stash.borrow();
       let stash = stash.as_ref();
       if let Some(stash) = stash {
-        let menu_id = winuser::GetMenuItemID(stash.status_bar.hmenu, w_param as i32) as u32;
-        stash.handler.send_click_event(menu_id, MenuType::Statusbar);
+        let menu_id = winuser::GetMenuItemID(stash.system_tray.hmenu, w_param as i32) as u32;
+        stash
+          .handler
+          .send_click_event(menu_id, MenuType::SystemTray);
       }
     });
   }
@@ -276,7 +283,7 @@ unsafe extern "system" fn subclass_proc(
         if let Some(stash) = stash {
           // track the click
           winuser::TrackPopupMenu(
-            stash.status_bar.hmenu,
+            stash.system_tray.hmenu,
             0,
             p.x,
             p.y,
@@ -295,6 +302,6 @@ unsafe extern "system" fn subclass_proc(
 
 impl Drop for WindowsLoopData {
   fn drop(&mut self) {
-    self.status_bar.shutdown();
+    self.system_tray.shutdown();
   }
 }

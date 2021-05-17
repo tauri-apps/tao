@@ -1,9 +1,12 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 use super::menu::{make_custom_menu_item, make_menu_item, KeyEquivalent};
 use crate::{
   error::OsError,
   menu::{MenuItem, MenuType},
+  platform::system_tray::SystemTray as RootSystemTray,
   platform_impl::EventLoopWindowTarget,
-  status_bar::Statusbar as RootStatusbar,
 };
 use cocoa::{
   appkit::{
@@ -14,17 +17,17 @@ use cocoa::{
   foundation::{NSAutoreleasePool, NSData, NSSize},
 };
 use objc::runtime::Object;
-pub struct Statusbar {}
+pub struct SystemTray {}
 
-impl Statusbar {
+impl SystemTray {
   pub fn initialize<T>(
     _window_target: &EventLoopWindowTarget<T>,
-    status_bar: &RootStatusbar,
+    system_tray: &RootSystemTray,
   ) -> Result<(), OsError> {
     const ICON_WIDTH: f64 = 18.0;
     const ICON_HEIGHT: f64 = 18.0;
     unsafe {
-      // create our system status bar
+      // create our system tray (status bar)
       let status_item = NSStatusBar::systemStatusBar(nil)
         .statusItemWithLength_(NSSquareStatusItemLength)
         .autorelease();
@@ -34,8 +37,8 @@ impl Statusbar {
       // set our icon
       let nsdata = NSData::dataWithBytes_length_(
         nil,
-        status_bar.icon.as_ptr() as *const std::os::raw::c_void,
-        status_bar.icon.len() as u64,
+        system_tray.icon.as_ptr() as *const std::os::raw::c_void,
+        system_tray.icon.len() as u64,
       )
       .autorelease();
 
@@ -47,14 +50,14 @@ impl Statusbar {
 
       let menu = NSMenu::new(nil).autorelease();
 
-      for item in &status_bar.items {
+      for item in &system_tray.items {
         let item_obj: *mut Object = match item {
           MenuItem::Custom(custom_menu) => {
             // build accelerators if provided
             let mut key_equivalent = None;
             let mut accelerator_string: String;
-            if let Some(accelerator) = custom_menu.keyboard_accelerators {
-              accelerator_string = String::from(accelerator);
+            if let Some(accelerator) = &custom_menu.keyboard_accelerators {
+              accelerator_string = accelerator.clone();
               let mut ns_modifier_flags: NSEventModifierFlags = NSEventModifierFlags::empty();
 
               if accelerator_string.contains("<Primary>") {
@@ -85,13 +88,13 @@ impl Statusbar {
 
             make_custom_menu_item(
               custom_menu.id,
-              custom_menu.name,
+              &custom_menu.name,
               None,
               key_equivalent,
-              MenuType::Statusbar,
+              MenuType::SystemTray,
             )
           }
-          _ => make_menu_item("Not supported", None, None, MenuType::Statusbar),
+          _ => make_menu_item("Not supported", None, None, MenuType::SystemTray),
         };
 
         menu.addItem_(item_obj);

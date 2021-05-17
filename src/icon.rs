@@ -1,3 +1,6 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::platform_impl::PlatformIcon;
 use std::{error::Error, fmt, io, mem};
 

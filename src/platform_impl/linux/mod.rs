@@ -1,3 +1,6 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 #![cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -9,10 +12,10 @@
 mod event_loop;
 mod menu;
 mod monitor;
-mod status_bar;
+mod system_tray;
 mod window;
 
-pub use self::status_bar::Statusbar;
+pub use self::system_tray::SystemTray;
 pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
 pub use monitor::{MonitorHandle, VideoMode};
 pub use window::{

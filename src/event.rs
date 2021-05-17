@@ -1,3 +1,6 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 //! The `Event` enum and assorted supporting types.
 //!
 //! These are sent to the closure given to [`EventLoop::run(...)`][event_loop_run], where they get

@@ -1,6 +1,5 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-License-Identifier: MIT
 
 use std::{
   cell::RefCell,
@@ -8,13 +7,18 @@ use std::{
   error::Error,
   process,
   rc::Rc,
-  sync::mpsc::{channel, Receiver, SendError, Sender},
+  sync::mpsc::SendError,
 };
 
 use gdk::{Cursor, CursorType, WindowExt, WindowState};
 use gio::{prelude::*, Cancellable};
-use glib::{source::idle_add_local, Cast, Continue, MainContext};
-use gtk::{prelude::*, AboutDialog, ApplicationWindow, Clipboard, Entry, Inhibit};
+use glib::{source::Priority, Continue, MainContext};
+use gtk::{prelude::*, AboutDialog, ApplicationWindow, Inhibit};
+
+#[cfg(any(feature = "menu", feature = "tray"))]
+use glib::Cast;
+#[cfg(any(feature = "menu", feature = "tray"))]
+use gtk::{Clipboard, Entry};
 
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize},
@@ -41,9 +45,7 @@ pub struct EventLoopWindowTarget<T> {
   /// Window Ids of the application
   pub(crate) windows: Rc<RefCell<HashSet<WindowId>>>,
   /// Window requests sender
-  pub(crate) window_requests_tx: Sender<(WindowId, WindowRequest)>,
-  /// Window requests receiver
-  pub(crate) window_requests_rx: Receiver<(WindowId, WindowRequest)>,
+  pub(crate) window_requests_tx: glib::Sender<(WindowId, WindowRequest)>,
   _marker: std::marker::PhantomData<T>,
 }
 
@@ -63,9 +65,11 @@ pub struct EventLoop<T: 'static> {
   /// Window target.
   window_target: RootELW<T>,
   /// User event sender for EventLoopProxy
-  user_event_tx: Sender<T>,
+  user_event_tx: glib::Sender<T>,
   /// User event receiver
-  user_event_rx: Receiver<T>,
+  user_event_rx: glib::Receiver<T>,
+  /// Window requests receiver
+  window_requests_rx: glib::Receiver<(WindowId, WindowRequest)>,
 }
 
 impl<T: 'static> EventLoop<T> {
@@ -80,17 +84,16 @@ impl<T: 'static> EventLoop<T> {
     app.register(cancellable)?;
 
     // Create event loop window target.
-    let (window_requests_tx, window_requests_rx) = channel();
+    let (window_requests_tx, window_requests_rx) = glib::MainContext::channel(Priority::default());
     let window_target = EventLoopWindowTarget {
       app,
       windows: Rc::new(RefCell::new(HashSet::new())),
       window_requests_tx,
-      window_requests_rx,
       _marker: std::marker::PhantomData,
     };
 
     // Create user event channel
-    let (user_event_tx, user_event_rx) = channel();
+    let (user_event_tx, user_event_rx) = glib::MainContext::channel(Priority::default());
 
     // Create event loop itself.
     let event_loop = Self {
@@ -100,6 +103,7 @@ impl<T: 'static> EventLoop<T> {
       },
       user_event_tx,
       user_event_rx,
+      window_requests_rx,
     };
 
     Ok(event_loop)
@@ -120,12 +124,12 @@ impl<T: 'static> EventLoop<T> {
   {
     let mut control_flow = ControlFlow::default();
     let window_target = self.window_target;
-    let (event_tx, event_rx) = channel::<Event<'_, T>>();
+    let (event_tx, event_rx) = glib::MainContext::channel::<Event<'_, T>>(Priority::default());
 
     // Send StartCause::Init event
-    let tx_clone = event_tx.clone();
+    let event_tx_ = event_tx.clone();
     window_target.p.app.connect_activate(move |_| {
-      if let Err(e) = tx_clone.send(Event::NewEvents(StartCause::Init)) {
+      if let Err(e) = event_tx_.send(Event::NewEvents(StartCause::Init)) {
         log::warn!("Failed to send init event to event channel: {}", e);
       }
     });
@@ -134,19 +138,25 @@ impl<T: 'static> EventLoop<T> {
     let context = MainContext::default();
     context.push_thread_default();
     let keep_running = Rc::new(RefCell::new(true));
-    let keep_running_ = keep_running.clone();
-    let user_event_rx = self.user_event_rx;
-    idle_add_local(move || {
-      // User event
-      if let Ok(event) = user_event_rx.try_recv() {
-        if let Err(e) = event_tx.send(Event::UserEvent(event)) {
-          log::warn!("Failed to send user event to event channel: {}", e);
-        }
-      }
 
-      // Widnow Request
-      if let Ok((id, request)) = window_target.p.window_requests_rx.try_recv() {
-        if let Some(window) = window_target.p.app.get_window_by_id(id.0) {
+    // User event
+    let event_tx_ = event_tx.clone();
+    self.user_event_rx.attach(Some(&context), move |event| {
+      if let Err(e) = event_tx_.send(Event::UserEvent(event)) {
+        log::warn!("Failed to send user event to event channel: {}", e);
+      }
+      Continue(true)
+    });
+
+    // Window Request
+    let app = window_target.p.app.clone();
+    let windows = window_target.p.windows.clone();
+    let window_requests_tx = window_target.p.window_requests_tx.clone();
+    let keep_running_ = keep_running.clone();
+    self
+      .window_requests_rx
+      .attach(Some(&context), move |(id, request)| {
+        if let Some(window) = app.get_window_by_id(id.0) {
           match request {
             WindowRequest::Title(title) => window.set_title(&title),
             WindowRequest::Position((x, y)) => window.move_(x, y),
@@ -295,7 +305,7 @@ impl<T: 'static> EventLoop<T> {
               };
             }
             WindowRequest::WireUpEvents => {
-              let windows_rc = window_target.p.windows.clone();
+              let windows_rc = windows.clone();
               let tx_clone = event_tx.clone();
 
               window.connect_delete_event(move |_, _| {
@@ -485,13 +495,14 @@ impl<T: 'static> EventLoop<T> {
                 MenuItem::About(_) => {
                   let about = AboutDialog::new();
                   about.show_all();
-                  window_target.p.app.add_window(&about);
+                  app.add_window(&about);
                 }
                 MenuItem::Hide => window.hide(),
                 MenuItem::CloseWindow => window.close(),
                 MenuItem::Quit => {
                   keep_running_.replace(false);
                 }
+                #[cfg(any(feature = "menu", feature = "tray"))]
                 MenuItem::Cut => {
                   if let Some(widget) = window.get_focus() {
                     if widget.has_focus() {
@@ -507,6 +518,7 @@ impl<T: 'static> EventLoop<T> {
                     }
                   }
                 }
+                #[cfg(any(feature = "menu", feature = "tray"))]
                 MenuItem::Copy => {
                   if let Some(widget) = window.get_focus() {
                     if widget.has_focus() {
@@ -522,6 +534,7 @@ impl<T: 'static> EventLoop<T> {
                     }
                   }
                 }
+                #[cfg(any(feature = "menu", feature = "tray"))]
                 MenuItem::Paste => {
                   if let Some(widget) = window.get_focus() {
                     if widget.has_focus() {
@@ -537,6 +550,7 @@ impl<T: 'static> EventLoop<T> {
                     }
                   }
                 }
+                #[cfg(any(feature = "menu", feature = "tray"))]
                 MenuItem::SelectAll => {
                   if let Some(widget) = window.get_focus() {
                     if widget.has_focus() {
@@ -562,9 +576,7 @@ impl<T: 'static> EventLoop<T> {
               }
 
               if let Some(menus) = menus {
-                let menubar =
-                  menu::initialize(id, menus, &window_target.p.window_requests_tx, &accel_group);
-                dbg!("gell");
+                let menubar = menu::initialize(id, menus, &window_requests_tx, &accel_group);
                 menu.pack_start(&menubar, false, false, 0);
                 menu.show_all();
               }
@@ -574,35 +586,43 @@ impl<T: 'static> EventLoop<T> {
           if let WindowRequest::Menu(MenuItem::Custom(c)) = request {
             if let Err(e) = event_tx.send(Event::MenuEvent {
               menu_id: c.id,
-              origin: MenuType::Statusbar,
+              origin: MenuType::SystemTray,
             }) {
               log::warn!("Failed to send status bar event to event channel: {}", e);
             }
           }
         }
-      }
+        Continue(true)
+      });
 
-      // Event control flow
-      match control_flow {
-        ControlFlow::Exit => {
-          keep_running_.replace(false);
-          Continue(false)
-        }
-        // TODO better control flow handling
-        _ => {
-          if let Ok(event) = event_rx.try_recv() {
-            callback(event, &window_target, &mut control_flow);
-          } else {
-            callback(Event::MainEventsCleared, &window_target, &mut control_flow);
-          }
-          Continue(true)
-        }
-      }
+    // Event control flow
+    let event_queue = Rc::new(RefCell::new(Vec::new()));
+    let event_queue_ = event_queue.clone();
+    event_rx.attach(Some(&context), move |event| {
+      event_queue_.borrow_mut().push(event);
+      Continue(true)
     });
     context.pop_thread_default();
 
     while *keep_running.borrow() {
       gtk::main_iteration();
+
+      let mut events = event_queue.borrow_mut();
+      if !events.is_empty() {
+        for event in events.drain(..) {
+          callback(event, &window_target, &mut control_flow);
+        }
+        callback(Event::MainEventsCleared, &window_target, &mut control_flow)
+      }
+
+      match control_flow {
+        ControlFlow::Exit => {
+          keep_running.replace(false);
+        }
+        ControlFlow::Poll => callback(Event::MainEventsCleared, &window_target, &mut control_flow),
+        // TODO WaitUntil
+        _ => (),
+      }
     }
   }
 
@@ -622,7 +642,7 @@ impl<T: 'static> EventLoop<T> {
 /// Used to send custom events to `EventLoop`.
 #[derive(Debug)]
 pub struct EventLoopProxy<T: 'static> {
-  user_event_tx: Sender<T>,
+  user_event_tx: glib::Sender<T>,
 }
 
 impl<T: 'static> Clone for EventLoopProxy<T> {

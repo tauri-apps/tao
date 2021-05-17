@@ -1,3 +1,6 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 //! The `Window` struct and associated types.
 use std::fmt;
 
@@ -297,7 +300,7 @@ impl WindowBuilder {
     self
   }
 
-  /// Requests a specific title for the window.
+  /// Requests a specific menu for the window.
   ///
   /// See [`Window::set_menu`] for details.
   ///

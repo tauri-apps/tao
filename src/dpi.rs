@@ -1,3 +1,6 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 //! UI scaling is important, so read the docs for this module if you don't want to be confused.
 //!
 //! ## Why should I care about UI scaling?

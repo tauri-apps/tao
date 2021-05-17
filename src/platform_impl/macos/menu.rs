@@ -1,3 +1,6 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 use cocoa::{
   appkit::{NSApp, NSApplication, NSEventModifierFlags, NSMenu, NSMenuItem},
   base::{id, nil, selector},
@@ -47,8 +50,8 @@ pub fn initialize(menu: Vec<Menu>) {
             // build accelerators if provided
             let mut key_equivalent = None;
             let mut accelerator_string: String;
-            if let Some(accelerator) = custom_menu.keyboard_accelerators {
-              accelerator_string = String::from(accelerator);
+            if let Some(accelerator) = &custom_menu.keyboard_accelerators {
+              accelerator_string = accelerator.clone();
               let mut ns_modifier_flags: NSEventModifierFlags = NSEventModifierFlags::empty();
 
               if accelerator_string.contains("<Primary>") {
@@ -79,7 +82,7 @@ pub fn initialize(menu: Vec<Menu>) {
 
             make_custom_menu_item(
               custom_menu.id,
-              custom_menu.name,
+              &custom_menu.name,
               None,
               key_equivalent,
               MenuType::Menubar,
@@ -298,7 +301,7 @@ fn make_menu_item_from_alloc(
       Some(selector) => selector,
       None => match menu_type {
         MenuType::Menubar => sel!(fireMenubarAction:),
-        MenuType::Statusbar => sel!(fireStatusbarAction:),
+        MenuType::SystemTray => sel!(fireStatusbarAction:),
       },
     };
 
@@ -343,7 +346,7 @@ fn make_menu_item_class() -> *const Class {
 }
 
 extern "C" fn fire_status_bar_click(this: &Object, _: Sel, _item: id) {
-  send_event(this, MenuType::Statusbar);
+  send_event(this, MenuType::SystemTray);
 }
 
 extern "C" fn fire_menu_bar_click(this: &Object, _: Sel, _item: id) {

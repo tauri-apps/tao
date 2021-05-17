@@ -1,3 +1,6 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 use std::{
   collections::hash_map::DefaultHasher,
   hash::{Hash, Hasher},
@@ -18,18 +21,18 @@ impl Menu {
   }
 }
 
-#[derive(Debug, Clone, Hash, Copy)]
+#[derive(Debug, Clone, Hash)]
 /// CustomMenu is a custom menu who emit an event inside the EventLoop.
 pub struct CustomMenu {
   pub id: MenuId,
-  pub name: &'static str,
-  pub keyboard_accelerators: Option<&'static str>,
+  pub name: String,
+  pub keyboard_accelerators: Option<String>,
 }
 
 /// A menu item, bound to a pre-defined action or `Custom` emit an event. Note that status bar only
 /// supports `Custom` menu item variants. And on the menu bar, some platforms might not support some
 /// of the variants. Unsupported variant will be no-op on such platform.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum MenuItem {
   /// A custom menu emit an event inside the EventLoop.
   Custom(CustomMenu),
@@ -40,7 +43,7 @@ pub enum MenuItem {
   ///
   /// - **Windows / Android / iOS:** Unsupported
   ///
-  About(&'static str),
+  About(String),
 
   /// A standard "hide the app" menu item.
   ///
@@ -95,6 +98,7 @@ pub enum MenuItem {
   /// ## Platform-specific
   ///
   /// - **Windows / Android / iOS:** Unsupported
+  /// - **Linux**: require `menu` feature flag
   ///
   Copy,
 
@@ -103,6 +107,7 @@ pub enum MenuItem {
   /// ## Platform-specific
   ///
   /// - **Windows / Android / iOS:** Unsupported
+  /// - **Linux**: require `menu` feature flag
   ///
   Cut,
 
@@ -129,6 +134,7 @@ pub enum MenuItem {
   /// ## Platform-specific
   ///
   /// - **Windows / Android / iOS:** Unsupported
+  /// - **Linux**: require `menu` feature flag
   ///
   SelectAll,
 
@@ -137,6 +143,7 @@ pub enum MenuItem {
   /// ## Platform-specific
   ///
   /// - **Windows / Android / iOS:** Unsupported
+  /// - **Linux**: require `menu` feature flag
   ///
   Paste,
 
@@ -176,9 +183,10 @@ pub enum MenuItem {
 impl MenuItem {
   /// Create new custom menu item.
   /// unique_menu_id is the unique ID for the menu item returned in the EventLoop `Event::MenuEvent(unique_menu_id)`
-  pub fn new(title: &'static str) -> Self {
+  pub fn new(title: impl ToString) -> Self {
+    let title = title.to_string();
     MenuItem::Custom(CustomMenu {
-      id: MenuId::new(title),
+      id: MenuId::new(&title),
       name: title,
       keyboard_accelerators: None,
     })
@@ -190,16 +198,16 @@ impl MenuItem {
   ///
   /// - **Windows / Android / iOS:** Unsupported
   ///
-  pub fn with_accelerators(mut self, keyboard_accelerators: &'static str) -> Self {
+  pub fn with_accelerators(mut self, keyboard_accelerators: impl ToString) -> Self {
     if let MenuItem::Custom(ref mut custom_menu) = self {
-      custom_menu.keyboard_accelerators = Some(keyboard_accelerators);
+      custom_menu.keyboard_accelerators = Some(keyboard_accelerators.to_string());
     }
     self
   }
 
   /// Return unique menu ID. Works only with `MenuItem::Custom`.
-  pub fn id(mut self) -> MenuId {
-    if let MenuItem::Custom(ref mut custom_menu) = self {
+  pub fn id(&self) -> MenuId {
+    if let MenuItem::Custom(custom_menu) = self {
       return custom_menu.id;
     }
 
@@ -223,8 +231,8 @@ impl From<MenuId> for u32 {
 }
 
 impl MenuId {
-  fn new<T: Into<String>>(menu_title: T) -> MenuId {
-    MenuId(hash_string_to_u32(menu_title.into()))
+  fn new(menu_title: &str) -> MenuId {
+    MenuId(hash_string_to_u32(menu_title))
   }
 }
 
@@ -233,11 +241,11 @@ impl MenuId {
 pub enum MenuType {
   /// Menubar menu item.
   Menubar,
-  /// Statusbar menu item.
-  Statusbar,
+  /// System tray menu item.
+  SystemTray,
 }
 
-fn hash_string_to_u32(title: String) -> u32 {
+fn hash_string_to_u32(title: &str) -> u32 {
   let mut s = DefaultHasher::new();
   title.hash(&mut s);
   s.finish() as u32

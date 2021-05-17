@@ -1,3 +1,6 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 use simple_logger::SimpleLogger;
 use tao::{
   event::{Event, WindowEvent},
@@ -11,6 +14,7 @@ fn main() {
   let event_loop = EventLoop::new();
 
   let custom_change_menu = MenuItem::new("Change menu").with_accelerators("F1");
+  let custom_change_menu_id = custom_change_menu.id();
 
   let window = WindowBuilder::new()
     .with_title("A fantastic window!")
@@ -19,7 +23,7 @@ fn main() {
         // on macOS first menu is always app name
         "my custom app",
         vec![
-          MenuItem::About("Todos"),
+          MenuItem::About("Todos".to_string()),
           MenuItem::Services,
           MenuItem::Separator,
           MenuItem::Hide,
@@ -79,7 +83,7 @@ fn main() {
         menu_id,
         origin: MenuType::Menubar,
       } => {
-        if menu_id == custom_change_menu.id() {
+        if menu_id == custom_change_menu_id {
           println!("Clicked on custom change menu");
           window.set_menu(Some(vec![Menu::new(
             "File",

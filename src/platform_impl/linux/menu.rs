@@ -1,5 +1,7 @@
-use std::sync::mpsc::Sender;
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
 
+use glib::Sender;
 use gtk::{prelude::*, AccelFlags, AccelGroup, Menu, MenuBar, MenuItem, SeparatorMenuItem};
 
 use super::window::{WindowId, WindowRequest};
@@ -27,8 +29,8 @@ pub fn initialize(
 
     for i in menu.items {
       let item = match &i {
-        RootMenuItem::Custom(m) => match m.keyboard_accelerators {
-          Some(accel) => menuitem!(&m.name, accel, accel_group),
+        RootMenuItem::Custom(m) => match &m.keyboard_accelerators {
+          Some(accel) => menuitem!(&m.name, &accel, accel_group),
           None => Some(MenuItem::with_label(&m.name)),
         },
         RootMenuItem::About(s) => Some(MenuItem::with_label(&format!("About {}", s))),
@@ -52,7 +54,7 @@ pub fn initialize(
       if let Some(item) = item {
         let tx_ = tx.clone();
         item.connect_activate(move |_| {
-          if let Err(e) = tx_.send((id, WindowRequest::Menu(i))) {
+          if let Err(e) = tx_.send((id, WindowRequest::Menu(i.clone()))) {
             log::warn!("Fail to send menu request: {}", e);
           }
         });
