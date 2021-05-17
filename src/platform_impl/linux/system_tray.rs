@@ -9,7 +9,7 @@ use crate::{
 pub struct SystemTray {}
 
 impl SystemTray {
-  #[cfg(feature = "menu")]
+  #[cfg(feature = "tray")]
   pub(crate) fn initialize<T>(
     window_target: &EventLoopWindowTarget<T>,
     system_tray: &RootSystemTray,
@@ -58,7 +58,7 @@ impl SystemTray {
     Ok(())
   }
 
-  #[cfg(not(feature = "menu"))]
+  #[cfg(not(feature = "tray"))]
   pub(crate) fn initialize<T>(
     _window_target: &EventLoopWindowTarget<T>,
     _system_tray: &RootSystemTray,
