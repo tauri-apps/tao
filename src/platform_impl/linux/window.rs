@@ -4,16 +4,12 @@
 use std::{
   cell::RefCell,
   collections::VecDeque,
-  io,
   rc::Rc,
-  sync::{
-    atomic::{AtomicBool, AtomicI32, Ordering},
-    mpsc::Sender,
-  },
+  sync::atomic::{AtomicBool, AtomicI32, Ordering},
 };
 
 use gdk::{Cursor, EventMask, WindowEdge, WindowExt, WindowState};
-use gdk_pixbuf::Pixbuf;
+use gdk_pixbuf::{Colorspace, Pixbuf};
 use gtk::{prelude::*, AccelGroup, ApplicationWindow, Orientation};
 
 use crate::{
@@ -68,20 +64,13 @@ impl PlatformIcon {
   /// The length of `rgba` must be divisible by 4, and `width * height` must equal
   /// `rgba.len() / 4`. Otherwise, this will return a `BadIcon` error.
   pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
-    let image = image::load_from_memory(&rgba)
-      .map_err(|_| {
-        BadIcon::OsError(io::Error::new(
-          io::ErrorKind::InvalidData,
-          "Invalid icon data!",
-        ))
-      })?
-      .into_rgba8();
-    let row_stride = image.sample_layout().height_stride;
+    let row_stride =
+      Pixbuf::calculate_rowstride(Colorspace::Rgb, true, 8, width as i32, height as i32);
     Ok(Self {
-      raw: image.into_raw(),
+      raw: rgba,
       width: width as i32,
       height: height as i32,
-      row_stride: row_stride as i32,
+      row_stride,
     })
   }
 }
@@ -92,7 +81,7 @@ pub struct Window {
   /// Gtk application window.
   pub(crate) window: gtk::ApplicationWindow,
   /// Window requests sender
-  pub(crate) window_requests_tx: Sender<(WindowId, WindowRequest)>,
+  pub(crate) window_requests_tx: glib::Sender<(WindowId, WindowRequest)>,
   /// Gtk Acceleration Group
   pub(crate) accel_group: AccelGroup,
   /// Gtk Menu
