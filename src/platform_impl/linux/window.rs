@@ -463,6 +463,12 @@ impl Window {
     self.window.get_decorated()
   }
 
+  #[inline]
+  pub fn is_visible(&self) -> bool {
+    log::warn!("`Window::is_visible` is ignored on linux");
+    false
+  }
+
   pub fn drag_window(&self) -> Result<(), ExternalError> {
     if let Err(e) = self
       .window_requests_tx

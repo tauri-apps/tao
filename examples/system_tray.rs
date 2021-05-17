@@ -29,6 +29,9 @@ fn main() {
   let open_new_window = MenuItem::new("Open new window");
   let open_new_window_id = open_new_window.id();
 
+  let check_visibility = MenuItem::new("Is visible");
+  let check_visibility_id = check_visibility.id();
+
   // Windows require Vec<u8> ICO file
   #[cfg(target_os = "windows")]
   let icon = include_bytes!("icon.ico").to_vec();
@@ -41,7 +44,7 @@ fn main() {
 
   // Only supported on macOS, linux and windows
   #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-  let _systemtray = SystemTrayBuilder::new(icon, vec![open_new_window])
+  let _systemtray = SystemTrayBuilder::new(icon, vec![open_new_window, check_visibility])
     .build(&event_loop)
     .unwrap();
 
@@ -64,6 +67,12 @@ fn main() {
         if menu_id == open_new_window_id {
           let window = Window::new(&event_loop).unwrap();
           windows.insert(window.id(), window);
+        }
+
+        if menu_id == check_visibility_id {
+          for (_window_id, window) in &windows {
+            println!("is_visible: {}", window.is_visible());
+          }
         }
         println!("Clicked on {:?}", menu_id);
       }

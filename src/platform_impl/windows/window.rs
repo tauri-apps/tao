@@ -428,9 +428,16 @@ impl Window {
     window_state.window_flags.contains(WindowFlags::RESIZABLE)
   }
 
+  #[inline]
   pub fn is_decorated(&self) -> bool {
     let window_state = self.window_state.lock();
     window_state.window_flags.contains(WindowFlags::DECORATIONS)
+  }
+
+  #[inline]
+  pub fn is_visible(&self) -> bool {
+    warn!("`Window::is_visible` is ignored on windows");
+    false
   }
 
   #[inline]
