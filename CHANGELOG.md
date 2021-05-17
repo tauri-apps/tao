@@ -1,5 +1,16 @@
 # Changelog
 
+## \[0.2.6]
+
+- Add `is_decorated` getter on `Window`
+  - [8237e2f3](https://github.com/tauri-apps/tao/commit/8237e2f3d54a012f3a89aea84112fb125863b582) add changefile on 2021-05-13
+- Add `is_resizable` getter on `Window`
+  - [c87f3bf9](https://github.com/tauri-apps/tao/commit/c87f3bf925df3692a44982c72cfea7484758bccc) add changefile on 2021-05-13
+- Fix panic from borrowing in event loop on linux.
+  - [12d7ccbc](https://github.com/tauri-apps/tao/commit/12d7ccbc4dd31ae35a45dd56542c5377d5235ecc) Fix event loop on linux on 2021-05-17
+- Implement `set_focus()` and `with_focus()` for macOS, Windows and Linux.
+  - [448e4c17](https://github.com/tauri-apps/tao/commit/448e4c17e2ba58257b6c23041faeae0551189536) Add change file on 2021-05-07
+
 ## \[0.2.5]
 
 - Fix Priority import on Linux.
