@@ -726,8 +726,8 @@ impl UnownedWindow {
 
   #[inline]
   pub fn is_resizable(&self) -> bool {
-    // TODO
-    false
+    let is_resizable: BOOL = unsafe { msg_send![*self.ns_window, isResizable] };
+    is_resizable == YES
   }
 
   #[inline]
