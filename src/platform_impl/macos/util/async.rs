@@ -12,7 +12,10 @@ use cocoa::{
   foundation::{NSPoint, NSSize, NSString},
 };
 use dispatch::Queue;
-use objc::{rc::autoreleasepool, runtime::NO};
+use objc::{
+  rc::autoreleasepool,
+  runtime::{NO, YES},
+};
 
 use crate::{
   dpi::LogicalSize,
@@ -217,6 +220,16 @@ pub unsafe fn set_menu_async(_ns_window: id, menu: Option<Vec<Menu>>) {
       menu::initialize(menu);
     });
   }
+}
+
+// `setFocus:` isn't thread-safe.
+pub unsafe fn set_focus(ns_window: id) {
+  let ns_window = MainThreadSafe(ns_window);
+  Queue::main().exec_async(move || {
+    ns_window.makeKeyAndOrderFront_(nil);
+    let app: id = msg_send![class!(NSApplication), sharedApplication];
+    let () = msg_send![app, activateIgnoringOtherApps: YES];
+  });
 }
 
 // `close:` is thread-safe, but we want the event to be triggered from the main

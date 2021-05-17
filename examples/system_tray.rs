@@ -29,6 +29,9 @@ fn main() {
   let open_new_window = MenuItem::new("Open new window");
   let open_new_window_id = open_new_window.id();
 
+  let focus_all_window = MenuItem::new("Focus window");
+  let focus_all_window_id = focus_all_window.id();
+
   // Windows require Vec<u8> ICO file
   #[cfg(target_os = "windows")]
   let icon = include_bytes!("icon.ico").to_vec();
@@ -41,7 +44,7 @@ fn main() {
 
   // Only supported on macOS, linux and windows
   #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-  let _systemtray = SystemTrayBuilder::new(icon, vec![open_new_window])
+  let _systemtray = SystemTrayBuilder::new(icon, vec![open_new_window, focus_all_window])
     .build(&event_loop)
     .unwrap();
 
@@ -64,6 +67,11 @@ fn main() {
         if menu_id == open_new_window_id {
           let window = Window::new(&event_loop).unwrap();
           windows.insert(window.id(), window);
+        }
+        if menu_id == focus_all_window_id {
+          for window in windows.values() {
+            window.set_focus();
+          }
         }
         println!("Clicked on {:?}", menu_id);
       }
