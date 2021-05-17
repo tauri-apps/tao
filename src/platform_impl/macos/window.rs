@@ -726,8 +726,11 @@ impl UnownedWindow {
 
   #[inline]
   pub fn is_decorated(&self) -> bool {
-    // TODO:
-    false
+    let current_mask = unsafe {self.ns_window.styleMask()};
+    if current_mask == NSWindowStyleMask::NSMiniaturizableWindowMask | NSWindowStyleMask::NSResizableWindowMask {
+      return false
+    }
+    true
   }
 
   #[inline]
