@@ -210,6 +210,11 @@ impl Inner {
     false
   }
 
+  pub fn is_decorated(&self) -> bool {
+    warn!("`Window::is_decorated` is ignored on iOS");
+    false
+  }
+
   pub fn set_fullscreen(&self, monitor: Option<Fullscreen>) {
     unsafe {
       let uiscreen = match monitor {

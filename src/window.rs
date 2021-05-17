@@ -670,6 +670,15 @@ impl Window {
     self.window.is_resizable()
   }
 
+  /// Gets the window's current decoration state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  pub fn is_decorated(&self) -> bool {
+    self.window.is_decorated()
+  }
+
   /// Sets the window to fullscreen or back.
   ///
   /// ## Platform-specific

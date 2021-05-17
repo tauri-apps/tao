@@ -730,6 +730,16 @@ impl UnownedWindow {
     is_resizable == YES
   }
 
+  pub fn is_decorated(&self) -> bool {
+    let current_mask = unsafe { self.ns_window.styleMask() };
+    if current_mask
+      == NSWindowStyleMask::NSMiniaturizableWindowMask | NSWindowStyleMask::NSResizableWindowMask
+    {
+      return false;
+    }
+    true
+  }
+
   #[inline]
   pub fn set_fullscreen(&self, fullscreen: Option<Fullscreen>) {
     trace!("Locked shared state in `set_fullscreen`");

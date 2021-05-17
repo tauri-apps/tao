@@ -517,6 +517,11 @@ impl Window {
     false
   }
 
+  pub fn is_decorated(&self) -> bool {
+    warn!("`Window::is_decorated` is ignored on Android");
+    false
+  }
+
   pub fn set_fullscreen(&self, _monitor: Option<window::Fullscreen>) {
     warn!("Cannot set fullscreen on Android");
   }
