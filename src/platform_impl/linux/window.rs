@@ -253,7 +253,7 @@ impl Window {
     let size: Rc<(AtomicI32, AtomicI32)> = Rc::new((w_size.0.into(), w_size.1.into()));
     let size_clone = size.clone();
 
-    window.connect_configure_event(move |_window, event| {
+    window.connect_configure_event(move |_, event| {
       let (x, y) = event.get_position();
       position_clone.0.store(x, Ordering::Release);
       position_clone.1.store(y, Ordering::Release);
@@ -272,7 +272,6 @@ impl Window {
     window.connect_window_state_event(move |_window, event| {
       let state = event.get_new_window_state();
       max_clone.store(state.contains(WindowState::MAXIMIZED), Ordering::Release);
-
       Inhibit(false)
     });
 
@@ -467,6 +466,14 @@ impl Window {
 
   pub fn is_maximized(&self) -> bool {
     self.maximized.load(Ordering::Acquire)
+  }
+
+  pub fn is_resizable(&self) -> bool {
+    self.window.get_resizable()
+  }
+
+  pub fn is_decorated(&self) -> bool {
+    self.window.get_decorated()
   }
 
   pub fn drag_window(&self) -> Result<(), ExternalError> {

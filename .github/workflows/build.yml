@@ -7,13 +7,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust_version: [stable, nightly]
+        rust_version: [stable]
         platform:
-          - { target: x86_64-pc-windows-msvc, os: windows-latest }
-          - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
-          - { target: x86_64-apple-darwin, os: macos-latest }
-          - { target: aarch64-linux-android, os: ubuntu-latest, cmd: "apk --" }
-          - { target: aarch64-apple-ios, os: macos-latest }
+          # Windows
+          - { id: windows, target: x86_64-pc-windows-msvc, os: windows-latest }
+          # Ubuntu with default features
+          - { id: ubuntu, target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
+          # Ubuntu without features
+          - { id: ubuntu-without-feat, target: x86_64-unknown-linux-gnu, os: ubuntu-latest, options: --no-default-features }
+          # Ubuntu with tray feature only
+          - { id: ubuntu-tray-feat, target: x86_64-unknown-linux-gnu, os: ubuntu-latest, options: --no-default-features, features: tray }
+          # Ubuntu with menu feature only
+          - { id: ubuntu-menu-feat, target: x86_64-unknown-linux-gnu, os: ubuntu-latest, options: --no-default-features, features: menu }
+          # macOS
+          - { id: macos, target: x86_64-apple-darwin, os: macos-latest }
+          # Android on Ubuntu
+          - { id: android, target: aarch64-linux-android, os: ubuntu-latest, cmd: "apk --" }
+          # iOS on Ubuntu
+          - { id: ios, target: aarch64-apple-ios, os: macos-latest }
 
     env:
       RUST_BACKTRACE: 1
@@ -37,16 +48,26 @@ jobs:
           rust-version: ${{ matrix.rust_version }}${{ matrix.platform.host }}
           targets: ${{ matrix.platform.target }}
 
-
       - name: Install Gtk (ubuntu only)
         if: matrix.platform.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libgtksourceview-3.0-dev libappindicator3-dev
+          sudo apt-get install -y libgtk-3-dev
+
+      - name: Install libappindicator3 (ubuntu[default/tray] only)
+        if: matrix.platform.id == 'ubuntu' || matrix.platform.id == 'ubuntu-tray-feat'
+        run: |
+          sudo apt-get install -y libappindicator3-dev
+
+      - name: Install libgtksourceview (ubuntu[default/tray/menu] only)
+        if: matrix.platform.id == 'ubuntu' || matrix.platform.id == 'ubuntu-tray-feat' || matrix.platform.id == 'ubuntu-menu-feat'
+        run: |
+          sudo apt-get install -y libgtksourceview-3.0-dev
 
       - name: Install GCC Multilib
         if: (matrix.platform.os == 'ubuntu-latest') && contains(matrix.platform.target, 'i686')
-        run: sudo apt-get update && sudo apt-get install gcc-multilib
+        run: sudo apt-get install gcc-multilib
+
       - name: Install cargo-apk
         if: contains(matrix.platform.target, 'android')
         run: cargo install cargo-apk
@@ -77,6 +98,7 @@ jobs:
       - name: Build tests with serde enabled
         shell: bash
         run: cargo $CMD test --no-run --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,$FEATURES
+
       - name: Run tests with serde enabled
         shell: bash
         if: (
