@@ -7,7 +7,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust_version: [stable, nightly]
+        rust_version: [stable]
         platform:
           # Windows
           - { id: windows, target: x86_64-pc-windows-msvc, os: windows-latest }
