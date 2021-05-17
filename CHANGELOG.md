@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.2.4]
+
+- Refactor control flow implementation to wait.
+  - [f5514f04](https://github.com/tauri-apps/tao/commit/f5514f04819f13493e75dfc844c7b06ec17bb071) Add change file on 2021-05-15
+
 ## \[0.2.3]
 
 - Split feature flags (menu and tray).
