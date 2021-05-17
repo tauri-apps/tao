@@ -205,6 +205,11 @@ impl Inner {
     false
   }
 
+  pub fn is_resizable(&self) -> bool {
+    warn!("`Window::is_resizable` is ignored on iOS");
+    false
+  }
+
   pub fn is_decorated(&self) -> bool {
     warn!("`Window::is_decorated` is ignored on iOS");
     false

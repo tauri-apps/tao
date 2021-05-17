@@ -423,6 +423,11 @@ impl Window {
   }
 
   #[inline]
+  pub fn is_resizable(&self) -> bool {
+    let window_state = self.window_state.lock();
+    window_state.window_flags.contains(WindowFlags::RESIZABLE)
+  }
+
   pub fn is_decorated(&self) -> bool {
     let window_state = self.window_state.lock();
     window_state.window_flags.contains(WindowFlags::DECORATIONS)

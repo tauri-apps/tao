@@ -455,6 +455,10 @@ impl Window {
     self.maximized.load(Ordering::Acquire)
   }
 
+  pub fn is_resizable(&self) -> bool {
+    self.window.get_resizable()
+  }
+
   pub fn is_decorated(&self) -> bool {
     self.window.get_decorated()
   }
