@@ -475,6 +475,17 @@ impl Window {
   pub fn request_redraw(&self) {
     self.window.request_redraw()
   }
+
+  /// Emits a `WindowEvent::CloseRequested` event with the current window in the event loop.
+  ///
+  /// This is the way to request closing the window programmatically from anywhere you might have
+  /// only a reference to the [`Window`]. It is still the responsibility of the event loop handler
+  /// to handle the event when encountered. To comply with the request, the [`Window`] should be
+  /// closed and dropped.
+  #[inline]
+  pub fn request_close(&self) {
+    self.window.request_close()
+  }
 }
 
 /// Position and size functions.

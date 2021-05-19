@@ -585,6 +585,14 @@ impl<T: 'static> EventLoop<T> {
                 menu.show_all();
               }
             }
+            WindowRequest::Close => {
+              if let Err(e) = event_tx.send(Event::WindowEvent {
+                window_id: RootWindowId(id),
+                event: WindowEvent::CloseRequested,
+              }) {
+                log::warn!("Failed to send window close event to event channel: {}", e);
+              }
+            }
           }
         } else if id == WindowId::dummy() {
           if let WindowRequest::Menu(MenuItem::Custom(c)) = request {

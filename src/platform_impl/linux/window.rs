@@ -596,6 +596,15 @@ impl Window {
       log::warn!("Fail to send skip taskbar request: {}", e);
     }
   }
+
+  pub fn request_close(&self) {
+    if let Err(e) = self
+      .window_requests_tx
+      .send((self.window_id, WindowRequest::Close))
+    {
+      log::warn!("Fail to send window close request: {}", e);
+    }
+  }
 }
 
 // We need GtkWindow to initialize WebView, so we have to keep it in the field.
@@ -626,6 +635,7 @@ pub enum WindowRequest {
   Redraw,
   Menu(MenuItem),
   SetMenu((Option<Vec<Menu>>, AccelGroup, gtk::Box)),
+  Close,
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
