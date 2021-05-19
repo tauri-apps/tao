@@ -7,7 +7,8 @@ use std::{
   error::Error,
   process,
   rc::Rc,
-  sync::mpsc::SendError,
+  sync::{mpsc::SendError, Mutex},
+  time::Instant,
 };
 
 use gdk::{Cursor, CursorType, WindowExt, WindowState};
@@ -137,7 +138,6 @@ impl<T: 'static> EventLoop<T> {
 
     let context = MainContext::default();
     context.push_thread_default();
-    let keep_running = Rc::new(RefCell::new(true));
 
     // User event
     let event_tx_ = event_tx.clone();
@@ -152,7 +152,6 @@ impl<T: 'static> EventLoop<T> {
     let app = window_target.p.app.clone();
     let windows = window_target.p.windows.clone();
     let window_requests_tx = window_target.p.window_requests_tx.clone();
-    let keep_running_ = keep_running.clone();
     self
       .window_requests_rx
       .attach(Some(&context), move |(id, request)| {
@@ -500,7 +499,12 @@ impl<T: 'static> EventLoop<T> {
                 MenuItem::Hide => window.hide(),
                 MenuItem::CloseWindow => window.close(),
                 MenuItem::Quit => {
-                  keep_running_.replace(false);
+                  if let Err(e) = event_tx.send(Event::LoopDestroyed) {
+                    log::warn!(
+                      "Failed to send loop destroyed event to event channel: {}",
+                      e
+                    );
+                  }
                 }
                 #[cfg(any(feature = "menu", feature = "tray"))]
                 MenuItem::Cut => {
@@ -596,20 +600,97 @@ impl<T: 'static> EventLoop<T> {
       });
 
     // Event control flow
-    let keep_running_ = keep_running.clone();
+    let events = Rc::new(Mutex::new(Vec::new()));
+    let events_ = events.clone();
     event_rx.attach(Some(&context), move |event| {
-      callback(event, &window_target, &mut control_flow);
-
-      match control_flow {
-        ControlFlow::Exit => {
-          keep_running_.replace(false);
-        }
-        _ => {}
-      }
+      let mut e = events_.lock().unwrap();
+      e.push(event);
       Continue(true)
     });
 
-    while *keep_running.borrow() {
+    loop {
+      match control_flow {
+        ControlFlow::Exit => {
+          callback(Event::LoopDestroyed, &window_target, &mut control_flow);
+          break;
+        }
+        ControlFlow::Wait => {
+          let mut e = events.lock().unwrap();
+          if !e.is_empty() {
+            callback(
+              Event::NewEvents(StartCause::WaitCancelled {
+                start: Instant::now(),
+                requested_resume: None,
+              }),
+              &window_target,
+              &mut control_flow,
+            );
+
+            for event in e.drain(..) {
+              match event {
+                Event::LoopDestroyed => control_flow = ControlFlow::Exit,
+                _ => callback(event, &window_target, &mut control_flow),
+              }
+            }
+            callback(Event::MainEventsCleared, &window_target, &mut control_flow);
+          }
+        }
+        ControlFlow::WaitUntil(requested_resume) => {
+          let mut e = events.lock().unwrap();
+          let start = Instant::now();
+          if start >= requested_resume {
+            callback(
+              Event::NewEvents(StartCause::ResumeTimeReached {
+                start,
+                requested_resume,
+              }),
+              &window_target,
+              &mut control_flow,
+            );
+
+            for event in e.drain(..) {
+              match event {
+                Event::LoopDestroyed => control_flow = ControlFlow::Exit,
+                _ => callback(event, &window_target, &mut control_flow),
+              }
+            }
+            callback(Event::MainEventsCleared, &window_target, &mut control_flow);
+          } else if !e.is_empty() {
+            callback(
+              Event::NewEvents(StartCause::WaitCancelled {
+                start,
+                requested_resume: Some(requested_resume),
+              }),
+              &window_target,
+              &mut control_flow,
+            );
+
+            for event in e.drain(..) {
+              match event {
+                Event::LoopDestroyed => control_flow = ControlFlow::Exit,
+                _ => callback(event, &window_target, &mut control_flow),
+              }
+            }
+            callback(Event::MainEventsCleared, &window_target, &mut control_flow);
+          }
+        }
+        ControlFlow::Poll => {
+          let mut e = events.lock().unwrap();
+          callback(
+            Event::NewEvents(StartCause::Poll),
+            &window_target,
+            &mut control_flow,
+          );
+          for event in e.drain(..) {
+            match event {
+              Event::LoopDestroyed => control_flow = ControlFlow::Exit,
+              _ => callback(event, &window_target, &mut control_flow),
+            }
+          }
+          callback(Event::MainEventsCleared, &window_target, &mut control_flow);
+        }
+      }
+
       gtk::main_iteration();
     }
     context.pop_thread_default();
