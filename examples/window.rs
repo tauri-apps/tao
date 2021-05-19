@@ -20,7 +20,7 @@ fn main() {
     .unwrap();
 
   event_loop.run(move |event, _, control_flow| {
-    *control_flow = ControlFlow::Poll;
+    *control_flow = ControlFlow::Wait;
     println!("{:?}", event);
 
     match event {
