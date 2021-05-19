@@ -7,7 +7,7 @@ use std::{
   error::Error,
   process,
   rc::Rc,
-  sync::mpsc::SendError,
+  sync::{mpsc::SendError, Mutex},
 };
 
 use gdk::{Cursor, CursorType, WindowExt, WindowState};
@@ -596,20 +596,29 @@ impl<T: 'static> EventLoop<T> {
       });
 
     // Event control flow
-    let keep_running_ = keep_running.clone();
+    let events = Rc::new(Mutex::new(Vec::new()));
+    let events_ = events.clone();
     event_rx.attach(Some(&context), move |event| {
-      callback(event, &window_target, &mut control_flow);
-
-      match control_flow {
-        ControlFlow::Exit => {
-          keep_running_.replace(false);
-        }
-        _ => {}
-      }
+      let mut e = events_.lock().unwrap();
+      e.push(event);
       Continue(true)
     });
 
-    while *keep_running.borrow() {
+    loop {
+      let mut e = events.lock().unwrap();
+      if !e.is_empty() {
+        for event in e.drain(..) {
+          callback(event, &window_target, &mut control_flow);
+        }
+        callback(Event::MainEventsCleared, &window_target, &mut control_flow);
+      }
+
+      // TODO clean keep_running
+      match control_flow {
+          ControlFlow::Exit => break,
+          _ => (),
+      }
+
       gtk::main_iteration();
     }
     context.pop_thread_default();
