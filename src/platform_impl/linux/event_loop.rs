@@ -8,6 +8,7 @@ use std::{
   process,
   rc::Rc,
   sync::{mpsc::SendError, Mutex},
+  time::Instant,
 };
 
 use gdk::{Cursor, CursorType, WindowExt, WindowState};
@@ -499,7 +500,10 @@ impl<T: 'static> EventLoop<T> {
                 MenuItem::CloseWindow => window.close(),
                 MenuItem::Quit => {
                   if let Err(e) = event_tx.send(Event::LoopDestroyed) {
-                    log::warn!("Failed to send loop destroyed event to event channel: {}", e);
+                    log::warn!(
+                      "Failed to send loop destroyed event to event channel: {}",
+                      e
+                    );
                   }
                 }
                 #[cfg(any(feature = "menu", feature = "tray"))]
@@ -604,9 +608,62 @@ impl<T: 'static> EventLoop<T> {
       Continue(true)
     });
 
+    let mut cb = false;
     loop {
       let mut e = events.lock().unwrap();
-      if !e.is_empty() {
+      match control_flow {
+        ControlFlow::Exit => {
+          callback(Event::LoopDestroyed, &window_target, &mut control_flow);
+          break;
+        }
+        ControlFlow::Wait => {
+          if !e.is_empty() {
+            callback(
+              Event::NewEvents(StartCause::WaitCancelled {
+                start: Instant::now(),
+                requested_resume: None,
+              }),
+              &window_target,
+              &mut control_flow,
+            );
+            cb = true;
+          }
+        }
+        ControlFlow::WaitUntil(requested_resume) => {
+          let start = Instant::now();
+          if start >= requested_resume {
+            callback(
+              Event::NewEvents(StartCause::ResumeTimeReached {
+                start,
+                requested_resume,
+              }),
+              &window_target,
+              &mut control_flow,
+            );
+            cb = true;
+          } else if !e.is_empty() {
+            callback(
+              Event::NewEvents(StartCause::WaitCancelled {
+                start,
+                requested_resume: Some(requested_resume),
+              }),
+              &window_target,
+              &mut control_flow,
+            );
+            cb = true;
+          }
+        }
+        ControlFlow::Poll => {
+          callback(
+            Event::NewEvents(StartCause::Poll),
+            &window_target,
+            &mut control_flow,
+          );
+          cb = true;
+        }
+      }
+
+      if cb {
         for event in e.drain(..) {
           match event {
             Event::LoopDestroyed => control_flow = ControlFlow::Exit,
@@ -614,14 +671,7 @@ impl<T: 'static> EventLoop<T> {
           }
         }
         callback(Event::MainEventsCleared, &window_target, &mut control_flow);
-      }
-
-      match control_flow {
-          ControlFlow::Exit => {
-            callback(Event::LoopDestroyed, &window_target, &mut control_flow);
-            break;
-          },
-          _ => (),
+        cb = false;
       }
 
       gtk::main_iteration();
