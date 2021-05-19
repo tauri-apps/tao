@@ -608,15 +608,14 @@ impl<T: 'static> EventLoop<T> {
       Continue(true)
     });
 
-    let mut cb = false;
     loop {
-      let mut e = events.lock().unwrap();
       match control_flow {
         ControlFlow::Exit => {
           callback(Event::LoopDestroyed, &window_target, &mut control_flow);
           break;
         }
         ControlFlow::Wait => {
+          let mut e = events.lock().unwrap();
           if !e.is_empty() {
             callback(
               Event::NewEvents(StartCause::WaitCancelled {
@@ -626,10 +625,18 @@ impl<T: 'static> EventLoop<T> {
               &window_target,
               &mut control_flow,
             );
-            cb = true;
+
+            for event in e.drain(..) {
+              match event {
+                Event::LoopDestroyed => control_flow = ControlFlow::Exit,
+                _ => callback(event, &window_target, &mut control_flow),
+              }
+            }
+            callback(Event::MainEventsCleared, &window_target, &mut control_flow);
           }
         }
         ControlFlow::WaitUntil(requested_resume) => {
+          let mut e = events.lock().unwrap();
           let start = Instant::now();
           if start >= requested_resume {
             callback(
@@ -640,7 +647,14 @@ impl<T: 'static> EventLoop<T> {
               &window_target,
               &mut control_flow,
             );
-            cb = true;
+
+            for event in e.drain(..) {
+              match event {
+                Event::LoopDestroyed => control_flow = ControlFlow::Exit,
+                _ => callback(event, &window_target, &mut control_flow),
+              }
+            }
+            callback(Event::MainEventsCleared, &window_target, &mut control_flow);
           } else if !e.is_empty() {
             callback(
               Event::NewEvents(StartCause::WaitCancelled {
@@ -650,28 +664,31 @@ impl<T: 'static> EventLoop<T> {
               &window_target,
               &mut control_flow,
             );
-            cb = true;
+
+            for event in e.drain(..) {
+              match event {
+                Event::LoopDestroyed => control_flow = ControlFlow::Exit,
+                _ => callback(event, &window_target, &mut control_flow),
+              }
+            }
+            callback(Event::MainEventsCleared, &window_target, &mut control_flow);
           }
         }
         ControlFlow::Poll => {
+          let mut e = events.lock().unwrap();
           callback(
             Event::NewEvents(StartCause::Poll),
             &window_target,
             &mut control_flow,
           );
-          cb = true;
-        }
-      }
-
-      if cb {
-        for event in e.drain(..) {
-          match event {
-            Event::LoopDestroyed => control_flow = ControlFlow::Exit,
-            _ => callback(event, &window_target, &mut control_flow),
+          for event in e.drain(..) {
+            match event {
+              Event::LoopDestroyed => control_flow = ControlFlow::Exit,
+              _ => callback(event, &window_target, &mut control_flow),
+            }
           }
+          callback(Event::MainEventsCleared, &window_target, &mut control_flow);
         }
-        callback(Event::MainEventsCleared, &window_target, &mut control_flow);
-        cb = false;
       }
 
       gtk::main_iteration();
