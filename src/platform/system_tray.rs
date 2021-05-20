@@ -21,13 +21,14 @@ use std::path::PathBuf;
 /// ## Platform-specific
 ///
 /// - **Linux:**: require `menu` feature flag. Otherwise, it's a no-op.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct SystemTray {
   #[cfg(target_os = "linux")]
   pub(crate) icon: PathBuf,
   #[cfg(not(target_os = "linux"))]
   pub(crate) icon: Vec<u8>,
   pub(crate) items: Vec<MenuItem>,
+  instance: platform_impl::SystemTray,
 }
 
 pub struct SystemTrayBuilder {
@@ -53,7 +54,11 @@ impl SystemTrayBuilder {
   #[cfg(target_os = "linux")]
   pub fn new(icon: PathBuf, items: Vec<MenuItem>) -> Self {
     Self {
-      system_tray: SystemTray { icon, items },
+      system_tray: SystemTray {
+        icon,
+        items,
+        instance: platform_impl::SystemTray::new(),
+      },
     }
   }
 
@@ -62,10 +67,22 @@ impl SystemTrayBuilder {
   /// Possible causes of error include denied permission, incompatible system, and lack of memory.
   #[inline]
   pub fn build<T: 'static>(
-    self,
+    mut self,
     _window_target: &EventLoopWindowTarget<T>,
   ) -> Result<SystemTray, OsError> {
-    platform_impl::SystemTray::initialize(&_window_target.p, &self.system_tray)?;
+    self.system_tray.instance.initialize(
+      &_window_target.p,
+      &self.system_tray.icon,
+      &self.system_tray.items,
+    )?;
     Ok(self.system_tray)
+  }
+
+  /// Allows changing the icon during runtime.
+  #[inline]
+  #[cfg(target_os = "linux")]
+  pub fn set_icon(&mut self, icon: &PathBuf) -> Result<(), OsError> {
+    self.system_tray.instance.set_icon(&icon)?;
+    Ok(())
   }
 }

@@ -219,6 +219,7 @@ impl SystemTray {
     }
   }
 }
+
 // basic NID for our icon
 pub(crate) fn get_nid_struct(hwnd: &HWND) -> NOTIFYICONDATAW {
   NOTIFYICONDATAW {
