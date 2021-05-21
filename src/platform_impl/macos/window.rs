@@ -472,7 +472,12 @@ impl UnownedWindow {
   // Shortener for set_visible(true)
   pub fn set_focus(&self) {
     unsafe {
-      util::set_focus(*self.ns_window);
+      let is_minimized: BOOL = msg_send![*self.ns_window, isMiniaturized];
+      let is_visible: BOOL = msg_send![*self.ns_window, isVisible]; 
+
+      if is_minimized == NO && is_visible == YES {
+        util::set_focus(*self.ns_window);
+      }
     }
   }
 
