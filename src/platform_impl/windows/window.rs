@@ -154,8 +154,15 @@ impl Window {
 
   #[inline]
   pub fn set_focus(&self) {
-    unsafe {
-      force_window_active(self.window.0);
+    let window = self.window.clone();
+    let window_flags = self.window_state.lock().window_flags();
+
+    let is_visible = window_flags.contains(WindowFlags::VISIBLE);
+    let is_minimized = window_flags.contains(WindowFlags::MINIMIZED);
+    let is_foreground = window.0 == unsafe { winuser::GetForegroundWindow() };
+
+    if is_visible && !is_minimized && !is_foreground {
+      unsafe { force_window_active(window.0) };
     }
   }
 
