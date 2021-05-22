@@ -90,6 +90,7 @@ pub struct Window {
   position: Rc<(AtomicI32, AtomicI32)>,
   size: Rc<(AtomicI32, AtomicI32)>,
   maximized: Rc<AtomicBool>,
+  minimized: Rc<AtomicBool>,
   fullscreen: RefCell<Option<Fullscreen>>,
 }
 
@@ -268,10 +269,13 @@ impl Window {
     let w_max = window.get_property_is_maximized();
     let maximized: Rc<AtomicBool> = Rc::new(w_max.into());
     let max_clone = maximized.clone();
+    let minimized = Rc::new(AtomicBool::new(false));
+    let min_clone = minimized.clone();
 
     window.connect_window_state_event(move |_window, event| {
       let state = event.get_new_window_state();
       max_clone.store(state.contains(WindowState::MAXIMIZED), Ordering::Release);
+      min_clone.store(state.contains(WindowState::ICONIFIED), Ordering::Release);
       Inhibit(false)
     });
 
@@ -296,6 +300,7 @@ impl Window {
       position,
       size,
       maximized,
+      minimized,
       fullscreen: RefCell::new(attributes.fullscreen),
     })
   }
@@ -429,11 +434,13 @@ impl Window {
   }
 
   pub fn set_focus(&self) {
-    if let Err(e) = self
-      .window_requests_tx
-      .send((self.window_id, WindowRequest::Focus))
-    {
-      log::warn!("Fail to send visible request: {}", e);
+    if !self.minimized.load(Ordering::Acquire) && self.window.get_visible() {
+      if let Err(e) = self
+        .window_requests_tx
+        .send((self.window_id, WindowRequest::Focus))
+      {
+        log::warn!("Fail to send visible request: {}", e);
+      }
     }
   }
 
