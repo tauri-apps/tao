@@ -1,12 +1,11 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::keyboard::Hotkey;
 use std::{
   collections::hash_map::DefaultHasher,
   hash::{Hash, Hasher},
 };
-use crate::keyboard::Hotkey;
-
 
 #[derive(Debug, Clone)]
 pub struct Menu {

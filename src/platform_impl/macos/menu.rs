@@ -11,10 +11,11 @@ use objc::{
   rc::autoreleasepool,
   runtime::{Class, Object, Sel},
 };
-use std::sync::Once;
+use std::{collections::HashMap, sync::Once};
 
 use crate::{
   event::Event,
+  keyboard::{Hotkey, Modifier},
   menu::{Menu, MenuId, MenuItem, MenuType},
 };
 
@@ -22,9 +23,43 @@ use super::{app_state::AppState, event::EventWrapper};
 
 static BLOCK_PTR: &str = "taoMenuItemBlockPtr";
 
-pub(crate) struct KeyEquivalent<'a> {
-  pub(crate) key: &'a str,
+#[derive(Debug)]
+pub(crate) struct KeyEquivalent {
+  pub(crate) key: String,
   pub(crate) masks: Option<NSEventModifierFlags>,
+}
+
+const MODIFIER_MAP: &[(Modifier, NSEventModifierFlags)] = &[
+  (Modifier::SHIFT, NSEventModifierFlags::NSShiftKeyMask),
+  (Modifier::ALT, NSEventModifierFlags::NSAlternateKeyMask),
+  (Modifier::CTRL, NSEventModifierFlags::NSControlKeyMask),
+  (Modifier::SUPER, NSEventModifierFlags::NSCommandKeyMask),
+];
+
+pub(crate) fn make_masks(raw: Modifier) -> NSEventModifierFlags {
+  let mut modifiers = NSEventModifierFlags::empty();
+  let found = MODIFIER_MAP
+    .into_iter()
+    .find(|(modifier, _)| *modifier == raw);
+  modifiers
+}
+
+impl Hotkey {
+  pub(crate) fn to_key_equivalent(self) -> KeyEquivalent {
+    let mut masks = NSEventModifierFlags::empty();
+
+    for modifier in self.modifiers {
+      masks |= make_masks(modifier);
+    }
+
+    KeyEquivalent {
+      key: self
+        .keys
+        .into_iter()
+        .fold("".to_string(), |_, s| s.to_string()),
+      masks: Some(masks),
+    }
+  }
 }
 
 #[derive(Debug)]
@@ -49,36 +84,11 @@ pub fn initialize(menu: Vec<Menu>) {
           MenuItem::Custom(custom_menu) => {
             // build accelerators if provided
             let mut key_equivalent = None;
-            let mut accelerator_string: String;
             if let Some(accelerator) = &custom_menu.keyboard_accelerators {
-              accelerator_string = accelerator.clone();
-              let mut ns_modifier_flags: NSEventModifierFlags = NSEventModifierFlags::empty();
-
-              if accelerator_string.contains("<Primary>") {
-                accelerator_string = accelerator_string.replace("<Primary>", "");
-                ns_modifier_flags.insert(NSEventModifierFlags::NSCommandKeyMask);
-              }
-
-              if accelerator_string.contains("<Shift>") {
-                accelerator_string = accelerator_string.replace("<Shift>", "");
-                ns_modifier_flags.insert(NSEventModifierFlags::NSShiftKeyMask);
-              }
-
-              if accelerator_string.contains("<Ctrl>") {
-                accelerator_string = accelerator_string.replace("<Ctrl>", "");
-                ns_modifier_flags.insert(NSEventModifierFlags::NSControlKeyMask);
-              }
-
-              let mut masks = None;
-              if !ns_modifier_flags.is_empty() {
-                masks = Some(ns_modifier_flags);
-              }
-
-              key_equivalent = Some(KeyEquivalent {
-                key: accelerator_string.as_str(),
-                masks,
-              });
+              key_equivalent = Some(accelerator.clone().to_key_equivalent());
             }
+
+            println!("key_equivalent {:?}", key_equivalent);
 
             make_custom_menu_item(
               custom_menu.id,
@@ -105,7 +115,7 @@ pub fn initialize(menu: Vec<Menu>) {
             "Close Window",
             Some(selector("performClose:")),
             Some(KeyEquivalent {
-              key: "w",
+              key: "w".to_string(),
               masks: None,
             }),
             MenuType::Menubar,
@@ -114,7 +124,7 @@ pub fn initialize(menu: Vec<Menu>) {
             "Quit",
             Some(selector("terminate:")),
             Some(KeyEquivalent {
-              key: "q",
+              key: "q".to_string(),
               masks: None,
             }),
             MenuType::Menubar,
@@ -123,7 +133,7 @@ pub fn initialize(menu: Vec<Menu>) {
             "Hide",
             Some(selector("hide:")),
             Some(KeyEquivalent {
-              key: "h",
+              key: "h".to_string(),
               masks: None,
             }),
             MenuType::Menubar,
@@ -132,7 +142,7 @@ pub fn initialize(menu: Vec<Menu>) {
             "Hide Others",
             Some(selector("hideOtherApplications:")),
             Some(KeyEquivalent {
-              key: "h",
+              key: "h".to_string(),
               masks: Some(
                 NSEventModifierFlags::NSAlternateKeyMask | NSEventModifierFlags::NSCommandKeyMask,
               ),
@@ -149,7 +159,7 @@ pub fn initialize(menu: Vec<Menu>) {
             "Enter Full Screen",
             Some(selector("toggleFullScreen:")),
             Some(KeyEquivalent {
-              key: "f",
+              key: "f".to_string(),
               masks: Some(
                 NSEventModifierFlags::NSCommandKeyMask | NSEventModifierFlags::NSControlKeyMask,
               ),
@@ -160,7 +170,7 @@ pub fn initialize(menu: Vec<Menu>) {
             "Minimize",
             Some(selector("performMiniaturize:")),
             Some(KeyEquivalent {
-              key: "m",
+              key: "m".to_string(),
               masks: None,
             }),
             MenuType::Menubar,
@@ -175,7 +185,7 @@ pub fn initialize(menu: Vec<Menu>) {
             "Copy",
             Some(selector("copy:")),
             Some(KeyEquivalent {
-              key: "c",
+              key: "c".to_string(),
               masks: None,
             }),
             MenuType::Menubar,
@@ -184,7 +194,7 @@ pub fn initialize(menu: Vec<Menu>) {
             "Cut",
             Some(selector("cut:")),
             Some(KeyEquivalent {
-              key: "x",
+              key: "x".to_string(),
               masks: None,
             }),
             MenuType::Menubar,
@@ -193,7 +203,7 @@ pub fn initialize(menu: Vec<Menu>) {
             "Paste",
             Some(selector("paste:")),
             Some(KeyEquivalent {
-              key: "v",
+              key: "v".to_string(),
               masks: None,
             }),
             MenuType::Menubar,
@@ -202,7 +212,7 @@ pub fn initialize(menu: Vec<Menu>) {
             "Undo",
             Some(selector("undo:")),
             Some(KeyEquivalent {
-              key: "z",
+              key: "z".to_string(),
               masks: None,
             }),
             MenuType::Menubar,
@@ -211,7 +221,7 @@ pub fn initialize(menu: Vec<Menu>) {
             "Redo",
             Some(selector("redo:")),
             Some(KeyEquivalent {
-              key: "Z",
+              key: "Z".to_string(),
               masks: None,
             }),
             MenuType::Menubar,
@@ -220,7 +230,7 @@ pub fn initialize(menu: Vec<Menu>) {
             "Select All",
             Some(selector("selectAll:")),
             Some(KeyEquivalent {
-              key: "a",
+              key: "a".to_string(),
               masks: None,
             }),
             MenuType::Menubar,
@@ -255,7 +265,7 @@ pub(crate) fn make_custom_menu_item(
   id: MenuId,
   title: &str,
   selector: Option<Sel>,
-  key_equivalent: Option<KeyEquivalent<'_>>,
+  key_equivalent: Option<KeyEquivalent>,
   menu_type: MenuType,
 ) -> *mut Object {
   let alloc = make_menu_alloc();
@@ -273,7 +283,7 @@ pub(crate) fn make_custom_menu_item(
 pub(crate) fn make_menu_item(
   title: &str,
   selector: Option<Sel>,
-  key_equivalent: Option<KeyEquivalent<'_>>,
+  key_equivalent: Option<KeyEquivalent>,
   menu_type: MenuType,
 ) -> *mut Object {
   let alloc = make_menu_alloc();
@@ -287,12 +297,12 @@ fn make_menu_item_from_alloc(
   alloc: *mut Object,
   title: *mut Object,
   selector: Option<Sel>,
-  key_equivalent: Option<KeyEquivalent<'_>>,
+  key_equivalent: Option<KeyEquivalent>,
   menu_type: MenuType,
 ) -> *mut Object {
   unsafe {
     let (key, masks) = match key_equivalent {
-      Some(ke) => (NSString::alloc(nil).init_str(ke.key), ke.masks),
+      Some(ke) => (NSString::alloc(nil).init_str(&ke.key), ke.masks),
       None => (NSString::alloc(nil).init_str(""), None),
     };
     // if no selector defined, that mean it's a custom

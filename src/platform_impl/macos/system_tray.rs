@@ -55,35 +55,8 @@ impl SystemTray {
           MenuItem::Custom(custom_menu) => {
             // build accelerators if provided
             let mut key_equivalent = None;
-            let mut accelerator_string: String;
             if let Some(accelerator) = &custom_menu.keyboard_accelerators {
-              accelerator_string = accelerator.clone();
-              let mut ns_modifier_flags: NSEventModifierFlags = NSEventModifierFlags::empty();
-
-              if accelerator_string.contains("<Primary>") {
-                accelerator_string = accelerator_string.replace("<Primary>", "");
-                ns_modifier_flags.insert(NSEventModifierFlags::NSCommandKeyMask);
-              }
-
-              if accelerator_string.contains("<Shift>") {
-                accelerator_string = accelerator_string.replace("<Shift>", "");
-                ns_modifier_flags.insert(NSEventModifierFlags::NSShiftKeyMask);
-              }
-
-              if accelerator_string.contains("<Ctrl>") {
-                accelerator_string = accelerator_string.replace("<Ctrl>", "");
-                ns_modifier_flags.insert(NSEventModifierFlags::NSControlKeyMask);
-              }
-
-              let mut masks = None;
-              if !ns_modifier_flags.is_empty() {
-                masks = Some(ns_modifier_flags);
-              }
-
-              key_equivalent = Some(KeyEquivalent {
-                key: accelerator_string.as_str(),
-                masks,
-              });
+              key_equivalent = Some(accelerator.clone().to_key_equivalent());
             }
 
             make_custom_menu_item(

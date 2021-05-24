@@ -239,8 +239,6 @@ impl fmt::Display for Modifier {
   }
 }
 
-/*
-FIXME: fix to_string()
 impl fmt::Display for Hotkey {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let modifier_string: String = self.modifiers.iter().fold(String::new(), |all, one| {
@@ -274,7 +272,6 @@ impl fmt::Display for Hotkey {
     write!(f, "{}", hotkey_string)
   }
 }
- */
 
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 #[derive(
@@ -406,4 +403,10 @@ pub enum Key {
   BACKSLASH = keys::BACK_SLASH,
   #[serde(rename = "]")]
   CLOSEBRACKET = keys::CLOSE_BRACKET,
+}
+
+impl fmt::Display for Key {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{:?}", self)
+  }
 }

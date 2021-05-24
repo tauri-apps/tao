@@ -5,6 +5,7 @@ use simple_logger::SimpleLogger;
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
+  keyboard::Hotkey,
   menu::{Menu, MenuItem, MenuType},
   window::WindowBuilder,
 };
@@ -13,7 +14,12 @@ fn main() {
   SimpleLogger::new().init().unwrap();
   let event_loop = EventLoop::new();
 
-  let custom_change_menu = MenuItem::new("Change menu").with_accelerators("F1");
+  let hotkey = Hotkey::new("F1").unwrap();
+
+  println!("hotkey {:?}", hotkey);
+
+  let custom_change_menu =
+    MenuItem::new("Change menu").with_accelerators(Hotkey::new("F1").unwrap());
   let custom_change_menu_id = custom_change_menu.id();
 
   let window = WindowBuilder::new()
@@ -58,11 +64,7 @@ fn main() {
       Menu::new("Window", vec![MenuItem::Minimize, MenuItem::Zoom]),
       Menu::new(
         "Help",
-        vec![MenuItem::new("Custom help")
-          // `Primary` is a platform-agnostic accelerator modifier.
-          // On Windows and Linux, `Primary` maps to the `Ctrl` key,
-          // and on macOS it maps to the `command` key.
-          .with_accelerators("<Primary><Shift>h")],
+        vec![MenuItem::new("Custom help").with_accelerators(Hotkey::new("CTRL+SHIFT+h").unwrap())],
       ),
     ])
     .build(&event_loop)
@@ -88,7 +90,7 @@ fn main() {
           window.set_menu(Some(vec![Menu::new(
             "File",
             vec![
-              MenuItem::new("Add Todo").with_accelerators("<Primary>T"),
+              MenuItem::new("Add Todo").with_accelerators(Hotkey::new("CTRL+a").unwrap()),
               MenuItem::Separator,
               MenuItem::CloseWindow,
             ],
