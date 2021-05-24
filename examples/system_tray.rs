@@ -18,6 +18,7 @@ fn main() {
   use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
+    keyboard::Hotkey,
     menu::{MenuItem, MenuType},
     platform::system_tray::SystemTrayBuilder,
     window::Window,

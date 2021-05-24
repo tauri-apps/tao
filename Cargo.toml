@@ -15,7 +15,7 @@ documentation = "https://docs.rs/tao"
 categories = [ "gui" ]
 
 [package.metadata.docs.rs]
-features = [ "serde", "menu", "tray", "dox" ]
+features = [ "serde", "menu", "tray", "dox", "keyboard" ]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
   "i686-pc-windows-msvc",
@@ -26,10 +26,11 @@ targets = [
 ]
 
 [features]
-default = [ "tray" ]
-menu = [ "sourceview" ]
-tray = [ "sourceview", "libappindicator" ]
+default = [ "tray", "keyboard" ]
+menu = [ "sourceview", "keyboard" ]
+tray = [ "sourceview", "libappindicator", "keyboard" ]
 dox = [ "gtk/dox", "sourceview/dox" ]
+keyboard = [ "serde", "strum_macros", "strum" ]
 
 [dependencies]
 instant = "0.1"
@@ -39,6 +40,8 @@ log = "0.4"
 serde = { version = "1", optional = true, features = [ "serde_derive" ] }
 raw-window-handle = "0.3"
 bitflags = "1"
+strum_macros = { version = "0.20", optional = true }
+strum = { version = "0.20", optional = true }
 
 [dev-dependencies]
 image = "0.23"

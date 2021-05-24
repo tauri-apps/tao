@@ -149,7 +149,7 @@ extern crate lazy_static;
 #[allow(unused_imports)]
 #[macro_use]
 extern crate log;
-#[cfg(feature = "serde")]
+#[cfg(any(feature = "serde", feature = "keyboard"))]
 #[macro_use]
 extern crate serde;
 #[macro_use]
@@ -159,6 +159,8 @@ extern crate bitflags;
 extern crate objc;
 
 pub mod dpi;
+#[cfg(feature = "keyboard")]
+pub mod keyboard;
 #[macro_use]
 pub mod error;
 pub mod event;

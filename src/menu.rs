@@ -5,6 +5,8 @@ use std::{
   collections::hash_map::DefaultHasher,
   hash::{Hash, Hasher},
 };
+use crate::keyboard::Hotkey;
+
 
 #[derive(Debug, Clone)]
 pub struct Menu {
@@ -26,7 +28,7 @@ impl Menu {
 pub struct CustomMenu {
   pub id: MenuId,
   pub name: String,
-  pub keyboard_accelerators: Option<String>,
+  pub keyboard_accelerators: Option<Hotkey>,
 }
 
 /// A menu item, bound to a pre-defined action or `Custom` emit an event. Note that status bar only
@@ -198,9 +200,9 @@ impl MenuItem {
   ///
   /// - **Windows / Android / iOS:** Unsupported
   ///
-  pub fn with_accelerators(mut self, keyboard_accelerators: impl ToString) -> Self {
+  pub fn with_accelerators(mut self, keyboard_accelerators: Hotkey) -> Self {
     if let MenuItem::Custom(ref mut custom_menu) = self {
-      custom_menu.keyboard_accelerators = Some(keyboard_accelerators.to_string());
+      custom_menu.keyboard_accelerators = Some(keyboard_accelerators);
     }
     self
   }

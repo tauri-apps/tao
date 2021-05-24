@@ -9,6 +9,7 @@ mod app_state;
 mod event;
 mod event_loop;
 mod ffi;
+mod keyboard;
 mod menu;
 mod monitor;
 mod observer;
@@ -23,6 +24,7 @@ use std::{fmt, ops::Deref, sync::Arc};
 pub use self::{
   app_delegate::{get_aux_state_mut, AuxDelegateState},
   event_loop::{EventLoop, EventLoopWindowTarget, Proxy as EventLoopProxy},
+  keyboard::{keys, modifiers},
   monitor::{MonitorHandle, VideoMode},
   system_tray::SystemTray,
   window::{Id as WindowId, PlatformSpecificWindowBuilderAttributes, UnownedWindow},
