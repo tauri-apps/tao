@@ -11,7 +11,7 @@ use objc::{
   rc::autoreleasepool,
   runtime::{Class, Object, Sel},
 };
-use std::{collections::HashMap, sync::Once};
+use std::sync::Once;
 
 use crate::{
   event::Event,
@@ -37,19 +37,26 @@ const MODIFIER_MAP: &[(Modifier, NSEventModifierFlags)] = &[
 ];
 
 pub(crate) fn make_masks(raw: Modifier) -> NSEventModifierFlags {
-  let mut modifiers = NSEventModifierFlags::empty();
-  let found = MODIFIER_MAP
+  if let Some((_, event_modifier)) = MODIFIER_MAP
     .into_iter()
-    .find(|(modifier, _)| *modifier == raw);
-  modifiers
+    .find(|(modifier, _)| *modifier == raw)
+  {
+    return *event_modifier;
+  }
+
+  NSEventModifierFlags::empty()
 }
 
 impl Hotkey {
   pub(crate) fn to_key_equivalent(self) -> KeyEquivalent {
     let mut masks = NSEventModifierFlags::empty();
-
+    let mut optioned_mask = None;
     for modifier in self.modifiers {
       masks |= make_masks(modifier);
+    }
+
+    if !masks.is_empty() {
+      optioned_mask = Some(masks);
     }
 
     KeyEquivalent {
@@ -57,7 +64,7 @@ impl Hotkey {
         .keys
         .into_iter()
         .fold("".to_string(), |_, s| s.to_string()),
-      masks: Some(masks),
+      masks: optioned_mask,
     }
   }
 }
@@ -87,8 +94,6 @@ pub fn initialize(menu: Vec<Menu>) {
             if let Some(accelerator) = &custom_menu.keyboard_accelerators {
               key_equivalent = Some(accelerator.clone().to_key_equivalent());
             }
-
-            println!("key_equivalent {:?}", key_equivalent);
 
             make_custom_menu_item(
               custom_menu.id,

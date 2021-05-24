@@ -1,7 +1,7 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use super::menu::{make_custom_menu_item, make_menu_item, KeyEquivalent};
+use super::menu::{make_custom_menu_item, make_menu_item};
 use crate::{
   error::OsError,
   menu::{MenuItem, MenuType},
@@ -10,7 +10,7 @@ use crate::{
 };
 use cocoa::{
   appkit::{
-    NSButton, NSEventModifierFlags, NSImage, NSMenu, NSSquareStatusItemLength, NSStatusBar,
+    NSButton, NSImage, NSMenu, NSSquareStatusItemLength, NSStatusBar,
     NSStatusItem,
   },
   base::nil,

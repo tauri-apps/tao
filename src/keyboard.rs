@@ -1,12 +1,7 @@
 use std::{
-  collections::{hash_map::Entry, HashMap},
   fmt,
   hash::Hash,
   str::FromStr,
-  sync::{
-    atomic::{AtomicUsize, Ordering},
-    Arc,
-  },
 };
 
 use crate::platform_impl::{keys, modifiers};

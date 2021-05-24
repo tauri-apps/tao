@@ -6,6 +6,7 @@ pub mod modifiers {
   pub const SUPER: u32 = 256;
 }
 
+#[allow(dead_code)]
 pub mod keys {
   pub const BACKSPACE: u32 = 0x33;
   pub const TAB: u32 = 0x30;
