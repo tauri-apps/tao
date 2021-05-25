@@ -85,8 +85,8 @@ impl MenuBuilder {
     unsafe {
       let menu_title = NSString::alloc(nil).init_str(title);
       let menu_item = NSMenuItem::alloc(nil).autorelease();
-      menu_item.setTitle_(menu_title);
-      self.menu.setTitle_(menu_title);
+      let () = msg_send![menu.menu, setTitle: menu_title];
+      let () = msg_send![menu_item, setTitle: menu_title];
       if !enabled {
         let () = msg_send![menu_item, setEnabled: NO];
       }
@@ -367,7 +367,7 @@ fn make_menu_item_from_alloc(
     };
 
     // allocate our item to our class
-    let item: id = msg_send![alloc, initWithTitle:&*title action:selector keyEquivalent:&*key];
+    let item: id = msg_send![alloc, initWithTitle: title action: selector keyEquivalent: key];
     if let Some(masks) = masks {
       item.setKeyEquivalentModifierMask_(masks)
     }

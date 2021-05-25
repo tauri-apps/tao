@@ -36,7 +36,7 @@ fn main() {
 
   // create another menu
   // in macOS menu bar need to be created with `init_with_title`
-  let mut test_menu = MenuBuilder::init_with_title("Test menu");
+  let mut test_menu = MenuBuilder::init();
   test_menu.add_item(
     MenuType::Menubar,
     "Selected and disabled",

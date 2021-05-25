@@ -76,6 +76,8 @@ fn main() {
           open_new_window_element.set_enabled(true);
           // Reset text
           open_new_window_element.set_title("Open new window");
+          // Set unchecked
+          open_new_window_element.set_selected(false);
           system_tray.update_icon(icon.clone());
         }
       }
@@ -90,6 +92,9 @@ fn main() {
           open_new_window_element.set_enabled(false);
           // change title (text)
           open_new_window_element.set_title("Window already open");
+          // set checked
+          open_new_window_element.set_selected(true);
+
           // update tray icon
           system_tray.update_icon(new_icon.clone());
         }
