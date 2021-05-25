@@ -8,7 +8,7 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError},
   event_loop::EventLoopWindowTarget,
-  menu::Menu,
+  menu::MenuBuilder,
   monitor::{MonitorHandle, VideoMode},
   platform_impl,
 };
@@ -201,7 +201,7 @@ pub struct WindowAttributes {
   /// The window menu.
   ///
   /// The default is `None`.
-  pub window_menu: Option<Vec<Menu>>,
+  pub window_menu: Option<platform_impl::MenuBuilder>,
 }
 
 impl Default for WindowAttributes {
@@ -306,8 +306,8 @@ impl WindowBuilder {
   ///
   /// [`Window::set_menu`]: crate::window::Window::set_menu
   #[inline]
-  pub fn with_menu<M: Into<Vec<Menu>>>(mut self, menu: M) -> Self {
-    self.window.window_menu = Some(menu.into());
+  pub fn with_menu(mut self, menu: MenuBuilder) -> Self {
+    self.window.window_menu = Some(menu.0);
     self
   }
 
@@ -613,8 +613,12 @@ impl Window {
   /// - **Windows:** Unsupported.
 
   #[inline]
-  pub fn set_menu(&self, menu: Option<Vec<Menu>>) {
-    self.window.set_menu(menu)
+  pub fn set_menu(&self, menu: Option<MenuBuilder>) {
+    if let Some(menu) = menu {
+      self.window.set_menu(Some(menu.0))
+    } else {
+      self.window.set_menu(None)
+    }
   }
 
   /// Modifies the window's visibility.

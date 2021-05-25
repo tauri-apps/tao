@@ -11,7 +11,7 @@
   target_os = "openbsd"
 ))]
 
-use crate::{error::OsError, event_loop::EventLoopWindowTarget, menu::MenuItem, platform_impl};
+use crate::{error::OsError, event_loop::EventLoopWindowTarget, menu::MenuBuilder, platform_impl};
 //TODO exhaustively match the targets
 #[cfg(target_os = "linux")]
 use std::path::PathBuf;
@@ -27,7 +27,7 @@ pub struct SystemTray {
   pub(crate) icon: PathBuf,
   #[cfg(not(target_os = "linux"))]
   pub(crate) icon: Vec<u8>,
-  pub(crate) items: Vec<MenuItem>,
+  pub(crate) menu: MenuBuilder,
 }
 
 pub struct SystemTrayBuilder {
@@ -42,18 +42,18 @@ impl SystemTrayBuilder {
   /// - **Linux:**: receive icon's path (`PathBuf`)
   #[inline]
   #[cfg(not(target_os = "linux"))]
-  pub fn new(icon: Vec<u8>, items: Vec<MenuItem>) -> Self {
+  pub fn new(icon: Vec<u8>, menu: MenuBuilder) -> Self {
     Self {
-      system_tray: SystemTray { icon, items },
+      system_tray: SystemTray { icon, menu },
     }
   }
 
   /// Creates a new SystemTray for platforms where this is appropriate.
   #[inline]
   #[cfg(target_os = "linux")]
-  pub fn new(icon: PathBuf, items: Vec<MenuItem>) -> Self {
+  pub fn new(icon: PathBuf, menu: MenuBuilder) -> Self {
     Self {
-      system_tray: SystemTray { icon, items },
+      system_tray: SystemTray { icon, menu },
     }
   }
 

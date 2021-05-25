@@ -23,6 +23,7 @@ use std::{fmt, ops::Deref, sync::Arc};
 pub use self::{
   app_delegate::{get_aux_state_mut, AuxDelegateState},
   event_loop::{EventLoop, EventLoopWindowTarget, Proxy as EventLoopProxy},
+  menu::{MenuBuilder, MenuItem},
   monitor::{MonitorHandle, VideoMode},
   system_tray::SystemTray,
   window::{Id as WindowId, PlatformSpecificWindowBuilderAttributes, UnownedWindow},

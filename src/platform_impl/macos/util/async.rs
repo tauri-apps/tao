@@ -12,6 +12,7 @@ use cocoa::{
   foundation::{NSPoint, NSSize, NSString},
 };
 use dispatch::Queue;
+use menu::MenuBuilder;
 use objc::{
   rc::autoreleasepool,
   runtime::{NO, YES},
@@ -19,7 +20,6 @@ use objc::{
 
 use crate::{
   dpi::LogicalSize,
-  menu::Menu,
   platform_impl::platform::{ffi, menu, util::IdRef, window::SharedState},
 };
 
@@ -212,7 +212,7 @@ pub unsafe fn set_title_async(ns_window: id, title: String) {
 }
 
 // `setMenu:` isn't thread-safe.
-pub unsafe fn set_menu_async(_ns_window: id, menu: Option<Vec<Menu>>) {
+pub unsafe fn set_menu_async(_ns_window: id, menu: Option<MenuBuilder>) {
   // TODO if None we should set an empty menu
   // On windows we can remove it, in macOS we can't
   if let Some(menu) = menu {

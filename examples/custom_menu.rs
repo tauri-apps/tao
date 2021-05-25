@@ -5,7 +5,7 @@ use simple_logger::SimpleLogger;
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
-  menu::{Menu, MenuItem, MenuType},
+  menu::{MenuBuilder, MenuType, SystemMenu},
   window::WindowBuilder,
 };
 
@@ -13,58 +13,25 @@ fn main() {
   SimpleLogger::new().init().unwrap();
   let event_loop = EventLoop::new();
 
-  let custom_change_menu = MenuItem::new("Change menu").with_accelerators("F1");
-  let custom_change_menu_id = custom_change_menu.id();
+  // allocate our tray as it'll contain children
+  let mut tray_menu = MenuBuilder::init();
+
+  // create our first menu
+  let mut my_app_menu = MenuBuilder::init_with_title("My app");
+  let (test_id, mut test_menu_item) =
+    my_app_menu.add_item(MenuType::Menubar,"Disable menu", Some("<Ctrl>d"), true, true);
+  my_app_menu.add_system_item(SystemMenu::Copy, MenuType::Menubar);
+
+  let mut test_menu = MenuBuilder::init_with_title("Other menu");
+  test_menu.add_item(MenuType::Menubar, "sss", None, false, false);
+
+  // add all our childs to tray_menu (order is how they'll appear)
+  tray_menu.add_children(my_app_menu.clone(), true);
+  tray_menu.add_children(test_menu.clone(), true);
 
   let window = WindowBuilder::new()
     .with_title("A fantastic window!")
-    .with_menu(vec![
-      Menu::new(
-        // on macOS first menu is always app name
-        "my custom app",
-        vec![
-          MenuItem::About("Todos".to_string()),
-          MenuItem::Services,
-          MenuItem::Separator,
-          MenuItem::Hide,
-          MenuItem::HideOthers,
-          MenuItem::ShowAll,
-          MenuItem::Separator,
-          MenuItem::Quit,
-        ],
-      ),
-      Menu::new(
-        "File",
-        vec![
-          custom_change_menu,
-          MenuItem::Separator,
-          MenuItem::CloseWindow,
-        ],
-      ),
-      Menu::new(
-        "Edit",
-        vec![
-          MenuItem::Undo,
-          MenuItem::Redo,
-          MenuItem::Separator,
-          MenuItem::Cut,
-          MenuItem::Copy,
-          MenuItem::Paste,
-          MenuItem::Separator,
-          MenuItem::SelectAll,
-        ],
-      ),
-      Menu::new("View", vec![MenuItem::EnterFullScreen]),
-      Menu::new("Window", vec![MenuItem::Minimize, MenuItem::Zoom]),
-      Menu::new(
-        "Help",
-        vec![MenuItem::new("Custom help")
-          // `Primary` is a platform-agnostic accelerator modifier.
-          // On Windows and Linux, `Primary` maps to the `Ctrl` key,
-          // and on macOS it maps to the `command` key.
-          .with_accelerators("<Primary><Shift>h")],
-      ),
-    ])
+    .with_menu(tray_menu)
     .build(&event_loop)
     .unwrap();
 
@@ -83,16 +50,12 @@ fn main() {
         menu_id,
         origin: MenuType::Menubar,
       } => {
-        if menu_id == custom_change_menu_id {
+        if menu_id == test_id {
           println!("Clicked on custom change menu");
-          window.set_menu(Some(vec![Menu::new(
-            "File",
-            vec![
-              MenuItem::new("Add Todo").with_accelerators("<Primary>T"),
-              MenuItem::Separator,
-              MenuItem::CloseWindow,
-            ],
-          )]))
+
+          // this allow us to get access to the menu and make changes
+          // without re-rendering the whole menu
+          test_menu_item.disable();
         }
 
         println!("Clicked on {:?}", menu_id);

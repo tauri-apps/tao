@@ -18,7 +18,7 @@ fn main() {
   use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    menu::{MenuItem, MenuType},
+    menu::{MenuBuilder, MenuType, SystemMenu},
     platform::system_tray::SystemTrayBuilder,
     window::Window,
   };
@@ -26,11 +26,16 @@ fn main() {
   let event_loop = EventLoop::new();
   let mut windows = HashMap::new();
 
-  let open_new_window = MenuItem::new("Open new window");
-  let open_new_window_id = open_new_window.id();
+  let mut menu = MenuBuilder::init();
 
-  let focus_all_window = MenuItem::new("Focus window");
-  let focus_all_window_id = focus_all_window.id();
+  let mut submenu = MenuBuilder::init_with_title("Submenu");
+
+  let (open_new_window_id, mut open_new_window_element) = submenu.add_item(MenuType::SystemTray,"Open new window", None, true, true);
+  let (focus_all_window_id, _) = menu.add_item(MenuType::SystemTray,"Focus window", None, true, true);
+
+  menu.add_item(MenuType::SystemTray,"test", None, true, true);
+
+  menu.add_children(submenu, true);
 
   // Windows require Vec<u8> ICO file
   #[cfg(target_os = "windows")]
@@ -44,7 +49,7 @@ fn main() {
 
   // Only supported on macOS, linux and windows
   #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-  let _systemtray = SystemTrayBuilder::new(icon, vec![open_new_window, focus_all_window])
+  let _systemtray = SystemTrayBuilder::new(icon, menu)
     .build(&event_loop)
     .unwrap();
 
@@ -55,9 +60,10 @@ fn main() {
       Event::WindowEvent { event, window_id } => {
         if event == WindowEvent::CloseRequested {
           println!("Window {:?} has received the signal to close", window_id);
-
           // Remove window from our hashmap
           windows.remove(&window_id);
+          // enable our button
+          open_new_window_element.enable();
         }
       }
       Event::MenuEvent {
@@ -67,6 +73,8 @@ fn main() {
         if menu_id == open_new_window_id {
           let window = Window::new(&event_loop).unwrap();
           windows.insert(window.id(), window);
+          // disable button
+          open_new_window_element.disable();
         }
         if menu_id == focus_all_window_id {
           for window in windows.values() {

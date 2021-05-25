@@ -18,7 +18,6 @@ use crate::{
   },
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
-  menu::Menu,
   monitor::{MonitorHandle as RootMonitorHandle, VideoMode as RootVideoMode},
   platform::macos::WindowExtMacOS,
   platform_impl::platform::{
@@ -45,6 +44,8 @@ use objc::{
   declare::ClassDecl,
   runtime::{Class, Object, Sel, BOOL, NO, YES},
 };
+
+use super::MenuBuilder;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Id(pub usize);
@@ -455,7 +456,7 @@ impl UnownedWindow {
     }
   }
 
-  pub fn set_menu(&self, menu: Option<Vec<Menu>>) {
+  pub fn set_menu(&self, menu: Option<MenuBuilder>) {
     unsafe {
       util::set_menu_async(*self.ns_window, menu);
     }

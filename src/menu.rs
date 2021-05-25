@@ -6,14 +6,52 @@ use std::{
   hash::{Hash, Hasher},
 };
 
+use crate::platform_impl::{MenuBuilder as PlatformMenuBuilder, MenuItem};
+
+#[derive(Debug, Clone)]
+pub struct MenuBuilder(pub(crate) PlatformMenuBuilder);
+
+impl MenuBuilder {
+  pub fn init() -> Self {
+    Self(PlatformMenuBuilder::init())
+  }
+
+  pub fn init_with_title(title: &str) -> Self {
+    Self(PlatformMenuBuilder::init_with_title(title))
+  }
+
+  pub fn add_children(&mut self, children: MenuBuilder, enabled: bool) {
+    self.0.add_children(children.0, enabled);
+  }
+
+  pub fn add_item(
+    &mut self,
+    menu_type: MenuType,
+    text: &str,
+    keyboard_accelerator: Option<&str>,
+    enabled: bool,
+    selected: bool,
+  ) -> (MenuId, MenuItem) {
+    let menu_id = MenuId::new(&text);
+    let item = self
+      .0
+      .add_custom_item(menu_id, menu_type, text, keyboard_accelerator, enabled, selected);
+    (menu_id, item)
+  }
+
+  pub fn add_system_item(&mut self, item: SystemMenu, menu_type: MenuType) -> MenuItem {
+    self.0.add_system_item(item, menu_type)
+  }
+}
+
 #[derive(Debug, Clone)]
 pub struct Menu {
   pub title: String,
-  pub items: Vec<MenuItem>,
+  pub items: Vec<SystemMenu>,
 }
 
 impl Menu {
-  pub fn new(title: &str, items: Vec<MenuItem>) -> Self {
+  pub fn new(title: &str, items: Vec<SystemMenu>) -> Self {
     Self {
       title: String::from(title),
       items,
@@ -33,10 +71,7 @@ pub struct CustomMenu {
 /// supports `Custom` menu item variants. And on the menu bar, some platforms might not support some
 /// of the variants. Unsupported variant will be no-op on such platform.
 #[derive(Debug, Clone)]
-pub enum MenuItem {
-  /// A custom menu emit an event inside the EventLoop.
-  Custom(CustomMenu),
-
+pub enum SystemMenu {
   /// Shows a standard "About" item
   ///
   /// ## Platform-specific
@@ -170,51 +205,6 @@ pub enum MenuItem {
   /// - **Windows / Linux / Android / iOS:** Unsupported
   ///
   Zoom,
-
-  /// Represents a Separator
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  ///
-  Separator,
-}
-
-impl MenuItem {
-  /// Create new custom menu item.
-  /// unique_menu_id is the unique ID for the menu item returned in the EventLoop `Event::MenuEvent(unique_menu_id)`
-  pub fn new(title: impl ToString) -> Self {
-    let title = title.to_string();
-    MenuItem::Custom(CustomMenu {
-      id: MenuId::new(&title),
-      name: title,
-      keyboard_accelerators: None,
-    })
-  }
-
-  /// Assign keyboard shortcut to the menu action. Works only with `MenuItem::Custom`.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  ///
-  pub fn with_accelerators(mut self, keyboard_accelerators: impl ToString) -> Self {
-    if let MenuItem::Custom(ref mut custom_menu) = self {
-      custom_menu.keyboard_accelerators = Some(keyboard_accelerators.to_string());
-    }
-    self
-  }
-
-  /// Return unique menu ID. Works only with `MenuItem::Custom`.
-  pub fn id(&self) -> MenuId {
-    if let MenuItem::Custom(custom_menu) = self {
-      return custom_menu.id;
-    }
-
-    // return blank menu id if we request under a non-custom menu
-    // this prevent to wrap it inside an Option<>
-    MenuId(4294967295)
-  }
 }
 
 /// Identifier of a custom menu item.
