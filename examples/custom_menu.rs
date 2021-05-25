@@ -18,8 +18,13 @@ fn main() {
 
   // create our first menu
   let mut my_app_menu = MenuBuilder::init_with_title("My app");
-  let (test_id, mut test_menu_item) =
-    my_app_menu.add_item(MenuType::Menubar,"Disable menu", Some("<Ctrl>d"), true, true);
+  let (test_id, mut test_menu_item) = my_app_menu.add_item(
+    MenuType::Menubar,
+    "Disable menu",
+    Some("<Ctrl>d"),
+    true,
+    true,
+  );
   my_app_menu.add_system_item(SystemMenu::Copy, MenuType::Menubar);
 
   let mut test_menu = MenuBuilder::init_with_title("Other menu");

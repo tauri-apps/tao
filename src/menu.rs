@@ -33,9 +33,14 @@ impl MenuBuilder {
     selected: bool,
   ) -> (MenuId, MenuItem) {
     let menu_id = MenuId::new(&text);
-    let item = self
-      .0
-      .add_custom_item(menu_id, menu_type, text, keyboard_accelerator, enabled, selected);
+    let item = self.0.add_custom_item(
+      menu_id,
+      menu_type,
+      text,
+      keyboard_accelerator,
+      enabled,
+      selected,
+    );
     (menu_id, item)
   }
 

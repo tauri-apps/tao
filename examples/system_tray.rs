@@ -30,10 +30,12 @@ fn main() {
 
   let mut submenu = MenuBuilder::init_with_title("Submenu");
 
-  let (open_new_window_id, mut open_new_window_element) = submenu.add_item(MenuType::SystemTray,"Open new window", None, true, true);
-  let (focus_all_window_id, _) = menu.add_item(MenuType::SystemTray,"Focus window", None, true, true);
+  let (open_new_window_id, mut open_new_window_element) =
+    submenu.add_item(MenuType::SystemTray, "Open new window", None, true, true);
+  let (focus_all_window_id, _) =
+    menu.add_item(MenuType::SystemTray, "Focus window", None, true, true);
 
-  menu.add_item(MenuType::SystemTray,"test", None, true, true);
+  menu.add_item(MenuType::SystemTray, "test", None, true, true);
 
   menu.add_children(submenu, true);
 

@@ -153,12 +153,7 @@ impl MenuBuilder {
         }),
         menu_type,
       ),
-      SystemMenu::Zoom => make_menu_item(
-        "Zoom",
-        Some(selector("performZoom:")),
-        None,
-        menu_type,
-      ),
+      SystemMenu::Zoom => make_menu_item("Zoom", Some(selector("performZoom:")), None, menu_type),
       SystemMenu::Copy => make_menu_item(
         "Copy",
         Some(selector("copy:")),
