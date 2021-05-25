@@ -38,7 +38,7 @@ const MODIFIER_MAP: &[(Modifier, NSEventModifierFlags)] = &[
 
 pub(crate) fn make_masks(raw: Modifier) -> NSEventModifierFlags {
   if let Some((_, event_modifier)) = MODIFIER_MAP
-    .into_iter()
+    .iter()
     .find(|(modifier, _)| *modifier == raw)
   {
     return *event_modifier;
@@ -62,7 +62,7 @@ impl Hotkey {
     KeyEquivalent {
       key: self
         .keys
-        .into_iter()
+        .iter()
         .fold("".to_string(), |_, s| s.to_string()),
       masks: optioned_mask,
     }
@@ -94,6 +94,8 @@ pub fn initialize(menu: Vec<Menu>) {
             if let Some(accelerator) = &custom_menu.keyboard_accelerators {
               key_equivalent = Some(accelerator.clone().to_key_equivalent());
             }
+
+            println!("{:?}", key_equivalent);
 
             make_custom_menu_item(
               custom_menu.id,
