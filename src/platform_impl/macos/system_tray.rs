@@ -1,19 +1,15 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use super::menu::{make_custom_menu_item, make_menu_item, KeyEquivalent, MenuBuilder};
+use super::menu::MenuBuilder;
 use crate::{
   error::OsError, event_loop::EventLoopWindowTarget, menu::MenuBuilder as RootMenuBuilder,
 };
 use cocoa::{
-  appkit::{
-    NSButton, NSEventModifierFlags, NSImage, NSMenu, NSSquareStatusItemLength, NSStatusBar,
-    NSStatusItem,
-  },
+  appkit::{NSButton, NSImage, NSSquareStatusItemLength, NSStatusBar, NSStatusItem},
   base::{id, nil},
   foundation::{NSAutoreleasePool, NSData, NSSize},
 };
-use objc::runtime::Object;
 
 pub struct SystemTrayBuilder {
   system_tray: SystemTray,
@@ -96,10 +92,8 @@ impl SystemTray {
         nil,
         self.icon.as_ptr() as *const std::os::raw::c_void,
         self.icon.len() as u64,
-      )
-      .autorelease();
+      );
 
-      // the NSImage is not `autoreleasing` as we need to keep it alive when we change images
       let nsimage = NSImage::initWithData_(NSImage::alloc(nil), nsdata);
       let new_size = NSSize::new(ICON_WIDTH, ICON_HEIGHT);
 

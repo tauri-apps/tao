@@ -14,7 +14,7 @@ use std::sync::Once;
 
 use crate::{
   event::Event,
-  menu::{Menu, MenuId, MenuType, SystemMenu},
+  menu::{MenuId, MenuType, SystemMenu},
 };
 
 use super::{app_state::AppState, event::EventWrapper};
@@ -38,14 +38,28 @@ unsafe impl Sync for MenuBuilder {}
 pub struct MenuItem(pub(crate) id);
 
 impl MenuItem {
-  pub fn disable(&mut self) {
+  pub fn set_enabled(&mut self, is_enabled: bool) {
     unsafe {
-      let () = msg_send![self.0, setEnabled: NO];
+      let status = match is_enabled {
+        true => YES,
+        false => NO,
+      };
+      let () = msg_send![self.0, setEnabled: status];
     }
   }
-  pub fn enable(&mut self) {
+  pub fn set_title(&mut self, title: &str) {
     unsafe {
-      let () = msg_send![self.0, setEnabled: YES];
+      let menu_title = NSString::alloc(nil).init_str(title);
+      self.0.setTitle_(menu_title);
+    }
+  }
+  pub fn set_selected(&mut self, is_selected: bool) {
+    unsafe {
+      let state = match is_selected {
+        true => 1_isize,
+        false => 0_isize,
+      };
+      let () = msg_send![self.0, setState: state];
     }
   }
 }
@@ -72,6 +86,7 @@ impl MenuBuilder {
       let menu_title = NSString::alloc(nil).init_str(title);
       let menu_item = NSMenuItem::alloc(nil).autorelease();
       menu_item.setTitle_(menu_title);
+      self.menu.setTitle_(menu_title);
       if !enabled {
         let () = msg_send![menu_item, setEnabled: NO];
       }

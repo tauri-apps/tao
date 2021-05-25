@@ -35,7 +35,8 @@ fn main() {
   my_app_menu.add_children(my_sub_menu, "Sub menu", true);
 
   // create another menu
-  let mut test_menu = MenuBuilder::init_with_title("Other menu");
+  // in macOS menu bar need to be created with `init_with_title`
+  let mut test_menu = MenuBuilder::init_with_title("Test menu");
   test_menu.add_item(
     MenuType::Menubar,
     "Selected and disabled",
@@ -71,10 +72,11 @@ fn main() {
       } => {
         if menu_id == test_id {
           println!("Clicked on custom change menu");
-
           // this allow us to get access to the menu and make changes
           // without re-rendering the whole menu
-          test_menu_item.disable();
+          test_menu_item.set_enabled(false);
+          test_menu_item.set_title("Menu disabled");
+          test_menu_item.set_selected(true);
         }
         println!("Clicked on {:?}", menu_id);
         window.set_title("New window title!");

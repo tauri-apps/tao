@@ -18,7 +18,7 @@ fn main() {
   use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    menu::{MenuBuilder, MenuType, SystemMenu},
+    menu::{MenuBuilder, MenuType},
     platform::system_tray::SystemTrayBuilder,
     window::Window,
   };
@@ -26,18 +26,16 @@ fn main() {
   let event_loop = EventLoop::new();
   let mut windows = HashMap::new();
 
-  let mut menu = MenuBuilder::init();
+  let mut tray_menu = MenuBuilder::init();
 
   let mut submenu = MenuBuilder::init();
 
   let (open_new_window_id, mut open_new_window_element) =
     submenu.add_item(MenuType::SystemTray, "Open new window", None, true, false);
   let (focus_all_window_id, _) =
-    menu.add_item(MenuType::SystemTray, "Focus window", None, true, false);
+    tray_menu.add_item(MenuType::SystemTray, "Focus window", None, true, false);
 
-  let (change_icon_id, _) = menu.add_item(MenuType::SystemTray, "Change icon", None, true, false);
-
-  menu.add_children(submenu, "Sub menu", true);
+  tray_menu.add_children(submenu, "Sub menu", true);
 
   // Windows require Vec<u8> ICO file
   #[cfg(target_os = "windows")]
@@ -61,7 +59,7 @@ fn main() {
 
   // Only supported on macOS, linux and windows
   #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-  let mut systemtray = SystemTrayBuilder::new(icon.clone(), menu)
+  let mut system_tray = SystemTrayBuilder::new(icon.clone(), tray_menu)
     .build(&event_loop)
     .unwrap();
 
@@ -74,9 +72,11 @@ fn main() {
           println!("Window {:?} has received the signal to close", window_id);
           // Remove window from our hashmap
           windows.remove(&window_id);
-          // enable our button
-          open_new_window_element.enable();
-          systemtray.update_icon(icon.clone());
+          // Enable our button
+          open_new_window_element.set_enabled(true);
+          // Reset text
+          open_new_window_element.set_title("Open new window");
+          system_tray.update_icon(icon.clone());
         }
       }
       Event::MenuEvent {
@@ -87,9 +87,11 @@ fn main() {
           let window = Window::new(&event_loop).unwrap();
           windows.insert(window.id(), window);
           // disable button
-          open_new_window_element.disable();
-          systemtray.update_icon(new_icon.clone());
-          println!("done!");
+          open_new_window_element.set_enabled(false);
+          // change title (text)
+          open_new_window_element.set_title("Window already open");
+          // update tray icon
+          system_tray.update_icon(new_icon.clone());
         }
         if menu_id == focus_all_window_id {
           for window in windows.values() {
