@@ -1,54 +1,110 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use super::menu::{make_custom_menu_item, make_menu_item, KeyEquivalent};
+use super::menu::{make_custom_menu_item, make_menu_item, KeyEquivalent, MenuBuilder};
 use crate::{
-  error::OsError, menu::MenuType, platform::system_tray::SystemTray as RootSystemTray,
-  platform_impl::EventLoopWindowTarget,
+  error::OsError, event_loop::EventLoopWindowTarget, menu::MenuBuilder as RootMenuBuilder,
 };
 use cocoa::{
   appkit::{
     NSButton, NSEventModifierFlags, NSImage, NSMenu, NSSquareStatusItemLength, NSStatusBar,
     NSStatusItem,
   },
-  base::nil,
+  base::{id, nil},
   foundation::{NSAutoreleasePool, NSData, NSSize},
 };
 use objc::runtime::Object;
-pub struct SystemTray {}
 
-impl SystemTray {
-  pub fn initialize<T>(
-    _window_target: &EventLoopWindowTarget<T>,
-    system_tray: &RootSystemTray,
-  ) -> Result<(), OsError> {
-    const ICON_WIDTH: f64 = 18.0;
-    const ICON_HEIGHT: f64 = 18.0;
+pub struct SystemTrayBuilder {
+  system_tray: SystemTray,
+}
+
+impl SystemTrayBuilder {
+  /// Creates a new SystemTray for platforms where this is appropriate.
+  /// ## Platform-specific
+  ///
+  /// - **macOS / Windows:**: receive icon as bytes (`Vec<u8>`)
+  /// - **Linux:**: receive icon's path (`PathBuf`)
+  #[inline]
+  pub fn new(icon: Vec<u8>, tray_menu: RootMenuBuilder) -> Self {
     unsafe {
-      // create our system tray (status bar)
-      let status_item = NSStatusBar::systemStatusBar(nil)
+      let ns_status_bar = NSStatusBar::systemStatusBar(nil)
         .statusItemWithLength_(NSSquareStatusItemLength)
         .autorelease();
 
-      let button = status_item.button();
+      Self {
+        system_tray: SystemTray {
+          icon,
+          tray_menu: tray_menu.0,
+          ns_status_bar,
+        },
+      }
+    }
+  }
+
+  /// Builds the system tray.
+  ///
+  /// Possible causes of error include denied permission, incompatible system, and lack of memory.
+  #[inline]
+  pub fn build<T: 'static>(
+    self,
+    _window_target: &EventLoopWindowTarget<T>,
+  ) -> Result<SystemTray, OsError> {
+    unsafe {
+      // use our existing status bar
+      let status_bar = self.system_tray.ns_status_bar;
 
       // set our icon
+      self.system_tray.create_button_with_icon();
+
+      // set tray menu
+      status_bar.setMenu_(self.system_tray.tray_menu.menu);
+    }
+    Ok(self.system_tray)
+  }
+}
+
+/// System tray is a status icon that can show popup menu. It is usually displayed on top right or bottom right of the screen.
+///
+/// ## Platform-specific
+///
+/// - **Linux:**: require `menu` feature flag. Otherwise, it's a no-op.
+#[derive(Debug, Clone)]
+pub struct SystemTray {
+  pub(crate) icon: Vec<u8>,
+  pub(crate) tray_menu: MenuBuilder,
+  pub(crate) ns_status_bar: id,
+}
+
+impl SystemTray {
+  pub fn update_icon(&mut self, icon: Vec<u8>) {
+    // update our icon
+    self.icon = icon;
+    self.create_button_with_icon();
+  }
+
+  fn create_button_with_icon(&self) {
+    const ICON_WIDTH: f64 = 18.0;
+    const ICON_HEIGHT: f64 = 18.0;
+
+    unsafe {
+      let status_item = self.ns_status_bar;
+      let button = status_item.button();
+
+      // build our icon
       let nsdata = NSData::dataWithBytes_length_(
         nil,
-        system_tray.icon.as_ptr() as *const std::os::raw::c_void,
-        system_tray.icon.len() as u64,
+        self.icon.as_ptr() as *const std::os::raw::c_void,
+        self.icon.len() as u64,
       )
       .autorelease();
 
-      let nsimage = NSImage::initWithData_(NSImage::alloc(nil), nsdata).autorelease();
+      // the NSImage is not `autoreleasing` as we need to keep it alive when we change images
+      let nsimage = NSImage::initWithData_(NSImage::alloc(nil), nsdata);
       let new_size = NSSize::new(ICON_WIDTH, ICON_HEIGHT);
 
       button.setImage_(nsimage);
       let _: () = msg_send![nsimage, setSize: new_size];
-
-      // set tray menu
-      status_item.setMenu_(system_tray.menu.0.menu);
     }
-    Ok(())
   }
 }

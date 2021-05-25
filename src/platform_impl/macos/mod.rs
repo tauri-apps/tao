@@ -25,7 +25,7 @@ pub use self::{
   event_loop::{EventLoop, EventLoopWindowTarget, Proxy as EventLoopProxy},
   menu::{MenuBuilder, MenuItem},
   monitor::{MonitorHandle, VideoMode},
-  system_tray::SystemTray,
+  system_tray::{SystemTray, SystemTrayBuilder},
   window::{Id as WindowId, PlatformSpecificWindowBuilderAttributes, UnownedWindow},
 };
 use crate::{

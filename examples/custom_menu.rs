@@ -28,15 +28,21 @@ fn main() {
     true,
     false,
   );
-
   // add Copy to `My App` menu
   my_app_menu.add_system_item(SystemMenu::Copy, MenuType::Menubar);
 
   // add our submenu under Copy
   my_app_menu.add_children(my_sub_menu, "Sub menu", true);
 
+  // create another menu
   let mut test_menu = MenuBuilder::init_with_title("Other menu");
-  test_menu.add_item(MenuType::Menubar, "Selected and disabled", None, false, true);
+  test_menu.add_item(
+    MenuType::Menubar,
+    "Selected and disabled",
+    None,
+    false,
+    true,
+  );
 
   // add all our childs to menu_bar_menu (order is how they'll appear)
   menu_bar_menu.add_children(my_app_menu, "My app", true);
@@ -70,7 +76,6 @@ fn main() {
           // without re-rendering the whole menu
           test_menu_item.disable();
         }
-
         println!("Clicked on {:?}", menu_id);
         window.set_title("New window title!");
       }

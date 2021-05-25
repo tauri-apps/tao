@@ -35,7 +35,7 @@ fn main() {
   let (focus_all_window_id, _) =
     menu.add_item(MenuType::SystemTray, "Focus window", None, true, false);
 
-  menu.add_item(MenuType::SystemTray, "test", None, true, false);
+  let (change_icon_id, _) = menu.add_item(MenuType::SystemTray, "Change icon", None, true, false);
 
   menu.add_children(submenu, "Sub menu", true);
 
@@ -49,9 +49,19 @@ fn main() {
   #[cfg(target_os = "linux")]
   let icon = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/icon.png");
 
+  // Windows require Vec<u8> ICO file
+  #[cfg(target_os = "windows")]
+  let new_icon = include_bytes!("icon_blue.ico").to_vec();
+  // macOS require Vec<u8> PNG file
+  #[cfg(target_os = "macos")]
+  let new_icon = include_bytes!("icon_dark.png").to_vec();
+  // Linux require Pathbuf to PNG file
+  #[cfg(target_os = "linux")]
+  let new_icon = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/icon_dark.png");
+
   // Only supported on macOS, linux and windows
   #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-  let _systemtray = SystemTrayBuilder::new(icon, menu)
+  let mut systemtray = SystemTrayBuilder::new(icon.clone(), menu)
     .build(&event_loop)
     .unwrap();
 
@@ -66,6 +76,7 @@ fn main() {
           windows.remove(&window_id);
           // enable our button
           open_new_window_element.enable();
+          systemtray.update_icon(icon.clone());
         }
       }
       Event::MenuEvent {
@@ -77,6 +88,8 @@ fn main() {
           windows.insert(window.id(), window);
           // disable button
           open_new_window_element.disable();
+          systemtray.update_icon(new_icon.clone());
+          println!("done!");
         }
         if menu_id == focus_all_window_id {
           for window in windows.values() {
