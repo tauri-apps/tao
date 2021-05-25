@@ -20,8 +20,8 @@ impl MenuBuilder {
     Self(PlatformMenuBuilder::init_with_title(title))
   }
 
-  pub fn add_children(&mut self, children: MenuBuilder, enabled: bool) {
-    self.0.add_children(children.0, enabled);
+  pub fn add_children(&mut self, children: MenuBuilder, title: &str, enabled: bool) {
+    self.0.add_children(children.0, title, enabled);
   }
 
   pub fn add_item(

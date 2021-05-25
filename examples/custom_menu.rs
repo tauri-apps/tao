@@ -14,29 +14,37 @@ fn main() {
   let event_loop = EventLoop::new();
 
   // allocate our tray as it'll contain children
-  let mut tray_menu = MenuBuilder::init();
+  let mut menu_bar_menu = MenuBuilder::init();
 
   // create our first menu
   let mut my_app_menu = MenuBuilder::init_with_title("My app");
-  let (test_id, mut test_menu_item) = my_app_menu.add_item(
+
+  // create a submenu with 1 item
+  let mut my_sub_menu = MenuBuilder::init();
+  let (test_id, mut test_menu_item) = my_sub_menu.add_item(
     MenuType::Menubar,
     "Disable menu",
     Some("<Ctrl>d"),
     true,
-    true,
+    false,
   );
+
+  // add Copy to `My App` menu
   my_app_menu.add_system_item(SystemMenu::Copy, MenuType::Menubar);
 
-  let mut test_menu = MenuBuilder::init_with_title("Other menu");
-  test_menu.add_item(MenuType::Menubar, "sss", None, false, false);
+  // add our submenu under Copy
+  my_app_menu.add_children(my_sub_menu, "Sub menu", true);
 
-  // add all our childs to tray_menu (order is how they'll appear)
-  tray_menu.add_children(my_app_menu.clone(), true);
-  tray_menu.add_children(test_menu.clone(), true);
+  let mut test_menu = MenuBuilder::init_with_title("Other menu");
+  test_menu.add_item(MenuType::Menubar, "Selected and disabled", None, false, true);
+
+  // add all our childs to menu_bar_menu (order is how they'll appear)
+  menu_bar_menu.add_children(my_app_menu, "My app", true);
+  menu_bar_menu.add_children(test_menu, "Other menu", true);
 
   let window = WindowBuilder::new()
     .with_title("A fantastic window!")
-    .with_menu(tray_menu)
+    .with_menu(menu_bar_menu)
     .build(&event_loop)
     .unwrap();
 

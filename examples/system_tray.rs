@@ -28,16 +28,16 @@ fn main() {
 
   let mut menu = MenuBuilder::init();
 
-  let mut submenu = MenuBuilder::init_with_title("Submenu");
+  let mut submenu = MenuBuilder::init();
 
   let (open_new_window_id, mut open_new_window_element) =
-    submenu.add_item(MenuType::SystemTray, "Open new window", None, true, true);
+    submenu.add_item(MenuType::SystemTray, "Open new window", None, true, false);
   let (focus_all_window_id, _) =
-    menu.add_item(MenuType::SystemTray, "Focus window", None, true, true);
+    menu.add_item(MenuType::SystemTray, "Focus window", None, true, false);
 
-  menu.add_item(MenuType::SystemTray, "test", None, true, true);
+  menu.add_item(MenuType::SystemTray, "test", None, true, false);
 
-  menu.add_children(submenu, true);
+  menu.add_children(submenu, "Sub menu", true);
 
   // Windows require Vec<u8> ICO file
   #[cfg(target_os = "windows")]

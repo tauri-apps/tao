@@ -1,11 +1,7 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use cocoa::{
-  appkit::{NSApp, NSApplication, NSEventModifierFlags, NSMenu, NSMenuItem},
-  base::{id, nil, selector},
-  foundation::{NSAutoreleasePool, NSString},
-};
+use cocoa::{appkit::{NSApp, NSApplication, NSButton, NSEventModifierFlags, NSMenu, NSMenuItem}, base::{id, nil, selector}, foundation::{NSAutoreleasePool, NSString}};
 use objc::{
   declare::ClassDecl,
   runtime::{Class, Object, Sel, NO, YES},
@@ -67,9 +63,11 @@ impl MenuBuilder {
       MenuBuilder { menu }
     }
   }
-  pub fn add_children(&mut self, menu: MenuBuilder, enabled: bool) {
+  pub fn add_children(&mut self, menu: MenuBuilder, title: &str, enabled: bool) {
     unsafe {
+      let menu_title = NSString::alloc(nil).init_str(title);
       let menu_item = NSMenuItem::alloc(nil).autorelease();
+      menu_item.setTitle_(menu_title);
       if !enabled {
         let () = msg_send![menu_item, setEnabled: NO];
       }
