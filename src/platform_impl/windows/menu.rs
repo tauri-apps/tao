@@ -62,8 +62,14 @@ unsafe impl Send for Menu {}
 unsafe impl Sync for Menu {}
 
 impl Menu {
-  /// Create a new menu for a window.
   pub fn new() -> Menu {
+    unsafe {
+      let hmenu = winuser::CreateMenu();
+      Menu { hmenu }
+    }
+  }
+
+  pub fn new_popup_menu() -> Menu {
     unsafe {
       let hmenu = winuser::CreatePopupMenu();
       Menu { hmenu }

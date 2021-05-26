@@ -73,6 +73,9 @@ impl Menu {
       Self { menu }
     }
   }
+  pub fn new_popup_menu() -> Self {
+    Self::new()
+  }
   pub fn add_children(&mut self, menu: Self, title: &str, enabled: bool) {
     unsafe {
       let menu_title = NSString::alloc(nil).init_str(title);

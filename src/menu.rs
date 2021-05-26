@@ -15,7 +15,7 @@ pub struct Menubar;
 impl Tray {
   pub fn new() -> Menu {
     Menu {
-      menu_platform: MenuPlatform::new(),
+      menu_platform: MenuPlatform::new_popup_menu(),
       menu_type: MenuType::SystemTray,
     }
   }
@@ -41,6 +41,13 @@ impl Menu {
   pub fn new(menu_type: MenuType) -> Self {
     Self {
       menu_platform: MenuPlatform::new(),
+      menu_type,
+    }
+  }
+
+  pub fn new_popup_menu(menu_type: MenuType) -> Self {
+    Self {
+      menu_platform: MenuPlatform::new_popup_menu(),
       menu_type,
     }
   }
