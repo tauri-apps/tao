@@ -23,13 +23,15 @@ use winapi::{
     libloaderapi,
     shellapi::{self, NIF_ICON, NIF_MESSAGE, NIM_ADD, NIM_DELETE, NIM_MODIFY, NOTIFYICONDATAW},
     winuser::{
-      self, CW_USEDEFAULT, LR_DEFAULTCOLOR, MENUINFO, MIM_APPLYTOSUBMENUS, MIM_STYLE, WM_USER,
-      WNDCLASSW, WS_OVERLAPPEDWINDOW,
+      self, CW_USEDEFAULT, LR_DEFAULTCOLOR, MENUINFO, MIM_APPLYTOSUBMENUS, MIM_STYLE, WNDCLASSW,
+      WS_OVERLAPPEDWINDOW,
     },
   },
 };
 
 thread_local!(static WININFO_STASH: RefCell<Option<WindowsLoopData>> = RefCell::new(None));
+
+const WM_USER_TRAYICON: u32 = 0x400 + 1111;
 
 pub struct SystemTrayBuilder {
   pub(crate) icon: Vec<u8>,
@@ -109,7 +111,7 @@ impl SystemTrayBuilder {
       let mut nid = get_nid_struct(&hwnd);
       nid.uID = 0x1;
       nid.uFlags = NIF_MESSAGE;
-      nid.uCallbackMessage = WM_USER + 1;
+      nid.uCallbackMessage = WM_USER_TRAYICON;
       if shellapi::Shell_NotifyIconW(NIM_ADD, &mut nid as *mut NOTIFYICONDATAW) == 0 {
         //return os_error!(OsError::CreationError("Error registering app icon"));
       }
@@ -269,32 +271,45 @@ unsafe extern "system" fn window_proc(
   }
 
   // click on the icon
-  if msg == WM_USER + 1
-    && (l_param as UINT == winuser::WM_LBUTTONUP || l_param as UINT == winuser::WM_RBUTTONUP)
-  {
-    let mut p = POINT { x: 0, y: 0 };
-    if winuser::GetCursorPos(&mut p as *mut POINT) == 0 {
-      return 1;
-    }
-    // set the popup foreground
-    winuser::SetForegroundWindow(h_wnd);
-    WININFO_STASH.with(|stash| {
-      let stash = stash.borrow();
-      let stash = stash.as_ref();
-      if let Some(stash) = stash {
-        // track the click
-        winuser::TrackPopupMenu(
-          stash.system_tray.hmenu,
-          0,
-          p.x,
-          p.y,
-          // align bottom / right, maybe we could expose this later..
-          (winuser::TPM_BOTTOMALIGN | winuser::TPM_LEFTALIGN) as i32,
-          h_wnd,
-          std::ptr::null_mut(),
-        );
+  if msg == WM_USER_TRAYICON {
+    match l_param as u32 {
+      // Left click tray icon
+      winuser::WM_LBUTTONUP => {
+        let mut p = POINT { x: 0, y: 0 };
+        if winuser::GetCursorPos(&mut p as *mut POINT) == 0 {
+          return 1;
+        }
+        // set the popup foreground
+        winuser::SetForegroundWindow(h_wnd);
+        WININFO_STASH.with(|stash| {
+          let stash = stash.borrow();
+          let stash = stash.as_ref();
+          if let Some(stash) = stash {
+            // track the click
+            winuser::TrackPopupMenu(
+              stash.system_tray.hmenu,
+              0,
+              p.x,
+              p.y,
+              // align bottom / right, maybe we could expose this later..
+              (winuser::TPM_BOTTOMALIGN | winuser::TPM_LEFTALIGN) as i32,
+              h_wnd,
+              std::ptr::null_mut(),
+            );
+          }
+        });
       }
-    });
+
+      // TODO: Implement function
+      // Right click tray icon
+      winuser::WM_RBUTTONUP => {}
+
+      // TODO: Implement function
+      // Double click tray icon
+      winuser::WM_LBUTTONDBLCLK => {}
+
+      _ => {}
+    }
   }
 
   return winuser::DefWindowProcW(h_wnd, msg, w_param, l_param);
