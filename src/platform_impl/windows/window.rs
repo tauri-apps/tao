@@ -38,7 +38,7 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
-  menu::Menu,
+  menu::{Menu, MenuType},
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{
     dark_mode::try_theme,
@@ -48,7 +48,7 @@ use crate::{
     icon::{self, IconType},
     menu, monitor, util,
     window_state::{CursorFlags, SavedWindow, WindowFlags, WindowState},
-    Parent, PlatformSpecificWindowBuilderAttributes, WindowId,
+    OsError, Parent, PlatformSpecificWindowBuilderAttributes, WindowId,
   },
   window::{CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes},
 };
@@ -139,7 +139,7 @@ impl Window {
   }
 
   // TODO (lemarier): allow menu update
-  pub fn set_menu(&self, _new_menu: Option<Vec<Menu>>) {}
+  pub fn set_menu(&self, _new_menu: Option<menu::Menu>) {}
 
   #[inline]
   pub fn set_visible(&self, visible: bool) {
@@ -332,7 +332,7 @@ impl Window {
         .lock()
         .mouse
         .set_cursor_flags(window.0, |f| f.set(CursorFlags::GRABBED, grab))
-        .map_err(|e| ExternalError::Os(os_error!(e)));
+        .map_err(|e| ExternalError::Os(os_error!(OsError::IoError(e))));
       let _ = tx.send(result);
     });
     rx.recv().unwrap()
@@ -368,10 +368,14 @@ impl Window {
     let mut point = POINT { x, y };
     unsafe {
       if winuser::ClientToScreen(self.window.0, &mut point) == 0 {
-        return Err(ExternalError::Os(os_error!(io::Error::last_os_error())));
+        return Err(ExternalError::Os(os_error!(OsError::IoError(
+          io::Error::last_os_error()
+        ))));
       }
       if winuser::SetCursorPos(point.x, point.y) == 0 {
-        return Err(ExternalError::Os(os_error!(io::Error::last_os_error())));
+        return Err(ExternalError::Os(os_error!(OsError::IoError(
+          io::Error::last_os_error()
+        ))));
       }
     }
     Ok(())
@@ -796,7 +800,7 @@ unsafe fn init<T: 'static>(
     );
 
     if handle.is_null() {
-      return Err(os_error!(io::Error::last_os_error()));
+      return Err(os_error!(OsError::IoError(io::Error::last_os_error())));
     }
 
     WindowWrapper(handle)
@@ -877,11 +881,14 @@ unsafe fn init<T: 'static>(
     let event_loop_runner = event_loop.runner_shared.clone();
     let window_handle = win.raw_window_handle();
 
-    let menu_handler = menu::MenuHandler::new(Box::new(move |event| {
-      if let Ok(e) = event.map_nonuser_event() {
-        event_loop_runner.send_event(e)
-      }
-    }));
+    let menu_handler = menu::MenuHandler::new(
+      Box::new(move |event| {
+        if let Ok(e) = event.map_nonuser_event() {
+          event_loop_runner.send_event(e)
+        }
+      }),
+      MenuType::Menubar,
+    );
 
     menu::initialize(window_menu, window_handle, menu_handler);
   }
