@@ -30,10 +30,14 @@ fn main() {
 
   let mut submenu = Menu::new();
 
+  // open new window menu item
   let (open_new_window_id, mut open_new_window_element) =
     submenu.add_item("Open new window", None, true, false);
+
+  // focus all window menu item
   let (focus_all_window_id, _) = tray_menu.add_item("Focus window", None, true, false);
 
+  // inject submenu into tray_menu
   tray_menu.add_children(submenu, "Sub menu", true);
 
   // Windows require Vec<u8> ICO file
