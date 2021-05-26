@@ -92,7 +92,7 @@ impl Menu {
       self.menu.addItem_(sep);
     }
   }
-  pub fn add_system_item(&mut self, item: SystemMenu, menu_type: MenuType) -> MenuItem {
+  pub fn add_system_item(&mut self, item: SystemMenu, menu_type: MenuType) -> Option<MenuItem> {
     let menu_item = match item {
       SystemMenu::About(app_name) => {
         let title = format!("About {}", app_name);
@@ -237,7 +237,7 @@ impl Menu {
       self.menu.addItem_(menu_item);
     }
 
-    MenuItem(menu_item)
+    Some(MenuItem(menu_item))
   }
 
   pub fn add_custom_item(

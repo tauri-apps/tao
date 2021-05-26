@@ -71,9 +71,10 @@ impl Menu {
     (menu_id, item)
   }
 
-  pub fn add_system_item(&mut self, item: SystemMenu) -> MenuItem {
+  pub fn add_system_item(&mut self, item: SystemMenu) -> Option<MenuItem> {
     self.menu_platform.add_system_item(item, self.menu_type)
   }
+
   pub fn add_separator(&mut self) {
     self.menu_platform.add_separator()
   }
