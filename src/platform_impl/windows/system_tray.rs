@@ -120,7 +120,6 @@ impl SystemTrayBuilder {
       WININFO_STASH.with(|stash| {
         let data = WindowsLoopData {
           system_tray: app_system_tray,
-          //handler: menu_handler,
         };
         (*stash.borrow_mut()) = Some(data);
       });
@@ -141,8 +140,8 @@ impl SystemTrayBuilder {
         //return os_error!();
       }
 
+      // TODO: Remove `WININFO_STASH` thread_local and save hmenu into the box
       let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
-
       SetWindowSubclass(hwnd as *mut _, Some(subclass_proc), 0, sender as DWORD_PTR);
 
       return Ok(SystemTray { hwnd, hmenu });
