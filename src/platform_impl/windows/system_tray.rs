@@ -1,7 +1,7 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use super::menu::{to_wstring, Menu, MenuHandler};
+use super::menu::{subclass_proc, to_wstring, Menu, MenuHandler};
 use crate::{
   error::OsError as RootOsError,
   event_loop::EventLoopWindowTarget,
@@ -12,18 +12,19 @@ use std::cell::RefCell;
 use winapi::{
   ctypes::{c_ulong, c_ushort},
   shared::{
-    basetsd::ULONG_PTR,
+    basetsd::{DWORD_PTR, ULONG_PTR},
     guiddef::GUID,
     minwindef::{DWORD, HINSTANCE, LPARAM, LRESULT, UINT, WPARAM},
     ntdef::LPCWSTR,
     windef::{HBRUSH, HICON, HMENU, HWND, POINT},
   },
   um::{
+    commctrl::SetWindowSubclass,
     libloaderapi,
     shellapi::{self, NIF_ICON, NIF_MESSAGE, NIM_ADD, NIM_DELETE, NIM_MODIFY, NOTIFYICONDATAW},
     winuser::{
-      self, CW_USEDEFAULT, LR_DEFAULTCOLOR, MENUINFO, MIM_APPLYTOSUBMENUS, MIM_STYLE,
-      MNS_NOTIFYBYPOS, WM_USER, WNDCLASSW, WS_OVERLAPPEDWINDOW,
+      self, CW_USEDEFAULT, LR_DEFAULTCOLOR, MENUINFO, MIM_APPLYTOSUBMENUS, MIM_STYLE, WM_USER,
+      WNDCLASSW, WS_OVERLAPPEDWINDOW,
     },
   },
 };
@@ -71,7 +72,7 @@ impl SystemTrayBuilder {
       let _hinstance: HINSTANCE = libloaderapi::GetModuleHandleA(std::ptr::null_mut());
       let wnd = WNDCLASSW {
         style: 0,
-        lpfnWndProc: Some(subclass_proc),
+        lpfnWndProc: Some(window_proc),
         cbClsExtra: 0,
         cbWndExtra: 0,
         hInstance: 0 as HINSTANCE,
@@ -119,7 +120,7 @@ impl SystemTrayBuilder {
       WININFO_STASH.with(|stash| {
         let data = WindowsLoopData {
           system_tray: app_system_tray,
-          handler: menu_handler,
+          //handler: menu_handler,
         };
         (*stash.borrow_mut()) = Some(data);
       });
@@ -128,7 +129,7 @@ impl SystemTrayBuilder {
       let m = MENUINFO {
         cbSize: std::mem::size_of::<MENUINFO>() as DWORD,
         fMask: MIM_APPLYTOSUBMENUS | MIM_STYLE,
-        dwStyle: MNS_NOTIFYBYPOS,
+        dwStyle: 0,
         cyMax: 0 as UINT,
         hbrBack: 0 as HBRUSH,
         dwContextHelpID: 0 as DWORD,
@@ -139,6 +140,10 @@ impl SystemTrayBuilder {
         //return os_error!(OsError::CreationError("Error setting up menu"));
         //return os_error!();
       }
+
+      let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
+
+      SetWindowSubclass(hwnd as *mut _, Some(subclass_proc), 0, sender as DWORD_PTR);
 
       return Ok(SystemTray { hwnd, hmenu });
     }
@@ -152,7 +157,6 @@ pub struct SystemTray {
 
 struct WindowsLoopData {
   system_tray: SystemTray,
-  handler: MenuHandler,
 }
 
 impl SystemTray {
@@ -255,56 +259,43 @@ pub(crate) fn get_nid_struct(hwnd: &HWND) -> NOTIFYICONDATAW {
   }
 }
 
-// FIXME: For submenu we got same w_param for tray
-// so the MenuId is invalid (with submenu)
-unsafe extern "system" fn subclass_proc(
+unsafe extern "system" fn window_proc(
   h_wnd: HWND,
   msg: UINT,
   w_param: WPARAM,
   l_param: LPARAM,
 ) -> LRESULT {
-  if msg == winuser::WM_MENUCOMMAND {
-    WININFO_STASH.with(|stash| {
-      let stash = stash.borrow();
-      let stash = stash.as_ref();
-      if let Some(stash) = stash {
-        let menu_id = winuser::GetMenuItemID(stash.system_tray.hmenu, w_param as i32) as u32;
-        stash.handler.send_click_event(menu_id);
-      }
-    });
-  }
-
   if msg == winuser::WM_DESTROY {
     winuser::PostQuitMessage(0);
   }
 
-  // track the click
-  if msg == WM_USER + 1 {
-    if l_param as UINT == winuser::WM_LBUTTONUP || l_param as UINT == winuser::WM_RBUTTONUP {
-      let mut p = POINT { x: 0, y: 0 };
-      if winuser::GetCursorPos(&mut p as *mut POINT) == 0 {
-        return 1;
-      }
-      // set the popup foreground
-      winuser::SetForegroundWindow(h_wnd);
-      WININFO_STASH.with(|stash| {
-        let stash = stash.borrow();
-        let stash = stash.as_ref();
-        if let Some(stash) = stash {
-          // track the click
-          winuser::TrackPopupMenu(
-            stash.system_tray.hmenu,
-            0,
-            p.x,
-            p.y,
-            // align bottom / right, maybe we could expose this later..
-            (winuser::TPM_BOTTOMALIGN | winuser::TPM_LEFTALIGN) as i32,
-            h_wnd,
-            std::ptr::null_mut(),
-          );
-        }
-      });
+  // click on the icon
+  if msg == WM_USER + 1
+    && (l_param as UINT == winuser::WM_LBUTTONUP || l_param as UINT == winuser::WM_RBUTTONUP)
+  {
+    let mut p = POINT { x: 0, y: 0 };
+    if winuser::GetCursorPos(&mut p as *mut POINT) == 0 {
+      return 1;
     }
+    // set the popup foreground
+    winuser::SetForegroundWindow(h_wnd);
+    WININFO_STASH.with(|stash| {
+      let stash = stash.borrow();
+      let stash = stash.as_ref();
+      if let Some(stash) = stash {
+        // track the click
+        winuser::TrackPopupMenu(
+          stash.system_tray.hmenu,
+          0,
+          p.x,
+          p.y,
+          // align bottom / right, maybe we could expose this later..
+          (winuser::TPM_BOTTOMALIGN | winuser::TPM_LEFTALIGN) as i32,
+          h_wnd,
+          std::ptr::null_mut(),
+        );
+      }
+    });
   }
 
   return winuser::DefWindowProcW(h_wnd, msg, w_param, l_param);
