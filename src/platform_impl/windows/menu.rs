@@ -160,7 +160,7 @@ pub(crate) fn to_wstring(str: &str) -> Vec<u16> {
   v
 }
 
-unsafe extern "system" fn subclass_proc(
+pub(crate) unsafe extern "system" fn subclass_proc(
   hwnd: windef::HWND,
   u_msg: minwindef::UINT,
   w_param: minwindef::WPARAM,
