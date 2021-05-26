@@ -465,8 +465,7 @@ impl Window {
 
   #[inline]
   pub fn is_visible(&self) -> bool {
-    log::warn!("`Window::is_visible` is ignored on linux");
-    false
+    self.window.is_visible()
   }
 
   pub fn drag_window(&self) -> Result<(), ExternalError> {
