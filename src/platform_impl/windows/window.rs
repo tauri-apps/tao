@@ -436,8 +436,7 @@ impl Window {
 
   #[inline]
   pub fn is_visible(&self) -> bool {
-    warn!("`Window::is_visible` is ignored on windows");
-    false
+    util::is_visible(self.window.0)
   }
 
   #[inline]
