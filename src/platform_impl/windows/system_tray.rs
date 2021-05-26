@@ -3,10 +3,10 @@
 
 use super::menu::{to_wstring, Menu, MenuHandler};
 use crate::{
-  menu::MenuType,
   error::OsError as RootOsError,
   event_loop::EventLoopWindowTarget,
   // platform_impl::OsError,
+  menu::MenuType,
 };
 use std::cell::RefCell;
 use winapi::{
@@ -22,8 +22,8 @@ use winapi::{
     libloaderapi,
     shellapi::{self, NIF_ICON, NIF_MESSAGE, NIM_ADD, NIM_DELETE, NIM_MODIFY, NOTIFYICONDATAW},
     winuser::{
-      self, CW_USEDEFAULT, LR_DEFAULTCOLOR, MENUINFO, MIM_APPLYTOSUBMENUS,
-      MIM_STYLE, MNS_NOTIFYBYPOS, WM_USER, WNDCLASSW, WS_OVERLAPPEDWINDOW,
+      self, CW_USEDEFAULT, LR_DEFAULTCOLOR, MENUINFO, MIM_APPLYTOSUBMENUS, MIM_STYLE,
+      MNS_NOTIFYBYPOS, WM_USER, WNDCLASSW, WS_OVERLAPPEDWINDOW,
     },
   },
 };
@@ -54,16 +54,18 @@ impl SystemTrayBuilder {
     self,
     window_target: &EventLoopWindowTarget<T>,
   ) -> Result<SystemTray, RootOsError> {
-
     let hmenu = self.tray_menu.into_hmenu();
 
     // create the handler
     let event_loop_runner = window_target.p.runner_shared.clone();
-    let menu_handler = MenuHandler::new(Box::new(move |event| {
-      if let Ok(e) = event.map_nonuser_event() {
-        unsafe { event_loop_runner.send_event(e) }
-      }
-    }), MenuType::SystemTray);
+    let menu_handler = MenuHandler::new(
+      Box::new(move |event| {
+        if let Ok(e) = event.map_nonuser_event() {
+          unsafe { event_loop_runner.send_event(e) }
+        }
+      }),
+      MenuType::SystemTray,
+    );
     let class_name = to_wstring("tao_system_tray_app");
     unsafe {
       let _hinstance: HINSTANCE = libloaderapi::GetModuleHandleA(std::ptr::null_mut());
@@ -154,7 +156,6 @@ struct WindowsLoopData {
 }
 
 impl SystemTray {
-
   pub fn update_icon(&mut self, icon: Vec<u8>) {
     self.set_icon_from_buffer(&icon, 32, 32);
   }
@@ -268,9 +269,7 @@ unsafe extern "system" fn subclass_proc(
       let stash = stash.as_ref();
       if let Some(stash) = stash {
         let menu_id = winuser::GetMenuItemID(stash.system_tray.hmenu, w_param as i32) as u32;
-        stash
-          .handler
-          .send_click_event(menu_id);
+        stash.handler.send_click_event(menu_id);
       }
     });
   }
@@ -281,7 +280,6 @@ unsafe extern "system" fn subclass_proc(
 
   // track the click
   if msg == WM_USER + 1 {
-
     if l_param as UINT == winuser::WM_LBUTTONUP || l_param as UINT == winuser::WM_RBUTTONUP {
       let mut p = POINT { x: 0, y: 0 };
       if winuser::GetCursorPos(&mut p as *mut POINT) == 0 {

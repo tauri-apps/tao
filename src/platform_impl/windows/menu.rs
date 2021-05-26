@@ -23,7 +23,10 @@ pub struct MenuHandler {
 
 impl MenuHandler {
   pub fn new(send_event: Box<dyn Fn(Event<'static, ()>)>, menu_type: MenuType) -> MenuHandler {
-    MenuHandler { send_event, menu_type }
+    MenuHandler {
+      send_event,
+      menu_type,
+    }
   }
   pub fn send_click_event(&self, menu_id: u32) {
     (self.send_event)(Event::MenuEvent {
@@ -37,15 +40,9 @@ impl MenuHandler {
 pub struct MenuItem(pub(crate) i32);
 
 impl MenuItem {
-  pub fn set_enabled(&mut self, _is_enabled: bool) {
-
-  }
-  pub fn set_title(&mut self, _title: &str) {
-
-  }
-  pub fn set_selected(&mut self, _is_selected: bool) {
-
-  }
+  pub fn set_enabled(&mut self, _is_enabled: bool) {}
+  pub fn set_title(&mut self, _title: &str) {}
+  pub fn set_selected(&mut self, _is_selected: bool) {}
 }
 
 #[derive(Debug, Clone)]

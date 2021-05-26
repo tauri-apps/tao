@@ -11,8 +11,9 @@ use winapi::{
 pub use self::{
   event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
   icon::WinIcon,
+  menu::{Menu, MenuItem},
   monitor::{MonitorHandle, VideoMode},
-  system_tray::SystemTray,
+  system_tray::{SystemTray, SystemTrayBuilder},
   window::Window,
 };
 
@@ -80,14 +81,28 @@ impl DeviceId {
   }
 }
 
+#[derive(Debug)]
+pub enum OsError {
+  // CreationError(&'static str),
+  IoError(std::io::Error),
+}
+impl std::error::Error for OsError {}
+
+impl std::fmt::Display for OsError {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      //  OsError::CreationError(e) => f.pad(e),
+      OsError::IoError(e) => f.pad(&e.to_string()),
+    }
+  }
+}
+
 // Constant device ID, to be removed when this backend is updated to report real device IDs.
 const DEVICE_ID: RootDeviceId = RootDeviceId(DeviceId(0));
 
 fn wrap_device_id(id: u32) -> RootDeviceId {
   RootDeviceId(DeviceId(id))
 }
-
-pub type OsError = std::io::Error;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WindowId(HWND);
