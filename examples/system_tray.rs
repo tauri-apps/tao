@@ -18,7 +18,7 @@ fn main() {
   use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    menu::{Tray as Menu, MenuType},
+    menu::{MenuType, Tray as Menu},
     platform::system_tray::SystemTrayBuilder,
     window::Window,
   };

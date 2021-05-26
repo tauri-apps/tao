@@ -8,7 +8,6 @@ use std::{
 
 use crate::platform_impl::{Menu as MenuPlatform, MenuItem};
 
-
 // test with shortcuts, we can remove them as well?
 pub struct Tray;
 pub struct Menubar;

@@ -1,12 +1,12 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use super::menu::{make_menu_item, to_wstring, MenuHandler};
+use super::menu::{to_wstring, Menu, MenuHandler};
 use crate::{
-  error::OsError,
-  menu::{MenuItem, MenuType},
-  platform::system_tray::SystemTray as RootSystemTray,
-  platform_impl::EventLoopWindowTarget,
+  menu::MenuType,
+  error::OsError as RootOsError,
+  event_loop::EventLoopWindowTarget,
+  // platform_impl::OsError,
 };
 use std::cell::RefCell;
 use winapi::{
@@ -22,36 +22,48 @@ use winapi::{
     libloaderapi,
     shellapi::{self, NIF_ICON, NIF_MESSAGE, NIM_ADD, NIM_DELETE, NIM_MODIFY, NOTIFYICONDATAW},
     winuser::{
-      self, CW_USEDEFAULT, LR_DEFAULTCOLOR, MENUINFO, MENUITEMINFOW, MIM_APPLYTOSUBMENUS,
+      self, CW_USEDEFAULT, LR_DEFAULTCOLOR, MENUINFO, MIM_APPLYTOSUBMENUS,
       MIM_STYLE, MNS_NOTIFYBYPOS, WM_USER, WNDCLASSW, WS_OVERLAPPEDWINDOW,
     },
   },
 };
 
-pub struct SystemTray {
-  hwnd: HWND,
-  hmenu: HMENU,
-}
-
 thread_local!(static WININFO_STASH: RefCell<Option<WindowsLoopData>> = RefCell::new(None));
 
-struct WindowsLoopData {
-  system_tray: SystemTray,
-  handler: MenuHandler,
+pub struct SystemTrayBuilder {
+  pub(crate) icon: Vec<u8>,
+  pub(crate) tray_menu: Menu,
 }
 
-impl SystemTray {
-  pub fn initialize<T>(
+impl SystemTrayBuilder {
+  /// Creates a new SystemTray for platforms where this is appropriate.
+  /// ## Platform-specific
+  ///
+  /// - **macOS / Windows:**: receive icon as bytes (`Vec<u8>`)
+  /// - **Linux:**: receive icon's path (`PathBuf`)
+  #[inline]
+  pub fn new(icon: Vec<u8>, tray_menu: Menu) -> Self {
+    Self { icon, tray_menu }
+  }
+
+  /// Builds the system tray.
+  ///
+  /// Possible causes of error include denied permission, incompatible system, and lack of memory.
+  #[inline]
+  pub fn build<T: 'static>(
+    self,
     window_target: &EventLoopWindowTarget<T>,
-    system_tray: &RootSystemTray,
-  ) -> Result<(), OsError> {
+  ) -> Result<SystemTray, RootOsError> {
+
+    let hmenu = self.tray_menu.into_hmenu();
+
     // create the handler
-    let event_loop_runner = window_target.runner_shared.clone();
+    let event_loop_runner = window_target.p.runner_shared.clone();
     let menu_handler = MenuHandler::new(Box::new(move |event| {
       if let Ok(e) = event.map_nonuser_event() {
         unsafe { event_loop_runner.send_event(e) }
       }
-    }));
+    }), MenuType::SystemTray);
     let class_name = to_wstring("tao_system_tray_app");
     unsafe {
       let _hinstance: HINSTANCE = libloaderapi::GetModuleHandleA(std::ptr::null_mut());
@@ -68,8 +80,9 @@ impl SystemTray {
         lpszClassName: class_name.as_ptr(),
       };
       if winuser::RegisterClassW(&wnd) == 0 {
-        debug!("Error registering window");
-        return Ok(());
+        // FIXME: os_error dont seems to work :(
+        // os_error!(OsError::CreationError("Error registering window"))
+        // return Err(OsError::CreationError("Error registering window"));
       }
 
       let hwnd = winuser::CreateWindowExW(
@@ -87,8 +100,7 @@ impl SystemTray {
         std::ptr::null_mut(),
       );
       if hwnd == std::ptr::null_mut() {
-        debug!("Error creating window");
-        return Ok(());
+        //return os_error!(OsError::CreationError("Error creating window"));
       }
 
       let mut nid = get_nid_struct(&hwnd);
@@ -96,13 +108,11 @@ impl SystemTray {
       nid.uFlags = NIF_MESSAGE;
       nid.uCallbackMessage = WM_USER + 1;
       if shellapi::Shell_NotifyIconW(NIM_ADD, &mut nid as *mut NOTIFYICONDATAW) == 0 {
-        debug!("Error registering app icon");
-        return Ok(());
+        //return os_error!(OsError::CreationError("Error registering app icon"));
       }
 
-      let hmenu = winuser::CreatePopupMenu();
       let app_system_tray = SystemTray { hwnd, hmenu };
-      app_system_tray.set_icon_from_buffer(&system_tray.icon, 32, 32);
+      app_system_tray.set_icon_from_buffer(&self.icon, 32, 32);
 
       WININFO_STASH.with(|stash| {
         let data = WindowsLoopData {
@@ -124,33 +134,32 @@ impl SystemTray {
       };
 
       if winuser::SetMenuInfo(hmenu, &m as *const MENUINFO) == 0 {
-        debug!("Error setting up menu");
-        return Ok(());
+        //return os_error!(OsError::CreationError("Error setting up menu"));
+        //return os_error!();
       }
 
-      for menu_item in &system_tray.items {
-        let sub_item = match menu_item {
-          // we support only custom menu on windows for now
-          MenuItem::Custom(custom_menu) => {
-            make_menu_item(Some(custom_menu.id.0), &custom_menu.name)
-          }
-          _ => None,
-        };
-
-        if let Some(item) = sub_item {
-          // add the item to our HMENU
-          if winuser::InsertMenuItemW(hmenu, item.wID, 1, &item as *const MENUITEMINFOW) == 0 {
-            debug!("Error adding menu item");
-            return Ok(());
-          }
-        }
-      }
+      return Ok(SystemTray { hwnd, hmenu });
     }
+  }
+}
 
-    Ok(())
+pub struct SystemTray {
+  hwnd: HWND,
+  hmenu: HMENU,
+}
+
+struct WindowsLoopData {
+  system_tray: SystemTray,
+  handler: MenuHandler,
+}
+
+impl SystemTray {
+
+  pub fn update_icon(&mut self, icon: Vec<u8>) {
+    self.set_icon_from_buffer(&icon, 32, 32);
   }
 
-  pub fn set_icon_from_buffer(&self, buffer: &[u8], width: u32, height: u32) {
+  fn set_icon_from_buffer(&self, buffer: &[u8], width: u32, height: u32) {
     unsafe {
       // we should align our pointer to windows directory
       match winuser::LookupIconIdFromDirectoryEx(
@@ -245,6 +254,8 @@ pub(crate) fn get_nid_struct(hwnd: &HWND) -> NOTIFYICONDATAW {
   }
 }
 
+// FIXME: For submenu we got same w_param for tray
+// so the MenuId is invalid (with submenu)
 unsafe extern "system" fn subclass_proc(
   h_wnd: HWND,
   msg: UINT,
@@ -259,7 +270,7 @@ unsafe extern "system" fn subclass_proc(
         let menu_id = winuser::GetMenuItemID(stash.system_tray.hmenu, w_param as i32) as u32;
         stash
           .handler
-          .send_click_event(menu_id, MenuType::SystemTray);
+          .send_click_event(menu_id);
       }
     });
   }
@@ -270,6 +281,7 @@ unsafe extern "system" fn subclass_proc(
 
   // track the click
   if msg == WM_USER + 1 {
+
     if l_param as UINT == winuser::WM_LBUTTONUP || l_param as UINT == winuser::WM_RBUTTONUP {
       let mut p = POINT { x: 0, y: 0 };
       if winuser::GetCursorPos(&mut p as *mut POINT) == 0 {
