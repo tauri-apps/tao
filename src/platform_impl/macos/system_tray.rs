@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::menu::Menu;
-use crate::{error::OsError, event_loop::EventLoopWindowTarget, menu::Menu as RootMenu};
+use crate::{error::OsError, event_loop::EventLoopWindowTarget};
 use cocoa::{
   appkit::{NSButton, NSImage, NSSquareStatusItemLength, NSStatusBar, NSStatusItem},
   base::{id, nil},
@@ -10,7 +10,7 @@ use cocoa::{
 };
 
 pub struct SystemTrayBuilder {
-  system_tray: SystemTray,
+  pub(crate) system_tray: SystemTray,
 }
 
 impl SystemTrayBuilder {
@@ -20,7 +20,7 @@ impl SystemTrayBuilder {
   /// - **macOS / Windows:**: receive icon as bytes (`Vec<u8>`)
   /// - **Linux:**: receive icon's path (`PathBuf`)
   #[inline]
-  pub fn new(icon: Vec<u8>, tray_menu: RootMenu) -> Self {
+  pub fn new(icon: Vec<u8>, tray_menu: Menu) -> Self {
     unsafe {
       let ns_status_bar = NSStatusBar::systemStatusBar(nil)
         .statusItemWithLength_(NSSquareStatusItemLength)
@@ -29,7 +29,7 @@ impl SystemTrayBuilder {
       Self {
         system_tray: SystemTray {
           icon,
-          tray_menu: tray_menu.menu_platform,
+          tray_menu,
           ns_status_bar,
         },
       }
