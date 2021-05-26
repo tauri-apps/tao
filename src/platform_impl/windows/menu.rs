@@ -119,14 +119,12 @@ impl Menu {
       if selected {
         flags |= winuser::MF_CHECKED;
       }
-      println!("ID: {}", id.0);
       let item = winuser::AppendMenuW(
         self.hmenu,
         flags,
         id.0 as basetsd::UINT_PTR,
         to_wstring(&text).as_mut_ptr(),
       );
-      println!("item: {}", item);
       MenuItem(item)
     }
   }

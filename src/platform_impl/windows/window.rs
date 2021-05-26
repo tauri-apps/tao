@@ -38,7 +38,7 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
-  menu::{Menu, MenuType},
+  menu::MenuType,
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{
     dark_mode::try_theme,
