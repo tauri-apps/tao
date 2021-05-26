@@ -6,36 +6,63 @@ use std::{
   hash::{Hash, Hasher},
 };
 
-use crate::platform_impl::{MenuBuilder as PlatformMenuBuilder, MenuItem};
+use crate::platform_impl::{Menu as MenuPlatform, MenuItem};
 
+
+// test with shortcuts, we can remove them as well?
+pub struct Tray;
+pub struct Menubar;
+
+impl Tray {
+  pub fn new() -> Menu {
+    Menu {
+      menu_platform: MenuPlatform::new(),
+      menu_type: MenuType::SystemTray,
+    }
+  }
+}
+
+impl Menubar {
+  pub fn new() -> Menu {
+    Menu {
+      menu_platform: MenuPlatform::new(),
+      menu_type: MenuType::Menubar,
+    }
+  }
+}
+
+// menu builder
 #[derive(Debug, Clone)]
-pub struct MenuBuilder(pub(crate) PlatformMenuBuilder);
+pub struct Menu {
+  pub(crate) menu_platform: MenuPlatform,
+  pub(crate) menu_type: MenuType,
+}
 
-impl MenuBuilder {
-  pub fn init() -> Self {
-    Self(PlatformMenuBuilder::init())
+impl Menu {
+  pub fn new(menu_type: MenuType) -> Self {
+    Self {
+      menu_platform: MenuPlatform::new(),
+      menu_type,
+    }
   }
 
-  pub fn init_with_title(title: &str) -> Self {
-    Self(PlatformMenuBuilder::init_with_title(title))
-  }
-
-  pub fn add_children(&mut self, children: MenuBuilder, title: &str, enabled: bool) {
-    self.0.add_children(children.0, title, enabled);
+  pub fn add_children(&mut self, children: Menu, title: &str, enabled: bool) {
+    self
+      .menu_platform
+      .add_children(children.menu_platform, title, enabled);
   }
 
   pub fn add_item(
     &mut self,
-    menu_type: MenuType,
     text: &str,
     keyboard_accelerator: Option<&str>,
     enabled: bool,
     selected: bool,
   ) -> (MenuId, MenuItem) {
     let menu_id = MenuId::new(&text);
-    let item = self.0.add_custom_item(
+    let item = self.menu_platform.add_custom_item(
       menu_id,
-      menu_type,
+      self.menu_type,
       text,
       keyboard_accelerator,
       enabled,
@@ -44,32 +71,12 @@ impl MenuBuilder {
     (menu_id, item)
   }
 
-  pub fn add_system_item(&mut self, item: SystemMenu, menu_type: MenuType) -> MenuItem {
-    self.0.add_system_item(item, menu_type)
+  pub fn add_system_item(&mut self, item: SystemMenu) -> MenuItem {
+    self.menu_platform.add_system_item(item, self.menu_type)
   }
-}
-
-#[derive(Debug, Clone)]
-pub struct Menu {
-  pub title: String,
-  pub items: Vec<SystemMenu>,
-}
-
-impl Menu {
-  pub fn new(title: &str, items: Vec<SystemMenu>) -> Self {
-    Self {
-      title: String::from(title),
-      items,
-    }
+  pub fn add_separator(&mut self) {
+    self.menu_platform.add_separator()
   }
-}
-
-#[derive(Debug, Clone, Hash)]
-/// CustomMenu is a custom menu who emit an event inside the EventLoop.
-pub struct CustomMenu {
-  pub id: MenuId,
-  pub name: String,
-  pub keyboard_accelerators: Option<String>,
 }
 
 /// A menu item, bound to a pre-defined action or `Custom` emit an event. Note that status bar only

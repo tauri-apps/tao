@@ -18,7 +18,7 @@ fn main() {
   use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    menu::{MenuBuilder, MenuType},
+    menu::{Tray as Menu, MenuType},
     platform::system_tray::SystemTrayBuilder,
     window::Window,
   };
@@ -26,14 +26,13 @@ fn main() {
   let event_loop = EventLoop::new();
   let mut windows = HashMap::new();
 
-  let mut tray_menu = MenuBuilder::init();
+  let mut tray_menu = Menu::new();
 
-  let mut submenu = MenuBuilder::init();
+  let mut submenu = Menu::new();
 
   let (open_new_window_id, mut open_new_window_element) =
-    submenu.add_item(MenuType::SystemTray, "Open new window", None, true, false);
-  let (focus_all_window_id, _) =
-    tray_menu.add_item(MenuType::SystemTray, "Focus window", None, true, false);
+    submenu.add_item("Open new window", None, true, false);
+  let (focus_all_window_id, _) = tray_menu.add_item("Focus window", None, true, false);
 
   tray_menu.add_children(submenu, "Sub menu", true);
 

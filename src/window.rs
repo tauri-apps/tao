@@ -8,7 +8,7 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError},
   event_loop::EventLoopWindowTarget,
-  menu::MenuBuilder,
+  menu::Menu,
   monitor::{MonitorHandle, VideoMode},
   platform_impl,
 };
@@ -201,7 +201,7 @@ pub struct WindowAttributes {
   /// The window menu.
   ///
   /// The default is `None`.
-  pub window_menu: Option<platform_impl::MenuBuilder>,
+  pub window_menu: Option<platform_impl::Menu>,
 }
 
 impl Default for WindowAttributes {
@@ -306,8 +306,8 @@ impl WindowBuilder {
   ///
   /// [`Window::set_menu`]: crate::window::Window::set_menu
   #[inline]
-  pub fn with_menu(mut self, menu: MenuBuilder) -> Self {
-    self.window.window_menu = Some(menu.0);
+  pub fn with_menu(mut self, menu: Menu) -> Self {
+    self.window.window_menu = Some(menu.menu_platform);
     self
   }
 
@@ -613,9 +613,9 @@ impl Window {
   /// - **Windows:** Unsupported.
 
   #[inline]
-  pub fn set_menu(&self, menu: Option<MenuBuilder>) {
+  pub fn set_menu(&self, menu: Option<Menu>) {
     if let Some(menu) = menu {
-      self.window.set_menu(Some(menu.0))
+      self.window.set_menu(Some(menu.menu_platform))
     } else {
       self.window.set_menu(None)
     }

@@ -1,10 +1,8 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use super::menu::MenuBuilder;
-use crate::{
-  error::OsError, event_loop::EventLoopWindowTarget, menu::MenuBuilder as RootMenuBuilder,
-};
+use super::menu::Menu;
+use crate::{error::OsError, event_loop::EventLoopWindowTarget, menu::Menu as RootMenu};
 use cocoa::{
   appkit::{NSButton, NSImage, NSSquareStatusItemLength, NSStatusBar, NSStatusItem},
   base::{id, nil},
@@ -22,7 +20,7 @@ impl SystemTrayBuilder {
   /// - **macOS / Windows:**: receive icon as bytes (`Vec<u8>`)
   /// - **Linux:**: receive icon's path (`PathBuf`)
   #[inline]
-  pub fn new(icon: Vec<u8>, tray_menu: RootMenuBuilder) -> Self {
+  pub fn new(icon: Vec<u8>, tray_menu: RootMenu) -> Self {
     unsafe {
       let ns_status_bar = NSStatusBar::systemStatusBar(nil)
         .statusItemWithLength_(NSSquareStatusItemLength)
@@ -31,7 +29,7 @@ impl SystemTrayBuilder {
       Self {
         system_tray: SystemTray {
           icon,
-          tray_menu: tray_menu.0,
+          tray_menu: tray_menu.menu_platform,
           ns_status_bar,
         },
       }
@@ -68,7 +66,7 @@ impl SystemTrayBuilder {
 #[derive(Debug, Clone)]
 pub struct SystemTray {
   pub(crate) icon: Vec<u8>,
-  pub(crate) tray_menu: MenuBuilder,
+  pub(crate) tray_menu: Menu,
   pub(crate) ns_status_bar: id,
 }
 

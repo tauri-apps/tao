@@ -45,7 +45,7 @@ use objc::{
   runtime::{Class, Object, Sel, BOOL, NO, YES},
 };
 
-use super::MenuBuilder;
+use super::Menu;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Id(pub usize);
@@ -456,7 +456,7 @@ impl UnownedWindow {
     }
   }
 
-  pub fn set_menu(&self, menu: Option<MenuBuilder>) {
+  pub fn set_menu(&self, menu: Option<Menu>) {
     unsafe {
       util::set_menu_async(*self.ns_window, menu);
     }

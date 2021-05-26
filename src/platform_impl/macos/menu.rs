@@ -27,12 +27,12 @@ pub(crate) struct KeyEquivalent<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct MenuBuilder {
+pub struct Menu {
   pub menu: id,
 }
 
-unsafe impl Send for MenuBuilder {}
-unsafe impl Sync for MenuBuilder {}
+unsafe impl Send for Menu {}
+unsafe impl Sync for Menu {}
 
 #[derive(Debug, Clone)]
 pub struct MenuItem(pub(crate) id);
@@ -65,23 +65,15 @@ impl MenuItem {
 }
 
 // initialize menu and allocate the ID
-impl MenuBuilder {
-  pub fn init() -> MenuBuilder {
+impl Menu {
+  pub fn new() -> Self {
     unsafe {
       let menu = NSMenu::alloc(nil).autorelease();
       let () = msg_send![menu, setAutoenablesItems: NO];
-      MenuBuilder { menu }
+      Self { menu }
     }
   }
-  pub fn init_with_title(title: &str) -> MenuBuilder {
-    unsafe {
-      let menu_title = NSString::alloc(nil).init_str(title);
-      let menu = NSMenu::alloc(nil).initWithTitle_(menu_title).autorelease();
-      let () = msg_send![menu, setAutoenablesItems: NO];
-      MenuBuilder { menu }
-    }
-  }
-  pub fn add_children(&mut self, menu: MenuBuilder, title: &str, enabled: bool) {
+  pub fn add_children(&mut self, menu: Self, title: &str, enabled: bool) {
     unsafe {
       let menu_title = NSString::alloc(nil).init_str(title);
       let menu_item = NSMenuItem::alloc(nil).autorelease();
@@ -92,6 +84,12 @@ impl MenuBuilder {
       }
       menu_item.setSubmenu_(menu.menu);
       self.menu.addItem_(menu_item);
+    }
+  }
+  pub fn add_separator(&mut self) {
+    unsafe {
+      let sep = id::separatorItem(self.menu);
+      self.menu.addItem_(sep);
     }
   }
   pub fn add_system_item(&mut self, item: SystemMenu, menu_type: MenuType) -> MenuItem {
@@ -301,7 +299,7 @@ impl MenuBuilder {
 #[derive(Debug)]
 struct Action(Box<u32>);
 
-pub fn initialize(menu_builder: MenuBuilder) {
+pub fn initialize(menu_builder: Menu) {
   unsafe {
     let app = NSApp();
     app.setMainMenu_(menu_builder.menu);
