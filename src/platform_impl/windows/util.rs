@@ -200,13 +200,7 @@ pub fn is_focused(window: HWND) -> bool {
 }
 
 pub fn is_visible(window: HWND) -> bool {
-  unsafe {
-    if winuser::IsWindowVisible(window) == TRUE {
-      true
-    } else {
-      false
-    }
-  }
+  unsafe { winuser::IsWindowVisible(window) == TRUE }
 }
 
 impl CursorIcon {
