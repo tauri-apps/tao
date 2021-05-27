@@ -14,7 +14,7 @@ use std::sync::Once;
 
 use crate::{
   event::Event,
-  menu::{MenuId, MenuType, SystemMenu},
+  menu::{MenuIcon, MenuId, MenuType, SystemMenu},
 };
 
 use super::{app_state::AppState, event::EventWrapper};
@@ -60,6 +60,13 @@ impl MenuItem {
         false => 0_isize,
       };
       let () = msg_send![self.0, setState: state];
+    }
+  }
+  pub fn set_icon(&mut self, icon: MenuIcon) {
+    unsafe {
+      let ns_image: id = icon.get_ns_image();
+      let image_ref: id = msg_send![class!(NSImage), imageNamed: ns_image];
+      let () = msg_send![self.0, setImage: image_ref];
     }
   }
 }

@@ -71,7 +71,7 @@ pub struct SystemTray {
 }
 
 impl SystemTray {
-  pub fn update_icon(&mut self, icon: Vec<u8>) {
+  pub fn set_icon(&mut self, icon: Vec<u8>) {
     // update our icon
     self.icon = icon;
     self.create_button_with_icon();

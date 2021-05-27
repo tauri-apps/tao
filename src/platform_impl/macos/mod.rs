@@ -10,6 +10,7 @@ mod event;
 mod event_loop;
 mod ffi;
 mod menu;
+mod menu_icons;
 mod monitor;
 mod observer;
 mod system_tray;

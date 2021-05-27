@@ -259,3 +259,12 @@ fn hash_string_to_u32(title: &str) -> u32 {
   title.hash(&mut s);
   s.finish() as u32
 }
+
+pub enum MenuIcon {
+  // green dot
+  StatusAvailable,
+  // yellow dot
+  StatusPartiallyAvailable,
+  // red dot
+  StatusUnavailable,
+}

@@ -161,7 +161,7 @@ struct WindowsLoopData {
 }
 
 impl SystemTray {
-  pub fn update_icon(&mut self, icon: Vec<u8>) {
+  pub fn set_icon(&mut self, icon: Vec<u8>) {
     self.set_icon_from_buffer(&icon, 32, 32);
   }
 

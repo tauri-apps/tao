@@ -18,7 +18,7 @@ fn main() {
   use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    menu::{MenuType, Tray as Menu},
+    menu::{MenuIcon, MenuType, Tray as Menu},
     platform::system_tray::SystemTrayBuilder,
     window::Window,
   };
@@ -32,7 +32,10 @@ fn main() {
 
   // open new window menu item
   let (open_new_window_id, mut open_new_window_element) =
-    submenu.add_item("Open new window", None, true, false);
+    submenu.add_item("Open new window", Some("<Primary>e"), true, false);
+
+  // set default icon
+  open_new_window_element.set_icon(MenuIcon::StatusAvailable);
 
   // focus all window menu item
   let (focus_all_window_id, _) = tray_menu.add_item("Focus window", None, true, false);
@@ -81,7 +84,8 @@ fn main() {
           open_new_window_element.set_title("Open new window");
           // Set unchecked
           open_new_window_element.set_selected(false);
-          system_tray.update_icon(icon.clone());
+          system_tray.set_icon(icon.clone());
+          open_new_window_element.set_icon(MenuIcon::StatusAvailable);
         }
       }
       Event::MenuEvent {
@@ -99,7 +103,8 @@ fn main() {
           open_new_window_element.set_selected(true);
 
           // update tray icon
-          system_tray.update_icon(new_icon.clone());
+          system_tray.set_icon(new_icon.clone());
+          open_new_window_element.set_icon(MenuIcon::StatusUnavailable);
         }
         if menu_id == focus_all_window_id {
           for window in windows.values() {

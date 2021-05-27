@@ -5,7 +5,7 @@ use simple_logger::SimpleLogger;
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
-  menu::{MenuType, Menubar as Menu, SystemMenu},
+  menu::{MenuIcon, MenuType, Menubar as Menu, SystemMenu},
   window::WindowBuilder,
 };
 
@@ -68,6 +68,7 @@ fn main() {
           test_menu_item.set_enabled(false);
           test_menu_item.set_title("Menu disabled");
           test_menu_item.set_selected(true);
+          test_menu_item.set_icon(MenuIcon::StatusUnavailable);
         }
         println!("Clicked on {:?}", menu_id);
         window.set_title("New window title!");

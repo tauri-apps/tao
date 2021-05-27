@@ -13,7 +13,7 @@ use std::ptr::null;
 
 use crate::{
   event::Event,
-  menu::{MenuId, MenuType, SystemMenu},
+  menu::{MenuIcon, MenuId, MenuType, SystemMenu},
 };
 
 pub struct MenuHandler {
@@ -40,6 +40,7 @@ impl MenuHandler {
 pub struct MenuItem(pub(crate) u32, windef::HMENU);
 
 impl MenuItem {
+  pub fn set_icon(&mut self, icon: MenuIcon) {}
   pub fn set_enabled(&mut self, is_enabled: bool) {
     unsafe {
       let mut info: winuser::MENUITEMINFOA = std::mem::zeroed();
