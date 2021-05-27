@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use raw_window_handle::RawWindowHandle;
-use std::os::windows::ffi::OsStrExt;
+use std::{ffi::CString, os::windows::ffi::OsStrExt};
 
 use winapi::{
   shared::{basetsd, minwindef, windef},
@@ -37,12 +37,54 @@ impl MenuHandler {
 }
 
 #[derive(Debug, Clone)]
-pub struct MenuItem(pub(crate) i32);
+pub struct MenuItem(pub(crate) u32, windef::HMENU);
 
 impl MenuItem {
-  pub fn set_enabled(&mut self, _is_enabled: bool) {}
-  pub fn set_title(&mut self, _title: &str) {}
-  pub fn set_selected(&mut self, _is_selected: bool) {}
+  pub fn set_enabled(&mut self, is_enabled: bool) {
+    unsafe {
+      let mut info: winuser::MENUITEMINFOA = std::mem::zeroed();
+      info.cbSize = std::mem::size_of::<winuser::MENUITEMINFOA>() as u32;
+      info.fMask = winuser::MIIM_STATE;
+
+      winuser::GetMenuItemInfoA(self.1, self.0, minwindef::FALSE, &mut info);
+
+      info.fState = info.fState
+        | match is_enabled {
+          true => winuser::MFS_ENABLED,
+          false => winuser::MFS_DISABLED,
+        };
+
+      winuser::SetMenuItemInfoA(self.1, self.0, minwindef::FALSE, &info);
+    }
+  }
+  pub fn set_title(&mut self, title: &str) {
+    unsafe {
+      let mut info: winuser::MENUITEMINFOA = std::mem::zeroed();
+      info.cbSize = std::mem::size_of::<winuser::MENUITEMINFOA>() as u32;
+      info.fMask = winuser::MIIM_STRING;
+      let c_str = CString::new(title).unwrap();
+      info.dwTypeData = c_str.as_ptr() as *mut _;
+
+      winuser::SetMenuItemInfoA(self.1, self.0, minwindef::FALSE, &info);
+    }
+  }
+  pub fn set_selected(&mut self, is_selected: bool) {
+    unsafe {
+      let mut info: winuser::MENUITEMINFOA = std::mem::zeroed();
+      info.cbSize = std::mem::size_of::<winuser::MENUITEMINFOA>() as u32;
+      info.fMask = winuser::MIIM_STATE;
+
+      winuser::GetMenuItemInfoA(self.1, self.0, minwindef::FALSE, &mut info);
+
+      info.fState = info.fState
+        | match is_selected {
+          true => winuser::MFS_CHECKED,
+          false => winuser::MFS_UNCHECKED,
+        };
+
+      winuser::SetMenuItemInfoA(self.1, self.0, minwindef::FALSE, &info);
+    }
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -125,13 +167,13 @@ impl Menu {
       if selected {
         flags |= winuser::MF_CHECKED;
       }
-      let item = winuser::AppendMenuW(
+      winuser::AppendMenuW(
         self.hmenu,
         flags,
         id.0 as basetsd::UINT_PTR,
         to_wstring(&text).as_mut_ptr(),
       );
-      MenuItem(item)
+      MenuItem(id.0, self.hmenu)
     }
   }
 }
