@@ -750,11 +750,18 @@ impl UnownedWindow {
   }
 
   #[inline]
+  pub fn is_visible(&self) -> bool {
+    let is_visible: BOOL = unsafe { msg_send![*self.ns_window, isVisible] };
+    is_visible == YES
+  }
+
+  #[inline]
   pub fn is_resizable(&self) -> bool {
     let is_resizable: BOOL = unsafe { msg_send![*self.ns_window, isResizable] };
     is_resizable == YES
   }
 
+  #[inline]
   pub fn is_decorated(&self) -> bool {
     let current_mask = unsafe { self.ns_window.styleMask() };
     if current_mask

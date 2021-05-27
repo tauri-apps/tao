@@ -13,7 +13,7 @@ use crate::{dpi::PhysicalSize, window::CursorIcon};
 use winapi::{
   ctypes::wchar_t,
   shared::{
-    minwindef::{BOOL, DWORD, UINT},
+    minwindef::{BOOL, DWORD, TRUE, UINT},
     windef::{DPI_AWARENESS_CONTEXT, HMONITOR, HWND, LPRECT, RECT},
   },
   um::{
@@ -197,6 +197,10 @@ pub fn get_desktop_rect() -> RECT {
 
 pub fn is_focused(window: HWND) -> bool {
   window == unsafe { winuser::GetActiveWindow() }
+}
+
+pub fn is_visible(window: HWND) -> bool {
+  unsafe { winuser::IsWindowVisible(window) == TRUE }
 }
 
 impl CursorIcon {
