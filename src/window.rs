@@ -692,6 +692,16 @@ impl Window {
     self.window.is_maximized()
   }
 
+  /// Gets the window's current vibility state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_visible(&self) -> bool {
+    self.window.is_visible()
+  }
+
   /// Gets the window's current resizable state.
   ///
   /// ## Platform-specific
