@@ -16,12 +16,15 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::{BadIcon, Icon},
-  menu::{Menu, MenuItem},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{CursorIcon, Fullscreen, UserAttentionType, WindowAttributes},
 };
 
-use super::{event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle};
+use super::{
+  event_loop::EventLoopWindowTarget,
+  menu::{self, MenuItem},
+  monitor::MonitorHandle,
+};
 
 #[derive(Clone, Default)]
 pub struct PlatformSpecificWindowBuilderAttributes {}
@@ -415,7 +418,7 @@ impl Window {
     }
   }
 
-  pub fn set_menu(&self, menu: Option<Vec<Menu>>) {
+  pub fn set_menu(&self, menu: Option<menu::Menu>) {
     if let Err(e) = self.window_requests_tx.send((
       self.window_id,
       WindowRequest::SetMenu((menu, self.accel_group.clone(), self.menu.clone())),
@@ -637,7 +640,7 @@ pub enum WindowRequest {
   WireUpEvents,
   Redraw,
   Menu(MenuItem),
-  SetMenu((Option<Vec<Menu>>, AccelGroup, gtk::Box)),
+  SetMenu((Option<menu::Menu>, AccelGroup, gtk::Box)),
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {

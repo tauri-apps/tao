@@ -28,13 +28,13 @@ use crate::{
     WindowEvent,
   },
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
-  menu::{MenuItem, MenuType},
+  menu::MenuType,
   monitor::MonitorHandle as RootMonitorHandle,
   window::{CursorIcon, WindowId as RootWindowId},
 };
 
 use super::{
-  menu,
+  menu::{self, MenuItem},
   monitor::MonitorHandle,
   window::{WindowId, WindowRequest},
   DeviceId,
@@ -483,9 +483,14 @@ impl<T: 'static> EventLoop<T> {
             WindowRequest::Redraw => window.queue_draw(),
             WindowRequest::Menu(m) => {
               match m {
-                MenuItem::Custom(c) => {
+                MenuItem::Custom {
+                  id,
+                  title,
+                  key,
+                  enabled,
+                } => {
                   if let Err(e) = event_tx.send(Event::MenuEvent {
-                    menu_id: c.id,
+                    menu_id: id,
                     origin: MenuType::Menubar,
                   }) {
                     log::warn!("Failed to send menu event to event channel: {}", e);
@@ -587,9 +592,9 @@ impl<T: 'static> EventLoop<T> {
             }
           }
         } else if id == WindowId::dummy() {
-          if let WindowRequest::Menu(MenuItem::Custom(c)) = request {
+          if let WindowRequest::Menu(MenuItem::Custom { id, .. }) = request {
             if let Err(e) = event_tx.send(Event::MenuEvent {
-              menu_id: c.id,
+              menu_id: id,
               origin: MenuType::SystemTray,
             }) {
               log::warn!("Failed to send status bar event to event channel: {}", e);
