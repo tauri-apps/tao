@@ -53,9 +53,15 @@ fn main() {
         }
       },
       Event::TrayClick(cursor_click) => {
-        if cursor_click == CursorClick::Left && windows.len() == 0 {
-          let window = Window::new(&event_loop).unwrap();
-          windows.insert(window.id(), window);
+        if cursor_click == CursorClick::Left {
+          if windows.len() == 0 {
+            let window = Window::new(&event_loop).unwrap();
+            windows.insert(window.id(), window);
+          } else {
+            for window in windows.values() {
+              window.set_focus();
+            }
+          }
         }
       },
       
