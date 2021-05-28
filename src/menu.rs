@@ -6,7 +6,7 @@ use std::{
   hash::{Hash, Hasher},
 };
 
-use crate::platform_impl::{Menu as MenuPlatform, MenuItem};
+use crate::platform_impl::{Menu as MenuPlatform, CustomMenuItem};
 
 // test with shortcuts, we can remove them as well?
 pub struct Tray;
@@ -58,13 +58,13 @@ impl Menu {
       .add_children(children.menu_platform, title, enabled);
   }
 
-  pub fn add_item(
+  pub fn add_custom_item(
     &mut self,
     text: &str,
     keyboard_accelerator: Option<&str>,
     enabled: bool,
     selected: bool,
-  ) -> (MenuId, MenuItem) {
+  ) -> (MenuId, CustomMenuItem) {
     let menu_id = MenuId::new(&text);
     let item = self.menu_platform.add_custom_item(
       menu_id,
@@ -77,7 +77,7 @@ impl Menu {
     (menu_id, item)
   }
 
-  pub fn add_system_item(&mut self, item: SystemMenu) -> Option<MenuItem> {
+  pub fn add_item(&mut self, item: MenuAction) -> Option<CustomMenuItem> {
     self.menu_platform.add_system_item(item, self.menu_type)
   }
 
@@ -90,7 +90,8 @@ impl Menu {
 /// supports `Custom` menu item variants. And on the menu bar, some platforms might not support some
 /// of the variants. Unsupported variant will be no-op on such platform.
 #[derive(Debug, Clone)]
-pub enum SystemMenu {
+pub enum MenuAction {
+  Custom(CustomMenuItem),
   /// Shows a standard "About" item
   ///
   /// ## Platform-specific

@@ -14,7 +14,7 @@ use std::sync::Once;
 
 use crate::{
   event::Event,
-  menu::{MenuIcon, MenuId, MenuType, SystemMenu},
+  menu::{MenuIcon, MenuId, MenuType, MenuAction},
 };
 
 use super::{app_state::AppState, event::EventWrapper};
@@ -35,9 +35,9 @@ unsafe impl Send for Menu {}
 unsafe impl Sync for Menu {}
 
 #[derive(Debug, Clone)]
-pub struct MenuItem(pub(crate) id);
+pub struct CustomMenuItem(pub(crate) id);
 
-impl MenuItem {
+impl CustomMenuItem {
   pub fn set_enabled(&mut self, is_enabled: bool) {
     unsafe {
       let status = match is_enabled {
@@ -102,19 +102,19 @@ impl Menu {
       self.menu.addItem_(sep);
     }
   }
-  pub fn add_system_item(&mut self, item: SystemMenu, menu_type: MenuType) -> Option<MenuItem> {
+  pub fn add_system_item(&mut self, item: MenuAction, menu_type: MenuType) -> Option<CustomMenuItem> {
     let menu_item = match item {
-      SystemMenu::About(app_name) => {
+      MenuAction::About(app_name) => {
         let title = format!("About {}", app_name);
-        make_menu_item(
+        Some(make_menu_item(
           title.as_str(),
           Some(selector("orderFrontStandardAboutPanel:")),
           None,
           menu_type,
-        )
+        ))
       }
       // Close window
-      SystemMenu::CloseWindow => make_menu_item(
+      MenuAction::CloseWindow => Some(make_menu_item(
         "Close Window",
         Some(selector("performClose:")),
         Some(KeyEquivalent {
@@ -122,8 +122,8 @@ impl Menu {
           masks: None,
         }),
         menu_type,
-      ),
-      SystemMenu::Quit => make_menu_item(
+      )),
+      MenuAction::Quit => Some(make_menu_item(
         "Quit",
         Some(selector("terminate:")),
         Some(KeyEquivalent {
@@ -131,8 +131,8 @@ impl Menu {
           masks: None,
         }),
         menu_type,
-      ),
-      SystemMenu::Hide => make_menu_item(
+      )),
+      MenuAction::Hide => Some(make_menu_item(
         "Hide",
         Some(selector("hide:")),
         Some(KeyEquivalent {
@@ -140,8 +140,8 @@ impl Menu {
           masks: None,
         }),
         menu_type,
-      ),
-      SystemMenu::HideOthers => make_menu_item(
+      )),
+      MenuAction::HideOthers => Some(make_menu_item(
         "Hide Others",
         Some(selector("hideOtherApplications:")),
         Some(KeyEquivalent {
@@ -151,14 +151,14 @@ impl Menu {
           ),
         }),
         menu_type,
-      ),
-      SystemMenu::ShowAll => make_menu_item(
+      )),
+      MenuAction::ShowAll => Some(make_menu_item(
         "Show All",
         Some(selector("unhideAllApplications:")),
         None,
         menu_type,
-      ),
-      SystemMenu::EnterFullScreen => make_menu_item(
+      )),
+      MenuAction::EnterFullScreen => Some(make_menu_item(
         "Enter Full Screen",
         Some(selector("toggleFullScreen:")),
         Some(KeyEquivalent {
@@ -168,8 +168,8 @@ impl Menu {
           ),
         }),
         menu_type,
-      ),
-      SystemMenu::Minimize => make_menu_item(
+      )),
+      MenuAction::Minimize => Some(make_menu_item(
         "Minimize",
         Some(selector("performMiniaturize:")),
         Some(KeyEquivalent {
@@ -177,9 +177,9 @@ impl Menu {
           masks: None,
         }),
         menu_type,
-      ),
-      SystemMenu::Zoom => make_menu_item("Zoom", Some(selector("performZoom:")), None, menu_type),
-      SystemMenu::Copy => make_menu_item(
+      )),
+      MenuAction::Zoom => Some(make_menu_item("Zoom", Some(selector("performZoom:")), None, menu_type)),
+      MenuAction::Copy => Some(make_menu_item(
         "Copy",
         Some(selector("copy:")),
         Some(KeyEquivalent {
@@ -187,8 +187,8 @@ impl Menu {
           masks: None,
         }),
         menu_type,
-      ),
-      SystemMenu::Cut => make_menu_item(
+      )),
+      MenuAction::Cut => Some(make_menu_item(
         "Cut",
         Some(selector("cut:")),
         Some(KeyEquivalent {
@@ -196,8 +196,8 @@ impl Menu {
           masks: None,
         }),
         menu_type,
-      ),
-      SystemMenu::Paste => make_menu_item(
+      )),
+      MenuAction::Paste => Some(make_menu_item(
         "Paste",
         Some(selector("paste:")),
         Some(KeyEquivalent {
@@ -205,8 +205,8 @@ impl Menu {
           masks: None,
         }),
         menu_type,
-      ),
-      SystemMenu::Undo => make_menu_item(
+      )),
+      MenuAction::Undo => Some(make_menu_item(
         "Undo",
         Some(selector("undo:")),
         Some(KeyEquivalent {
@@ -214,8 +214,8 @@ impl Menu {
           masks: None,
         }),
         menu_type,
-      ),
-      SystemMenu::Redo => make_menu_item(
+      )),
+      MenuAction::Redo => Some(make_menu_item(
         "Redo",
         Some(selector("redo:")),
         Some(KeyEquivalent {
@@ -223,8 +223,8 @@ impl Menu {
           masks: None,
         }),
         menu_type,
-      ),
-      SystemMenu::SelectAll => make_menu_item(
+      )),
+      MenuAction::SelectAll => Some(make_menu_item(
         "Select All",
         Some(selector("selectAll:")),
         Some(KeyEquivalent {
@@ -232,22 +232,27 @@ impl Menu {
           masks: None,
         }),
         menu_type,
-      ),
-      SystemMenu::Services => unsafe {
+      )),
+      MenuAction::Services => unsafe {
         let item = make_menu_item("Services", None, None, MenuType::Menubar);
         let app_class = class!(NSApplication);
         let app: id = msg_send![app_class, sharedApplication];
         let services: id = msg_send![app, servicesMenu];
         let _: () = msg_send![&*item, setSubmenu: services];
-        item
+        Some(item)
       },
+      _ => None,
     };
 
-    unsafe {
-      self.menu.addItem_(menu_item);
+    if let Some(menu_item) = menu_item {
+      unsafe {
+        self.menu.addItem_(menu_item);
+      }
+
+      return Some(CustomMenuItem(menu_item));
     }
 
-    Some(MenuItem(menu_item))
+    None
   }
 
   pub fn add_custom_item(
@@ -258,7 +263,7 @@ impl Menu {
     key: Option<&str>,
     enabled: bool,
     selected: bool,
-  ) -> MenuItem {
+  ) -> CustomMenuItem {
     let mut key_equivalent = None;
     let mut accelerator_string: String;
     if let Some(accelerator) = key {
@@ -302,7 +307,7 @@ impl Menu {
       }
     }
 
-    MenuItem(menu_item)
+    CustomMenuItem(menu_item)
   }
 }
 

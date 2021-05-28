@@ -5,7 +5,7 @@ use simple_logger::SimpleLogger;
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
-  menu::{MenuIcon, MenuType, Menubar as Menu, SystemMenu},
+  menu::{MenuIcon, MenuType, Menubar as Menu, MenuAction},
   window::WindowBuilder,
 };
 
@@ -22,9 +22,9 @@ fn main() {
   // create a submenu with 1 item
   let mut my_sub_menu = Menu::new();
   let (test_id, mut test_menu_item) =
-    my_sub_menu.add_item("Disable menu", Some("<Ctrl>d"), true, false);
+    my_sub_menu.add_custom_item("Disable menu", Some("<Ctrl>d"), true, false);
   // add Copy to `My App` menu
-  my_app_menu.add_system_item(SystemMenu::Copy);
+  my_app_menu.add_item(MenuAction::Copy);
 
   // add our submenu under Copy
   my_app_menu.add_children(my_sub_menu, "Sub menu", true);
@@ -32,9 +32,9 @@ fn main() {
   // create another menu
   // in macOS menu bar need to be created with `init_with_title`
   let mut test_menu = Menu::new();
-  test_menu.add_item("Selected and disabled", None, false, true);
+  test_menu.add_custom_item("Selected and disabled", None, false, true);
   test_menu.add_separator();
-  test_menu.add_item("Test", None, true, false);
+  test_menu.add_custom_item("Test", None, true, false);
 
   // add all our childs to menu_bar_menu (order is how they'll appear)
   menu_bar_menu.add_children(my_app_menu, "My app", true);

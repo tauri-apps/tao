@@ -37,9 +37,9 @@ impl MenuHandler {
 }
 
 #[derive(Debug, Clone)]
-pub struct MenuItem(pub(crate) u32, windef::HMENU);
+pub struct CustomMenuItem(pub(crate) u32, windef::HMENU);
 
-impl MenuItem {
+impl CustomMenuItem {
   pub fn set_icon(&mut self, icon: MenuIcon) {}
   pub fn set_enabled(&mut self, is_enabled: bool) {
     unsafe {

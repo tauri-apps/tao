@@ -32,13 +32,13 @@ fn main() {
 
   // open new window menu item
   let (open_new_window_id, mut open_new_window_element) =
-    submenu.add_item("Open new window", Some("<Primary>e"), true, false);
+    submenu.add_custom_item("Open new window", Some("<Primary>e"), true, false);
 
   // set default icon
   open_new_window_element.set_icon(MenuIcon::StatusAvailable);
 
   // focus all window menu item
-  let (focus_all_window_id, _) = tray_menu.add_item("Focus window", None, true, false);
+  let (focus_all_window_id, _) = tray_menu.add_custom_item("Focus window", None, true, false);
 
   // inject submenu into tray_menu
   tray_menu.add_children(submenu, "Sub menu", true);

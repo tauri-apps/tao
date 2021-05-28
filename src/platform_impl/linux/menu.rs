@@ -8,7 +8,7 @@ use gtk::{
 };
 
 use super::window::{WindowId, WindowRequest};
-use crate::menu::{MenuIcon, MenuId, MenuType, SystemMenu};
+use crate::menu::{MenuIcon, MenuId, MenuType, MenuAction};
 
 macro_rules! menuitem {
   ( $description:expr, $key:expr, $accel_group:ident ) => {{
@@ -27,150 +27,15 @@ pub struct Menu {
 unsafe impl Send for Menu {}
 unsafe impl Sync for Menu {}
 
-// in linux we need to build our
-// menu and then generate it in the initialization
-#[derive(Debug, Clone)]
-pub enum MenuItem {
-  Custom {
-    id: MenuId,
-    title: String,
-    key: Option<String>,
-    enabled: bool,
-    gtk_item: GtkMenuItem,
-  },
-  Children(String, Menu),
-  Separator,
-  // todo add other elements
-  About(String),
-
-  /// A standard "hide the app" menu item.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  ///
-  Hide,
-
-  /// A standard "Services" menu item.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported
-  ///
-  Services,
-
-  /// A "hide all other windows" menu item.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported
-  ///
-  HideOthers,
-
-  /// A menu item to show all the windows for this app.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported
-  ///
-  ShowAll,
-
-  /// Close the current window.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  ///
-  CloseWindow,
-
-  /// A "quit this app" menu icon.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  ///
-  Quit,
-
-  /// A menu item for enabling copying (often text) from responders.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  /// - **Linux**: require `menu` feature flag
-  ///
-  Copy,
-
-  /// A menu item for enabling cutting (often text) from responders.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  /// - **Linux**: require `menu` feature flag
-  ///
-  Cut,
-
-  /// An "undo" menu item; particularly useful for supporting the cut/copy/paste/undo lifecycle
-  /// of events.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported
-  ///
-  Undo,
-
-  /// An "redo" menu item; particularly useful for supporting the cut/copy/paste/undo lifecycle
-  /// of events.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported
-  ///
-  Redo,
-
-  /// A menu item for selecting all (often text) from responders.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  /// - **Linux**: require `menu` feature flag
-  ///
-  SelectAll,
-
-  /// A menu item for pasting (often text) into responders.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  /// - **Linux**: require `menu` feature flag
-  ///
-  Paste,
-
-  /// A standard "enter full screen" item.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported
-  ///
-  EnterFullScreen,
-
-  /// An item for minimizing the window with the standard system controls.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Android / iOS:** Unsupported
-  ///
-  Minimize,
-
-  /// An item for instructing the app to zoom
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows / Linux / Android / iOS:** Unsupported
-  ///
-  Zoom,
+pub struct CustomMenuItem {
+  id: MenuId,
+  title: String,
+  key: Option<String>,
+  enabled: bool,
+  gtk_item: GtkMenuItem,
 }
 
-impl MenuItem {
+impl CustomMenuItem {
   pub fn set_enabled(&mut self, is_enabled: bool) {
     if let Self::Custom { gtk_item, .. } = self {
       gtk_item.set_sensitive(is_enabled);
@@ -207,7 +72,7 @@ impl Menu {
       .gtk_items
       .push(MenuItem::Children(title.to_string(), menu));
   }
-  pub fn add_system_item(&mut self, item: SystemMenu, menu_type: MenuType) -> Option<MenuItem> {
+  pub fn add_system_item(&mut self, item: MenuAction, menu_type: MenuType) -> Option<MenuItem> {
     None
   }
   pub fn add_custom_item(
