@@ -41,21 +41,17 @@ pub struct CustomMenuItem(pub(crate) u32, windef::HMENU);
 
 impl CustomMenuItem {
   pub fn set_icon(&mut self, icon: MenuIcon) {}
-  pub fn set_enabled(&mut self, is_enabled: bool) {
+  pub fn set_enabled(&mut self, enabled: bool) {
     unsafe {
-      let mut info: winuser::MENUITEMINFOA = std::mem::zeroed();
-      info.cbSize = std::mem::size_of::<winuser::MENUITEMINFOA>() as u32;
-      info.fMask = winuser::MIIM_STATE;
-
-      winuser::GetMenuItemInfoA(self.1, self.0, minwindef::FALSE, &mut info);
-
-      info.fState = info.fState
-        | match is_enabled {
-          true => winuser::MFS_ENABLED,
-          false => winuser::MFS_DISABLED,
-        };
-
-      winuser::SetMenuItemInfoA(self.1, self.0, minwindef::FALSE, &info);
+      winuser::EnableMenuItem(
+        self.1,
+        self.0,
+        if enabled {
+          winuser::MF_ENABLED
+        } else {
+          winuser::MF_DISABLED
+        },
+      );
     }
   }
   pub fn set_title(&mut self, title: &str) {
@@ -69,21 +65,17 @@ impl CustomMenuItem {
       winuser::SetMenuItemInfoA(self.1, self.0, minwindef::FALSE, &info);
     }
   }
-  pub fn set_selected(&mut self, is_selected: bool) {
+  pub fn set_selected(&mut self, selected: bool) {
     unsafe {
-      let mut info: winuser::MENUITEMINFOA = std::mem::zeroed();
-      info.cbSize = std::mem::size_of::<winuser::MENUITEMINFOA>() as u32;
-      info.fMask = winuser::MIIM_STATE;
-
-      winuser::GetMenuItemInfoA(self.1, self.0, minwindef::FALSE, &mut info);
-
-      info.fState = info.fState
-        | match is_selected {
-          true => winuser::MFS_CHECKED,
-          false => winuser::MFS_UNCHECKED,
-        };
-
-      winuser::SetMenuItemInfoA(self.1, self.0, minwindef::FALSE, &info);
+      winuser::CheckMenuItem(
+        self.1,
+        self.0,
+        if selected {
+          winuser::MF_CHECKED
+        } else {
+          winuser::MF_UNCHECKED
+        },
+      );
     }
   }
 }
@@ -143,7 +135,7 @@ impl Menu {
         unsafe {
           let mut flags = winuser::MF_POPUP;
           if !enabled {
-            flags |= winuser::MF_GRAYED;
+            flags |= winuser::MF_DISABLED;
           }
 
           winuser::AppendMenuW(
