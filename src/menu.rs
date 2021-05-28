@@ -234,7 +234,7 @@ pub enum MenuItem {
   ///
   Separator,
 
-  /// Represents a Submenu(label, enabled, sub menu)
+  /// Represents a Submenu(title, enabled, sub menu)
   ///
   /// ## Platform-specific
   ///
