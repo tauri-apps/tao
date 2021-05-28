@@ -8,11 +8,20 @@ use gtk::{
 };
 
 use super::window::{WindowId, WindowRequest};
-use crate::menu::{MenuAction, MenuIcon, MenuId, MenuType};
+use crate::menu::{MenuIcon, MenuId, MenuItem, MenuType};
+
+macro_rules! menuitem {
+  ( $description:expr, $key:expr, $accel_group:ident ) => {{
+    let item = GtkMenuItem::with_label($description);
+    let (key, mods) = gtk::accelerator_parse($key);
+    item.add_accelerator("activate", $accel_group, key, mods, AccelFlags::VISIBLE);
+    Some(item)
+  }};
+}
 
 #[derive(Debug, Clone)]
 pub struct Menu {
-  gtk_items: Vec<MenuAction>,
+  gtk_items: Vec<MenuItem>,
 }
 
 unsafe impl Send for Menu {}
@@ -48,23 +57,9 @@ impl Menu {
   pub fn new_popup_menu() -> Self {
     Self::new()
   }
-  pub fn add_separator(&mut self) {
-    //self.menu.append(&SeparatorMenuItem::new());
-    self.gtk_items.push(MenuAction::Separator)
-  }
-  pub fn add_children(&mut self, menu: Self, title: &str, enabled: bool) {
-    //let item = MenuItem::with_label(&title);
-    //item.set_submenu(Some(&menu.menu));
-    //self.menu.append(&item);
-    self
-      .gtk_items
-      .push(MenuAction::Children(title.to_string(), menu));
-  }
-  pub fn add_system_item(
-    &mut self,
-    item: MenuAction,
-    menu_type: MenuType,
-  ) -> Option<CustomMenuItem> {
+
+  pub fn add_item(&mut self, item: MenuItem, menu_type: MenuType) -> Option<CustomMenuItem> {
+    self.gtk_items.push(item);
     None
   }
   pub fn add_custom_item(
@@ -83,7 +78,7 @@ impl Menu {
       enabled,
       gtk_item: GtkMenuItem::with_label(&text),
     };
-    let item = MenuAction::Custom(custom_item.clone());
+    let item = MenuItem::Custom(custom_item.clone());
 
     self.gtk_items.push(item.clone());
 
@@ -109,16 +104,15 @@ impl Menu {
     accel_group: &AccelGroup,
     window_id: WindowId,
   ) {
-    let tx_ = tx.clone();
-
     for menu_item in self.gtk_items {
-      match menu_item.clone() {
-        MenuAction::Children(title, submenu) => {
+      let new_item = match menu_item.clone() {
+        MenuItem::Children(title, _enabled, submenu) => {
+          // FIXME: enabled is not used here
           let item = GtkMenuItem::with_label(&title);
           item.set_submenu(Some(&submenu.into_gtkmenu(tx, accel_group, window_id)));
-          menu.append(&item);
+          Some(item)
         }
-        MenuAction::Custom(custom) => {
+        MenuItem::Custom(custom) => {
           if let Some(key) = custom.key {
             let (key, mods) = gtk::accelerator_parse(&key);
             custom.gtk_item.add_accelerator(
@@ -140,12 +134,27 @@ impl Menu {
             }
           });
 
-          menu.append(&custom.gtk_item);
+          Some(custom.gtk_item)
         }
-        MenuAction::Separator => menu.append(&SeparatorMenuItem::new()),
+        MenuItem::Separator => {
+          menu.append(&SeparatorMenuItem::new());
+          None
+        }
+        MenuItem::About(s) => Some(GtkMenuItem::with_label(&format!("About {}", s))),
+        MenuItem::Hide => menuitem!("Hide", "<Ctrl>H", accel_group),
+        MenuItem::CloseWindow => menuitem!("Close Window", "<Ctrl>W", accel_group),
+        MenuItem::Quit => menuitem!("Quit", "Q", accel_group),
+        MenuItem::Copy => menuitem!("Copy", "<Ctrl>C", accel_group),
+        MenuItem::Cut => menuitem!("Cut", "<Ctrl>X", accel_group),
+        MenuItem::SelectAll => menuitem!("Select All", "<Ctrl>A", accel_group),
+        MenuItem::Paste => menuitem!("Paste", "<Ctrl>V", accel_group),
         // todo add others
-        _ => {}
+        _ => None,
       };
+
+      if let Some(new_item) = new_item {
+        menu.append(&new_item);
+      }
     }
   }
 }

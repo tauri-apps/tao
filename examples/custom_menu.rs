@@ -5,7 +5,7 @@ use simple_logger::SimpleLogger;
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
-  menu::{MenuAction, MenuIcon, MenuType, Menubar as Menu},
+  menu::{MenuIcon, MenuItem, MenuType, Menubar as Menu},
   window::WindowBuilder,
 };
 
@@ -24,7 +24,7 @@ fn main() {
   let (test_id, mut test_menu_item) =
     my_sub_menu.add_custom_item("Disable menu", Some("<Ctrl>d"), true, false);
   // add Copy to `My App` menu
-  my_app_menu.add_item(MenuAction::Copy);
+  my_app_menu.add_item(MenuItem::Copy);
 
   // add our submenu under Copy
   my_app_menu.add_children(my_sub_menu, "Sub menu", true);

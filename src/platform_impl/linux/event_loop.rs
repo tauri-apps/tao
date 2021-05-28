@@ -28,7 +28,7 @@ use crate::{
     WindowEvent,
   },
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
-  menu::{MenuAction, MenuType},
+  menu::{MenuItem, MenuType},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{CursorIcon, WindowId as RootWindowId},
 };
@@ -483,7 +483,7 @@ impl<T: 'static> EventLoop<T> {
             WindowRequest::Redraw => window.queue_draw(),
             WindowRequest::Menu(m) => {
               match m {
-                MenuAction::Custom(c) => {
+                MenuItem::Custom(c) => {
                   if let Err(e) = event_tx.send(Event::MenuEvent {
                     menu_id: c.id,
                     origin: MenuType::Menubar,
@@ -491,14 +491,14 @@ impl<T: 'static> EventLoop<T> {
                     log::warn!("Failed to send menu event to event channel: {}", e);
                   }
                 }
-                MenuAction::About(_) => {
+                MenuItem::About(_) => {
                   let about = AboutDialog::new();
                   about.show_all();
                   app.add_window(&about);
                 }
-                MenuAction::Hide => window.hide(),
-                MenuAction::CloseWindow => window.close(),
-                MenuAction::Quit => {
+                MenuItem::Hide => window.hide(),
+                MenuItem::CloseWindow => window.close(),
+                MenuItem::Quit => {
                   if let Err(e) = event_tx.send(Event::LoopDestroyed) {
                     log::warn!(
                       "Failed to send loop destroyed event to event channel: {}",
@@ -507,7 +507,7 @@ impl<T: 'static> EventLoop<T> {
                   }
                 }
                 #[cfg(any(feature = "menu", feature = "tray"))]
-                MenuAction::Cut => {
+                MenuItem::Cut => {
                   if let Some(widget) = window.get_focus() {
                     if widget.has_focus() {
                       if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
@@ -523,7 +523,7 @@ impl<T: 'static> EventLoop<T> {
                   }
                 }
                 #[cfg(any(feature = "menu", feature = "tray"))]
-                MenuAction::Copy => {
+                MenuItem::Copy => {
                   if let Some(widget) = window.get_focus() {
                     if widget.has_focus() {
                       if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
@@ -539,7 +539,7 @@ impl<T: 'static> EventLoop<T> {
                   }
                 }
                 #[cfg(any(feature = "menu", feature = "tray"))]
-                MenuAction::Paste => {
+                MenuItem::Paste => {
                   if let Some(widget) = window.get_focus() {
                     if widget.has_focus() {
                       if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
@@ -555,7 +555,7 @@ impl<T: 'static> EventLoop<T> {
                   }
                 }
                 #[cfg(any(feature = "menu", feature = "tray"))]
-                MenuAction::SelectAll => {
+                MenuItem::SelectAll => {
                   if let Some(widget) = window.get_focus() {
                     if widget.has_focus() {
                       if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
@@ -569,8 +569,8 @@ impl<T: 'static> EventLoop<T> {
                   }
                 }
                 // TODO toggle fullscreen
-                MenuAction::EnterFullScreen => window.fullscreen(),
-                MenuAction::Minimize => window.iconify(),
+                MenuItem::EnterFullScreen => window.fullscreen(),
+                MenuItem::Minimize => window.iconify(),
                 _ => {}
               }
             }
@@ -587,7 +587,7 @@ impl<T: 'static> EventLoop<T> {
             }
           }
         } else if id == WindowId::dummy() {
-          if let WindowRequest::Menu(MenuAction::Custom(menu_item)) = request {
+          if let WindowRequest::Menu(MenuItem::Custom(menu_item)) = request {
             if let Err(e) = event_tx.send(Event::MenuEvent {
               menu_id: menu_item.id,
               origin: MenuType::SystemTray,

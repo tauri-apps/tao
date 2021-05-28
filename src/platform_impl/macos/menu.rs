@@ -14,7 +14,7 @@ use std::sync::Once;
 
 use crate::{
   event::Event,
-  menu::{MenuAction, MenuIcon, MenuId, MenuType},
+  menu::{MenuIcon, MenuId, MenuItem, MenuType},
 };
 
 use super::{app_state::AppState, event::EventWrapper};
@@ -83,32 +83,30 @@ impl Menu {
   pub fn new_popup_menu() -> Self {
     Self::new()
   }
-  pub fn add_children(&mut self, menu: Self, title: &str, enabled: bool) {
-    unsafe {
-      let menu_title = NSString::alloc(nil).init_str(title);
-      let menu_item = NSMenuItem::alloc(nil).autorelease();
-      let () = msg_send![menu.menu, setTitle: menu_title];
-      let () = msg_send![menu_item, setTitle: menu_title];
-      if !enabled {
-        let () = msg_send![menu_item, setEnabled: NO];
-      }
-      menu_item.setSubmenu_(menu.menu);
-      self.menu.addItem_(menu_item);
-    }
-  }
-  pub fn add_separator(&mut self) {
-    unsafe {
-      let sep = id::separatorItem(self.menu);
-      self.menu.addItem_(sep);
-    }
-  }
-  pub fn add_system_item(
-    &mut self,
-    item: MenuAction,
-    menu_type: MenuType,
-  ) -> Option<CustomMenuItem> {
+  pub fn add_item(&mut self, item: MenuItem, menu_type: MenuType) -> Option<CustomMenuItem> {
     let menu_item = match item {
-      MenuAction::About(app_name) => {
+      MenuItem::Separator => {
+        unsafe {
+          let sep = id::separatorItem(self.menu);
+          self.menu.addItem_(sep);
+        }
+        None
+      }
+      MenuItem::Children(title, enabled, menu) => {
+        unsafe {
+          let menu_title = NSString::alloc(nil).init_str(&title);
+          let menu_item = NSMenuItem::alloc(nil).autorelease();
+          let () = msg_send![menu.menu, setTitle: menu_title];
+          let () = msg_send![menu_item, setTitle: menu_title];
+          if !enabled {
+            let () = msg_send![menu_item, setEnabled: NO];
+          }
+          menu_item.setSubmenu_(menu.menu);
+          self.menu.addItem_(menu_item);
+        }
+        None
+      }
+      MenuItem::About(app_name) => {
         let title = format!("About {}", app_name);
         Some(make_menu_item(
           title.as_str(),
@@ -118,7 +116,7 @@ impl Menu {
         ))
       }
       // Close window
-      MenuAction::CloseWindow => Some(make_menu_item(
+      MenuItem::CloseWindow => Some(make_menu_item(
         "Close Window",
         Some(selector("performClose:")),
         Some(KeyEquivalent {
@@ -127,7 +125,7 @@ impl Menu {
         }),
         menu_type,
       )),
-      MenuAction::Quit => Some(make_menu_item(
+      MenuItem::Quit => Some(make_menu_item(
         "Quit",
         Some(selector("terminate:")),
         Some(KeyEquivalent {
@@ -136,7 +134,7 @@ impl Menu {
         }),
         menu_type,
       )),
-      MenuAction::Hide => Some(make_menu_item(
+      MenuItem::Hide => Some(make_menu_item(
         "Hide",
         Some(selector("hide:")),
         Some(KeyEquivalent {
@@ -145,7 +143,7 @@ impl Menu {
         }),
         menu_type,
       )),
-      MenuAction::HideOthers => Some(make_menu_item(
+      MenuItem::HideOthers => Some(make_menu_item(
         "Hide Others",
         Some(selector("hideOtherApplications:")),
         Some(KeyEquivalent {
@@ -156,13 +154,13 @@ impl Menu {
         }),
         menu_type,
       )),
-      MenuAction::ShowAll => Some(make_menu_item(
+      MenuItem::ShowAll => Some(make_menu_item(
         "Show All",
         Some(selector("unhideAllApplications:")),
         None,
         menu_type,
       )),
-      MenuAction::EnterFullScreen => Some(make_menu_item(
+      MenuItem::EnterFullScreen => Some(make_menu_item(
         "Enter Full Screen",
         Some(selector("toggleFullScreen:")),
         Some(KeyEquivalent {
@@ -173,7 +171,7 @@ impl Menu {
         }),
         menu_type,
       )),
-      MenuAction::Minimize => Some(make_menu_item(
+      MenuItem::Minimize => Some(make_menu_item(
         "Minimize",
         Some(selector("performMiniaturize:")),
         Some(KeyEquivalent {
@@ -182,13 +180,13 @@ impl Menu {
         }),
         menu_type,
       )),
-      MenuAction::Zoom => Some(make_menu_item(
+      MenuItem::Zoom => Some(make_menu_item(
         "Zoom",
         Some(selector("performZoom:")),
         None,
         menu_type,
       )),
-      MenuAction::Copy => Some(make_menu_item(
+      MenuItem::Copy => Some(make_menu_item(
         "Copy",
         Some(selector("copy:")),
         Some(KeyEquivalent {
@@ -197,7 +195,7 @@ impl Menu {
         }),
         menu_type,
       )),
-      MenuAction::Cut => Some(make_menu_item(
+      MenuItem::Cut => Some(make_menu_item(
         "Cut",
         Some(selector("cut:")),
         Some(KeyEquivalent {
@@ -206,7 +204,7 @@ impl Menu {
         }),
         menu_type,
       )),
-      MenuAction::Paste => Some(make_menu_item(
+      MenuItem::Paste => Some(make_menu_item(
         "Paste",
         Some(selector("paste:")),
         Some(KeyEquivalent {
@@ -215,7 +213,7 @@ impl Menu {
         }),
         menu_type,
       )),
-      MenuAction::Undo => Some(make_menu_item(
+      MenuItem::Undo => Some(make_menu_item(
         "Undo",
         Some(selector("undo:")),
         Some(KeyEquivalent {
@@ -224,7 +222,7 @@ impl Menu {
         }),
         menu_type,
       )),
-      MenuAction::Redo => Some(make_menu_item(
+      MenuItem::Redo => Some(make_menu_item(
         "Redo",
         Some(selector("redo:")),
         Some(KeyEquivalent {
@@ -233,7 +231,7 @@ impl Menu {
         }),
         menu_type,
       )),
-      MenuAction::SelectAll => Some(make_menu_item(
+      MenuItem::SelectAll => Some(make_menu_item(
         "Select All",
         Some(selector("selectAll:")),
         Some(KeyEquivalent {
@@ -242,7 +240,7 @@ impl Menu {
         }),
         menu_type,
       )),
-      MenuAction::Services => unsafe {
+      MenuItem::Services => unsafe {
         let item = make_menu_item("Services", None, None, MenuType::Menubar);
         let app_class = class!(NSApplication);
         let app: id = msg_send![app_class, sharedApplication];
@@ -250,7 +248,7 @@ impl Menu {
         let _: () = msg_send![&*item, setSubmenu: services];
         Some(item)
       },
-      _ => None,
+      MenuItem::Custom(custom_menu_item) => Some(custom_menu_item.0),
     };
 
     if let Some(menu_item) = menu_item {

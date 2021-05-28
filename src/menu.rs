@@ -53,9 +53,10 @@ impl Menu {
   }
 
   pub fn add_children(&mut self, children: Menu, title: &str, enabled: bool) {
-    self
-      .menu_platform
-      .add_children(children.menu_platform, title, enabled);
+    self.menu_platform.add_item(
+      MenuItem::Children(title.to_string(), enabled, children.menu_platform),
+      self.menu_type,
+    );
   }
 
   pub fn add_custom_item(
@@ -77,12 +78,14 @@ impl Menu {
     (menu_id, item)
   }
 
-  pub fn add_item(&mut self, item: MenuAction) -> Option<CustomMenuItem> {
-    self.menu_platform.add_system_item(item, self.menu_type)
+  pub fn add_item(&mut self, item: MenuItem) -> Option<CustomMenuItem> {
+    self.menu_platform.add_item(item, self.menu_type)
   }
 
   pub fn add_separator(&mut self) {
-    self.menu_platform.add_separator()
+    self
+      .menu_platform
+      .add_item(MenuItem::Separator, self.menu_type);
   }
 }
 
@@ -90,7 +93,7 @@ impl Menu {
 /// supports `Custom` menu item variants. And on the menu bar, some platforms might not support some
 /// of the variants. Unsupported variant will be no-op on such platform.
 #[derive(Debug, Clone)]
-pub enum MenuAction {
+pub enum MenuItem {
   Custom(CustomMenuItem),
   /// Shows a standard "About" item
   ///
@@ -228,7 +231,7 @@ pub enum MenuAction {
 
   // FIXME: Add description,
   Separator,
-  Children(String, MenuPlatform),
+  Children(String, bool, MenuPlatform),
 }
 
 /// Identifier of a custom menu item.

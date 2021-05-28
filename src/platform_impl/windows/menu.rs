@@ -13,7 +13,7 @@ use std::ptr::null;
 
 use crate::{
   event::Event,
-  menu::{MenuAction, MenuIcon, MenuId, MenuType},
+  menu::{MenuIcon, MenuId, MenuItem, MenuType},
 };
 
 pub struct MenuHandler {
@@ -125,33 +125,40 @@ impl Menu {
     hmenu
   }
 
-  pub fn add_children(&mut self, menu: Self, title: &str, enabled: bool) {
-    unsafe {
-      let mut flags = winuser::MF_POPUP;
-      if !enabled {
-        flags |= winuser::MF_GRAYED;
+  pub fn add_item(&mut self, item: MenuItem, _menu_type: MenuType) -> Option<CustomMenuItem> {
+    let menu_item = match item {
+      MenuItem::Separator => {
+        unsafe {
+          winuser::AppendMenuW(self.hmenu, winuser::MF_SEPARATOR, 0, null());
+        };
+        None
       }
+      MenuItem::Children(title, enabled, menu) => {
+        unsafe {
+          let mut flags = winuser::MF_POPUP;
+          if !enabled {
+            flags |= winuser::MF_GRAYED;
+          }
 
-      winuser::AppendMenuW(
-        self.hmenu,
-        flags,
-        menu.into_hmenu() as basetsd::UINT_PTR,
-        to_wstring(title).as_mut_ptr(),
-      );
+          winuser::AppendMenuW(
+            self.hmenu,
+            flags,
+            menu.into_hmenu() as basetsd::UINT_PTR,
+            to_wstring(&title).as_mut_ptr(),
+          );
+        }
+
+        None
+      }
+      MenuItem::Custom(custom_menu_item) => Some(custom_menu_item.0),
+
+      // FIXME: create all shortcuts of MenuItem if possible...
+      // like linux?
+      _ => None,
+    };
+    if let Some(menu_item) = menu_item {
+      return Some(CustomMenuItem(menu_item, self.hmenu));
     }
-  }
-
-  pub fn add_separator(&mut self) {
-    unsafe {
-      winuser::AppendMenuW(self.hmenu, winuser::MF_SEPARATOR, 0, null());
-    }
-  }
-
-  pub fn add_system_item(
-    &mut self,
-    _item: MenuAction,
-    _menu_type: MenuType,
-  ) -> Option<CustomMenuItem> {
     None
   }
 
@@ -172,6 +179,9 @@ impl Menu {
       if selected {
         flags |= winuser::MF_CHECKED;
       }
+
+      // FIXME: add keyboard accelerators
+
       winuser::AppendMenuW(
         self.hmenu,
         flags,
