@@ -8,27 +8,19 @@ use gtk::{
 };
 
 use super::window::{WindowId, WindowRequest};
-use crate::menu::{MenuIcon, MenuId, MenuType, MenuAction};
-
-macro_rules! menuitem {
-  ( $description:expr, $key:expr, $accel_group:ident ) => {{
-    let item = GtkMenuItem::with_label($description);
-    let (key, mods) = gtk::accelerator_parse($key);
-    item.add_accelerator("activate", $accel_group, key, mods, AccelFlags::VISIBLE);
-    Some(item)
-  }};
-}
+use crate::menu::{MenuAction, MenuIcon, MenuId, MenuType};
 
 #[derive(Debug, Clone)]
 pub struct Menu {
-  gtk_items: Vec<MenuItem>,
+  gtk_items: Vec<MenuAction>,
 }
 
 unsafe impl Send for Menu {}
 unsafe impl Sync for Menu {}
 
+#[derive(Debug, Clone)]
 pub struct CustomMenuItem {
-  id: MenuId,
+  pub id: MenuId,
   title: String,
   key: Option<String>,
   enabled: bool,
@@ -37,14 +29,10 @@ pub struct CustomMenuItem {
 
 impl CustomMenuItem {
   pub fn set_enabled(&mut self, is_enabled: bool) {
-    if let Self::Custom { gtk_item, .. } = self {
-      gtk_item.set_sensitive(is_enabled);
-    }
+    self.gtk_item.set_sensitive(is_enabled);
   }
   pub fn set_title(&mut self, title: &str) {
-    if let Self::Custom { gtk_item, .. } = self {
-      gtk_item.set_label(title);
-    }
+    self.gtk_item.set_label(title);
   }
   pub fn set_selected(&mut self, is_selected: bool) {}
   pub fn set_icon(&mut self, icon: MenuIcon) {}
@@ -62,7 +50,7 @@ impl Menu {
   }
   pub fn add_separator(&mut self) {
     //self.menu.append(&SeparatorMenuItem::new());
-    self.gtk_items.push(MenuItem::Separator)
+    self.gtk_items.push(MenuAction::Separator)
   }
   pub fn add_children(&mut self, menu: Self, title: &str, enabled: bool) {
     //let item = MenuItem::with_label(&title);
@@ -70,9 +58,13 @@ impl Menu {
     //self.menu.append(&item);
     self
       .gtk_items
-      .push(MenuItem::Children(title.to_string(), menu));
+      .push(MenuAction::Children(title.to_string(), menu));
   }
-  pub fn add_system_item(&mut self, item: MenuAction, menu_type: MenuType) -> Option<MenuItem> {
+  pub fn add_system_item(
+    &mut self,
+    item: MenuAction,
+    menu_type: MenuType,
+  ) -> Option<CustomMenuItem> {
     None
   }
   pub fn add_custom_item(
@@ -83,17 +75,19 @@ impl Menu {
     key: Option<&str>,
     enabled: bool,
     selected: bool,
-  ) -> MenuItem {
-    let item = MenuItem::Custom {
+  ) -> CustomMenuItem {
+    let custom_item = CustomMenuItem {
       title: text.to_string(),
       id,
       key: key.map(String::from),
       enabled,
       gtk_item: GtkMenuItem::with_label(&text),
     };
+    let item = MenuAction::Custom(custom_item.clone());
+
     self.gtk_items.push(item.clone());
 
-    item
+    custom_item
   }
 
   pub fn into_gtkmenu(
@@ -119,35 +113,36 @@ impl Menu {
 
     for menu_item in self.gtk_items {
       match menu_item.clone() {
-        MenuItem::Children(title, submenu) => {
+        MenuAction::Children(title, submenu) => {
           let item = GtkMenuItem::with_label(&title);
           item.set_submenu(Some(&submenu.into_gtkmenu(tx, accel_group, window_id)));
           menu.append(&item);
         }
-        MenuItem::Custom {
-          enabled,
-          key,
-          gtk_item,
-          ..
-        } => {
-          if let Some(key) = key {
+        MenuAction::Custom(custom) => {
+          if let Some(key) = custom.key {
             let (key, mods) = gtk::accelerator_parse(&key);
-            gtk_item.add_accelerator("activate", accel_group, key, mods, AccelFlags::VISIBLE);
+            custom.gtk_item.add_accelerator(
+              "activate",
+              accel_group,
+              key,
+              mods,
+              AccelFlags::VISIBLE,
+            );
           }
 
           // todo enabled
-          if enabled {}
+          if custom.enabled {}
 
           let tx_ = tx.clone();
-          gtk_item.connect_activate(move |_| {
+          custom.gtk_item.connect_activate(move |_| {
             if let Err(e) = tx_.send((window_id, WindowRequest::Menu(menu_item.clone()))) {
               log::warn!("Fail to send menu request: {}", e);
             }
           });
 
-          menu.append(&gtk_item);
+          menu.append(&custom.gtk_item);
         }
-        MenuItem::Separator => menu.append(&SeparatorMenuItem::new()),
+        MenuAction::Separator => menu.append(&SeparatorMenuItem::new()),
         // todo add others
         _ => {}
       };

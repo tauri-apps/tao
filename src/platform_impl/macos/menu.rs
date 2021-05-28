@@ -14,7 +14,7 @@ use std::sync::Once;
 
 use crate::{
   event::Event,
-  menu::{MenuIcon, MenuId, MenuType, MenuAction},
+  menu::{MenuAction, MenuIcon, MenuId, MenuType},
 };
 
 use super::{app_state::AppState, event::EventWrapper};
@@ -102,7 +102,11 @@ impl Menu {
       self.menu.addItem_(sep);
     }
   }
-  pub fn add_system_item(&mut self, item: MenuAction, menu_type: MenuType) -> Option<CustomMenuItem> {
+  pub fn add_system_item(
+    &mut self,
+    item: MenuAction,
+    menu_type: MenuType,
+  ) -> Option<CustomMenuItem> {
     let menu_item = match item {
       MenuAction::About(app_name) => {
         let title = format!("About {}", app_name);
@@ -178,7 +182,12 @@ impl Menu {
         }),
         menu_type,
       )),
-      MenuAction::Zoom => Some(make_menu_item("Zoom", Some(selector("performZoom:")), None, menu_type)),
+      MenuAction::Zoom => Some(make_menu_item(
+        "Zoom",
+        Some(selector("performZoom:")),
+        None,
+        menu_type,
+      )),
       MenuAction::Copy => Some(make_menu_item(
         "Copy",
         Some(selector("copy:")),

@@ -5,7 +5,7 @@ use simple_logger::SimpleLogger;
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
-  menu::{MenuIcon, MenuType, Menubar as Menu, MenuAction},
+  menu::{MenuAction, MenuIcon, MenuType, Menubar as Menu},
   window::WindowBuilder,
 };
 

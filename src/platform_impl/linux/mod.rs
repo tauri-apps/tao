@@ -15,7 +15,7 @@ mod monitor;
 mod system_tray;
 mod window;
 
-pub use self::menu::{Menu, CustomMenuItem};
+pub use self::menu::{CustomMenuItem, Menu};
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
 pub use monitor::{MonitorHandle, VideoMode};

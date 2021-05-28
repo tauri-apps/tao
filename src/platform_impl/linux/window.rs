@@ -16,15 +16,12 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::{BadIcon, Icon},
+  menu::MenuAction,
   monitor::MonitorHandle as RootMonitorHandle,
   window::{CursorIcon, Fullscreen, UserAttentionType, WindowAttributes},
 };
 
-use super::{
-  event_loop::EventLoopWindowTarget,
-  menu::{self, MenuItem},
-  monitor::MonitorHandle,
-};
+use super::{event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle};
 
 #[derive(Clone, Default)]
 pub struct PlatformSpecificWindowBuilderAttributes {}
@@ -639,7 +636,7 @@ pub enum WindowRequest {
   CursorIcon(Option<CursorIcon>),
   WireUpEvents,
   Redraw,
-  Menu(MenuItem),
+  Menu(MenuAction),
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::Box)),
 }
 

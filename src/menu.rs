@@ -6,7 +6,7 @@ use std::{
   hash::{Hash, Hasher},
 };
 
-use crate::platform_impl::{Menu as MenuPlatform, CustomMenuItem};
+use crate::platform_impl::{CustomMenuItem, Menu as MenuPlatform};
 
 // test with shortcuts, we can remove them as well?
 pub struct Tray;
@@ -225,6 +225,10 @@ pub enum MenuAction {
   /// - **Windows / Linux / Android / iOS:** Unsupported
   ///
   Zoom,
+
+  // FIXME: Add description,
+  Separator,
+  Children(String, MenuPlatform),
 }
 
 /// Identifier of a custom menu item.

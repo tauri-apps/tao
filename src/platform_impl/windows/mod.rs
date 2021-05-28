@@ -11,7 +11,7 @@ use winapi::{
 pub use self::{
   event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
   icon::WinIcon,
-  menu::{Menu, CustomMenuItem},
+  menu::{CustomMenuItem, Menu},
   monitor::{MonitorHandle, VideoMode},
   system_tray::{SystemTray, SystemTrayBuilder},
   window::Window,
