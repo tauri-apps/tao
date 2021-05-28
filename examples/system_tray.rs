@@ -41,7 +41,7 @@ fn main() {
   let (focus_all_window_id, _) = tray_menu.add_custom_item("Focus window", None, true, false);
 
   // inject submenu into tray_menu
-  tray_menu.add_submenu(submenu, "Sub menu", true);
+  tray_menu.add_submenu("Sub menu", true, submenu);
 
   // Windows require Vec<u8> ICO file
   #[cfg(target_os = "windows")]

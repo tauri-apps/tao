@@ -27,7 +27,7 @@ fn main() {
   my_app_menu.add_item(MenuItem::Copy);
 
   // add our submenu under Copy
-  my_app_menu.add_submenu(my_sub_menu, "Sub menu", true);
+  my_app_menu.add_submenu("Sub menu", true, my_sub_menu);
 
   // create another menu
   // in macOS menu bar need to be created with `init_with_title`
@@ -37,8 +37,8 @@ fn main() {
   test_menu.add_custom_item("Test", None, true, false);
 
   // add all our childs to menu_bar_menu (order is how they'll appear)
-  menu_bar_menu.add_submenu(my_app_menu, "My app", true);
-  menu_bar_menu.add_submenu(test_menu, "Other menu", true);
+  menu_bar_menu.add_submenu("My app", true, my_app_menu);
+  menu_bar_menu.add_submenu("Other menu", true, test_menu);
 
   let window = WindowBuilder::new()
     .with_title("A fantastic window!")

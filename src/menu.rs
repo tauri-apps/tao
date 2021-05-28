@@ -52,7 +52,7 @@ impl Menu {
     }
   }
 
-  pub fn add_submenu(&mut self, submenu: Menu, title: &str, enabled: bool) {
+  pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: Menu) {
     self.menu_platform.add_item(
       MenuItem::Submenu(title.to_string(), enabled, submenu.menu_platform),
       self.menu_type,
