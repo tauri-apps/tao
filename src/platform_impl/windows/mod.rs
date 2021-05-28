@@ -13,7 +13,6 @@ pub use self::{
   icon::WinIcon,
   menu::{CustomMenuItem, Menu},
   monitor::{MonitorHandle, VideoMode},
-  system_tray::{SystemTray, SystemTrayBuilder},
   window::Window,
 };
 
@@ -21,7 +20,11 @@ pub use self::icon::WinIcon as PlatformIcon;
 
 use crate::{event::DeviceId as RootDeviceId, icon::Icon, window::Theme};
 mod menu;
+
+#[cfg(feature = "tray")]
 mod system_tray;
+#[cfg(feature = "tray")]
+pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 
 #[derive(Clone)]
 pub enum Parent {

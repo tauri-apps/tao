@@ -13,6 +13,7 @@ mod menu;
 mod menu_icons;
 mod monitor;
 mod observer;
+#[cfg(feature = "tray")]
 mod system_tray;
 mod util;
 mod view;
@@ -21,12 +22,14 @@ mod window_delegate;
 
 use std::{fmt, ops::Deref, sync::Arc};
 
+#[cfg(feature = "tray")]
+pub use self::system_tray::{SystemTray, SystemTrayBuilder};
+
 pub use self::{
   app_delegate::{get_aux_state_mut, AuxDelegateState},
   event_loop::{EventLoop, EventLoopWindowTarget, Proxy as EventLoopProxy},
   menu::{CustomMenuItem, Menu},
   monitor::{MonitorHandle, VideoMode},
-  system_tray::{SystemTray, SystemTrayBuilder},
   window::{Id as WindowId, PlatformSpecificWindowBuilderAttributes, UnownedWindow},
 };
 use crate::{
