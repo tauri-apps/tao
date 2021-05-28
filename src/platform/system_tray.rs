@@ -1,17 +1,18 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(feature = "tray")]
-use crate::{error::OsError, platform_impl};
-#[cfg(any(
-  target_os = "macos",
+#![cfg(any(
   target_os = "windows",
+  target_os = "macos",
   target_os = "linux",
   target_os = "dragonfly",
   target_os = "freebsd",
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
+
+#[cfg(feature = "tray")]
+use crate::{error::OsError, platform_impl};
 use crate::{event_loop::EventLoopWindowTarget, menu::Menu};
 // TODO exhaustively match the targets
 #[cfg(target_os = "linux")]
