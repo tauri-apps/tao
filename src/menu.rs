@@ -94,7 +94,10 @@ impl Menu {
 /// of the variants. Unsupported variant will be no-op on such platform.
 #[derive(Debug, Clone)]
 pub enum MenuItem {
+  /// A custom menu emit an event inside the EventLoop.
+  /// Use `Menu::add_custom_item` to create a new item.
   Custom(CustomMenuItem),
+
   /// Shows a standard "About" item
   ///
   /// ## Platform-specific
@@ -229,8 +232,20 @@ pub enum MenuItem {
   ///
   Zoom,
 
-  // FIXME: Add description,
+  /// Represents a Separator
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows / Android / iOS:** Unsupported
+  ///
   Separator,
+
+  /// Represents a Children(label, enabled, children menu)
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android / iOS:** Unsupported
+  ///
   Children(String, bool, MenuPlatform),
 }
 
