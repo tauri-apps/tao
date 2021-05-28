@@ -202,7 +202,7 @@ impl SystemTray {
             }
             hicon => {
               // finally.... we can set the icon...
-              self.set_icon(hicon);
+              self.set_hicon(hicon);
             }
           }
         }
@@ -211,7 +211,7 @@ impl SystemTray {
   }
 
   // set the icon for our main instance
-  fn set_icon(&self, icon: HICON) {
+  fn set_hicon(&self, icon: HICON) {
     unsafe {
       let mut nid = get_nid_struct(&self.hwnd);
       nid.uFlags = NIF_ICON;

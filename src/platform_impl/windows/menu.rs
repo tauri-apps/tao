@@ -13,7 +13,7 @@ use std::ptr::null;
 
 use crate::{
   event::Event,
-  menu::{MenuIcon, MenuId, MenuType, SystemMenu},
+  menu::{MenuAction, MenuIcon, MenuId, MenuType},
 };
 
 pub struct MenuHandler {
@@ -147,7 +147,11 @@ impl Menu {
     }
   }
 
-  pub fn add_system_item(&mut self, _item: SystemMenu, _menu_type: MenuType) -> Option<MenuItem> {
+  pub fn add_system_item(
+    &mut self,
+    _item: MenuAction,
+    _menu_type: MenuType,
+  ) -> Option<CustomMenuItem> {
     None
   }
 
@@ -159,7 +163,7 @@ impl Menu {
     _key: Option<&str>,
     enabled: bool,
     selected: bool,
-  ) -> MenuItem {
+  ) -> CustomMenuItem {
     unsafe {
       let mut flags = winuser::MF_STRING;
       if !enabled {
@@ -174,7 +178,7 @@ impl Menu {
         id.0 as basetsd::UINT_PTR,
         to_wstring(&text).as_mut_ptr(),
       );
-      MenuItem(id.0, self.hmenu)
+      CustomMenuItem(id.0, self.hmenu)
     }
   }
 }
