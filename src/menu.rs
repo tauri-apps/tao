@@ -52,9 +52,9 @@ impl Menu {
     }
   }
 
-  pub fn add_children(&mut self, children: Menu, title: &str, enabled: bool) {
+  pub fn add_submenu(&mut self, submenu: Menu, title: &str, enabled: bool) {
     self.menu_platform.add_item(
-      MenuItem::Children(title.to_string(), enabled, children.menu_platform),
+      MenuItem::Submenu(title.to_string(), enabled, submenu.menu_platform),
       self.menu_type,
     );
   }
@@ -80,12 +80,6 @@ impl Menu {
 
   pub fn add_item(&mut self, item: MenuItem) -> Option<CustomMenuItem> {
     self.menu_platform.add_item(item, self.menu_type)
-  }
-
-  pub fn add_separator(&mut self) {
-    self
-      .menu_platform
-      .add_item(MenuItem::Separator, self.menu_type);
   }
 }
 
@@ -240,13 +234,13 @@ pub enum MenuItem {
   ///
   Separator,
 
-  /// Represents a Children(label, enabled, children menu)
+  /// Represents a Submenu(label, enabled, sub menu)
   ///
   /// ## Platform-specific
   ///
   /// - **Android / iOS:** Unsupported
   ///
-  Children(String, bool, MenuPlatform),
+  Submenu(String, bool, MenuPlatform),
 }
 
 /// Identifier of a custom menu item.

@@ -106,7 +106,7 @@ impl Menu {
   ) {
     for menu_item in self.gtk_items {
       let new_item = match menu_item.clone() {
-        MenuItem::Children(title, _enabled, submenu) => {
+        MenuItem::Submenu(title, _enabled, submenu) => {
           // FIXME: enabled is not used here
           let item = GtkMenuItem::with_label(&title);
           item.set_submenu(Some(&submenu.into_gtkmenu(tx, accel_group, window_id)));

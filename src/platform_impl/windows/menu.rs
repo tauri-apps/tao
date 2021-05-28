@@ -133,7 +133,7 @@ impl Menu {
         };
         None
       }
-      MenuItem::Children(title, enabled, menu) => {
+      MenuItem::Submenu(title, enabled, menu) => {
         unsafe {
           let mut flags = winuser::MF_POPUP;
           if !enabled {

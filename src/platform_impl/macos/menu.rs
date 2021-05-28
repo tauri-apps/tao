@@ -92,7 +92,7 @@ impl Menu {
         }
         None
       }
-      MenuItem::Children(title, enabled, menu) => {
+      MenuItem::Submenu(title, enabled, menu) => {
         unsafe {
           let menu_title = NSString::alloc(nil).init_str(&title);
           let menu_item = NSMenuItem::alloc(nil).autorelease();
