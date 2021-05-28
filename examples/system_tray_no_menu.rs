@@ -16,7 +16,7 @@ fn main() {
   #[cfg(target_os = "linux")]
   use std::path::Path;
   use tao::{
-    event::{Event, WindowEvent, CursorClick},
+    event::{Event, TrayEvent, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     platform::system_tray::SystemTrayBuilder,
     window::Window,
@@ -51,9 +51,10 @@ fn main() {
           // Remove window from our hashmap
           windows.remove(&window_id);
         }
-      },
-      Event::TrayClick(cursor_click) => {
-        if cursor_click == CursorClick::Left {
+      }
+      // NOTE: tray event's are always sent, even if menu is set
+      Event::TrayEvent(tray_event) => {
+        if tray_event == TrayEvent::LeftClick {
           if windows.len() == 0 {
             let window = Window::new(&event_loop).unwrap();
             windows.insert(window.id(), window);
@@ -63,8 +64,8 @@ fn main() {
             }
           }
         }
-      },
-      
+      }
+
       _ => (),
     }
   });

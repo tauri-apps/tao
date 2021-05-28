@@ -1,7 +1,12 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{error::OsError, event_loop::EventLoopWindowTarget, event::{Event, CursorClick}};
+use super::{app_state::AppState, event::EventWrapper, menu::Menu};
+use crate::{
+  error::OsError,
+  event::{Event, TrayEvent},
+  event_loop::EventLoopWindowTarget,
+};
 use cocoa::{
   appkit::{NSButton, NSImage, NSSquareStatusItemLength, NSStatusBar, NSStatusItem},
   base::{id, nil},
@@ -11,7 +16,6 @@ use objc::{
   declare::ClassDecl,
   runtime::{Class, Object, Sel},
 };
-use super::{menu::Menu, app_state::AppState, event::EventWrapper};
 use std::sync::Once;
 
 pub struct SystemTrayBuilder {
@@ -57,7 +61,7 @@ impl SystemTrayBuilder {
       self.system_tray.create_button_with_icon();
 
       // attach menu only if provided
-      if let Some(menu) = self.system_tray.tray_menu.clone() { 
+      if let Some(menu) = self.system_tray.tray_menu.clone() {
         // set tray menu
         status_bar.setMenu_(menu.menu);
       }
@@ -124,7 +128,7 @@ fn make_tray_class() -> *const Class {
   INIT.call_once(|| unsafe {
     let superclass = class!(NSObject);
     let mut decl = ClassDecl::new("TaoTrayHandler", superclass).unwrap();
-    decl.add_method(sel!(perform:), perform as extern fn (&mut Object, _, id));
+    decl.add_method(sel!(perform:), perform as extern "C" fn(&mut Object, _, id));
 
     TRAY_CLASS = decl.register();
   });
@@ -133,7 +137,7 @@ fn make_tray_class() -> *const Class {
 }
 
 /// This will fire for an NSButton callback.
-extern fn perform(_this: &mut Object, _: Sel, _sender: id) {
-  let event = Event::TrayClick(CursorClick::Left);
+extern "C" fn perform(_this: &mut Object, _: Sel, _sender: id) {
+  let event = Event::TrayEvent(TrayEvent::LeftClick);
   AppState::queue_event(EventWrapper::StaticEvent(event));
 }
