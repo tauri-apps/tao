@@ -47,7 +47,12 @@ impl CustomMenuItem {
   pub fn set_icon(&mut self, icon: MenuIcon) {}
 }
 
-// initialize menu and allocate the ID
+impl Default for Menu {
+  fn default() -> Self {
+    Menu::new()
+  }
+}
+
 impl Menu {
   pub fn new() -> Self {
     Menu {

@@ -104,8 +104,14 @@ impl Drop for Menu {
 unsafe impl Send for Menu {}
 unsafe impl Sync for Menu {}
 
+impl Default for Menu {
+  fn default() -> Self {
+    Menu::new()
+  }
+}
+
 impl Menu {
-  pub fn new() -> Menu {
+  pub fn new() -> Self {
     unsafe {
       let hmenu = winuser::CreateMenu();
       Menu { hmenu }

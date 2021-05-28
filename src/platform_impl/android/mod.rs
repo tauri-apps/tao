@@ -3,10 +3,10 @@
 
 #![cfg(target_os = "android")]
 use crate::{
-  menu::{MenuIcon, MenuType, MenuId, MenuItem},
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error, event,
   event_loop::{self, ControlFlow},
+  menu::{MenuIcon, MenuId, MenuItem, MenuType},
   monitor, window,
 };
 use ndk::{
@@ -50,9 +50,16 @@ pub struct CustomMenuItem;
 
 #[derive(Debug, Clone)]
 pub struct Menu;
+
+impl Default for Menu {
+  fn default() -> Self {
+    Menu::new()
+  }
+}
+
 impl Menu {
   pub fn new() -> Self {
-    Menu{}
+    Menu {}
   }
   pub fn new_popup_menu() -> Self {
     Self::new()
@@ -70,7 +77,7 @@ impl Menu {
     _enabled: bool,
     _selected: bool,
   ) -> CustomMenuItem {
-    CustomMenuItem{}
+    CustomMenuItem {}
   }
 }
 

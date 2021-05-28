@@ -8,6 +8,7 @@ use cocoa::{
 use crate::menu::MenuIcon;
 
 impl MenuIcon {
+  /// # Safety
   // todo: add more icons (but should be supported on windows and linux too?)
   // complete list available here:
   // https://developer.apple.com/documentation/appkit/nsimagename?language=objc

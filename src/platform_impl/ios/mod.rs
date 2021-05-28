@@ -78,8 +78,8 @@ mod monitor;
 mod view;
 mod window;
 
+use crate::menu::{MenuIcon, MenuId, MenuItem, MenuType};
 use std::fmt;
-use crate::menu::{MenuIcon, MenuType, MenuId, MenuItem};
 
 pub use self::{
   event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
@@ -94,9 +94,16 @@ pub(crate) use crate::icon::NoIcon as PlatformIcon;
 pub struct CustomMenuItem;
 #[derive(Debug, Clone)]
 pub struct Menu;
+
+impl Default for Menu {
+  fn default() -> Self {
+    Menu::new()
+  }
+}
+
 impl Menu {
   pub fn new() -> Self {
-    Menu{}
+    Menu {}
   }
   pub fn new_popup_menu() -> Self {
     Self::new()
@@ -114,7 +121,7 @@ impl Menu {
     _enabled: bool,
     _selected: bool,
   ) -> CustomMenuItem {
-    CustomMenuItem{}
+    CustomMenuItem {}
   }
 }
 

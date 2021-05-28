@@ -13,6 +13,7 @@ pub struct Tray;
 pub struct Menubar;
 
 impl Tray {
+  #[allow(clippy::new_ret_no_self)]
   pub fn new() -> Menu {
     Menu {
       menu_platform: MenuPlatform::new_popup_menu(),
@@ -22,6 +23,7 @@ impl Tray {
 }
 
 impl Menubar {
+  #[allow(clippy::new_ret_no_self)]
   pub fn new() -> Menu {
     Menu {
       menu_platform: MenuPlatform::new(),
