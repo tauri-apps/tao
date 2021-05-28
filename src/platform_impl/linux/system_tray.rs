@@ -5,12 +5,10 @@ use crate::{error::OsError, event_loop::EventLoopWindowTarget};
 
 use std::path::PathBuf;
 
-use gtk::AccelGroup;
-use gtk::WidgetExt;
+use gtk::{AccelGroup, WidgetExt};
 use libappindicator::{AppIndicator, AppIndicatorStatus};
 
-use super::menu::Menu;
-use super::WindowId;
+use super::{menu::Menu, WindowId};
 
 pub struct SystemTrayBuilder {
   pub(crate) system_tray: SystemTray,

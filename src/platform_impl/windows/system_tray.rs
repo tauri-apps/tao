@@ -2,12 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::menu::{subclass_proc, to_wstring, Menu, MenuHandler};
-use crate::{
-  error::OsError as RootOsError,
-  event_loop::EventLoopWindowTarget,
-  // platform_impl::OsError,
-  menu::MenuType,
-};
+use crate::{error::OsError as RootOsError, event_loop::EventLoopWindowTarget, menu::MenuType};
 use std::cell::RefCell;
 use winapi::{
   ctypes::{c_ulong, c_ushort},
