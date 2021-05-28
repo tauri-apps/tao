@@ -12,10 +12,12 @@
 mod event_loop;
 mod menu;
 mod monitor;
+#[cfg(feature = "tray")]
 mod system_tray;
 mod window;
 
 pub use self::menu::{CustomMenuItem, Menu};
+#[cfg(feature = "tray")]
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
 pub use monitor::{MonitorHandle, VideoMode};

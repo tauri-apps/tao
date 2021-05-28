@@ -16,8 +16,16 @@ use crate::{error::OsError, event_loop::EventLoopWindowTarget, menu::Menu, platf
 #[cfg(target_os = "linux")]
 use std::path::PathBuf;
 
+#[cfg(feature = "tray")]
 pub struct SystemTrayBuilder(platform_impl::SystemTrayBuilder);
 
+#[cfg(not(feature = "tray"))]
+pub struct SystemTrayBuilder;
+
+#[cfg(not(feature = "tray"))]
+struct SystemTray;
+
+#[cfg(feature = "tray")]
 impl SystemTrayBuilder {
   #[inline]
   #[cfg(not(target_os = "linux"))]
@@ -44,4 +52,34 @@ impl SystemTrayBuilder {
   ) -> Result<platform_impl::SystemTray, OsError> {
     self.0.build(&_window_target)
   }
+}
+
+#[cfg(not(feature = "tray"))]
+impl SystemTrayBuilder {
+  #[inline]
+  #[cfg(not(target_os = "linux"))]
+  pub fn new(icon: Vec<u8>, tray_menu: Menu) -> Self {
+    Self
+  }
+  #[inline]
+  #[cfg(target_os = "linux")]
+  pub fn new(icon: PathBuf, tray_menu: Menu) -> Self {
+    Self
+  }
+  pub fn build<T: 'static>(
+    self,
+    _window_target: &EventLoopWindowTarget<T>,
+  ) -> Result<SystemTray, OsError> {
+    self.0.build(&_window_target)
+  }
+}
+
+#[cfg(not(feature = "tray"))]
+impl SystemTray {
+  #[inline]
+  #[cfg(not(target_os = "linux"))]
+  pub fn set_icon(&mut self, icon: Vec<u8>) {}
+  #[inline]
+  #[cfg(target_os = "linux")]
+  pub fn set_icon(&mut self, icon: PathBuf) {}
 }
