@@ -14,10 +14,10 @@ use crate::{
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   event::{Event, WindowEvent},
   icon::Icon,
-  menu::Menu,
   monitor::MonitorHandle as RootMonitorHandle,
   platform::ios::{MonitorHandleExtIOS, ScreenEdge, ValidOrientations},
   platform_impl::platform::{
+    Menu,
     app_state,
     event_loop::{self, EventProxy, EventWrapper},
     ffi::{
@@ -51,7 +51,7 @@ impl Inner {
     debug!("`Window::set_title` is ignored on iOS")
   }
 
-  pub fn set_menu(&self, _menu: Option<Vec<Menu>>) {
+  pub fn set_menu(&self, _menu: Option<Menu>) {
     debug!("`Window::set_menu` is ignored on iOS")
   }
 

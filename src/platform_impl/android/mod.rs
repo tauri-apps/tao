@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(target_os = "android")]
-
 use crate::{
+  menu::{MenuIcon, MenuType, MenuId, MenuItem},
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error, event,
   event_loop::{self, ControlFlow},
-  menu::Menu,
   monitor, window,
 };
 use ndk::{
@@ -43,6 +42,43 @@ fn poll(poll: Poll) -> Option<EventSource> {
     Poll::Wake => Some(EventSource::User),
     Poll::Callback => unreachable!(),
   }
+}
+
+// todo: implement android menubar
+#[derive(Debug, Clone)]
+pub struct CustomMenuItem;
+
+#[derive(Debug, Clone)]
+pub struct Menu;
+impl Menu {
+  pub fn new() -> Self {
+    Menu{}
+  }
+  pub fn new_popup_menu() -> Self {
+    Self::new()
+  }
+  pub fn add_item(&mut self, _item: MenuItem, _menu_type: MenuType) -> Option<CustomMenuItem> {
+    None
+  }
+
+  pub fn add_custom_item(
+    &mut self,
+    _id: MenuId,
+    _menu_type: MenuType,
+    _text: &str,
+    _key: Option<&str>,
+    _enabled: bool,
+    _selected: bool,
+  ) -> CustomMenuItem {
+    CustomMenuItem{}
+  }
+}
+
+impl CustomMenuItem {
+  pub fn set_enabled(&mut self, _is_enabled: bool) {}
+  pub fn set_title(&mut self, _title: &str) {}
+  pub fn set_selected(&mut self, _is_selected: bool) {}
+  pub fn set_icon(&mut self, _icon: MenuIcon) {}
 }
 
 pub struct EventLoop<T: 'static> {
@@ -498,7 +534,7 @@ impl Window {
 
   pub fn set_title(&self, _title: &str) {}
 
-  pub fn set_menu(&self, _menu: Option<Vec<Menu>>) {}
+  pub fn set_menu(&self, _menu: Option<Menu>) {}
 
   pub fn set_visible(&self, _visibility: bool) {}
 

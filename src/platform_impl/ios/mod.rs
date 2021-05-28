@@ -79,6 +79,7 @@ mod view;
 mod window;
 
 use std::fmt;
+use crate::menu::{MenuIcon, MenuType, MenuId, MenuItem};
 
 pub use self::{
   event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
@@ -87,6 +88,42 @@ pub use self::{
 };
 
 pub(crate) use crate::icon::NoIcon as PlatformIcon;
+
+// todo: implement iOS menubar
+#[derive(Debug, Clone)]
+pub struct CustomMenuItem;
+#[derive(Debug, Clone)]
+pub struct Menu;
+impl Menu {
+  pub fn new() -> Self {
+    Menu{}
+  }
+  pub fn new_popup_menu() -> Self {
+    Self::new()
+  }
+  pub fn add_item(&mut self, _item: MenuItem, _menu_type: MenuType) -> Option<CustomMenuItem> {
+    None
+  }
+
+  pub fn add_custom_item(
+    &mut self,
+    _id: MenuId,
+    _menu_type: MenuType,
+    _text: &str,
+    _key: Option<&str>,
+    _enabled: bool,
+    _selected: bool,
+  ) -> CustomMenuItem {
+    CustomMenuItem{}
+  }
+}
+
+impl CustomMenuItem {
+  pub fn set_enabled(&mut self, _is_enabled: bool) {}
+  pub fn set_title(&mut self, _title: &str) {}
+  pub fn set_selected(&mut self, _is_selected: bool) {}
+  pub fn set_icon(&mut self, _icon: MenuIcon) {}
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DeviceId {
