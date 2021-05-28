@@ -65,7 +65,7 @@ fn main() {
 
   // Only supported on macOS, linux and windows
   #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-  let mut system_tray = SystemTrayBuilder::new(icon.clone(), tray_menu)
+  let mut system_tray = SystemTrayBuilder::new(icon.clone(), Some(tray_menu))
     .build(&event_loop)
     .unwrap();
 

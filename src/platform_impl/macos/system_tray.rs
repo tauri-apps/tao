@@ -1,13 +1,18 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use super::menu::Menu;
-use crate::{error::OsError, event_loop::EventLoopWindowTarget};
+use crate::{error::OsError, event_loop::EventLoopWindowTarget, event::{Event, CursorClick}};
 use cocoa::{
   appkit::{NSButton, NSImage, NSSquareStatusItemLength, NSStatusBar, NSStatusItem},
   base::{id, nil},
   foundation::{NSAutoreleasePool, NSData, NSSize},
 };
+use objc::{
+  declare::ClassDecl,
+  runtime::{Class, Object, Sel},
+};
+use super::{menu::Menu, app_state::AppState, event::EventWrapper};
+use std::sync::Once;
 
 pub struct SystemTrayBuilder {
   pub(crate) system_tray: SystemTray,
@@ -20,7 +25,7 @@ impl SystemTrayBuilder {
   /// - **macOS / Windows:**: receive icon as bytes (`Vec<u8>`)
   /// - **Linux:**: receive icon's path (`PathBuf`)
   #[inline]
-  pub fn new(icon: Vec<u8>, tray_menu: Menu) -> Self {
+  pub fn new(icon: Vec<u8>, tray_menu: Option<Menu>) -> Self {
     unsafe {
       let ns_status_bar = NSStatusBar::systemStatusBar(nil)
         .statusItemWithLength_(NSSquareStatusItemLength)
@@ -51,9 +56,20 @@ impl SystemTrayBuilder {
       // set our icon
       self.system_tray.create_button_with_icon();
 
-      // set tray menu
-      status_bar.setMenu_(self.system_tray.tray_menu.menu);
+      // attach menu only if provided
+      if let Some(menu) = self.system_tray.tray_menu.clone() { 
+        // set tray menu
+        status_bar.setMenu_(menu.menu);
+      }
+
+      // attach click event to our button
+      let button = status_bar.button();
+      let tray_target: id = msg_send![make_tray_class(), alloc];
+      let tray_target: id = msg_send![tray_target, init];
+      let _: () = msg_send![button, setAction: sel!(perform:)];
+      let _: () = msg_send![button, setTarget: tray_target];
     }
+
     Ok(self.system_tray)
   }
 }
@@ -66,7 +82,7 @@ impl SystemTrayBuilder {
 #[derive(Debug, Clone)]
 pub struct SystemTray {
   pub(crate) icon: Vec<u8>,
-  pub(crate) tray_menu: Menu,
+  pub(crate) tray_menu: Option<Menu>,
   pub(crate) ns_status_bar: id,
 }
 
@@ -99,4 +115,25 @@ impl SystemTray {
       let _: () = msg_send![nsimage, setSize: new_size];
     }
   }
+}
+
+fn make_tray_class() -> *const Class {
+  static mut TRAY_CLASS: *const Class = 0 as *const Class;
+  static INIT: Once = Once::new();
+
+  INIT.call_once(|| unsafe {
+    let superclass = class!(NSObject);
+    let mut decl = ClassDecl::new("TaoTrayHandler", superclass).unwrap();
+    decl.add_method(sel!(perform:), perform as extern fn (&mut Object, _, id));
+
+    TRAY_CLASS = decl.register();
+  });
+
+  unsafe { TRAY_CLASS }
+}
+
+/// This will fire for an NSButton callback.
+extern fn perform(_this: &mut Object, _: Sel, _sender: id) {
+  let event = Event::TrayClick(CursorClick::Left);
+  AppState::queue_event(EventWrapper::StaticEvent(event));
 }

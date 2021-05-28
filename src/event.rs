@@ -78,6 +78,9 @@ pub enum Event<'a, T: 'static> {
   /// menu bar, the other comes from the status bar.
   MenuEvent { menu_id: MenuId, origin: MenuType },
 
+  /// Emitted when tray has been clicked.
+  TrayClick(CursorClick),
+
   /// Emitted when the application has been suspended.
   Suspended,
 
@@ -150,6 +153,7 @@ impl<T: Clone> Clone for Event<'static, T> {
         menu_id: *menu_id,
         origin: *origin,
       },
+      TrayClick(cursor_event) => TrayClick(*cursor_event)
     }
   }
 }
@@ -169,6 +173,7 @@ impl<'a, T> Event<'a, T> {
       Suspended => Ok(Suspended),
       Resumed => Ok(Resumed),
       MenuEvent { menu_id, origin } => Ok(MenuEvent { menu_id, origin }),
+      TrayClick(cursor_event) => Ok(TrayClick(cursor_event))
     }
   }
 
@@ -190,6 +195,7 @@ impl<'a, T> Event<'a, T> {
       Suspended => Some(Suspended),
       Resumed => Some(Resumed),
       MenuEvent { menu_id, origin } => Some(MenuEvent { menu_id, origin }),
+      TrayClick(cursor_event) => Some(TrayClick(cursor_event))
     }
   }
 }
@@ -642,6 +648,15 @@ pub enum TouchPhase {
   Moved,
   Ended,
   Cancelled,
+}
+
+/// Describes click input state.
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum CursorClick {
+  Left,
+  Right,
+  Double,
 }
 
 /// Represents a touch event
