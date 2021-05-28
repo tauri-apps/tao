@@ -70,7 +70,9 @@ pub struct SystemTray {
 }
 
 impl SystemTray {
-  pub fn set_icon(&mut self, icon: Vec<u8>) {
-    // todo allow swapping icon
+  pub fn set_icon(&mut self, icon: PathBuf) {
+    let path = icon.parent().expect("Invalid icon");
+    self.app_indicator.set_icon_theme_path(&path.to_string_lossy());
+    self.app_indicator.set_icon(&icon.to_string_lossy())
   }
 }
