@@ -488,6 +488,7 @@ impl<T: 'static> EventLoop<T> {
                   title,
                   key,
                   enabled,
+                  ..
                 } => {
                   if let Err(e) = event_tx.send(Event::MenuEvent {
                     menu_id: id,

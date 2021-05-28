@@ -36,6 +36,7 @@ pub enum MenuItem {
     title: String,
     key: Option<String>,
     enabled: bool,
+    gtk_item: GtkMenuItem,
   },
   Children(String, Menu),
   Separator,
@@ -170,8 +171,16 @@ pub enum MenuItem {
 }
 
 impl MenuItem {
-  pub fn set_enabled(&mut self, is_enabled: bool) {}
-  pub fn set_title(&mut self, title: &str) {}
+  pub fn set_enabled(&mut self, is_enabled: bool) {
+    if let Self::Custom { gtk_item, .. } = self {
+      gtk_item.set_sensitive(is_enabled);
+    }
+  }
+  pub fn set_title(&mut self, title: &str) {
+    if let Self::Custom { gtk_item, .. } = self {
+      gtk_item.set_label(title);
+    }
+  }
   pub fn set_selected(&mut self, is_selected: bool) {}
   pub fn set_icon(&mut self, icon: MenuIcon) {}
 }
@@ -215,6 +224,7 @@ impl Menu {
       id,
       key: key.map(String::from),
       enabled,
+      gtk_item: GtkMenuItem::with_label(&text),
     };
     self.gtk_items.push(item.clone());
 
@@ -251,25 +261,26 @@ impl Menu {
         }
         MenuItem::Custom {
           enabled,
-          id,
           key,
-          title,
+          gtk_item,
+          ..
         } => {
-          let item = match key {
-            Some(key) => menuitem!(&title, &key, accel_group),
-            None => Some(GtkMenuItem::with_label(&title)),
-          };
-
-          if let Some(new_item) = item {
-            let tx_ = tx.clone();
-            new_item.connect_activate(move |_| {
-              if let Err(e) = tx_.send((window_id, WindowRequest::Menu(menu_item.clone()))) {
-                log::warn!("Fail to send menu request: {}", e);
-              }
-            });
-
-            menu.append(&new_item);
+          if let Some(key) = key {
+            let (key, mods) = gtk::accelerator_parse(&key);
+            gtk_item.add_accelerator("activate", accel_group, key, mods, AccelFlags::VISIBLE);
           }
+
+          // todo enabled
+          if enabled {}
+
+          let tx_ = tx.clone();
+          gtk_item.connect_activate(move |_| {
+            if let Err(e) = tx_.send((window_id, WindowRequest::Menu(menu_item.clone()))) {
+              log::warn!("Fail to send menu request: {}", e);
+            }
+          });
+
+          menu.append(&gtk_item);
         }
         MenuItem::Separator => menu.append(&SeparatorMenuItem::new()),
         // todo add others
