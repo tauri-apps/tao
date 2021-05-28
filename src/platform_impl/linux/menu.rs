@@ -33,6 +33,7 @@ pub struct CustomMenuItem {
   title: String,
   key: Option<String>,
   enabled: bool,
+  selected: bool,
   gtk_item: GtkMenuItem,
 }
 
@@ -63,14 +64,14 @@ impl Menu {
     Self::new()
   }
 
-  pub fn add_item(&mut self, item: MenuItem, menu_type: MenuType) -> Option<CustomMenuItem> {
+  pub fn add_item(&mut self, item: MenuItem, _menu_type: MenuType) -> Option<CustomMenuItem> {
     self.gtk_items.push(item);
     None
   }
   pub fn add_custom_item(
     &mut self,
     id: MenuId,
-    menu_type: MenuType,
+    _menu_type: MenuType,
     text: &str,
     key: Option<&str>,
     enabled: bool,
@@ -81,6 +82,7 @@ impl Menu {
       id,
       key: key.map(String::from),
       enabled,
+      selected,
       gtk_item: GtkMenuItem::with_label(&text),
     };
     let item = MenuItem::Custom(custom_item.clone());
@@ -131,6 +133,8 @@ impl Menu {
 
           // todo enabled
           if custom.enabled {}
+          // todo selected
+          if custom.selected {}
 
           let tx_ = tx.clone();
           custom.gtk_item.connect_activate(move |_| {
