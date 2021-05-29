@@ -103,7 +103,7 @@ pub trait WindowExtWindows {
   /// Returns the current window theme.
   fn theme(&self) -> Theme;
 
-  /// Not to display window icon in the task bar.
+  /// Removes the window icon from the task bar.
   fn skip_taskbar(&self);
 }
 
