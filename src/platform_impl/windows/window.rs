@@ -720,7 +720,7 @@ impl Window {
   }
 
   #[inline]
-  pub fn skip_taskbar(&self) {
+  pub fn set_skip_taskbar(&self, skip: bool) {
     unsafe {
       let mut taskbar_list: *mut ITaskbarList = std::mem::zeroed();
       CoCreateInstance(
@@ -730,7 +730,11 @@ impl Window {
         &ITaskbarList::uuidof(),
         &mut taskbar_list as *mut _ as *mut _,
       );
-      (*taskbar_list).DeleteTab(self.window.0);
+      if skip {
+        (*taskbar_list).DeleteTab(self.hwnd());
+      } else {
+        (*taskbar_list).AddTab(self.hwnd());
+      }
       (*taskbar_list).Release();
     }
   }
@@ -996,7 +1000,7 @@ unsafe fn taskbar_mark_fullscreen(handle: HWND, fullscreen: bool) {
     let mut task_bar_list = task_bar_list_ptr.get();
 
     if task_bar_list == ptr::null_mut() {
-      use winapi::{shared::winerror::S_OK, Interface};
+      use winapi::shared::winerror::S_OK;
 
       let hr = combaseapi::CoCreateInstance(
         &CLSID_TaskbarList,

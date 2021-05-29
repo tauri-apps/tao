@@ -1032,6 +1032,9 @@ impl UnownedWindow {
   }
 
   #[inline]
+  pub fn set_skip_taskbar(&self, _skip: bool) {}
+
+  #[inline]
   // Allow directly accessing the current monitor internally without unwrapping.
   pub(crate) fn current_monitor_inner(&self) -> RootMonitorHandle {
     unsafe {

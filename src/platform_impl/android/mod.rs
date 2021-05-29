@@ -550,6 +550,9 @@ impl Window {
 
   pub fn request_user_attention(&self, _request_type: Option<window::UserAttentionType>) {}
 
+  #[inline]
+  pub fn set_skip_taskbar(&self, _skip: bool) {}
+
   pub fn set_cursor_icon(&self, _: window::CursorIcon) {}
 
   pub fn set_cursor_position(&self, _: Position) -> Result<(), error::ExternalError> {

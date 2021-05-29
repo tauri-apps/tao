@@ -813,6 +813,15 @@ impl Window {
   pub fn request_user_attention(&self, request_type: Option<UserAttentionType>) {
     self.window.request_user_attention(request_type)
   }
+
+  /// Removes the window icon from the task bar.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS/ iOS / Android:** Unsupported.
+  pub fn set_skip_taskbar(&self, skip: bool) {
+    self.window.set_skip_taskbar(skip);
+  }
 }
 
 /// Cursor functions.

@@ -600,10 +600,10 @@ impl Window {
     todo!()
   }
 
-  pub fn skip_taskbar(&self) {
+  pub fn set_skip_taskbar(&self, skip: bool) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::SkipTaskbar))
+      .send((self.window_id, WindowRequest::SetSkipTaskbar(skip)))
     {
       log::warn!("Fail to send skip taskbar request: {}", e);
     }
@@ -632,7 +632,7 @@ pub enum WindowRequest {
   AlwaysOnTop(bool),
   WindowIcon(Option<Icon>),
   UserAttention(Option<UserAttentionType>),
-  SkipTaskbar,
+  SetSkipTaskbar(bool),
   CursorIcon(Option<CursorIcon>),
   WireUpEvents,
   Redraw,
