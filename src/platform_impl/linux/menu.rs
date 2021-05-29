@@ -131,8 +131,9 @@ impl Menu {
             );
           }
 
-          // todo enabled
-          if custom.enabled {}
+          if custom.enabled {
+            custom.gtk_item.set_sensitive(custom.enabled);
+          }
           // todo selected
           if custom.selected {}
 
