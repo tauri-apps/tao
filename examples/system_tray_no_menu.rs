@@ -21,8 +21,21 @@ fn main() {
     platform::system_tray::SystemTrayBuilder,
     window::Window,
   };
+  #[cfg(target_os = "macos")]
+  use tao::platform::macos::{EventLoopExtMacOS, ActivationPolicy};
+
   SimpleLogger::new().init().unwrap();
+  #[cfg(target_os = "macos")]
+  let mut event_loop = EventLoop::new();
+
+  #[cfg(not(target_os = "macos"))]
   let event_loop = EventLoop::new();
+
+  // launch macos app without menu and without dock icon
+  // shouold be set at launch
+  #[cfg(target_os = "macos")]
+  event_loop.set_activation_policy(ActivationPolicy::Accessory);
+
   let mut windows = HashMap::new();
 
   // Windows require Vec<u8> ICO file
