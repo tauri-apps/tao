@@ -17,17 +17,10 @@ pub use crate::platform_impl::hit_test;
 pub trait WindowExtUnix {
   /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
   fn gtk_window(&self) -> &gtk::ApplicationWindow;
-
-  /// Removes the window icon from the task bar.
-  fn skip_taskbar(&self);
 }
 
 impl WindowExtUnix for Window {
   fn gtk_window(&self) -> &gtk::ApplicationWindow {
     &self.window.window
-  }
-
-  fn skip_taskbar(&self) {
-    self.window.skip_taskbar()
   }
 }

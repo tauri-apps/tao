@@ -597,6 +597,8 @@ impl Window {
 
   pub fn show_menu(&self) {}
 
+  pub fn set_skip_taskbar(&self, _skip: bool) {}
+
   pub fn set_cursor_icon(&self, _: window::CursorIcon) {}
 
   pub fn set_cursor_position(&self, _: Position) -> Result<(), error::ExternalError> {
