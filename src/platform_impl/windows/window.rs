@@ -21,17 +21,19 @@ use winapi::{
     windef::{HWND, POINT, POINTS, RECT},
   },
   um::{
-    combaseapi, dwmapi,
+    combaseapi::{self, CoCreateInstance, CLSCTX_SERVER},
+    dwmapi,
     imm::{CFS_POINT, COMPOSITIONFORM},
     libloaderapi,
     objbase::COINIT_APARTMENTTHREADED,
     ole2,
     oleidl::LPDROPTARGET,
-    shobjidl_core::{CLSID_TaskbarList, ITaskbarList2},
+    shobjidl_core::{CLSID_TaskbarList, ITaskbarList, ITaskbarList2},
     wingdi::{CreateRectRgn, DeleteObject},
     winnt::{LPCWSTR, SHORT},
     winuser,
   },
+  Interface,
 };
 
 use crate::{
@@ -715,6 +717,22 @@ impl Window {
   #[inline]
   pub fn theme(&self) -> Theme {
     self.window_state.lock().current_theme
+  }
+
+  #[inline]
+  pub fn skip_taskbar(&self) {
+    unsafe {
+      let mut taskbar_list: *mut ITaskbarList = std::mem::zeroed();
+      CoCreateInstance(
+        &CLSID_TaskbarList,
+        ptr::null_mut(),
+        CLSCTX_SERVER,
+        &ITaskbarList::uuidof(),
+        &mut taskbar_list as *mut _ as *mut _,
+      );
+      (*taskbar_list).DeleteTab(self.window.0);
+      (*taskbar_list).Release();
+    }
   }
 }
 

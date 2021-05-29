@@ -102,6 +102,9 @@ pub trait WindowExtWindows {
 
   /// Returns the current window theme.
   fn theme(&self) -> Theme;
+
+  /// Removes the window icon from the task bar.
+  fn skip_taskbar(&self);
 }
 
 impl WindowExtWindows for Window {
@@ -130,6 +133,11 @@ impl WindowExtWindows for Window {
   #[inline]
   fn theme(&self) -> Theme {
     self.window.theme()
+  }
+
+  #[inline]
+  fn skip_taskbar(&self) {
+    self.window.skip_taskbar();
   }
 }
 

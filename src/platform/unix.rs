@@ -18,7 +18,7 @@ pub trait WindowExtUnix {
   /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
   fn gtk_window(&self) -> &gtk::ApplicationWindow;
 
-  /// Not to display window icon in the task bar.
+  /// Removes the window icon from the task bar.
   fn skip_taskbar(&self);
 }
 
