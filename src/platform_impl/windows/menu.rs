@@ -301,7 +301,6 @@ enum EditCommands {
   Paste,
 }
 fn execute_edit_command(command: EditCommands) {
-  let ipsize = std::mem::size_of::<winuser::INPUT>() as i32;
   let key = match command {
     EditCommands::Copy => 0x43,
     EditCommands::Cut => 0x58,
@@ -309,60 +308,25 @@ fn execute_edit_command(command: EditCommands) {
   };
 
   unsafe {
-    let mut input_u: winuser::INPUT_u = std::mem::zeroed();
-    *input_u.ki_mut() = winuser::KEYBDINPUT {
-      wVk: winuser::VK_CONTROL as u16,
-      dwExtraInfo: 0,
-      wScan: 0,
-      time: 0,
-      dwFlags: 0,
-    };
-    let mut input = winuser::INPUT {
-      type_: winuser::INPUT_KEYBOARD,
-      u: input_u,
-    };
-    winuser::SendInput(1, &mut input, ipsize);
+    let mut inputs: [winuser::INPUT; 4] = std::mem::zeroed();
+    inputs[0].type_ = winuser::INPUT_KEYBOARD;
+    inputs[0].u.ki_mut().wVk = winuser::VK_CONTROL as _;
 
-    let mut input_u: winuser::INPUT_u = std::mem::zeroed();
-    *input_u.ki_mut() = winuser::KEYBDINPUT {
-      wVk: key,
-      dwExtraInfo: 0,
-      wScan: 0,
-      time: 0,
-      dwFlags: 0,
-    };
-    let mut input = winuser::INPUT {
-      type_: winuser::INPUT_KEYBOARD,
-      u: input_u,
-    };
-    winuser::SendInput(1, &mut input, ipsize);
+    inputs[1].type_ = winuser::INPUT_KEYBOARD;
+    inputs[1].u.ki_mut().wVk = key;
 
-    let mut input_u: winuser::INPUT_u = std::mem::zeroed();
-    *input_u.ki_mut() = winuser::KEYBDINPUT {
-      wVk: key,
-      dwExtraInfo: 0,
-      wScan: 0,
-      time: 0,
-      dwFlags: winuser::KEYEVENTF_KEYUP,
-    };
-    let mut input = winuser::INPUT {
-      type_: winuser::INPUT_KEYBOARD,
-      u: input_u,
-    };
-    winuser::SendInput(1, &mut input, ipsize);
+    inputs[2].type_ = winuser::INPUT_KEYBOARD;
+    inputs[2].u.ki_mut().wVk = key;
+    inputs[2].u.ki_mut().dwFlags = winuser::KEYEVENTF_KEYUP;
 
-    let mut input_u: winuser::INPUT_u = std::mem::zeroed();
-    *input_u.ki_mut() = winuser::KEYBDINPUT {
-      wVk: winuser::VK_CONTROL as u16,
-      dwExtraInfo: 0,
-      wScan: 0,
-      time: 0,
-      dwFlags: winuser::KEYEVENTF_KEYUP,
-    };
-    let mut input = winuser::INPUT {
-      type_: winuser::INPUT_KEYBOARD,
-      u: input_u,
-    };
-    winuser::SendInput(1, &mut input, ipsize);
+    inputs[3].type_ = winuser::INPUT_KEYBOARD;
+    inputs[3].u.ki_mut().wVk = winuser::VK_CONTROL as _;
+    inputs[3].u.ki_mut().dwFlags = winuser::KEYEVENTF_KEYUP;
+
+    winuser::SendInput(
+      inputs.len() as _,
+      inputs.as_mut_ptr(),
+      std::mem::size_of::<winuser::INPUT>() as _,
+    );
   }
 }
