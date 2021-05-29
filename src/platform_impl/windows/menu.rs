@@ -16,6 +16,10 @@ use crate::{
   menu::{MenuIcon, MenuId, MenuItem, MenuType},
 };
 
+const CUT_ID: usize = 544654;
+const COPY_ID: usize = 5465454;
+const PASTE_ID: usize = 5479854;
+
 pub struct MenuHandler {
   menu_type: MenuType,
   send_event: Box<dyn Fn(Event<'static, ()>)>,
@@ -150,6 +154,39 @@ impl Menu {
       }
       MenuItem::Custom(custom_menu_item) => Some(custom_menu_item.0),
 
+      MenuItem::Cut => {
+        unsafe {
+          winuser::AppendMenuW(
+            self.hmenu,
+            winuser::MF_STRING,
+            CUT_ID,
+            to_wstring("&Cut\tCtrl+X").as_mut_ptr(),
+          );
+        }
+        None
+      }
+      MenuItem::Copy => {
+        unsafe {
+          winuser::AppendMenuW(
+            self.hmenu,
+            winuser::MF_STRING,
+            COPY_ID,
+            to_wstring("&Copy\tCtrl+C").as_mut_ptr(),
+          );
+        }
+        None
+      }
+      MenuItem::Paste => {
+        unsafe {
+          winuser::AppendMenuW(
+            self.hmenu,
+            winuser::MF_STRING,
+            PASTE_ID,
+            to_wstring("&Pase\tCtrl+V").as_mut_ptr(),
+          );
+        }
+        None
+      }
       // FIXME: create all shortcuts of MenuItem if possible...
       // like linux?
       _ => None,
@@ -225,8 +262,21 @@ pub(crate) unsafe extern "system" fn subclass_proc(
 ) -> minwindef::LRESULT {
   match u_msg {
     winuser::WM_COMMAND => {
-      let proxy = &mut *(data as *mut MenuHandler);
-      proxy.send_click_event(w_param as u32);
+      match w_param {
+        CUT_ID => {
+          execute_edit_command(EditCommands::Cut);
+        }
+        COPY_ID => {
+          execute_edit_command(EditCommands::Copy);
+        }
+        PASTE_ID => {
+          execute_edit_command(EditCommands::Paste);
+        }
+        _ => {
+          let proxy = &mut *(data as *mut MenuHandler);
+          proxy.send_click_event(w_param as u32);
+        }
+      }
       0
     }
     winuser::WM_DESTROY => {
@@ -234,5 +284,77 @@ pub(crate) unsafe extern "system" fn subclass_proc(
       0
     }
     _ => commctrl::DefSubclassProc(hwnd, u_msg, w_param, l_param),
+  }
+}
+
+enum EditCommands {
+  Copy,
+  Cut,
+  Paste,
+}
+fn execute_edit_command(command: EditCommands) {
+  let ipsize = std::mem::size_of::<winuser::INPUT>() as i32;
+  let key = match command {
+    EditCommands::Copy => 0x43,
+    EditCommands::Cut => 0x58,
+    EditCommands::Paste => 0x56,
+  };
+
+  unsafe {
+    let mut input_u: winuser::INPUT_u = std::mem::zeroed();
+    *input_u.ki_mut() = winuser::KEYBDINPUT {
+      wVk: winuser::VK_CONTROL as u16,
+      dwExtraInfo: 0,
+      wScan: 0,
+      time: 0,
+      dwFlags: 0,
+    };
+    let mut input = winuser::INPUT {
+      type_: winuser::INPUT_KEYBOARD,
+      u: input_u,
+    };
+    winuser::SendInput(1, &mut input, ipsize);
+
+    let mut input_u: winuser::INPUT_u = std::mem::zeroed();
+    *input_u.ki_mut() = winuser::KEYBDINPUT {
+      wVk: key,
+      dwExtraInfo: 0,
+      wScan: 0,
+      time: 0,
+      dwFlags: 0,
+    };
+    let mut input = winuser::INPUT {
+      type_: winuser::INPUT_KEYBOARD,
+      u: input_u,
+    };
+    winuser::SendInput(1, &mut input, ipsize);
+
+    let mut input_u: winuser::INPUT_u = std::mem::zeroed();
+    *input_u.ki_mut() = winuser::KEYBDINPUT {
+      wVk: key,
+      dwExtraInfo: 0,
+      wScan: 0,
+      time: 0,
+      dwFlags: winuser::KEYEVENTF_KEYUP,
+    };
+    let mut input = winuser::INPUT {
+      type_: winuser::INPUT_KEYBOARD,
+      u: input_u,
+    };
+    winuser::SendInput(1, &mut input, ipsize);
+
+    let mut input_u: winuser::INPUT_u = std::mem::zeroed();
+    *input_u.ki_mut() = winuser::KEYBDINPUT {
+      wVk: winuser::VK_CONTROL as u16,
+      dwExtraInfo: 0,
+      wScan: 0,
+      time: 0,
+      dwFlags: winuser::KEYEVENTF_KEYUP,
+    };
+    let mut input = winuser::INPUT {
+      type_: winuser::INPUT_KEYBOARD,
+      u: input_u,
+    };
+    winuser::SendInput(1, &mut input, ipsize);
   }
 }
