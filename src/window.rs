@@ -817,6 +817,26 @@ impl Window {
   pub fn request_user_attention(&self, request_type: Option<UserAttentionType>) {
     self.window.request_user_attention(request_type)
   }
+
+  /// Hides the menu associated with the window
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOs/ iOS / Android:** Unsupported.
+  #[inline]
+  pub fn hide_menu(&self) {
+    self.window.hide_menu();
+  }
+
+  /// Shows the menu associated with the window
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOs/ iOS / Android:** Unsupported.
+  #[inline]
+  pub fn show_menu(&self) {
+    self.window.show_menu();
+  }
 }
 
 /// Cursor functions.

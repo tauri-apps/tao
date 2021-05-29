@@ -1033,6 +1033,12 @@ impl UnownedWindow {
   }
 
   #[inline]
+  pub fn hide_menu(&self) {}
+
+  #[inline]
+  pub fn show_menu(&self) {}
+
+  #[inline]
   // Allow directly accessing the current monitor internally without unwrapping.
   pub(crate) fn current_monitor_inner(&self) -> RootMonitorHandle {
     unsafe {

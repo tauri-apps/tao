@@ -228,9 +228,14 @@ impl Menu {
   }
 }
 
-pub fn initialize(menu_builder: Menu, window_handle: RawWindowHandle, menu_handler: MenuHandler) {
+pub fn initialize(
+  menu_builder: Menu,
+  window_handle: RawWindowHandle,
+  menu_handler: MenuHandler,
+) -> Option<windef::HMENU> {
   if let RawWindowHandle::Windows(handle) = window_handle {
     let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
+    let menu = menu_builder.into_hmenu();
 
     unsafe {
       commctrl::SetWindowSubclass(
@@ -239,8 +244,11 @@ pub fn initialize(menu_builder: Menu, window_handle: RawWindowHandle, menu_handl
         0,
         sender as basetsd::DWORD_PTR,
       );
-      winuser::SetMenu(handle.hwnd as *mut _, menu_builder.into_hmenu());
+      winuser::SetMenu(handle.hwnd as *mut _, menu);
     }
+    Some(menu)
+  } else {
+    None
   }
 }
 

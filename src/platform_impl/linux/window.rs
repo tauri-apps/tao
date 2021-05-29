@@ -552,6 +552,16 @@ impl Window {
     }
   }
 
+  #[inline]
+  pub fn hide_menu(&self) {
+    self.menu.hide();
+  }
+
+  #[inline]
+  pub fn show_menu(&self) {
+    self.menu.show_all();
+  }
+
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
     if let Err(e) = self
       .window_requests_tx

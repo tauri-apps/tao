@@ -18,7 +18,7 @@ use winapi::{
   ctypes::c_int,
   shared::{
     minwindef::{HINSTANCE, LPARAM, UINT, WPARAM},
-    windef::{HWND, POINT, POINTS, RECT},
+    windef::{self, HWND, POINT, POINTS, RECT},
   },
   um::{
     combaseapi::{self, CoCreateInstance, CLSCTX_SERVER},
@@ -55,6 +55,10 @@ use crate::{
   window::{CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes},
 };
 
+struct HMenuWrapper(windef::HMENU);
+unsafe impl Send for HMenuWrapper {}
+unsafe impl Sync for HMenuWrapper {}
+
 /// The Win32 implementation of the main `Window` object.
 pub struct Window {
   /// Main handle for the window.
@@ -65,6 +69,9 @@ pub struct Window {
 
   // The events loop proxy.
   thread_executor: event_loop::EventLoopThreadExecutor,
+
+  // The menu associated with the window
+  menu: Option<HMenuWrapper>,
 }
 
 impl Window {
@@ -738,6 +745,22 @@ impl Window {
       (*taskbar_list).Release();
     }
   }
+
+  #[inline]
+  pub fn hide_menu(&self) {
+    unsafe {
+      winuser::SetMenu(self.hwnd(), ptr::null::<windef::HMENU>() as _);
+    }
+  }
+
+  #[inline]
+  pub fn show_menu(&self) {
+    if let Some(menu) = &self.menu {
+      unsafe {
+        winuser::SetMenu(self.hwnd(), menu.0);
+      }
+    }
+  }
 }
 
 impl Drop for Window {
@@ -875,10 +898,11 @@ unsafe fn init<T: 'static>(
     window_state
   };
 
-  let win = Window {
+  let mut win = Window {
     window: real_window,
     window_state,
     thread_executor: event_loop.create_thread_executor(),
+    menu: None,
   };
 
   let dimensions = attributes
@@ -914,7 +938,7 @@ unsafe fn init<T: 'static>(
       MenuType::Menubar,
     );
 
-    menu::initialize(window_menu, window_handle, menu_handler);
+    win.menu = menu::initialize(window_menu, window_handle, menu_handler).map(|m| HMenuWrapper(m));
   }
 
   if attributes.focus {
@@ -1003,7 +1027,7 @@ unsafe fn taskbar_mark_fullscreen(handle: HWND, fullscreen: bool) {
     let mut task_bar_list = task_bar_list_ptr.get();
 
     if task_bar_list == ptr::null_mut() {
-      use winapi::{shared::winerror::S_OK, Interface};
+      use winapi::shared::winerror::S_OK;
 
       let hr = combaseapi::CoCreateInstance(
         &CLSID_TaskbarList,
