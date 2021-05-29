@@ -246,6 +246,8 @@ impl Window {
       window.hide();
     }
 
+    window.set_skip_taskbar_hint(attributes.skip_taskbar);
+
     let w_pos = window.get_position();
     let position: Rc<(AtomicI32, AtomicI32)> = Rc::new((w_pos.0.into(), w_pos.1.into()));
     let position_clone = position.clone();

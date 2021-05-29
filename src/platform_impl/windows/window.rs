@@ -918,6 +918,8 @@ unsafe fn init<T: 'static>(
     force_window_active(win.window.0);
   }
 
+  win.set_skip_taskbar(attributes.skip_taskbar);
+
   Ok(win)
 }
 
