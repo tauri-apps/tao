@@ -12,13 +12,19 @@ use winapi::{
 use std::ptr::null;
 
 use crate::{
-  event::Event,
+  event::{Event, WindowEvent},
   menu::{MenuIcon, MenuId, MenuItem, MenuType},
+  platform_impl::platform::WindowId,
+  window::WindowId as RootWindowId,
 };
 
-const CUT_ID: usize = 544654;
-const COPY_ID: usize = 5465454;
-const PASTE_ID: usize = 5479854;
+const CUT_ID: usize = 5001;
+const COPY_ID: usize = 5002;
+const PASTE_ID: usize = 5003;
+const HIDE_ID: usize = 5004;
+const CLOSE_ID: usize = 5005;
+const QUIT_ID: usize = 5006;
+const MINIMIZE_ID: usize = 5007;
 
 pub struct MenuHandler {
   menu_type: MenuType,
@@ -37,6 +43,10 @@ impl MenuHandler {
       menu_id: MenuId(menu_id),
       origin: self.menu_type,
     });
+  }
+
+  pub fn send_event(&self, event: Event<'static, ()>) {
+    (self.send_event)(event);
   }
 }
 
@@ -182,7 +192,51 @@ impl Menu {
             self.hmenu,
             winuser::MF_STRING,
             PASTE_ID,
-            to_wstring("&Pase\tCtrl+V").as_mut_ptr(),
+            to_wstring("&Paste\tCtrl+V").as_mut_ptr(),
+          );
+        }
+        None
+      }
+      MenuItem::Hide => {
+        unsafe {
+          winuser::AppendMenuW(
+            self.hmenu,
+            winuser::MF_STRING,
+            HIDE_ID,
+            to_wstring("&Hide\tCtrl+H").as_mut_ptr(),
+          );
+        }
+        None
+      }
+      MenuItem::CloseWindow => {
+        unsafe {
+          winuser::AppendMenuW(
+            self.hmenu,
+            winuser::MF_STRING,
+            CLOSE_ID,
+            to_wstring("&Close\tAlt+F4").as_mut_ptr(),
+          );
+        }
+        None
+      }
+      MenuItem::Quit => {
+        unsafe {
+          winuser::AppendMenuW(
+            self.hmenu,
+            winuser::MF_STRING,
+            QUIT_ID,
+            to_wstring("&Quit").as_mut_ptr(),
+          );
+        }
+        None
+      }
+      MenuItem::Minimize => {
+        unsafe {
+          winuser::AppendMenuW(
+            self.hmenu,
+            winuser::MF_STRING,
+            MINIMIZE_ID,
+            to_wstring("&Minimize").as_mut_ptr(),
           );
         }
         None
@@ -279,6 +333,23 @@ pub(crate) unsafe extern "system" fn subclass_proc(
         }
         PASTE_ID => {
           execute_edit_command(EditCommands::Paste);
+        }
+        HIDE_ID => {
+          winuser::ShowWindow(hwnd, winuser::SW_HIDE);
+        }
+        CLOSE_ID => {
+          let proxy = &mut *(data as *mut MenuHandler);
+          proxy.send_event(Event::WindowEvent {
+            window_id: RootWindowId(WindowId(hwnd)),
+            event: WindowEvent::CloseRequested,
+          });
+        }
+        QUIT_ID => {
+          let proxy = &mut *(data as *mut MenuHandler);
+          proxy.send_event(Event::LoopDestroyed);
+        }
+        MINIMIZE_ID => {
+          winuser::ShowWindow(hwnd, winuser::SW_MINIMIZE);
         }
         _ => {
           let proxy = &mut *(data as *mut MenuHandler);
