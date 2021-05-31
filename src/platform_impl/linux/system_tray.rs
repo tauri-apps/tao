@@ -21,7 +21,7 @@ impl SystemTrayBuilder {
   /// - **macOS / Windows:**: receive icon as bytes (`Vec<u8>`)
   /// - **Linux:**: receive icon's path (`PathBuf`)
   #[inline]
-  pub fn new(icon: PathBuf, tray_menu: Menu) -> Self {
+  pub fn new(icon: PathBuf, tray_menu: Option<Menu>) -> Self {
     let path = icon.parent().expect("Invalid icon");
     let app_indicator = AppIndicator::with_path(
       "tao application",
@@ -47,15 +47,18 @@ impl SystemTrayBuilder {
   ) -> Result<SystemTray, OsError> {
     let tx_ = window_target.p.window_requests_tx.clone();
 
-    let tray_menu = self.system_tray.tray_menu.clone();
-    let menu = &mut tray_menu.into_gtkmenu(&tx_, &AccelGroup::new(), WindowId::dummy());
+    if let Some(tray_menu) = self.system_tray.tray_menu.clone() {
+    
+      let menu = &mut tray_menu.into_gtkmenu(&tx_, &AccelGroup::new(), WindowId::dummy());
+  
+      self.system_tray.app_indicator.set_menu(menu);
+      menu.show_all();
+    }
 
     self
       .system_tray
       .app_indicator
       .set_status(AppIndicatorStatus::Active);
-    self.system_tray.app_indicator.set_menu(menu);
-    menu.show_all();
 
     Ok(self.system_tray)
   }
@@ -63,7 +66,7 @@ impl SystemTrayBuilder {
 
 pub struct SystemTray {
   icon: PathBuf,
-  tray_menu: Menu,
+  tray_menu: Option<Menu>,
   app_indicator: AppIndicator,
 }
 
