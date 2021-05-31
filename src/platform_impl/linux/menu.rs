@@ -8,7 +8,7 @@ use gtk::{
 };
 
 use super::window::{WindowId, WindowRequest};
-use crate::menu::{MenuIcon, MenuId, MenuItem, MenuType};
+use crate::menu::{MenuId, MenuItem, MenuType};
 
 macro_rules! menuitem {
   ( $description:expr, $key:expr, $accel_group:ident ) => {{
@@ -45,7 +45,7 @@ impl CustomMenuItem {
     self.gtk_item.set_label(title);
   }
   pub fn set_selected(&mut self, is_selected: bool) {}
-  pub fn set_icon(&mut self, icon: MenuIcon) {}
+  pub fn set_icon(&mut self, icon: Vec<u8>) {}
 }
 
 impl Default for Menu {
