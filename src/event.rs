@@ -79,7 +79,7 @@ pub enum Event<'a, T: 'static> {
   MenuEvent { menu_id: MenuId, origin: MenuType },
 
   /// Emitted when tray has been clicked.
-  TrayEvent(TrayEvent),
+  TrayEvent { bounds: Rectangle, event: TrayEvent },
 
   /// Emitted when the application has been suspended.
   Suspended,
@@ -153,7 +153,10 @@ impl<T: Clone> Clone for Event<'static, T> {
         menu_id: *menu_id,
         origin: *origin,
       },
-      TrayEvent(cursor_event) => TrayEvent(*cursor_event),
+      TrayEvent { bounds, event } => TrayEvent {
+        bounds: *bounds,
+        event: *event,
+      },
     }
   }
 }
@@ -173,7 +176,7 @@ impl<'a, T> Event<'a, T> {
       Suspended => Ok(Suspended),
       Resumed => Ok(Resumed),
       MenuEvent { menu_id, origin } => Ok(MenuEvent { menu_id, origin }),
-      TrayEvent(cursor_event) => Ok(TrayEvent(cursor_event)),
+      TrayEvent { bounds, event } => Ok(TrayEvent { bounds, event }),
     }
   }
 
@@ -195,7 +198,7 @@ impl<'a, T> Event<'a, T> {
       Suspended => Some(Suspended),
       Resumed => Some(Resumed),
       MenuEvent { menu_id, origin } => Some(MenuEvent { menu_id, origin }),
-      TrayEvent(cursor_event) => Some(TrayEvent(cursor_event)),
+      TrayEvent { bounds, event } => Some(TrayEvent { bounds, event }),
     }
   }
 }
@@ -650,13 +653,20 @@ pub enum TouchPhase {
   Cancelled,
 }
 
-/// Describes click input state.
+/// Describes available tray events.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum TrayEvent {
   LeftClick,
   RightClick,
   DoubleClick,
+}
+
+/// Describes a rectangle include x - y axis.
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub struct Rectangle {
+  pub position: PhysicalPosition<f64>,
+  pub size: PhysicalSize<f64>,
 }
 
 /// Represents a touch event

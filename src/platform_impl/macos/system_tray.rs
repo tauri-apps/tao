@@ -1,14 +1,17 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{app_state::AppState, event::EventWrapper, menu::Menu};
+use super::{
+  app_state::AppState, event::EventWrapper, menu::Menu, util::bottom_left_to_top_left_for_tray,
+};
 use crate::{
+  dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize},
   error::OsError,
-  event::{Event, TrayEvent},
+  event::{Event, Rectangle, TrayEvent},
   event_loop::EventLoopWindowTarget,
 };
 use cocoa::{
-  appkit::{NSButton, NSImage, NSSquareStatusItemLength, NSStatusBar, NSStatusItem},
+  appkit::{NSButton, NSImage, NSSquareStatusItemLength, NSStatusBar, NSStatusItem, NSWindow},
   base::{id, nil},
   foundation::{NSAutoreleasePool, NSData, NSSize},
 };
@@ -70,7 +73,7 @@ impl SystemTrayBuilder {
       let button = status_bar.button();
       let tray_target: id = msg_send![make_tray_class(), alloc];
       let tray_target: id = msg_send![tray_target, init];
-      let _: () = msg_send![button, setAction: sel!(perform:)];
+      let _: () = msg_send![button, setAction: sel!(click:)];
       let _: () = msg_send![button, setTarget: tray_target];
     }
 
@@ -128,7 +131,10 @@ fn make_tray_class() -> *const Class {
   INIT.call_once(|| unsafe {
     let superclass = class!(NSObject);
     let mut decl = ClassDecl::new("TaoTrayHandler", superclass).unwrap();
-    decl.add_method(sel!(perform:), perform as extern "C" fn(&mut Object, _, id));
+    decl.add_method(
+      sel!(click:),
+      perform_tray_click as extern "C" fn(&mut Object, _, id),
+    );
 
     TRAY_CLASS = decl.register();
   });
@@ -137,7 +143,27 @@ fn make_tray_class() -> *const Class {
 }
 
 /// This will fire for an NSButton callback.
-extern "C" fn perform(_this: &mut Object, _: Sel, _sender: id) {
-  let event = Event::TrayEvent(TrayEvent::LeftClick);
-  AppState::queue_event(EventWrapper::StaticEvent(event));
+extern "C" fn perform_tray_click(_this: &mut Object, _: Sel, _sender: id) {
+  unsafe {
+    let app: id = msg_send![class!(NSApplication), sharedApplication];
+    let current_event: id = msg_send![app, currentEvent];
+    let window: id = msg_send![current_event, window];
+    let frame = NSWindow::frame(window);
+    let scale_factor = NSWindow::backingScaleFactor(window) as f64;
+    let position: PhysicalPosition<f64> = LogicalPosition::new(
+      frame.origin.x as f64,
+      bottom_left_to_top_left_for_tray(frame),
+    )
+    .to_physical(scale_factor);
+
+    let logical: LogicalSize<f64> = (frame.size.width as f64, frame.size.height as f64).into();
+    let size: PhysicalSize<f64> = logical.to_physical(scale_factor);
+
+    let event = Event::TrayEvent {
+      bounds: Rectangle { position, size },
+      event: TrayEvent::LeftClick,
+    };
+
+    AppState::queue_event(EventWrapper::StaticEvent(event));
+  }
 }

@@ -15,14 +15,14 @@ fn main() {
   use std::collections::HashMap;
   #[cfg(target_os = "linux")]
   use std::path::Path;
+  #[cfg(target_os = "macos")]
+  use tao::platform::macos::{ActivationPolicy, EventLoopExtMacOS};
   use tao::{
     event::{Event, TrayEvent, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     platform::system_tray::SystemTrayBuilder,
-    window::Window,
+    window::WindowBuilder,
   };
-  #[cfg(target_os = "macos")]
-  use tao::platform::macos::{EventLoopExtMacOS, ActivationPolicy};
 
   SimpleLogger::new().init().unwrap();
   #[cfg(target_os = "macos")]
@@ -66,10 +66,13 @@ fn main() {
         }
       }
       // NOTE: tray event's are always sent, even if menu is set
-      Event::TrayEvent(tray_event) => {
-        if tray_event == TrayEvent::LeftClick {
+      Event::TrayEvent { bounds, event } => {
+        if event == TrayEvent::LeftClick {
           if windows.len() == 0 {
-            let window = Window::new(&event_loop).unwrap();
+            let window = WindowBuilder::new()
+              .with_position(bounds.position)
+              .build(&event_loop)
+              .unwrap();
             windows.insert(window.id(), window);
           } else {
             for window in windows.values() {
