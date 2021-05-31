@@ -48,9 +48,8 @@ impl SystemTrayBuilder {
     let tx_ = window_target.p.window_requests_tx.clone();
 
     if let Some(tray_menu) = self.system_tray.tray_menu.clone() {
-    
       let menu = &mut tray_menu.into_gtkmenu(&tx_, &AccelGroup::new(), WindowId::dummy());
-  
+
       self.system_tray.app_indicator.set_menu(menu);
       menu.show_all();
     }
