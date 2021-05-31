@@ -6,7 +6,7 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error, event,
   event_loop::{self, ControlFlow},
-  menu::{MenuIcon, MenuId, MenuItem, MenuType},
+  menu::{MenuId, MenuItem, MenuType},
   monitor, window,
 };
 use ndk::{
@@ -85,7 +85,7 @@ impl CustomMenuItem {
   pub fn set_enabled(&mut self, _is_enabled: bool) {}
   pub fn set_title(&mut self, _title: &str) {}
   pub fn set_selected(&mut self, _is_selected: bool) {}
-  pub fn set_icon(&mut self, _icon: MenuIcon) {}
+  pub fn set_icon(&mut self, _icon: Vec<u8>) {}
 }
 
 pub struct EventLoop<T: 'static> {

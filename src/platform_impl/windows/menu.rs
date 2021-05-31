@@ -13,7 +13,7 @@ use std::ptr::null;
 
 use crate::{
   event::{Event, WindowEvent},
-  menu::{MenuIcon, MenuId, MenuItem, MenuType},
+  menu::{MenuId, MenuItem, MenuType},
   platform_impl::platform::WindowId,
   window::WindowId as RootWindowId,
 };
@@ -54,7 +54,7 @@ impl MenuHandler {
 pub struct CustomMenuItem(pub(crate) u32, windef::HMENU);
 
 impl CustomMenuItem {
-  pub fn set_icon(&mut self, icon: MenuIcon) {}
+  pub fn set_icon(&mut self, icon: Vec<u8>) {}
   pub fn set_enabled(&mut self, enabled: bool) {
     unsafe {
       winuser::EnableMenuItem(

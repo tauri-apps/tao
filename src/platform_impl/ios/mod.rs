@@ -78,7 +78,7 @@ mod monitor;
 mod view;
 mod window;
 
-use crate::menu::{MenuIcon, MenuId, MenuItem, MenuType};
+use crate::menu::{MenuId, MenuItem, MenuType};
 use std::fmt;
 
 pub use self::{
@@ -129,7 +129,7 @@ impl CustomMenuItem {
   pub fn set_enabled(&mut self, _is_enabled: bool) {}
   pub fn set_title(&mut self, _title: &str) {}
   pub fn set_selected(&mut self, _is_selected: bool) {}
-  pub fn set_icon(&mut self, _icon: MenuIcon) {}
+  pub fn set_icon(&mut self, _icon: Vec<u8>) {}
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
