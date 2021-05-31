@@ -76,6 +76,7 @@ fn main() {
       // NOTE: tray event's are always sent, even if menu is set
       Event::TrayEvent { mut bounds, event } => {
         if event == TrayEvent::LeftClick {
+          println!("{:?}", bounds.position);
           if windows.len() == 0 {
             // window size
             let window_inner_size = LogicalSize::new(200.0, 200.0);
