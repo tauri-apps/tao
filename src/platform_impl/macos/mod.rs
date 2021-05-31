@@ -10,7 +10,6 @@ mod event;
 mod event_loop;
 mod ffi;
 mod menu;
-mod menu_icons;
 mod monitor;
 mod observer;
 #[cfg(feature = "tray")]

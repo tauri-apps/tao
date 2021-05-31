@@ -14,7 +14,8 @@ use std::sync::Once;
 
 use crate::{
   event::Event,
-  menu::{MenuIcon, MenuId, MenuItem, MenuType},
+  menu::{MenuId, MenuItem, MenuType},
+  platform::macos::NativeImage,
 };
 
 use super::{app_state::AppState, event::EventWrapper};
@@ -62,7 +63,7 @@ impl CustomMenuItem {
       let () = msg_send![self.0, setState: state];
     }
   }
-  pub fn set_icon(&mut self, icon: MenuIcon) {
+  pub fn set_icon(&mut self, icon: NativeImage) {
     unsafe {
       let ns_image: id = icon.get_ns_image();
       let image_ref: id = msg_send![class!(NSImage), imageNamed: ns_image];

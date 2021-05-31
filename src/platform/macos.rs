@@ -13,6 +13,32 @@ use crate::{
   window::{Window, WindowBuilder},
 };
 
+use cocoa::{
+  appkit::{
+    NSImageNameAddTemplate, NSImageNameAdvanced, NSImageNameBluetoothTemplate,
+    NSImageNameBookmarksTemplate, NSImageNameCaution, NSImageNameColorPanel,
+    NSImageNameColumnViewTemplate, NSImageNameComputer, NSImageNameEnterFullScreenTemplate,
+    NSImageNameEveryone, NSImageNameExitFullScreenTemplate, NSImageNameFlowViewTemplate,
+    NSImageNameFolder, NSImageNameFolderBurnable, NSImageNameFolderSmart,
+    NSImageNameFollowLinkFreestandingTemplate, NSImageNameFontPanel, NSImageNameGoLeftTemplate,
+    NSImageNameGoRightTemplate, NSImageNameHomeTemplate, NSImageNameIChatTheaterTemplate,
+    NSImageNameIconViewTemplate, NSImageNameInfo, NSImageNameInvalidDataFreestandingTemplate,
+    NSImageNameLeftFacingTriangleTemplate, NSImageNameListViewTemplate,
+    NSImageNameLockLockedTemplate, NSImageNameLockUnlockedTemplate,
+    NSImageNameMenuMixedStateTemplate, NSImageNameMenuOnStateTemplate, NSImageNameMobileMe,
+    NSImageNameMultipleDocuments, NSImageNameNetwork, NSImageNamePathTemplate,
+    NSImageNamePreferencesGeneral, NSImageNameQuickLookTemplate,
+    NSImageNameRefreshFreestandingTemplate, NSImageNameRefreshTemplate, NSImageNameRemoveTemplate,
+    NSImageNameRevealFreestandingTemplate, NSImageNameRightFacingTriangleTemplate,
+    NSImageNameShareTemplate, NSImageNameSlideshowTemplate, NSImageNameSmartBadgeTemplate,
+    NSImageNameStatusAvailable, NSImageNameStatusNone, NSImageNameStatusPartiallyAvailable,
+    NSImageNameStatusUnavailable, NSImageNameStopProgressFreestandingTemplate,
+    NSImageNameStopProgressTemplate, NSImageNameTrashEmpty, NSImageNameTrashFull, NSImageNameUser,
+    NSImageNameUserAccounts, NSImageNameUserGroup, NSImageNameUserGuest,
+  },
+  base::id,
+};
+
 /// Additional methods on `Window` that are specific to MacOS.
 pub trait WindowExtMacOS {
   /// Returns a pointer to the cocoa `NSWindow` that is used by this window.
@@ -90,6 +116,188 @@ pub enum ActivationPolicy {
 impl Default for ActivationPolicy {
   fn default() -> Self {
     ActivationPolicy::Regular
+  }
+}
+
+/// Named images, defined by the system or you, for use in your app.
+pub enum NativeImage {
+  /// An add item template image.
+  Add,
+  /// Advanced preferences toolbar icon for the preferences window.
+  Advanced,
+  /// A Bluetooth template image.
+  Bluetooth,
+  /// Bookmarks image suitable for a template.
+  Bookmarks,
+  /// A caution image.
+  Caution,
+  /// A color panel toolbar icon.
+  ColorPanel,
+  /// A column view mode template image.
+  ColumnView,
+  /// A computer icon.
+  Computer,
+  /// An enter full-screen mode template image.
+  EnterFullScreen,
+  /// Permissions for all users.
+  Everyone,
+  /// An exit full-screen mode template image.
+  ExitFullScreen,
+  /// A cover flow view mode template image.
+  FlowView,
+  /// A folder image.
+  Folder,
+  /// A burnable folder icon.
+  FolderBurnable,
+  /// A smart folder icon.
+  FolderSmart,
+  /// A link template image.
+  FollowLinkFreestanding,
+  /// A font panel toolbar icon.
+  FontPanel,
+  /// A `go back` template image.
+  GoLeft,
+  /// A `go forward` template image.
+  GoRight,
+  /// Home image suitable for a template.
+  Home,
+  /// An iChat Theater template image.
+  IChatTheater,
+  /// An icon view mode template image.
+  IconView,
+  /// An information toolbar icon.
+  Info,
+  /// A template image used to denote invalid data.
+  InvalidDataFreestanding,
+  /// A generic left-facing triangle template image.
+  LeftFacingTriangle,
+  /// A list view mode template image.
+  ListView,
+  /// A locked padlock template image.
+  LockLocked,
+  /// An unlocked padlock template image.
+  LockUnlocked,
+  /// A horizontal dash, for use in menus.
+  MenuMixedState,
+  /// A check mark template image, for use in menus.
+  MenuOnState,
+  /// A MobileMe icon.
+  MobileMe,
+  /// A drag image for multiple items.
+  MultipleDocuments,
+  /// A network icon.
+  Network,
+  /// A path button template image.
+  Path,
+  /// General preferences toolbar icon for the preferences window.
+  PreferencesGeneral,
+  /// A Quick Look template image.
+  QuickLook,
+  /// A refresh template image.
+  RefreshFreestanding,
+  /// A refresh template image.
+  Refresh,
+  /// A remove item template image.
+  Remove,
+  /// A reveal contents template image.
+  RevealFreestanding,
+  /// A generic right-facing triangle template image.
+  RightFacingTriangle,
+  /// A share view template image.
+  Share,
+  /// A slideshow template image.
+  Slideshow,
+  /// A badge for a `smart` item.
+  SmartBadge,
+  /// Small green indicator, similar to iChat’s available image.
+  StatusAvailable,
+  /// Small clear indicator.
+  StatusNone,
+  /// Small yellow indicator, similar to iChat’s idle image.
+  StatusPartiallyAvailable,
+  /// Small red indicator, similar to iChat’s unavailable image.
+  StatusUnavailable,
+  /// A stop progress template image.
+  StopProgressFreestanding,
+  /// A stop progress button template image.
+  StopProgress,
+
+  // todo add TouchBar icons
+  // https://developer.apple.com/documentation/appkit/nsimagenameactiontemplate
+  /// An image of the empty trash can.
+  TrashEmpty,
+  /// An image of the full trash can.
+  TrashFull,
+  /// Permissions for a single user.
+  User,
+  /// User account toolbar icon for the preferences window.
+  UserAccounts,
+  /// Permissions for a group of users.
+  UserGroup,
+  /// Permissions for guests.
+  UserGuest,
+}
+
+impl NativeImage {
+  pub(crate) unsafe fn get_ns_image(self) -> id {
+    match self {
+      NativeImage::Add => NSImageNameAddTemplate,
+      NativeImage::StatusAvailable => NSImageNameStatusAvailable,
+      NativeImage::StatusUnavailable => NSImageNameStatusUnavailable,
+      NativeImage::StatusPartiallyAvailable => NSImageNameStatusPartiallyAvailable,
+      NativeImage::Advanced => NSImageNameAdvanced,
+      NativeImage::Bluetooth => NSImageNameBluetoothTemplate,
+      NativeImage::Bookmarks => NSImageNameBookmarksTemplate,
+      NativeImage::Caution => NSImageNameCaution,
+      NativeImage::ColorPanel => NSImageNameColorPanel,
+      NativeImage::ColumnView => NSImageNameColumnViewTemplate,
+      NativeImage::Computer => NSImageNameComputer,
+      NativeImage::EnterFullScreen => NSImageNameEnterFullScreenTemplate,
+      NativeImage::Everyone => NSImageNameEveryone,
+      NativeImage::ExitFullScreen => NSImageNameExitFullScreenTemplate,
+      NativeImage::FlowView => NSImageNameFlowViewTemplate,
+      NativeImage::Folder => NSImageNameFolder,
+      NativeImage::FolderBurnable => NSImageNameFolderBurnable,
+      NativeImage::FolderSmart => NSImageNameFolderSmart,
+      NativeImage::FollowLinkFreestanding => NSImageNameFollowLinkFreestandingTemplate,
+      NativeImage::FontPanel => NSImageNameFontPanel,
+      NativeImage::GoLeft => NSImageNameGoLeftTemplate,
+      NativeImage::GoRight => NSImageNameGoRightTemplate,
+      NativeImage::Home => NSImageNameHomeTemplate,
+      NativeImage::IChatTheater => NSImageNameIChatTheaterTemplate,
+      NativeImage::IconView => NSImageNameIconViewTemplate,
+      NativeImage::Info => NSImageNameInfo,
+      NativeImage::InvalidDataFreestanding => NSImageNameInvalidDataFreestandingTemplate,
+      NativeImage::LeftFacingTriangle => NSImageNameLeftFacingTriangleTemplate,
+      NativeImage::ListView => NSImageNameListViewTemplate,
+      NativeImage::LockLocked => NSImageNameLockLockedTemplate,
+      NativeImage::LockUnlocked => NSImageNameLockUnlockedTemplate,
+      NativeImage::MenuMixedState => NSImageNameMenuMixedStateTemplate,
+      NativeImage::MenuOnState => NSImageNameMenuOnStateTemplate,
+      NativeImage::MobileMe => NSImageNameMobileMe,
+      NativeImage::MultipleDocuments => NSImageNameMultipleDocuments,
+      NativeImage::Network => NSImageNameNetwork,
+      NativeImage::Path => NSImageNamePathTemplate,
+      NativeImage::PreferencesGeneral => NSImageNamePreferencesGeneral,
+      NativeImage::QuickLook => NSImageNameQuickLookTemplate,
+      NativeImage::RefreshFreestanding => NSImageNameRefreshFreestandingTemplate,
+      NativeImage::Refresh => NSImageNameRefreshTemplate,
+      NativeImage::Remove => NSImageNameRemoveTemplate,
+      NativeImage::RevealFreestanding => NSImageNameRevealFreestandingTemplate,
+      NativeImage::RightFacingTriangle => NSImageNameRightFacingTriangleTemplate,
+      NativeImage::Share => NSImageNameShareTemplate,
+      NativeImage::Slideshow => NSImageNameSlideshowTemplate,
+      NativeImage::SmartBadge => NSImageNameSmartBadgeTemplate,
+      NativeImage::StatusNone => NSImageNameStatusNone,
+      NativeImage::StopProgressFreestanding => NSImageNameStopProgressFreestandingTemplate,
+      NativeImage::StopProgress => NSImageNameStopProgressTemplate,
+      NativeImage::TrashEmpty => NSImageNameTrashEmpty,
+      NativeImage::TrashFull => NSImageNameTrashFull,
+      NativeImage::User => NSImageNameUser,
+      NativeImage::UserAccounts => NSImageNameUserAccounts,
+      NativeImage::UserGroup => NSImageNameUserGroup,
+      NativeImage::UserGuest => NSImageNameUserGuest,
+    }
   }
 }
 

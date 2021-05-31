@@ -18,8 +18,8 @@ fn main() {
   use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    menu::{MenuIcon, MenuType, Tray as Menu},
-    platform::system_tray::SystemTrayBuilder,
+    menu::{MenuType, Tray as Menu},
+    platform::{macos::NativeImage, system_tray::SystemTrayBuilder},
     window::Window,
   };
   SimpleLogger::new().init().unwrap();
@@ -35,7 +35,7 @@ fn main() {
     submenu.add_custom_item("Open new window", Some("<Primary>e"), true, false);
 
   // set default icon
-  open_new_window_element.set_icon(MenuIcon::StatusAvailable);
+  open_new_window_element.set_icon(NativeImage::StatusAvailable);
 
   // focus all window menu item
   let (focus_all_window_id, _) = tray_menu.add_custom_item("Focus window", None, true, false);
@@ -85,7 +85,7 @@ fn main() {
           // Set unchecked
           open_new_window_element.set_selected(false);
           system_tray.set_icon(icon.clone());
-          open_new_window_element.set_icon(MenuIcon::StatusAvailable);
+          open_new_window_element.set_icon(NativeImage::StatusAvailable);
         }
       }
       Event::MenuEvent {
@@ -104,7 +104,7 @@ fn main() {
 
           // update tray icon
           system_tray.set_icon(new_icon.clone());
-          open_new_window_element.set_icon(MenuIcon::StatusUnavailable);
+          open_new_window_element.set_icon(NativeImage::StatusUnavailable);
         }
         if menu_id == focus_all_window_id {
           for window in windows.values() {
