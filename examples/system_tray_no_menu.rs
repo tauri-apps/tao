@@ -58,7 +58,7 @@ fn main() {
 
   // Only supported on macOS, linux and windows
   #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-  let _system_tray = SystemTrayBuilder::new(icon.clone(), None)
+  let _system_tray = SystemTrayBuilder::new(icon, None)
     .build(&event_loop)
     .unwrap();
 
@@ -77,7 +77,7 @@ fn main() {
       Event::TrayEvent { mut bounds, event } => {
         if event == TrayEvent::LeftClick {
           println!("{:?}", bounds.position);
-          if windows.len() == 0 {
+          if windows.is_empty() {
             // window size
             let window_inner_size = LogicalSize::new(200.0, 200.0);
             // create our window
