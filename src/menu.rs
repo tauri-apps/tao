@@ -91,7 +91,7 @@ impl Menu {
 #[derive(Debug, Clone)]
 pub enum MenuItem {
   /// A custom menu emit an event inside the EventLoop.
-  /// Use `Menu::add_custom_item` to create a new item.
+  /// Use `Menu::add_custom_item` to create a new custom item.
   Custom(CustomMenuItem),
 
   /// Shows a standard "About" item
