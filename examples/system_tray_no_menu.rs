@@ -10,6 +10,7 @@
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
+
 fn main() {
   use simple_logger::SimpleLogger;
   use std::collections::HashMap;
@@ -18,7 +19,8 @@ fn main() {
   #[cfg(target_os = "macos")]
   use tao::platform::macos::{ActivationPolicy, EventLoopExtMacOS};
   use tao::{
-    event::{Event, TrayEvent, WindowEvent},
+    dpi::LogicalSize,
+    event::{Event, Rectangle, TrayEvent, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     platform::system_tray::SystemTrayBuilder,
     window::WindowBuilder,
@@ -37,6 +39,12 @@ fn main() {
   event_loop.set_activation_policy(ActivationPolicy::Accessory);
 
   let mut windows = HashMap::new();
+
+  fn window_position_center_tray(rectangle: &mut Rectangle, window_width: f64) -> Rectangle {
+    let window_x = rectangle.position.x + ((rectangle.size.width / 2.0) - (window_width / 2.0));
+    rectangle.position.x = window_x;
+    *rectangle
+  }
 
   // Windows require Vec<u8> ICO file
   #[cfg(target_os = "windows")]
@@ -66,11 +74,19 @@ fn main() {
         }
       }
       // NOTE: tray event's are always sent, even if menu is set
-      Event::TrayEvent { bounds, event } => {
+      Event::TrayEvent { mut bounds, event } => {
         if event == TrayEvent::LeftClick {
           if windows.len() == 0 {
+            // window size
+            let window_inner_size = LogicalSize::new(200.0, 200.0);
+            // create our window
             let window = WindowBuilder::new()
-              .with_position(bounds.position)
+              // position our window centered with tray bounds
+              .with_position(
+                window_position_center_tray(&mut bounds, window_inner_size.width).position,
+              )
+              .with_inner_size(window_inner_size)
+              .with_resizable(false)
               .build(&event_loop)
               .unwrap();
             windows.insert(window.id(), window);
