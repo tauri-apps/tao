@@ -213,6 +213,7 @@ impl SystemTray {
       let mut nid = get_nid_struct(&self.hwnd);
       nid.uFlags = NIF_ICON;
       nid.hIcon = icon;
+      nid.uID = WM_USER_TRAYICON_UID;
       if shellapi::Shell_NotifyIconW(NIM_MODIFY, &mut nid as *mut NOTIFYICONDATAW) == 0 {
         debug!("Error setting icon");
         return;
