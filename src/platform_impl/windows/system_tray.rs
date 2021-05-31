@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::menu::{subclass_proc, to_wstring, Menu, MenuHandler};
-use crate::{error::OsError as RootOsError, event_loop::EventLoopWindowTarget, menu::MenuType};
+use crate::{
+  dpi::{PhysicalPosition, PhysicalSize},
+  error::OsError as RootOsError,
+  event::{Event, Rectangle, TrayEvent},
+  event_loop::EventLoopWindowTarget,
+  menu::MenuType,
+};
 use std::cell::RefCell;
 use winapi::{
   ctypes::{c_ulong, c_ushort},
@@ -11,7 +17,7 @@ use winapi::{
     guiddef::GUID,
     minwindef::{DWORD, HINSTANCE, LPARAM, LRESULT, UINT, WPARAM},
     ntdef::LPCWSTR,
-    windef::{HBRUSH, HICON, HMENU, HWND, POINT},
+    windef::{HBRUSH, HICON, HMENU, HWND, POINT, RECT},
   },
   um::{
     commctrl::SetWindowSubclass,
@@ -24,6 +30,7 @@ use winapi::{
 thread_local!(static WININFO_STASH: RefCell<Option<WindowsLoopData>> = RefCell::new(None));
 
 const WM_USER_TRAYICON: u32 = 0x400 + 1111;
+const WM_USER_TRAYICON_UID: u32 = 0x855 + 1111;
 
 pub struct SystemTrayBuilder {
   pub(crate) icon: Vec<u8>,
@@ -54,16 +61,6 @@ impl SystemTrayBuilder {
       hmenu = Some(menu.into_hmenu());
     }
 
-    // create the handler
-    let event_loop_runner = window_target.p.runner_shared.clone();
-    let menu_handler = MenuHandler::new(
-      Box::new(move |event| {
-        if let Ok(e) = event.map_nonuser_event() {
-          unsafe { event_loop_runner.send_event(e) }
-        }
-      }),
-      MenuType::SystemTray,
-    );
     let class_name = to_wstring("tao_system_tray_app");
     unsafe {
       let _hinstance: HINSTANCE = libloaderapi::GetModuleHandleA(std::ptr::null_mut());
@@ -104,7 +101,7 @@ impl SystemTrayBuilder {
       }
 
       let mut nid = get_nid_struct(&hwnd);
-      nid.uID = 0x1;
+      nid.uID = WM_USER_TRAYICON_UID;
       nid.uFlags = NIF_MESSAGE;
       nid.uCallbackMessage = WM_USER_TRAYICON;
       if shellapi::Shell_NotifyIconW(NIM_ADD, &mut nid as *mut NOTIFYICONDATAW) == 0 {
@@ -114,16 +111,36 @@ impl SystemTrayBuilder {
       let app_system_tray = SystemTray { hwnd, hmenu };
       app_system_tray.set_icon_from_buffer(&self.icon, 32, 32);
 
+      // create the handler
+      let event_loop_runner = window_target.p.runner_shared.clone();
+      let menu_handler = MenuHandler::new(
+        Box::new(move |event| {
+          if let Ok(e) = event.map_nonuser_event() {
+            event_loop_runner.send_event(e)
+          }
+        }),
+        MenuType::SystemTray,
+      );
+      // TODO: Remove `WININFO_STASH` thread_local and save hmenu into the box
       WININFO_STASH.with(|stash| {
         let data = WindowsLoopData {
           system_tray: app_system_tray,
+          sender: menu_handler,
         };
         (*stash.borrow_mut()) = Some(data);
       });
 
-      // TODO: Remove `WININFO_STASH` thread_local and save hmenu into the box
+      let event_loop_runner = window_target.p.runner_shared.clone();
+      let menu_handler = MenuHandler::new(
+        Box::new(move |event| {
+          if let Ok(e) = event.map_nonuser_event() {
+            event_loop_runner.send_event(e)
+          }
+        }),
+        MenuType::SystemTray,
+      );
       let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
-      SetWindowSubclass(hwnd as *mut _, Some(subclass_proc), 0, sender as DWORD_PTR);
+      SetWindowSubclass(hwnd as _, Some(subclass_proc), 0, sender as DWORD_PTR);
 
       return Ok(SystemTray { hwnd, hmenu });
     }
@@ -137,6 +154,7 @@ pub struct SystemTray {
 
 struct WindowsLoopData {
   system_tray: SystemTray,
+  sender: MenuHandler,
 }
 
 impl SystemTray {
@@ -240,10 +258,10 @@ pub(crate) fn get_nid_struct(hwnd: &HWND) -> NOTIFYICONDATAW {
 }
 
 unsafe extern "system" fn window_proc(
-  h_wnd: HWND,
+  hwnd: HWND,
   msg: UINT,
-  w_param: WPARAM,
-  l_param: LPARAM,
+  wparam: WPARAM,
+  lparam: LPARAM,
 ) -> LRESULT {
   if msg == winuser::WM_DESTROY {
     winuser::PostQuitMessage(0);
@@ -251,20 +269,51 @@ unsafe extern "system" fn window_proc(
 
   // click on the icon
   if msg == WM_USER_TRAYICON {
-    match l_param as u32 {
-      // Left click tray icon
-      winuser::WM_LBUTTONUP => {
-        let mut p = POINT { x: 0, y: 0 };
-        if winuser::GetCursorPos(&mut p as *mut POINT) == 0 {
-          return 1;
-        }
-        WININFO_STASH.with(|stash| {
-          let stash = stash.borrow();
-          let stash = stash.as_ref();
-          if let Some(stash) = stash {
+    let mut rect = RECT::default();
+    let nid = shellapi::NOTIFYICONIDENTIFIER {
+      hWnd: hwnd,
+      cbSize: std::mem::size_of::<shellapi::NOTIFYICONIDENTIFIER>() as _,
+      uID: WM_USER_TRAYICON_UID,
+      ..Default::default()
+    };
+    shellapi::Shell_NotifyIconGetRect(&nid as *const _, &mut rect as *mut _);
+
+    WININFO_STASH.with(|stash| {
+      let stash = stash.borrow();
+      let stash = stash.as_ref();
+      if let Some(stash) = stash {
+        match lparam as u32 {
+          // Left click tray icon
+          winuser::WM_LBUTTONUP => {
+            stash.sender.send_event(Event::TrayEvent {
+              event: TrayEvent::LeftClick,
+              bounds: Rectangle {
+                position: PhysicalPosition::new(rect.left as _, rect.top as _),
+                size: PhysicalSize::new(
+                  (rect.right - rect.left) as _,
+                  (rect.bottom - rect.top) as _,
+                ),
+              },
+            });
+          }
+
+          // Right click tray icon
+          winuser::WM_RBUTTONUP => {
+            let mut p = POINT { x: 0, y: 0 };
+            winuser::GetCursorPos(&mut p as *mut POINT);
+
+            stash.sender.send_event(Event::TrayEvent {
+              event: TrayEvent::RightClick,
+              bounds: Rectangle {
+                position: PhysicalPosition::new(5.0, 5.0),
+                size: PhysicalSize::new(5.0, 5.0),
+              },
+            });
+
+            // show menu on right click
             if let Some(menu) = stash.system_tray.hmenu {
               // set the popup foreground
-              winuser::SetForegroundWindow(h_wnd);
+              winuser::SetForegroundWindow(hwnd);
               // track the click
               winuser::TrackPopupMenu(
                 menu,
@@ -273,27 +322,30 @@ unsafe extern "system" fn window_proc(
                 p.y,
                 // align bottom / right, maybe we could expose this later..
                 (winuser::TPM_BOTTOMALIGN | winuser::TPM_LEFTALIGN) as i32,
-                h_wnd,
+                hwnd,
                 std::ptr::null_mut(),
               );
             }
           }
-        });
+
+          // Double click tray icon
+          winuser::WM_LBUTTONDBLCLK => {
+            stash.sender.send_event(Event::TrayEvent {
+              event: TrayEvent::DoubleClick,
+              bounds: Rectangle {
+                position: PhysicalPosition::new(5.0, 5.0),
+                size: PhysicalSize::new(5.0, 5.0),
+              },
+            });
+          }
+
+          _ => {}
+        }
       }
-
-      // TODO: Implement function
-      // Right click tray icon
-      winuser::WM_RBUTTONUP => {}
-
-      // TODO: Implement function
-      // Double click tray icon
-      winuser::WM_LBUTTONDBLCLK => {}
-
-      _ => {}
-    }
+    });
   }
 
-  return winuser::DefWindowProcW(h_wnd, msg, w_param, l_param);
+  return winuser::DefWindowProcW(hwnd, msg, wparam, lparam);
 }
 
 impl Drop for WindowsLoopData {

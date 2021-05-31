@@ -68,6 +68,7 @@ fn main() {
       // NOTE: tray event's are always sent, even if menu is set
       Event::TrayEvent { bounds, event } => {
         if event == TrayEvent::LeftClick {
+          println!("{:?}", bounds.position);
           if windows.len() == 0 {
             let window = WindowBuilder::new()
               .with_position(bounds.position)
