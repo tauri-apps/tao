@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use simple_logger::SimpleLogger;
+#[cfg(target_os = "macos")]
+use tao::platform::macos::NativeImage;
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   menu::{MenuItem, MenuType, Menubar as Menu},
-  platform::macos::NativeImage,
   window::WindowBuilder,
 };
 
@@ -69,6 +70,7 @@ fn main() {
           test_menu_item.set_enabled(false);
           test_menu_item.set_title("Menu disabled");
           test_menu_item.set_selected(true);
+          #[cfg(target_os = "macos")]
           test_menu_item.set_icon(NativeImage::StatusUnavailable);
         }
         println!("Clicked on {:?}", menu_id);

@@ -15,13 +15,16 @@ fn main() {
   use std::collections::HashMap;
   #[cfg(target_os = "linux")]
   use std::path::Path;
+  #[cfg(target_os = "macos")]
+  use tao::platform::macos::NativeImage;
   use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     menu::{MenuType, Tray as Menu},
-    platform::{macos::NativeImage, system_tray::SystemTrayBuilder},
+    platform::system_tray::SystemTrayBuilder,
     window::Window,
   };
+
   SimpleLogger::new().init().unwrap();
   let event_loop = EventLoop::new();
   let mut windows = HashMap::new();
@@ -35,6 +38,7 @@ fn main() {
     submenu.add_custom_item("Open new window", Some("<Primary>e"), true, false);
 
   // set default icon
+  #[cfg(target_os = "macos")]
   open_new_window_element.set_icon(NativeImage::StatusAvailable);
 
   // focus all window menu item
@@ -85,6 +89,7 @@ fn main() {
           // Set unchecked
           open_new_window_element.set_selected(false);
           system_tray.set_icon(icon.clone());
+          #[cfg(target_os = "macos")]
           open_new_window_element.set_icon(NativeImage::StatusAvailable);
         }
       }
@@ -104,6 +109,7 @@ fn main() {
 
           // update tray icon
           system_tray.set_icon(new_icon.clone());
+          #[cfg(target_os = "macos")]
           open_new_window_element.set_icon(NativeImage::StatusUnavailable);
         }
         if menu_id == focus_all_window_id {
