@@ -8,11 +8,16 @@ use std::{
 
 use crate::platform_impl::{CustomMenuItem, Menu as MenuPlatform};
 
-// test with shortcuts, we can remove them as well?
+// Tray menu (Also known as context menu)
 pub struct Tray;
+// Menubar menu (It represent the Window menu for Windows and Linux)
 pub struct Menubar;
 
 impl Tray {
+  /// Creates a new Tray (Context) menu for platforms where this is appropriate.
+  ///
+  /// This function is equivalent to [`Menu::new_popup_menu(MenuType::SystemTray)`].
+  /// [`Menu::new_popup_menu(MenuType::SystemTray)`]: crate::menu::Menu
   #[allow(clippy::new_ret_no_self)]
   pub fn new() -> Menu {
     Menu {
@@ -23,6 +28,10 @@ impl Tray {
 }
 
 impl Menubar {
+  /// Creates a new Menubar (Window) menu for platforms where this is appropriate.
+  ///
+  /// This function is equivalent to [`Menu::new(MenuType::Menubar)`].
+  /// [`Menu::new_popup_menu(MenuType::Menubar)`]: crate::menu::Menu
   #[allow(clippy::new_ret_no_self)]
   pub fn new() -> Menu {
     Menu {
@@ -32,7 +41,7 @@ impl Menubar {
   }
 }
 
-// menu builder
+/// Base `Menu` functions.
 #[derive(Debug, Clone)]
 pub struct Menu {
   pub(crate) menu_platform: MenuPlatform,
@@ -40,6 +49,7 @@ pub struct Menu {
 }
 
 impl Menu {
+  /// Creates a new Menu for Menubar/Window context.
   pub fn new(menu_type: MenuType) -> Self {
     Self {
       menu_platform: MenuPlatform::new(),
@@ -47,6 +57,7 @@ impl Menu {
     }
   }
 
+  /// Creates a new Menu for Popup context.
   pub fn new_popup_menu(menu_type: MenuType) -> Self {
     Self {
       menu_platform: MenuPlatform::new_popup_menu(),
@@ -54,6 +65,12 @@ impl Menu {
     }
   }
 
+  /// Shortcut to add a submenu to this `Menu`.
+  ///
+  /// This function is equivalent to [`Menu::add_item(self, MenuItem::Submenu(title, enabled, submenu))`].
+  /// See [`Menu::add_item`] for details.
+  ///
+  /// [`Menu::add_item`]: crate::menu::Menu
   pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: Menu) {
     self.menu_platform.add_item(
       MenuItem::Submenu(title.to_string(), enabled, submenu.menu_platform),
@@ -61,38 +78,26 @@ impl Menu {
     );
   }
 
-  pub fn add_custom_item(
-    &mut self,
-    text: &str,
-    keyboard_accelerator: Option<&str>,
-    enabled: bool,
-    selected: bool,
-  ) -> (MenuId, CustomMenuItem) {
-    let menu_id = MenuId::new(&text);
-    let item = self.menu_platform.add_custom_item(
-      menu_id,
-      self.menu_type,
-      text,
-      keyboard_accelerator,
-      enabled,
-      selected,
-    );
-    (menu_id, item)
-  }
-
+  /// Add new item to this menu.
   pub fn add_item(&mut self, item: MenuItem) -> Option<CustomMenuItem> {
-    self.menu_platform.add_item(item, self.menu_type)
+    self.menu_platform.add_item(item.clone(), self.menu_type)
   }
 }
 
-/// A menu item, bound to a pre-defined action or `Custom` emit an event. Note that status bar only
-/// supports `Custom` menu item variants. And on the menu bar, some platforms might not support some
-/// of the variants. Unsupported variant will be no-op on such platform.
+/// A menu item, bound to a pre-defined action or `Custom` emit an event. Note some platforms
+/// might not support some of the variants. Unsupported variant will be no-op on such platform.
+/// Use `MenuItem::new` to create a `CustomMenuItem`.
 #[derive(Debug, Clone)]
 pub enum MenuItem {
   /// A custom menu emit an event inside the EventLoop.
   /// Use `Menu::add_custom_item` to create a new custom item.
-  Custom(CustomMenuItem),
+  Custom {
+    menu_id: MenuId,
+    text: String,
+    keyboard_accelerator: Option<String>,
+    enabled: bool,
+    selected: bool,
+  },
 
   /// Shows a standard "About" item
   ///
@@ -245,6 +250,63 @@ pub enum MenuItem {
   Submenu(String, bool, MenuPlatform),
 }
 
+/// Base `MenuItem` functions.
+impl MenuItem {
+  /// Creates a new `MenuItem::Custom`.
+  pub fn new(menu_title: &str) -> Self {
+    let title = menu_title.to_string();
+    MenuItem::Custom {
+      menu_id: MenuId::new(&title),
+      text: title,
+      keyboard_accelerator: None,
+      enabled: true,
+      selected: false,
+    }
+  }
+
+  /// Sets whether the menu will be initially with keyboards accelerators or not.
+  pub fn with_accelerators(mut self, keyboard_accelerators: impl ToString) -> Self {
+    if let MenuItem::Custom {
+      ref mut keyboard_accelerator,
+      ..
+    } = self
+    {
+      *keyboard_accelerator = Some(keyboard_accelerators.to_string());
+    }
+    self
+  }
+
+  /// Sets whether the menu will be initially enabled or not.
+  ///
+  /// See [`CustomMenuItem::set_enabled`] for details.
+  ///
+  /// [`CustomMenuItem::set_enabled`]: crate::platform_impl::CustomMenuItem
+  pub fn with_enabled(mut self, is_enabled: bool) -> Self {
+    if let MenuItem::Custom {
+      ref mut enabled, ..
+    } = self
+    {
+      *enabled = is_enabled;
+    }
+    self
+  }
+
+  /// Sets whether the menu will be initially selected or not.
+  ///
+  /// See [`CustomMenuItem::set_selected`] for details.
+  ///
+  /// [`CustomMenuItem::set_selected`]: crate::platform_impl::CustomMenuItem
+  pub fn with_selected(mut self, is_selected: bool) -> Self {
+    if let MenuItem::Custom {
+      ref mut selected, ..
+    } = self
+    {
+      *selected = is_selected;
+    }
+    self
+  }
+}
+
 /// Identifier of a custom menu item.
 ///
 /// Whenever you receive an event arising from a particular menu, this event contains a `MenuId` which
@@ -259,8 +321,17 @@ impl From<MenuId> for u32 {
 }
 
 impl MenuId {
+  /// Return an empty `MenuId`.
+  pub const EMPTY: MenuId = MenuId(0);
+
+  /// Create new `MenuId` from a String.
   fn new(menu_title: &str) -> MenuId {
     MenuId(hash_string_to_u32(menu_title))
+  }
+
+  /// Whenever this menu is empty.
+  pub fn is_empty(self) -> bool {
+    Self::EMPTY == self
   }
 }
 

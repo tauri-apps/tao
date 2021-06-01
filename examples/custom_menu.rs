@@ -21,10 +21,9 @@ fn main() {
   // create our first menu
   let mut my_app_menu = Menu::new();
 
-  // create a submenu with 1 item
+  // create a submenu
   let mut my_sub_menu = Menu::new();
-  let (test_id, mut test_menu_item) =
-    my_sub_menu.add_custom_item("Disable menu", Some("<Ctrl>d"), true, false);
+  let mut test_menu_item = my_sub_menu.add_item(MenuItem::new("Disable menu")).unwrap();
   // add Copy to `My App` menu
   my_app_menu.add_item(MenuItem::Copy);
 
@@ -32,11 +31,14 @@ fn main() {
   my_app_menu.add_submenu("Sub menu", true, my_sub_menu);
 
   // create another menu
-  // in macOS menu bar need to be created with `init_with_title`
   let mut test_menu = Menu::new();
-  test_menu.add_custom_item("Selected and disabled", None, false, true);
+  test_menu.add_item(
+    MenuItem::new("Selected and disabled")
+      .with_selected(true)
+      .with_enabled(false),
+  );
   test_menu.add_item(MenuItem::Separator);
-  test_menu.add_custom_item("Test", None, true, false);
+  test_menu.add_item(MenuItem::new("Test"));
 
   // add all our childs to menu_bar_menu (order is how they'll appear)
   menu_bar_menu.add_submenu("My app", true, my_app_menu);
@@ -62,19 +64,15 @@ fn main() {
       Event::MenuEvent {
         menu_id,
         origin: MenuType::Menubar,
-      } => {
-        if menu_id == test_id {
-          println!("Clicked on custom change menu");
-          // this allow us to get access to the menu and make changes
-          // without re-rendering the whole menu
-          test_menu_item.set_enabled(false);
-          test_menu_item.set_title("Menu disabled");
-          test_menu_item.set_selected(true);
-          #[cfg(target_os = "macos")]
-          test_menu_item.set_icon(NativeImage::StatusUnavailable);
-        }
-        println!("Clicked on {:?}", menu_id);
-        window.set_title("New window title!");
+      } if menu_id == test_menu_item.clone().id() => {
+        println!("Clicked on custom change menu");
+        // this allow us to get access to the menu and make changes
+        // without re-rendering the whole menu
+        test_menu_item.set_enabled(false);
+        test_menu_item.set_title("Menu disabled");
+        test_menu_item.set_selected(true);
+        #[cfg(target_os = "macos")]
+        test_menu_item.set_icon(NativeImage::StatusUnavailable);
       }
       _ => (),
     }
