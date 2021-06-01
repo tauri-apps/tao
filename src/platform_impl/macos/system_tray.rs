@@ -86,7 +86,6 @@ impl SystemTrayBuilder {
         sendActionOn: NSEventMask::NSLeftMouseDownMask
           | NSEventMask::NSRightMouseDownMask
           | NSEventMask::NSKeyDownMask
-          | NSEventMask::NSKeyDownMask
       ];
     }
 
