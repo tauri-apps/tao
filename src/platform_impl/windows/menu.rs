@@ -52,6 +52,9 @@ impl MenuHandler {
 pub struct CustomMenuItem(pub(crate) u32, windef::HMENU);
 
 impl CustomMenuItem {
+  pub fn id(&self) -> MenuId {
+    MenuId(self.0)
+  }
   pub fn set_icon(&mut self, icon: Vec<u8>) {}
   pub fn set_enabled(&mut self, enabled: bool) {
     unsafe {
@@ -160,7 +163,20 @@ impl Menu {
 
         None
       }
-      MenuItem::Custom(custom_menu_item) => Some(custom_menu_item.0),
+      MenuItem::Custom {
+        menu_id,
+        enabled,
+        selected,
+        text,
+        keyboard_accelerator,
+      } => Some(self.add_custom_item(
+        menu_id,
+        MenuType::Menubar,
+        text.as_str(),
+        keyboard_accelerator,
+        enabled,
+        selected,
+      )),
 
       MenuItem::Cut => {
         unsafe {
@@ -244,7 +260,7 @@ impl Menu {
       _ => None,
     };
     if let Some(menu_item) = menu_item {
-      return Some(CustomMenuItem(menu_item, self.hmenu));
+      return Some(CustomMenuItem(menu_item.0, self.hmenu));
     }
     None
   }
@@ -254,7 +270,7 @@ impl Menu {
     id: MenuId,
     _menu_type: MenuType,
     text: &str,
-    _key: Option<&str>,
+    _keyboard_accelerator: Option<String>,
     enabled: bool,
     selected: bool,
   ) -> CustomMenuItem {
