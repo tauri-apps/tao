@@ -8,9 +8,9 @@ use std::{
 
 use crate::platform_impl::{CustomMenuItem as CustomMenuItemPlatform, Menu as MenuPlatform};
 
-// Tray menu (Also known as context menu)
+/// Tray menu (Also known as context menu)
 pub struct Tray;
-// Menubar menu (It represent the Window menu for Windows and Linux)
+/// Menubar menu (It represent the Window menu for Windows and Linux)
 pub struct Menubar;
 
 impl Tray {
