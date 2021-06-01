@@ -6,7 +6,7 @@ use std::{
   hash::{Hash, Hasher},
 };
 
-use crate::platform_impl::{CustomMenuItem, Menu as MenuPlatform};
+use crate::platform_impl::{CustomMenuItem as CustomMenuItemPlatform, Menu as MenuPlatform};
 
 // Tray menu (Also known as context menu)
 pub struct Tray;
@@ -86,7 +86,7 @@ impl Menu {
 
 /// A menu item, bound to a pre-defined action or `Custom` emit an event. Note some platforms
 /// might not support some of the variants. Unsupported variant will be no-op on such platform.
-/// Use `MenuItem::new` to create a `CustomMenuItem`.
+/// Tip: Use `MenuItem::new` shortcut to create a `CustomMenuItem`.
 #[derive(Debug, Clone)]
 pub enum MenuItem {
   /// A custom menu emit an event inside the EventLoop.
@@ -297,6 +297,39 @@ impl MenuItem {
     }
     self
   }
+}
+
+/// Custom menu item, when clicked an event is emitted in the EventLoop.
+/// You can modify the item after it's creation.
+#[derive(Debug, Clone)]
+pub struct CustomMenuItem(pub CustomMenuItemPlatform);
+
+/// Base `CustomMenuItem` functions.
+impl CustomMenuItem {
+  /// Returns an identifier unique to the menu item.
+  pub fn id(self) -> MenuId {
+    self.0.id()
+  }
+
+  /// Modifies the status of the menu item.
+  pub fn set_enabled(&mut self, is_enabled: bool) {
+    self.0.set_enabled(is_enabled)
+  }
+
+  /// Modifies the title (label) of the menu item.
+  pub fn set_title(&mut self, title: &str) {
+    self.0.set_title(title)
+  }
+
+  /// Modifies the selected state of the menu item.
+  pub fn set_selected(&mut self, is_selected: bool) {
+    self.0.set_selected(is_selected)
+  }
+
+  // todo: Add set_icon
+  // pub fn set_icon(&mut self, icon: Vec<u8>) {
+  //   self.0.set_icon(icon)
+  // }
 }
 
 /// Identifier of a custom menu item.

@@ -3,7 +3,7 @@
 
 use simple_logger::SimpleLogger;
 #[cfg(target_os = "macos")]
-use tao::platform::macos::NativeImage;
+use tao::platform::macos::{CustomMenuItemExtMacOS, NativeImage};
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
@@ -77,7 +77,7 @@ fn main() {
         test_menu_item.set_title("Menu disabled");
         test_menu_item.set_selected(true);
         #[cfg(target_os = "macos")]
-        test_menu_item.set_icon(NativeImage::StatusUnavailable);
+        test_menu_item.set_native_image(NativeImage::StatusUnavailable);
       }
       _ => (),
     }

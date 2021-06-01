@@ -16,7 +16,7 @@ fn main() {
   #[cfg(target_os = "linux")]
   use std::path::Path;
   #[cfg(target_os = "macos")]
-  use tao::platform::macos::NativeImage;
+  use tao::platform::macos::{CustomMenuItemExtMacOS, NativeImage};
   use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -41,7 +41,7 @@ fn main() {
   open_new_window_element
     .clone()
     .unwrap()
-    .set_icon(NativeImage::StatusAvailable);
+    .set_native_image(NativeImage::StatusAvailable);
 
   // focus all window menu item
   let focus_all_window = tray_menu.add_item(MenuItem::new("Focus window")).unwrap();
@@ -93,7 +93,7 @@ fn main() {
           open_new_window_element.set_selected(false);
           system_tray.set_icon(icon.clone());
           #[cfg(target_os = "macos")]
-          open_new_window_element.set_icon(NativeImage::StatusAvailable);
+          open_new_window_element.set_native_image(NativeImage::StatusAvailable);
         }
       }
       Event::MenuEvent {
@@ -114,7 +114,7 @@ fn main() {
           // update tray icon
           system_tray.set_icon(new_icon.clone());
           #[cfg(target_os = "macos")]
-          open_new_window_element.set_icon(NativeImage::StatusUnavailable);
+          open_new_window_element.set_native_image(NativeImage::StatusUnavailable);
         }
         if menu_id == focus_all_window.clone().id() {
           for window in windows.values() {

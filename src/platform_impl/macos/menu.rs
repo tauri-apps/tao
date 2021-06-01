@@ -14,7 +14,7 @@ use std::sync::Once;
 
 use crate::{
   event::Event,
-  menu::{MenuId, MenuItem, MenuType},
+  menu::{CustomMenuItem as RootCustomMenuItem, MenuId, MenuItem, MenuType},
   platform::macos::NativeImage,
 };
 
@@ -72,7 +72,12 @@ impl CustomMenuItem {
       let () = msg_send![self.1, setState: state];
     }
   }
-  pub fn set_icon(&mut self, icon: NativeImage) {
+
+  // todo: set custom icon to the menu item
+  pub fn set_icon(&mut self, _icon: Vec<u8>) {}
+
+  // Available only with CustomMenuItemExtMacOS
+  pub fn set_native_image(&mut self, icon: NativeImage) {
     unsafe {
       let ns_image: id = icon.get_ns_image();
       let image_ref: id = msg_send![class!(NSImage), imageNamed: ns_image];
@@ -98,7 +103,7 @@ impl Menu {
   pub fn new_popup_menu() -> Self {
     Self::new()
   }
-  pub fn add_item(&mut self, item: MenuItem, menu_type: MenuType) -> Option<CustomMenuItem> {
+  pub fn add_item(&mut self, item: MenuItem, menu_type: MenuType) -> Option<RootCustomMenuItem> {
     let menu_details: Option<(Option<MenuId>, *mut Object)> = match item {
       MenuItem::Separator => {
         unsafe {
@@ -362,7 +367,7 @@ impl Menu {
         self.menu.addItem_(menu_item);
       }
 
-      return Some(CustomMenuItem(menu_id, menu_item));
+      return Some(RootCustomMenuItem(CustomMenuItem(menu_id, menu_item)));
     }
 
     None

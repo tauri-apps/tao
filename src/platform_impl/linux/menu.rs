@@ -163,6 +163,7 @@ impl Menu {
   }
 }
 
+// Generate menu for menu bar.
 pub fn initialize(
   id: WindowId,
   menu: Menu,
