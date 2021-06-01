@@ -40,7 +40,8 @@ fn main() {
   #[cfg(target_os = "macos")]
   open_new_window_element
     .clone()
-    .map(|mut e| e.set_icon(NativeImage::StatusAvailable));
+    .unwrap()
+    .set_icon(NativeImage::StatusAvailable);
 
   // focus all window menu item
   let focus_all_window = tray_menu.add_item(MenuItem::new("Focus window")).unwrap();

@@ -314,7 +314,7 @@ impl Menu {
         let mut key_equivalent = None;
         let mut accelerator_string: String;
         if let Some(accelerator) = keyboard_accelerator {
-          accelerator_string = accelerator.to_string();
+          accelerator_string = accelerator;
           let mut ns_modifier_flags: NSEventModifierFlags = NSEventModifierFlags::empty();
           if accelerator_string.contains("<Primary>") {
             accelerator_string = accelerator_string.replace("<Primary>", "");

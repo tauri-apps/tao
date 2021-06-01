@@ -43,8 +43,10 @@ impl CustomMenuItem {
   pub fn set_title(&mut self, title: &str) {
     self.gtk_item.set_label(title);
   }
-  pub fn set_selected(&mut self, is_selected: bool) {}
-  pub fn set_icon(&mut self, icon: Vec<u8>) {}
+
+  // todo's
+  pub fn set_selected(&mut self, _is_selected: bool) {}
+  pub fn set_icon(&mut self, _icon: Vec<u8>) {}
 }
 
 impl Default for Menu {

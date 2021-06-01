@@ -80,7 +80,7 @@ impl Menu {
 
   /// Add new item to this menu.
   pub fn add_item(&mut self, item: MenuItem) -> Option<CustomMenuItem> {
-    self.menu_platform.add_item(item.clone(), self.menu_type)
+    self.menu_platform.add_item(item, self.menu_type)
   }
 }
 
@@ -279,10 +279,6 @@ impl MenuItem {
   }
 
   /// Sets whether the menu will be initially enabled or not.
-  ///
-  /// See [`CustomMenuItem::set_enabled`] for details.
-  ///
-  /// [`CustomMenuItem::set_enabled`]: crate::platform_impl::CustomMenuItem
   pub fn with_enabled(mut self, is_enabled: bool) -> Self {
     if let MenuItem::Custom {
       ref mut enabled, ..
@@ -294,10 +290,6 @@ impl MenuItem {
   }
 
   /// Sets whether the menu will be initially selected or not.
-  ///
-  /// See [`CustomMenuItem::set_selected`] for details.
-  ///
-  /// [`CustomMenuItem::set_selected`]: crate::platform_impl::CustomMenuItem
   pub fn with_selected(mut self, is_selected: bool) -> Self {
     if let MenuItem::Custom {
       ref mut selected, ..
