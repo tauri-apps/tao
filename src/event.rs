@@ -79,6 +79,10 @@ pub enum Event<'a, T: 'static> {
   MenuEvent { menu_id: MenuId, origin: MenuType },
 
   /// Emitted when tray has been clicked.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Linux:** Unsupported.
   TrayEvent {
     bounds: Rectangle,
     event: ClickType,
