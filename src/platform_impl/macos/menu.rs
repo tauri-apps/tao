@@ -309,6 +309,7 @@ impl Menu {
         keyboard_accelerator,
         selected,
         text,
+        ..
       } => {
         let mut key_equivalent = None;
         let mut accelerator_string: String;
