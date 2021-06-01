@@ -55,7 +55,6 @@ impl CustomMenuItem {
   pub fn id(&self) -> MenuId {
     MenuId(self.0)
   }
-  pub fn set_icon(&mut self, icon: Vec<u8>) {}
   pub fn set_enabled(&mut self, enabled: bool) {
     unsafe {
       winuser::EnableMenuItem(
@@ -93,6 +92,9 @@ impl CustomMenuItem {
       );
     }
   }
+
+  // todo: set custom icon to the menu item
+  pub fn set_icon(&mut self, _icon: Vec<u8>) {}
 }
 
 #[derive(Debug, Clone)]
@@ -265,7 +267,7 @@ impl Menu {
     None
   }
 
-  pub fn add_custom_item(
+  pub(crate) fn add_custom_item(
     &mut self,
     id: MenuId,
     _menu_type: MenuType,

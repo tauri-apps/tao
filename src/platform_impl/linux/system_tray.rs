@@ -30,7 +30,6 @@ impl SystemTrayBuilder {
     );
     Self {
       system_tray: SystemTray {
-        icon,
         tray_menu,
         app_indicator,
       },
@@ -64,7 +63,6 @@ impl SystemTrayBuilder {
 }
 
 pub struct SystemTray {
-  icon: PathBuf,
   tray_menu: Option<Menu>,
   app_indicator: AppIndicator,
 }
