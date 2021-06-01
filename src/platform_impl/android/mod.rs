@@ -67,21 +67,12 @@ impl Menu {
   pub fn add_item(&mut self, _item: MenuItem, _menu_type: MenuType) -> Option<CustomMenuItem> {
     None
   }
-
-  pub fn add_custom_item(
-    &mut self,
-    _id: MenuId,
-    _menu_type: MenuType,
-    _text: &str,
-    _key: Option<&str>,
-    _enabled: bool,
-    _selected: bool,
-  ) -> CustomMenuItem {
-    CustomMenuItem {}
-  }
 }
 
 impl CustomMenuItem {
+  pub fn id(self) -> MenuId {
+    MenuId::EMPTY
+  }
   pub fn set_enabled(&mut self, _is_enabled: bool) {}
   pub fn set_title(&mut self, _title: &str) {}
   pub fn set_selected(&mut self, _is_selected: bool) {}
