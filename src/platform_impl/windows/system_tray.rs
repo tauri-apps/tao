@@ -11,13 +11,9 @@ use crate::{
 };
 use std::cell::RefCell;
 use winapi::{
-  ctypes::{c_ulong, c_ushort},
   shared::{
-    basetsd::DWORD_PTR,
-    guiddef::GUID,
-    minwindef::{DWORD, HINSTANCE, LPARAM, LRESULT, UINT, WPARAM},
-    ntdef::LPCWSTR,
-    windef::{HBRUSH, HICON, HMENU, HWND, POINT, RECT},
+    minwindef::{LPARAM, LRESULT, UINT, WPARAM},
+    windef::{HICON, HMENU, HWND, POINT, RECT},
   },
   um::{
     commctrl::SetWindowSubclass,
@@ -63,20 +59,20 @@ impl SystemTrayBuilder {
 
     let class_name = to_wstring("tao_system_tray_app");
     unsafe {
-      let _hinstance: HINSTANCE = libloaderapi::GetModuleHandleA(std::ptr::null_mut());
-      let wnd = WNDCLASSW {
+      let hinstance = libloaderapi::GetModuleHandleA(std::ptr::null_mut());
+      let wnd_class = WNDCLASSW {
         style: 0,
         lpfnWndProc: Some(window_proc),
         cbClsExtra: 0,
         cbWndExtra: 0,
-        hInstance: 0 as HINSTANCE,
-        hIcon: winuser::LoadIconW(0 as HINSTANCE, winuser::IDI_APPLICATION),
-        hCursor: winuser::LoadCursorW(0 as HINSTANCE, winuser::IDI_APPLICATION),
-        hbrBackground: 16 as HBRUSH,
-        lpszMenuName: 0 as LPCWSTR,
+        hInstance: hinstance,
+        hIcon: winuser::LoadIconW(hinstance, winuser::IDI_APPLICATION),
+        hCursor: winuser::LoadCursorW(hinstance, winuser::IDI_APPLICATION),
+        hbrBackground: 16 as _,
+        lpszMenuName: 0 as _,
         lpszClassName: class_name.as_ptr(),
       };
-      if winuser::RegisterClassW(&wnd) == 0 {
+      if winuser::RegisterClassW(&wnd_class) == 0 {
         // FIXME: os_error dont seems to work :(
         // os_error!(OsError::CreationError("Error registering window"))
         // return Err(OsError::CreationError("Error registering window"));
@@ -91,27 +87,28 @@ impl SystemTrayBuilder {
         0,
         CW_USEDEFAULT,
         0,
-        0 as HWND,
-        0 as HMENU,
-        0 as HINSTANCE,
+        0 as _,
+        0 as _,
+        hinstance as _,
         std::ptr::null_mut(),
       );
       if hwnd == std::ptr::null_mut() {
         //return os_error!(OsError::CreationError("Error creating window"));
       }
 
-      let mut nid = get_nid_struct(&hwnd);
+      let mut nid: NOTIFYICONDATAW = std::mem::zeroed();
       nid.uID = WM_USER_TRAYICON_UID;
+      nid.hWnd = hwnd;
       nid.uFlags = NIF_MESSAGE;
       nid.uCallbackMessage = WM_USER_TRAYICON;
-      if shellapi::Shell_NotifyIconW(NIM_ADD, &mut nid as *mut NOTIFYICONDATAW) == 0 {
+      if shellapi::Shell_NotifyIconW(NIM_ADD, &mut nid as _) == 0 {
         //return os_error!(OsError::CreationError("Error registering app icon"));
       }
 
       let app_system_tray = SystemTray { hwnd, hmenu };
       app_system_tray.set_icon_from_buffer(&self.icon, 32, 32);
 
-      // create the handler
+      // create the handler for tray events
       let event_loop_runner = window_target.p.runner_shared.clone();
       let menu_handler = MenuHandler::new(
         Box::new(move |event| {
@@ -130,6 +127,7 @@ impl SystemTrayBuilder {
         (*stash.borrow_mut()) = Some(data);
       });
 
+      // create the handler for tray menu events
       let event_loop_runner = window_target.p.runner_shared.clone();
       let menu_handler = MenuHandler::new(
         Box::new(move |event| {
@@ -140,7 +138,7 @@ impl SystemTrayBuilder {
         MenuType::SystemTray,
       );
       let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
-      SetWindowSubclass(hwnd as _, Some(subclass_proc), 0, sender as DWORD_PTR);
+      SetWindowSubclass(hwnd as _, Some(subclass_proc), 0, sender as _);
 
       return Ok(SystemTray { hwnd, hmenu });
     }
@@ -164,45 +162,8 @@ impl SystemTray {
 
   fn set_icon_from_buffer(&self, buffer: &[u8], width: u32, height: u32) {
     unsafe {
-      // we should align our pointer to windows directory
-      match winuser::LookupIconIdFromDirectoryEx(
-        buffer.as_ptr() as *mut _,
-        1,
-        width as i32,
-        height as i32,
-        LR_DEFAULTCOLOR,
-      ) as isize
-      {
-        0 => {
-          debug!("Unable to LookupIconIdFromDirectoryEx");
-          return;
-        }
-        offset => {
-          // once we got the pointer offset for the directory
-          // lets create our resource
-          match winuser::CreateIconFromResourceEx(
-            buffer.as_ptr().offset(offset) as *mut _,
-            buffer.len() as u32,
-            1,
-            0x00030000,
-            0,
-            0,
-            LR_DEFAULTCOLOR,
-          ) {
-            // windows is really tough on icons
-            // if a bad icon is provided it'll fail here or in
-            // the LookupIconIdFromDirectoryEx if this is a bad format (example png's)
-            // with my tests, even some ICO's were failing...
-            hicon if hicon.is_null() => {
-              debug!("Unable to CreateIconFromResourceEx");
-              return;
-            }
-            hicon => {
-              // finally.... we can set the icon...
-              self.set_hicon(hicon);
-            }
-          }
-        }
+      if let Some(hicon) = get_hicon_from_buffer(buffer, width as _, height as _) {
+        self.set_hicon(hicon);
       }
     }
   }
@@ -210,51 +171,28 @@ impl SystemTray {
   // set the icon for our main instance
   fn set_hicon(&self, icon: HICON) {
     unsafe {
-      let mut nid = get_nid_struct(&self.hwnd);
+      let mut nid: NOTIFYICONDATAW = std::mem::zeroed();
       nid.uFlags = NIF_ICON;
+      nid.hWnd = self.hwnd;
       nid.hIcon = icon;
       nid.uID = WM_USER_TRAYICON_UID;
-      if shellapi::Shell_NotifyIconW(NIM_MODIFY, &mut nid as *mut NOTIFYICONDATAW) == 0 {
+      if shellapi::Shell_NotifyIconW(NIM_MODIFY, &mut nid as _) == 0 {
         debug!("Error setting icon");
         return;
       }
     }
   }
 
-  pub fn shutdown(&self) {
+  pub fn remove(&self) {
     unsafe {
-      let mut nid = get_nid_struct(&self.hwnd);
+      let mut nid: NOTIFYICONDATAW = std::mem::zeroed();
       nid.uFlags = NIF_ICON;
-      if shellapi::Shell_NotifyIconW(NIM_DELETE, &mut nid as *mut NOTIFYICONDATAW) == 0 {
+      nid.hWnd = self.hwnd;
+      if shellapi::Shell_NotifyIconW(NIM_DELETE, &mut nid as _) == 0 {
         debug!("Error removing icon");
         return;
       }
     }
-  }
-}
-// basic NID for our icon
-pub(crate) fn get_nid_struct(hwnd: &HWND) -> NOTIFYICONDATAW {
-  NOTIFYICONDATAW {
-    cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as DWORD,
-    hWnd: *hwnd,
-    uID: 0x1 as UINT,
-    uFlags: 0 as UINT,
-    uCallbackMessage: 0 as UINT,
-    hIcon: 0 as HICON,
-    szTip: [0 as u16; 128],
-    dwState: 0 as DWORD,
-    dwStateMask: 0 as DWORD,
-    szInfo: [0 as u16; 256],
-    u: Default::default(),
-    szInfoTitle: [0 as u16; 64],
-    dwInfoFlags: 0 as UINT,
-    guidItem: GUID {
-      Data1: 0 as c_ulong,
-      Data2: 0 as c_ushort,
-      Data3: 0 as c_ushort,
-      Data4: [0; 8],
-    },
-    hBalloonIcon: 0 as HICON,
   }
 }
 
@@ -277,7 +215,7 @@ unsafe extern "system" fn window_proc(
       uID: WM_USER_TRAYICON_UID,
       ..Default::default()
     };
-    shellapi::Shell_NotifyIconGetRect(&nid as *const _, &mut rect as *mut _);
+    shellapi::Shell_NotifyIconGetRect(&nid as _, &mut rect as _);
 
     WININFO_STASH.with(|stash| {
       let stash = stash.borrow();
@@ -301,7 +239,7 @@ unsafe extern "system" fn window_proc(
           // Right click tray icon
           winuser::WM_RBUTTONUP => {
             let mut p = POINT { x: 0, y: 0 };
-            winuser::GetCursorPos(&mut p as *mut POINT);
+            winuser::GetCursorPos(&mut p as _);
 
             stash.sender.send_event(Event::TrayEvent {
               event: TrayEvent::RightClick,
@@ -351,6 +289,45 @@ unsafe extern "system" fn window_proc(
 
 impl Drop for WindowsLoopData {
   fn drop(&mut self) {
-    self.system_tray.shutdown();
+    self.system_tray.remove();
+  }
+}
+
+unsafe fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<HICON> {
+  match winuser::LookupIconIdFromDirectoryEx(
+    buffer.as_ptr() as _,
+    1,
+    width,
+    height,
+    LR_DEFAULTCOLOR,
+  ) as isize
+  {
+    0 => {
+      debug!("Unable to LookupIconIdFromDirectoryEx");
+      None
+    }
+    offset => {
+      // once we got the pointer offset for the directory
+      // lets create our resource
+      match winuser::CreateIconFromResourceEx(
+        buffer.as_ptr().offset(offset) as _,
+        buffer.len() as _,
+        1,
+        0x00030000,
+        0,
+        0,
+        LR_DEFAULTCOLOR,
+      ) {
+        // windows is really tough on icons
+        // if a bad icon is provided it'll fail here or in
+        // the LookupIconIdFromDirectoryEx if this is a bad format (example png's)
+        // with my tests, even some ICO's were failing...
+        hicon if hicon.is_null() => {
+          debug!("Unable to CreateIconFromResourceEx");
+          None
+        }
+        hicon => Some(hicon),
+      }
+    }
   }
 }

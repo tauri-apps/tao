@@ -9,8 +9,6 @@ use winapi::{
   um::{commctrl, winuser},
 };
 
-use std::ptr::null;
-
 use crate::{
   event::{Event, WindowEvent},
   menu::{MenuId, MenuItem, MenuType},
@@ -60,10 +58,9 @@ impl CustomMenuItem {
       winuser::EnableMenuItem(
         self.1,
         self.0,
-        if enabled {
-          winuser::MF_ENABLED
-        } else {
-          winuser::MF_DISABLED
+        match enabled {
+          true => winuser::MF_ENABLED,
+          false => winuser::MF_DISABLED,
         },
       );
     }
@@ -84,10 +81,9 @@ impl CustomMenuItem {
       winuser::CheckMenuItem(
         self.1,
         self.0,
-        if selected {
-          winuser::MF_CHECKED
-        } else {
-          winuser::MF_UNCHECKED
+        match selected {
+          true => winuser::MF_CHECKED,
+          false => winuser::MF_UNCHECKED,
         },
       );
     }
@@ -141,7 +137,7 @@ impl Menu {
     let menu_item = match item {
       MenuItem::Separator => {
         unsafe {
-          winuser::AppendMenuW(self.hmenu, winuser::MF_SEPARATOR, 0, null());
+          winuser::AppendMenuW(self.hmenu, winuser::MF_SEPARATOR, 0, std::ptr::null());
         };
         None
       }
@@ -155,7 +151,7 @@ impl Menu {
           winuser::AppendMenuW(
             self.hmenu,
             flags,
-            menu.into_hmenu() as basetsd::UINT_PTR,
+            menu.into_hmenu() as _,
             to_wstring(&title).as_mut_ptr(),
           );
         }
@@ -271,12 +267,7 @@ impl Menu {
 
       // FIXME: add keyboard accelerators
 
-      winuser::AppendMenuW(
-        self.hmenu,
-        flags,
-        id.0 as basetsd::UINT_PTR,
-        to_wstring(&text).as_mut_ptr(),
-      );
+      winuser::AppendMenuW(self.hmenu, flags, id.0 as _, to_wstring(&text).as_mut_ptr());
       CustomMenuItem(id.0, self.hmenu)
     }
   }
@@ -292,13 +283,8 @@ pub fn initialize(
     let menu = menu_builder.into_hmenu();
 
     unsafe {
-      commctrl::SetWindowSubclass(
-        handle.hwnd as *mut _,
-        Some(subclass_proc),
-        0,
-        sender as basetsd::DWORD_PTR,
-      );
-      winuser::SetMenu(handle.hwnd as *mut _, menu);
+      commctrl::SetWindowSubclass(handle.hwnd as _, Some(subclass_proc), 0, sender as _);
+      winuser::SetMenu(handle.hwnd as _, menu);
     }
     Some(menu)
   } else {
@@ -307,11 +293,10 @@ pub fn initialize(
 }
 
 pub(crate) fn to_wstring(str: &str) -> Vec<u16> {
-  let v: Vec<u16> = std::ffi::OsStr::new(str)
+  std::ffi::OsStr::new(str)
     .encode_wide()
     .chain(Some(0).into_iter())
-    .collect();
-  v
+    .collect()
 }
 
 pub(crate) unsafe extern "system" fn subclass_proc(
@@ -322,6 +307,7 @@ pub(crate) unsafe extern "system" fn subclass_proc(
   _id: basetsd::UINT_PTR,
   data: basetsd::DWORD_PTR,
 ) -> minwindef::LRESULT {
+  let proxy = &mut *(data as *mut MenuHandler);
   match u_msg {
     winuser::WM_COMMAND => {
       match w_param {
@@ -338,21 +324,18 @@ pub(crate) unsafe extern "system" fn subclass_proc(
           winuser::ShowWindow(hwnd, winuser::SW_HIDE);
         }
         CLOSE_ID => {
-          let proxy = &mut *(data as *mut MenuHandler);
           proxy.send_event(Event::WindowEvent {
             window_id: RootWindowId(WindowId(hwnd)),
             event: WindowEvent::CloseRequested,
           });
         }
         QUIT_ID => {
-          let proxy = &mut *(data as *mut MenuHandler);
           proxy.send_event(Event::LoopDestroyed);
         }
         MINIMIZE_ID => {
           winuser::ShowWindow(hwnd, winuser::SW_MINIMIZE);
         }
         _ => {
-          let proxy = &mut *(data as *mut MenuHandler);
           proxy.send_click_event(w_param as u32);
         }
       }
@@ -373,9 +356,9 @@ enum EditCommands {
 }
 fn execute_edit_command(command: EditCommands) {
   let key = match command {
-    EditCommands::Copy => 0x43,
-    EditCommands::Cut => 0x58,
-    EditCommands::Paste => 0x56,
+    EditCommands::Copy => 0x43,  // c
+    EditCommands::Cut => 0x58,   // x
+    EditCommands::Paste => 0x56, // v
   };
 
   unsafe {
