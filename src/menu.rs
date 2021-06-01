@@ -97,7 +97,6 @@ pub enum MenuItem {
     keyboard_accelerator: Option<String>,
     enabled: bool,
     selected: bool,
-    platform_item: Option<CustomMenuItem>,
   },
 
   /// Shows a standard "About" item
@@ -262,7 +261,6 @@ impl MenuItem {
       keyboard_accelerator: None,
       enabled: true,
       selected: false,
-      platform_item: None,
     }
   }
 
