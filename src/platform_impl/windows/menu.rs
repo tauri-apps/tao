@@ -67,11 +67,13 @@ impl CustomMenuItem {
   }
   pub fn set_title(&mut self, title: &str) {
     unsafe {
-      let mut info: winuser::MENUITEMINFOA = std::mem::zeroed();
-      info.cbSize = std::mem::size_of::<winuser::MENUITEMINFOA>() as u32;
-      info.fMask = winuser::MIIM_STRING;
+      let mut info = winuser::MENUITEMINFOA {
+        cbSize: std::mem::size_of::<winuser::MENUITEMINFOA>() as _,
+        fMask: winuser::MIIM_STRING,
+        ..Default::default()
+      };
       let c_str = CString::new(title).unwrap();
-      info.dwTypeData = c_str.as_ptr() as *mut _;
+      info.dwTypeData = c_str.as_ptr() as _;
 
       winuser::SetMenuItemInfoA(self.1, self.0, minwindef::FALSE, &info);
     }

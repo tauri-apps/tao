@@ -96,11 +96,13 @@ impl SystemTrayBuilder {
         //return os_error!(OsError::CreationError("Error creating window"));
       }
 
-      let mut nid: NOTIFYICONDATAW = std::mem::zeroed();
-      nid.uID = WM_USER_TRAYICON_UID;
-      nid.hWnd = hwnd;
-      nid.uFlags = NIF_MESSAGE;
-      nid.uCallbackMessage = WM_USER_TRAYICON;
+      let mut nid = NOTIFYICONDATAW {
+        uFlags: NIF_MESSAGE,
+        hWnd: hwnd,
+        uID: WM_USER_TRAYICON_UID,
+        uCallbackMessage: WM_USER_TRAYICON,
+        ..Default::default()
+      };
       if shellapi::Shell_NotifyIconW(NIM_ADD, &mut nid as _) == 0 {
         //return os_error!(OsError::CreationError("Error registering app icon"));
       }
@@ -171,26 +173,28 @@ impl SystemTray {
   // set the icon for our main instance
   fn set_hicon(&self, icon: HICON) {
     unsafe {
-      let mut nid: NOTIFYICONDATAW = std::mem::zeroed();
-      nid.uFlags = NIF_ICON;
-      nid.hWnd = self.hwnd;
-      nid.hIcon = icon;
-      nid.uID = WM_USER_TRAYICON_UID;
+      let mut nid = NOTIFYICONDATAW {
+        uFlags: NIF_ICON,
+        hWnd: self.hwnd,
+        hIcon: icon,
+        uID: WM_USER_TRAYICON_UID,
+        ..Default::default()
+      };
       if shellapi::Shell_NotifyIconW(NIM_MODIFY, &mut nid as _) == 0 {
         debug!("Error setting icon");
-        return;
       }
     }
   }
 
   pub fn remove(&self) {
     unsafe {
-      let mut nid: NOTIFYICONDATAW = std::mem::zeroed();
-      nid.uFlags = NIF_ICON;
-      nid.hWnd = self.hwnd;
+      let mut nid = NOTIFYICONDATAW {
+        uFlags: NIF_ICON,
+        hWnd: self.hwnd,
+        ..Default::default()
+      };
       if shellapi::Shell_NotifyIconW(NIM_DELETE, &mut nid as _) == 0 {
         debug!("Error removing icon");
-        return;
       }
     }
   }
@@ -215,7 +219,11 @@ unsafe extern "system" fn window_proc(
       uID: WM_USER_TRAYICON_UID,
       ..Default::default()
     };
-    shellapi::Shell_NotifyIconGetRect(&nid as _, &mut rect as _);
+    if shellapi::Shell_NotifyIconGetRect(&nid as _, &mut rect as _) == 0 {
+      // FIXME: os_error dont seems to work :(
+      // os_error!(OsError::CreationError("Error registering window"))
+      // return Err(OsError::CreationError("Error registering window"))
+    };
 
     WININFO_STASH.with(|stash| {
       let stash = stash.borrow();
@@ -260,7 +268,7 @@ unsafe extern "system" fn window_proc(
                 p.x,
                 p.y,
                 // align bottom / right, maybe we could expose this later..
-                (winuser::TPM_BOTTOMALIGN | winuser::TPM_LEFTALIGN) as i32,
+                (winuser::TPM_BOTTOMALIGN | winuser::TPM_LEFTALIGN) as _,
                 hwnd,
                 std::ptr::null_mut(),
               );
