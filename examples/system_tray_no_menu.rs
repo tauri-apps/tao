@@ -77,7 +77,7 @@ fn main() {
       Event::TrayEvent {
         mut bounds,
         event,
-        position,
+        position: _cursor_position,
       } => {
         if event == ClickType::LeftClick {
           println!("{:?}", bounds.position);

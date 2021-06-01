@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{
-  app_state::AppState, event::EventWrapper, menu::Menu, util::bottom_left_to_top_left_for_tray,
+  app_state::AppState,
+  event::EventWrapper,
+  menu::Menu,
+  util::{bottom_left_to_top_left_for_cursor, bottom_left_to_top_left_for_tray},
 };
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize},
@@ -11,9 +14,12 @@ use crate::{
   event_loop::EventLoopWindowTarget,
 };
 use cocoa::{
-  appkit::{NSButton, NSImage, NSSquareStatusItemLength, NSStatusBar, NSStatusItem, NSWindow},
+  appkit::{
+    NSButton, NSEventMask, NSEventModifierFlags, NSEventType, NSImage, NSSquareStatusItemLength,
+    NSStatusBar, NSStatusItem, NSWindow,
+  },
   base::{id, nil},
-  foundation::{NSAutoreleasePool, NSData, NSSize},
+  foundation::{NSAutoreleasePool, NSData, NSPoint, NSSize},
 };
 use objc::{
   declare::ClassDecl,
@@ -75,6 +81,13 @@ impl SystemTrayBuilder {
       let tray_target: id = msg_send![tray_target, init];
       let _: () = msg_send![button, setAction: sel!(click:)];
       let _: () = msg_send![button, setTarget: tray_target];
+      let _: () = msg_send![
+        button,
+        sendActionOn: NSEventMask::NSLeftMouseDownMask
+          | NSEventMask::NSRightMouseDownMask
+          | NSEventMask::NSKeyDownMask
+          | NSEventMask::NSKeyDownMask
+      ];
     }
 
     Ok(self.system_tray)
@@ -147,6 +160,8 @@ extern "C" fn perform_tray_click(_this: &mut Object, _: Sel, _sender: id) {
   unsafe {
     let app: id = msg_send![class!(NSApplication), sharedApplication];
     let current_event: id = msg_send![app, currentEvent];
+
+    // icon position & size
     let window: id = msg_send![current_event, window];
     let frame = NSWindow::frame(window);
     let scale_factor = NSWindow::backingScaleFactor(window) as f64;
@@ -159,11 +174,34 @@ extern "C" fn perform_tray_click(_this: &mut Object, _: Sel, _sender: id) {
     let logical: LogicalSize<f64> = (frame.size.width as f64, frame.size.height as f64).into();
     let size: PhysicalSize<f64> = logical.to_physical(scale_factor);
 
-    let event = Event::TrayEvent {
-      bounds: Rectangle { position, size },
-      event: ClickType::LeftClick,
+    // cursor position
+    let mouse_location: NSPoint = msg_send![class!(NSEvent), mouseLocation];
+    // what type of click?
+    let event_mask: NSEventType = msg_send![current_event, type];
+    // grab the modifier flag, to make sure the ctrl + left click = right click
+    let key_code: NSEventModifierFlags = msg_send![current_event, modifierFlags];
+
+    let click_type = match event_mask {
+      // left click + control key
+      NSEventType::NSLeftMouseDown if key_code.contains(NSEventModifierFlags::NSControlKeyMask) => {
+        Some(ClickType::RightClick)
+      }
+      NSEventType::NSLeftMouseDown => Some(ClickType::LeftClick),
+      NSEventType::NSRightMouseDown => Some(ClickType::RightClick),
+      _ => None,
     };
 
-    AppState::queue_event(EventWrapper::StaticEvent(event));
+    if let Some(event) = click_type {
+      let event = Event::TrayEvent {
+        bounds: Rectangle { position, size },
+        position: PhysicalPosition::new(
+          mouse_location.x,
+          bottom_left_to_top_left_for_cursor(mouse_location),
+        ),
+        event,
+      };
+
+      AppState::queue_event(EventWrapper::StaticEvent(event));
+    }
   }
 }

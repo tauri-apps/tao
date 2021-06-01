@@ -99,6 +99,10 @@ pub fn bottom_left_to_top_left_for_tray(rect: NSRect) -> f64 {
   CGDisplay::main().pixels_high() as f64 - rect.origin.y
 }
 
+pub fn bottom_left_to_top_left_for_cursor(point: NSPoint) -> f64 {
+  CGDisplay::main().pixels_high() as f64 - point.y
+}
+
 /// Converts from tao screen-coordinates to macOS screen-coordinates.
 /// Tao: top-left is (0, 0) and y increasing downwards
 /// macOS: bottom-left is (0, 0) and y increasing upwards
