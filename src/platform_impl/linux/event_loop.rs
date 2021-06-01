@@ -482,7 +482,7 @@ impl<T: 'static> EventLoop<T> {
             }
             WindowRequest::Redraw => window.queue_draw(),
             WindowRequest::Menu(m) => match m {
-              MenuItem::Custom{menu_id, ..} => {
+              MenuItem::Custom { menu_id, .. } => {
                 if let Err(e) = event_tx.send(Event::MenuEvent {
                   menu_id: menu_id,
                   origin: MenuType::Menubar,
@@ -591,7 +591,7 @@ impl<T: 'static> EventLoop<T> {
             }
           }
         } else if id == WindowId::dummy() {
-          if let WindowRequest::Menu(MenuItem::Custom{menu_id, ..}) = request {
+          if let WindowRequest::Menu(MenuItem::Custom { menu_id, .. }) = request {
             if let Err(e) = event_tx.send(Event::MenuEvent {
               menu_id,
               origin: MenuType::SystemTray,

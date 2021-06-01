@@ -64,19 +64,21 @@ impl Menu {
   }
 
   pub fn add_item(&mut self, item: MenuItem, _menu_type: MenuType) -> Option<CustomMenuItem> {
-    if let MenuItem::Custom{text, menu_id, ..} = item.clone() {
+    if let MenuItem::Custom { text, menu_id, .. } = item.clone() {
       let new_gtk_item = GtkMenuItem::with_label(&text);
       let custom_menu = CustomMenuItem {
         gtk_item: new_gtk_item,
         id: menu_id,
       };
 
-      self.gtk_items.push((item.clone(), Some(custom_menu.clone())));
+      self
+        .gtk_items
+        .push((item.clone(), Some(custom_menu.clone())));
       return Some(custom_menu);
     }
 
     self.gtk_items.push((item, None));
-    
+
     None
   }
 
@@ -107,22 +109,19 @@ impl Menu {
           item.set_submenu(Some(&submenu.into_gtkmenu(tx, accel_group, window_id)));
           Some(item)
         }
-        (MenuItem::Custom{
-          keyboard_accelerator,
-          enabled,
-          selected,
-          ..
-        }, Some(custom_item)) => {
+        (
+          MenuItem::Custom {
+            keyboard_accelerator,
+            enabled,
+            selected,
+            ..
+          },
+          Some(custom_item),
+        ) => {
           let gtk_item = custom_item.gtk_item;
           if let Some(key) = keyboard_accelerator {
             let (key, mods) = gtk::accelerator_parse(&key);
-            gtk_item.add_accelerator(
-              "activate",
-              accel_group,
-              key,
-              mods,
-              AccelFlags::VISIBLE,
-            );
+            gtk_item.add_accelerator("activate", accel_group, key, mods, AccelFlags::VISIBLE);
           }
 
           gtk_item.set_sensitive(enabled);
@@ -138,7 +137,6 @@ impl Menu {
           });
 
           Some(gtk_item)
-     
         }
         (MenuItem::Separator, _) => {
           menu.append(&SeparatorMenuItem::new());
