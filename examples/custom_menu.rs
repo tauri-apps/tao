@@ -7,7 +7,7 @@ use tao::platform::macos::NativeImage;
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
-  menu::{MenuItem, MenuType, Menubar as Menu},
+  menu::{MenuId, MenuItem, MenuType, Menubar as Menu},
   window::WindowBuilder,
 };
 
@@ -23,20 +23,25 @@ fn main() {
 
   // create a submenu
   let mut my_sub_menu = Menu::new();
-  let mut test_menu_item = my_sub_menu.add_item(MenuItem::new("Disable menu")).unwrap();
+  // Option 1: You can use `MenuItem::new` to create a custom item
+  let mut test_menu_item = my_sub_menu
+    .add_item(MenuItem::new("Disable menu").with_accelerators("<Primary>d"))
+    .unwrap();
   // add Copy to `My App` menu
   my_app_menu.add_item(MenuItem::Copy);
 
   // add our submenu under Copy
   my_app_menu.add_submenu("Sub menu", true, my_sub_menu);
 
-  // create another menu
+  // Option 2: create another menu with the `MenuItem::Custom` struct
   let mut test_menu = Menu::new();
-  test_menu.add_item(
-    MenuItem::new("Selected and disabled")
-      .with_selected(true)
-      .with_enabled(false),
-  );
+  test_menu.add_item(MenuItem::Custom {
+    text: String::from("Selected and disabled"),
+    menu_id: MenuId::new("my_custom_id"),
+    keyboard_accelerator: None,
+    enabled: false,
+    selected: true,
+  });
   test_menu.add_item(MenuItem::Separator);
   test_menu.add_item(MenuItem::new("Test"));
 

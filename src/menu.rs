@@ -317,8 +317,8 @@ impl MenuId {
   pub const EMPTY: MenuId = MenuId(0);
 
   /// Create new `MenuId` from a String.
-  fn new(menu_title: &str) -> MenuId {
-    MenuId(hash_string_to_u32(menu_title))
+  pub fn new(unique_string: &str) -> MenuId {
+    MenuId(hash_string_to_u32(unique_string))
   }
 
   /// Whenever this menu is empty.
