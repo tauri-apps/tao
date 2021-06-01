@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use raw_window_handle::RawWindowHandle;
-use std::{ffi::CString, os::windows::ffi::OsStrExt};
+use std::{ffi::CString, os::windows::ffi::OsStrExt, sync::Mutex};
 
 use winapi::{
   shared::{basetsd, minwindef, windef},
@@ -23,6 +23,10 @@ const HIDE_ID: usize = 5004;
 const CLOSE_ID: usize = 5005;
 const QUIT_ID: usize = 5006;
 const MINIMIZE_ID: usize = 5007;
+
+lazy_static! {
+  static ref MENU_IDS: Mutex<Vec<usize>> = Mutex::new(vec![]);
+}
 
 pub struct MenuHandler {
   menu_type: MenuType,
@@ -170,15 +174,28 @@ impl Menu {
         enabled,
         selected,
         text,
-        keyboard_accelerator,
-      } => Some(self.add_custom_item(
-        menu_id,
-        MenuType::Menubar,
-        text.as_str(),
-        keyboard_accelerator,
-        enabled,
-        selected,
-      )),
+        keyboard_accelerator: _,
+      } => {
+        unsafe {
+          let mut flags = winuser::MF_STRING;
+          if !enabled {
+            flags |= winuser::MF_GRAYED;
+          }
+          if selected {
+            flags |= winuser::MF_CHECKED;
+          }
+
+          // FIXME: add keyboard accelerators
+          winuser::AppendMenuW(
+            self.hmenu,
+            flags,
+            menu_id.0 as _,
+            to_wstring(&text).as_mut_ptr(),
+          );
+          MENU_IDS.lock().unwrap().push(menu_id.0 as _);
+          Some(CustomMenuItem(menu_id.0, self.hmenu))
+        }
+      }
 
       MenuItem::Cut => {
         unsafe {
@@ -266,31 +283,6 @@ impl Menu {
     }
     None
   }
-
-  pub(crate) fn add_custom_item(
-    &mut self,
-    id: MenuId,
-    _menu_type: MenuType,
-    text: &str,
-    _keyboard_accelerator: Option<String>,
-    enabled: bool,
-    selected: bool,
-  ) -> CustomMenuItem {
-    unsafe {
-      let mut flags = winuser::MF_STRING;
-      if !enabled {
-        flags |= winuser::MF_GRAYED;
-      }
-      if selected {
-        flags |= winuser::MF_CHECKED;
-      }
-
-      // FIXME: add keyboard accelerators
-
-      winuser::AppendMenuW(self.hmenu, flags, id.0 as _, to_wstring(&text).as_mut_ptr());
-      CustomMenuItem(id.0, self.hmenu)
-    }
-  }
 }
 
 pub fn initialize(
@@ -321,16 +313,16 @@ pub(crate) fn to_wstring(str: &str) -> Vec<u16> {
 
 pub(crate) unsafe extern "system" fn subclass_proc(
   hwnd: windef::HWND,
-  u_msg: minwindef::UINT,
-  w_param: minwindef::WPARAM,
-  l_param: minwindef::LPARAM,
+  msg: minwindef::UINT,
+  wparam: minwindef::WPARAM,
+  lparam: minwindef::LPARAM,
   _id: basetsd::UINT_PTR,
   data: basetsd::DWORD_PTR,
 ) -> minwindef::LRESULT {
   let proxy = &mut *(data as *mut MenuHandler);
-  match u_msg {
+  match msg {
     winuser::WM_COMMAND => {
-      match w_param {
+      match wparam {
         CUT_ID => {
           execute_edit_command(EditCommands::Cut);
         }
@@ -356,7 +348,9 @@ pub(crate) unsafe extern "system" fn subclass_proc(
           winuser::ShowWindow(hwnd, winuser::SW_MINIMIZE);
         }
         _ => {
-          proxy.send_click_event(w_param as u32);
+          if MENU_IDS.lock().unwrap().contains(&wparam) {
+            proxy.send_click_event(wparam as u32);
+          }
         }
       }
       0
@@ -365,7 +359,7 @@ pub(crate) unsafe extern "system" fn subclass_proc(
       Box::from_raw(data as *mut MenuHandler);
       0
     }
-    _ => commctrl::DefSubclassProc(hwnd, u_msg, w_param, l_param),
+    _ => commctrl::DefSubclassProc(hwnd, msg, wparam, lparam),
   }
 }
 
