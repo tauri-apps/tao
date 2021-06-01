@@ -11,7 +11,7 @@ use winapi::{
 
 use crate::{
   event::{Event, WindowEvent},
-  menu::{MenuId, MenuItem, MenuType},
+  menu::{CustomMenuItem as RootCustomMenuItem, MenuId, MenuItem, MenuType},
   platform_impl::platform::WindowId,
   window::WindowId as RootWindowId,
 };
@@ -140,7 +140,7 @@ impl Menu {
     hmenu
   }
 
-  pub fn add_item(&mut self, item: MenuItem, _menu_type: MenuType) -> Option<CustomMenuItem> {
+  pub fn add_item(&mut self, item: MenuItem, _menu_type: MenuType) -> Option<RootCustomMenuItem> {
     let menu_item = match item {
       MenuItem::Separator => {
         unsafe {
@@ -262,7 +262,7 @@ impl Menu {
       _ => None,
     };
     if let Some(menu_item) = menu_item {
-      return Some(CustomMenuItem(menu_item.0, self.hmenu));
+      return Some(RootCustomMenuItem(CustomMenuItem(menu_item.0, self.hmenu)));
     }
     None
   }

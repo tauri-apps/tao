@@ -6,7 +6,7 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error, event,
   event_loop::{self, ControlFlow},
-  menu::{MenuId, MenuItem, MenuType},
+  menu::{CustomMenuItem as RootCustomMenuItem, MenuId, MenuItem, MenuType},
   monitor, window,
 };
 use ndk::{
@@ -64,7 +64,7 @@ impl Menu {
   pub fn new_popup_menu() -> Self {
     Self::new()
   }
-  pub fn add_item(&mut self, _item: MenuItem, _menu_type: MenuType) -> Option<CustomMenuItem> {
+  pub fn add_item(&mut self, _item: MenuItem, _menu_type: MenuType) -> Option<RootCustomMenuItem> {
     None
   }
 }

@@ -78,7 +78,7 @@ mod monitor;
 mod view;
 mod window;
 
-use crate::menu::{MenuId, MenuItem, MenuType};
+use crate::menu::{CustomMenuItem as RootCustomMenuItem, MenuId, MenuItem, MenuType};
 use std::fmt;
 
 pub use self::{
@@ -108,7 +108,7 @@ impl Menu {
   pub fn new_popup_menu() -> Self {
     Self::new()
   }
-  pub fn add_item(&mut self, _item: MenuItem, _menu_type: MenuType) -> Option<CustomMenuItem> {
+  pub fn add_item(&mut self, _item: MenuItem, _menu_type: MenuType) -> Option<RootCustomMenuItem> {
     None
   }
 }
