@@ -7,7 +7,7 @@ use super::{
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize},
   error::OsError,
-  event::{Event, Rectangle, TrayEvent},
+  event::{ClickType, Event, Rectangle},
   event_loop::EventLoopWindowTarget,
 };
 use cocoa::{
@@ -161,7 +161,7 @@ extern "C" fn perform_tray_click(_this: &mut Object, _: Sel, _sender: id) {
 
     let event = Event::TrayEvent {
       bounds: Rectangle { position, size },
-      event: TrayEvent::LeftClick,
+      event: ClickType::LeftClick,
     };
 
     AppState::queue_event(EventWrapper::StaticEvent(event));

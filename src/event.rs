@@ -79,7 +79,11 @@ pub enum Event<'a, T: 'static> {
   MenuEvent { menu_id: MenuId, origin: MenuType },
 
   /// Emitted when tray has been clicked.
-  TrayEvent { bounds: Rectangle, event: TrayEvent },
+  TrayEvent {
+    bounds: Rectangle,
+    event: ClickType,
+    position: PhysicalPosition<f64>,
+  },
 
   /// Emitted when the application has been suspended.
   Suspended,
@@ -153,9 +157,14 @@ impl<T: Clone> Clone for Event<'static, T> {
         menu_id: *menu_id,
         origin: *origin,
       },
-      TrayEvent { bounds, event } => TrayEvent {
+      TrayEvent {
+        bounds,
+        event,
+        position,
+      } => TrayEvent {
         bounds: *bounds,
         event: *event,
+        position: *position,
       },
     }
   }
@@ -176,7 +185,15 @@ impl<'a, T> Event<'a, T> {
       Suspended => Ok(Suspended),
       Resumed => Ok(Resumed),
       MenuEvent { menu_id, origin } => Ok(MenuEvent { menu_id, origin }),
-      TrayEvent { bounds, event } => Ok(TrayEvent { bounds, event }),
+      TrayEvent {
+        bounds,
+        event,
+        position,
+      } => Ok(TrayEvent {
+        bounds,
+        event,
+        position,
+      }),
     }
   }
 
@@ -198,7 +215,15 @@ impl<'a, T> Event<'a, T> {
       Suspended => Some(Suspended),
       Resumed => Some(Resumed),
       MenuEvent { menu_id, origin } => Some(MenuEvent { menu_id, origin }),
-      TrayEvent { bounds, event } => Some(TrayEvent { bounds, event }),
+      TrayEvent {
+        bounds,
+        event,
+        position,
+      } => Some(TrayEvent {
+        bounds,
+        event,
+        position,
+      }),
     }
   }
 }
@@ -656,7 +681,7 @@ pub enum TouchPhase {
 /// Describes available tray events.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum TrayEvent {
+pub enum ClickType {
   LeftClick,
   RightClick,
   DoubleClick,

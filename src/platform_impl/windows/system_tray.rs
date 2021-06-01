@@ -5,7 +5,7 @@ use super::menu::{subclass_proc, to_wstring, Menu, MenuHandler};
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize},
   error::OsError as RootOsError,
-  event::{Event, Rectangle, TrayEvent},
+  event::{ClickType, Event, Rectangle},
   event_loop::EventLoopWindowTarget,
   menu::MenuType,
 };
@@ -225,6 +225,9 @@ unsafe extern "system" fn window_proc(
       // return Err(OsError::CreationError("Error registering window"))
     };
 
+    let mut cursor = POINT { x: 0, y: 0 };
+    winuser::GetCursorPos(&mut cursor as _);
+
     WININFO_STASH.with(|stash| {
       let stash = stash.borrow();
       let stash = stash.as_ref();
@@ -233,7 +236,8 @@ unsafe extern "system" fn window_proc(
           // Left click tray icon
           winuser::WM_LBUTTONUP => {
             stash.sender.send_event(Event::TrayEvent {
-              event: TrayEvent::LeftClick,
+              event: ClickType::LeftClick,
+              position: PhysicalPosition::new(cursor.x as _, cursor.y as _),
               bounds: Rectangle {
                 position: PhysicalPosition::new(rect.left as _, rect.top as _),
                 size: PhysicalSize::new(
@@ -246,11 +250,9 @@ unsafe extern "system" fn window_proc(
 
           // Right click tray icon
           winuser::WM_RBUTTONUP => {
-            let mut p = POINT { x: 0, y: 0 };
-            winuser::GetCursorPos(&mut p as _);
-
             stash.sender.send_event(Event::TrayEvent {
-              event: TrayEvent::RightClick,
+              event: ClickType::RightClick,
+              position: PhysicalPosition::new(cursor.x as _, cursor.y as _),
               bounds: Rectangle {
                 position: PhysicalPosition::new(5.0, 5.0),
                 size: PhysicalSize::new(5.0, 5.0),
@@ -259,26 +261,15 @@ unsafe extern "system" fn window_proc(
 
             // show menu on right click
             if let Some(menu) = stash.system_tray.hmenu {
-              // set the popup foreground
-              winuser::SetForegroundWindow(hwnd);
-              // track the click
-              winuser::TrackPopupMenu(
-                menu,
-                0,
-                p.x,
-                p.y,
-                // align bottom / right, maybe we could expose this later..
-                (winuser::TPM_BOTTOMALIGN | winuser::TPM_LEFTALIGN) as _,
-                hwnd,
-                std::ptr::null_mut(),
-              );
+              show_tray_menu(hwnd, menu, cursor.x, cursor.y);
             }
           }
 
           // Double click tray icon
           winuser::WM_LBUTTONDBLCLK => {
             stash.sender.send_event(Event::TrayEvent {
-              event: TrayEvent::DoubleClick,
+              event: ClickType::DoubleClick,
+              position: PhysicalPosition::new(cursor.x as _, cursor.y as _),
               bounds: Rectangle {
                 position: PhysicalPosition::new(5.0, 5.0),
                 size: PhysicalSize::new(5.0, 5.0),
@@ -299,6 +290,23 @@ impl Drop for WindowsLoopData {
   fn drop(&mut self) {
     self.system_tray.remove();
   }
+}
+
+unsafe fn show_tray_menu(hwnd: HWND, menu: HMENU, x: i32, y: i32) {
+  // bring the hidden window to the foreground so the pop up menu
+  // would automatically hide on click outside
+  winuser::SetForegroundWindow(hwnd);
+  // track the click
+  winuser::TrackPopupMenu(
+    menu,
+    0,
+    x,
+    y,
+    // align bottom / right, maybe we could expose this later..
+    (winuser::TPM_BOTTOMALIGN | winuser::TPM_LEFTALIGN) as _,
+    hwnd,
+    std::ptr::null_mut(),
+  );
 }
 
 unsafe fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<HICON> {

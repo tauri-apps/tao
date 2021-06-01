@@ -20,7 +20,7 @@ fn main() {
   use tao::platform::macos::{ActivationPolicy, EventLoopExtMacOS};
   use tao::{
     dpi::LogicalSize,
-    event::{Event, Rectangle, TrayEvent, WindowEvent},
+    event::{ClickType, Event, Rectangle, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     platform::system_tray::SystemTrayBuilder,
     window::WindowBuilder,
@@ -74,8 +74,12 @@ fn main() {
         }
       }
       // NOTE: tray event's are always sent, even if menu is set
-      Event::TrayEvent { mut bounds, event } => {
-        if event == TrayEvent::LeftClick {
+      Event::TrayEvent {
+        mut bounds,
+        event,
+        position,
+      } => {
+        if event == ClickType::LeftClick {
           println!("{:?}", bounds.position);
           if windows.is_empty() {
             // window size
