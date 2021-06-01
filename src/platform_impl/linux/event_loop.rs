@@ -482,9 +482,9 @@ impl<T: 'static> EventLoop<T> {
             }
             WindowRequest::Redraw => window.queue_draw(),
             WindowRequest::Menu(m) => match m {
-              MenuItem::Custom(c) => {
+              MenuItem::Custom{menu_id, ..} => {
                 if let Err(e) = event_tx.send(Event::MenuEvent {
-                  menu_id: c.id,
+                  menu_id: menu_id,
                   origin: MenuType::Menubar,
                 }) {
                   log::warn!("Failed to send menu event to event channel: {}", e);
@@ -591,9 +591,9 @@ impl<T: 'static> EventLoop<T> {
             }
           }
         } else if id == WindowId::dummy() {
-          if let WindowRequest::Menu(MenuItem::Custom(menu_item)) = request {
+          if let WindowRequest::Menu(MenuItem::Custom{menu_id, ..}) = request {
             if let Err(e) = event_tx.send(Event::MenuEvent {
-              menu_id: menu_item.id,
+              menu_id,
               origin: MenuType::SystemTray,
             }) {
               log::warn!("Failed to send status bar event to event channel: {}", e);

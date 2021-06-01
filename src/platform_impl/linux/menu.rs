@@ -21,7 +21,7 @@ macro_rules! menuitem {
 
 #[derive(Debug, Clone)]
 pub struct Menu {
-  gtk_items: Vec<MenuItem>,
+  gtk_items: Vec<(MenuItem, Option<CustomMenuItem>)>,
 }
 
 unsafe impl Send for Menu {}
@@ -29,15 +29,14 @@ unsafe impl Sync for Menu {}
 
 #[derive(Debug, Clone)]
 pub struct CustomMenuItem {
-  pub id: MenuId,
-  title: String,
-  key: Option<String>,
-  enabled: bool,
-  selected: bool,
+  id: MenuId,
   gtk_item: GtkMenuItem,
 }
 
 impl CustomMenuItem {
+  pub fn id(self) -> MenuId {
+    self.id
+  }
   pub fn set_enabled(&mut self, is_enabled: bool) {
     self.gtk_item.set_sensitive(is_enabled);
   }
@@ -65,31 +64,20 @@ impl Menu {
   }
 
   pub fn add_item(&mut self, item: MenuItem, _menu_type: MenuType) -> Option<CustomMenuItem> {
-    self.gtk_items.push(item);
+    if let MenuItem::Custom{text, menu_id, ..} = item.clone() {
+      let new_gtk_item = GtkMenuItem::with_label(&text);
+      let custom_menu = CustomMenuItem {
+        gtk_item: new_gtk_item,
+        id: menu_id,
+      };
+
+      self.gtk_items.push((item.clone(), Some(custom_menu.clone())));
+      return Some(custom_menu);
+    }
+
+    self.gtk_items.push((item, None));
+    
     None
-  }
-  pub fn add_custom_item(
-    &mut self,
-    id: MenuId,
-    _menu_type: MenuType,
-    text: &str,
-    key: Option<&str>,
-    enabled: bool,
-    selected: bool,
-  ) -> CustomMenuItem {
-    let custom_item = CustomMenuItem {
-      title: text.to_string(),
-      id,
-      key: key.map(String::from),
-      enabled,
-      selected,
-      gtk_item: GtkMenuItem::with_label(&text),
-    };
-    let item = MenuItem::Custom(custom_item.clone());
-
-    self.gtk_items.push(item.clone());
-
-    custom_item
   }
 
   pub fn into_gtkmenu(
@@ -113,16 +101,22 @@ impl Menu {
   ) {
     for menu_item in self.gtk_items {
       let new_item = match menu_item.clone() {
-        MenuItem::Submenu(title, _enabled, submenu) => {
+        (MenuItem::Submenu(title, _enabled, submenu), _) => {
           // FIXME: enabled is not used here
           let item = GtkMenuItem::with_label(&title);
           item.set_submenu(Some(&submenu.into_gtkmenu(tx, accel_group, window_id)));
           Some(item)
         }
-        MenuItem::Custom(custom) => {
-          if let Some(key) = custom.key {
+        (MenuItem::Custom{
+          keyboard_accelerator,
+          enabled,
+          selected,
+          ..
+        }, Some(custom_item)) => {
+          let gtk_item = custom_item.gtk_item;
+          if let Some(key) = keyboard_accelerator {
             let (key, mods) = gtk::accelerator_parse(&key);
-            custom.gtk_item.add_accelerator(
+            gtk_item.add_accelerator(
               "activate",
               accel_group,
               key,
@@ -131,34 +125,35 @@ impl Menu {
             );
           }
 
-          custom.gtk_item.set_sensitive(custom.enabled);
+          gtk_item.set_sensitive(enabled);
 
           // todo selected
-          if custom.selected {}
+          if selected {}
 
           let tx_ = tx.clone();
-          custom.gtk_item.connect_activate(move |_| {
-            if let Err(e) = tx_.send((window_id, WindowRequest::Menu(menu_item.clone()))) {
+          gtk_item.connect_activate(move |_| {
+            if let Err(e) = tx_.send((window_id, WindowRequest::Menu(menu_item.clone().0))) {
               log::warn!("Fail to send menu request: {}", e);
             }
           });
 
-          Some(custom.gtk_item)
+          Some(gtk_item)
+     
         }
-        MenuItem::Separator => {
+        (MenuItem::Separator, _) => {
           menu.append(&SeparatorMenuItem::new());
           None
         }
-        MenuItem::About(s) => Some(GtkMenuItem::with_label(&format!("About {}", s))),
-        MenuItem::Hide => menuitem!("Hide", "<Ctrl>H", accel_group),
-        MenuItem::CloseWindow => menuitem!("Close Window", "<Ctrl>W", accel_group),
-        MenuItem::Quit => menuitem!("Quit", "Q", accel_group),
-        MenuItem::Copy => menuitem!("Copy", "<Ctrl>C", accel_group),
-        MenuItem::Cut => menuitem!("Cut", "<Ctrl>X", accel_group),
-        MenuItem::SelectAll => menuitem!("Select All", "<Ctrl>A", accel_group),
-        MenuItem::Paste => menuitem!("Paste", "<Ctrl>V", accel_group),
+        (MenuItem::About(s), _) => Some(GtkMenuItem::with_label(&format!("About {}", s))),
+        (MenuItem::Hide, _) => menuitem!("Hide", "<Ctrl>H", accel_group),
+        (MenuItem::CloseWindow, _) => menuitem!("Close Window", "<Ctrl>W", accel_group),
+        (MenuItem::Quit, _) => menuitem!("Quit", "Q", accel_group),
+        (MenuItem::Copy, _) => menuitem!("Copy", "<Ctrl>C", accel_group),
+        (MenuItem::Cut, _) => menuitem!("Cut", "<Ctrl>X", accel_group),
+        (MenuItem::SelectAll, _) => menuitem!("Select All", "<Ctrl>A", accel_group),
+        (MenuItem::Paste, _) => menuitem!("Paste", "<Ctrl>V", accel_group),
         // todo add others
-        _ => None,
+        (_, _) => None,
       };
 
       if let Some(new_item) = new_item {
