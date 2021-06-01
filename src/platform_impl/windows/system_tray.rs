@@ -1,7 +1,10 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use super::menu::{subclass_proc, to_wstring, Menu, MenuHandler};
+use super::{
+  menu::{subclass_proc, to_wstring, Menu, MenuHandler},
+  util,
+};
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize},
   error::OsError as RootOsError,
@@ -19,7 +22,7 @@ use winapi::{
     commctrl::SetWindowSubclass,
     libloaderapi,
     shellapi::{self, NIF_ICON, NIF_MESSAGE, NIM_ADD, NIM_DELETE, NIM_MODIFY, NOTIFYICONDATAW},
-    winuser::{self, CW_USEDEFAULT, LR_DEFAULTCOLOR, WNDCLASSW, WS_OVERLAPPEDWINDOW},
+    winuser::{self, CW_USEDEFAULT, WNDCLASSW, WS_OVERLAPPEDWINDOW},
   },
 };
 
@@ -163,10 +166,8 @@ impl SystemTray {
   }
 
   fn set_icon_from_buffer(&self, buffer: &[u8], width: u32, height: u32) {
-    unsafe {
-      if let Some(hicon) = get_hicon_from_buffer(buffer, width as _, height as _) {
-        self.set_hicon(hicon);
-      }
+    if let Some(hicon) = util::get_hicon_from_buffer(buffer, width as _, height as _) {
+      self.set_hicon(hicon);
     }
   }
 
@@ -307,43 +308,4 @@ unsafe fn show_tray_menu(hwnd: HWND, menu: HMENU, x: i32, y: i32) {
     hwnd,
     std::ptr::null_mut(),
   );
-}
-
-unsafe fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<HICON> {
-  match winuser::LookupIconIdFromDirectoryEx(
-    buffer.as_ptr() as _,
-    1,
-    width,
-    height,
-    LR_DEFAULTCOLOR,
-  ) as isize
-  {
-    0 => {
-      debug!("Unable to LookupIconIdFromDirectoryEx");
-      None
-    }
-    offset => {
-      // once we got the pointer offset for the directory
-      // lets create our resource
-      match winuser::CreateIconFromResourceEx(
-        buffer.as_ptr().offset(offset) as _,
-        buffer.len() as _,
-        1,
-        0x00030000,
-        0,
-        0,
-        LR_DEFAULTCOLOR,
-      ) {
-        // windows is really tough on icons
-        // if a bad icon is provided it'll fail here or in
-        // the LookupIconIdFromDirectoryEx if this is a bad format (example png's)
-        // with my tests, even some ICO's were failing...
-        hicon if hicon.is_null() => {
-          debug!("Unable to CreateIconFromResourceEx");
-          None
-        }
-        hicon => Some(hicon),
-      }
-    }
-  }
 }
