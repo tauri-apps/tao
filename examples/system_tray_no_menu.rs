@@ -14,7 +14,7 @@ fn main() {
   use tao::platform::macos::{ActivationPolicy, EventLoopExtMacOS};
   use tao::{
     dpi::LogicalSize,
-    event::{ClickType, Event, Rectangle, WindowEvent},
+    event::{Event, Rectangle, TrayEvent, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     system_tray::SystemTrayBuilder,
     window::WindowBuilder,
@@ -85,7 +85,7 @@ fn main() {
         event,
         position: _cursor_position,
       } => {
-        if event == ClickType::LeftClick {
+        if event == TrayEvent::LeftClick {
           println!("{:?}", bounds.position);
           if windows.is_empty() {
             // window size

@@ -10,7 +10,7 @@ use super::{
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize},
   error::OsError,
-  event::{ClickType, Event, Rectangle},
+  event::{Event, Rectangle, TrayEvent},
   event_loop::EventLoopWindowTarget,
   system_tray::SystemTray as RootSystemTray,
 };
@@ -184,10 +184,10 @@ extern "C" fn perform_tray_click(_this: &mut Object, _: Sel, _sender: id) {
     let click_type = match event_mask {
       // left click + control key
       NSEventType::NSLeftMouseDown if key_code.contains(NSEventModifierFlags::NSControlKeyMask) => {
-        Some(ClickType::RightClick)
+        Some(TrayEvent::RightClick)
       }
-      NSEventType::NSLeftMouseDown => Some(ClickType::LeftClick),
-      NSEventType::NSRightMouseDown => Some(ClickType::RightClick),
+      NSEventType::NSLeftMouseDown => Some(TrayEvent::LeftClick),
+      NSEventType::NSRightMouseDown => Some(TrayEvent::RightClick),
       _ => None,
     };
 

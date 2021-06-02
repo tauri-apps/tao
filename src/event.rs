@@ -85,7 +85,7 @@ pub enum Event<'a, T: 'static> {
   /// - **iOS / Android / Linux:** Unsupported.
   TrayEvent {
     bounds: Rectangle,
-    event: ClickType,
+    event: TrayEvent,
     position: PhysicalPosition<f64>,
   },
 
@@ -683,9 +683,10 @@ pub enum TouchPhase {
 }
 
 /// Describes available tray events.
+// FIXME: add `hover` to TrayEvent for all platforms.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum ClickType {
+pub enum TrayEvent {
   /// Fired when a menu item receive a `Left click`
   ///
   /// ## Platform-specific
@@ -710,7 +711,7 @@ pub enum ClickType {
   DoubleClick,
 }
 
-/// Describes a rectangle include x - y axis.
+/// Describes a rectangle including position (x - y axis) and size.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Rectangle {
   pub position: PhysicalPosition<f64>,

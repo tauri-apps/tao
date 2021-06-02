@@ -14,6 +14,7 @@ use std::path::PathBuf;
 
 impl SystemTrayBuilder {
   /// Creates a new SystemTray for platforms where this is appropriate.
+  ///
   /// ## Platform-specific
   ///
   /// - **macOS / Windows:**: receive icon as bytes (`Vec<u8>`)
@@ -27,6 +28,7 @@ impl SystemTrayBuilder {
   }
 
   /// Creates a new SystemTray for platforms where this is appropriate.
+  ///
   /// ## Platform-specific
   ///
   /// - **macOS / Windows:**: receive icon as bytes (`Vec<u8>`)
@@ -42,6 +44,10 @@ impl SystemTrayBuilder {
   /// Builds the SystemTray.
   ///
   /// Possible causes of error include denied permission, incompatible system, and lack of memory.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:**: The icon is not removed automatically. Use `SystemTrayExtWindows` and use the `remove()` function when your application is closing.
   pub fn build<T: 'static>(
     self,
     _window_target: &EventLoopWindowTarget<T>,
@@ -55,6 +61,7 @@ pub struct SystemTray(pub SystemTrayPlatform);
 
 impl SystemTray {
   /// Set new tray icon.
+  ///
   /// ## Platform-specific
   ///
   /// - **macOS / Windows:**: receive icon as bytes (`Vec<u8>`)
@@ -65,6 +72,7 @@ impl SystemTray {
   }
 
   /// Set new tray icon.
+  ///
   /// ## Platform-specific
   ///
   /// - **macOS / Windows:**: receive icon as bytes (`Vec<u8>`)

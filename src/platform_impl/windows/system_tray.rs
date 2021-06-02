@@ -9,7 +9,7 @@ use super::{
 use crate::{
   dpi::{LogicalPosition, LogicalSize},
   error::OsError as RootOsError,
-  event::{ClickType, Event, Rectangle},
+  event::{Event, Rectangle, TrayEvent},
   event_loop::EventLoopWindowTarget,
   menu::MenuType,
   system_tray::SystemTray as RootSystemTray,
@@ -247,7 +247,7 @@ unsafe extern "system" fn window_proc(
       // Left click tray icon
       winuser::WM_LBUTTONUP => {
         (*userdata_ptr).sender.send_event(Event::TrayEvent {
-          event: ClickType::LeftClick,
+          event: TrayEvent::LeftClick,
           position: LogicalPosition::new(cursor.x, cursor.y).to_physical(scale_factor),
           bounds: Rectangle {
             position: LogicalPosition::new(rect.left, rect.top).to_physical(scale_factor),
@@ -260,7 +260,7 @@ unsafe extern "system" fn window_proc(
       // Right click tray icon
       winuser::WM_RBUTTONUP => {
         (*userdata_ptr).sender.send_event(Event::TrayEvent {
-          event: ClickType::RightClick,
+          event: TrayEvent::RightClick,
           position: LogicalPosition::new(cursor.x, cursor.y).to_physical(scale_factor),
           bounds: Rectangle {
             position: LogicalPosition::new(rect.left, rect.top).to_physical(scale_factor),
@@ -278,7 +278,7 @@ unsafe extern "system" fn window_proc(
       // Double click tray icon
       winuser::WM_LBUTTONDBLCLK => {
         (*userdata_ptr).sender.send_event(Event::TrayEvent {
-          event: ClickType::DoubleClick,
+          event: TrayEvent::DoubleClick,
           position: LogicalPosition::new(cursor.x, cursor.y).to_physical(scale_factor),
           bounds: Rectangle {
             position: LogicalPosition::new(rect.left, rect.top).to_physical(scale_factor),
