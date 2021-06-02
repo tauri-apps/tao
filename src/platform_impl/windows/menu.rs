@@ -3,11 +3,12 @@
 
 use raw_window_handle::RawWindowHandle;
 use std::{ffi::CString, os::windows::ffi::OsStrExt, sync::Mutex};
-
 use winapi::{
   shared::{basetsd, minwindef, windef},
   um::{commctrl, winuser},
 };
+
+use once_cell::sync::Lazy;
 
 use crate::{
   event::{Event, WindowEvent},
@@ -24,9 +25,7 @@ const CLOSE_ID: usize = 5005;
 const QUIT_ID: usize = 5006;
 const MINIMIZE_ID: usize = 5007;
 
-lazy_static! {
-  static ref MENU_IDS: Mutex<Vec<usize>> = Mutex::new(vec![]);
-}
+static MENU_IDS: Lazy<Mutex<Vec<usize>>> = Lazy::new(|| Mutex::new(vec![]));
 
 pub struct MenuHandler {
   menu_type: MenuType,
