@@ -20,7 +20,7 @@ fn main() {
   use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    menu::{ContextMenu as Menu, MenuItem, MenuType},
+    menu::{ContextMenu as Menu, MenuType},
     platform::system_tray::SystemTrayBuilder,
     window::Window,
   };
@@ -34,17 +34,16 @@ fn main() {
   let mut submenu = Menu::new();
 
   // open new window menu item
-  let open_new_window_element = submenu.add_item(MenuItem::new("Open new window"));
+  let open_new_window_element = submenu.add_item("Open new window", None, false, false);
 
   // set default icon
   #[cfg(target_os = "macos")]
   open_new_window_element
     .clone()
-    .unwrap()
     .set_native_image(NativeImage::StatusAvailable);
 
   // focus all window menu item
-  let focus_all_window = tray_menu.add_item(MenuItem::new("Focus window")).unwrap();
+  let focus_all_window = tray_menu.add_item("Focus window", None, false, false);
 
   // inject submenu into tray_menu
   tray_menu.add_submenu("Sub menu", true, submenu);
@@ -81,8 +80,8 @@ fn main() {
     match event {
       Event::WindowEvent { event, window_id } => {
         if event == WindowEvent::CloseRequested {
+          let mut open_new_window_element = open_new_window_element.clone();
           println!("Window {:?} has received the signal to close", window_id);
-          let mut open_new_window_element = open_new_window_element.clone().unwrap();
           // Remove window from our hashmap
           windows.remove(&window_id);
           // Enable our button
@@ -100,7 +99,7 @@ fn main() {
         menu_id,
         origin: MenuType::ContextMenu,
       } => {
-        let mut open_new_window_element = open_new_window_element.clone().unwrap();
+        let mut open_new_window_element = open_new_window_element.clone();
         if menu_id == open_new_window_element.clone().id() {
           let window = Window::new(&event_loop).unwrap();
           windows.insert(window.id(), window);

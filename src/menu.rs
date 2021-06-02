@@ -33,19 +33,28 @@ impl ContextMenu {
 
   /// Add a submenu.
   pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: ContextMenu) {
-    self.0.menu_platform.add_item(
-      MenuItem::Submenu {
-        enabled,
-        menu_platform: submenu.0.menu_platform,
-        title: title.to_string(),
-      },
-      self.0.menu_type,
-    );
+    self
+      .0
+      .menu_platform
+      .add_submenu(title, enabled, submenu.0.menu_platform);
   }
 
   /// Add new item to this menu.
-  pub fn add_item(&mut self, item: MenuItem) -> Option<CustomMenuItem> {
-    self.0.menu_platform.add_item(item, self.0.menu_type)
+  pub fn add_item(
+    &mut self,
+    title: &str,
+    keyboard_accelerator: Option<&str>,
+    enabled: bool,
+    selected: bool,
+  ) -> CustomMenuItem {
+    self.0.menu_platform.add_item(
+      MenuId::new(title),
+      title,
+      keyboard_accelerator,
+      enabled,
+      selected,
+      MenuType::ContextMenu,
+    )
   }
 }
 
@@ -66,19 +75,33 @@ impl MenuBar {
 
   /// Add a submenu.
   pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: MenuBar) {
-    self.0.menu_platform.add_item(
-      MenuItem::Submenu {
-        enabled,
-        menu_platform: submenu.0.menu_platform,
-        title: title.to_string(),
-      },
-      self.0.menu_type,
-    );
+    self
+      .0
+      .menu_platform
+      .add_submenu(title, enabled, submenu.0.menu_platform);
   }
 
   /// Add new item to this menu.
-  pub fn add_item(&mut self, item: MenuItem) -> Option<CustomMenuItem> {
-    self.0.menu_platform.add_item(item, self.0.menu_type)
+  pub fn add_item(
+    &mut self,
+    title: &str,
+    keyboard_accelerator: Option<&str>,
+    enabled: bool,
+    selected: bool,
+  ) -> CustomMenuItem {
+    self.0.menu_platform.add_item(
+      MenuId::new(title),
+      title,
+      keyboard_accelerator,
+      enabled,
+      selected,
+      MenuType::MenuBar,
+    )
+  }
+
+  /// Add new item to this menu.
+  pub fn add_native_item(&mut self, item: MenuItem) -> Option<CustomMenuItem> {
+    self.0.menu_platform.add_native_item(item, self.0.menu_type)
   }
 }
 
@@ -93,16 +116,6 @@ impl Default for MenuBar {
 /// Tip: Use `MenuItem::new` shortcut to create a `CustomMenuItem`.
 #[derive(Debug, Clone)]
 pub enum MenuItem {
-  /// A custom menu emit an event inside the EventLoop.
-  /// Use `Menu::add_custom_item` to create a new custom item.
-  Custom {
-    menu_id: MenuId,
-    text: String,
-    keyboard_accelerator: Option<String>,
-    enabled: bool,
-    selected: bool,
-  },
-
   /// Shows a standard "About" item
   ///
   /// ## Platform-specific
@@ -244,67 +257,6 @@ pub enum MenuItem {
   /// - **Windows / Android / iOS:** Unsupported
   ///
   Separator,
-
-  /// Represents a Submenu(title, enabled, sub menu)
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Android / iOS:** Unsupported
-  ///
-  Submenu {
-    title: String,
-    enabled: bool,
-    menu_platform: MenuPlatform,
-  },
-}
-
-/// Base `MenuItem` functions.
-impl MenuItem {
-  /// Creates a new `MenuItem::Custom`.
-  pub fn new(menu_title: &str) -> Self {
-    let title = menu_title.to_string();
-    MenuItem::Custom {
-      menu_id: MenuId::new(&title),
-      text: title,
-      keyboard_accelerator: None,
-      enabled: true,
-      selected: false,
-    }
-  }
-
-  /// Sets whether the menu will be initially with keyboards accelerators or not.
-  pub fn with_accelerators(mut self, keyboard_accelerators: impl ToString) -> Self {
-    if let MenuItem::Custom {
-      ref mut keyboard_accelerator,
-      ..
-    } = self
-    {
-      *keyboard_accelerator = Some(keyboard_accelerators.to_string());
-    }
-    self
-  }
-
-  /// Sets whether the menu will be initially enabled or not.
-  pub fn with_enabled(mut self, is_enabled: bool) -> Self {
-    if let MenuItem::Custom {
-      ref mut enabled, ..
-    } = self
-    {
-      *enabled = is_enabled;
-    }
-    self
-  }
-
-  /// Sets whether the menu will be initially selected or not.
-  pub fn with_selected(mut self, is_selected: bool) -> Self {
-    if let MenuItem::Custom {
-      ref mut selected, ..
-    } = self
-    {
-      *selected = is_selected;
-    }
-    self
-  }
 }
 
 /// Custom menu item, when clicked an event is emitted in the EventLoop.

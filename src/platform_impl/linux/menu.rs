@@ -19,9 +19,29 @@ macro_rules! menuitem {
   }};
 }
 
+struct GtkMenuInfo {
+  menu_type: GtkMenuType,
+  menu_item: Option<MenuItem>,
+  sub_menu: Option<SubmenuDetail>,
+  custom_menu_item: Option<CustomMenuItem>,
+}
+
+enum GtkMenuType {
+  Custom,
+  Submenu,
+  Native,
+}
+
+#[derive(Debug, Clone)]
+struct SubmenuDetail {
+  menu: Menu,
+  title: String,
+  enabled: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct Menu {
-  gtk_items: Vec<(MenuItem, Option<CustomMenuItem>)>,
+  gtk_items: Vec<GtkMenuInfo>,
 }
 
 unsafe impl Send for Menu {}
@@ -30,6 +50,10 @@ unsafe impl Sync for Menu {}
 #[derive(Debug, Clone)]
 pub struct CustomMenuItem {
   id: MenuId,
+  key: Option<String>,
+  selected: bool,
+  enabled: bool,
+  menu_type: MenuType,
   gtk_item: GtkMenuItem,
 }
 
@@ -65,23 +89,59 @@ impl Menu {
     Self::new()
   }
 
-  pub fn add_item(&mut self, item: MenuItem, _menu_type: MenuType) -> Option<RootCustomMenuItem> {
-    if let MenuItem::Custom { text, menu_id, .. } = item.clone() {
-      let new_gtk_item = GtkMenuItem::with_label(&text);
-      let custom_menu = CustomMenuItem {
-        gtk_item: new_gtk_item,
-        id: menu_id,
-      };
+  pub fn add_item(
+    &mut self,
+    menu_id: MenuId,
+    title: &str,
+    accelerators: Option<&str>,
+    enabled: bool,
+    selected: bool,
+    menu_type: MenuType,
+  ) -> RootCustomMenuItem {
+    let new_gtk_item = GtkMenuItem::with_label(&title);
+    let custom_menu = CustomMenuItem {
+      id: menu_id,
+      key: accelerators.map(|a| a.to_string()),
+      enabled,
+      selected,
+      menu_type,
+      gtk_item: new_gtk_item,
+    };
 
-      self
-        .gtk_items
-        .push((item.clone(), Some(custom_menu.clone())));
-      return Some(RootCustomMenuItem(custom_menu));
-    }
+    self.gtk_items.push(GtkMenuInfo {
+      menu_type: GtkMenuType::Custom,
+      menu_item: None,
+      sub_menu: None,
+      custom_menu_item: Some(custom_menu),
+    });
+    return RootCustomMenuItem(custom_menu);
+  }
 
-    self.gtk_items.push((item, None));
-
+  pub fn add_native_item(
+    &mut self,
+    item: MenuItem,
+    _menu_type: MenuType,
+  ) -> Option<RootCustomMenuItem> {
+    self.gtk_items.push(GtkMenuInfo {
+      menu_type: GtkMenuType::Native,
+      menu_item: Some(item),
+      sub_menu: None,
+      custom_menu_item: None,
+    });
     None
+  }
+
+  pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: Menu) {
+    self.gtk_items.push(GtkMenuInfo {
+      menu_type: GtkMenuType::Submenu,
+      menu_item: None,
+      sub_menu: SubmenuDetail {
+        menu: submenu,
+        title: title.to_string(),
+        enabled,
+      },
+      custom_menu_item: None,
+    });
   }
 
   pub fn into_gtkmenu(

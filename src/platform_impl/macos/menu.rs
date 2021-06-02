@@ -103,30 +103,87 @@ impl Menu {
   pub fn new_popup_menu() -> Self {
     Self::new()
   }
-  pub fn add_item(&mut self, item: MenuItem, menu_type: MenuType) -> Option<RootCustomMenuItem> {
+
+  pub fn add_item(
+    &mut self,
+    menu_id: MenuId,
+    title: &str,
+    accelerators: Option<&str>,
+    enabled: bool,
+    selected: bool,
+    menu_type: MenuType,
+  ) -> RootCustomMenuItem {
+    let mut key_equivalent = None;
+    let mut accelerator_string: String;
+    if let Some(accelerator) = accelerators {
+      accelerator_string = accelerator.to_string();
+      let mut ns_modifier_flags: NSEventModifierFlags = NSEventModifierFlags::empty();
+      if accelerator_string.contains("<Primary>") {
+        accelerator_string = accelerator_string.replace("<Primary>", "");
+        ns_modifier_flags.insert(NSEventModifierFlags::NSCommandKeyMask);
+      }
+
+      if accelerator_string.contains("<Shift>") {
+        accelerator_string = accelerator_string.replace("<Shift>", "");
+        ns_modifier_flags.insert(NSEventModifierFlags::NSShiftKeyMask);
+      }
+
+      if accelerator_string.contains("<Ctrl>") {
+        accelerator_string = accelerator_string.replace("<Ctrl>", "");
+        ns_modifier_flags.insert(NSEventModifierFlags::NSControlKeyMask);
+      }
+
+      let mut masks = None;
+      if !ns_modifier_flags.is_empty() {
+        masks = Some(ns_modifier_flags);
+      }
+
+      key_equivalent = Some(KeyEquivalent {
+        key: accelerator_string.as_str(),
+        masks,
+      });
+    }
+
+    let menu_item = make_custom_menu_item(menu_id, &title, None, key_equivalent, menu_type);
+
+    unsafe {
+      if selected {
+        let () = msg_send![menu_item, setState: 1_isize];
+      }
+      if !enabled {
+        let () = msg_send![menu_item, setEnabled: NO];
+      }
+
+      self.menu.addItem_(menu_item);
+    }
+
+    RootCustomMenuItem(CustomMenuItem(Some(menu_id), menu_item))
+  }
+
+  pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: Menu) {
+    unsafe {
+      let menu_title = NSString::alloc(nil).init_str(&title);
+      let menu_item = NSMenuItem::alloc(nil).autorelease();
+      let () = msg_send![submenu.menu, setTitle: menu_title];
+      let () = msg_send![menu_item, setTitle: menu_title];
+      if !enabled {
+        let () = msg_send![menu_item, setEnabled: NO];
+      }
+      menu_item.setSubmenu_(submenu.menu);
+      self.menu.addItem_(menu_item);
+    }
+  }
+
+  pub fn add_native_item(
+    &mut self,
+    item: MenuItem,
+    menu_type: MenuType,
+  ) -> Option<RootCustomMenuItem> {
     let menu_details: Option<(Option<MenuId>, *mut Object)> = match item {
       MenuItem::Separator => {
         unsafe {
           let sep = id::separatorItem(self.menu);
           self.menu.addItem_(sep);
-        }
-        None
-      }
-      MenuItem::Submenu {
-        enabled,
-        menu_platform,
-        title,
-      } => {
-        unsafe {
-          let menu_title = NSString::alloc(nil).init_str(&title);
-          let menu_item = NSMenuItem::alloc(nil).autorelease();
-          let () = msg_send![menu_platform.menu, setTitle: menu_title];
-          let () = msg_send![menu_item, setTitle: menu_title];
-          if !enabled {
-            let () = msg_send![menu_item, setEnabled: NO];
-          }
-          menu_item.setSubmenu_(menu_platform.menu);
-          self.menu.addItem_(menu_item);
         }
         None
       }
@@ -312,58 +369,6 @@ impl Menu {
         let _: () = msg_send![&*item, setSubmenu: services];
         Some((None, item))
       },
-      MenuItem::Custom {
-        menu_id,
-        enabled,
-        keyboard_accelerator,
-        selected,
-        text,
-        ..
-      } => {
-        let mut key_equivalent = None;
-        let mut accelerator_string: String;
-        if let Some(accelerator) = keyboard_accelerator {
-          accelerator_string = accelerator;
-          let mut ns_modifier_flags: NSEventModifierFlags = NSEventModifierFlags::empty();
-          if accelerator_string.contains("<Primary>") {
-            accelerator_string = accelerator_string.replace("<Primary>", "");
-            ns_modifier_flags.insert(NSEventModifierFlags::NSCommandKeyMask);
-          }
-
-          if accelerator_string.contains("<Shift>") {
-            accelerator_string = accelerator_string.replace("<Shift>", "");
-            ns_modifier_flags.insert(NSEventModifierFlags::NSShiftKeyMask);
-          }
-
-          if accelerator_string.contains("<Ctrl>") {
-            accelerator_string = accelerator_string.replace("<Ctrl>", "");
-            ns_modifier_flags.insert(NSEventModifierFlags::NSControlKeyMask);
-          }
-
-          let mut masks = None;
-          if !ns_modifier_flags.is_empty() {
-            masks = Some(ns_modifier_flags);
-          }
-
-          key_equivalent = Some(KeyEquivalent {
-            key: accelerator_string.as_str(),
-            masks,
-          });
-        }
-
-        let menu_item = make_custom_menu_item(menu_id, &text, None, key_equivalent, menu_type);
-
-        unsafe {
-          if selected {
-            let () = msg_send![menu_item, setState: 1_isize];
-          }
-          if !enabled {
-            let () = msg_send![menu_item, setEnabled: NO];
-          }
-        }
-
-        Some((Some(menu_id), menu_item))
-      }
     };
 
     if let Some((menu_id, menu_item)) = menu_details {
