@@ -4,7 +4,7 @@
 use super::{
   dpi::{dpi_to_scale_factor, hwnd_dpi},
   menu::{subclass_proc, to_wstring, Menu, MenuHandler},
-  util,
+  util, OsError,
 };
 use crate::{
   dpi::{LogicalPosition, LogicalSize},
@@ -76,9 +76,9 @@ impl SystemTrayBuilder {
         lpszClassName: class_name.as_ptr(),
       };
       if winuser::RegisterClassW(&wnd_class) == 0 {
-        // FIXME: os_error dont seems to work :(
-        // os_error!(OsError::CreationError("Error registering window"))
-        // return Err(OsError::CreationError("Error registering window"));
+        return Err(os_error!(OsError::CreationError(
+          "Error with winuser::RegisterClassW"
+        )));
       }
 
       // system tray handler
@@ -91,11 +91,13 @@ impl SystemTrayBuilder {
         }),
         MenuType::ContextMenu,
       );
+
       let app_system_tray = SystemTray {
         // dummy hwnd, will populate it later
         hwnd: std::ptr::null::<HWND>() as _,
         hmenu,
       };
+
       let data = Box::into_raw(Box::new(WindowsLoopData {
         system_tray: app_system_tray,
         sender: menu_handler,
@@ -115,8 +117,11 @@ impl SystemTrayBuilder {
         hinstance as _,
         data as _,
       );
+
       if hwnd == std::ptr::null_mut() {
-        //return os_error!(OsError::CreationError("Error creating window"));
+        return Err(os_error!(OsError::CreationError(
+          "Unable to get valid mutable pointer for winuser::CreateWindowEx"
+        )));
       }
 
       let mut nid = NOTIFYICONDATAW {
@@ -126,8 +131,11 @@ impl SystemTrayBuilder {
         uCallbackMessage: WM_USER_TRAYICON,
         ..Default::default()
       };
+
       if shellapi::Shell_NotifyIconW(NIM_ADD, &mut nid as _) == 0 {
-        //return os_error!(OsError::CreationError("Error registering app icon"));
+        return Err(os_error!(OsError::CreationError(
+          "Error with shellapi::Shell_NotifyIconW"
+        )));
       }
 
       let app_system_tray = SystemTray { hwnd, hmenu };
@@ -143,6 +151,7 @@ impl SystemTrayBuilder {
         }),
         MenuType::ContextMenu,
       );
+
       let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
       SetWindowSubclass(hwnd as _, Some(subclass_proc), 0, sender as _);
 
@@ -231,11 +240,8 @@ unsafe extern "system" fn window_proc(
       uID: WM_USER_TRAYICON_UID,
       ..Default::default()
     };
-    if shellapi::Shell_NotifyIconGetRect(&nid as _, &mut rect as _) == 0 {
-      // FIXME: os_error dont seems to work :(
-      // os_error!(OsError::CreationError("Error registering window"))
-      // return Err(OsError::CreationError("Error registering window"))
-    };
+
+    shellapi::Shell_NotifyIconGetRect(&nid, &mut rect);
 
     let dpi = hwnd_dpi(hwnd);
     let scale_factor = dpi_to_scale_factor(dpi);
