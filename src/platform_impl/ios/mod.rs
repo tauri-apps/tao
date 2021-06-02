@@ -108,7 +108,23 @@ impl Menu {
   pub fn new_popup_menu() -> Self {
     Self::new()
   }
-  pub fn add_item(&mut self, _item: MenuItem, _menu_type: MenuType) -> Option<RootCustomMenuItem> {
+  pub fn add_item(
+    &mut self,
+    _menu_id: MenuId,
+    _title: &str,
+    _accelerators: Option<&str>,
+    _enabled: bool,
+    _selected: bool,
+    _menu_type: MenuType,
+  ) -> RootCustomMenuItem {
+    RootCustomMenuItem(CustomMenuItem{})
+  }
+  pub fn add_submenu(&mut self, _title: &str, _enabled: bool, _submenu: Menu) {}
+  pub fn add_native_item(
+    &mut self,
+    _item: MenuItem,
+    _menu_type: MenuType,
+  ) -> Option<RootCustomMenuItem> {
     None
   }
 }
