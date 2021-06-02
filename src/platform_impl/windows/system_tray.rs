@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{
+  dpi::{dpi_to_scale_factor, hwnd_dpi},
   menu::{subclass_proc, to_wstring, Menu, MenuHandler},
   util,
 };
 use crate::{
-  dpi::{PhysicalPosition, PhysicalSize},
+  dpi::{LogicalPosition, LogicalSize},
   error::OsError as RootOsError,
   event::{ClickType, Event, Rectangle},
   event_loop::EventLoopWindowTarget,
@@ -191,6 +192,7 @@ impl SystemTray {
       let mut nid = NOTIFYICONDATAW {
         uFlags: NIF_ICON,
         hWnd: self.hwnd,
+        uID: WM_USER_TRAYICON_UID,
         ..Default::default()
       };
       if shellapi::Shell_NotifyIconW(NIM_DELETE, &mut nid as _) == 0 {
@@ -234,6 +236,9 @@ unsafe extern "system" fn window_proc(
       // return Err(OsError::CreationError("Error registering window"))
     };
 
+    let dpi = hwnd_dpi(hwnd);
+    let scale_factor = dpi_to_scale_factor(dpi);
+
     let mut cursor = POINT { x: 0, y: 0 };
     winuser::GetCursorPos(&mut cursor as _);
 
@@ -242,10 +247,11 @@ unsafe extern "system" fn window_proc(
       winuser::WM_LBUTTONUP => {
         (*userdata_ptr).sender.send_event(Event::TrayEvent {
           event: ClickType::LeftClick,
-          position: PhysicalPosition::new(cursor.x as _, cursor.y as _),
+          position: LogicalPosition::new(cursor.x, cursor.y).to_physical(scale_factor),
           bounds: Rectangle {
-            position: PhysicalPosition::new(rect.left as _, rect.top as _),
-            size: PhysicalSize::new((rect.right - rect.left) as _, (rect.bottom - rect.top) as _),
+            position: LogicalPosition::new(rect.left, rect.top).to_physical(scale_factor),
+            size: LogicalSize::new(rect.right - rect.left, rect.bottom - rect.top)
+              .to_physical(scale_factor),
           },
         });
       }
@@ -254,10 +260,11 @@ unsafe extern "system" fn window_proc(
       winuser::WM_RBUTTONUP => {
         (*userdata_ptr).sender.send_event(Event::TrayEvent {
           event: ClickType::RightClick,
-          position: PhysicalPosition::new(cursor.x as _, cursor.y as _),
+          position: LogicalPosition::new(cursor.x, cursor.y).to_physical(scale_factor),
           bounds: Rectangle {
-            position: PhysicalPosition::new(5.0, 5.0),
-            size: PhysicalSize::new(5.0, 5.0),
+            position: LogicalPosition::new(rect.left, rect.top).to_physical(scale_factor),
+            size: LogicalSize::new(rect.right - rect.left, rect.bottom - rect.top)
+              .to_physical(scale_factor),
           },
         });
 
@@ -271,10 +278,11 @@ unsafe extern "system" fn window_proc(
       winuser::WM_LBUTTONDBLCLK => {
         (*userdata_ptr).sender.send_event(Event::TrayEvent {
           event: ClickType::DoubleClick,
-          position: PhysicalPosition::new(cursor.x as _, cursor.y as _),
+          position: LogicalPosition::new(cursor.x, cursor.y).to_physical(scale_factor),
           bounds: Rectangle {
-            position: PhysicalPosition::new(5.0, 5.0),
-            size: PhysicalSize::new(5.0, 5.0),
+            position: LogicalPosition::new(rect.left, rect.top).to_physical(scale_factor),
+            size: LogicalSize::new(rect.right - rect.left, rect.bottom - rect.top)
+              .to_physical(scale_factor),
           },
         });
       }
