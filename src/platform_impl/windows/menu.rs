@@ -152,7 +152,11 @@ impl Menu {
         };
         None
       }
-      MenuItem::Submenu(title, enabled, menu) => {
+      MenuItem::Submenu {
+        enabled,
+        menu_platform,
+        title,
+      } => {
         unsafe {
           let mut flags = winuser::MF_POPUP;
           if !enabled {
@@ -162,7 +166,7 @@ impl Menu {
           winuser::AppendMenuW(
             self.hmenu,
             flags,
-            menu.into_hmenu() as _,
+            menu_platform.into_hmenu() as _,
             to_wstring(&title).as_mut_ptr(),
           );
         }

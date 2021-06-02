@@ -39,10 +39,14 @@ impl MenuContext {
     })
   }
 
-  /// Add a submenu to this `Menu`.
+  /// Add a submenu.
   pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: MenuContext) {
     self.0.menu_platform.add_item(
-      MenuItem::Submenu(title.to_string(), enabled, submenu.0.menu_platform),
+      MenuItem::Submenu {
+        enabled,
+        menu_platform: submenu.0.menu_platform,
+        title: title.to_string(),
+      },
       self.menu_type,
     );
   }
@@ -50,6 +54,12 @@ impl MenuContext {
   /// Add new item to this menu.
   pub fn add_item(&mut self, item: MenuItem) -> Option<CustomMenuItem> {
     self.0.menu_platform.add_item(item, self.menu_type)
+  }
+}
+
+impl Default for MenuContext {
+  fn default() -> Self {
+    Self::new()
   }
 }
 
@@ -62,15 +72,14 @@ impl MenuBar {
     })
   }
 
-  /// Shortcut to add a submenu to this `Menu`.
-  ///
-  /// This function is equivalent to [`Menu::add_item(self, MenuItem::Submenu(title, enabled, submenu))`].
-  /// See [`Menu::add_item`] for details.
-  ///
-  /// [`Menu::add_item`]: crate::menu::Menu
+  /// Add a submenu.
   pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: MenuBar) {
     self.0.menu_platform.add_item(
-      MenuItem::Submenu(title.to_string(), enabled, submenu.0.menu_platform),
+      MenuItem::Submenu {
+        enabled,
+        menu_platform: submenu.0.menu_platform,
+        title: title.to_string(),
+      },
       self.0.menu_type,
     );
   }
@@ -78,6 +87,12 @@ impl MenuBar {
   /// Add new item to this menu.
   pub fn add_item(&mut self, item: MenuItem) -> Option<CustomMenuItem> {
     self.0.menu_platform.add_item(item, self.0.menu_type)
+  }
+}
+
+impl Default for MenuBar {
+  fn default() -> Self {
+    Self::new()
   }
 }
 
@@ -244,7 +259,11 @@ pub enum MenuItem {
   ///
   /// - **Android / iOS:** Unsupported
   ///
-  Submenu(String, bool, MenuPlatform),
+  Submenu {
+    title: String,
+    enabled: bool,
+    menu_platform: MenuPlatform,
+  },
 }
 
 /// Base `MenuItem` functions.

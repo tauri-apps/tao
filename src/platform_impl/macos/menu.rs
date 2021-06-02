@@ -112,16 +112,20 @@ impl Menu {
         }
         None
       }
-      MenuItem::Submenu(title, enabled, menu) => {
+      MenuItem::Submenu {
+        enabled,
+        menu_platform,
+        title,
+      } => {
         unsafe {
           let menu_title = NSString::alloc(nil).init_str(&title);
           let menu_item = NSMenuItem::alloc(nil).autorelease();
-          let () = msg_send![menu.menu, setTitle: menu_title];
+          let () = msg_send![menu_platform.menu, setTitle: menu_title];
           let () = msg_send![menu_item, setTitle: menu_title];
           if !enabled {
             let () = msg_send![menu_item, setEnabled: NO];
           }
-          menu_item.setSubmenu_(menu.menu);
+          menu_item.setSubmenu_(menu_platform.menu);
           self.menu.addItem_(menu_item);
         }
         None
