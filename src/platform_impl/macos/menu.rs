@@ -14,7 +14,7 @@ use std::sync::Once;
 
 use crate::{
   event::Event,
-  menu::{CustomMenuItem as RootCustomMenuItem, MenuId, MenuItem, MenuType},
+  menu::{CustomMenuItemHandle, MenuId, MenuItem, MenuType},
   platform::macos::NativeImage,
 };
 
@@ -112,7 +112,7 @@ impl Menu {
     enabled: bool,
     selected: bool,
     menu_type: MenuType,
-  ) -> RootCustomMenuItem {
+  ) -> CustomMenuItemHandle {
     let mut key_equivalent = None;
     let mut accelerator_string: String;
     if let Some(accelerator) = accelerators {
@@ -157,7 +157,7 @@ impl Menu {
       self.menu.addItem_(menu_item);
     }
 
-    RootCustomMenuItem(CustomMenuItem(Some(menu_id), menu_item))
+    CustomMenuItemHandle(CustomMenuItem(Some(menu_id), menu_item))
   }
 
   pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: Menu) {
@@ -178,7 +178,7 @@ impl Menu {
     &mut self,
     item: MenuItem,
     menu_type: MenuType,
-  ) -> Option<RootCustomMenuItem> {
+  ) -> Option<CustomMenuItemHandle> {
     let menu_details: Option<(Option<MenuId>, *mut Object)> = match item {
       MenuItem::Separator => {
         unsafe {
@@ -376,7 +376,7 @@ impl Menu {
         self.menu.addItem_(menu_item);
       }
 
-      return Some(RootCustomMenuItem(CustomMenuItem(menu_id, menu_item)));
+      return Some(CustomMenuItemHandle(CustomMenuItem(menu_id, menu_item)));
     }
 
     None

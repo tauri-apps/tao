@@ -11,7 +11,7 @@ use winapi::{
 
 use crate::{
   event::{Event, WindowEvent},
-  menu::{CustomMenuItem as RootCustomMenuItem, MenuId, MenuItem, MenuType},
+  menu::{CustomMenuItemHandle, MenuId, MenuItem, MenuType},
   platform_impl::platform::WindowId,
   window::WindowId as RootWindowId,
 };
@@ -152,7 +152,7 @@ impl Menu {
     enabled: bool,
     selected: bool,
     _menu_type: MenuType,
-  ) -> RootCustomMenuItem {
+  ) -> CustomMenuItemHandle {
     unsafe {
       let mut flags = winuser::MF_STRING;
       if !enabled {
@@ -170,7 +170,7 @@ impl Menu {
         to_wstring(&title).as_mut_ptr(),
       );
       MENU_IDS.lock().unwrap().push(menu_id.0 as _);
-      RootCustomMenuItem(CustomMenuItem(menu_id.0, self.hmenu))
+      CustomMenuItemHandle(CustomMenuItem(menu_id.0, self.hmenu))
     }
   }
 
@@ -194,7 +194,7 @@ impl Menu {
     &mut self,
     item: MenuItem,
     _menu_type: MenuType,
-  ) -> Option<RootCustomMenuItem> {
+  ) -> Option<CustomMenuItemHandle> {
     match item {
       MenuItem::Separator => {
         unsafe {

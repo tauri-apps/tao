@@ -8,7 +8,7 @@ use gtk::{
 };
 
 use super::window::{WindowId, WindowRequest};
-use crate::menu::{CustomMenuItem as RootCustomMenuItem, MenuId, MenuItem, MenuType};
+use crate::menu::{CustomMenuItemHandle, MenuId, MenuItem, MenuType};
 
 macro_rules! menuitem {
   ( $description:expr, $key:expr, $accel_group:ident ) => {{
@@ -99,7 +99,7 @@ impl Menu {
     enabled: bool,
     selected: bool,
     menu_type: MenuType,
-  ) -> RootCustomMenuItem {
+  ) -> CustomMenuItemHandle {
     let new_gtk_item = GtkMenuItem::with_label(&title);
     let custom_menu = CustomMenuItem {
       id: menu_id,
@@ -116,14 +116,14 @@ impl Menu {
       sub_menu: None,
       custom_menu_item: Some(custom_menu.clone()),
     });
-    return RootCustomMenuItem(custom_menu);
+    CustomMenuItemHandle(custom_menu)
   }
 
   pub fn add_native_item(
     &mut self,
     item: MenuItem,
     _menu_type: MenuType,
-  ) -> Option<RootCustomMenuItem> {
+  ) -> Option<CustomMenuItemHandle> {
     self.gtk_items.push(GtkMenuInfo {
       menu_type: GtkMenuType::Native,
       menu_item: Some(item),

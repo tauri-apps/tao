@@ -7,7 +7,7 @@ use tao::platform::macos::{CustomMenuItemExtMacOS, NativeImage};
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
-  menu::{MenuBar as Menu, MenuItem, MenuType},
+  menu::{CustomMenuItem, MenuBar as Menu, MenuItem, MenuType},
   window::WindowBuilder,
 };
 
@@ -24,7 +24,12 @@ fn main() {
   // create a submenu
   let mut my_sub_menu = Menu::new();
 
-  let mut test_menu_item = my_sub_menu.add_item("Disable menu", Some("<Primary>d"), true, false);
+  let mut test_menu_item = my_sub_menu.add_item(CustomMenuItem::new(
+    "Disable menu",
+    Some("<Primary>d"),
+    true,
+    false,
+  ));
   // add Copy to `My App` menu
   my_app_menu.add_native_item(MenuItem::Copy);
 
@@ -32,9 +37,14 @@ fn main() {
   my_app_menu.add_submenu("Sub menu", true, my_sub_menu);
 
   let mut test_menu = Menu::new();
-  test_menu.add_item("Selected and disabled", None, false, true);
+  test_menu.add_item(CustomMenuItem::new(
+    "Selected and disabled",
+    None,
+    false,
+    true,
+  ));
   test_menu.add_native_item(MenuItem::Separator);
-  test_menu.add_item("Test", None, true, false);
+  test_menu.add_item(CustomMenuItem::new("Test", None, true, false));
 
   // add all our childs to menu_bar_menu (order is how they'll appear)
   menu_bar_menu.add_submenu("My app", true, my_app_menu);
