@@ -6,7 +6,7 @@ use crate::{
     SystemTray as SystemTrayPlatform, SystemTrayBuilder as SystemTrayBuilderPlatform,
   },
 };
-/// Represents a System Tray builder.
+/// Object that allows you to build SystemTray.
 pub struct SystemTrayBuilder(SystemTrayBuilderPlatform);
 
 #[cfg(target_os = "linux")]

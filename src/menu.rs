@@ -8,9 +8,9 @@ use std::{
 
 use crate::platform_impl::{CustomMenuItem as CustomMenuItemPlatform, Menu as MenuPlatform};
 
-/// Context menu to be used in tray only for now.
+/// Object that allows you to build a `ContextMenu`, for the tray.
 pub struct ContextMenu(pub(crate) Menu);
-/// Menubar menu represent the Window menu for Windows and Linux and the App menu for macOS).
+/// Object that allows you to build a `MenuBar`, for the *Window* menu in Windows and Linux and the *Menu bar* on macOS.
 pub struct MenuBar(pub(crate) Menu);
 
 /// Base `Menu` functions.
