@@ -13,6 +13,39 @@ pub struct ContextMenu(pub(crate) Menu);
 /// Object that allows you to build a `MenuBar`, for the *Window* menu in Windows and Linux and the *Menu bar* on macOS.
 pub struct MenuBar(pub(crate) Menu);
 
+/// A custom menu item.
+pub struct CustomMenuItem<'a> {
+  id: MenuId,
+  title: &'a str,
+  keyboard_accelerator: Option<&'a str>,
+  enabled: bool,
+  selected: bool,
+}
+
+impl<'a> CustomMenuItem<'a> {
+  /// Creates a new custom menu item.
+  pub fn new(
+    title: &'a str,
+    keyboard_accelerator: Option<&'a str>,
+    enabled: bool,
+    selected: bool,
+  ) -> Self {
+    Self {
+      id: MenuId::new(title),
+      title,
+      keyboard_accelerator,
+      enabled,
+      selected,
+    }
+  }
+
+  /// Sets the menu id.
+  pub fn with_id(mut self, id: MenuId) -> Self {
+    self.id = id;
+    self
+  }
+}
+
 /// Base `Menu` functions.
 ///
 /// See `ContextMenu` or `MenuBar` to build your menu.
@@ -40,19 +73,13 @@ impl ContextMenu {
   }
 
   /// Add new item to this menu.
-  pub fn add_item(
-    &mut self,
-    title: &str,
-    keyboard_accelerator: Option<&str>,
-    enabled: bool,
-    selected: bool,
-  ) -> CustomMenuItem {
+  pub fn add_item(&mut self, item: CustomMenuItem<'_>) -> CustomMenuItemHandle {
     self.0.menu_platform.add_item(
-      MenuId::new(title),
-      title,
-      keyboard_accelerator,
-      enabled,
-      selected,
+      item.id,
+      item.title,
+      item.keyboard_accelerator,
+      item.enabled,
+      item.selected,
       MenuType::ContextMenu,
     )
   }
@@ -82,25 +109,19 @@ impl MenuBar {
   }
 
   /// Add new item to this menu.
-  pub fn add_item(
-    &mut self,
-    title: &str,
-    keyboard_accelerator: Option<&str>,
-    enabled: bool,
-    selected: bool,
-  ) -> CustomMenuItem {
+  pub fn add_item(&mut self, item: CustomMenuItem<'_>) -> CustomMenuItemHandle {
     self.0.menu_platform.add_item(
-      MenuId::new(title),
-      title,
-      keyboard_accelerator,
-      enabled,
-      selected,
+      item.id,
+      item.title,
+      item.keyboard_accelerator,
+      item.enabled,
+      item.selected,
       MenuType::MenuBar,
     )
   }
 
   /// Add new item to this menu.
-  pub fn add_native_item(&mut self, item: MenuItem) -> Option<CustomMenuItem> {
+  pub fn add_native_item(&mut self, item: MenuItem) -> Option<CustomMenuItemHandle> {
     self.0.menu_platform.add_native_item(item, self.0.menu_type)
   }
 }
@@ -261,10 +282,10 @@ pub enum MenuItem {
 /// Custom menu item, when clicked an event is emitted in the EventLoop.
 /// You can modify the item after it's creation.
 #[derive(Debug, Clone)]
-pub struct CustomMenuItem(pub CustomMenuItemPlatform);
+pub struct CustomMenuItemHandle(pub CustomMenuItemPlatform);
 
-/// Base `CustomMenuItem` functions.
-impl CustomMenuItem {
+/// Base `CustomMenuItemHandle` functions.
+impl CustomMenuItemHandle {
   /// Returns an identifier unique to the menu item.
   pub fn id(self) -> MenuId {
     self.0.id()

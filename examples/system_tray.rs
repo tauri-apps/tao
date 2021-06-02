@@ -17,7 +17,7 @@ fn main() {
   use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    menu::{ContextMenu as Menu, MenuType},
+    menu::{ContextMenu as Menu, CustomMenuItem, MenuType},
     system_tray::SystemTrayBuilder,
     window::Window,
   };
@@ -31,7 +31,8 @@ fn main() {
   let mut submenu = Menu::new();
 
   // open new window menu item
-  let open_new_window_element = submenu.add_item("Open new window", None, true, false);
+  let open_new_window_element =
+    submenu.add_item(CustomMenuItem::new("Open new window", None, true, false));
 
   // set default icon
   #[cfg(target_os = "macos")]
@@ -40,13 +41,14 @@ fn main() {
     .set_native_image(NativeImage::StatusAvailable);
 
   // focus all window menu item
-  let mut focus_all_window = tray_menu.add_item("Focus window", None, false, false);
+  let mut focus_all_window =
+    tray_menu.add_item(CustomMenuItem::new("Focus window", None, false, false));
 
   // inject submenu into tray_menu
   tray_menu.add_submenu("Sub menu", true, submenu);
 
   // add quit button
-  let quit_element = tray_menu.add_item("Quit", None, true, false);
+  let quit_element = tray_menu.add_item(CustomMenuItem::new("Quit", None, true, false));
 
   // Windows require Vec<u8> ICO file
   #[cfg(target_os = "windows")]
