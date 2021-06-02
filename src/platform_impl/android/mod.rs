@@ -6,7 +6,7 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error, event,
   event_loop::{self, ControlFlow},
-  menu::{CustomMenuItem as RootCustomMenuItem, MenuId, MenuItem, MenuType},
+  menu::{CustomMenuItemHandle, MenuId, MenuItem, MenuType},
   monitor, window,
 };
 use ndk::{
@@ -72,15 +72,15 @@ impl Menu {
     _enabled: bool,
     _selected: bool,
     _menu_type: MenuType,
-  ) -> RootCustomMenuItem {
-    RootCustomMenuItem(CustomMenuItem {})
+  ) -> CustomMenuItemHandle {
+    CustomMenuItemHandle(CustomMenuItem {})
   }
   pub fn add_submenu(&mut self, _title: &str, _enabled: bool, _submenu: Menu) {}
   pub fn add_native_item(
     &mut self,
     _item: MenuItem,
     _menu_type: MenuType,
-  ) -> Option<RootCustomMenuItem> {
+  ) -> Option<CustomMenuItemHandle> {
     None
   }
 }

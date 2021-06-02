@@ -84,7 +84,7 @@ fn main() {
         for window in windows.values() {
           window.set_focus();
         }
-        return ();
+        return;
       }
 
       // create new window

@@ -8,7 +8,7 @@ use std::os::raw::c_void;
 use crate::{
   dpi::LogicalSize,
   event_loop::{EventLoop, EventLoopWindowTarget},
-  menu::CustomMenuItem,
+  menu::CustomMenuItemHandle,
   monitor::MonitorHandle,
   platform_impl::get_aux_state_mut,
   window::{Window, WindowBuilder},
@@ -100,7 +100,7 @@ pub trait CustomMenuItemExtMacOS {
   fn set_native_image(&mut self, native_image: NativeImage);
 }
 
-impl CustomMenuItemExtMacOS for CustomMenuItem {
+impl CustomMenuItemExtMacOS for CustomMenuItemHandle {
   fn set_native_image(&mut self, native_image: NativeImage) {
     self.0.set_native_image(native_image)
   }

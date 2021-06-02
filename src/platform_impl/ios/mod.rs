@@ -78,7 +78,7 @@ mod monitor;
 mod view;
 mod window;
 
-use crate::menu::{CustomMenuItem as RootCustomMenuItem, MenuId, MenuItem, MenuType};
+use crate::menu::{CustomMenuItemHandle, MenuId, MenuItem, MenuType};
 use std::fmt;
 
 pub use self::{
@@ -116,15 +116,15 @@ impl Menu {
     _enabled: bool,
     _selected: bool,
     _menu_type: MenuType,
-  ) -> RootCustomMenuItem {
-    RootCustomMenuItem(CustomMenuItem {})
+  ) -> CustomMenuItemHandle {
+    CustomMenuItemHandle(CustomMenuItem {})
   }
   pub fn add_submenu(&mut self, _title: &str, _enabled: bool, _submenu: Menu) {}
   pub fn add_native_item(
     &mut self,
     _item: MenuItem,
     _menu_type: MenuType,
-  ) -> Option<RootCustomMenuItem> {
+  ) -> Option<CustomMenuItemHandle> {
     None
   }
 }
