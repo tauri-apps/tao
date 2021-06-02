@@ -24,6 +24,10 @@ pub struct CustomMenuItem<'a> {
 
 impl<'a> CustomMenuItem<'a> {
   /// Creates a new custom menu item.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** `selected` render a regular item
   pub fn new(
     title: &'a str,
     keyboard_accelerator: Option<&'a str>,
@@ -307,6 +311,10 @@ impl CustomMenuItemHandle {
   }
 
   /// Modifies the selected state of the menu item.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** Unsupported, render a regular item
   pub fn set_selected(&mut self, is_selected: bool) {
     self.0.set_selected(is_selected)
   }
