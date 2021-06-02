@@ -8,7 +8,7 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError},
   event_loop::EventLoopWindowTarget,
-  menu::Menu,
+  menu::{Menu, MenuBar},
   monitor::{MonitorHandle, VideoMode},
   platform_impl,
 };
@@ -312,8 +312,8 @@ impl WindowBuilder {
   ///
   /// [`Window::set_menu`]: crate::window::Window::set_menu
   #[inline]
-  pub fn with_menu(mut self, menu: Menu) -> Self {
-    self.window.window_menu = Some(menu.menu_platform);
+  pub fn with_menu(mut self, menu: MenuBar) -> Self {
+    self.window.window_menu = Some(menu.0.menu_platform);
     self
   }
 

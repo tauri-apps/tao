@@ -13,7 +13,7 @@
 
 #[cfg(feature = "tray")]
 use crate::{error::OsError, platform_impl};
-use crate::{event_loop::EventLoopWindowTarget, menu::Menu};
+use crate::{event_loop::EventLoopWindowTarget, menu::MenuContext};
 // TODO exhaustively match the targets
 #[cfg(target_os = "linux")]
 use std::path::PathBuf;
@@ -30,16 +30,16 @@ pub struct SystemTray;
 impl SystemTrayBuilder {
   #[inline]
   #[cfg(not(target_os = "linux"))]
-  pub fn new(icon: Vec<u8>, tray_menu: Option<Menu>) -> Self {
+  pub fn new(icon: Vec<u8>, tray_menu: Option<MenuContext>) -> Self {
     Self(platform_impl::SystemTrayBuilder::new(
       icon,
-      tray_menu.map(|m| m.menu_platform),
+      tray_menu.map(|m| m.0.menu_platform),
     ))
   }
 
   #[inline]
   #[cfg(target_os = "linux")]
-  pub fn new(icon: PathBuf, tray_menu: Option<Menu>) -> Self {
+  pub fn new(icon: PathBuf, tray_menu: Option<MenuContext>) -> Self {
     Self(platform_impl::SystemTrayBuilder::new(
       icon,
       tray_menu.map(|m| m.menu_platform),
@@ -59,12 +59,12 @@ impl SystemTrayBuilder {
 impl SystemTrayBuilder {
   #[inline]
   #[cfg(not(target_os = "linux"))]
-  pub fn new(_icon: Vec<u8>, _tray_menu: Option<Menu>) -> Self {
+  pub fn new(_icon: Vec<u8>, _tray_menu: Option<MenuContext>) -> Self {
     Self
   }
   #[inline]
   #[cfg(target_os = "linux")]
-  pub fn new(_icon: PathBuf, _tray_menu: Option<Menu>) -> Self {
+  pub fn new(_icon: PathBuf, _tray_menu: Option<MenuContext>) -> Self {
     Self
   }
   pub fn build<T: 'static>(

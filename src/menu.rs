@@ -4,65 +4,62 @@
 use std::{
   collections::hash_map::DefaultHasher,
   hash::{Hash, Hasher},
+  ops::Deref,
 };
 
 use crate::platform_impl::{CustomMenuItem as CustomMenuItemPlatform, Menu as MenuPlatform};
 
-/// Tray menu (Also known as context menu)
-pub struct Tray;
-/// Menubar menu (It represent the Window menu for Windows and Linux)
-pub struct Menubar;
-
-impl Tray {
-  /// Creates a new Tray (Context) menu for platforms where this is appropriate.
-  ///
-  /// This function is equivalent to [`Menu::new_popup_menu(MenuType::SystemTray)`].
-  /// [`Menu::new_popup_menu(MenuType::SystemTray)`]: crate::menu::Menu
-  #[allow(clippy::new_ret_no_self)]
-  pub fn new() -> Menu {
-    Menu {
-      menu_platform: MenuPlatform::new_popup_menu(),
-      menu_type: MenuType::SystemTray,
-    }
-  }
-}
-
-impl Menubar {
-  /// Creates a new Menubar (Window) menu for platforms where this is appropriate.
-  ///
-  /// This function is equivalent to [`Menu::new(MenuType::Menubar)`].
-  /// [`Menu::new_popup_menu(MenuType::Menubar)`]: crate::menu::Menu
-  #[allow(clippy::new_ret_no_self)]
-  pub fn new() -> Menu {
-    Menu {
-      menu_platform: MenuPlatform::new(),
-      menu_type: MenuType::Menubar,
-    }
-  }
-}
+/// Context menu to be used in tray only for now.
+pub struct MenuContext(pub(crate) Menu);
+/// Menubar menu represent the Window menu for Windows and Linux and the App menu for macOS).
+pub struct MenuBar(pub(crate) Menu);
 
 /// Base `Menu` functions.
+///
+/// See `MenuContext` or `MenuBar` to build your menu.
 #[derive(Debug, Clone)]
 pub struct Menu {
   pub(crate) menu_platform: MenuPlatform,
   pub(crate) menu_type: MenuType,
 }
 
-impl Menu {
-  /// Creates a new Menu for Menubar/Window context.
-  pub fn new(menu_type: MenuType) -> Self {
-    Self {
-      menu_platform: MenuPlatform::new(),
-      menu_type,
-    }
+impl Deref for MenuContext {
+  type Target = Menu;
+  fn deref(&self) -> &Menu {
+    &self.0
+  }
+}
+
+impl MenuContext {
+  /// Creates a new Menu for context (popup, tray etc..).
+  pub fn new() -> Self {
+    Self(Menu {
+      menu_platform: MenuPlatform::new_popup_menu(),
+      menu_type: MenuType::SystemTray,
+    })
   }
 
-  /// Creates a new Menu for Popup context.
-  pub fn new_popup_menu(menu_type: MenuType) -> Self {
-    Self {
-      menu_platform: MenuPlatform::new_popup_menu(),
-      menu_type,
-    }
+  /// Add a submenu to this `Menu`.
+  pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: MenuContext) {
+    self.0.menu_platform.add_item(
+      MenuItem::Submenu(title.to_string(), enabled, submenu.0.menu_platform),
+      self.menu_type,
+    );
+  }
+
+  /// Add new item to this menu.
+  pub fn add_item(&mut self, item: MenuItem) -> Option<CustomMenuItem> {
+    self.0.menu_platform.add_item(item, self.menu_type)
+  }
+}
+
+impl MenuBar {
+  /// Creates a new Menubar (Window) menu for platforms where this is appropriate.
+  pub fn new() -> Self {
+    Self(Menu {
+      menu_platform: MenuPlatform::new(),
+      menu_type: MenuType::Menubar,
+    })
   }
 
   /// Shortcut to add a submenu to this `Menu`.
@@ -71,16 +68,16 @@ impl Menu {
   /// See [`Menu::add_item`] for details.
   ///
   /// [`Menu::add_item`]: crate::menu::Menu
-  pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: Menu) {
-    self.menu_platform.add_item(
-      MenuItem::Submenu(title.to_string(), enabled, submenu.menu_platform),
-      self.menu_type,
+  pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: MenuBar) {
+    self.0.menu_platform.add_item(
+      MenuItem::Submenu(title.to_string(), enabled, submenu.0.menu_platform),
+      self.0.menu_type,
     );
   }
 
   /// Add new item to this menu.
   pub fn add_item(&mut self, item: MenuItem) -> Option<CustomMenuItem> {
-    self.menu_platform.add_item(item, self.menu_type)
+    self.0.menu_platform.add_item(item, self.0.menu_type)
   }
 }
 
