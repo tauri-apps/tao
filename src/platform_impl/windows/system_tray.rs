@@ -192,6 +192,7 @@ impl SystemTray {
       let mut nid = NOTIFYICONDATAW {
         uFlags: NIF_ICON,
         hWnd: self.hwnd,
+        uID: WM_USER_TRAYICON_UID,
         ..Default::default()
       };
       if shellapi::Shell_NotifyIconW(NIM_DELETE, &mut nid as _) == 0 {
