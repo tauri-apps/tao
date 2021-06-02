@@ -19,6 +19,7 @@ macro_rules! menuitem {
   }};
 }
 
+#[derive(Debug, Clone)]
 struct GtkMenuInfo {
   menu_type: GtkMenuType,
   menu_item: Option<MenuItem>,
@@ -26,6 +27,7 @@ struct GtkMenuInfo {
   custom_menu_item: Option<CustomMenuItem>,
 }
 
+#[derive(Debug, Clone)]
 enum GtkMenuType {
   Custom,
   Submenu,
@@ -112,7 +114,7 @@ impl Menu {
       menu_type: GtkMenuType::Custom,
       menu_item: None,
       sub_menu: None,
-      custom_menu_item: Some(custom_menu),
+      custom_menu_item: Some(custom_menu.clone()),
     });
     return RootCustomMenuItem(custom_menu);
   }
@@ -135,11 +137,11 @@ impl Menu {
     self.gtk_items.push(GtkMenuInfo {
       menu_type: GtkMenuType::Submenu,
       menu_item: None,
-      sub_menu: SubmenuDetail {
+      sub_menu: Some(SubmenuDetail {
         menu: submenu,
         title: title.to_string(),
         enabled,
-      },
+      }),
       custom_menu_item: None,
     });
   }
@@ -165,34 +167,30 @@ impl Menu {
   ) {
     for menu_item in self.gtk_items {
       let new_item = match menu_item.clone() {
-        (
-          MenuItem::Submenu {
-            enabled,
-            menu_platform,
-            title,
-          },
-          _,
-        ) => {
+        GtkMenuInfo {
+          menu_type: GtkMenuType::Submenu,
+          sub_menu: Some(SubmenuDetail { menu, title, .. }),
+          ..
+        } => {
           // FIXME: enabled is not used here
           let item = GtkMenuItem::with_label(&title);
-          item.set_submenu(Some(&menu_platform.into_gtkmenu(
-            tx,
-            accel_group,
-            window_id,
-          )));
+          item.set_submenu(Some(&menu.into_gtkmenu(tx, accel_group, window_id)));
           Some(item)
         }
-        (
-          MenuItem::Custom {
-            keyboard_accelerator,
-            enabled,
-            selected,
-            ..
-          },
-          Some(custom_item),
-        ) => {
-          let gtk_item = custom_item.gtk_item;
-          if let Some(key) = keyboard_accelerator {
+        GtkMenuInfo {
+          menu_type: GtkMenuType::Custom,
+          custom_menu_item:
+            Some(CustomMenuItem {
+              enabled,
+              gtk_item,
+              id,
+              key,
+              selected,
+              ..
+            }),
+          ..
+        } => {
+          if let Some(key) = key {
             let (key, mods) = gtk::accelerator_parse(&key);
             gtk_item.add_accelerator("activate", accel_group, key, mods, AccelFlags::VISIBLE);
           }
@@ -204,27 +202,63 @@ impl Menu {
 
           let tx_ = tx.clone();
           gtk_item.connect_activate(move |_| {
-            if let Err(e) = tx_.send((window_id, WindowRequest::Menu(menu_item.clone().0))) {
+            if let Err(e) = tx_.send((window_id, WindowRequest::Menu((None, Some(id))))) {
               log::warn!("Fail to send menu request: {}", e);
             }
           });
 
           Some(gtk_item)
         }
-        (MenuItem::Separator, _) => {
+        GtkMenuInfo {
+          menu_type: GtkMenuType::Native,
+          menu_item: Some(MenuItem::Separator),
+          ..
+        } => {
           menu.append(&SeparatorMenuItem::new());
           None
         }
-        (MenuItem::About(s), _) => Some(GtkMenuItem::with_label(&format!("About {}", s))),
-        (MenuItem::Hide, _) => menuitem!("Hide", "<Ctrl>H", accel_group),
-        (MenuItem::CloseWindow, _) => menuitem!("Close Window", "<Ctrl>W", accel_group),
-        (MenuItem::Quit, _) => menuitem!("Quit", "Q", accel_group),
-        (MenuItem::Copy, _) => menuitem!("Copy", "<Ctrl>C", accel_group),
-        (MenuItem::Cut, _) => menuitem!("Cut", "<Ctrl>X", accel_group),
-        (MenuItem::SelectAll, _) => menuitem!("Select All", "<Ctrl>A", accel_group),
-        (MenuItem::Paste, _) => menuitem!("Paste", "<Ctrl>V", accel_group),
+        GtkMenuInfo {
+          menu_type: GtkMenuType::Native,
+          menu_item: Some(MenuItem::About(s)),
+          ..
+        } => Some(GtkMenuItem::with_label(&format!("About {}", s))),
+        GtkMenuInfo {
+          menu_type: GtkMenuType::Native,
+          menu_item: Some(MenuItem::Hide),
+          ..
+        } => menuitem!("Hide", "<Ctrl>H", accel_group),
+        GtkMenuInfo {
+          menu_type: GtkMenuType::Native,
+          menu_item: Some(MenuItem::CloseWindow),
+          ..
+        } => menuitem!("Close Window", "<Ctrl>W", accel_group),
+        GtkMenuInfo {
+          menu_type: GtkMenuType::Native,
+          menu_item: Some(MenuItem::Quit),
+          ..
+        } => menuitem!("Quit", "Q", accel_group),
+        GtkMenuInfo {
+          menu_type: GtkMenuType::Native,
+          menu_item: Some(MenuItem::Copy),
+          ..
+        } => menuitem!("Copy", "<Ctrl>C", accel_group),
+        GtkMenuInfo {
+          menu_type: GtkMenuType::Native,
+          menu_item: Some(MenuItem::Cut),
+          ..
+        } => menuitem!("Cut", "<Ctrl>X", accel_group),
+        GtkMenuInfo {
+          menu_type: GtkMenuType::Native,
+          menu_item: Some(MenuItem::SelectAll),
+          ..
+        } => menuitem!("Select All", "<Ctrl>A", accel_group),
+        GtkMenuInfo {
+          menu_type: GtkMenuType::Native,
+          menu_item: Some(MenuItem::Paste),
+          ..
+        } => menuitem!("Paste", "<Ctrl>V", accel_group),
         // todo add others
-        (_, _) => None,
+        _ => None,
       };
 
       if let Some(new_item) = new_item {

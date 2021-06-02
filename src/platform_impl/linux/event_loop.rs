@@ -482,22 +482,22 @@ impl<T: 'static> EventLoop<T> {
             }
             WindowRequest::Redraw => window.queue_draw(),
             WindowRequest::Menu(m) => match m {
-              MenuItem::Custom { menu_id, .. } => {
+              (None, Some(menu_id)) => {
                 if let Err(e) = event_tx.send(Event::MenuEvent {
-                  menu_id: menu_id,
+                  menu_id,
                   origin: MenuType::MenuBar,
                 }) {
                   log::warn!("Failed to send menu event to event channel: {}", e);
                 }
               }
-              MenuItem::About(_) => {
+              (Some(MenuItem::About(_)), None) => {
                 let about = AboutDialog::new();
                 about.show_all();
                 app.add_window(&about);
               }
-              MenuItem::Hide => window.hide(),
-              MenuItem::CloseWindow => window.close(),
-              MenuItem::Quit => {
+              (Some(MenuItem::Hide), None) => window.hide(),
+              (Some(MenuItem::CloseWindow), None) => window.close(),
+              (Some(MenuItem::Quit), None) => {
                 if let Err(e) = event_tx.send(Event::LoopDestroyed) {
                   log::warn!(
                     "Failed to send loop destroyed event to event channel: {}",
@@ -506,7 +506,7 @@ impl<T: 'static> EventLoop<T> {
                 }
               }
               #[cfg(any(feature = "menu", feature = "tray"))]
-              MenuItem::Cut => {
+              (Some(MenuItem::Cut), None) => {
                 if let Some(widget) = window.get_focus() {
                   if widget.has_focus() {
                     if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
@@ -522,7 +522,7 @@ impl<T: 'static> EventLoop<T> {
                 }
               }
               #[cfg(any(feature = "menu", feature = "tray"))]
-              MenuItem::Copy => {
+              (Some(MenuItem::Copy), None) => {
                 if let Some(widget) = window.get_focus() {
                   if widget.has_focus() {
                     if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
@@ -538,7 +538,7 @@ impl<T: 'static> EventLoop<T> {
                 }
               }
               #[cfg(any(feature = "menu", feature = "tray"))]
-              MenuItem::Paste => {
+              (Some(MenuItem::Paste), None) => {
                 if let Some(widget) = window.get_focus() {
                   if widget.has_focus() {
                     if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
@@ -554,7 +554,7 @@ impl<T: 'static> EventLoop<T> {
                 }
               }
               #[cfg(any(feature = "menu", feature = "tray"))]
-              MenuItem::SelectAll => {
+              (Some(MenuItem::SelectAll), None) => {
                 if let Some(widget) = window.get_focus() {
                   if widget.has_focus() {
                     if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
@@ -567,7 +567,7 @@ impl<T: 'static> EventLoop<T> {
                   }
                 }
               }
-              MenuItem::EnterFullScreen => {
+              (Some(MenuItem::EnterFullScreen), None) => {
                 let state = window.get_window().unwrap().get_state();
                 if state.contains(WindowState::FULLSCREEN) {
                   window.unfullscreen();
@@ -575,7 +575,7 @@ impl<T: 'static> EventLoop<T> {
                   window.fullscreen();
                 }
               }
-              MenuItem::Minimize => window.iconify(),
+              (Some(MenuItem::Minimize), None) => window.iconify(),
               _ => {}
             },
             WindowRequest::SetMenu((menus, accel_group, menu)) => {
@@ -591,7 +591,7 @@ impl<T: 'static> EventLoop<T> {
             }
           }
         } else if id == WindowId::dummy() {
-          if let WindowRequest::Menu(MenuItem::Custom { menu_id, .. }) = request {
+          if let WindowRequest::Menu((None, Some(menu_id))) = request {
             if let Err(e) = event_tx.send(Event::MenuEvent {
               menu_id,
               origin: MenuType::ContextMenu,
