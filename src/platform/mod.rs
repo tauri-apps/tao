@@ -25,4 +25,3 @@ pub mod unix;
 pub mod windows;
 
 pub mod run_return;
-pub mod system_tray;

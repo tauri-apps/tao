@@ -12,6 +12,7 @@ use crate::{
   event::{ClickType, Event, Rectangle},
   event_loop::EventLoopWindowTarget,
   menu::MenuType,
+  system_tray::SystemTray as RootSystemTray,
 };
 use winapi::{
   shared::{
@@ -53,7 +54,7 @@ impl SystemTrayBuilder {
   pub fn build<T: 'static>(
     self,
     window_target: &EventLoopWindowTarget<T>,
-  ) -> Result<SystemTray, RootOsError> {
+  ) -> Result<RootSystemTray, RootOsError> {
     let mut hmenu: Option<HMENU> = None;
     if let Some(menu) = self.tray_menu {
       hmenu = Some(menu.into_hmenu());
@@ -145,7 +146,7 @@ impl SystemTrayBuilder {
       let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
       SetWindowSubclass(hwnd as _, Some(subclass_proc), 0, sender as _);
 
-      return Ok(SystemTray { hwnd, hmenu });
+      return Ok(RootSystemTray(SystemTray { hwnd, hmenu }));
     }
   }
 }

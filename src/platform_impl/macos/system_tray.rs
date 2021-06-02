@@ -12,6 +12,7 @@ use crate::{
   error::OsError,
   event::{ClickType, Event, Rectangle},
   event_loop::EventLoopWindowTarget,
+  system_tray::SystemTray as RootSystemTray,
 };
 use cocoa::{
   appkit::{
@@ -61,7 +62,7 @@ impl SystemTrayBuilder {
   pub fn build<T: 'static>(
     self,
     _window_target: &EventLoopWindowTarget<T>,
-  ) -> Result<SystemTray, OsError> {
+  ) -> Result<RootSystemTray, OsError> {
     unsafe {
       // use our existing status bar
       let status_bar = self.system_tray.ns_status_bar;
@@ -89,7 +90,7 @@ impl SystemTrayBuilder {
       ];
     }
 
-    Ok(self.system_tray)
+    Ok(RootSystemTray(self.system_tray))
   }
 }
 

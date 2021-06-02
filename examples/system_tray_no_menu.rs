@@ -1,16 +1,10 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(any(
-  target_os = "macos",
-  target_os = "windows",
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
-))]
-
+// System tray is supported and availabled only if feature flag is enabled.
+// Platform: Windows, Linux and macOS.
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+#[cfg(feature = "tray")]
 fn main() {
   use simple_logger::SimpleLogger;
   use std::collections::HashMap;
@@ -22,7 +16,7 @@ fn main() {
     dpi::LogicalSize,
     event::{ClickType, Event, Rectangle, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    platform::system_tray::SystemTrayBuilder,
+    system_tray::SystemTrayBuilder,
     window::WindowBuilder,
   };
 
@@ -118,7 +112,15 @@ fn main() {
   });
 }
 
-#[cfg(any(target_os = "ios", target_os = "android",))]
+// System tray isn't supported on other's platforms.
+#[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
 fn main() {
-  println!("This platform doesn't support run_return.");
+  println!("This platform doesn't support system_tray.");
+}
+
+// Tray feature flag disabled but can be available.
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+#[cfg(not(feature = "tray"))]
+fn main() {
+  println!("This platform doesn't have the `tray` feature enabled.");
 }

@@ -1,7 +1,9 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{error::OsError, event_loop::EventLoopWindowTarget};
+use crate::{
+  error::OsError, event_loop::EventLoopWindowTarget, system_tray::SystemTray as RootSystemTray,
+};
 
 use std::path::PathBuf;
 
@@ -15,11 +17,6 @@ pub struct SystemTrayBuilder {
 }
 
 impl SystemTrayBuilder {
-  /// Creates a new SystemTray for platforms where this is appropriate.
-  /// ## Platform-specific
-  ///
-  /// - **macOS / Windows:**: receive icon as bytes (`Vec<u8>`)
-  /// - **Linux:**: receive icon's path (`PathBuf`)
   #[inline]
   pub fn new(icon: PathBuf, tray_menu: Option<Menu>) -> Self {
     let path = icon.parent().expect("Invalid icon");
@@ -36,14 +33,11 @@ impl SystemTrayBuilder {
     }
   }
 
-  /// Builds the system tray.
-  ///
-  /// Possible causes of error include denied permission, incompatible system, and lack of memory.
   #[inline]
   pub fn build<T: 'static>(
     mut self,
     window_target: &EventLoopWindowTarget<T>,
-  ) -> Result<SystemTray, OsError> {
+  ) -> Result<RootSystemTray, OsError> {
     let tx_ = window_target.p.window_requests_tx.clone();
 
     if let Some(tray_menu) = self.system_tray.tray_menu.clone() {
@@ -58,7 +52,7 @@ impl SystemTrayBuilder {
       .app_indicator
       .set_status(AppIndicatorStatus::Active);
 
-    Ok(self.system_tray)
+    Ok(RootSystemTray(self.system_tray))
   }
 }
 
