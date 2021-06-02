@@ -73,7 +73,7 @@ impl Menu {
     _selected: bool,
     _menu_type: MenuType,
   ) -> RootCustomMenuItem {
-    RootCustomMenuItem(CustomMenuItem{})
+    RootCustomMenuItem(CustomMenuItem {})
   }
   pub fn add_submenu(&mut self, _title: &str, _enabled: bool, _submenu: Menu) {}
   pub fn add_native_item(
