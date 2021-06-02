@@ -1,10 +1,11 @@
 use crate::{
   error::OsError,
+  event_loop::EventLoopWindowTarget,
+  menu::ContextMenu,
   platform_impl::{
     SystemTray as SystemTrayPlatform, SystemTrayBuilder as SystemTrayBuilderPlatform,
   },
 };
-use crate::{event_loop::EventLoopWindowTarget, menu::ContextMenu};
 /// Represents a System Tray builder.
 pub struct SystemTrayBuilder(SystemTrayBuilderPlatform);
 
