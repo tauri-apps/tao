@@ -8,7 +8,7 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError},
   event_loop::EventLoopWindowTarget,
-  menu::{Menu, MenuBar},
+  menu::MenuBar,
   monitor::{MonitorHandle, VideoMode},
   platform_impl,
 };
@@ -630,9 +630,9 @@ impl Window {
   /// - **Windows:** Unsupported.
 
   #[inline]
-  pub fn set_menu(&self, menu: Option<Menu>) {
+  pub fn set_menu(&self, menu: Option<MenuBar>) {
     if let Some(menu) = menu {
-      self.window.set_menu(Some(menu.menu_platform))
+      self.window.set_menu(Some(menu.0.menu_platform))
     } else {
       self.window.set_menu(None)
     }

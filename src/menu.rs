@@ -4,7 +4,6 @@
 use std::{
   collections::hash_map::DefaultHasher,
   hash::{Hash, Hasher},
-  ops::Deref,
 };
 
 use crate::platform_impl::{CustomMenuItem as CustomMenuItemPlatform, Menu as MenuPlatform};
@@ -18,16 +17,9 @@ pub struct MenuBar(pub(crate) Menu);
 ///
 /// See `ContextMenu` or `MenuBar` to build your menu.
 #[derive(Debug, Clone)]
-pub struct Menu {
+pub(crate) struct Menu {
   pub(crate) menu_platform: MenuPlatform,
   pub(crate) menu_type: MenuType,
-}
-
-impl Deref for ContextMenu {
-  type Target = Menu;
-  fn deref(&self) -> &Menu {
-    &self.0
-  }
 }
 
 impl ContextMenu {
@@ -47,13 +39,13 @@ impl ContextMenu {
         menu_platform: submenu.0.menu_platform,
         title: title.to_string(),
       },
-      self.menu_type,
+      self.0.menu_type,
     );
   }
 
   /// Add new item to this menu.
   pub fn add_item(&mut self, item: MenuItem) -> Option<CustomMenuItem> {
-    self.0.menu_platform.add_item(item, self.menu_type)
+    self.0.menu_platform.add_item(item, self.0.menu_type)
   }
 }
 
