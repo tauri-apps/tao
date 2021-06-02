@@ -17,8 +17,8 @@ use crate::{
   event_loop::EventLoop,
   monitor::MonitorHandle,
   platform_impl::{EventLoop as WindowsEventLoop, Parent, WinIcon},
-  window::{BadIcon, Icon, Theme, Window, WindowBuilder},
   system_tray::SystemTray,
+  window::{BadIcon, Icon, Theme, Window, WindowBuilder},
 };
 
 /// Additional methods on `EventLoop` that are specific to Windows.
