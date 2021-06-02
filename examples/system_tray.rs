@@ -34,7 +34,7 @@ fn main() {
   let mut submenu = Menu::new();
 
   // open new window menu item
-  let open_new_window_element = submenu.add_item("Open new window", None, false, false);
+  let open_new_window_element = submenu.add_item("Open new window", None, true, false);
 
   // set default icon
   #[cfg(target_os = "macos")]
@@ -43,7 +43,7 @@ fn main() {
     .set_native_image(NativeImage::StatusAvailable);
 
   // focus all window menu item
-  let focus_all_window = tray_menu.add_item("Focus window", None, false, false);
+  let mut focus_all_window = tray_menu.add_item("Focus window", None, false, false);
 
   // inject submenu into tray_menu
   tray_menu.add_submenu("Sub menu", true, submenu);
@@ -86,6 +86,7 @@ fn main() {
           windows.remove(&window_id);
           // Enable our button
           open_new_window_element.set_enabled(true);
+          focus_all_window.set_enabled(false);
           // Reset text
           open_new_window_element.set_title("Open new window");
           // Set unchecked
@@ -109,7 +110,8 @@ fn main() {
           open_new_window_element.set_title("Window already open");
           // set checked
           open_new_window_element.set_selected(true);
-
+          // enable focus window
+          focus_all_window.set_enabled(true);
           // update tray icon
           system_tray.set_icon(new_icon.clone());
           #[cfg(target_os = "macos")]

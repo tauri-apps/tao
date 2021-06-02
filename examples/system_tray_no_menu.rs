@@ -40,9 +40,21 @@ fn main() {
 
   let mut windows = HashMap::new();
 
-  fn window_position_center_tray(rectangle: &mut Rectangle, window_width: f64) -> Rectangle {
-    let window_x = rectangle.position.x + ((rectangle.size.width / 2.0) - (window_width / 2.0));
+  fn window_position_center_tray(
+    rectangle: &mut Rectangle,
+    window_size: LogicalSize<f64>,
+  ) -> Rectangle {
+    // center X axis with tray icon position
+    let window_x =
+      rectangle.position.x + ((rectangle.size.width / 2.0) - (window_size.width / 2.0));
     rectangle.position.x = window_x;
+
+    // position Y axis (Windows only)
+    #[cfg(target_os = "windows")]
+    {
+      rectangle.position.y = rectangle.position.y - window_size.height;
+    }
+
     *rectangle
   }
 
@@ -87,9 +99,7 @@ fn main() {
             // create our window
             let window = WindowBuilder::new()
               // position our window centered with tray bounds
-              .with_position(
-                window_position_center_tray(&mut bounds, window_inner_size.width).position,
-              )
+              .with_position(window_position_center_tray(&mut bounds, window_inner_size).position)
               .with_inner_size(window_inner_size)
               .with_resizable(false)
               .build(&event_loop)
