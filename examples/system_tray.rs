@@ -12,6 +12,8 @@ fn main() {
   use std::path::Path;
   #[cfg(target_os = "macos")]
   use tao::platform::macos::{CustomMenuItemExtMacOS, NativeImage};
+  #[cfg(target_os = "windows")]
+  use tao::platform::windows::SystemTrayExtWindows;
   use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -42,6 +44,9 @@ fn main() {
 
   // inject submenu into tray_menu
   tray_menu.add_submenu("Sub menu", true, submenu);
+
+  // add quit button
+  let quit_element = tray_menu.add_item("Quit", None, true, false);
 
   // Windows require Vec<u8> ICO file
   #[cfg(target_os = "windows")]
@@ -116,6 +121,15 @@ fn main() {
           for window in windows.values() {
             window.set_focus();
           }
+        }
+        if menu_id == quit_element.clone().id() {
+          // on windows, we make sure to remove the icon from the tray
+          // it require the `SystemTrayExtWindows`
+          #[cfg(target_os = "windows")]
+          system_tray.remove();
+
+          // tell our app to close at the end of the loop.
+          *control_flow = ControlFlow::Exit;
         }
         println!("Clicked on {:?}", menu_id);
       }
