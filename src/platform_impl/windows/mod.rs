@@ -86,7 +86,7 @@ impl DeviceId {
 
 #[derive(Debug)]
 pub enum OsError {
-  // CreationError(&'static str),
+  CreationError(&'static str),
   IoError(std::io::Error),
 }
 impl std::error::Error for OsError {}
