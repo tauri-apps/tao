@@ -42,7 +42,7 @@ impl SystemTrayBuilder {
   pub fn new(icon: PathBuf, tray_menu: Option<ContextMenu>) -> Self {
     Self(platform_impl::SystemTrayBuilder::new(
       icon,
-      tray_menu.map(|m| m.menu_platform),
+      tray_menu.map(|m| m.0.menu_platform),
     ))
   }
 
