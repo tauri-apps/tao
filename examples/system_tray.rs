@@ -98,7 +98,7 @@ fn main() {
       }
       Event::MenuEvent {
         menu_id,
-        origin: MenuType::SystemTray,
+        origin: MenuType::ContextMenu,
       } => {
         let mut open_new_window_element = open_new_window_element.clone().unwrap();
         if menu_id == open_new_window_element.clone().id() {

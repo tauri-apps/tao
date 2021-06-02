@@ -87,7 +87,7 @@ impl SystemTrayBuilder {
             event_loop_runner.send_event(e)
           }
         }),
-        MenuType::SystemTray,
+        MenuType::ContextMenu,
       );
       let app_system_tray = SystemTray {
         // dummy hwnd, will populate it later
@@ -139,7 +139,7 @@ impl SystemTrayBuilder {
             event_loop_runner.send_event(e)
           }
         }),
-        MenuType::SystemTray,
+        MenuType::ContextMenu,
       );
       let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
       SetWindowSubclass(hwnd as _, Some(subclass_proc), 0, sender as _);

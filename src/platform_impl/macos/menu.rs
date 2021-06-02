@@ -305,7 +305,7 @@ impl Menu {
         ),
       )),
       MenuItem::Services => unsafe {
-        let item = make_menu_item("Services", None, None, MenuType::Menubar);
+        let item = make_menu_item("Services", None, None, MenuType::MenuBar);
         let app_class = class!(NSApplication);
         let app: id = msg_send![app_class, sharedApplication];
         let services: id = msg_send![app, servicesMenu];
@@ -441,8 +441,8 @@ fn make_menu_item_from_alloc(
     let selector = match selector {
       Some(selector) => selector,
       None => match menu_type {
-        MenuType::Menubar => sel!(fireMenubarAction:),
-        MenuType::SystemTray => sel!(fireStatusbarAction:),
+        MenuType::MenuBar => sel!(fireMenubarAction:),
+        MenuType::ContextMenu => sel!(fireStatusbarAction:),
       },
     };
 
@@ -487,11 +487,11 @@ fn make_menu_item_class() -> *const Class {
 }
 
 extern "C" fn fire_status_bar_click(this: &Object, _: Sel, _item: id) {
-  send_event(this, MenuType::SystemTray);
+  send_event(this, MenuType::ContextMenu);
 }
 
 extern "C" fn fire_menu_bar_click(this: &Object, _: Sel, _item: id) {
-  send_event(this, MenuType::Menubar);
+  send_event(this, MenuType::MenuBar);
 }
 
 fn send_event(this: &Object, origin: MenuType) {

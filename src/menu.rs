@@ -35,7 +35,7 @@ impl ContextMenu {
   pub fn new() -> Self {
     Self(Menu {
       menu_platform: MenuPlatform::new_popup_menu(),
-      menu_type: MenuType::SystemTray,
+      menu_type: MenuType::ContextMenu,
     })
   }
 
@@ -68,7 +68,7 @@ impl MenuBar {
   pub fn new() -> Self {
     Self(Menu {
       menu_platform: MenuPlatform::new(),
-      menu_type: MenuType::Menubar,
+      menu_type: MenuType::MenuBar,
     })
   }
 
@@ -380,9 +380,9 @@ impl MenuId {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum MenuType {
   /// Menubar menu item.
-  Menubar,
+  MenuBar,
   /// System tray menu item.
-  SystemTray,
+  ContextMenu,
 }
 
 fn hash_string_to_u32(title: &str) -> u32 {

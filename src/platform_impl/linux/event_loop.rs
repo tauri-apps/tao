@@ -485,7 +485,7 @@ impl<T: 'static> EventLoop<T> {
               MenuItem::Custom { menu_id, .. } => {
                 if let Err(e) = event_tx.send(Event::MenuEvent {
                   menu_id: menu_id,
-                  origin: MenuType::Menubar,
+                  origin: MenuType::MenuBar,
                 }) {
                   log::warn!("Failed to send menu event to event channel: {}", e);
                 }
@@ -594,7 +594,7 @@ impl<T: 'static> EventLoop<T> {
           if let WindowRequest::Menu(MenuItem::Custom { menu_id, .. }) = request {
             if let Err(e) = event_tx.send(Event::MenuEvent {
               menu_id,
-              origin: MenuType::SystemTray,
+              origin: MenuType::ContextMenu,
             }) {
               log::warn!("Failed to send status bar event to event channel: {}", e);
             }

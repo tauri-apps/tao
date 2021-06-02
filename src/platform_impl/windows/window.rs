@@ -939,7 +939,7 @@ unsafe fn init<T: 'static>(
           event_loop_runner.send_event(e)
         }
       }),
-      MenuType::Menubar,
+      MenuType::MenuBar,
     );
 
     win.menu = menu::initialize(window_menu, window_handle, menu_handler).map(|m| HMenuWrapper(m));

@@ -68,7 +68,7 @@ fn main() {
       }
       Event::MenuEvent {
         menu_id,
-        origin: MenuType::Menubar,
+        origin: MenuType::MenuBar,
       } if menu_id == test_menu_item.clone().id() => {
         println!("Clicked on custom change menu");
         // this allow us to get access to the menu and make changes
