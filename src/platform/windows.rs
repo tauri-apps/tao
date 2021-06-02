@@ -296,6 +296,7 @@ impl IconExtWindows for Icon {
   }
 }
 
+/// Additional methods on `SystemTray` that are specific to Windows.
 pub trait SystemTrayExtWindows {
   fn remove(&mut self);
 }

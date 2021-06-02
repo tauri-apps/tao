@@ -686,8 +686,27 @@ pub enum TouchPhase {
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum ClickType {
+  /// Fired when a menu item receive a `Left click`
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** Unsupported
+  ///
   LeftClick,
+  /// Fired when a menu item receive a `Right click`
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** Unsupported
+  /// - **macOS:** `Ctrl` + `Left click` fire this event.
+  ///
   RightClick,
+  /// Fired when a menu item receive a `Double click`
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / Linux:** Unsupported
+  ///
   DoubleClick,
 }
 
