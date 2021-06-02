@@ -1,7 +1,7 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-// System tray is supported and availabled only if feature flag is enabled.
+// System tray is supported and availabled only if `tray` feature is enabled.
 // Platform: Windows, Linux and macOS.
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 #[cfg(feature = "tray")]
@@ -68,8 +68,7 @@ fn main() {
   #[cfg(target_os = "linux")]
   let new_icon = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/icon_dark.png");
 
-  // Only supported on macOS, linux and windows
-  #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+  // Menu is shown with left click on macOS and right click on Windows.
   let mut system_tray = SystemTrayBuilder::new(icon.clone(), Some(tray_menu))
     .build(&event_loop)
     .unwrap();

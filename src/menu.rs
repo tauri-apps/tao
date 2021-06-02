@@ -111,9 +111,8 @@ impl Default for MenuBar {
   }
 }
 
-/// A menu item, bound to a pre-defined action or `Custom` emit an event. Note some platforms
-/// might not support some of the variants. Unsupported variant will be no-op on such platform.
-/// Tip: Use `MenuItem::new` shortcut to create a `CustomMenuItem`.
+/// A menu item, bound to a pre-defined native action. Note some platforms might not
+/// support some of the variants. Unsupported variant will be no-op on such platform.
 #[derive(Debug, Clone)]
 pub enum MenuItem {
   /// Shows a standard "About" item
@@ -128,7 +127,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   Hide,
 
@@ -160,7 +159,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   CloseWindow,
 
@@ -168,7 +167,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   Quit,
 
@@ -176,7 +175,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   /// - **Linux**: require `menu` feature flag
   ///
   Copy,
@@ -185,7 +184,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   /// - **Linux**: require `menu` feature flag
   ///
   Cut,
@@ -221,7 +220,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   /// - **Linux**: require `menu` feature flag
   ///
   Paste,
@@ -238,7 +237,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   Minimize,
 
@@ -254,7 +253,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   Separator,
 }
