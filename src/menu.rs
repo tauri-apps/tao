@@ -83,6 +83,11 @@ impl ContextMenu {
       MenuType::ContextMenu,
     )
   }
+
+  /// Add new item to this menu.
+  pub fn add_native_item(&mut self, item: MenuItem) -> Option<CustomMenuItemHandle> {
+    self.0.menu_platform.add_native_item(item, self.0.menu_type)
+  }
 }
 
 impl Default for ContextMenu {
