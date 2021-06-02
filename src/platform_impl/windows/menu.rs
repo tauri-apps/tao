@@ -144,147 +144,124 @@ impl Menu {
     hmenu
   }
 
-  pub fn add_item(&mut self, item: MenuItem, _menu_type: MenuType) -> Option<RootCustomMenuItem> {
-    let menu_item = match item {
+  pub fn add_item(
+    &mut self,
+    menu_id: MenuId,
+    title: &str,
+    _accelerators: Option<&str>,
+    enabled: bool,
+    selected: bool,
+    _menu_type: MenuType,
+  ) -> RootCustomMenuItem {
+    unsafe {
+      let mut flags = winuser::MF_STRING;
+      if !enabled {
+        flags |= winuser::MF_GRAYED;
+      }
+      if selected {
+        flags |= winuser::MF_CHECKED;
+      }
+
+      // FIXME: add keyboard accelerators
+      winuser::AppendMenuW(
+        self.hmenu,
+        flags,
+        menu_id.0 as _,
+        to_wstring(&title).as_mut_ptr(),
+      );
+      MENU_IDS.lock().unwrap().push(menu_id.0 as _);
+      RootCustomMenuItem(CustomMenuItem(menu_id.0, self.hmenu))
+    }
+  }
+
+  pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: Menu) {
+    unsafe {
+      let mut flags = winuser::MF_POPUP;
+      if !enabled {
+        flags |= winuser::MF_DISABLED;
+      }
+
+      winuser::AppendMenuW(
+        self.hmenu,
+        flags,
+        submenu.into_hmenu() as _,
+        to_wstring(&title).as_mut_ptr(),
+      );
+    }
+  }
+
+  pub fn add_native_item(
+    &mut self,
+    item: MenuItem,
+    _menu_type: MenuType,
+  ) -> Option<RootCustomMenuItem> {
+    match item {
       MenuItem::Separator => {
         unsafe {
           winuser::AppendMenuW(self.hmenu, winuser::MF_SEPARATOR, 0, std::ptr::null());
         };
-        None
       }
-      MenuItem::Submenu {
-        enabled,
-        menu_platform,
-        title,
-      } => {
-        unsafe {
-          let mut flags = winuser::MF_POPUP;
-          if !enabled {
-            flags |= winuser::MF_DISABLED;
-          }
-
-          winuser::AppendMenuW(
-            self.hmenu,
-            flags,
-            menu_platform.into_hmenu() as _,
-            to_wstring(&title).as_mut_ptr(),
-          );
-        }
-
-        None
-      }
-      MenuItem::Custom {
-        menu_id,
-        enabled,
-        selected,
-        text,
-        keyboard_accelerator: _,
-      } => {
-        unsafe {
-          let mut flags = winuser::MF_STRING;
-          if !enabled {
-            flags |= winuser::MF_GRAYED;
-          }
-          if selected {
-            flags |= winuser::MF_CHECKED;
-          }
-
-          // FIXME: add keyboard accelerators
-          winuser::AppendMenuW(
-            self.hmenu,
-            flags,
-            menu_id.0 as _,
-            to_wstring(&text).as_mut_ptr(),
-          );
-          MENU_IDS.lock().unwrap().push(menu_id.0 as _);
-          Some(CustomMenuItem(menu_id.0, self.hmenu))
-        }
-      }
-
-      MenuItem::Cut => {
-        unsafe {
-          winuser::AppendMenuW(
-            self.hmenu,
-            winuser::MF_STRING,
-            CUT_ID,
-            to_wstring("&Cut\tCtrl+X").as_mut_ptr(),
-          );
-        }
-        None
-      }
-      MenuItem::Copy => {
-        unsafe {
-          winuser::AppendMenuW(
-            self.hmenu,
-            winuser::MF_STRING,
-            COPY_ID,
-            to_wstring("&Copy\tCtrl+C").as_mut_ptr(),
-          );
-        }
-        None
-      }
-      MenuItem::Paste => {
-        unsafe {
-          winuser::AppendMenuW(
-            self.hmenu,
-            winuser::MF_STRING,
-            PASTE_ID,
-            to_wstring("&Paste\tCtrl+V").as_mut_ptr(),
-          );
-        }
-        None
-      }
-      MenuItem::Hide => {
-        unsafe {
-          winuser::AppendMenuW(
-            self.hmenu,
-            winuser::MF_STRING,
-            HIDE_ID,
-            to_wstring("&Hide\tCtrl+H").as_mut_ptr(),
-          );
-        }
-        None
-      }
-      MenuItem::CloseWindow => {
-        unsafe {
-          winuser::AppendMenuW(
-            self.hmenu,
-            winuser::MF_STRING,
-            CLOSE_ID,
-            to_wstring("&Close\tAlt+F4").as_mut_ptr(),
-          );
-        }
-        None
-      }
-      MenuItem::Quit => {
-        unsafe {
-          winuser::AppendMenuW(
-            self.hmenu,
-            winuser::MF_STRING,
-            QUIT_ID,
-            to_wstring("&Quit").as_mut_ptr(),
-          );
-        }
-        None
-      }
-      MenuItem::Minimize => {
-        unsafe {
-          winuser::AppendMenuW(
-            self.hmenu,
-            winuser::MF_STRING,
-            MINIMIZE_ID,
-            to_wstring("&Minimize").as_mut_ptr(),
-          );
-        }
-        None
-      }
+      MenuItem::Cut => unsafe {
+        winuser::AppendMenuW(
+          self.hmenu,
+          winuser::MF_STRING,
+          CUT_ID,
+          to_wstring("&Cut\tCtrl+X").as_mut_ptr(),
+        );
+      },
+      MenuItem::Copy => unsafe {
+        winuser::AppendMenuW(
+          self.hmenu,
+          winuser::MF_STRING,
+          COPY_ID,
+          to_wstring("&Copy\tCtrl+C").as_mut_ptr(),
+        );
+      },
+      MenuItem::Paste => unsafe {
+        winuser::AppendMenuW(
+          self.hmenu,
+          winuser::MF_STRING,
+          PASTE_ID,
+          to_wstring("&Paste\tCtrl+V").as_mut_ptr(),
+        );
+      },
+      MenuItem::Hide => unsafe {
+        winuser::AppendMenuW(
+          self.hmenu,
+          winuser::MF_STRING,
+          HIDE_ID,
+          to_wstring("&Hide\tCtrl+H").as_mut_ptr(),
+        );
+      },
+      MenuItem::CloseWindow => unsafe {
+        winuser::AppendMenuW(
+          self.hmenu,
+          winuser::MF_STRING,
+          CLOSE_ID,
+          to_wstring("&Close\tAlt+F4").as_mut_ptr(),
+        );
+      },
+      MenuItem::Quit => unsafe {
+        winuser::AppendMenuW(
+          self.hmenu,
+          winuser::MF_STRING,
+          QUIT_ID,
+          to_wstring("&Quit").as_mut_ptr(),
+        );
+      },
+      MenuItem::Minimize => unsafe {
+        winuser::AppendMenuW(
+          self.hmenu,
+          winuser::MF_STRING,
+          MINIMIZE_ID,
+          to_wstring("&Minimize").as_mut_ptr(),
+        );
+      },
       // FIXME: create all shortcuts of MenuItem if possible...
       // like linux?
-      _ => None,
+      _ => (),
     };
-    if let Some(menu_item) = menu_item {
-      return Some(RootCustomMenuItem(CustomMenuItem(menu_item.0, self.hmenu)));
-    }
+
     None
   }
 }
