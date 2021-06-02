@@ -10,27 +10,27 @@ use std::{
 use crate::platform_impl::{CustomMenuItem as CustomMenuItemPlatform, Menu as MenuPlatform};
 
 /// Context menu to be used in tray only for now.
-pub struct MenuContext(pub(crate) Menu);
+pub struct ContextMenu(pub(crate) Menu);
 /// Menubar menu represent the Window menu for Windows and Linux and the App menu for macOS).
 pub struct MenuBar(pub(crate) Menu);
 
 /// Base `Menu` functions.
 ///
-/// See `MenuContext` or `MenuBar` to build your menu.
+/// See `ContextMenu` or `MenuBar` to build your menu.
 #[derive(Debug, Clone)]
 pub struct Menu {
   pub(crate) menu_platform: MenuPlatform,
   pub(crate) menu_type: MenuType,
 }
 
-impl Deref for MenuContext {
+impl Deref for ContextMenu {
   type Target = Menu;
   fn deref(&self) -> &Menu {
     &self.0
   }
 }
 
-impl MenuContext {
+impl ContextMenu {
   /// Creates a new Menu for context (popup, tray etc..).
   pub fn new() -> Self {
     Self(Menu {
@@ -40,7 +40,7 @@ impl MenuContext {
   }
 
   /// Add a submenu.
-  pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: MenuContext) {
+  pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: ContextMenu) {
     self.0.menu_platform.add_item(
       MenuItem::Submenu {
         enabled,
@@ -57,7 +57,7 @@ impl MenuContext {
   }
 }
 
-impl Default for MenuContext {
+impl Default for ContextMenu {
   fn default() -> Self {
     Self::new()
   }

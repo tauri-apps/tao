@@ -20,7 +20,7 @@ fn main() {
   use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    menu::{MenuContext as Menu, MenuItem, MenuType},
+    menu::{ContextMenu as Menu, MenuItem, MenuType},
     platform::system_tray::SystemTrayBuilder,
     window::Window,
   };
