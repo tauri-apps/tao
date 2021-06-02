@@ -12,9 +12,9 @@ use crate::{
   event_loop::EventLoopWindowTarget,
   menu::MenuType,
 };
-use std::cell::RefCell;
 use winapi::{
   shared::{
+    basetsd::LONG_PTR,
     minwindef::{LPARAM, LRESULT, UINT, WPARAM},
     windef::{HICON, HMENU, HWND, POINT, RECT},
   },
@@ -25,8 +25,6 @@ use winapi::{
     winuser::{self, CW_USEDEFAULT, WNDCLASSW, WS_OVERLAPPEDWINDOW},
   },
 };
-
-thread_local!(static WININFO_STASH: RefCell<Option<WindowsLoopData>> = RefCell::new(None));
 
 const WM_USER_TRAYICON: u32 = 0x400 + 1111;
 const WM_USER_TRAYICON_UID: u32 = 0x855 + 1111;
@@ -81,6 +79,26 @@ impl SystemTrayBuilder {
         // return Err(OsError::CreationError("Error registering window"));
       }
 
+      // system tray handler
+      let event_loop_runner = window_target.p.runner_shared.clone();
+      let menu_handler = MenuHandler::new(
+        Box::new(move |event| {
+          if let Ok(e) = event.map_nonuser_event() {
+            event_loop_runner.send_event(e)
+          }
+        }),
+        MenuType::SystemTray,
+      );
+      let app_system_tray = SystemTray {
+        // dummy hwnd, will populate it later
+        hwnd: std::ptr::null::<HWND>() as _,
+        hmenu,
+      };
+      let data = Box::into_raw(Box::new(WindowsLoopData {
+        system_tray: app_system_tray,
+        sender: menu_handler,
+      }));
+
       let hwnd = winuser::CreateWindowExW(
         0,
         class_name.as_ptr(),
@@ -93,7 +111,7 @@ impl SystemTrayBuilder {
         0 as _,
         0 as _,
         hinstance as _,
-        std::ptr::null_mut(),
+        data as _,
       );
       if hwnd == std::ptr::null_mut() {
         //return os_error!(OsError::CreationError("Error creating window"));
@@ -112,25 +130,6 @@ impl SystemTrayBuilder {
 
       let app_system_tray = SystemTray { hwnd, hmenu };
       app_system_tray.set_icon_from_buffer(&self.icon, 32, 32);
-
-      // create the handler for tray events
-      let event_loop_runner = window_target.p.runner_shared.clone();
-      let menu_handler = MenuHandler::new(
-        Box::new(move |event| {
-          if let Ok(e) = event.map_nonuser_event() {
-            event_loop_runner.send_event(e)
-          }
-        }),
-        MenuType::SystemTray,
-      );
-      // TODO: Remove `WININFO_STASH` thread_local and save hmenu into the box
-      WININFO_STASH.with(|stash| {
-        let data = WindowsLoopData {
-          system_tray: app_system_tray,
-          sender: menu_handler,
-        };
-        (*stash.borrow_mut()) = Some(data);
-      });
 
       // create the handler for tray menu events
       let event_loop_runner = window_target.p.runner_shared.clone();
@@ -207,6 +206,15 @@ unsafe extern "system" fn window_proc(
   wparam: WPARAM,
   lparam: LPARAM,
 ) -> LRESULT {
+  let mut userdata = winuser::GetWindowLongPtrW(hwnd, winuser::GWL_USERDATA);
+  if userdata == 0 && msg == winuser::WM_NCCREATE {
+    let createstruct = &*(lparam as *const winuser::CREATESTRUCTW);
+    userdata = createstruct.lpCreateParams as LONG_PTR;
+    (*(userdata as *mut WindowsLoopData)).system_tray.hwnd = hwnd;
+    winuser::SetWindowLongPtrW(hwnd, winuser::GWL_USERDATA, userdata);
+  }
+  let userdata_ptr = userdata as *mut WindowsLoopData;
+
   if msg == winuser::WM_DESTROY {
     winuser::PostQuitMessage(0);
   }
@@ -229,59 +237,50 @@ unsafe extern "system" fn window_proc(
     let mut cursor = POINT { x: 0, y: 0 };
     winuser::GetCursorPos(&mut cursor as _);
 
-    WININFO_STASH.with(|stash| {
-      let stash = stash.borrow();
-      let stash = stash.as_ref();
-      if let Some(stash) = stash {
-        match lparam as u32 {
-          // Left click tray icon
-          winuser::WM_LBUTTONUP => {
-            stash.sender.send_event(Event::TrayEvent {
-              event: ClickType::LeftClick,
-              position: PhysicalPosition::new(cursor.x as _, cursor.y as _),
-              bounds: Rectangle {
-                position: PhysicalPosition::new(rect.left as _, rect.top as _),
-                size: PhysicalSize::new(
-                  (rect.right - rect.left) as _,
-                  (rect.bottom - rect.top) as _,
-                ),
-              },
-            });
-          }
+    match lparam as u32 {
+      // Left click tray icon
+      winuser::WM_LBUTTONUP => {
+        (*userdata_ptr).sender.send_event(Event::TrayEvent {
+          event: ClickType::LeftClick,
+          position: PhysicalPosition::new(cursor.x as _, cursor.y as _),
+          bounds: Rectangle {
+            position: PhysicalPosition::new(rect.left as _, rect.top as _),
+            size: PhysicalSize::new((rect.right - rect.left) as _, (rect.bottom - rect.top) as _),
+          },
+        });
+      }
 
-          // Right click tray icon
-          winuser::WM_RBUTTONUP => {
-            stash.sender.send_event(Event::TrayEvent {
-              event: ClickType::RightClick,
-              position: PhysicalPosition::new(cursor.x as _, cursor.y as _),
-              bounds: Rectangle {
-                position: PhysicalPosition::new(5.0, 5.0),
-                size: PhysicalSize::new(5.0, 5.0),
-              },
-            });
+      // Right click tray icon
+      winuser::WM_RBUTTONUP => {
+        (*userdata_ptr).sender.send_event(Event::TrayEvent {
+          event: ClickType::RightClick,
+          position: PhysicalPosition::new(cursor.x as _, cursor.y as _),
+          bounds: Rectangle {
+            position: PhysicalPosition::new(5.0, 5.0),
+            size: PhysicalSize::new(5.0, 5.0),
+          },
+        });
 
-            // show menu on right click
-            if let Some(menu) = stash.system_tray.hmenu {
-              show_tray_menu(hwnd, menu, cursor.x, cursor.y);
-            }
-          }
-
-          // Double click tray icon
-          winuser::WM_LBUTTONDBLCLK => {
-            stash.sender.send_event(Event::TrayEvent {
-              event: ClickType::DoubleClick,
-              position: PhysicalPosition::new(cursor.x as _, cursor.y as _),
-              bounds: Rectangle {
-                position: PhysicalPosition::new(5.0, 5.0),
-                size: PhysicalSize::new(5.0, 5.0),
-              },
-            });
-          }
-
-          _ => {}
+        // show menu on right click
+        if let Some(menu) = (*userdata_ptr).system_tray.hmenu {
+          show_tray_menu(hwnd, menu, cursor.x, cursor.y);
         }
       }
-    });
+
+      // Double click tray icon
+      winuser::WM_LBUTTONDBLCLK => {
+        (*userdata_ptr).sender.send_event(Event::TrayEvent {
+          event: ClickType::DoubleClick,
+          position: PhysicalPosition::new(cursor.x as _, cursor.y as _),
+          bounds: Rectangle {
+            position: PhysicalPosition::new(5.0, 5.0),
+            size: PhysicalSize::new(5.0, 5.0),
+          },
+        });
+      }
+
+      _ => {}
+    }
   }
 
   return winuser::DefWindowProcW(hwnd, msg, wparam, lparam);
