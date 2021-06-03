@@ -1,6 +1,22 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
+//! **UNSTABLE** -- The `Menu` struct and associated types.
+//!
+//! [ContextMenu][context_menu] is used to created a tray menu.
+//!
+//! [MenuBar][menu_bar] is used to created a Window menu on Windows and Linux. On macOS it's used in the menubar.
+//!
+//! ```rust,ignore
+//! let mut root_menu = MenuBar::new();
+//! let mut file_menu = MenuBar::new();
+//!
+//! file_menu.add_item(MenuItemAttributes::new("My menu item"));
+//! root_menu.add_submenu("File", true, file_menu);
+//! ```
+//! [menu_bar]: crate::menu::MenuBar
+//! [context_menu]: crate::menu::ContextMenu
+
 use std::{
   collections::hash_map::DefaultHasher,
   hash::{Hash, Hasher},
@@ -8,9 +24,11 @@ use std::{
 
 use crate::platform_impl::{Menu as MenuPlatform, MenuItemAttributes as CustomMenuItemPlatform};
 
-/// Object that allows you to build a `ContextMenu`, for the tray.
+/// Object that allows you to create a `ContextMenu`.
 pub struct ContextMenu(pub(crate) Menu);
-/// Object that allows you to build a `MenuBar`, for the *Window* menu in Windows and Linux and the *Menu bar* on macOS.
+/// Object that allows you to create a `MenuBar`, menu.
+///
+/// Used by the **Window** menu in Windows and Linux and the **Menu bar** on macOS
 pub struct MenuBar(pub(crate) Menu);
 
 /// A custom menu item.
@@ -159,8 +177,11 @@ impl Default for MenuBar {
   }
 }
 
-/// A menu item, bound to a pre-defined native action. Note some platforms might not
-/// support some of the variants. Unsupported variant will be no-op on such platform.
+/// A menu item, bound to a pre-defined native action.
+///
+/// Note some platforms might not support some of the variants.
+/// Unsupported variant will be no-op on such platform.
+///
 #[derive(Debug, Clone)]
 pub enum Menuitem {
   /// Shows a standard "About" item
@@ -307,6 +328,7 @@ pub enum Menuitem {
 }
 
 /// Custom menu item, when clicked an event is emitted in the EventLoop.
+///
 /// You can modify the item after it's creation.
 #[derive(Debug, Clone)]
 pub struct CustomMenuItem(pub CustomMenuItemPlatform);

@@ -1,3 +1,32 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
+//! **UNSTABLE** -- The `SystemTray` struct and associated types.
+//!
+//! Use [SystemTrayBuilder][tray_builder] to create your tray instance.
+//!
+//! [ContextMenu][context_menu] is used to created a Window menu on Windows and Linux. On macOS it's used in the menubar.
+//!
+//! ```rust,ignore
+//! let mut tray_menu = ContextMenu::new();
+//! let icon = include_bytes!("my_icon.png").to_vec();
+//!
+//! tray_menu.add_item(MenuItemAttributes::new("My menu item"));
+//!
+//! let mut system_tray = SystemTrayBuilder::new(icon, Some(tray_menu))
+//!   .build(&event_loop)
+//!   .unwrap();
+//! ```
+//!
+//! # Windows
+//! The icon is not removed automatically.
+//!
+//! Use `SystemTrayExtWindows` and use the `remove()` function when your application is closing.
+//! 
+//! [tray_builder]: crate::system_tray::SystemTrayBuilder
+//! [menu_bar]: crate::menu::MenuBar
+//! [context_menu]: crate::menu::ContextMenu
+
 use crate::{
   error::OsError,
   event_loop::EventLoopWindowTarget,
@@ -6,7 +35,7 @@ use crate::{
     SystemTray as SystemTrayPlatform, SystemTrayBuilder as SystemTrayBuilderPlatform,
   },
 };
-/// Object that allows you to build SystemTray.
+/// Object that allows you to build SystemTray instance.
 pub struct SystemTrayBuilder(SystemTrayBuilderPlatform);
 
 #[cfg(target_os = "linux")]
@@ -56,7 +85,7 @@ impl SystemTrayBuilder {
   }
 }
 
-/// Represents a System Tray icon.
+/// Represents a System Tray instance.
 pub struct SystemTray(pub SystemTrayPlatform);
 
 impl SystemTray {
