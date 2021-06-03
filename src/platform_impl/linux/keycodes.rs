@@ -1,10 +1,10 @@
+use crate::platform::scancode::KeyCodeExtScancode;
 use crate::{
   event::{ElementState, KeyEvent},
-  keyboard::{Key, KeyLocation, ModifiersState, NativeKeyCode},
+  keyboard::{Key, KeyCode, KeyLocation, ModifiersState, NativeKeyCode},
 };
 use gdk::{keys::constants::*, EventKey, ModifierType};
 use std::ffi::c_void;
-use std::ops::Index;
 use std::os::raw::{c_int, c_uint};
 use std::ptr;
 use std::slice;
@@ -120,28 +120,23 @@ pub(crate) fn get_modifiers(modifiers: ModifierType) -> ModifiersState {
   result
 }
 
-pub fn make_key_event(key: &EventKey, repeat: bool, state: ElementState) -> Option<KeyEvent> {
+pub fn make_key_event(
+  key: &EventKey,
+  is_press: bool,
+  is_repeat: bool,
+  in_ime: bool,
+  key_override: Option<KeyCode>,
+  state: ElementState,
+) -> Option<KeyEvent> {
   let keyval = key.get_keyval();
-  let hardware_keycode = key.get_hardware_keycode();
+  let scancode = key.get_hardware_keycode();
   let unicode = gdk::keys::keyval_to_unicode(*keyval);
-  let keycode = hardware_keycode_to_keyval(hardware_keycode).unwrap_or_else(|| keyval.clone());
+  let mut physical_key = key_override.unwrap_or_else(|| KeyCode::from_scancode(scancode as u32));
 
-  let mods = get_modifiers(key.get_state());
-  let key = raw_key_to_key(keyval).unwrap_or_else(|| {
-    if let Some(char) = unicode {
-      if char >= ' ' && char != '\x7f' {
-        Key::Character(insert_or_get_key_str(char.to_string()))
-      } else {
-        Key::Unidentified(NativeKeyCode::Gtk(hardware_keycode))
-      }
-    } else {
-      Key::Unidentified(NativeKeyCode::Gtk(hardware_keycode))
-    }
-  });
-  //let code = hardware_keycode_to_code(hardware_keycode);
-  //let location = raw_key_to_location(keycode);
-  let is_composing = false;
-
+  println!("physical_key {:?}", physical_key);
+  println!("scancode {:?}", scancode);
+  println!("unicode {:?}", unicode);
+  println!("keyval {:?}", keyval);
   None
 }
 

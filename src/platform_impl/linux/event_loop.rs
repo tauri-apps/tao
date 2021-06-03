@@ -596,7 +596,14 @@ impl<T: 'static> EventLoop<T> {
                   log::warn!("Failed to send menu event to event channel: {}", e);
                 }
               */
-              let code = keycodes::raw_key_to_key(event_key.get_keyval());
+              let code = keycodes::make_key_event(
+                &event_key,
+                false,
+                false,
+                false,
+                None,
+                ElementState::Pressed,
+              );
               println!("event_key {:?}", code);
             }
           }
