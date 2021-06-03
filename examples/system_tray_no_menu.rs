@@ -72,7 +72,7 @@ fn main() {
   {
     let mut menu = ContextMenu::new();
     menu.add_item(MenuItemAttributes::new("Open").with_id(open_menu_id.clone()));
-    menu.add_item(MenuItemAttributes::new("Quit").with_id(close_menu_id.clone()));
+    menu.add_item(MenuItemAttributes::new("Quit").with_id(quit_menu_id.clone()));
     let _system_tray = SystemTrayBuilder::new(icon, Some(menu))
       .build(&event_loop)
       .unwrap();
