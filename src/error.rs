@@ -1,6 +1,7 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
+//! The `Error` struct and associated types.
 use std::{error, fmt};
 
 use crate::platform_impl;

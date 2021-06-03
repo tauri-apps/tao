@@ -14,7 +14,7 @@ use winapi::{
   ctypes::wchar_t,
   shared::{
     minwindef::{BOOL, DWORD, TRUE, UINT},
-    windef::{DPI_AWARENESS_CONTEXT, HMONITOR, HWND, LPRECT, RECT},
+    windef::{DPI_AWARENESS_CONTEXT, HICON, HMONITOR, HWND, LPRECT, RECT},
   },
   um::{
     libloaderapi::{GetProcAddress, LoadLibraryA},
@@ -201,6 +201,47 @@ pub fn is_focused(window: HWND) -> bool {
 
 pub fn is_visible(window: HWND) -> bool {
   unsafe { winuser::IsWindowVisible(window) == TRUE }
+}
+
+pub fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<HICON> {
+  unsafe {
+    match winuser::LookupIconIdFromDirectoryEx(
+      buffer.as_ptr() as _,
+      1,
+      width,
+      height,
+      winuser::LR_DEFAULTCOLOR,
+    ) as isize
+    {
+      0 => {
+        debug!("Unable to LookupIconIdFromDirectoryEx");
+        None
+      }
+      offset => {
+        // once we got the pointer offset for the directory
+        // lets create our resource
+        match winuser::CreateIconFromResourceEx(
+          buffer.as_ptr().offset(offset) as _,
+          buffer.len() as _,
+          1,
+          0x00030000,
+          0,
+          0,
+          winuser::LR_DEFAULTCOLOR,
+        ) {
+          // windows is really tough on icons
+          // if a bad icon is provided it'll fail here or in
+          // the LookupIconIdFromDirectoryEx if this is a bad format (example png's)
+          // with my tests, even some ICO's were failing...
+          hicon if hicon.is_null() => {
+            debug!("Unable to CreateIconFromResourceEx");
+            None
+          }
+          hicon => Some(hicon),
+        }
+      }
+    }
+  }
 }
 
 impl CursorIcon {

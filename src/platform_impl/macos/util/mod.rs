@@ -95,6 +95,20 @@ pub fn bottom_left_to_top_left(rect: NSRect) -> f64 {
   CGDisplay::main().pixels_high() as f64 - (rect.origin.y + rect.size.height)
 }
 
+#[cfg(feature = "tray")]
+/// Get the icon Y-axis correctly aligned with tao based on the tray icon `NSRect`.
+/// Available only with the `tray` feature flag.
+pub fn bottom_left_to_top_left_for_tray(rect: NSRect) -> f64 {
+  CGDisplay::main().pixels_high() as f64 - rect.origin.y
+}
+
+#[cfg(feature = "tray")]
+/// Get the cursor Y-axis correctly aligned with tao when we click on the tray icon.
+/// Available only with the `tray` feature flag.
+pub fn bottom_left_to_top_left_for_cursor(point: NSPoint) -> f64 {
+  CGDisplay::main().pixels_high() as f64 - point.y
+}
+
 /// Converts from tao screen-coordinates to macOS screen-coordinates.
 /// Tao: top-left is (0, 0) and y increasing downwards
 /// macOS: bottom-left is (0, 0) and y increasing upwards

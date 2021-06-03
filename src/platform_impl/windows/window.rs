@@ -18,7 +18,7 @@ use winapi::{
   ctypes::c_int,
   shared::{
     minwindef::{HINSTANCE, LPARAM, UINT, WPARAM},
-    windef::{HWND, POINT, POINTS, RECT},
+    windef::{self, HWND, POINT, POINTS, RECT},
   },
   um::{
     combaseapi::{self, CoCreateInstance, CLSCTX_SERVER},
@@ -40,7 +40,7 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
-  menu::Menu,
+  menu::MenuType,
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{
     dark_mode::try_theme,
@@ -50,10 +50,14 @@ use crate::{
     icon::{self, IconType},
     menu, monitor, util,
     window_state::{CursorFlags, SavedWindow, WindowFlags, WindowState},
-    Parent, PlatformSpecificWindowBuilderAttributes, WindowId,
+    OsError, Parent, PlatformSpecificWindowBuilderAttributes, WindowId,
   },
   window::{CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes},
 };
+
+struct HMenuWrapper(windef::HMENU);
+unsafe impl Send for HMenuWrapper {}
+unsafe impl Sync for HMenuWrapper {}
 
 /// The Win32 implementation of the main `Window` object.
 pub struct Window {
@@ -65,6 +69,9 @@ pub struct Window {
 
   // The events loop proxy.
   thread_executor: event_loop::EventLoopThreadExecutor,
+
+  // The menu associated with the window
+  menu: Option<HMenuWrapper>,
 }
 
 impl Window {
@@ -141,7 +148,7 @@ impl Window {
   }
 
   // TODO (lemarier): allow menu update
-  pub fn set_menu(&self, _new_menu: Option<Vec<Menu>>) {}
+  pub fn set_menu(&self, _new_menu: Option<menu::Menu>) {}
 
   #[inline]
   pub fn set_visible(&self, visible: bool) {
@@ -334,7 +341,7 @@ impl Window {
         .lock()
         .mouse
         .set_cursor_flags(window.0, |f| f.set(CursorFlags::GRABBED, grab))
-        .map_err(|e| ExternalError::Os(os_error!(e)));
+        .map_err(|e| ExternalError::Os(os_error!(OsError::IoError(e))));
       let _ = tx.send(result);
     });
     rx.recv().unwrap()
@@ -370,10 +377,14 @@ impl Window {
     let mut point = POINT { x, y };
     unsafe {
       if winuser::ClientToScreen(self.window.0, &mut point) == 0 {
-        return Err(ExternalError::Os(os_error!(io::Error::last_os_error())));
+        return Err(ExternalError::Os(os_error!(OsError::IoError(
+          io::Error::last_os_error()
+        ))));
       }
       if winuser::SetCursorPos(point.x, point.y) == 0 {
-        return Err(ExternalError::Os(os_error!(io::Error::last_os_error())));
+        return Err(ExternalError::Os(os_error!(OsError::IoError(
+          io::Error::last_os_error()
+        ))));
       }
     }
     Ok(())
@@ -738,6 +749,22 @@ impl Window {
       (*taskbar_list).Release();
     }
   }
+
+  #[inline]
+  pub fn hide_menu(&self) {
+    unsafe {
+      winuser::SetMenu(self.hwnd(), ptr::null::<windef::HMENU>() as _);
+    }
+  }
+
+  #[inline]
+  pub fn show_menu(&self) {
+    if let Some(menu) = &self.menu {
+      unsafe {
+        winuser::SetMenu(self.hwnd(), menu.0);
+      }
+    }
+  }
 }
 
 impl Drop for Window {
@@ -824,7 +851,7 @@ unsafe fn init<T: 'static>(
     );
 
     if handle.is_null() {
-      return Err(os_error!(io::Error::last_os_error()));
+      return Err(os_error!(OsError::IoError(io::Error::last_os_error())));
     }
 
     WindowWrapper(handle)
@@ -875,10 +902,11 @@ unsafe fn init<T: 'static>(
     window_state
   };
 
-  let win = Window {
+  let mut win = Window {
     window: real_window,
     window_state,
     thread_executor: event_loop.create_thread_executor(),
+    menu: None,
   };
 
   let dimensions = attributes
@@ -905,13 +933,16 @@ unsafe fn init<T: 'static>(
     let event_loop_runner = event_loop.runner_shared.clone();
     let window_handle = win.raw_window_handle();
 
-    let menu_handler = menu::MenuHandler::new(Box::new(move |event| {
-      if let Ok(e) = event.map_nonuser_event() {
-        event_loop_runner.send_event(e)
-      }
-    }));
+    let menu_handler = menu::MenuHandler::new(
+      Box::new(move |event| {
+        if let Ok(e) = event.map_nonuser_event() {
+          event_loop_runner.send_event(e)
+        }
+      }),
+      MenuType::MenuBar,
+    );
 
-    menu::initialize(window_menu, window_handle, menu_handler);
+    win.menu = menu::initialize(window_menu, window_handle, menu_handler).map(|m| HMenuWrapper(m));
   }
 
   if attributes.focus {

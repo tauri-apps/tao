@@ -167,6 +167,9 @@ mod icon;
 pub mod menu;
 pub mod monitor;
 mod platform_impl;
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+#[cfg(feature = "tray")]
+pub mod system_tray;
 pub mod window;
 
 pub mod platform;

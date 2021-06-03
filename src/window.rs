@@ -8,7 +8,7 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError},
   event_loop::EventLoopWindowTarget,
-  menu::Menu,
+  menu::MenuBar,
   monitor::{MonitorHandle, VideoMode},
   platform_impl,
 };
@@ -201,10 +201,10 @@ pub struct WindowAttributes {
   /// The window menu.
   ///
   /// The default is `None`.
-  pub window_menu: Option<Vec<Menu>>,
+  pub window_menu: Option<platform_impl::Menu>,
 
   /// Whether or not the window icon should be added to the taskbar.
-
+  ///
   /// The default is `false`.
   pub skip_taskbar: bool,
 }
@@ -312,8 +312,8 @@ impl WindowBuilder {
   ///
   /// [`Window::set_menu`]: crate::window::Window::set_menu
   #[inline]
-  pub fn with_menu<M: Into<Vec<Menu>>>(mut self, menu: M) -> Self {
-    self.window.window_menu = Some(menu.into());
+  pub fn with_menu(mut self, menu: MenuBar) -> Self {
+    self.window.window_menu = Some(menu.0.menu_platform);
     self
   }
 
@@ -630,8 +630,12 @@ impl Window {
   /// - **Windows:** Unsupported.
 
   #[inline]
-  pub fn set_menu(&self, menu: Option<Vec<Menu>>) {
-    self.window.set_menu(menu)
+  pub fn set_menu(&self, menu: Option<MenuBar>) {
+    if let Some(menu) = menu {
+      self.window.set_menu(Some(menu.0.menu_platform))
+    } else {
+      self.window.set_menu(None)
+    }
   }
 
   /// Modifies the window's visibility.
@@ -831,11 +835,36 @@ impl Window {
     self.window.request_user_attention(request_type)
   }
 
+  /// Hides the menu associated with the window
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOs/ iOS / Android:** Unsupported.
+  #[inline]
+  pub fn hide_menu(&self) {
+    self.window.hide_menu();
+  }
+
+  /// Shows the menu associated with the window
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOs/ iOS / Android:** Unsupported.
+  #[inline]
+  pub fn show_menu(&self) {
+    self.window.show_menu();
+  }
+
   /// Whether to show the window icon in the task bar or not.
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS/ iOS / Android:** Unsupported.
+  /// - **iOS / Android:** Unsupported.
+  ///
+  /// On macOS, you need to change the activation policy with
+  /// `event_loop.set_activation_policy(ActivationPolicy::Accessory);`
+  /// The `set_skip_taskbar` have no effect.
+  ///
   pub fn set_skip_taskbar(&self, skip: bool) {
     self.window.set_skip_taskbar(skip);
   }

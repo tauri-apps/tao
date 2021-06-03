@@ -481,99 +481,103 @@ impl<T: 'static> EventLoop<T> {
               });
             }
             WindowRequest::Redraw => window.queue_draw(),
-            WindowRequest::Menu(m) => {
-              match m {
-                MenuItem::Custom(c) => {
-                  if let Err(e) = event_tx.send(Event::MenuEvent {
-                    menu_id: c.id,
-                    origin: MenuType::Menubar,
-                  }) {
-                    log::warn!("Failed to send menu event to event channel: {}", e);
-                  }
+            WindowRequest::Menu(m) => match m {
+              (None, Some(menu_id)) => {
+                if let Err(e) = event_tx.send(Event::MenuEvent {
+                  menu_id,
+                  origin: MenuType::MenuBar,
+                }) {
+                  log::warn!("Failed to send menu event to event channel: {}", e);
                 }
-                MenuItem::About(_) => {
-                  let about = AboutDialog::new();
-                  about.show_all();
-                  app.add_window(&about);
-                }
-                MenuItem::Hide => window.hide(),
-                MenuItem::CloseWindow => window.close(),
-                MenuItem::Quit => {
-                  if let Err(e) = event_tx.send(Event::LoopDestroyed) {
-                    log::warn!(
-                      "Failed to send loop destroyed event to event channel: {}",
-                      e
-                    );
-                  }
-                }
-                #[cfg(any(feature = "menu", feature = "tray"))]
-                MenuItem::Cut => {
-                  if let Some(widget) = window.get_focus() {
-                    if widget.has_focus() {
-                      if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
-                        if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
-                          if let Some(buf) = view.get_buffer() {
-                            buf.cut_clipboard(&clipboard, true);
-                          }
-                        }
-                      } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
-                        entry.cut_clipboard();
-                      }
-                    }
-                  }
-                }
-                #[cfg(any(feature = "menu", feature = "tray"))]
-                MenuItem::Copy => {
-                  if let Some(widget) = window.get_focus() {
-                    if widget.has_focus() {
-                      if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
-                        if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
-                          if let Some(buf) = view.get_buffer() {
-                            buf.copy_clipboard(&clipboard);
-                          }
-                        }
-                      } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
-                        entry.copy_clipboard();
-                      }
-                    }
-                  }
-                }
-                #[cfg(any(feature = "menu", feature = "tray"))]
-                MenuItem::Paste => {
-                  if let Some(widget) = window.get_focus() {
-                    if widget.has_focus() {
-                      if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
-                        if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
-                          if let Some(buf) = view.get_buffer() {
-                            buf.paste_clipboard(&clipboard, None, true);
-                          }
-                        }
-                      } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
-                        entry.paste_clipboard();
-                      }
-                    }
-                  }
-                }
-                #[cfg(any(feature = "menu", feature = "tray"))]
-                MenuItem::SelectAll => {
-                  if let Some(widget) = window.get_focus() {
-                    if widget.has_focus() {
-                      if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
-                        if let Some(buf) = view.get_buffer() {
-                          buf.select_range(&buf.get_start_iter(), &buf.get_end_iter());
-                        }
-                      } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
-                        entry.select_region(0, -1);
-                      }
-                    }
-                  }
-                }
-                // TODO toggle fullscreen
-                MenuItem::EnterFullScreen => window.fullscreen(),
-                MenuItem::Minimize => window.iconify(),
-                _ => {}
               }
-            }
+              (Some(MenuItem::About(_)), None) => {
+                let about = AboutDialog::new();
+                about.show_all();
+                app.add_window(&about);
+              }
+              (Some(MenuItem::Hide), None) => window.hide(),
+              (Some(MenuItem::CloseWindow), None) => window.close(),
+              (Some(MenuItem::Quit), None) => {
+                if let Err(e) = event_tx.send(Event::LoopDestroyed) {
+                  log::warn!(
+                    "Failed to send loop destroyed event to event channel: {}",
+                    e
+                  );
+                }
+              }
+              #[cfg(any(feature = "menu", feature = "tray"))]
+              (Some(MenuItem::Cut), None) => {
+                if let Some(widget) = window.get_focus() {
+                  if widget.has_focus() {
+                    if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
+                      if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
+                        if let Some(buf) = view.get_buffer() {
+                          buf.cut_clipboard(&clipboard, true);
+                        }
+                      }
+                    } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
+                      entry.cut_clipboard();
+                    }
+                  }
+                }
+              }
+              #[cfg(any(feature = "menu", feature = "tray"))]
+              (Some(MenuItem::Copy), None) => {
+                if let Some(widget) = window.get_focus() {
+                  if widget.has_focus() {
+                    if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
+                      if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
+                        if let Some(buf) = view.get_buffer() {
+                          buf.copy_clipboard(&clipboard);
+                        }
+                      }
+                    } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
+                      entry.copy_clipboard();
+                    }
+                  }
+                }
+              }
+              #[cfg(any(feature = "menu", feature = "tray"))]
+              (Some(MenuItem::Paste), None) => {
+                if let Some(widget) = window.get_focus() {
+                  if widget.has_focus() {
+                    if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
+                      if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
+                        if let Some(buf) = view.get_buffer() {
+                          buf.paste_clipboard(&clipboard, None, true);
+                        }
+                      }
+                    } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
+                      entry.paste_clipboard();
+                    }
+                  }
+                }
+              }
+              #[cfg(any(feature = "menu", feature = "tray"))]
+              (Some(MenuItem::SelectAll), None) => {
+                if let Some(widget) = window.get_focus() {
+                  if widget.has_focus() {
+                    if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
+                      if let Some(buf) = view.get_buffer() {
+                        buf.select_range(&buf.get_start_iter(), &buf.get_end_iter());
+                      }
+                    } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
+                      entry.select_region(0, -1);
+                    }
+                  }
+                }
+              }
+              (Some(MenuItem::EnterFullScreen), None) => {
+                let state = window.get_window().unwrap().get_state();
+                if state.contains(WindowState::FULLSCREEN) {
+                  window.unfullscreen();
+                } else {
+                  window.fullscreen();
+                }
+              }
+              (Some(MenuItem::Minimize), None) => window.iconify(),
+              _ => {}
+            },
             WindowRequest::SetMenu((menus, accel_group, menu)) => {
               for i in menu.get_children() {
                 menu.remove(&i);
@@ -587,10 +591,10 @@ impl<T: 'static> EventLoop<T> {
             }
           }
         } else if id == WindowId::dummy() {
-          if let WindowRequest::Menu(MenuItem::Custom(c)) = request {
+          if let WindowRequest::Menu((None, Some(menu_id))) = request {
             if let Err(e) = event_tx.send(Event::MenuEvent {
-              menu_id: c.id,
-              origin: MenuType::SystemTray,
+              menu_id,
+              origin: MenuType::ContextMenu,
             }) {
               log::warn!("Failed to send status bar event to event channel: {}", e);
             }

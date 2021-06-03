@@ -16,7 +16,7 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::{BadIcon, Icon},
-  menu::{Menu, MenuItem},
+  menu::{MenuId, MenuItem},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{CursorIcon, Fullscreen, UserAttentionType, WindowAttributes},
 };
@@ -417,7 +417,7 @@ impl Window {
     }
   }
 
-  pub fn set_menu(&self, menu: Option<Vec<Menu>>) {
+  pub fn set_menu(&self, menu: Option<menu::Menu>) {
     if let Err(e) = self.window_requests_tx.send((
       self.window_id,
       WindowRequest::SetMenu((menu, self.accel_group.clone(), self.menu.clone())),
@@ -554,6 +554,16 @@ impl Window {
     }
   }
 
+  #[inline]
+  pub fn hide_menu(&self) {
+    self.menu.hide();
+  }
+
+  #[inline]
+  pub fn show_menu(&self) {
+    self.menu.show_all();
+  }
+
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
     if let Err(e) = self
       .window_requests_tx
@@ -638,8 +648,8 @@ pub enum WindowRequest {
   CursorIcon(Option<CursorIcon>),
   WireUpEvents,
   Redraw,
-  Menu(MenuItem),
-  SetMenu((Option<Vec<Menu>>, AccelGroup, gtk::Box)),
+  Menu((Option<MenuItem>, Option<MenuId>)),
+  SetMenu((Option<menu::Menu>, AccelGroup, gtk::Box)),
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {

@@ -17,6 +17,7 @@ use crate::{
   event_loop::EventLoop,
   monitor::MonitorHandle,
   platform_impl::{EventLoop as WindowsEventLoop, Parent, WinIcon},
+  system_tray::SystemTray,
   window::{BadIcon, Icon, Theme, Window, WindowBuilder},
 };
 
@@ -292,5 +293,18 @@ impl IconExtWindows for Icon {
   fn from_resource(ordinal: WORD, size: Option<PhysicalSize<u32>>) -> Result<Self, BadIcon> {
     let win_icon = WinIcon::from_resource(ordinal, size)?;
     Ok(Icon { inner: win_icon })
+  }
+}
+
+/// Additional methods on `SystemTray` that are specific to Windows.
+pub trait SystemTrayExtWindows {
+  fn remove(&mut self);
+}
+
+impl SystemTrayExtWindows for SystemTray {
+  /// Remove the tray icon.
+  /// Call this when your application is goind to close, to make sure the icon is correctly removed from the system tray.
+  fn remove(&mut self) {
+    self.0.remove()
   }
 }

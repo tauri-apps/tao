@@ -2,67 +2,71 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-  error::OsError, platform::system_tray::SystemTray as RootSystemTray,
-  platform_impl::EventLoopWindowTarget,
+  error::OsError, event_loop::EventLoopWindowTarget, system_tray::SystemTray as RootSystemTray,
 };
 
-pub struct SystemTray {}
+use std::path::PathBuf;
 
-impl SystemTray {
-  #[cfg(feature = "tray")]
-  pub(crate) fn initialize<T>(
-    window_target: &EventLoopWindowTarget<T>,
-    system_tray: &RootSystemTray,
-  ) -> Result<(), OsError> {
-    use crate::menu::MenuItem;
-    use gtk::prelude::*;
-    use libappindicator::{AppIndicator, AppIndicatorStatus};
+use gtk::{AccelGroup, WidgetExt};
+use libappindicator::{AppIndicator, AppIndicatorStatus};
 
-    use super::window::{WindowId, WindowRequest};
+use super::{menu::Menu, WindowId};
 
-    let icon = match system_tray.icon.file_stem() {
-      Some(name) => name.to_string_lossy(),
-      None => return Err(OsError::new(16, "system tray icon", super::OsError)),
-    };
-    let path = match system_tray.icon.parent() {
-      Some(name) => name.to_string_lossy(),
-      None => return Err(OsError::new(20, "system tray icon", super::OsError)),
-    };
-    let mut indicator = AppIndicator::with_path("tao application", &icon, &path);
-    indicator.set_status(AppIndicatorStatus::Active);
-    let mut m = gtk::Menu::new();
+pub struct SystemTrayBuilder {
+  pub(crate) system_tray: SystemTray,
+}
 
-    for i in system_tray.items.iter() {
-      match i {
-        MenuItem::Custom(c) => {
-          let item = gtk::MenuItem::with_label(&c.name);
-          let tx_ = window_target.window_requests_tx.clone();
-          let request = i.clone();
-          item.connect_activate(move |_| {
-            if let Err(e) = tx_.send((WindowId::dummy(), WindowRequest::Menu(request.clone()))) {
-              log::warn!("Fail to send menu request: {}", e);
-            }
-          });
-          m.append(&item);
-        }
-        MenuItem::Separator => {
-          let item = gtk::SeparatorMenuItem::new();
-          m.append(&item);
-        }
-        _ => (),
-      }
+impl SystemTrayBuilder {
+  #[inline]
+  pub fn new(icon: PathBuf, tray_menu: Option<Menu>) -> Self {
+    let path = icon.parent().expect("Invalid icon");
+    let app_indicator = AppIndicator::with_path(
+      "tao application",
+      &icon.to_string_lossy(),
+      &path.to_string_lossy(),
+    );
+    Self {
+      system_tray: SystemTray {
+        tray_menu,
+        app_indicator,
+      },
     }
-
-    indicator.set_menu(&mut m);
-    m.show_all();
-    Ok(())
   }
 
-  #[cfg(not(feature = "tray"))]
-  pub(crate) fn initialize<T>(
-    _window_target: &EventLoopWindowTarget<T>,
-    _system_tray: &RootSystemTray,
-  ) -> Result<(), OsError> {
-    Ok(())
+  #[inline]
+  pub fn build<T: 'static>(
+    mut self,
+    window_target: &EventLoopWindowTarget<T>,
+  ) -> Result<RootSystemTray, OsError> {
+    let tx_ = window_target.p.window_requests_tx.clone();
+
+    if let Some(tray_menu) = self.system_tray.tray_menu.clone() {
+      let menu = &mut tray_menu.into_gtkmenu(&tx_, &AccelGroup::new(), WindowId::dummy());
+
+      self.system_tray.app_indicator.set_menu(menu);
+      menu.show_all();
+    }
+
+    self
+      .system_tray
+      .app_indicator
+      .set_status(AppIndicatorStatus::Active);
+
+    Ok(RootSystemTray(self.system_tray))
+  }
+}
+
+pub struct SystemTray {
+  tray_menu: Option<Menu>,
+  app_indicator: AppIndicator,
+}
+
+impl SystemTray {
+  pub fn set_icon(&mut self, icon: PathBuf) {
+    let path = icon.parent().expect("Invalid icon");
+    self
+      .app_indicator
+      .set_icon_theme_path(&path.to_string_lossy());
+    self.app_indicator.set_icon(&icon.to_string_lossy())
   }
 }

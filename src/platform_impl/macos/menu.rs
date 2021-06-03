@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cocoa::{
-  appkit::{NSApp, NSApplication, NSEventModifierFlags, NSMenu, NSMenuItem},
+  appkit::{NSApp, NSApplication, NSButton, NSEventModifierFlags, NSMenu, NSMenuItem},
   base::{id, nil, selector},
   foundation::{NSAutoreleasePool, NSString},
 };
 use objc::{
   declare::ClassDecl,
-  rc::autoreleasepool,
-  runtime::{Class, Object, Sel},
+  runtime::{Class, Object, Sel, NO, YES},
 };
 use std::sync::Once;
 
 use crate::{
   event::Event,
-  menu::{Menu, MenuId, MenuItem, MenuType},
+  menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
+  platform::macos::NativeImage,
 };
 
 use super::{app_state::AppState, event::EventWrapper};
@@ -27,224 +27,366 @@ pub(crate) struct KeyEquivalent<'a> {
   pub(crate) masks: Option<NSEventModifierFlags>,
 }
 
+#[derive(Debug, Clone)]
+pub struct Menu {
+  pub menu: id,
+}
+
+unsafe impl Send for Menu {}
+unsafe impl Sync for Menu {}
+
+#[derive(Debug, Clone)]
+pub struct MenuItemAttributes(Option<MenuId>, pub(crate) id);
+
+impl MenuItemAttributes {
+  pub fn id(self) -> MenuId {
+    if let Some(menu_id) = self.0 {
+      return menu_id;
+    }
+    // return empty menu value
+    // can be used to compare
+    MenuId::EMPTY
+  }
+
+  pub fn set_enabled(&mut self, is_enabled: bool) {
+    unsafe {
+      let status = match is_enabled {
+        true => YES,
+        false => NO,
+      };
+      let () = msg_send![self.1, setEnabled: status];
+    }
+  }
+  pub fn set_title(&mut self, title: &str) {
+    unsafe {
+      let menu_title = NSString::alloc(nil).init_str(title);
+      self.1.setTitle_(menu_title);
+    }
+  }
+  pub fn set_selected(&mut self, is_selected: bool) {
+    unsafe {
+      let state = match is_selected {
+        true => 1_isize,
+        false => 0_isize,
+      };
+      let () = msg_send![self.1, setState: state];
+    }
+  }
+
+  // todo: set custom icon to the menu item
+  pub fn set_icon(&mut self, _icon: Vec<u8>) {}
+
+  // Available only with CustomMenuItemExtMacOS
+  pub fn set_native_image(&mut self, icon: NativeImage) {
+    unsafe {
+      let ns_image: id = icon.get_ns_image();
+      let image_ref: id = msg_send![class!(NSImage), imageNamed: ns_image];
+      let () = msg_send![self.1, setImage: image_ref];
+    }
+  }
+}
+
+impl Default for Menu {
+  fn default() -> Self {
+    Menu::new()
+  }
+}
+
+impl Menu {
+  pub fn new() -> Self {
+    unsafe {
+      let menu = NSMenu::alloc(nil).autorelease();
+      let () = msg_send![menu, setAutoenablesItems: NO];
+      Self { menu }
+    }
+  }
+  pub fn new_popup_menu() -> Self {
+    Self::new()
+  }
+
+  pub fn add_item(
+    &mut self,
+    menu_id: MenuId,
+    title: &str,
+    accelerators: Option<&str>,
+    enabled: bool,
+    selected: bool,
+    menu_type: MenuType,
+  ) -> CustomMenuItem {
+    let mut key_equivalent = None;
+    let mut accelerator_string: String;
+    if let Some(accelerator) = accelerators {
+      accelerator_string = accelerator.to_string();
+      let mut ns_modifier_flags: NSEventModifierFlags = NSEventModifierFlags::empty();
+      if accelerator_string.contains("<Primary>") {
+        accelerator_string = accelerator_string.replace("<Primary>", "");
+        ns_modifier_flags.insert(NSEventModifierFlags::NSCommandKeyMask);
+      }
+
+      if accelerator_string.contains("<Shift>") {
+        accelerator_string = accelerator_string.replace("<Shift>", "");
+        ns_modifier_flags.insert(NSEventModifierFlags::NSShiftKeyMask);
+      }
+
+      if accelerator_string.contains("<Ctrl>") {
+        accelerator_string = accelerator_string.replace("<Ctrl>", "");
+        ns_modifier_flags.insert(NSEventModifierFlags::NSControlKeyMask);
+      }
+
+      let mut masks = None;
+      if !ns_modifier_flags.is_empty() {
+        masks = Some(ns_modifier_flags);
+      }
+
+      key_equivalent = Some(KeyEquivalent {
+        key: accelerator_string.as_str(),
+        masks,
+      });
+    }
+
+    let menu_item = make_custom_menu_item(menu_id, &title, None, key_equivalent, menu_type);
+
+    unsafe {
+      if selected {
+        let () = msg_send![menu_item, setState: 1_isize];
+      }
+      if !enabled {
+        let () = msg_send![menu_item, setEnabled: NO];
+      }
+
+      self.menu.addItem_(menu_item);
+    }
+
+    CustomMenuItem(MenuItemAttributes(Some(menu_id), menu_item))
+  }
+
+  pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: Menu) {
+    unsafe {
+      let menu_title = NSString::alloc(nil).init_str(&title);
+      let menu_item = NSMenuItem::alloc(nil).autorelease();
+      let () = msg_send![submenu.menu, setTitle: menu_title];
+      let () = msg_send![menu_item, setTitle: menu_title];
+      if !enabled {
+        let () = msg_send![menu_item, setEnabled: NO];
+      }
+      menu_item.setSubmenu_(submenu.menu);
+      self.menu.addItem_(menu_item);
+    }
+  }
+
+  pub fn add_native_item(&mut self, item: MenuItem, menu_type: MenuType) -> Option<CustomMenuItem> {
+    let menu_details: Option<(Option<MenuId>, *mut Object)> = match item {
+      MenuItem::Separator => {
+        unsafe {
+          let sep = id::separatorItem(self.menu);
+          self.menu.addItem_(sep);
+        }
+        None
+      }
+      MenuItem::About(app_name) => {
+        let title = format!("About {}", app_name);
+        Some((
+          None,
+          make_menu_item(
+            title.as_str(),
+            Some(selector("orderFrontStandardAboutPanel:")),
+            None,
+            menu_type,
+          ),
+        ))
+      }
+      // Close window
+      MenuItem::CloseWindow => Some((
+        None,
+        make_menu_item(
+          "Close Window",
+          Some(selector("performClose:")),
+          Some(KeyEquivalent {
+            key: "w",
+            masks: None,
+          }),
+          menu_type,
+        ),
+      )),
+      MenuItem::Quit => Some((
+        None,
+        make_menu_item(
+          "Quit",
+          Some(selector("terminate:")),
+          Some(KeyEquivalent {
+            key: "q",
+            masks: None,
+          }),
+          menu_type,
+        ),
+      )),
+      MenuItem::Hide => Some((
+        None,
+        make_menu_item(
+          "Hide",
+          Some(selector("hide:")),
+          Some(KeyEquivalent {
+            key: "h",
+            masks: None,
+          }),
+          menu_type,
+        ),
+      )),
+      MenuItem::HideOthers => Some((
+        None,
+        make_menu_item(
+          "Hide Others",
+          Some(selector("hideOtherApplications:")),
+          Some(KeyEquivalent {
+            key: "h",
+            masks: Some(
+              NSEventModifierFlags::NSAlternateKeyMask | NSEventModifierFlags::NSCommandKeyMask,
+            ),
+          }),
+          menu_type,
+        ),
+      )),
+      MenuItem::ShowAll => Some((
+        None,
+        make_menu_item(
+          "Show All",
+          Some(selector("unhideAllApplications:")),
+          None,
+          menu_type,
+        ),
+      )),
+      MenuItem::EnterFullScreen => Some((
+        None,
+        make_menu_item(
+          "Enter Full Screen",
+          Some(selector("toggleFullScreen:")),
+          Some(KeyEquivalent {
+            key: "f",
+            masks: Some(
+              NSEventModifierFlags::NSCommandKeyMask | NSEventModifierFlags::NSControlKeyMask,
+            ),
+          }),
+          menu_type,
+        ),
+      )),
+      MenuItem::Minimize => Some((
+        None,
+        make_menu_item(
+          "Minimize",
+          Some(selector("performMiniaturize:")),
+          Some(KeyEquivalent {
+            key: "m",
+            masks: None,
+          }),
+          menu_type,
+        ),
+      )),
+      MenuItem::Zoom => Some((
+        None,
+        make_menu_item("Zoom", Some(selector("performZoom:")), None, menu_type),
+      )),
+      MenuItem::Copy => Some((
+        None,
+        make_menu_item(
+          "Copy",
+          Some(selector("copy:")),
+          Some(KeyEquivalent {
+            key: "c",
+            masks: None,
+          }),
+          menu_type,
+        ),
+      )),
+      MenuItem::Cut => Some((
+        None,
+        make_menu_item(
+          "Cut",
+          Some(selector("cut:")),
+          Some(KeyEquivalent {
+            key: "x",
+            masks: None,
+          }),
+          menu_type,
+        ),
+      )),
+      MenuItem::Paste => Some((
+        None,
+        make_menu_item(
+          "Paste",
+          Some(selector("paste:")),
+          Some(KeyEquivalent {
+            key: "v",
+            masks: None,
+          }),
+          menu_type,
+        ),
+      )),
+      MenuItem::Undo => Some((
+        None,
+        make_menu_item(
+          "Undo",
+          Some(selector("undo:")),
+          Some(KeyEquivalent {
+            key: "z",
+            masks: None,
+          }),
+          menu_type,
+        ),
+      )),
+      MenuItem::Redo => Some((
+        None,
+        make_menu_item(
+          "Redo",
+          Some(selector("redo:")),
+          Some(KeyEquivalent {
+            key: "Z",
+            masks: None,
+          }),
+          menu_type,
+        ),
+      )),
+      MenuItem::SelectAll => Some((
+        None,
+        make_menu_item(
+          "Select All",
+          Some(selector("selectAll:")),
+          Some(KeyEquivalent {
+            key: "a",
+            masks: None,
+          }),
+          menu_type,
+        ),
+      )),
+      MenuItem::Services => unsafe {
+        let item = make_menu_item("Services", None, None, MenuType::MenuBar);
+        let app_class = class!(NSApplication);
+        let app: id = msg_send![app_class, sharedApplication];
+        let services: id = msg_send![app, servicesMenu];
+        let _: () = msg_send![&*item, setSubmenu: services];
+        Some((None, item))
+      },
+    };
+
+    if let Some((menu_id, menu_item)) = menu_details {
+      unsafe {
+        self.menu.addItem_(menu_item);
+      }
+
+      return Some(CustomMenuItem(MenuItemAttributes(menu_id, menu_item)));
+    }
+
+    None
+  }
+}
+
 #[derive(Debug)]
 struct Action(Box<u32>);
 
-pub fn initialize(menu: Vec<Menu>) {
-  autoreleasepool(|| unsafe {
-    let menubar = NSMenu::new(nil).autorelease();
-
-    for menu in menu {
-      // create our menu
-      let menu_item = NSMenuItem::new(nil).autorelease();
-      menubar.addItem_(menu_item);
-      // prepare our submenu tree
-      let menu_title = NSString::alloc(nil).init_str(&menu.title);
-      let menu_object = NSMenu::alloc(nil).initWithTitle_(menu_title).autorelease();
-
-      // create menu
-      for item in &menu.items {
-        let item_obj: *mut Object = match item {
-          // Custom menu
-          MenuItem::Custom(custom_menu) => {
-            // build accelerators if provided
-            let mut key_equivalent = None;
-            let mut accelerator_string: String;
-            if let Some(accelerator) = &custom_menu.keyboard_accelerators {
-              accelerator_string = accelerator.clone();
-              let mut ns_modifier_flags: NSEventModifierFlags = NSEventModifierFlags::empty();
-
-              if accelerator_string.contains("<Primary>") {
-                accelerator_string = accelerator_string.replace("<Primary>", "");
-                ns_modifier_flags.insert(NSEventModifierFlags::NSCommandKeyMask);
-              }
-
-              if accelerator_string.contains("<Shift>") {
-                accelerator_string = accelerator_string.replace("<Shift>", "");
-                ns_modifier_flags.insert(NSEventModifierFlags::NSShiftKeyMask);
-              }
-
-              if accelerator_string.contains("<Ctrl>") {
-                accelerator_string = accelerator_string.replace("<Ctrl>", "");
-                ns_modifier_flags.insert(NSEventModifierFlags::NSControlKeyMask);
-              }
-
-              let mut masks = None;
-              if !ns_modifier_flags.is_empty() {
-                masks = Some(ns_modifier_flags);
-              }
-
-              key_equivalent = Some(KeyEquivalent {
-                key: accelerator_string.as_str(),
-                masks,
-              });
-            }
-
-            make_custom_menu_item(
-              custom_menu.id,
-              &custom_menu.name,
-              None,
-              key_equivalent,
-              MenuType::Menubar,
-            )
-          }
-          // Separator
-          MenuItem::Separator => NSMenuItem::separatorItem(nil),
-          // About
-          MenuItem::About(app_name) => {
-            let title = format!("About {}", app_name);
-            make_menu_item(
-              title.as_str(),
-              Some(selector("orderFrontStandardAboutPanel:")),
-              None,
-              MenuType::Menubar,
-            )
-          }
-          // Close window
-          MenuItem::CloseWindow => make_menu_item(
-            "Close Window",
-            Some(selector("performClose:")),
-            Some(KeyEquivalent {
-              key: "w",
-              masks: None,
-            }),
-            MenuType::Menubar,
-          ),
-          MenuItem::Quit => make_menu_item(
-            "Quit",
-            Some(selector("terminate:")),
-            Some(KeyEquivalent {
-              key: "q",
-              masks: None,
-            }),
-            MenuType::Menubar,
-          ),
-          MenuItem::Hide => make_menu_item(
-            "Hide",
-            Some(selector("hide:")),
-            Some(KeyEquivalent {
-              key: "h",
-              masks: None,
-            }),
-            MenuType::Menubar,
-          ),
-          MenuItem::HideOthers => make_menu_item(
-            "Hide Others",
-            Some(selector("hideOtherApplications:")),
-            Some(KeyEquivalent {
-              key: "h",
-              masks: Some(
-                NSEventModifierFlags::NSAlternateKeyMask | NSEventModifierFlags::NSCommandKeyMask,
-              ),
-            }),
-            MenuType::Menubar,
-          ),
-          MenuItem::ShowAll => make_menu_item(
-            "Show All",
-            Some(selector("unhideAllApplications:")),
-            None,
-            MenuType::Menubar,
-          ),
-          MenuItem::EnterFullScreen => make_menu_item(
-            "Enter Full Screen",
-            Some(selector("toggleFullScreen:")),
-            Some(KeyEquivalent {
-              key: "f",
-              masks: Some(
-                NSEventModifierFlags::NSCommandKeyMask | NSEventModifierFlags::NSControlKeyMask,
-              ),
-            }),
-            MenuType::Menubar,
-          ),
-          MenuItem::Minimize => make_menu_item(
-            "Minimize",
-            Some(selector("performMiniaturize:")),
-            Some(KeyEquivalent {
-              key: "m",
-              masks: None,
-            }),
-            MenuType::Menubar,
-          ),
-          MenuItem::Zoom => make_menu_item(
-            "Zoom",
-            Some(selector("performZoom:")),
-            None,
-            MenuType::Menubar,
-          ),
-          MenuItem::Copy => make_menu_item(
-            "Copy",
-            Some(selector("copy:")),
-            Some(KeyEquivalent {
-              key: "c",
-              masks: None,
-            }),
-            MenuType::Menubar,
-          ),
-          MenuItem::Cut => make_menu_item(
-            "Cut",
-            Some(selector("cut:")),
-            Some(KeyEquivalent {
-              key: "x",
-              masks: None,
-            }),
-            MenuType::Menubar,
-          ),
-          MenuItem::Paste => make_menu_item(
-            "Paste",
-            Some(selector("paste:")),
-            Some(KeyEquivalent {
-              key: "v",
-              masks: None,
-            }),
-            MenuType::Menubar,
-          ),
-          MenuItem::Undo => make_menu_item(
-            "Undo",
-            Some(selector("undo:")),
-            Some(KeyEquivalent {
-              key: "z",
-              masks: None,
-            }),
-            MenuType::Menubar,
-          ),
-          MenuItem::Redo => make_menu_item(
-            "Redo",
-            Some(selector("redo:")),
-            Some(KeyEquivalent {
-              key: "Z",
-              masks: None,
-            }),
-            MenuType::Menubar,
-          ),
-          MenuItem::SelectAll => make_menu_item(
-            "Select All",
-            Some(selector("selectAll:")),
-            Some(KeyEquivalent {
-              key: "a",
-              masks: None,
-            }),
-            MenuType::Menubar,
-          ),
-          MenuItem::Services => {
-            let item = make_menu_item("Services", None, None, MenuType::Menubar);
-            let app_class = class!(NSApplication);
-            let app: id = msg_send![app_class, sharedApplication];
-            let services: id = msg_send![app, servicesMenu];
-            let _: () = msg_send![&*item, setSubmenu: services];
-            item
-          }
-        };
-
-        menu_object.addItem_(item_obj);
-      }
-
-      menu_item.setSubmenu_(menu_object);
-    }
-
-    // Set the menu as main menu for the app
+pub fn initialize(menu_builder: Menu) {
+  unsafe {
     let app = NSApp();
-    app.setMainMenu_(menubar);
-  });
+    app.setMainMenu_(menu_builder.menu);
+  }
 }
 
 fn make_menu_alloc() -> *mut Object {
@@ -300,13 +442,13 @@ fn make_menu_item_from_alloc(
     let selector = match selector {
       Some(selector) => selector,
       None => match menu_type {
-        MenuType::Menubar => sel!(fireMenubarAction:),
-        MenuType::SystemTray => sel!(fireStatusbarAction:),
+        MenuType::MenuBar => sel!(fireMenubarAction:),
+        MenuType::ContextMenu => sel!(fireStatusbarAction:),
       },
     };
 
     // allocate our item to our class
-    let item: id = msg_send![alloc, initWithTitle:&*title action:selector keyEquivalent:&*key];
+    let item: id = msg_send![alloc, initWithTitle: title action: selector keyEquivalent: key];
     if let Some(masks) = masks {
       item.setKeyEquivalentModifierMask_(masks)
     }
@@ -346,11 +488,11 @@ fn make_menu_item_class() -> *const Class {
 }
 
 extern "C" fn fire_status_bar_click(this: &Object, _: Sel, _item: id) {
-  send_event(this, MenuType::SystemTray);
+  send_event(this, MenuType::ContextMenu);
 }
 
 extern "C" fn fire_menu_bar_click(this: &Object, _: Sel, _item: id) {
-  send_event(this, MenuType::Menubar);
+  send_event(this, MenuType::MenuBar);
 }
 
 fn send_event(this: &Object, origin: MenuType) {

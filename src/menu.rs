@@ -1,42 +1,190 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
+//! **UNSTABLE** -- The `Menu` struct and associated types.
+//!
+//! [ContextMenu][context_menu] is used to created a tray menu.
+//!
+//! [MenuBar][menu_bar] is used to created a Window menu on Windows and Linux. On macOS it's used in the menubar.
+//!
+//! ```rust,ignore
+//! let mut root_menu = MenuBar::new();
+//! let mut file_menu = MenuBar::new();
+//!
+//! file_menu.add_item(MenuItemAttributes::new("My menu item"));
+//! root_menu.add_submenu("File", true, file_menu);
+//! ```
+//!
+//! [menu_bar]: crate::menu::MenuBar
+//! [context_menu]: crate::menu::ContextMenu
+
 use std::{
   collections::hash_map::DefaultHasher,
   hash::{Hash, Hasher},
 };
 
-#[derive(Debug, Clone)]
-pub struct Menu {
-  pub title: String,
-  pub items: Vec<MenuItem>,
+use crate::platform_impl::{Menu as MenuPlatform, MenuItemAttributes as CustomMenuItemPlatform};
+
+/// Object that allows you to create a `ContextMenu`.
+pub struct ContextMenu(pub(crate) Menu);
+/// Object that allows you to create a `MenuBar`, menu.
+///
+/// Used by the **Window** menu in Windows and Linux and the **Menu bar** on macOS
+pub struct MenuBar(pub(crate) Menu);
+
+/// A custom menu item.
+pub struct MenuItemAttributes<'a> {
+  id: MenuId,
+  title: &'a str,
+  keyboard_accelerator: Option<&'a str>,
+  enabled: bool,
+  selected: bool,
 }
 
-impl Menu {
-  pub fn new(title: &str, items: Vec<MenuItem>) -> Self {
+impl<'a> MenuItemAttributes<'a> {
+  /// Creates a new custom menu item.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** `selected` render a regular item
+  pub fn new(title: &'a str) -> Self {
     Self {
-      title: String::from(title),
-      items,
+      id: MenuId::new(title),
+      title,
+      keyboard_accelerator: None,
+      enabled: true,
+      selected: false,
     }
+  }
+
+  /// Assign a custom menu id.
+  pub fn with_id(mut self, id: MenuId) -> Self {
+    self.id = id;
+    self
+  }
+
+  /// Assign keyboard shortcut to the menu action.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows / Android / iOS:** Unsupported
+  ///
+  pub fn with_accelerators(mut self, keyboard_accelerators: &'a str) -> Self {
+    self.keyboard_accelerator = Some(keyboard_accelerators);
+    self
+  }
+
+  /// Assign default menu state.
+  pub fn with_enabled(mut self, enabled: bool) -> Self {
+    self.enabled = enabled;
+    self
+  }
+
+  /// Assign default checkbox style.
+  pub fn with_selected(mut self, selected: bool) -> Self {
+    self.selected = selected;
+    self
   }
 }
 
-#[derive(Debug, Clone, Hash)]
-/// CustomMenu is a custom menu who emit an event inside the EventLoop.
-pub struct CustomMenu {
-  pub id: MenuId,
-  pub name: String,
-  pub keyboard_accelerators: Option<String>,
+/// Base `Menu` functions.
+///
+/// See `ContextMenu` or `MenuBar` to build your menu.
+#[derive(Debug, Clone)]
+pub(crate) struct Menu {
+  pub(crate) menu_platform: MenuPlatform,
+  pub(crate) menu_type: MenuType,
 }
 
-/// A menu item, bound to a pre-defined action or `Custom` emit an event. Note that status bar only
-/// supports `Custom` menu item variants. And on the menu bar, some platforms might not support some
-/// of the variants. Unsupported variant will be no-op on such platform.
+impl ContextMenu {
+  /// Creates a new Menu for context (popup, tray etc..).
+  pub fn new() -> Self {
+    Self(Menu {
+      menu_platform: MenuPlatform::new_popup_menu(),
+      menu_type: MenuType::ContextMenu,
+    })
+  }
+
+  /// Add a submenu.
+  pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: ContextMenu) {
+    self
+      .0
+      .menu_platform
+      .add_submenu(title, enabled, submenu.0.menu_platform);
+  }
+
+  /// Add new item to this menu.
+  pub fn add_item(&mut self, item: MenuItemAttributes<'_>) -> CustomMenuItem {
+    self.0.menu_platform.add_item(
+      item.id,
+      item.title,
+      item.keyboard_accelerator,
+      item.enabled,
+      item.selected,
+      MenuType::ContextMenu,
+    )
+  }
+
+  /// Add new item to this menu.
+  pub fn add_native_item(&mut self, item: MenuItem) -> Option<CustomMenuItem> {
+    self.0.menu_platform.add_native_item(item, self.0.menu_type)
+  }
+}
+
+impl Default for ContextMenu {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
+impl MenuBar {
+  /// Creates a new Menubar (Window) menu for platforms where this is appropriate.
+  pub fn new() -> Self {
+    Self(Menu {
+      menu_platform: MenuPlatform::new(),
+      menu_type: MenuType::MenuBar,
+    })
+  }
+
+  /// Add a submenu.
+  pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: MenuBar) {
+    self
+      .0
+      .menu_platform
+      .add_submenu(title, enabled, submenu.0.menu_platform);
+  }
+
+  /// Add new item to this menu.
+  pub fn add_item(&mut self, item: MenuItemAttributes<'_>) -> CustomMenuItem {
+    self.0.menu_platform.add_item(
+      item.id,
+      item.title,
+      item.keyboard_accelerator,
+      item.enabled,
+      item.selected,
+      MenuType::MenuBar,
+    )
+  }
+
+  /// Add new item to this menu.
+  pub fn add_native_item(&mut self, item: MenuItem) -> Option<CustomMenuItem> {
+    self.0.menu_platform.add_native_item(item, self.0.menu_type)
+  }
+}
+
+impl Default for MenuBar {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
+/// A menu item, bound to a pre-defined native action.
+///
+/// Note some platforms might not support some of the variants.
+/// Unsupported variant will be no-op on such platform.
+///
 #[derive(Debug, Clone)]
 pub enum MenuItem {
-  /// A custom menu emit an event inside the EventLoop.
-  Custom(CustomMenu),
-
   /// Shows a standard "About" item
   ///
   /// ## Platform-specific
@@ -49,7 +197,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   Hide,
 
@@ -81,7 +229,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   CloseWindow,
 
@@ -89,7 +237,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   Quit,
 
@@ -97,7 +245,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   /// - **Linux**: require `menu` feature flag
   ///
   Copy,
@@ -106,7 +254,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   /// - **Linux**: require `menu` feature flag
   ///
   Cut,
@@ -142,7 +290,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   /// - **Linux**: require `menu` feature flag
   ///
   Paste,
@@ -159,7 +307,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   Minimize,
 
@@ -175,46 +323,47 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   Separator,
 }
 
-impl MenuItem {
-  /// Create new custom menu item.
-  /// unique_menu_id is the unique ID for the menu item returned in the EventLoop `Event::MenuEvent(unique_menu_id)`
-  pub fn new(title: impl ToString) -> Self {
-    let title = title.to_string();
-    MenuItem::Custom(CustomMenu {
-      id: MenuId::new(&title),
-      name: title,
-      keyboard_accelerators: None,
-    })
+/// Custom menu item, when clicked an event is emitted in the EventLoop.
+///
+/// You can modify the item after it's creation.
+#[derive(Debug, Clone)]
+pub struct CustomMenuItem(pub CustomMenuItemPlatform);
+
+/// Base `CustomMenuItem` functions.
+impl CustomMenuItem {
+  /// Returns an identifier unique to the menu item.
+  pub fn id(self) -> MenuId {
+    self.0.id()
   }
 
-  /// Assign keyboard shortcut to the menu action. Works only with `MenuItem::Custom`.
+  /// Modifies the status of the menu item.
+  pub fn set_enabled(&mut self, is_enabled: bool) {
+    self.0.set_enabled(is_enabled)
+  }
+
+  /// Modifies the title (label) of the menu item.
+  pub fn set_title(&mut self, title: &str) {
+    self.0.set_title(title)
+  }
+
+  /// Modifies the selected state of the menu item.
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
-  ///
-  pub fn with_accelerators(mut self, keyboard_accelerators: impl ToString) -> Self {
-    if let MenuItem::Custom(ref mut custom_menu) = self {
-      custom_menu.keyboard_accelerators = Some(keyboard_accelerators.to_string());
-    }
-    self
+  /// - **Linux:** Unsupported, render a regular item
+  pub fn set_selected(&mut self, is_selected: bool) {
+    self.0.set_selected(is_selected)
   }
 
-  /// Return unique menu ID. Works only with `MenuItem::Custom`.
-  pub fn id(&self) -> MenuId {
-    if let MenuItem::Custom(custom_menu) = self {
-      return custom_menu.id;
-    }
-
-    // return blank menu id if we request under a non-custom menu
-    // this prevent to wrap it inside an Option<>
-    MenuId(4294967295)
-  }
+  // todo: Add set_icon
+  // pub fn set_icon(&mut self, icon: Vec<u8>) {
+  //   self.0.set_icon(icon)
+  // }
 }
 
 /// Identifier of a custom menu item.
@@ -231,8 +380,17 @@ impl From<MenuId> for u32 {
 }
 
 impl MenuId {
-  fn new(menu_title: &str) -> MenuId {
-    MenuId(hash_string_to_u32(menu_title))
+  /// Return an empty `MenuId`.
+  pub const EMPTY: MenuId = MenuId(0);
+
+  /// Create new `MenuId` from a String.
+  pub fn new(unique_string: &str) -> MenuId {
+    MenuId(hash_string_to_u32(unique_string))
+  }
+
+  /// Whenever this menu is empty.
+  pub fn is_empty(self) -> bool {
+    Self::EMPTY == self
   }
 }
 
@@ -240,9 +398,9 @@ impl MenuId {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum MenuType {
   /// Menubar menu item.
-  Menubar,
+  MenuBar,
   /// System tray menu item.
-  SystemTray,
+  ContextMenu,
 }
 
 fn hash_string_to_u32(title: &str) -> u32 {

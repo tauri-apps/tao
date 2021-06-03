@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(target_os = "android")]
-
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error, event,
   event_loop::{self, ControlFlow},
-  menu::Menu,
+  menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   monitor, window,
 };
 use ndk::{
@@ -43,6 +42,57 @@ fn poll(poll: Poll) -> Option<EventSource> {
     Poll::Wake => Some(EventSource::User),
     Poll::Callback => unreachable!(),
   }
+}
+
+// todo: implement android menubar
+#[derive(Debug, Clone)]
+pub struct MenuItemAttributes;
+
+#[derive(Debug, Clone)]
+pub struct Menu;
+
+impl Default for Menu {
+  fn default() -> Self {
+    Menu::new()
+  }
+}
+
+impl Menu {
+  pub fn new() -> Self {
+    Menu {}
+  }
+  pub fn new_popup_menu() -> Self {
+    Self::new()
+  }
+  pub fn add_item(
+    &mut self,
+    _menu_id: MenuId,
+    _title: &str,
+    _accelerators: Option<&str>,
+    _enabled: bool,
+    _selected: bool,
+    _menu_type: MenuType,
+  ) -> CustomMenuItem {
+    CustomMenuItem(MenuItemAttributes {})
+  }
+  pub fn add_submenu(&mut self, _title: &str, _enabled: bool, _submenu: Menu) {}
+  pub fn add_native_item(
+    &mut self,
+    _item: MenuItem,
+    _menu_type: MenuType,
+  ) -> Option<CustomMenuItem> {
+    None
+  }
+}
+
+impl MenuItemAttributes {
+  pub fn id(self) -> MenuId {
+    MenuId::EMPTY
+  }
+  pub fn set_enabled(&mut self, _is_enabled: bool) {}
+  pub fn set_title(&mut self, _title: &str) {}
+  pub fn set_selected(&mut self, _is_selected: bool) {}
+  pub fn set_icon(&mut self, _icon: Vec<u8>) {}
 }
 
 pub struct EventLoop<T: 'static> {
@@ -498,7 +548,7 @@ impl Window {
 
   pub fn set_title(&self, _title: &str) {}
 
-  pub fn set_menu(&self, _menu: Option<Vec<Menu>>) {}
+  pub fn set_menu(&self, _menu: Option<Menu>) {}
 
   pub fn set_visible(&self, _visibility: bool) {}
 
@@ -549,6 +599,10 @@ impl Window {
   pub fn set_ime_position(&self, _position: Position) {}
 
   pub fn request_user_attention(&self, _request_type: Option<window::UserAttentionType>) {}
+
+  pub fn hide_menu(&self) {}
+
+  pub fn show_menu(&self) {}
 
   pub fn set_skip_taskbar(&self, _skip: bool) {}
 

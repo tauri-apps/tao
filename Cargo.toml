@@ -27,7 +27,9 @@ targets = [
 
 [features]
 default = [ "tray" ]
+# Menu is unstable.
 menu = [ "sourceview" ]
+# Tray is unstable.
 tray = [ "sourceview", "libappindicator" ]
 dox = [ "gtk/dox", "sourceview/dox" ]
 

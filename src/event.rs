@@ -78,6 +78,17 @@ pub enum Event<'a, T: 'static> {
   /// menu bar, the other comes from the status bar.
   MenuEvent { menu_id: MenuId, origin: MenuType },
 
+  /// Emitted when tray has been clicked.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Linux:** Unsupported.
+  TrayEvent {
+    bounds: Rectangle,
+    event: TrayEvent,
+    position: PhysicalPosition<f64>,
+  },
+
   /// Emitted when the application has been suspended.
   Suspended,
 
@@ -150,6 +161,15 @@ impl<T: Clone> Clone for Event<'static, T> {
         menu_id: *menu_id,
         origin: *origin,
       },
+      TrayEvent {
+        bounds,
+        event,
+        position,
+      } => TrayEvent {
+        bounds: *bounds,
+        event: *event,
+        position: *position,
+      },
     }
   }
 }
@@ -169,6 +189,15 @@ impl<'a, T> Event<'a, T> {
       Suspended => Ok(Suspended),
       Resumed => Ok(Resumed),
       MenuEvent { menu_id, origin } => Ok(MenuEvent { menu_id, origin }),
+      TrayEvent {
+        bounds,
+        event,
+        position,
+      } => Ok(TrayEvent {
+        bounds,
+        event,
+        position,
+      }),
     }
   }
 
@@ -190,6 +219,15 @@ impl<'a, T> Event<'a, T> {
       Suspended => Some(Suspended),
       Resumed => Some(Resumed),
       MenuEvent { menu_id, origin } => Some(MenuEvent { menu_id, origin }),
+      TrayEvent {
+        bounds,
+        event,
+        position,
+      } => Some(TrayEvent {
+        bounds,
+        event,
+        position,
+      }),
     }
   }
 }
@@ -642,6 +680,42 @@ pub enum TouchPhase {
   Moved,
   Ended,
   Cancelled,
+}
+
+/// Describes available tray events.
+// FIXME: add `hover` to TrayEvent for all platforms.
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum TrayEvent {
+  /// Fired when a menu item receive a <kbd>Left Mouse Click</kbd>
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** Unsupported
+  ///
+  LeftClick,
+  /// Fired when a menu item receive a <kbd>Right Mouse Click</kbd>
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** Unsupported
+  /// - **macOS:** <kbd>⌃ Control</kbd> + <kbd>Mouse Click</kbd> fire this event.
+  ///
+  RightClick,
+  /// Fired when a menu item receive a <kbd>Double Mouse Click</kbd>
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / Linux:** Unsupported
+  ///
+  DoubleClick,
+}
+
+/// Describes a rectangle including position (x - y axis) and size.
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub struct Rectangle {
+  pub position: PhysicalPosition<f64>,
+  pub size: PhysicalSize<f64>,
 }
 
 /// Represents a touch event
