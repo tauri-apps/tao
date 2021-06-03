@@ -5,12 +5,11 @@ use std::collections::HashMap;
 
 use simple_logger::SimpleLogger;
 use tao::{
-  event::{ElementState, Event, KeyboardInput, WindowEvent},
+  event::{ElementState, Event, KeyEvent, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   window::Window,
 };
 
-#[allow(clippy::single_match)]
 fn main() {
   SimpleLogger::new().init().unwrap();
   let event_loop = EventLoop::new();
@@ -38,9 +37,9 @@ fn main() {
             }
           }
           WindowEvent::KeyboardInput {
-            input:
-              KeyboardInput {
-                state: ElementState::Pressed,
+            event:
+              KeyEvent {
+                state: ElementState::Released,
                 ..
               },
             ..

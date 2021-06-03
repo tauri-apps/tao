@@ -3,7 +3,7 @@
 
 use simple_logger::SimpleLogger;
 use tao::{
-  event::{ElementState, Event, KeyboardInput, WindowEvent},
+  event::{ElementState, Event, KeyEvent, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   window::{CursorIcon, WindowBuilder},
 };
@@ -24,8 +24,8 @@ fn main() {
       Event::WindowEvent {
         event:
           WindowEvent::KeyboardInput {
-            input:
-              KeyboardInput {
+            event:
+              KeyEvent {
                 state: ElementState::Pressed,
                 ..
               },
@@ -46,6 +46,7 @@ fn main() {
         ..
       } => {
         *control_flow = ControlFlow::Exit;
+        return;
       }
       _ => (),
     }

@@ -5,8 +5,9 @@ use std::io::{stdin, stdout, Write};
 
 use simple_logger::SimpleLogger;
 use tao::{
-  event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
+  event::{ElementState, Event, KeyEvent, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
+  keyboard::Key,
   monitor::{MonitorHandle, VideoMode},
   window::{Fullscreen, WindowBuilder},
 };
@@ -44,30 +45,33 @@ fn main() {
       Event::WindowEvent { event, .. } => match event {
         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
         WindowEvent::KeyboardInput {
-          input:
-            KeyboardInput {
-              virtual_keycode: Some(virtual_code),
-              state,
+          event:
+            KeyEvent {
+              logical_key: key,
+              state: ElementState::Pressed,
               ..
             },
           ..
-        } => match (virtual_code, state) {
-          (VirtualKeyCode::Escape, _) => *control_flow = ControlFlow::Exit,
-          (VirtualKeyCode::F, ElementState::Pressed) => {
+        } => match key {
+          Key::Escape => *control_flow = ControlFlow::Exit,
+
+          // WARNING: Consider using `key_without_modifers()` if available on your platform.
+          // See the `key_binding` example
+          Key::Character("f") => {
             if window.fullscreen().is_some() {
               window.set_fullscreen(None);
             } else {
               window.set_fullscreen(fullscreen.clone());
             }
           }
-          (VirtualKeyCode::S, ElementState::Pressed) => {
+          Key::Character("s") => {
             println!("window.fullscreen {:?}", window.fullscreen());
           }
-          (VirtualKeyCode::M, ElementState::Pressed) => {
+          Key::Character("m") => {
             let is_maximized = window.is_maximized();
             window.set_maximized(!is_maximized);
           }
-          (VirtualKeyCode::D, ElementState::Pressed) => {
+          Key::Character("d") => {
             decorations = !decorations;
             window.set_decorations(decorations);
           }
@@ -81,7 +85,6 @@ fn main() {
 }
 
 // Enumerate monitors and prompt user to choose one
-#[allow(clippy::ok_expect)]
 fn prompt_for_monitor(event_loop: &EventLoop<()>) -> MonitorHandle {
   for (num, monitor) in event_loop.available_monitors().enumerate() {
     println!("Monitor #{}: {:?}", num, monitor.name());
@@ -103,7 +106,6 @@ fn prompt_for_monitor(event_loop: &EventLoop<()>) -> MonitorHandle {
   monitor
 }
 
-#[allow(clippy::ok_expect)]
 fn prompt_for_video_mode(monitor: &MonitorHandle) -> VideoMode {
   for (i, video_mode) in monitor.video_modes().enumerate() {
     println!("Video mode #{}: {}", i, video_mode);
