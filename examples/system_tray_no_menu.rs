@@ -67,10 +67,12 @@ fn main() {
 
   // linux require a menu so let's add only a open button
   let open_menu_id = MenuId::new("open_menu_id_linux");
+  let quit_menu_id = MenuId::new("quit_app");
   #[cfg(target_os = "linux")]
   {
     let mut menu = ContextMenu::new();
     menu.add_item(MenuItemAttributes::new("Open").with_id(open_menu_id.clone()));
+    menu.add_item(MenuItemAttributes::new("Quit").with_id(close_menu_id.clone()));
     let _system_tray = SystemTrayBuilder::new(icon, Some(menu))
       .build(&event_loop)
       .unwrap();
@@ -99,6 +101,8 @@ fn main() {
         let window = WindowBuilder::new().build(&event_loop).unwrap();
         windows.insert(window.id(), window);
       }
+      // if we got `Quit` click, exit the app
+      Event::MenuEvent { menu_id, .. } if menu_id == quit_menu_id => *control_flow = ControlFlow::Exit,
       Event::TrayEvent {
         mut bounds,
         event,
