@@ -66,13 +66,13 @@ fn main() {
   let icon = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/icon.png");
 
   // linux require a menu so let's add only a open button
-  let open_menu_id = MenuId::new("open_menu_id_linux");
-  let quit_menu_id = MenuId::new("quit_app");
+  let open_menu_id = MenuId::new("open_menu");
+  let quit_menu_id = MenuId::new("quit_menu");
   #[cfg(target_os = "linux")]
   {
     let mut menu = ContextMenu::new();
-    menu.add_item(MenuItemAttributes::new("Open").with_id(open_menu_id.clone()));
-    menu.add_item(MenuItemAttributes::new("Quit").with_id(quit_menu_id.clone()));
+    menu.add_item(MenuItemAttributes::new("Open").with_id(open_menu_id));
+    menu.add_item(MenuItemAttributes::new("Quit").with_id(quit_menu_id));
     let _system_tray = SystemTrayBuilder::new(icon, Some(menu))
       .build(&event_loop)
       .unwrap();
