@@ -1,9 +1,9 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use glib::Sender;
+use glib::{Cast, Sender};
 use gtk::{
-  prelude::*, AccelFlags, AccelGroup, Menu as GtkMenu, MenuBar, MenuItem as GtkMenuItem,
+  prelude::*, AccelFlags, AccelGroup, Menu as GtkMenu, MenuBar, MenuItem as GtkMenuItem, CheckMenuItem,
   SeparatorMenuItem,
 };
 
@@ -100,14 +100,19 @@ impl Menu {
     selected: bool,
     menu_type: MenuType,
   ) -> CustomMenuItemHandle {
-    let new_gtk_item = GtkMenuItem::with_label(&title);
+    let gtk_item = if selected {
+        let item = CheckMenuItem::with_label(&title);
+        item.upcast::<GtkMenuItem>()
+    } else {
+        GtkMenuItem::with_label(&title)
+    };
     let custom_menu = CustomMenuItem {
       id: menu_id,
       key: accelerators.map(|a| a.to_string()),
       enabled,
       selected,
       menu_type,
-      gtk_item: new_gtk_item,
+      gtk_item,
     };
 
     self.gtk_items.push(GtkMenuInfo {
