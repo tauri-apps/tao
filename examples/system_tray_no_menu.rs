@@ -9,13 +9,14 @@ fn main() {
   use simple_logger::SimpleLogger;
   use std::collections::HashMap;
   #[cfg(target_os = "linux")]
-  use std::path::Path;
+  use tao::menu::{ContextMenu, MenuItemAttributes};
   #[cfg(target_os = "macos")]
   use tao::platform::macos::{ActivationPolicy, EventLoopExtMacOS};
   use tao::{
     dpi::LogicalSize,
     event::{Event, Rectangle, TrayEvent, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
+    menu::MenuId,
     system_tray::SystemTrayBuilder,
     window::WindowBuilder,
   };
@@ -62,8 +63,19 @@ fn main() {
   #[cfg(target_os = "linux")]
   let icon = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/icon.png");
 
-  // Only supported on macOS, linux and windows
-  #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+  // linux require a menu so let's add only a open button
+  let open_menu_id = MenuId::new("open_menu_id_linux");
+  #[cfg(target_os = "linux")]
+  {
+    let mut menu = ContextMenu::new();
+    menu.add_item(MenuItemAttributes::new("Open").with_id(open_menu_id.clone()));
+    let _system_tray = SystemTrayBuilder::new(icon, Some(menu))
+      .build(&event_loop)
+      .unwrap();
+  }
+
+  // macos and windows support no menu in tray
+  #[cfg(any(target_os = "macos", target_os = "windows"))]
   let _system_tray = SystemTrayBuilder::new(icon, None)
     .build(&event_loop)
     .unwrap();
@@ -79,7 +91,12 @@ fn main() {
           windows.remove(&window_id);
         }
       }
-      // NOTE: tray event's are always sent, even if menu is set
+      // if we got a menu event from our `open_menu_id` open a new window..
+      // (used on linux)
+      Event::MenuEvent { menu_id, .. } if menu_id == open_menu_id => {
+        let window = WindowBuilder::new().build(&event_loop).unwrap();
+        windows.insert(window.id(), window);
+      }
       Event::TrayEvent {
         mut bounds,
         event,

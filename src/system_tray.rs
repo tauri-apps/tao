@@ -23,6 +23,9 @@
 //!
 //! Use `SystemTrayExtWindows` and use the `remove()` function when your application is closing.
 //!
+//! # Linux
+//! A menu is required or the tray return an error containing `assertion 'G_IS_DBUS_CONNECTION (connection)'`.
+//!
 //! [tray_builder]: crate::system_tray::SystemTrayBuilder
 //! [menu_bar]: crate::menu::MenuBar
 //! [context_menu]: crate::menu::ContextMenu

@@ -14,6 +14,7 @@
 //! file_menu.add_item(MenuItemAttributes::new("My menu item"));
 //! root_menu.add_submenu("File", true, file_menu);
 //! ```
+//!
 //! [menu_bar]: crate::menu::MenuBar
 //! [context_menu]: crate::menu::ContextMenu
 
