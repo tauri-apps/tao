@@ -687,22 +687,22 @@ pub enum TouchPhase {
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum TrayEvent {
-  /// Fired when a menu item receive a `Left click`
+  /// Fired when a menu item receive a <kbd>Left Mouse Click</kbd>
   ///
   /// ## Platform-specific
   ///
   /// - **Linux:** Unsupported
   ///
   LeftClick,
-  /// Fired when a menu item receive a `Right click`
+  /// Fired when a menu item receive a <kbd>Right Mouse Click</kbd>
   ///
   /// ## Platform-specific
   ///
   /// - **Linux:** Unsupported
-  /// - **macOS:** `Ctrl` + `Left click` fire this event.
+  /// - **macOS:** <kbd>⌃ Control</kbd> + <kbd>Mouse Click</kbd> fire this event.
   ///
   RightClick,
-  /// Fired when a menu item receive a `Double click`
+  /// Fired when a menu item receive a <kbd>Double Mouse Click</kbd>
   ///
   /// ## Platform-specific
   ///

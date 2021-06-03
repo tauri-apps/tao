@@ -859,7 +859,12 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS/ iOS / Android:** Unsupported.
+  /// - **iOS / Android:** Unsupported.
+  ///
+  /// On macOS, you need to change the activation policy with
+  /// `event_loop.set_activation_policy(ActivationPolicy::Accessory);`
+  /// The `set_skip_taskbar` have no effect.
+  ///
   pub fn set_skip_taskbar(&self, skip: bool) {
     self.window.set_skip_taskbar(skip);
   }
