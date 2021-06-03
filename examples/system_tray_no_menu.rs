@@ -9,9 +9,9 @@ fn main() {
   use simple_logger::SimpleLogger;
   use std::collections::HashMap;
   #[cfg(target_os = "linux")]
-  use tao::menu::{ContextMenu, MenuItemAttributes};
-  #[cfg(target_os = "linux")]
   use std::path::Path;
+  #[cfg(target_os = "linux")]
+  use tao::menu::{ContextMenu, MenuItemAttributes};
   #[cfg(target_os = "macos")]
   use tao::platform::macos::{ActivationPolicy, EventLoopExtMacOS};
   use tao::{
@@ -102,7 +102,9 @@ fn main() {
         windows.insert(window.id(), window);
       }
       // if we got `Quit` click, exit the app
-      Event::MenuEvent { menu_id, .. } if menu_id == quit_menu_id => *control_flow = ControlFlow::Exit,
+      Event::MenuEvent { menu_id, .. } if menu_id == quit_menu_id => {
+        *control_flow = ControlFlow::Exit
+      }
       Event::TrayEvent {
         mut bounds,
         event,
