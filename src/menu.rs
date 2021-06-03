@@ -125,7 +125,7 @@ impl ContextMenu {
   }
 
   /// Add new item to this menu.
-  pub fn add_native_item(&mut self, item: Menuitem) -> Option<CustomMenuItem> {
+  pub fn add_native_item(&mut self, item: MenuItem) -> Option<CustomMenuItem> {
     self.0.menu_platform.add_native_item(item, self.0.menu_type)
   }
 }
@@ -166,7 +166,7 @@ impl MenuBar {
   }
 
   /// Add new item to this menu.
-  pub fn add_native_item(&mut self, item: Menuitem) -> Option<CustomMenuItem> {
+  pub fn add_native_item(&mut self, item: MenuItem) -> Option<CustomMenuItem> {
     self.0.menu_platform.add_native_item(item, self.0.menu_type)
   }
 }
@@ -183,7 +183,7 @@ impl Default for MenuBar {
 /// Unsupported variant will be no-op on such platform.
 ///
 #[derive(Debug, Clone)]
-pub enum Menuitem {
+pub enum MenuItem {
   /// Shows a standard "About" item
   ///
   /// ## Platform-specific

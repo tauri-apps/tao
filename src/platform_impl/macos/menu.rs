@@ -14,7 +14,7 @@ use std::sync::Once;
 
 use crate::{
   event::Event,
-  menu::{CustomMenuItem, MenuId, MenuType, Menuitem},
+  menu::{CustomMenuItem, MenuId, MenuType, MenuItem},
   platform::macos::NativeImage,
 };
 
@@ -174,16 +174,16 @@ impl Menu {
     }
   }
 
-  pub fn add_native_item(&mut self, item: Menuitem, menu_type: MenuType) -> Option<CustomMenuItem> {
+  pub fn add_native_item(&mut self, item: MenuItem, menu_type: MenuType) -> Option<CustomMenuItem> {
     let menu_details: Option<(Option<MenuId>, *mut Object)> = match item {
-      Menuitem::Separator => {
+      MenuItem::Separator => {
         unsafe {
           let sep = id::separatorItem(self.menu);
           self.menu.addItem_(sep);
         }
         None
       }
-      Menuitem::About(app_name) => {
+      MenuItem::About(app_name) => {
         let title = format!("About {}", app_name);
         Some((
           None,
@@ -196,7 +196,7 @@ impl Menu {
         ))
       }
       // Close window
-      Menuitem::CloseWindow => Some((
+      MenuItem::CloseWindow => Some((
         None,
         make_menu_item(
           "Close Window",
@@ -208,7 +208,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      Menuitem::Quit => Some((
+      MenuItem::Quit => Some((
         None,
         make_menu_item(
           "Quit",
@@ -220,7 +220,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      Menuitem::Hide => Some((
+      MenuItem::Hide => Some((
         None,
         make_menu_item(
           "Hide",
@@ -232,7 +232,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      Menuitem::HideOthers => Some((
+      MenuItem::HideOthers => Some((
         None,
         make_menu_item(
           "Hide Others",
@@ -246,7 +246,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      Menuitem::ShowAll => Some((
+      MenuItem::ShowAll => Some((
         None,
         make_menu_item(
           "Show All",
@@ -255,7 +255,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      Menuitem::EnterFullScreen => Some((
+      MenuItem::EnterFullScreen => Some((
         None,
         make_menu_item(
           "Enter Full Screen",
@@ -269,7 +269,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      Menuitem::Minimize => Some((
+      MenuItem::Minimize => Some((
         None,
         make_menu_item(
           "Minimize",
@@ -281,11 +281,11 @@ impl Menu {
           menu_type,
         ),
       )),
-      Menuitem::Zoom => Some((
+      MenuItem::Zoom => Some((
         None,
         make_menu_item("Zoom", Some(selector("performZoom:")), None, menu_type),
       )),
-      Menuitem::Copy => Some((
+      MenuItem::Copy => Some((
         None,
         make_menu_item(
           "Copy",
@@ -297,7 +297,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      Menuitem::Cut => Some((
+      MenuItem::Cut => Some((
         None,
         make_menu_item(
           "Cut",
@@ -309,7 +309,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      Menuitem::Paste => Some((
+      MenuItem::Paste => Some((
         None,
         make_menu_item(
           "Paste",
@@ -321,7 +321,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      Menuitem::Undo => Some((
+      MenuItem::Undo => Some((
         None,
         make_menu_item(
           "Undo",
@@ -333,7 +333,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      Menuitem::Redo => Some((
+      MenuItem::Redo => Some((
         None,
         make_menu_item(
           "Redo",
@@ -345,7 +345,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      Menuitem::SelectAll => Some((
+      MenuItem::SelectAll => Some((
         None,
         make_menu_item(
           "Select All",
@@ -357,7 +357,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      Menuitem::Services => unsafe {
+      MenuItem::Services => unsafe {
         let item = make_menu_item("Services", None, None, MenuType::MenuBar);
         let app_class = class!(NSApplication);
         let app: id = msg_send![app_class, sharedApplication];

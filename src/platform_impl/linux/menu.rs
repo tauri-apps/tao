@@ -4,13 +4,13 @@
 use glib::{Cast, Sender};
 use gtk::{
   prelude::*, AccelFlags, AccelGroup, CheckMenuItem, Menu as GtkMenu, MenuBar,
-  Menuitem as GtkMenuItem, SeparatorMenuItem,
+  MenuItem as GtkMenuItem, SeparatorMenuItem,
 };
 
 use super::window::{WindowId, WindowRequest};
-use crate::menu::{CustomMenuItem, MenuId, MenuType, Menuitem};
+use crate::menu::{CustomMenuItem, MenuId, MenuType, MenuItem};
 
-macro_rules! Menuitem {
+macro_rules! menuitem {
   ( $description:expr, $key:expr, $accel_group:ident ) => {{
     let item = GtkMenuItem::with_label($description);
     let (key, mods) = gtk::accelerator_parse($key);
@@ -22,7 +22,7 @@ macro_rules! Menuitem {
 #[derive(Debug, Clone)]
 struct GtkMenuInfo {
   menu_type: GtkMenuType,
-  menu_item: Option<Menuitem>,
+  menu_item: Option<MenuItem>,
   sub_menu: Option<SubmenuDetail>,
   custom_menu_item: Option<MenuItemAttributes>,
 }
@@ -131,7 +131,7 @@ impl Menu {
 
   pub fn add_native_item(
     &mut self,
-    item: Menuitem,
+    item: MenuItem,
     _menu_type: MenuType,
   ) -> Option<CustomMenuItem> {
     self.gtk_items.push(GtkMenuInfo {
@@ -221,7 +221,7 @@ impl Menu {
         }
         GtkMenuInfo {
           menu_type: GtkMenuType::Native,
-          menu_item: Some(Menuitem::Separator),
+          menu_item: Some(MenuItem::Separator),
           ..
         } => {
           menu.append(&SeparatorMenuItem::new());
@@ -229,44 +229,44 @@ impl Menu {
         }
         GtkMenuInfo {
           menu_type: GtkMenuType::Native,
-          menu_item: Some(Menuitem::About(s)),
+          menu_item: Some(MenuItem::About(s)),
           ..
         } => Some(GtkMenuItem::with_label(&format!("About {}", s))),
         GtkMenuInfo {
           menu_type: GtkMenuType::Native,
-          menu_item: Some(Menuitem::Hide),
+          menu_item: Some(MenuItem::Hide),
           ..
-        } => Menuitem!("Hide", "<Ctrl>H", accel_group),
+        } => menuitem!("Hide", "<Ctrl>H", accel_group),
         GtkMenuInfo {
           menu_type: GtkMenuType::Native,
-          menu_item: Some(Menuitem::CloseWindow),
+          menu_item: Some(MenuItem::CloseWindow),
           ..
-        } => Menuitem!("Close Window", "<Ctrl>W", accel_group),
+        } => menuitem!("Close Window", "<Ctrl>W", accel_group),
         GtkMenuInfo {
           menu_type: GtkMenuType::Native,
-          menu_item: Some(Menuitem::Quit),
+          menu_item: Some(MenuItem::Quit),
           ..
-        } => Menuitem!("Quit", "Q", accel_group),
+        } => menuitem!("Quit", "Q", accel_group),
         GtkMenuInfo {
           menu_type: GtkMenuType::Native,
-          menu_item: Some(Menuitem::Copy),
+          menu_item: Some(MenuItem::Copy),
           ..
-        } => Menuitem!("Copy", "<Ctrl>C", accel_group),
+        } => menuitem!("Copy", "<Ctrl>C", accel_group),
         GtkMenuInfo {
           menu_type: GtkMenuType::Native,
-          menu_item: Some(Menuitem::Cut),
+          menu_item: Some(MenuItem::Cut),
           ..
-        } => Menuitem!("Cut", "<Ctrl>X", accel_group),
+        } => menuitem!("Cut", "<Ctrl>X", accel_group),
         GtkMenuInfo {
           menu_type: GtkMenuType::Native,
-          menu_item: Some(Menuitem::SelectAll),
+          menu_item: Some(MenuItem::SelectAll),
           ..
-        } => Menuitem!("Select All", "<Ctrl>A", accel_group),
+        } => menuitem!("Select All", "<Ctrl>A", accel_group),
         GtkMenuInfo {
           menu_type: GtkMenuType::Native,
-          menu_item: Some(Menuitem::Paste),
+          menu_item: Some(MenuItem::Paste),
           ..
-        } => Menuitem!("Paste", "<Ctrl>V", accel_group),
+        } => menuitem!("Paste", "<Ctrl>V", accel_group),
         // todo add others
         _ => None,
       };
