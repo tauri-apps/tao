@@ -6,7 +6,7 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error, event,
   event_loop::{self, ControlFlow},
-  menu::{CustomMenuItemHandle, MenuId, MenuItem, MenuType},
+  menu::{CustomMenuItem, MenuId, MenuType, Menuitem},
   monitor, window,
 };
 use ndk::{
@@ -46,7 +46,7 @@ fn poll(poll: Poll) -> Option<EventSource> {
 
 // todo: implement android menubar
 #[derive(Debug, Clone)]
-pub struct CustomMenuItem;
+pub struct MenuItemAttributes;
 
 #[derive(Debug, Clone)]
 pub struct Menu;
@@ -72,20 +72,20 @@ impl Menu {
     _enabled: bool,
     _selected: bool,
     _menu_type: MenuType,
-  ) -> CustomMenuItemHandle {
-    CustomMenuItemHandle(CustomMenuItem {})
+  ) -> CustomMenuItem {
+    CustomMenuItem(MenuItemAttributes {})
   }
   pub fn add_submenu(&mut self, _title: &str, _enabled: bool, _submenu: Menu) {}
   pub fn add_native_item(
     &mut self,
-    _item: MenuItem,
+    _item: Menuitem,
     _menu_type: MenuType,
-  ) -> Option<CustomMenuItemHandle> {
+  ) -> Option<CustomMenuItem> {
     None
   }
 }
 
-impl CustomMenuItem {
+impl MenuItemAttributes {
   pub fn id(self) -> MenuId {
     MenuId::EMPTY
   }

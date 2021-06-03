@@ -78,7 +78,7 @@ mod monitor;
 mod view;
 mod window;
 
-use crate::menu::{CustomMenuItemHandle, MenuId, MenuItem, MenuType};
+use crate::menu::{CustomMenuItem, MenuId, MenuType, Menuitem};
 use std::fmt;
 
 pub use self::{
@@ -91,7 +91,7 @@ pub(crate) use crate::icon::NoIcon as PlatformIcon;
 
 // todo: implement iOS menubar
 #[derive(Debug, Clone)]
-pub struct CustomMenuItem;
+pub struct MenuItemAttributes;
 #[derive(Debug, Clone)]
 pub struct Menu;
 
@@ -116,20 +116,20 @@ impl Menu {
     _enabled: bool,
     _selected: bool,
     _menu_type: MenuType,
-  ) -> CustomMenuItemHandle {
-    CustomMenuItemHandle(CustomMenuItem {})
+  ) -> CustomMenuItem {
+    CustomMenuItem(MenuItemAttributes {})
   }
   pub fn add_submenu(&mut self, _title: &str, _enabled: bool, _submenu: Menu) {}
   pub fn add_native_item(
     &mut self,
-    _item: MenuItem,
+    _item: Menuitem,
     _menu_type: MenuType,
-  ) -> Option<CustomMenuItemHandle> {
+  ) -> Option<CustomMenuItem> {
     None
   }
 }
 
-impl CustomMenuItem {
+impl MenuItemAttributes {
   pub fn id(self) -> MenuId {
     MenuId::EMPTY
   }

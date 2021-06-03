@@ -11,7 +11,7 @@ use winapi::{
 
 use crate::{
   event::{Event, WindowEvent},
-  menu::{CustomMenuItemHandle, MenuId, MenuItem, MenuType},
+  menu::{CustomMenuItem, MenuId, MenuType, Menuitem},
   platform_impl::platform::WindowId,
   window::WindowId as RootWindowId,
 };
@@ -53,9 +53,9 @@ impl MenuHandler {
 }
 
 #[derive(Debug, Clone)]
-pub struct CustomMenuItem(pub(crate) u32, windef::HMENU);
+pub struct MenuItemAttributes(pub(crate) u32, windef::HMENU);
 
-impl CustomMenuItem {
+impl MenuItemAttributes {
   pub fn id(&self) -> MenuId {
     MenuId(self.0)
   }
@@ -152,7 +152,7 @@ impl Menu {
     enabled: bool,
     selected: bool,
     _menu_type: MenuType,
-  ) -> CustomMenuItemHandle {
+  ) -> CustomMenuItem {
     unsafe {
       let mut flags = winuser::MF_STRING;
       if !enabled {
@@ -170,7 +170,7 @@ impl Menu {
         to_wstring(&title).as_mut_ptr(),
       );
       MENU_IDS.lock().unwrap().push(menu_id.0 as _);
-      CustomMenuItemHandle(CustomMenuItem(menu_id.0, self.hmenu))
+      CustomMenuItem(MenuItemAttributes(menu_id.0, self.hmenu))
     }
   }
 
@@ -192,16 +192,16 @@ impl Menu {
 
   pub fn add_native_item(
     &mut self,
-    item: MenuItem,
+    item: Menuitem,
     _menu_type: MenuType,
-  ) -> Option<CustomMenuItemHandle> {
+  ) -> Option<CustomMenuItem> {
     match item {
-      MenuItem::Separator => {
+      Menuitem::Separator => {
         unsafe {
           winuser::AppendMenuW(self.hmenu, winuser::MF_SEPARATOR, 0, std::ptr::null());
         };
       }
-      MenuItem::Cut => unsafe {
+      Menuitem::Cut => unsafe {
         winuser::AppendMenuW(
           self.hmenu,
           winuser::MF_STRING,
@@ -209,7 +209,7 @@ impl Menu {
           to_wstring("&Cut\tCtrl+X").as_mut_ptr(),
         );
       },
-      MenuItem::Copy => unsafe {
+      Menuitem::Copy => unsafe {
         winuser::AppendMenuW(
           self.hmenu,
           winuser::MF_STRING,
@@ -217,7 +217,7 @@ impl Menu {
           to_wstring("&Copy\tCtrl+C").as_mut_ptr(),
         );
       },
-      MenuItem::Paste => unsafe {
+      Menuitem::Paste => unsafe {
         winuser::AppendMenuW(
           self.hmenu,
           winuser::MF_STRING,
@@ -225,7 +225,7 @@ impl Menu {
           to_wstring("&Paste\tCtrl+V").as_mut_ptr(),
         );
       },
-      MenuItem::Hide => unsafe {
+      Menuitem::Hide => unsafe {
         winuser::AppendMenuW(
           self.hmenu,
           winuser::MF_STRING,
@@ -233,7 +233,7 @@ impl Menu {
           to_wstring("&Hide\tCtrl+H").as_mut_ptr(),
         );
       },
-      MenuItem::CloseWindow => unsafe {
+      Menuitem::CloseWindow => unsafe {
         winuser::AppendMenuW(
           self.hmenu,
           winuser::MF_STRING,
@@ -241,7 +241,7 @@ impl Menu {
           to_wstring("&Close\tAlt+F4").as_mut_ptr(),
         );
       },
-      MenuItem::Quit => unsafe {
+      Menuitem::Quit => unsafe {
         winuser::AppendMenuW(
           self.hmenu,
           winuser::MF_STRING,
@@ -249,7 +249,7 @@ impl Menu {
           to_wstring("&Quit").as_mut_ptr(),
         );
       },
-      MenuItem::Minimize => unsafe {
+      Menuitem::Minimize => unsafe {
         winuser::AppendMenuW(
           self.hmenu,
           winuser::MF_STRING,
@@ -257,7 +257,7 @@ impl Menu {
           to_wstring("&Minimize").as_mut_ptr(),
         );
       },
-      // FIXME: create all shortcuts of MenuItem if possible...
+      // FIXME: create all shortcuts of Menuitem if possible...
       // like linux?
       _ => (),
     };

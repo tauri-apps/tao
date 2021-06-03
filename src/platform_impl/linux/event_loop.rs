@@ -28,7 +28,7 @@ use crate::{
     WindowEvent,
   },
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
-  menu::{MenuItem, MenuType},
+  menu::{MenuType, Menuitem},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{CursorIcon, WindowId as RootWindowId},
 };
@@ -490,14 +490,14 @@ impl<T: 'static> EventLoop<T> {
                   log::warn!("Failed to send menu event to event channel: {}", e);
                 }
               }
-              (Some(MenuItem::About(_)), None) => {
+              (Some(Menuitem::About(_)), None) => {
                 let about = AboutDialog::new();
                 about.show_all();
                 app.add_window(&about);
               }
-              (Some(MenuItem::Hide), None) => window.hide(),
-              (Some(MenuItem::CloseWindow), None) => window.close(),
-              (Some(MenuItem::Quit), None) => {
+              (Some(Menuitem::Hide), None) => window.hide(),
+              (Some(Menuitem::CloseWindow), None) => window.close(),
+              (Some(Menuitem::Quit), None) => {
                 if let Err(e) = event_tx.send(Event::LoopDestroyed) {
                   log::warn!(
                     "Failed to send loop destroyed event to event channel: {}",
@@ -506,7 +506,7 @@ impl<T: 'static> EventLoop<T> {
                 }
               }
               #[cfg(any(feature = "menu", feature = "tray"))]
-              (Some(MenuItem::Cut), None) => {
+              (Some(Menuitem::Cut), None) => {
                 if let Some(widget) = window.get_focus() {
                   if widget.has_focus() {
                     if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
@@ -522,7 +522,7 @@ impl<T: 'static> EventLoop<T> {
                 }
               }
               #[cfg(any(feature = "menu", feature = "tray"))]
-              (Some(MenuItem::Copy), None) => {
+              (Some(Menuitem::Copy), None) => {
                 if let Some(widget) = window.get_focus() {
                   if widget.has_focus() {
                     if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
@@ -538,7 +538,7 @@ impl<T: 'static> EventLoop<T> {
                 }
               }
               #[cfg(any(feature = "menu", feature = "tray"))]
-              (Some(MenuItem::Paste), None) => {
+              (Some(Menuitem::Paste), None) => {
                 if let Some(widget) = window.get_focus() {
                   if widget.has_focus() {
                     if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
@@ -554,7 +554,7 @@ impl<T: 'static> EventLoop<T> {
                 }
               }
               #[cfg(any(feature = "menu", feature = "tray"))]
-              (Some(MenuItem::SelectAll), None) => {
+              (Some(Menuitem::SelectAll), None) => {
                 if let Some(widget) = window.get_focus() {
                   if widget.has_focus() {
                     if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
@@ -567,7 +567,7 @@ impl<T: 'static> EventLoop<T> {
                   }
                 }
               }
-              (Some(MenuItem::EnterFullScreen), None) => {
+              (Some(Menuitem::EnterFullScreen), None) => {
                 let state = window.get_window().unwrap().get_state();
                 if state.contains(WindowState::FULLSCREEN) {
                   window.unfullscreen();
@@ -575,7 +575,7 @@ impl<T: 'static> EventLoop<T> {
                   window.fullscreen();
                 }
               }
-              (Some(MenuItem::Minimize), None) => window.iconify(),
+              (Some(Menuitem::Minimize), None) => window.iconify(),
               _ => {}
             },
             WindowRequest::SetMenu((menus, accel_group, menu)) => {

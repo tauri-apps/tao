@@ -6,7 +6,7 @@ use std::{
   hash::{Hash, Hasher},
 };
 
-use crate::platform_impl::{CustomMenuItem as CustomMenuItemPlatform, Menu as MenuPlatform};
+use crate::platform_impl::{Menu as MenuPlatform, MenuItemAttributes as CustomMenuItemPlatform};
 
 /// Object that allows you to build a `ContextMenu`, for the tray.
 pub struct ContextMenu(pub(crate) Menu);
@@ -14,7 +14,7 @@ pub struct ContextMenu(pub(crate) Menu);
 pub struct MenuBar(pub(crate) Menu);
 
 /// A custom menu item.
-pub struct CustomMenuItem<'a> {
+pub struct MenuItemAttributes<'a> {
   id: MenuId,
   title: &'a str,
   keyboard_accelerator: Option<&'a str>,
@@ -22,30 +22,48 @@ pub struct CustomMenuItem<'a> {
   selected: bool,
 }
 
-impl<'a> CustomMenuItem<'a> {
+impl<'a> MenuItemAttributes<'a> {
   /// Creates a new custom menu item.
   ///
   /// ## Platform-specific
   ///
   /// - **Linux:** `selected` render a regular item
-  pub fn new(
-    title: &'a str,
-    keyboard_accelerator: Option<&'a str>,
-    enabled: bool,
-    selected: bool,
-  ) -> Self {
+  pub fn new(title: &'a str) -> Self {
     Self {
       id: MenuId::new(title),
       title,
-      keyboard_accelerator,
-      enabled,
-      selected,
+      keyboard_accelerator: None,
+      enabled: true,
+      selected: false,
     }
   }
 
-  /// Sets the menu id.
+  /// Assign a custom menu id.
   pub fn with_id(mut self, id: MenuId) -> Self {
     self.id = id;
+    self
+  }
+
+  /// Assign keyboard shortcut to the menu action.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows / Android / iOS:** Unsupported
+  ///
+  pub fn with_accelerators(mut self, keyboard_accelerators: &'a str) -> Self {
+    self.keyboard_accelerator = Some(keyboard_accelerators);
+    self
+  }
+
+  /// Assign default menu state.
+  pub fn with_enabled(mut self, enabled: bool) -> Self {
+    self.enabled = enabled;
+    self
+  }
+
+  /// Assign default checkbox style.
+  pub fn with_selected(mut self, selected: bool) -> Self {
+    self.selected = selected;
     self
   }
 }
@@ -77,7 +95,7 @@ impl ContextMenu {
   }
 
   /// Add new item to this menu.
-  pub fn add_item(&mut self, item: CustomMenuItem<'_>) -> CustomMenuItemHandle {
+  pub fn add_item(&mut self, item: MenuItemAttributes<'_>) -> CustomMenuItem {
     self.0.menu_platform.add_item(
       item.id,
       item.title,
@@ -89,7 +107,7 @@ impl ContextMenu {
   }
 
   /// Add new item to this menu.
-  pub fn add_native_item(&mut self, item: MenuItem) -> Option<CustomMenuItemHandle> {
+  pub fn add_native_item(&mut self, item: Menuitem) -> Option<CustomMenuItem> {
     self.0.menu_platform.add_native_item(item, self.0.menu_type)
   }
 }
@@ -118,7 +136,7 @@ impl MenuBar {
   }
 
   /// Add new item to this menu.
-  pub fn add_item(&mut self, item: CustomMenuItem<'_>) -> CustomMenuItemHandle {
+  pub fn add_item(&mut self, item: MenuItemAttributes<'_>) -> CustomMenuItem {
     self.0.menu_platform.add_item(
       item.id,
       item.title,
@@ -130,7 +148,7 @@ impl MenuBar {
   }
 
   /// Add new item to this menu.
-  pub fn add_native_item(&mut self, item: MenuItem) -> Option<CustomMenuItemHandle> {
+  pub fn add_native_item(&mut self, item: Menuitem) -> Option<CustomMenuItem> {
     self.0.menu_platform.add_native_item(item, self.0.menu_type)
   }
 }
@@ -144,7 +162,7 @@ impl Default for MenuBar {
 /// A menu item, bound to a pre-defined native action. Note some platforms might not
 /// support some of the variants. Unsupported variant will be no-op on such platform.
 #[derive(Debug, Clone)]
-pub enum MenuItem {
+pub enum Menuitem {
   /// Shows a standard "About" item
   ///
   /// ## Platform-specific
@@ -291,10 +309,10 @@ pub enum MenuItem {
 /// Custom menu item, when clicked an event is emitted in the EventLoop.
 /// You can modify the item after it's creation.
 #[derive(Debug, Clone)]
-pub struct CustomMenuItemHandle(pub CustomMenuItemPlatform);
+pub struct CustomMenuItem(pub CustomMenuItemPlatform);
 
-/// Base `CustomMenuItemHandle` functions.
-impl CustomMenuItemHandle {
+/// Base `CustomMenuItem` functions.
+impl CustomMenuItem {
   /// Returns an identifier unique to the menu item.
   pub fn id(self) -> MenuId {
     self.0.id()

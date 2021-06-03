@@ -14,7 +14,7 @@ use std::sync::Once;
 
 use crate::{
   event::Event,
-  menu::{CustomMenuItemHandle, MenuId, MenuItem, MenuType},
+  menu::{CustomMenuItem, MenuId, MenuType, Menuitem},
   platform::macos::NativeImage,
 };
 
@@ -36,9 +36,9 @@ unsafe impl Send for Menu {}
 unsafe impl Sync for Menu {}
 
 #[derive(Debug, Clone)]
-pub struct CustomMenuItem(Option<MenuId>, pub(crate) id);
+pub struct MenuItemAttributes(Option<MenuId>, pub(crate) id);
 
-impl CustomMenuItem {
+impl MenuItemAttributes {
   pub fn id(self) -> MenuId {
     if let Some(menu_id) = self.0 {
       return menu_id;
@@ -112,7 +112,7 @@ impl Menu {
     enabled: bool,
     selected: bool,
     menu_type: MenuType,
-  ) -> CustomMenuItemHandle {
+  ) -> CustomMenuItem {
     let mut key_equivalent = None;
     let mut accelerator_string: String;
     if let Some(accelerator) = accelerators {
@@ -157,7 +157,7 @@ impl Menu {
       self.menu.addItem_(menu_item);
     }
 
-    CustomMenuItemHandle(CustomMenuItem(Some(menu_id), menu_item))
+    CustomMenuItem(MenuItemAttributes(Some(menu_id), menu_item))
   }
 
   pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: Menu) {
@@ -174,20 +174,16 @@ impl Menu {
     }
   }
 
-  pub fn add_native_item(
-    &mut self,
-    item: MenuItem,
-    menu_type: MenuType,
-  ) -> Option<CustomMenuItemHandle> {
+  pub fn add_native_item(&mut self, item: Menuitem, menu_type: MenuType) -> Option<CustomMenuItem> {
     let menu_details: Option<(Option<MenuId>, *mut Object)> = match item {
-      MenuItem::Separator => {
+      Menuitem::Separator => {
         unsafe {
           let sep = id::separatorItem(self.menu);
           self.menu.addItem_(sep);
         }
         None
       }
-      MenuItem::About(app_name) => {
+      Menuitem::About(app_name) => {
         let title = format!("About {}", app_name);
         Some((
           None,
@@ -200,7 +196,7 @@ impl Menu {
         ))
       }
       // Close window
-      MenuItem::CloseWindow => Some((
+      Menuitem::CloseWindow => Some((
         None,
         make_menu_item(
           "Close Window",
@@ -212,7 +208,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      MenuItem::Quit => Some((
+      Menuitem::Quit => Some((
         None,
         make_menu_item(
           "Quit",
@@ -224,7 +220,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      MenuItem::Hide => Some((
+      Menuitem::Hide => Some((
         None,
         make_menu_item(
           "Hide",
@@ -236,7 +232,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      MenuItem::HideOthers => Some((
+      Menuitem::HideOthers => Some((
         None,
         make_menu_item(
           "Hide Others",
@@ -250,7 +246,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      MenuItem::ShowAll => Some((
+      Menuitem::ShowAll => Some((
         None,
         make_menu_item(
           "Show All",
@@ -259,7 +255,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      MenuItem::EnterFullScreen => Some((
+      Menuitem::EnterFullScreen => Some((
         None,
         make_menu_item(
           "Enter Full Screen",
@@ -273,7 +269,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      MenuItem::Minimize => Some((
+      Menuitem::Minimize => Some((
         None,
         make_menu_item(
           "Minimize",
@@ -285,11 +281,11 @@ impl Menu {
           menu_type,
         ),
       )),
-      MenuItem::Zoom => Some((
+      Menuitem::Zoom => Some((
         None,
         make_menu_item("Zoom", Some(selector("performZoom:")), None, menu_type),
       )),
-      MenuItem::Copy => Some((
+      Menuitem::Copy => Some((
         None,
         make_menu_item(
           "Copy",
@@ -301,7 +297,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      MenuItem::Cut => Some((
+      Menuitem::Cut => Some((
         None,
         make_menu_item(
           "Cut",
@@ -313,7 +309,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      MenuItem::Paste => Some((
+      Menuitem::Paste => Some((
         None,
         make_menu_item(
           "Paste",
@@ -325,7 +321,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      MenuItem::Undo => Some((
+      Menuitem::Undo => Some((
         None,
         make_menu_item(
           "Undo",
@@ -337,7 +333,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      MenuItem::Redo => Some((
+      Menuitem::Redo => Some((
         None,
         make_menu_item(
           "Redo",
@@ -349,7 +345,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      MenuItem::SelectAll => Some((
+      Menuitem::SelectAll => Some((
         None,
         make_menu_item(
           "Select All",
@@ -361,7 +357,7 @@ impl Menu {
           menu_type,
         ),
       )),
-      MenuItem::Services => unsafe {
+      Menuitem::Services => unsafe {
         let item = make_menu_item("Services", None, None, MenuType::MenuBar);
         let app_class = class!(NSApplication);
         let app: id = msg_send![app_class, sharedApplication];
@@ -376,7 +372,7 @@ impl Menu {
         self.menu.addItem_(menu_item);
       }
 
-      return Some(CustomMenuItemHandle(CustomMenuItem(menu_id, menu_item)));
+      return Some(CustomMenuItem(MenuItemAttributes(menu_id, menu_item)));
     }
 
     None

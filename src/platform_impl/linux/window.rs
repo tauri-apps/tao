@@ -16,7 +16,7 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::{BadIcon, Icon},
-  menu::{MenuId, MenuItem},
+  menu::{MenuId, Menuitem},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{CursorIcon, Fullscreen, UserAttentionType, WindowAttributes},
 };
@@ -648,7 +648,7 @@ pub enum WindowRequest {
   CursorIcon(Option<CursorIcon>),
   WireUpEvents,
   Redraw,
-  Menu((Option<MenuItem>, Option<MenuId>)),
+  Menu((Option<Menuitem>, Option<MenuId>)),
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::Box)),
 }
 
