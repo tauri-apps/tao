@@ -6,7 +6,7 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error, event,
   event_loop::{self, ControlFlow},
-  menu::{CustomMenuItem, MenuId, MenuType, MenuItem},
+  menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   monitor, window,
 };
 use ndk::{

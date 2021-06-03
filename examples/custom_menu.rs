@@ -7,7 +7,7 @@ use tao::platform::macos::{CustomMenuItemExtMacOS, NativeImage};
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
-  menu::{MenuBar as Menu, MenuItemAttributes, MenuType, MenuItem},
+  menu::{MenuBar as Menu, MenuItem, MenuItemAttributes, MenuType},
   window::WindowBuilder,
 };
 

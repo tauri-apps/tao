@@ -8,7 +8,7 @@ use gtk::{
 };
 
 use super::window::{WindowId, WindowRequest};
-use crate::menu::{CustomMenuItem, MenuId, MenuType, MenuItem};
+use crate::menu::{CustomMenuItem, MenuId, MenuItem, MenuType};
 
 macro_rules! menuitem {
   ( $description:expr, $key:expr, $accel_group:ident ) => {{

@@ -22,7 +22,7 @@
 //! The icon is not removed automatically.
 //!
 //! Use `SystemTrayExtWindows` and use the `remove()` function when your application is closing.
-//! 
+//!
 //! [tray_builder]: crate::system_tray::SystemTrayBuilder
 //! [menu_bar]: crate::menu::MenuBar
 //! [context_menu]: crate::menu::ContextMenu

@@ -11,7 +11,7 @@ use winapi::{
 
 use crate::{
   event::{Event, WindowEvent},
-  menu::{CustomMenuItem, MenuId, MenuType, MenuItem},
+  menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   platform_impl::platform::WindowId,
   window::WindowId as RootWindowId,
 };

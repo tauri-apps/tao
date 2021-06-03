@@ -78,7 +78,7 @@ mod monitor;
 mod view;
 mod window;
 
-use crate::menu::{CustomMenuItem, MenuId, MenuType, MenuItem};
+use crate::menu::{CustomMenuItem, MenuId, MenuItem, MenuType};
 use std::fmt;
 
 pub use self::{

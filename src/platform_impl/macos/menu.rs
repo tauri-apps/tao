@@ -14,7 +14,7 @@ use std::sync::Once;
 
 use crate::{
   event::Event,
-  menu::{CustomMenuItem, MenuId, MenuType, MenuItem},
+  menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   platform::macos::NativeImage,
 };
 
