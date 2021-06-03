@@ -8,7 +8,7 @@ use std::{
   sync::atomic::{AtomicBool, AtomicI32, Ordering},
 };
 
-use gdk::{Cursor, EventMask, WindowEdge, WindowExt, WindowState};
+use gdk::{EventKey, Cursor, EventMask, WindowEdge, WindowExt, WindowState};
 use gdk_pixbuf::{Colorspace, Pixbuf};
 use gtk::{prelude::*, AccelGroup, ApplicationWindow, Orientation};
 
@@ -287,9 +287,20 @@ impl Window {
       scale_factor_clone.store(window.get_scale_factor(), Ordering::Release);
     });
 
-    if let Err(e) = window_requests_tx.send((window_id, WindowRequest::WireUpEvents)) {
+    if let Err(e) = window_requests_tx.clone().send((window_id, WindowRequest::WireUpEvents)) {
       log::warn!("Fail to send wire up events request: {}", e);
     }
+
+    let window_requests_tx_clone = window_requests_tx.clone();
+    window.connect_key_press_event(move |_window, event_key, | {
+      if let Err(e) = window_requests_tx_clone
+      .send((window_id, WindowRequest::KeyboardInput(event_key.to_owned())))
+    {
+      log::warn!("Fail to send user attention request: {}", e);
+    }
+
+      Inhibit(false)
+    });
 
     window.queue_draw();
     Ok(Self {
@@ -650,6 +661,7 @@ pub enum WindowRequest {
   Redraw,
   Menu((Option<MenuItem>, Option<MenuId>)),
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::Box)),
+  KeyboardInput(EventKey),
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {

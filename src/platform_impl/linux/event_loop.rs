@@ -23,9 +23,12 @@ use gtk::{Clipboard, Entry};
 
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize},
-  event::{DeviceId as RootDeviceId, ElementState, Event, MouseButton, StartCause, WindowEvent},
-  event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
+  event::{
+    DeviceId as RootDeviceId, ElementState, Event, MouseButton, StartCause,
+    WindowEvent,
+  },
   keyboard::ModifiersState,
+  event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
   menu::{MenuItem, MenuType},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{CursorIcon, WindowId as RootWindowId},
@@ -36,6 +39,7 @@ use super::{
   monitor::MonitorHandle,
   window::{WindowId, WindowRequest},
   DeviceId,
+  keycodes,
 };
 
 pub struct EventLoopWindowTarget<T> {
@@ -587,6 +591,18 @@ impl<T: 'static> EventLoop<T> {
                 menu.show_all();
               }
             }
+            WindowRequest::KeyboardInput(event_key) => {
+              /**
+                 if let Err(e) = event_tx.send(Event::MenuEvent {
+                  menu_id,
+                  origin: MenuType::MenuBar,
+                }) {
+                  log::warn!("Failed to send menu event to event channel: {}", e);
+                }
+              */
+              let code = keycodes::raw_key_to_key(event_key.get_keyval());
+              println!("event_key {:?}", code);
+            },
           }
         } else if id == WindowId::dummy() {
           if let WindowRequest::Menu((None, Some(menu_id))) = request {

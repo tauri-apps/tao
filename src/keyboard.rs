@@ -175,7 +175,7 @@ pub enum NativeKeyCode {
   Unidentified,
   Windows(u16),
   MacOS(u16),
-  XKB(u32),
+  Gtk(u16),
 
   /// This is the android "key code" of the event as returned by
   /// `KeyEvent.getKeyCode()`
@@ -183,7 +183,7 @@ pub enum NativeKeyCode {
 }
 impl std::fmt::Debug for NativeKeyCode {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    use NativeKeyCode::{Android, MacOS, Unidentified, Windows, XKB};
+    use NativeKeyCode::{Android, MacOS, Unidentified, Windows, Gtk};
     let mut debug_tuple;
     match self {
       Unidentified => {
@@ -197,8 +197,8 @@ impl std::fmt::Debug for NativeKeyCode {
         debug_tuple = f.debug_tuple(name_of!(MacOS));
         debug_tuple.field(&format_args!("0x{:02X}", v));
       }
-      XKB(v) => {
-        debug_tuple = f.debug_tuple(name_of!(XKB));
+      Gtk(v) => {
+        debug_tuple = f.debug_tuple(name_of!(Gtk));
         debug_tuple.field(v);
       }
       Android(v) => {
