@@ -38,9 +38,9 @@ fn main() {
 
   let mut test_menu = Menu::new();
   test_menu.add_item(CustomMenuItem::new(
-    "Selected and disabled",
+    "Selected and enabled",
     None,
-    false,
+    true,
     true,
   ));
   test_menu.add_native_item(MenuItem::Separator);

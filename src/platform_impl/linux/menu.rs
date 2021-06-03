@@ -3,8 +3,8 @@
 
 use glib::{Cast, Sender};
 use gtk::{
-  prelude::*, AccelFlags, AccelGroup, Menu as GtkMenu, MenuBar, MenuItem as GtkMenuItem, CheckMenuItem,
-  SeparatorMenuItem,
+  prelude::*, AccelFlags, AccelGroup, CheckMenuItem, Menu as GtkMenu, MenuBar,
+  MenuItem as GtkMenuItem, SeparatorMenuItem,
 };
 
 use super::window::{WindowId, WindowRequest};
@@ -70,8 +70,13 @@ impl CustomMenuItem {
     self.gtk_item.set_label(title);
   }
 
-  // todo's
-  pub fn set_selected(&mut self, _is_selected: bool) {}
+  pub fn set_selected(&mut self, is_selected: bool) {
+    if let Some(item) = self.gtk_item.downcast_ref::<CheckMenuItem>() {
+      item.set_active(is_selected);
+    }
+  }
+
+  // TODO
   pub fn set_icon(&mut self, _icon: Vec<u8>) {}
 }
 
@@ -101,10 +106,10 @@ impl Menu {
     menu_type: MenuType,
   ) -> CustomMenuItemHandle {
     let gtk_item = if selected {
-        let item = CheckMenuItem::with_label(&title);
-        item.upcast::<GtkMenuItem>()
+      let item = CheckMenuItem::with_label(&title);
+      item.upcast::<GtkMenuItem>()
     } else {
-        GtkMenuItem::with_label(&title)
+      GtkMenuItem::with_label(&title)
     };
     let custom_menu = CustomMenuItem {
       id: menu_id,
