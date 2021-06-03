@@ -25,6 +25,26 @@ pub use window::{
   hit_test, PlatformIcon, PlatformSpecificWindowBuilderAttributes, Window, WindowId,
 };
 
+use crate::{
+  event::KeyEvent, keyboard::Key, platform::modifier_supplement::KeyEventExtModifierSupplement,
+};
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct KeyEventExtra {
+  pub text_with_all_modifiers: Option<&'static str>,
+  pub key_without_modifiers: Key<'static>,
+}
+
+impl KeyEventExtModifierSupplement for KeyEvent {
+  fn text_with_all_modifiers(&self) -> Option<&str> {
+    self.platform_specific.text_with_all_modifiers
+  }
+
+  fn key_without_modifiers(&self) -> Key<'static> {
+    self.platform_specific.key_without_modifiers
+  }
+}
+
 #[derive(Debug, Clone)]
 pub struct OsError;
 

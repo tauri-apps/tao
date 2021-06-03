@@ -23,11 +23,9 @@ use gtk::{Clipboard, Entry};
 
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize},
-  event::{
-    DeviceId as RootDeviceId, ElementState, Event, ModifiersState, MouseButton, StartCause,
-    WindowEvent,
-  },
+  event::{DeviceId as RootDeviceId, ElementState, Event, MouseButton, StartCause, WindowEvent},
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
+  keyboard::ModifiersState,
   menu::{MenuItem, MenuType},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{CursorIcon, WindowId as RootWindowId},
