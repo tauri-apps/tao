@@ -293,7 +293,7 @@ pub enum WindowEvent<'a> {
   HoveredFileCancelled,
 
   /// The window received a unicode character.
-  ReceivedCharacter(char),
+  ReceivedImeText(String),
 
   /// The window gained or lost focus.
   ///
@@ -420,7 +420,7 @@ impl Clone for WindowEvent<'static> {
       DroppedFile(file) => DroppedFile(file.clone()),
       HoveredFile(file) => HoveredFile(file.clone()),
       HoveredFileCancelled => HoveredFileCancelled,
-      ReceivedCharacter(c) => ReceivedCharacter(*c),
+      ReceivedImeText(c) => ReceivedImeText(c.clone()),
       Focused(f) => Focused(*f),
       KeyboardInput {
         device_id,
@@ -511,7 +511,7 @@ impl<'a> WindowEvent<'a> {
       DroppedFile(file) => Some(DroppedFile(file)),
       HoveredFile(file) => Some(HoveredFile(file)),
       HoveredFileCancelled => Some(HoveredFileCancelled),
-      ReceivedCharacter(c) => Some(ReceivedCharacter(c)),
+      ReceivedImeText(c) => Some(ReceivedImeText(c)),
       Focused(focused) => Some(Focused(focused)),
       KeyboardInput {
         device_id,

@@ -6,7 +6,7 @@
 use simple_logger::SimpleLogger;
 use tao::{
   dpi::{LogicalSize, PhysicalSize},
-  event::{DeviceEvent, ElementState, Event, WindowEvent},
+  event::{DeviceEvent, ElementState, Event, KeyEvent, RawKeyEvent, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   keyboard::{Key, KeyCode},
   window::{Fullscreen, WindowBuilder},

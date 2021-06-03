@@ -26,6 +26,7 @@ pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 
 pub use self::{
   app_delegate::{get_aux_state_mut, AuxDelegateState},
+  event::KeyEventExtra,
   event_loop::{EventLoop, EventLoopWindowTarget, Proxy as EventLoopProxy},
   menu::{Menu, MenuItemAttributes},
   monitor::{MonitorHandle, VideoMode},

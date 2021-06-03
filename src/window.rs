@@ -503,7 +503,7 @@ impl Window {
   // at least, then this function should be provided through a platform specific
   // extension trait
   pub fn reset_dead_keys(&self) {
-    self.window.reset_dead_keys();
+    //self.window.reset_dead_keys();
   }
 }
 
