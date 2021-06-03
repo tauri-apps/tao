@@ -10,12 +10,12 @@
 ))]
 
 mod event_loop;
+mod keycodes;
 mod menu;
 mod monitor;
 #[cfg(feature = "tray")]
 mod system_tray;
 mod window;
-mod keycodes;
 
 pub use self::menu::{Menu, MenuItemAttributes};
 #[cfg(feature = "tray")]
@@ -26,7 +26,9 @@ pub use window::{
   hit_test, PlatformIcon, PlatformSpecificWindowBuilderAttributes, Window, WindowId,
 };
 
-use crate::{keyboard::Key, platform::modifier_supplement::KeyEventExtModifierSupplement, event::KeyEvent};
+use crate::{
+  event::KeyEvent, keyboard::Key, platform::modifier_supplement::KeyEventExtModifierSupplement,
+};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct KeyEventExtra {
