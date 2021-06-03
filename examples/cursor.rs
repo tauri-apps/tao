@@ -44,10 +44,7 @@ fn main() {
       Event::WindowEvent {
         event: WindowEvent::CloseRequested,
         ..
-      } => {
-        *control_flow = ControlFlow::Exit;
-        return;
-      }
+      } => *control_flow = ControlFlow::Exit,
       _ => (),
     }
   });

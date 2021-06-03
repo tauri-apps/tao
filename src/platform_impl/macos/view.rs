@@ -630,6 +630,7 @@ fn get_characters(event: id, ignore_modifiers: bool) -> String {
 
 // As defined in: https://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/CORPCHAR.TXT
 fn is_corporate_character(c: char) -> bool {
+  #[allow(clippy::match_like_matches_macro)]
   match c {
     '\u{F700}'..='\u{F747}'
     | '\u{F802}'..='\u{F84F}'
@@ -688,7 +689,7 @@ extern "C" fn key_down(this: &mut Object, _sel: Sel, event: id) {
     let window_id = WindowId(get_window_id(state.ns_window));
     let characters = get_characters(event, false);
 
-    state.raw_characters = Some(characters.clone());
+    state.raw_characters = Some(characters);
 
     let is_repeat: BOOL = msg_send![event, isARepeat];
     let is_repeat = is_repeat == YES;

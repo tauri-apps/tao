@@ -17,8 +17,6 @@ use core_graphics::{
   base::CGError,
   display::{CGDirectDisplayID, CGDisplayConfigRef},
 };
-use objc;
-
 pub const NSNotFound: NSInteger = NSInteger::max_value();
 
 #[repr(C)]

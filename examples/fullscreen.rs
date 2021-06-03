@@ -95,7 +95,7 @@ fn prompt_for_monitor(event_loop: &EventLoop<()>) -> MonitorHandle {
 
   let mut num = String::new();
   stdin().read_line(&mut num).unwrap();
-  let num = num.trim().parse().ok().expect("Please enter a number");
+  let num = num.trim().parse().expect("Please enter a number");
   let monitor = event_loop
     .available_monitors()
     .nth(num)
@@ -116,7 +116,7 @@ fn prompt_for_video_mode(monitor: &MonitorHandle) -> VideoMode {
 
   let mut num = String::new();
   stdin().read_line(&mut num).unwrap();
-  let num = num.trim().parse().ok().expect("Please enter a number");
+  let num = num.trim().parse().expect("Please enter a number");
   let video_mode = monitor
     .video_modes()
     .nth(num)

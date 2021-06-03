@@ -26,8 +26,8 @@ fn main() {
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Wait;
 
-    match event {
-      Event::WindowEvent { event, .. } => match event {
+    if let Event::WindowEvent { event, .. } = event {
+      match event {
         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
         WindowEvent::ModifiersChanged(new_state) => {
           modifiers = new_state;
@@ -36,23 +36,21 @@ fn main() {
           handle_key_event(modifiers, event);
         }
         _ => (),
-      },
-      _ => (),
-    };
+      }
+    }
   });
 }
 
 fn handle_key_event(modifiers: ModifiersState, event: KeyEvent) {
-  if event.state == ElementState::Pressed && !event.repeat {
-    match event.key_without_modifiers() {
-      Key::Character("1") => {
-        if modifiers.shift_key() {
-          println!("Shift + 1 | logical_key: {:?}", event.logical_key);
-        } else {
-          println!("1");
-        }
-      }
-      _ => (),
+  if event.state == ElementState::Pressed
+    && !event.repeat
+    // catch only 1 without the modifier, we'll match later...
+    && event.key_without_modifiers() == Key::Character("1")
+  {
+    if modifiers.shift_key() {
+      println!("Shift + 1 | logical_key: {:?}", event.logical_key);
+    } else {
+      println!("1");
     }
   }
 }

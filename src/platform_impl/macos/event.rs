@@ -133,6 +133,7 @@ fn get_logical_key_char(ns_event: id, modifierless_chars: &str) -> Key<'static> 
   Key::Character(insert_or_get_key_str(string))
 }
 
+#[allow(clippy::unnecessary_unwrap)]
 pub fn create_key_event(
   ns_event: id,
   is_press: bool,
@@ -199,8 +200,8 @@ pub fn create_key_event(
     state,
     text,
     platform_specific: KeyEventExtra {
-      key_without_modifiers,
       text_with_all_modifiers,
+      key_without_modifiers,
     },
   }
 }
