@@ -105,7 +105,7 @@ impl Menu {
     &mut self,
     menu_id: MenuId,
     title: &str,
-    accelerators: Option<&HotKey<'_>>,
+    accelerators: Option<HotKey>,
     enabled: bool,
     selected: bool,
     menu_type: MenuType,
@@ -167,7 +167,7 @@ impl Menu {
         make_menu_item(
           "Close Window",
           Some(selector("performClose:")),
-          Some(&HotKey::new(None, "w")),
+          Some(HotKey::new(None, "w")),
           menu_type,
         ),
       )),
@@ -176,7 +176,7 @@ impl Menu {
         make_menu_item(
           "Quit",
           Some(selector("terminate:")),
-          Some(&HotKey::new(None, "q")),
+          Some(HotKey::new(None, "q")),
           menu_type,
         ),
       )),
@@ -185,7 +185,7 @@ impl Menu {
         make_menu_item(
           "Hide",
           Some(selector("hide:")),
-          Some(&HotKey::new(None, "h")),
+          Some(HotKey::new(None, "h")),
           menu_type,
         ),
       )),
@@ -194,7 +194,7 @@ impl Menu {
         make_menu_item(
           "Hide Others",
           Some(selector("hideOtherApplications:")),
-          Some(&HotKey::new(RawMods::AltMeta, "w")),
+          Some(HotKey::new(RawMods::AltMeta, "w")),
           menu_type,
         ),
       )),
@@ -212,7 +212,7 @@ impl Menu {
         make_menu_item(
           "Enter Full Screen",
           Some(selector("toggleFullScreen:")),
-          Some(&HotKey::new(RawMods::CtrlMeta, "w")),
+          Some(HotKey::new(RawMods::CtrlMeta, "w")),
           menu_type,
         ),
       )),
@@ -221,7 +221,7 @@ impl Menu {
         make_menu_item(
           "Minimize",
           Some(selector("performMiniaturize:")),
-          Some(&HotKey::new(None, "m")),
+          Some(HotKey::new(None, "m")),
           menu_type,
         ),
       )),
@@ -234,7 +234,7 @@ impl Menu {
         make_menu_item(
           "Copy",
           Some(selector("copy:")),
-          Some(&HotKey::new(None, "c")),
+          Some(HotKey::new(None, "c")),
           menu_type,
         ),
       )),
@@ -243,7 +243,7 @@ impl Menu {
         make_menu_item(
           "Cut",
           Some(selector("cut:")),
-          Some(&HotKey::new(None, "x")),
+          Some(HotKey::new(None, "x")),
           menu_type,
         ),
       )),
@@ -252,7 +252,7 @@ impl Menu {
         make_menu_item(
           "Paste",
           Some(selector("paste:")),
-          Some(&HotKey::new(None, "v")),
+          Some(HotKey::new(None, "v")),
           menu_type,
         ),
       )),
@@ -261,7 +261,7 @@ impl Menu {
         make_menu_item(
           "Undo",
           Some(selector("undo:")),
-          Some(&HotKey::new(None, "z")),
+          Some(HotKey::new(None, "z")),
           menu_type,
         ),
       )),
@@ -270,7 +270,7 @@ impl Menu {
         make_menu_item(
           "Redo",
           Some(selector("redo:")),
-          Some(&HotKey::new(None, "Z")),
+          Some(HotKey::new(None, "Z")),
           menu_type,
         ),
       )),
@@ -279,7 +279,7 @@ impl Menu {
         make_menu_item(
           "Select All",
           Some(selector("selectAll:")),
-          Some(&HotKey::new(None, "a")),
+          Some(HotKey::new(None, "a")),
           menu_type,
         ),
       )),
@@ -323,7 +323,7 @@ pub(crate) fn make_custom_menu_item(
   id: MenuId,
   title: &str,
   selector: Option<Sel>,
-  accelerators: Option<&HotKey<'_>>,
+  accelerators: Option<HotKey>,
   menu_type: MenuType,
 ) -> *mut Object {
   let alloc = make_menu_alloc();
@@ -341,7 +341,7 @@ pub(crate) fn make_custom_menu_item(
 pub(crate) fn make_menu_item(
   title: &str,
   selector: Option<Sel>,
-  accelerators: Option<&HotKey<'_>>,
+  accelerators: Option<HotKey>,
   menu_type: MenuType,
 ) -> *mut Object {
   let alloc = make_menu_alloc();
@@ -355,13 +355,16 @@ fn make_menu_item_from_alloc(
   alloc: *mut Object,
   title: *mut Object,
   selector: Option<Sel>,
-  accelerators: Option<&HotKey<'_>>,
+  accelerators: Option<HotKey>,
   menu_type: MenuType,
 ) -> *mut Object {
   unsafe {
     // build our HotKey string
-    let key_equivalent = accelerators.map(HotKey::key_equivalent).unwrap_or("");
-    let key_equivalent = NSString::alloc(nil).init_str(key_equivalent);
+    let key_equivalent = accelerators
+      .clone()
+      .map(HotKey::key_equivalent)
+      .unwrap_or("".into());
+    let key_equivalent = NSString::alloc(nil).init_str(&key_equivalent);
     // if no selector defined, that mean it's a custom
     // menu so fire our handler
     let selector = match selector {
@@ -444,43 +447,42 @@ extern "C" fn dealloc_custom_menuitem(this: &Object, _: Sel) {
   }
 }
 
-impl HotKey<'_> {
+impl HotKey {
   /// Return the string value of this hotkey, for use with Cocoa `NSResponder`
   /// objects.
   ///
   /// Returns the empty string if no key equivalent is known.
-  fn key_equivalent(&self) -> &str {
-    match &self.key {
+  fn key_equivalent(self) -> String {
+    match self.key {
       Key::Character(t) => t,
-
       // from NSText.h
-      Key::Enter => "\u{0003}",
-      Key::Backspace => "\u{0008}",
-      Key::Delete => "\u{007f}",
+      Key::Enter => "\u{0003}".into(),
+      Key::Backspace => "\u{0008}".into(),
+      Key::Delete => "\u{007f}".into(),
       // from NSEvent.h
-      Key::Insert => "\u{F727}",
-      Key::Home => "\u{F729}",
-      Key::End => "\u{F72B}",
-      Key::PageUp => "\u{F72C}",
-      Key::PageDown => "\u{F72D}",
-      Key::PrintScreen => "\u{F72E}",
-      Key::ScrollLock => "\u{F72F}",
-      Key::ArrowUp => "\u{F700}",
-      Key::ArrowDown => "\u{F701}",
-      Key::ArrowLeft => "\u{F702}",
-      Key::ArrowRight => "\u{F703}",
-      Key::F1 => "\u{F704}",
-      Key::F2 => "\u{F705}",
-      Key::F3 => "\u{F706}",
-      Key::F4 => "\u{F707}",
-      Key::F5 => "\u{F708}",
-      Key::F6 => "\u{F709}",
-      Key::F7 => "\u{F70A}",
-      Key::F8 => "\u{F70B}",
-      Key::F9 => "\u{F70C}",
-      Key::F10 => "\u{F70D}",
-      Key::F11 => "\u{F70E}",
-      Key::F12 => "\u{F70F}",
+      Key::Insert => "\u{F727}".into(),
+      Key::Home => "\u{F729}".into(),
+      Key::End => "\u{F72B}".into(),
+      Key::PageUp => "\u{F72C}".into(),
+      Key::PageDown => "\u{F72D}".into(),
+      Key::PrintScreen => "\u{F72E}".into(),
+      Key::ScrollLock => "\u{F72F}".into(),
+      Key::ArrowUp => "\u{F700}".into(),
+      Key::ArrowDown => "\u{F701}".into(),
+      Key::ArrowLeft => "\u{F702}".into(),
+      Key::ArrowRight => "\u{F703}".into(),
+      Key::F1 => "\u{F704}".into(),
+      Key::F2 => "\u{F705}".into(),
+      Key::F3 => "\u{F706}".into(),
+      Key::F4 => "\u{F707}".into(),
+      Key::F5 => "\u{F708}".into(),
+      Key::F6 => "\u{F709}".into(),
+      Key::F7 => "\u{F70A}".into(),
+      Key::F8 => "\u{F70B}".into(),
+      Key::F9 => "\u{F70C}".into(),
+      Key::F10 => "\u{F70D}".into(),
+      Key::F11 => "\u{F70E}".into(),
+      Key::F12 => "\u{F70F}".into(),
       //Key::F13            => "\u{F710}",
       //Key::F14            => "\u{F711}",
       //Key::F15            => "\u{F712}",
@@ -491,12 +493,12 @@ impl HotKey<'_> {
       //Key::F20            => "\u{F717}",
       _ => {
         eprintln!("no key equivalent for {:?}", self);
-        ""
+        "".into()
       }
     }
   }
 
-  fn key_modifier_mask(&self) -> NSEventModifierFlags {
+  fn key_modifier_mask(self) -> NSEventModifierFlags {
     let mods: ModifiersState = self.mods.into();
     let mut flags = NSEventModifierFlags::empty();
     if mods.shift_key() {

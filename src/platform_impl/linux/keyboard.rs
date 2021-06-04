@@ -19,18 +19,18 @@ lazy_static! {
   static ref KEY_STRINGS: Mutex<HashSet<&'static str>> = Mutex::new(HashSet::new());
 }
 
-fn insert_or_get_key_str(string: String) -> &'static str {
+fn insert_or_get_key_str(string: String) -> String {
   let mut string_set = KEY_STRINGS.lock().unwrap();
   if let Some(contained) = string_set.get(string.as_str()) {
-    return contained;
+    return contained.to_string();
   }
   let static_str = Box::leak(string.into_boxed_str());
   string_set.insert(static_str);
-  static_str
+  static_str.to_string()
 }
 
 #[allow(clippy::just_underscores_and_digits, non_upper_case_globals)]
-pub(crate) fn raw_key_to_key(gdk_key: RawKey) -> Option<Key<'static>> {
+pub(crate) fn raw_key_to_key(gdk_key: RawKey) -> Option<Key> {
   let key = match gdk_key {
     Escape => Some(Key::Escape),
     BackSpace => Some(Key::Backspace),
@@ -120,7 +120,7 @@ pub(crate) fn raw_key_to_location(raw: RawKey) -> KeyLocation {
   }
 }
 
-const MODIFIER_MAP: &[(Key<'_>, ModifiersState)] = &[
+const MODIFIER_MAP: &[(Key, ModifiersState)] = &[
   (Key::Shift, ModifiersState::SHIFT),
   (Key::Alt, ModifiersState::ALT),
   (Key::Control, ModifiersState::CONTROL),
@@ -153,9 +153,9 @@ pub(crate) fn get_modifiers(key: EventKey) -> ModifiersState {
   // start with empty state
   let mut result = ModifiersState::empty();
   // loop trough our modifier map
-  for &(gdk_mod, modifier) in MODIFIER_MAP {
-    if key_from_code == gdk_mod {
-      result |= modifier;
+  for (gdk_mod, modifier) in MODIFIER_MAP {
+    if key_from_code == *gdk_mod {
+      result |= *modifier;
     }
   }
   result
@@ -216,7 +216,7 @@ pub(crate) fn make_key_event(
       physical_key,
       repeat: is_repeat,
       state,
-      text: text_with_all_modifiers,
+      text: text_with_all_modifiers.clone(),
       platform_specific: KeyEventExtra {
         text_with_all_modifiers,
         key_without_modifiers,
@@ -268,4 +268,62 @@ fn hardware_keycode_to_keyval(keycode: u16) -> Option<RawKey> {
     }
   }
   None
+}
+
+#[allow(non_upper_case_globals)]
+pub fn key_to_raw_key(src: &Key) -> Option<RawKey> {
+  Some(match src {
+    Key::Escape => Escape,
+    Key::Backspace => BackSpace,
+
+    Key::Tab => Tab,
+    Key::Enter => Return,
+
+    // Give "left" variants
+    Key::Control => Control_L,
+    Key::Alt => Alt_L,
+    Key::Shift => Shift_L,
+    Key::Super => Super_L,
+
+    Key::CapsLock => Caps_Lock,
+    Key::F1 => F1,
+    Key::F2 => F2,
+    Key::F3 => F3,
+    Key::F4 => F4,
+    Key::F5 => F5,
+    Key::F6 => F6,
+    Key::F7 => F7,
+    Key::F8 => F8,
+    Key::F9 => F9,
+    Key::F10 => F10,
+    Key::F11 => F11,
+    Key::F12 => F12,
+
+    Key::PrintScreen => Print,
+    Key::ScrollLock => Scroll_Lock,
+    // Pause/Break not audio.
+    Key::Pause => Pause,
+
+    Key::Insert => Insert,
+    Key::Delete => Delete,
+    Key::Home => Home,
+    Key::End => End,
+    Key::PageUp => Page_Up,
+    Key::PageDown => Page_Down,
+
+    Key::NumLock => Num_Lock,
+
+    Key::ArrowUp => Up,
+    Key::ArrowDown => Down,
+    Key::ArrowLeft => Left,
+    Key::ArrowRight => Right,
+
+    Key::ContextMenu => Menu,
+    Key::WakeUp => WakeUp,
+    Key::LaunchApplication1 => Launch0,
+    Key::LaunchApplication2 => Launch1,
+    Key::AltGraph => ISO_Level3_Shift,
+    // TODO: probably more
+    _ => return None,
+  })
 }

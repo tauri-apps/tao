@@ -16,7 +16,7 @@ pub trait KeyEventExtModifierSupplement {
   /// Identical to `KeyEvent::text` but this is affected by <kbd>Ctrl</kbd>.
   ///
   /// For example, pressing <kbd>Ctrl</kbd>+<kbd>a</kbd> produces `Some("\x01")`.
-  fn text_with_all_modifiers(&self) -> Option<&str>;
+  fn text_with_all_modifiers(&self) -> Option<String>;
 
   /// This value ignores all modifiers including,
   /// but not limited to <kbd>Shift</kbd>, <kbd>Caps Lock</kbd>,
@@ -28,5 +28,5 @@ pub trait KeyEventExtModifierSupplement {
   /// In case `logical_key` reports `Dead`, this will still report the
   /// key as `Character` according to the current keyboard layout. This value
   /// cannot be `Dead`.
-  fn key_without_modifiers(&self) -> Key<'static>;
+  fn key_without_modifiers(&self) -> Key;
 }

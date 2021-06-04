@@ -7,8 +7,15 @@ use gtk::{
   MenuItem as GtkMenuItem, SeparatorMenuItem,
 };
 
-use super::window::{WindowId, WindowRequest};
-use crate::menu::{CustomMenuItem, MenuId, MenuItem, MenuType};
+use super::{
+  keyboard::key_to_raw_key,
+  window::{WindowId, WindowRequest},
+};
+use crate::{
+  hotkey::{HotKey, RawMods},
+  keyboard::{Key, ModifiersState},
+  menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
+};
 
 macro_rules! menuitem {
   ( $description:expr, $key:expr, $accel_group:ident ) => {{
@@ -52,7 +59,7 @@ unsafe impl Sync for Menu {}
 #[derive(Debug, Clone)]
 pub struct MenuItemAttributes {
   id: MenuId,
-  key: Option<String>,
+  key: Option<HotKey>,
   selected: bool,
   enabled: bool,
   menu_type: MenuType,
@@ -100,7 +107,7 @@ impl Menu {
     &mut self,
     menu_id: MenuId,
     title: &str,
-    accelerators: Option<&str>,
+    accelerators: Option<HotKey>,
     enabled: bool,
     selected: bool,
     menu_type: MenuType,
@@ -113,7 +120,7 @@ impl Menu {
     };
     let custom_menu = MenuItemAttributes {
       id: menu_id,
-      key: accelerators.map(|a| a.to_string()),
+      key: accelerators,
       enabled,
       selected,
       menu_type,
@@ -201,8 +208,7 @@ impl Menu {
           ..
         } => {
           if let Some(key) = key {
-            let (key, mods) = gtk::accelerator_parse(&key);
-            gtk_item.add_accelerator("activate", accel_group, key, mods, AccelFlags::VISIBLE);
+            register_accelerator(&gtk_item, accel_group, key);
           }
 
           gtk_item.set_sensitive(enabled);
@@ -288,4 +294,39 @@ pub fn initialize(
   let mut menubar = MenuBar::new();
   let () = menu.generate_menu(&mut menubar, tx, accel_group, id);
   menubar
+}
+
+fn register_accelerator(item: &GtkMenuItem, accel_group: &AccelGroup, menu_key: HotKey) {
+  let gdk_keyval = match &menu_key.key {
+    Key::Character(text) => text.chars().next().unwrap() as u32,
+    k => {
+      if let Some(gdk_key) = key_to_raw_key(k) {
+        *gdk_key
+      } else {
+        dbg!("Cannot map key {:?}", k);
+        return;
+      }
+    }
+  };
+
+  item.add_accelerator(
+    "activate",
+    accel_group,
+    gdk_keyval,
+    modifiers_to_gdk_modifier_type(menu_key.mods),
+    gtk::AccelFlags::VISIBLE,
+  );
+}
+
+fn modifiers_to_gdk_modifier_type(raw_modifiers: RawMods) -> gdk::ModifierType {
+  let mut result = gdk::ModifierType::empty();
+
+  let modifiers: ModifiersState = raw_modifiers.into();
+
+  result.set(gdk::ModifierType::MOD1_MASK, modifiers.alt_key());
+  result.set(gdk::ModifierType::CONTROL_MASK, modifiers.control_key());
+  result.set(gdk::ModifierType::SHIFT_MASK, modifiers.shift_key());
+  result.set(gdk::ModifierType::META_MASK, modifiers.super_key());
+
+  result
 }

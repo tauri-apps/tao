@@ -685,13 +685,13 @@ pub enum KeyCode {
 ///
 /// [`KeyboardEvent.key`]: https://w3c.github.io/uievents-key/
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum Key<'a> {
+pub enum Key {
   /// A key string that corresponds to the character typed by the user, taking into account the
   /// user’s current locale setting, and any system-level keyboard mapping overrides that are in
   /// effect.
-  Character(&'a str),
+  Character(String),
 
   /// This variant is used when the key cannot be translated to any other variant.
   ///
@@ -1405,15 +1405,15 @@ pub enum Key<'a> {
   F35,
 }
 
-impl<'a> Key<'a> {
-  pub fn to_text(&self) -> Option<&'a str> {
+impl Key {
+  pub fn to_text(&self) -> Option<String> {
     match self {
-      Key::Character(ch) => Some(*ch),
-      Key::Enter => Some("\r"),
-      Key::Backspace => Some("\x08"),
-      Key::Tab => Some("\t"),
-      Key::Space => Some(" "),
-      Key::Escape => Some("\x1b"),
+      Key::Character(ch) => Some(ch.into()),
+      Key::Enter => Some("\r".into()),
+      Key::Backspace => Some("\x08".into()),
+      Key::Tab => Some("\t".into()),
+      Key::Space => Some(" ".into()),
+      Key::Escape => Some("\x1b".into()),
       _ => None,
     }
   }
@@ -1437,11 +1437,11 @@ pub enum KeyLocation {
 ///
 /// [`Key`]: Key
 pub trait IntoKey {
-  fn into_key(self) -> Key<'static>;
+  fn into_key(self) -> Key;
 }
 
 impl IntoKey for &'static str {
-  fn into_key(self) -> Key<'static> {
+  fn into_key(self) -> Key {
     Key::Character(self.into())
   }
 }

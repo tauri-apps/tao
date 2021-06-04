@@ -3,12 +3,12 @@ use std::borrow::Borrow;
 use crate::keyboard::{IntoKey, Key, ModifiersState};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct HotKey<'a> {
+pub struct HotKey {
   pub(crate) mods: RawMods,
-  pub(crate) key: Key<'a>,
+  pub(crate) key: Key,
 }
 
-impl<'a> HotKey<'a> {
+impl HotKey {
   pub fn new(mods: impl Into<Option<RawMods>>, key: impl IntoKey) -> Self {
     HotKey {
       mods: mods.into().unwrap_or(RawMods::None),
@@ -20,7 +20,7 @@ impl<'a> HotKey<'a> {
   ///
   /// [`Key`]: Key
   /// [`ModifiersState`]: crate::keyboard::ModifiersState
-  pub fn matches(&self, modifiers: impl Borrow<ModifiersState>, key: impl Borrow<Key<'a>>) -> bool {
+  pub fn matches(&self, modifiers: impl Borrow<ModifiersState>, key: impl Borrow<Key>) -> bool {
     // Should be a const but const bit_or doesn't work here.
     let base_mods =
       ModifiersState::SHIFT | ModifiersState::CONTROL | ModifiersState::ALT | ModifiersState::SUPER;

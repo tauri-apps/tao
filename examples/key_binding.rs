@@ -20,7 +20,7 @@ fn main() {
     if event.state == ElementState::Pressed
       && !event.repeat
       // catch only 1 without the modifier, we'll match later...
-      && event.key_without_modifiers() == Key::Character("1")
+      && event.key_without_modifiers() == Key::Character("1".to_string())
     {
       if modifiers.shift_key() {
         println!("Shift + 1 | logical_key: {:?}", event.logical_key);

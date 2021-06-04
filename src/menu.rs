@@ -39,7 +39,7 @@ pub struct MenuBar(pub(crate) Menu);
 pub struct MenuItemAttributes<'a> {
   id: MenuId,
   title: &'a str,
-  keyboard_accelerator: Option<&'a HotKey<'a>>,
+  keyboard_accelerator: Option<HotKey>,
   enabled: bool,
   selected: bool,
 }
@@ -72,8 +72,8 @@ impl<'a> MenuItemAttributes<'a> {
   ///
   /// - **Windows / Android / iOS:** Unsupported
   ///
-  pub fn with_accelerators(mut self, keyboard_accelerators: &'a HotKey<'a>) -> Self {
-    self.keyboard_accelerator = Some(keyboard_accelerators);
+  pub fn with_accelerators(mut self, keyboard_accelerators: &HotKey) -> Self {
+    self.keyboard_accelerator = Some(keyboard_accelerators.clone().to_owned());
     self
   }
 
@@ -117,7 +117,7 @@ impl ContextMenu {
   }
 
   /// Add new item to this menu.
-  pub fn add_item(&mut self, item: MenuItemAttributes<'_>) -> CustomMenuItem {
+  pub fn add_item(&mut self, item: MenuItemAttributes<'static>) -> CustomMenuItem {
     self.0.menu_platform.add_item(
       item.id,
       item.title,
@@ -158,7 +158,7 @@ impl MenuBar {
   }
 
   /// Add new item to this menu.
-  pub fn add_item(&mut self, item: MenuItemAttributes<'_>) -> CustomMenuItem {
+  pub fn add_item(&mut self, item: MenuItemAttributes<'static>) -> CustomMenuItem {
     self.0.menu_platform.add_item(
       item.id,
       item.title,

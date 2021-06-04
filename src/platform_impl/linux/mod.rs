@@ -32,17 +32,17 @@ use crate::{
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct KeyEventExtra {
-  pub text_with_all_modifiers: Option<&'static str>,
-  pub key_without_modifiers: Key<'static>,
+  pub text_with_all_modifiers: Option<String>,
+  pub key_without_modifiers: Key,
 }
 
 impl KeyEventExtModifierSupplement for KeyEvent {
-  fn text_with_all_modifiers(&self) -> Option<&str> {
-    self.platform_specific.text_with_all_modifiers
+  fn text_with_all_modifiers(&self) -> Option<String> {
+    self.platform_specific.text_with_all_modifiers.clone()
   }
 
-  fn key_without_modifiers(&self) -> Key<'static> {
-    self.platform_specific.key_without_modifiers
+  fn key_without_modifiers(&self) -> Key {
+    self.platform_specific.key_without_modifiers.clone()
   }
 }
 

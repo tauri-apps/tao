@@ -77,7 +77,7 @@ fn main() {
             ..
           },
         ..
-      } => match key_str {
+      } => match &key_str {
         // WARNING: Consider using `key_without_modifers()` if available on your platform.
         // See the `key_binding` example
         "e" => {

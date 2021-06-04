@@ -692,7 +692,7 @@ pub struct KeyEvent {
   /// - **Web:** Dead keys might be reported as the real key instead
   /// of `Dead` depending on the browser/OS.
   ///
-  pub logical_key: keyboard::Key<'static>,
+  pub logical_key: keyboard::Key,
 
   /// Contains the text produced by this keypress.
   ///
@@ -713,7 +713,7 @@ pub struct KeyEvent {
   /// be interpreted as text.
   ///
   /// See also: `text_with_all_modifiers()`
-  pub text: Option<&'static str>,
+  pub text: Option<String>,
 
   pub location: keyboard::KeyLocation,
   pub state: ElementState,
