@@ -19,6 +19,7 @@ use ndk_glue::{Event, Rect};
 use ndk_sys::AKeyEvent_getKeyCode;
 use std::{
   collections::VecDeque,
+  convert::TryInto,
   sync::{Arc, Mutex, RwLock},
   time::{Duration, Instant},
 };
