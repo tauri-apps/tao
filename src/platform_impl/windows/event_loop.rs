@@ -1091,10 +1091,11 @@ unsafe fn public_window_callback_inner<T: 'static>(
     winuser::WM_COMMAND => {
       println!("lparam {:?}", lparam);
       println!("wparam {:?}", wparam);
-      let menu_id = (LOWORD(wparam as u32) as u32);
+      println!("wparam {:?}", wparam as u32);
+      let menu_id = LOWORD(wparam as u32) as u32;
       println!("menu_id {:?}", menu_id);
       subclass_input.send_event(Event::MenuEvent {
-        menu_id: MenuId(menu_id as u32),
+        menu_id: MenuId(menu_id as u16),
         // todo fix menutype
         origin: MenuType::MenuBar,
       });

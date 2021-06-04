@@ -306,7 +306,7 @@ impl Menu {
 }
 
 #[derive(Debug)]
-struct Action(Box<u32>);
+struct Action(Box<u16>);
 
 pub fn initialize(menu_builder: Menu) {
   unsafe {

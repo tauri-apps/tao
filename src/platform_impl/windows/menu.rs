@@ -51,7 +51,7 @@ impl MenuHandler {
       menu_type,
     }
   }
-  pub fn send_click_event(&self, menu_id: u32) {
+  pub fn send_click_event(&self, menu_id: u16) {
     (self.send_event)(Event::MenuEvent {
       menu_id: MenuId(menu_id),
       origin: self.menu_type,
@@ -64,7 +64,7 @@ impl MenuHandler {
 }
 
 #[derive(Debug, Clone)]
-pub struct MenuItemAttributes(pub(crate) u32, windef::HMENU);
+pub struct MenuItemAttributes(pub(crate) u16, windef::HMENU);
 
 impl MenuItemAttributes {
   pub fn id(&self) -> MenuId {
@@ -74,7 +74,7 @@ impl MenuItemAttributes {
     unsafe {
       winuser::EnableMenuItem(
         self.1,
-        self.0,
+        self.0 as u32,
         match enabled {
           true => winuser::MF_ENABLED,
           false => winuser::MF_DISABLED,
@@ -92,14 +92,14 @@ impl MenuItemAttributes {
       let c_str = CString::new(title).unwrap();
       info.dwTypeData = c_str.as_ptr() as _;
 
-      winuser::SetMenuItemInfoA(self.1, self.0, minwindef::FALSE, &info);
+      winuser::SetMenuItemInfoA(self.1, self.0 as u32, minwindef::FALSE, &info);
     }
   }
   pub fn set_selected(&mut self, selected: bool) {
     unsafe {
       winuser::CheckMenuItem(
         self.1,
-        self.0,
+        self.0 as u32,
         match selected {
           true => winuser::MF_CHECKED,
           false => winuser::MF_UNCHECKED,
@@ -115,7 +115,7 @@ impl MenuItemAttributes {
 #[derive(Debug, Clone)]
 pub struct Menu {
   hmenu: windef::HMENU,
-  accels: HashMap<u32, AccelWrapper>,
+  accels: HashMap<u16, AccelWrapper>,
 }
 
 impl Drop for Menu {
@@ -379,7 +379,7 @@ pub(crate) unsafe extern "system" fn subclass_proc(
         }
         _ => {
           if MENU_IDS.lock().unwrap().contains(&wparam) {
-            proxy.send_click_event(wparam as u32);
+            proxy.send_click_event(wparam as u16);
           }
         }
       }
@@ -430,7 +430,7 @@ fn execute_edit_command(command: EditCommands) {
 }
 
 // Convert a hotkey to an accelerator.
-fn convert_hotkey(id: u32, key: &HotKey<'_>) -> Option<winuser::ACCEL> {
+fn convert_hotkey(id: u16, key: &HotKey<'_>) -> Option<winuser::ACCEL> {
   let mut virt_key = winuser::FVIRTKEY;
   let key_mods: ModifiersState = key.mods.into();
   if key_mods.control_key() {
@@ -459,6 +459,10 @@ fn convert_hotkey(id: u32, key: &HotKey<'_>) -> Option<winuser::ACCEL> {
     dbg!("Failed to convert key {:?} into virtual key code", key.key);
     return None;
   };
+
+  println!("saving id {:?}", id);
+  let test = id as u16;
+  println!("saving id {:?}", test);
 
   Some(winuser::ACCEL {
     fVirt: virt_key,
