@@ -73,7 +73,7 @@ impl<'a> MenuItemAttributes<'a> {
   /// - **Windows / Android / iOS:** Unsupported
   ///
   pub fn with_accelerators(mut self, keyboard_accelerators: &HotKey) -> Self {
-    self.keyboard_accelerator = Some(keyboard_accelerators.clone().to_owned());
+    self.keyboard_accelerator = Some(keyboard_accelerators.to_owned());
     self
   }
 

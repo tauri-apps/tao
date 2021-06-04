@@ -363,7 +363,7 @@ fn make_menu_item_from_alloc(
     let key_equivalent = accelerators
       .clone()
       .map(HotKey::key_equivalent)
-      .unwrap_or("".into());
+      .unwrap_or_else(|| "".into());
     let key_equivalent = NSString::alloc(nil).init_str(&key_equivalent);
     // if no selector defined, that mean it's a custom
     // menu so fire our handler

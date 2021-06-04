@@ -167,7 +167,7 @@ pub fn create_key_event(
   let key_from_code = code_to_key(physical_key, scancode);
   let logical_key;
   let key_without_modifiers;
-  if !matches!(key_from_code.clone(), Key::Unidentified(_)) {
+  if !matches!(key_from_code, Key::Unidentified(_)) {
     logical_key = key_from_code.clone();
     key_without_modifiers = key_from_code;
   } else {
