@@ -320,13 +320,13 @@ impl SystemTrayExtWindows for crate::system_tray::SystemTray {
 
 impl KeyEventExtModifierSupplement for KeyEvent {
   #[inline]
-  fn text_with_all_modifiers(&self) -> Option<&str> {
-    self.platform_specific.text_with_all_modifers
+  fn text_with_all_modifiers(&self) -> Option<String> {
+    self.platform_specific.text_with_all_modifers.clone()
   }
 
   #[inline]
-  fn key_without_modifiers(&self) -> Key<'static> {
-    self.platform_specific.key_without_modifiers
+  fn key_without_modifiers(&self) -> Key {
+    self.platform_specific.key_without_modifiers.clone()
   }
 }
 

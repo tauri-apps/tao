@@ -166,10 +166,10 @@ pub(crate) struct Layout {
   ///
   /// Making this field separate from the `keys` field saves having to add NumLock as a modifier
   /// to `WindowsModifiers`, which would double the number of items in keys.
-  pub numlock_on_keys: HashMap<c_int, Key<'static>>,
+  pub numlock_on_keys: HashMap<c_int, Key>,
   /// Like `numlock_on_keys` but this will map to the key that would be produced if numlock was
   /// off. The keys of this map are identical to the keys of `numlock_on_keys`.
-  pub numlock_off_keys: HashMap<c_int, Key<'static>>,
+  pub numlock_off_keys: HashMap<c_int, Key>,
 
   /// Maps a modifier state to group of key strings
   /// We're not using `ModifiersState` here because that object cannot express caps lock,
@@ -181,7 +181,7 @@ pub(crate) struct Layout {
   /// just when the key is pressed/released would be enough if `ToUnicode` wouldn't
   /// change the keyboard state (it clears the dead key). There is a flag to prevent
   /// changing the state, but that flag requires Windows 10, version 1607 or newer)
-  pub keys: HashMap<WindowsModifiers, HashMap<KeyCode, Key<'static>>>,
+  pub keys: HashMap<WindowsModifiers, HashMap<KeyCode, Key>>,
   pub has_alt_graph: bool,
 }
 
@@ -193,7 +193,7 @@ impl Layout {
     vkey: c_int,
     scancode: ExScancode,
     keycode: KeyCode,
-  ) -> Key<'static> {
+  ) -> Key {
     let native_code = NativeKeyCode::Windows(scancode);
 
     let unknown_alt = vkey == winuser::VK_MENU;
@@ -741,7 +741,7 @@ fn vkey_to_non_char_key(
   native_code: NativeKeyCode,
   hkl: u64,
   has_alt_graph: bool,
-) -> Key<'static> {
+) -> Key {
   // List of the Web key names and their corresponding platform-native key names:
   // https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values
 

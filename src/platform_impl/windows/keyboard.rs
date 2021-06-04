@@ -489,10 +489,10 @@ enum PartialLogicalKey {
   /// the text consists of multiple grapheme clusters (user-precieved characters) that means that
   /// dead key could not be combined with the second input, and in that case we should fall back
   /// to using what would have without a dead-key input.
-  TextOr(Key<'static>),
+  TextOr(Key),
 
   /// Use the value directly provided by this variant
-  This(Key<'static>),
+  This(Key),
 }
 
 struct PartialKeyEventInfo {
@@ -504,7 +504,7 @@ struct PartialKeyEventInfo {
   location: KeyLocation,
   logical_key: PartialLogicalKey,
 
-  key_without_modifiers: Key<'static>,
+  key_without_modifiers: Key,
 
   /// The UTF-16 code units of the text that was produced by the keypress event.
   /// This take all modifiers into account. Including CTRL

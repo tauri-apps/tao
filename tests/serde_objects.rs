@@ -25,7 +25,7 @@ fn events_serde() {
   needs_serde::<ElementState>();
   needs_serde::<MouseButton>();
   needs_serde::<MouseScrollDelta>();
-  needs_serde::<Key<'static>>();
+  needs_serde::<Key>();
   needs_serde::<KeyCode>();
   needs_serde::<KeyLocation>();
   needs_serde::<ModifiersState>();
