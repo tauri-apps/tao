@@ -204,7 +204,6 @@ impl Menu {
 
       // add our accels
       if let Some(accelerators) = accelerators {
-        println!("menu id: {:?}", menu_id.0);
         if let Some(accelerators) = convert_hotkey(menu_id.0, accelerators) {
           self.accels.insert(menu_id.0, AccelWrapper(accelerators));
         }
@@ -324,7 +323,6 @@ pub fn initialize(
     }
 
     if let Some(accels) = menu_builder.accels() {
-      println!("register accel");
       register_accel(handle.hwnd as _, &accels);
     }
 
@@ -460,14 +458,10 @@ fn convert_hotkey(id: u16, key: HotKey) -> Option<winuser::ACCEL> {
     return None;
   };
 
-  println!("saving id {:?}", id);
-  let test = id as u16;
-  println!("saving id {:?}", test);
-
   Some(winuser::ACCEL {
     fVirt: virt_key,
     key: raw_key as u16,
-    cmd: id as u16,
+    cmd: id,
   })
 }
 
