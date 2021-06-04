@@ -8,12 +8,9 @@ use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   hotkey::{HotKey, SysMods},
-  keyboard::ModifiersState,
   menu::{MenuBar as Menu, MenuItem, MenuItemAttributes, MenuType},
   window::WindowBuilder,
 };
-
-use tao::platform::modifier_supplement::KeyEventExtModifierSupplement;
 
 fn main() {
   SimpleLogger::new().init().unwrap();
@@ -28,11 +25,9 @@ fn main() {
   // create a submenu
   let mut my_sub_menu = Menu::new();
 
-  // create new hotkey
-  let hotkey_test = HotKey::new(SysMods::Cmd, "d");
-
-  let mut test_menu_item =
-    my_sub_menu.add_item(MenuItemAttributes::new("Disable menu").with_accelerators(&hotkey_test));
+  let mut test_menu_item = my_sub_menu.add_item(
+    MenuItemAttributes::new("Disable menu").with_accelerators(&HotKey::new(SysMods::Cmd, "d")),
+  );
   // add Copy to `My App` menu
   my_app_menu.add_native_item(MenuItem::Copy);
 
@@ -52,8 +47,6 @@ fn main() {
   menu_bar_menu.add_submenu("My app", true, my_app_menu);
   menu_bar_menu.add_submenu("Other menu", true, test_menu);
 
-  let mut modifiers = ModifiersState::default();
-
   let window = WindowBuilder::new()
     .with_title("A fantastic window!")
     .with_menu(menu_bar_menu)
@@ -70,20 +63,6 @@ fn main() {
       } if window_id == window.id() => *control_flow = ControlFlow::Exit,
       Event::MainEventsCleared => {
         window.request_redraw();
-      }
-      Event::WindowEvent {
-        event: WindowEvent::KeyboardInput { event, .. },
-        ..
-      } => {
-        let key = event.key_without_modifiers();
-        let is_matching = hotkey_test.matches(modifiers, key);
-        println!("is_matching : {}", is_matching);
-      }
-      Event::WindowEvent {
-        event: WindowEvent::ModifiersChanged(new_state),
-        ..
-      } => {
-        modifiers = new_state;
       }
       Event::MenuEvent {
         menu_id,
