@@ -587,24 +587,39 @@ impl<T: 'static> EventLoop<T> {
                 menu.show_all();
               }
             }
-            WindowRequest::KeyboardInput(event_key) => {
-              /**
-                 if let Err(e) = event_tx.send(Event::MenuEvent {
-                  menu_id,
-                  origin: MenuType::MenuBar,
+            WindowRequest::KeyboardInput((event_key, element_state)) => {
+              // if we have a modifier lets send it
+              let mut mods = keycodes::get_modifiers(event_key.clone());
+              if !mods.is_empty() {
+                // if we release the modifier tell the world
+                if ElementState::Released == element_state {
+                  mods = ModifiersState::empty();
+                }
+
+                if let Err(e) = event_tx.send(Event::WindowEvent {
+                  window_id: RootWindowId(id),
+                  event: WindowEvent::ModifiersChanged(mods),
                 }) {
                   log::warn!("Failed to send menu event to event channel: {}", e);
                 }
-              */
-              let code = keycodes::make_key_event(
-                &event_key,
-                false,
-                false,
-                false,
-                None,
-                ElementState::Pressed,
-              );
-              println!("event_key {:?}", code);
+              }
+
+              let event =
+                keycodes::make_key_event(&event_key, false, false, false, None, element_state);
+
+              if let Some(event) = event {
+                if let Err(e) = event_tx.send(Event::WindowEvent {
+                  window_id: RootWindowId(id),
+                  event: WindowEvent::KeyboardInput {
+                    // FIXME: currently we use a dummy device id, find if we can get device id from gtk
+                    device_id: RootDeviceId(DeviceId(0)),
+                    event,
+                    is_synthetic: false,
+                  },
+                }) {
+                  log::warn!("Failed to send menu event to event channel: {}", e);
+                }
+              }
             }
           }
         } else if id == WindowId::dummy() {

@@ -15,6 +15,7 @@ use gtk::{prelude::*, AccelGroup, ApplicationWindow, Orientation};
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
+  event::ElementState,
   icon::{BadIcon, Icon},
   menu::{MenuId, MenuItem},
   monitor::MonitorHandle as RootMonitorHandle,
@@ -298,7 +299,19 @@ impl Window {
     window.connect_key_press_event(move |_window, event_key| {
       if let Err(e) = window_requests_tx_clone.send((
         window_id,
-        WindowRequest::KeyboardInput(event_key.to_owned()),
+        WindowRequest::KeyboardInput((event_key.to_owned(), ElementState::Pressed)),
+      )) {
+        log::warn!("Fail to send user attention request: {}", e);
+      }
+
+      Inhibit(false)
+    });
+
+    let window_requests_tx_clone = window_requests_tx.clone();
+    window.connect_key_release_event(move |_window, event_key| {
+      if let Err(e) = window_requests_tx_clone.send((
+        window_id,
+        WindowRequest::KeyboardInput((event_key.to_owned(), ElementState::Released)),
       )) {
         log::warn!("Fail to send user attention request: {}", e);
       }
@@ -665,7 +678,7 @@ pub enum WindowRequest {
   Redraw,
   Menu((Option<MenuItem>, Option<MenuId>)),
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::Box)),
-  KeyboardInput(EventKey),
+  KeyboardInput((EventKey, ElementState)),
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {

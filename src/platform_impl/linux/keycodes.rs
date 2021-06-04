@@ -1,3 +1,4 @@
+use super::KeyEventExtra;
 use crate::platform::scancode::KeyCodeExtScancode;
 use crate::{
   event::{ElementState, KeyEvent},
@@ -8,13 +9,26 @@ use std::ffi::c_void;
 use std::os::raw::{c_int, c_uint};
 use std::ptr;
 use std::slice;
+use std::{collections::HashSet, sync::Mutex};
 
 pub type RawKey = gdk::keys::Key;
 
+lazy_static! {
+  static ref KEY_STRINGS: Mutex<HashSet<&'static str>> = Mutex::new(HashSet::new());
+}
+
+fn insert_or_get_key_str(string: String) -> &'static str {
+  let mut string_set = KEY_STRINGS.lock().unwrap();
+  if let Some(contained) = string_set.get(string.as_str()) {
+    return contained;
+  }
+  let static_str = Box::leak(string.into_boxed_str());
+  string_set.insert(static_str);
+  static_str
+}
+
 #[allow(clippy::just_underscores_and_digits, non_upper_case_globals)]
 pub fn raw_key_to_key(gdk_key: RawKey) -> Option<Key<'static>> {
-  let unicode = gdk_key.to_unicode();
-
   let key = match gdk_key {
     Escape => Some(Key::Escape),
     BackSpace => Some(Key::Backspace),
@@ -89,6 +103,7 @@ pub fn raw_key_to_key(gdk_key: RawKey) -> Option<Key<'static>> {
   key
 }
 
+#[allow(clippy::just_underscores_and_digits, non_upper_case_globals)]
 pub fn raw_key_to_location(raw: RawKey) -> KeyLocation {
   match raw {
     Control_L | Shift_L | Alt_L | Super_L | Meta_L => KeyLocation::Left,
@@ -103,17 +118,31 @@ pub fn raw_key_to_location(raw: RawKey) -> KeyLocation {
   }
 }
 
-const MODIFIER_MAP: &[(ModifierType, ModifiersState)] = &[
-  (ModifierType::SHIFT_MASK, ModifiersState::SHIFT),
-  (ModifierType::MOD1_MASK, ModifiersState::ALT),
-  (ModifierType::CONTROL_MASK, ModifiersState::CONTROL),
-  (ModifierType::SUPER_MASK, ModifiersState::SUPER),
+const MODIFIER_MAP: &[(Key<'_>, ModifiersState)] = &[
+  (Key::Shift, ModifiersState::SHIFT),
+  (Key::Alt, ModifiersState::ALT),
+  (Key::Control, ModifiersState::CONTROL),
+  (Key::Super, ModifiersState::SUPER),
 ];
 
-pub(crate) fn get_modifiers(modifiers: ModifierType) -> ModifiersState {
+pub(crate) fn get_modifiers(key: EventKey) -> ModifiersState {
+  let scancode = key.get_hardware_keycode();
+  let keyval = key.get_keyval();
+  let unicode = gdk::keys::keyval_to_unicode(*keyval);
+  let key_from_code = raw_key_to_key(keyval).unwrap_or_else(|| {
+    if let Some(key) = unicode {
+      if key >= ' ' && key != '\x7f' {
+        Key::Character(insert_or_get_key_str(key.to_string()))
+      } else {
+        Key::Unidentified(NativeKeyCode::Gtk(scancode))
+      }
+    } else {
+      Key::Unidentified(NativeKeyCode::Gtk(scancode))
+    }
+  });
   let mut result = ModifiersState::empty();
   for &(gdk_mod, modifier) in MODIFIER_MAP {
-    if modifiers.contains(gdk_mod) {
+    if key_from_code == gdk_mod {
       result |= modifier;
     }
   }
@@ -122,28 +151,53 @@ pub(crate) fn get_modifiers(modifiers: ModifierType) -> ModifiersState {
 
 pub fn make_key_event(
   key: &EventKey,
-  is_press: bool,
+  _is_press: bool,
   is_repeat: bool,
-  in_ime: bool,
+  _in_ime: bool,
   key_override: Option<KeyCode>,
   state: ElementState,
 ) -> Option<KeyEvent> {
   let keyval = key.get_keyval();
   let scancode = key.get_hardware_keycode();
+  let keycode = hardware_keycode_to_keyval(scancode).unwrap_or_else(|| keyval.clone());
   let unicode = gdk::keys::keyval_to_unicode(*keyval);
-  let mut physical_key = key_override.unwrap_or_else(|| KeyCode::from_scancode(scancode as u32));
+  let physical_key = key_override.unwrap_or_else(|| KeyCode::from_scancode(scancode as u32));
 
-  println!("physical_key {:?}", physical_key);
-  println!("scancode {:?}", scancode);
-  println!("unicode {:?}", unicode);
-  println!("keyval {:?}", keyval);
+  let key_from_code = raw_key_to_key(keyval).unwrap_or_else(|| {
+    if let Some(key) = unicode {
+      if key >= ' ' && key != '\x7f' {
+        Key::Character(insert_or_get_key_str(key.to_string()))
+      } else {
+        Key::Unidentified(NativeKeyCode::Gtk(scancode))
+      }
+    } else {
+      Key::Unidentified(NativeKeyCode::Gtk(scancode))
+    }
+  });
+
+  let location = raw_key_to_location(keycode);
+
+  if !matches!(key_from_code, Key::Unidentified(_)) {
+    let logical_key = key_from_code;
+    let key_without_modifiers = key_from_code;
+
+    let text_with_all_modifiers = unicode.map(|text| insert_or_get_key_str(text.to_string()));
+    return Some(KeyEvent {
+      location,
+      logical_key,
+      physical_key,
+      repeat: is_repeat,
+      state,
+      text: text_with_all_modifiers,
+      platform_specific: KeyEventExtra {
+        text_with_all_modifiers,
+        key_without_modifiers,
+      },
+    });
+  } else {
+    println!("Couldn't get key from code: {:?}", physical_key);
+  }
   None
-}
-
-// maybe create caching like macos
-fn insert_or_get_key_str(string: String) -> &'static str {
-  let static_str = Box::leak(string.into_boxed_str());
-  static_str
 }
 
 /// Map a hardware keycode to a keyval by performing a lookup in the keymap and finding the
@@ -181,6 +235,8 @@ fn hardware_keycode_to_keyval(keycode: u16) -> Option<RawKey> {
       // notify glib to free the allocated arrays
       glib_sys::g_free(keyvals as *mut c_void);
       glib_sys::g_free(keys as *mut c_void);
+
+      return resolved_keyval;
     }
   }
   None
