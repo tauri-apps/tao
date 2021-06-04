@@ -1,15 +1,17 @@
 use super::KeyEventExtra;
-use crate::platform::scancode::KeyCodeExtScancode;
 use crate::{
   event::{ElementState, KeyEvent},
   keyboard::{Key, KeyCode, KeyLocation, ModifiersState, NativeKeyCode},
+  platform::scancode::KeyCodeExtScancode,
 };
 use gdk::{keys::constants::*, EventKey};
-use std::ffi::c_void;
-use std::os::raw::{c_int, c_uint};
-use std::ptr;
-use std::slice;
-use std::{collections::HashSet, sync::Mutex};
+use std::{
+  collections::HashSet,
+  ffi::c_void,
+  os::raw::{c_int, c_uint},
+  ptr, slice,
+  sync::Mutex,
+};
 
 pub type RawKey = gdk::keys::Key;
 
@@ -125,6 +127,10 @@ const MODIFIER_MAP: &[(Key<'_>, ModifiersState)] = &[
   (Key::Super, ModifiersState::SUPER),
 ];
 
+// we use the EventKey to extract the modifier mainly because
+// we need to have the modifier before the second key is entered to follow
+// other os' logic -- this way we can emit the new `ModifiersState` before
+// we receive the next key, if needed the developer can update his local state.
 pub(crate) fn get_modifiers(key: EventKey) -> ModifiersState {
   // a keycode (scancode in Windows) is a code that refers to a physical keyboard key.
   let scancode = key.get_hardware_keycode();

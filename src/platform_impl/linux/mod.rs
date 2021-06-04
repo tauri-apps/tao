@@ -10,7 +10,7 @@
 ))]
 
 mod event_loop;
-mod keycodes;
+mod keyboard;
 mod menu;
 mod monitor;
 #[cfg(feature = "tray")]

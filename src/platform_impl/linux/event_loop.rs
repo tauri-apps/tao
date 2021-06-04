@@ -32,7 +32,7 @@ use crate::{
 };
 
 use super::{
-  keycodes, menu,
+  keyboard, menu,
   monitor::MonitorHandle,
   window::{WindowId, WindowRequest},
   DeviceId,
@@ -589,7 +589,7 @@ impl<T: 'static> EventLoop<T> {
             }
             WindowRequest::KeyboardInput((event_key, element_state)) => {
               // if we have a modifier lets send it
-              let mut mods = keycodes::get_modifiers(event_key.clone());
+              let mut mods = keyboard::get_modifiers(event_key.clone());
               if !mods.is_empty() {
                 // if we release the modifier tell the world
                 if ElementState::Released == element_state {
@@ -612,7 +612,7 @@ impl<T: 'static> EventLoop<T> {
               }
 
               // todo: implement repeat?
-              let event = keycodes::make_key_event(&event_key, false, None, element_state);
+              let event = keyboard::make_key_event(&event_key, false, None, element_state);
 
               if let Some(event) = event {
                 if let Err(e) = event_tx.send(Event::WindowEvent {
