@@ -296,12 +296,12 @@ impl IconExtWindows for Icon {
 }
 
 /// Additional methods on `SystemTray` that are specific to Windows.
-#[cfg(feature = "system-tray")]
+#[cfg(feature = "tray")]
 pub trait SystemTrayExtWindows {
   fn remove(&mut self);
 }
 
-#[cfg(feature = "system-tray")]
+#[cfg(feature = "tray")]
 impl SystemTrayExtWindows for crate::system_tray::SystemTray {
   /// Remove the tray icon.
   /// Call this when your application is goind to close, to make sure the icon is correctly removed from the system tray.
