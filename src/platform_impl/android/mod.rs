@@ -75,7 +75,7 @@ impl Menu {
     &mut self,
     _menu_id: MenuId,
     _title: &str,
-    _accelerators: Option<&HotKey<'_>>,
+    _accelerators: Option<HotKey>,
     _enabled: bool,
     _selected: bool,
     _menu_type: MenuType,

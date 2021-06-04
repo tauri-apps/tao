@@ -174,7 +174,7 @@ impl Menu {
     &mut self,
     menu_id: MenuId,
     title: &str,
-    accelerators: Option<&HotKey<'_>>,
+    accelerators: Option<HotKey>,
     enabled: bool,
     selected: bool,
     _menu_type: MenuType,
@@ -430,7 +430,7 @@ fn execute_edit_command(command: EditCommands) {
 }
 
 // Convert a hotkey to an accelerator.
-fn convert_hotkey(id: u16, key: &HotKey<'_>) -> Option<winuser::ACCEL> {
+fn convert_hotkey(id: u16, key: HotKey) -> Option<winuser::ACCEL> {
   let mut virt_key = winuser::FVIRTKEY;
   let key_mods: ModifiersState = key.mods.into();
   if key_mods.control_key() {
@@ -472,7 +472,7 @@ fn convert_hotkey(id: u16, key: &HotKey<'_>) -> Option<winuser::ACCEL> {
 }
 
 // Format the hotkey in a Windows-native way.
-fn format_hotkey(key: &HotKey<'_>, s: &mut String) {
+fn format_hotkey(key: HotKey, s: &mut String) {
   let key_mods: ModifiersState = key.mods.into();
   if key_mods.control_key() {
     s.push_str("Ctrl+");
