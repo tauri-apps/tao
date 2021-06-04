@@ -83,7 +83,6 @@ impl KeyEventBuilder {
     lparam: LPARAM,
     result: &mut ProcResult,
   ) -> Vec<MessageAsKeyEvent> {
-    println!("msg_kind {:?}", msg_kind);
     match msg_kind {
       winuser::WM_SETFOCUS => {
         // synthesize keydown events
