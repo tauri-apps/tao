@@ -78,7 +78,10 @@ mod monitor;
 mod view;
 mod window;
 
-use crate::menu::{CustomMenuItem, MenuId, MenuItem, MenuType};
+use crate::{
+  hotkey::HotKey,
+  menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
+};
 use std::fmt;
 
 pub use self::{
@@ -116,7 +119,7 @@ impl Menu {
     &mut self,
     _menu_id: MenuId,
     _title: &str,
-    _accelerators: Option<&str>,
+    _accelerators: Option<&HotKey<'_>>,
     _enabled: bool,
     _selected: bool,
     _menu_type: MenuType,
