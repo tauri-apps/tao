@@ -1427,3 +1427,21 @@ pub enum KeyLocation {
   Right,
   Numpad,
 }
+
+/// A convenience trait for creating Key objects.
+///
+/// This trait is implemented by [`Key`] itself and also strings, which are
+/// converted into the `Character` variant. It is defined this way and not
+/// using the standard `Into` mechanism because `Key` is a type in an external
+/// crate.
+///
+/// [`Key`]: Key
+pub trait IntoKey {
+  fn into_key(self) -> Key<'static>;
+}
+
+impl IntoKey for &'static str {
+  fn into_key(self) -> Key<'static> {
+    Key::Character(self.into())
+  }
+}

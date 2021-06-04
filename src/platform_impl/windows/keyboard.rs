@@ -784,3 +784,99 @@ fn get_location(scancode: ExScancode, hkl: HKL) -> KeyLocation {
     _ => KeyLocation::Standard,
   }
 }
+
+// used to build accelerators table from Key
+pub(crate) fn key_to_vk(key: &Key) -> Option<i32> {
+  Some(match key {
+    Key::Character(s) => {
+      if let Some(code_point) = s.chars().next() {
+        if let Ok(wchar) = (code_point as u32).try_into() {
+          unsafe { winuser::VkKeyScanW(wchar) as i32 }
+        } else {
+          return None;
+        }
+      } else {
+        return None;
+      }
+    }
+    Key::Cancel => winuser::VK_CANCEL,
+    Key::Backspace => winuser::VK_BACK,
+    Key::Tab => winuser::VK_TAB,
+    Key::Clear => winuser::VK_CLEAR,
+    Key::Enter => winuser::VK_RETURN,
+    Key::Shift => winuser::VK_SHIFT,
+    Key::Control => winuser::VK_CONTROL,
+    Key::Alt => winuser::VK_MENU,
+    Key::Pause => winuser::VK_PAUSE,
+    Key::CapsLock => winuser::VK_CAPITAL,
+    // TODO: disambiguate kana and hangul? same vk
+    Key::KanaMode => winuser::VK_KANA,
+    Key::JunjaMode => winuser::VK_JUNJA,
+    Key::FinalMode => winuser::VK_FINAL,
+    Key::KanjiMode => winuser::VK_KANJI,
+    Key::Escape => winuser::VK_ESCAPE,
+    Key::NonConvert => winuser::VK_NONCONVERT,
+    Key::Accept => winuser::VK_ACCEPT,
+    Key::PageUp => winuser::VK_PRIOR,
+    Key::PageDown => winuser::VK_NEXT,
+    Key::End => winuser::VK_END,
+    Key::Home => winuser::VK_HOME,
+    Key::ArrowLeft => winuser::VK_LEFT,
+    Key::ArrowUp => winuser::VK_UP,
+    Key::ArrowRight => winuser::VK_RIGHT,
+    Key::ArrowDown => winuser::VK_DOWN,
+    Key::Select => winuser::VK_SELECT,
+    Key::Print => winuser::VK_PRINT,
+    Key::Execute => winuser::VK_EXECUTE,
+    Key::PrintScreen => winuser::VK_SNAPSHOT,
+    Key::Insert => winuser::VK_INSERT,
+    Key::Delete => winuser::VK_DELETE,
+    Key::Help => winuser::VK_HELP,
+    Key::Meta => winuser::VK_LWIN,
+    Key::ContextMenu => winuser::VK_APPS,
+    Key::Standby => winuser::VK_SLEEP,
+    Key::F1 => winuser::VK_F1,
+    Key::F2 => winuser::VK_F2,
+    Key::F3 => winuser::VK_F3,
+    Key::F4 => winuser::VK_F4,
+    Key::F5 => winuser::VK_F5,
+    Key::F6 => winuser::VK_F6,
+    Key::F7 => winuser::VK_F7,
+    Key::F8 => winuser::VK_F8,
+    Key::F9 => winuser::VK_F9,
+    Key::F10 => winuser::VK_F10,
+    Key::F11 => winuser::VK_F11,
+    Key::F12 => winuser::VK_F12,
+    Key::NumLock => winuser::VK_NUMLOCK,
+    Key::ScrollLock => winuser::VK_SCROLL,
+    Key::BrowserBack => winuser::VK_BROWSER_BACK,
+    Key::BrowserForward => winuser::VK_BROWSER_FORWARD,
+    Key::BrowserRefresh => winuser::VK_BROWSER_REFRESH,
+    Key::BrowserStop => winuser::VK_BROWSER_STOP,
+    Key::BrowserSearch => winuser::VK_BROWSER_SEARCH,
+    Key::BrowserFavorites => winuser::VK_BROWSER_FAVORITES,
+    Key::BrowserHome => winuser::VK_BROWSER_HOME,
+    Key::AudioVolumeMute => winuser::VK_VOLUME_MUTE,
+    Key::AudioVolumeDown => winuser::VK_VOLUME_DOWN,
+    Key::AudioVolumeUp => winuser::VK_VOLUME_UP,
+    Key::MediaTrackNext => winuser::VK_MEDIA_NEXT_TRACK,
+    Key::MediaTrackPrevious => winuser::VK_MEDIA_PREV_TRACK,
+    Key::MediaStop => winuser::VK_MEDIA_STOP,
+    Key::MediaPlayPause => winuser::VK_MEDIA_PLAY_PAUSE,
+    Key::LaunchMail => winuser::VK_LAUNCH_MAIL,
+    Key::LaunchMediaPlayer => winuser::VK_LAUNCH_MEDIA_SELECT,
+    Key::LaunchApplication1 => winuser::VK_LAUNCH_APP1,
+    Key::LaunchApplication2 => winuser::VK_LAUNCH_APP2,
+    Key::Alphanumeric => winuser::VK_OEM_ATTN,
+    Key::Convert => winuser::VK_CONVERT,
+    Key::ModeChange => winuser::VK_MODECHANGE,
+    Key::Process => winuser::VK_PROCESSKEY,
+    Key::Attn => winuser::VK_ATTN,
+    Key::CrSel => winuser::VK_CRSEL,
+    Key::ExSel => winuser::VK_EXSEL,
+    Key::EraseEof => winuser::VK_EREOF,
+    Key::Play => winuser::VK_PLAY,
+    Key::ZoomToggle => winuser::VK_ZOOM,
+    _ => return None,
+  })
+}

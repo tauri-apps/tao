@@ -46,9 +46,11 @@ fn main() {
       match event {
         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
         WindowEvent::ModifiersChanged(new_state) => {
+          println!("new_state {:?}", new_state);
           modifiers = new_state;
         }
         WindowEvent::KeyboardInput { event, .. } => {
+          println!("event {:?}", event);
           handle_key_event(modifiers, event);
         }
         _ => (),

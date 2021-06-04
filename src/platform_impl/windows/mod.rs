@@ -19,6 +19,7 @@ pub use self::{
 pub use self::icon::WinIcon as PlatformIcon;
 
 use crate::{event::DeviceId as RootDeviceId, icon::Icon, keyboard::Key, window::Theme};
+mod accelerator;
 mod menu;
 
 #[cfg(feature = "tray")]

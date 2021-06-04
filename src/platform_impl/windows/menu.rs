@@ -11,6 +11,8 @@ use winapi::{
 
 use crate::{
   event::{Event, WindowEvent},
+  hotkey::{HotKey, RawMods},
+  keyboard::{key_to_vk, Key, ModifiersState},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   platform_impl::platform::WindowId,
   window::WindowId as RootWindowId,
@@ -104,6 +106,7 @@ impl MenuItemAttributes {
 #[derive(Debug, Clone)]
 pub struct Menu {
   hmenu: windef::HMENU,
+  accels: HashMap<u32, winuser::ACCEL>,
 }
 
 impl Drop for Menu {
@@ -127,14 +130,20 @@ impl Menu {
   pub fn new() -> Self {
     unsafe {
       let hmenu = winuser::CreateMenu();
-      Menu { hmenu }
+      Menu {
+        hmenu,
+        accels: HashMap::default(),
+      }
     }
   }
 
   pub fn new_popup_menu() -> Menu {
     unsafe {
       let hmenu = winuser::CreatePopupMenu();
-      Menu { hmenu }
+      Menu {
+        hmenu,
+        accels: HashMap::default(),
+      }
     }
   }
 
@@ -144,11 +153,19 @@ impl Menu {
     hmenu
   }
 
+  /// Get the accels table
+  pub fn accels(&self) -> Option<Vec<winuser::ACCEL>> {
+    if self.accels.is_empty() {
+      return None;
+    }
+    Some(self.accels.values().cloned().collect())
+  }
+
   pub fn add_item(
     &mut self,
     menu_id: MenuId,
     title: &str,
-    _accelerators: Option<&str>,
+    accelerators: Option<&HotKey>,
     enabled: bool,
     selected: bool,
     _menu_type: MenuType,
@@ -162,13 +179,26 @@ impl Menu {
         flags |= winuser::MF_CHECKED;
       }
 
-      // FIXME: add keyboard accelerators
+      let mut anno_title = title.to_string();
+      // format title
+      if let Some(accelerators) = accelerators {
+        anno_title.push('\t');
+        format_hotkey(&accelerators, &mut anno_title);
+      }
+
       winuser::AppendMenuW(
         self.hmenu,
         flags,
         menu_id.0 as _,
-        to_wstring(&title).as_mut_ptr(),
+        to_wstring(&anno_title).as_mut_ptr(),
       );
+
+      // add our accels
+      if let Some(accelerators) = accelerators {
+        if let Some(accel) = convert_hotkey(id, accelerators) {
+          self.accels.insert(menu_id.0, accel);
+        }
+      }
       MENU_IDS.lock().unwrap().push(menu_id.0 as _);
       CustomMenuItem(MenuItemAttributes(menu_id.0, self.hmenu))
     }
@@ -377,5 +407,79 @@ fn execute_edit_command(command: EditCommands) {
       inputs.as_mut_ptr(),
       std::mem::size_of::<winuser::INPUT>() as _,
     );
+  }
+}
+
+// Convert a hotkey to an accelerator.
+fn convert_hotkey(id: u32, key: &HotKey) -> Option<winuser::ACCEL> {
+  let mut virt_key = winuser::FVIRTKEY;
+  let key_mods: Modifiers = key.mods.into();
+  if key_mods.ctrl() {
+    virt_key |= winuser::FCONTROL;
+  }
+  if key_mods.alt() {
+    virt_key |= winuser::FALT;
+  }
+  if key_mods.shift() {
+    virt_key |= winuser::FSHIFT;
+  }
+
+  let raw_key = if let Some(vk_code) = key_to_vk(&key.key) {
+    let mod_code = vk_code >> 8;
+    if mod_code & 0x1 != 0 {
+      virt_key |= winuser::FSHIFT;
+    }
+    if mod_code & 0x02 != 0 {
+      virt_key |= winuser::FCONTROL;
+    }
+    if mod_code & 0x04 != 0 {
+      virt_key |= winuser::FALT;
+    }
+    vk_code & 0x00ff
+  } else {
+    dbg!("Failed to convert key {:?} into virtual key code", key.key);
+    return None;
+  };
+
+  Some(winuser::ACCEL {
+    fVirt: virt_key,
+    key: raw_key as u16,
+    cmd: id as u16,
+  })
+}
+
+// Format the hotkey in a Windows-native way.
+fn format_hotkey(key: &HotKey, s: &mut String) {
+  let key_mods: Modifiers = key.mods.into();
+  if key_mods.ctrl() {
+    s.push_str("Ctrl+");
+  }
+  if key_mods.shift() {
+    s.push_str("Shift+");
+  }
+  if key_mods.alt() {
+    s.push_str("Alt+");
+  }
+  if key_mods.meta() {
+    s.push_str("Windows+");
+  }
+  match &key.key {
+    Key::Character(c) => match c.as_str() {
+      "+" => s.push_str("Plus"),
+      "-" => s.push_str("Minus"),
+      " " => s.push_str("Space"),
+      _ => s.extend(c.chars().flat_map(|c| c.to_uppercase())),
+    },
+    Key::Escape => s.push_str("Esc"),
+    Key::Delete => s.push_str("Del"),
+    Key::Insert => s.push_str("Ins"),
+    Key::PageUp => s.push_str("PgUp"),
+    Key::PageDown => s.push_str("PgDn"),
+    // These names match LibreOffice.
+    Key::ArrowLeft => s.push_str("Left"),
+    Key::ArrowRight => s.push_str("Right"),
+    Key::ArrowUp => s.push_str("Up"),
+    Key::ArrowDown => s.push_str("Down"),
+    _ => s.push_str(&format!("{:?}", key.key)),
   }
 }

@@ -163,6 +163,7 @@ pub mod dpi;
 pub mod error;
 pub mod event;
 pub mod event_loop;
+pub mod hotkey;
 mod icon;
 pub mod keyboard;
 pub mod menu;

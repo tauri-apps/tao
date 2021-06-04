@@ -14,6 +14,8 @@ use std::sync::Once;
 
 use crate::{
   event::Event,
+  hotkey::{HotKey, RawMods},
+  keyboard::{Key, ModifiersState},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   platform::macos::NativeImage,
 };
@@ -21,11 +23,6 @@ use crate::{
 use super::{app_state::AppState, event::EventWrapper};
 
 static BLOCK_PTR: &str = "taoMenuItemBlockPtr";
-
-pub(crate) struct KeyEquivalent<'a> {
-  pub(crate) key: &'a str,
-  pub(crate) masks: Option<NSEventModifierFlags>,
-}
 
 #[derive(Debug, Clone)]
 pub struct Menu {
@@ -108,43 +105,12 @@ impl Menu {
     &mut self,
     menu_id: MenuId,
     title: &str,
-    accelerators: Option<&str>,
+    accelerators: Option<&HotKey<'_>>,
     enabled: bool,
     selected: bool,
     menu_type: MenuType,
   ) -> CustomMenuItem {
-    let mut key_equivalent = None;
-    let mut accelerator_string: String;
-    if let Some(accelerator) = accelerators {
-      accelerator_string = accelerator.to_string();
-      let mut ns_modifier_flags: NSEventModifierFlags = NSEventModifierFlags::empty();
-      if accelerator_string.contains("<Primary>") {
-        accelerator_string = accelerator_string.replace("<Primary>", "");
-        ns_modifier_flags.insert(NSEventModifierFlags::NSCommandKeyMask);
-      }
-
-      if accelerator_string.contains("<Shift>") {
-        accelerator_string = accelerator_string.replace("<Shift>", "");
-        ns_modifier_flags.insert(NSEventModifierFlags::NSShiftKeyMask);
-      }
-
-      if accelerator_string.contains("<Ctrl>") {
-        accelerator_string = accelerator_string.replace("<Ctrl>", "");
-        ns_modifier_flags.insert(NSEventModifierFlags::NSControlKeyMask);
-      }
-
-      let mut masks = None;
-      if !ns_modifier_flags.is_empty() {
-        masks = Some(ns_modifier_flags);
-      }
-
-      key_equivalent = Some(KeyEquivalent {
-        key: accelerator_string.as_str(),
-        masks,
-      });
-    }
-
-    let menu_item = make_custom_menu_item(menu_id, &title, None, key_equivalent, menu_type);
+    let menu_item = make_custom_menu_item(menu_id, &title, None, accelerators, menu_type);
 
     unsafe {
       if selected {
@@ -201,10 +167,7 @@ impl Menu {
         make_menu_item(
           "Close Window",
           Some(selector("performClose:")),
-          Some(KeyEquivalent {
-            key: "w",
-            masks: None,
-          }),
+          Some(&HotKey::new(None, "w")),
           menu_type,
         ),
       )),
@@ -213,10 +176,7 @@ impl Menu {
         make_menu_item(
           "Quit",
           Some(selector("terminate:")),
-          Some(KeyEquivalent {
-            key: "q",
-            masks: None,
-          }),
+          Some(&HotKey::new(None, "q")),
           menu_type,
         ),
       )),
@@ -225,10 +185,7 @@ impl Menu {
         make_menu_item(
           "Hide",
           Some(selector("hide:")),
-          Some(KeyEquivalent {
-            key: "h",
-            masks: None,
-          }),
+          Some(&HotKey::new(None, "h")),
           menu_type,
         ),
       )),
@@ -237,12 +194,7 @@ impl Menu {
         make_menu_item(
           "Hide Others",
           Some(selector("hideOtherApplications:")),
-          Some(KeyEquivalent {
-            key: "h",
-            masks: Some(
-              NSEventModifierFlags::NSAlternateKeyMask | NSEventModifierFlags::NSCommandKeyMask,
-            ),
-          }),
+          Some(&HotKey::new(RawMods::AltMeta, "w")),
           menu_type,
         ),
       )),
@@ -260,12 +212,7 @@ impl Menu {
         make_menu_item(
           "Enter Full Screen",
           Some(selector("toggleFullScreen:")),
-          Some(KeyEquivalent {
-            key: "f",
-            masks: Some(
-              NSEventModifierFlags::NSCommandKeyMask | NSEventModifierFlags::NSControlKeyMask,
-            ),
-          }),
+          Some(&HotKey::new(RawMods::CtrlMeta, "w")),
           menu_type,
         ),
       )),
@@ -274,10 +221,7 @@ impl Menu {
         make_menu_item(
           "Minimize",
           Some(selector("performMiniaturize:")),
-          Some(KeyEquivalent {
-            key: "m",
-            masks: None,
-          }),
+          Some(&HotKey::new(None, "m")),
           menu_type,
         ),
       )),
@@ -290,10 +234,7 @@ impl Menu {
         make_menu_item(
           "Copy",
           Some(selector("copy:")),
-          Some(KeyEquivalent {
-            key: "c",
-            masks: None,
-          }),
+          Some(&HotKey::new(None, "c")),
           menu_type,
         ),
       )),
@@ -302,10 +243,7 @@ impl Menu {
         make_menu_item(
           "Cut",
           Some(selector("cut:")),
-          Some(KeyEquivalent {
-            key: "x",
-            masks: None,
-          }),
+          Some(&HotKey::new(None, "x")),
           menu_type,
         ),
       )),
@@ -314,10 +252,7 @@ impl Menu {
         make_menu_item(
           "Paste",
           Some(selector("paste:")),
-          Some(KeyEquivalent {
-            key: "v",
-            masks: None,
-          }),
+          Some(&HotKey::new(None, "v")),
           menu_type,
         ),
       )),
@@ -326,10 +261,7 @@ impl Menu {
         make_menu_item(
           "Undo",
           Some(selector("undo:")),
-          Some(KeyEquivalent {
-            key: "z",
-            masks: None,
-          }),
+          Some(&HotKey::new(None, "z")),
           menu_type,
         ),
       )),
@@ -338,10 +270,7 @@ impl Menu {
         make_menu_item(
           "Redo",
           Some(selector("redo:")),
-          Some(KeyEquivalent {
-            key: "Z",
-            masks: None,
-          }),
+          Some(&HotKey::new(None, "Z")),
           menu_type,
         ),
       )),
@@ -350,10 +279,7 @@ impl Menu {
         make_menu_item(
           "Select All",
           Some(selector("selectAll:")),
-          Some(KeyEquivalent {
-            key: "a",
-            masks: None,
-          }),
+          Some(&HotKey::new(None, "a")),
           menu_type,
         ),
       )),
@@ -397,7 +323,7 @@ pub(crate) fn make_custom_menu_item(
   id: MenuId,
   title: &str,
   selector: Option<Sel>,
-  key_equivalent: Option<KeyEquivalent<'_>>,
+  accelerators: Option<&HotKey<'_>>,
   menu_type: MenuType,
 ) -> *mut Object {
   let alloc = make_menu_alloc();
@@ -408,20 +334,20 @@ pub(crate) fn make_custom_menu_item(
     (&mut *alloc).set_ivar(BLOCK_PTR, ptr as usize);
     let _: () = msg_send![&*alloc, setTarget:&*alloc];
     let title = NSString::alloc(nil).init_str(title);
-    make_menu_item_from_alloc(alloc, title, selector, key_equivalent, menu_type)
+    make_menu_item_from_alloc(alloc, title, selector, accelerators, menu_type)
   }
 }
 
 pub(crate) fn make_menu_item(
   title: &str,
   selector: Option<Sel>,
-  key_equivalent: Option<KeyEquivalent<'_>>,
+  accelerators: Option<&HotKey<'_>>,
   menu_type: MenuType,
 ) -> *mut Object {
   let alloc = make_menu_alloc();
   unsafe {
     let title = NSString::alloc(nil).init_str(title);
-    make_menu_item_from_alloc(alloc, title, selector, key_equivalent, menu_type)
+    make_menu_item_from_alloc(alloc, title, selector, accelerators, menu_type)
   }
 }
 
@@ -429,14 +355,13 @@ fn make_menu_item_from_alloc(
   alloc: *mut Object,
   title: *mut Object,
   selector: Option<Sel>,
-  key_equivalent: Option<KeyEquivalent<'_>>,
+  accelerators: Option<&HotKey<'_>>,
   menu_type: MenuType,
 ) -> *mut Object {
   unsafe {
-    let (key, masks) = match key_equivalent {
-      Some(ke) => (NSString::alloc(nil).init_str(ke.key), ke.masks),
-      None => (NSString::alloc(nil).init_str(""), None),
-    };
+    // build our HotKey string
+    let key_equivalent = accelerators.map(HotKey::key_equivalent).unwrap_or("");
+    let key_equivalent = NSString::alloc(nil).init_str(key_equivalent);
     // if no selector defined, that mean it's a custom
     // menu so fire our handler
     let selector = match selector {
@@ -446,10 +371,10 @@ fn make_menu_item_from_alloc(
         MenuType::ContextMenu => sel!(fireStatusbarAction:),
       },
     };
-
     // allocate our item to our class
-    let item: id = msg_send![alloc, initWithTitle: title action: selector keyEquivalent: key];
-    if let Some(masks) = masks {
+    let item: id =
+      msg_send![alloc, initWithTitle: title action: selector keyEquivalent: key_equivalent];
+    if let Some(masks) = accelerators.map(HotKey::key_modifier_mask) {
       item.setKeyEquivalentModifierMask_(masks)
     }
 
@@ -516,5 +441,76 @@ extern "C" fn dealloc_custom_menuitem(this: &Object, _: Sel) {
       let _handler = Box::from_raw(obj);
     }
     let _: () = msg_send![super(this, class!(NSMenuItem)), dealloc];
+  }
+}
+
+impl HotKey<'_> {
+  /// Return the string value of this hotkey, for use with Cocoa `NSResponder`
+  /// objects.
+  ///
+  /// Returns the empty string if no key equivalent is known.
+  fn key_equivalent(&self) -> &str {
+    match &self.key {
+      Key::Character(t) => t,
+
+      // from NSText.h
+      Key::Enter => "\u{0003}",
+      Key::Backspace => "\u{0008}",
+      Key::Delete => "\u{007f}",
+      // from NSEvent.h
+      Key::Insert => "\u{F727}",
+      Key::Home => "\u{F729}",
+      Key::End => "\u{F72B}",
+      Key::PageUp => "\u{F72C}",
+      Key::PageDown => "\u{F72D}",
+      Key::PrintScreen => "\u{F72E}",
+      Key::ScrollLock => "\u{F72F}",
+      Key::ArrowUp => "\u{F700}",
+      Key::ArrowDown => "\u{F701}",
+      Key::ArrowLeft => "\u{F702}",
+      Key::ArrowRight => "\u{F703}",
+      Key::F1 => "\u{F704}",
+      Key::F2 => "\u{F705}",
+      Key::F3 => "\u{F706}",
+      Key::F4 => "\u{F707}",
+      Key::F5 => "\u{F708}",
+      Key::F6 => "\u{F709}",
+      Key::F7 => "\u{F70A}",
+      Key::F8 => "\u{F70B}",
+      Key::F9 => "\u{F70C}",
+      Key::F10 => "\u{F70D}",
+      Key::F11 => "\u{F70E}",
+      Key::F12 => "\u{F70F}",
+      //Key::F13            => "\u{F710}",
+      //Key::F14            => "\u{F711}",
+      //Key::F15            => "\u{F712}",
+      //Key::F16            => "\u{F713}",
+      //Key::F17            => "\u{F714}",
+      //Key::F18            => "\u{F715}",
+      //Key::F19            => "\u{F716}",
+      //Key::F20            => "\u{F717}",
+      _ => {
+        eprintln!("no key equivalent for {:?}", self);
+        ""
+      }
+    }
+  }
+
+  fn key_modifier_mask(&self) -> NSEventModifierFlags {
+    let mods: ModifiersState = self.mods.into();
+    let mut flags = NSEventModifierFlags::empty();
+    if mods.shift_key() {
+      flags.insert(NSEventModifierFlags::NSShiftKeyMask);
+    }
+    if mods.super_key() {
+      flags.insert(NSEventModifierFlags::NSCommandKeyMask);
+    }
+    if mods.alt_key() {
+      flags.insert(NSEventModifierFlags::NSAlternateKeyMask);
+    }
+    if mods.control_key() {
+      flags.insert(NSEventModifierFlags::NSControlKeyMask);
+    }
+    flags
   }
 }

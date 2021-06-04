@@ -23,7 +23,10 @@ use std::{
   hash::{Hash, Hasher},
 };
 
-use crate::platform_impl::{Menu as MenuPlatform, MenuItemAttributes as CustomMenuItemPlatform};
+use crate::{
+  hotkey::HotKey,
+  platform_impl::{Menu as MenuPlatform, MenuItemAttributes as CustomMenuItemPlatform},
+};
 
 /// Object that allows you to create a `ContextMenu`.
 pub struct ContextMenu(pub(crate) Menu);
@@ -36,7 +39,7 @@ pub struct MenuBar(pub(crate) Menu);
 pub struct MenuItemAttributes<'a> {
   id: MenuId,
   title: &'a str,
-  keyboard_accelerator: Option<&'a str>,
+  keyboard_accelerator: Option<&'a HotKey<'a>>,
   enabled: bool,
   selected: bool,
 }
@@ -69,7 +72,7 @@ impl<'a> MenuItemAttributes<'a> {
   ///
   /// - **Windows / Android / iOS:** Unsupported
   ///
-  pub fn with_accelerators(mut self, keyboard_accelerators: &'a str) -> Self {
+  pub fn with_accelerators(mut self, keyboard_accelerators: &'a HotKey<'a>) -> Self {
     self.keyboard_accelerator = Some(keyboard_accelerators);
     self
   }
