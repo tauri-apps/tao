@@ -600,12 +600,17 @@ impl<T: 'static> EventLoop<T> {
                   window_id: RootWindowId(id),
                   event: WindowEvent::ModifiersChanged(mods),
                 }) {
-                  log::warn!("Failed to send menu event to event channel: {}", e);
+                  log::warn!("Failed to send modifiers changed event to event channel: {}", e);
+                } else {
+                  // stop here we don't want to send the key event
+                  // as we emit the `ModifiersChanged`
+                  return Continue(true);                
                 }
               }
 
+              // todo: implement repeat?
               let event =
-                keycodes::make_key_event(&event_key, false, false, false, None, element_state);
+                keycodes::make_key_event(&event_key, false, None, element_state);
 
               if let Some(event) = event {
                 if let Err(e) = event_tx.send(Event::WindowEvent {
@@ -617,7 +622,7 @@ impl<T: 'static> EventLoop<T> {
                     is_synthetic: false,
                   },
                 }) {
-                  log::warn!("Failed to send menu event to event channel: {}", e);
+                  log::warn!("Failed to send keyboard event to event channel: {}", e);
                 }
               }
             }

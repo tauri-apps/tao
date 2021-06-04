@@ -4,7 +4,7 @@ use crate::{
   event::{ElementState, KeyEvent},
   keyboard::{Key, KeyCode, KeyLocation, ModifiersState, NativeKeyCode},
 };
-use gdk::{keys::constants::*, EventKey, ModifierType};
+use gdk::{keys::constants::*, EventKey};
 use std::ffi::c_void;
 use std::os::raw::{c_int, c_uint};
 use std::ptr;
@@ -28,7 +28,7 @@ fn insert_or_get_key_str(string: String) -> &'static str {
 }
 
 #[allow(clippy::just_underscores_and_digits, non_upper_case_globals)]
-pub fn raw_key_to_key(gdk_key: RawKey) -> Option<Key<'static>> {
+pub(crate) fn raw_key_to_key(gdk_key: RawKey) -> Option<Key<'static>> {
   let key = match gdk_key {
     Escape => Some(Key::Escape),
     BackSpace => Some(Key::Backspace),
@@ -104,7 +104,7 @@ pub fn raw_key_to_key(gdk_key: RawKey) -> Option<Key<'static>> {
 }
 
 #[allow(clippy::just_underscores_and_digits, non_upper_case_globals)]
-pub fn raw_key_to_location(raw: RawKey) -> KeyLocation {
+pub(crate) fn raw_key_to_location(raw: RawKey) -> KeyLocation {
   match raw {
     Control_L | Shift_L | Alt_L | Super_L | Meta_L => KeyLocation::Left,
     Control_R | Shift_R | Alt_R | Super_R | Meta_R => KeyLocation::Right,
@@ -126,9 +126,13 @@ const MODIFIER_MAP: &[(Key<'_>, ModifiersState)] = &[
 ];
 
 pub(crate) fn get_modifiers(key: EventKey) -> ModifiersState {
+  // a keycode (scancode in Windows) is a code that refers to a physical keyboard key.
   let scancode = key.get_hardware_keycode();
+  // a keyval (keysym in X) is a "logical" key name, such as GDK_Enter, GDK_a, GDK_space, etc.
   let keyval = key.get_keyval();
+  // unicode value
   let unicode = gdk::keys::keyval_to_unicode(*keyval);
+  // translate to tao::keyboard::Key
   let key_from_code = raw_key_to_key(keyval).unwrap_or_else(|| {
     if let Some(key) = unicode {
       if key >= ' ' && key != '\x7f' {
@@ -140,7 +144,9 @@ pub(crate) fn get_modifiers(key: EventKey) -> ModifiersState {
       Key::Unidentified(NativeKeyCode::Gtk(scancode))
     }
   });
+  // start with empty state
   let mut result = ModifiersState::empty();
+  // loop trough our modifier map
   for &(gdk_mod, modifier) in MODIFIER_MAP {
     if key_from_code == gdk_mod {
       result |= modifier;
@@ -149,22 +155,27 @@ pub(crate) fn get_modifiers(key: EventKey) -> ModifiersState {
   result
 }
 
-pub fn make_key_event(
+pub(crate) fn make_key_event(
   key: &EventKey,
-  _is_press: bool,
   is_repeat: bool,
-  _in_ime: bool,
   key_override: Option<KeyCode>,
   state: ElementState,
 ) -> Option<KeyEvent> {
-  let keyval = key.get_keyval();
+  // a keycode (scancode in Windows) is a code that refers to a physical keyboard key.
   let scancode = key.get_hardware_keycode();
-  let keycode = hardware_keycode_to_keyval(scancode).unwrap_or_else(|| keyval.clone());
-  let unicode = gdk::keys::keyval_to_unicode(*keyval);
+  // a keyval (keysym in X) is a "logical" key name, such as GDK_Enter, GDK_a, GDK_space, etc.
+  let keyval_without_modifiers = key.get_keyval();
+  let keyval_with_modifiers =
+    hardware_keycode_to_keyval(scancode).unwrap_or_else(|| keyval_without_modifiers.clone());
+  // get unicode value, with and without modifiers
+  let text_without_modifiers = gdk::keys::keyval_to_unicode(*keyval_with_modifiers.clone());
+  let text_with_modifiers = gdk::keys::keyval_to_unicode(*keyval_without_modifiers);
+  // get physical key from the scancode (keycode)
   let physical_key = key_override.unwrap_or_else(|| KeyCode::from_scancode(scancode as u32));
 
-  let key_from_code = raw_key_to_key(keyval).unwrap_or_else(|| {
-    if let Some(key) = unicode {
+  // extract key without modifier
+  let key_without_modifiers = raw_key_to_key(keyval_with_modifiers.clone()).unwrap_or_else(|| {
+    if let Some(key) = text_without_modifiers {
       if key >= ' ' && key != '\x7f' {
         Key::Character(insert_or_get_key_str(key.to_string()))
       } else {
@@ -175,13 +186,24 @@ pub fn make_key_event(
     }
   });
 
-  let location = raw_key_to_location(keycode);
+  // extract the logical key
+  let logical_key = raw_key_to_key(keyval_without_modifiers.clone()).unwrap_or_else(|| {
+    if let Some(key) = text_with_modifiers {
+      if key >= ' ' && key != '\x7f' {
+        Key::Character(insert_or_get_key_str(key.to_string()))
+      } else {
+        Key::Unidentified(NativeKeyCode::Gtk(scancode))
+      }
+    } else {
+      Key::Unidentified(NativeKeyCode::Gtk(scancode))
+    }
+  });
 
-  if !matches!(key_from_code, Key::Unidentified(_)) {
-    let logical_key = key_from_code;
-    let key_without_modifiers = key_from_code;
-
-    let text_with_all_modifiers = unicode.map(|text| insert_or_get_key_str(text.to_string()));
+  // make sure we have a valid key
+  if !matches!(key_without_modifiers, Key::Unidentified(_)) {
+    let location = raw_key_to_location(keyval_with_modifiers);
+    let text_with_all_modifiers =
+      text_without_modifiers.map(|text| insert_or_get_key_str(text.to_string()));
     return Some(KeyEvent {
       location,
       logical_key,
