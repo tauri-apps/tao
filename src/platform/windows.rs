@@ -17,7 +17,6 @@ use crate::{
   event_loop::EventLoop,
   monitor::MonitorHandle,
   platform_impl::{EventLoop as WindowsEventLoop, Parent, WinIcon},
-  system_tray::SystemTray,
   window::{BadIcon, Icon, Theme, Window, WindowBuilder},
 };
 
@@ -297,11 +296,13 @@ impl IconExtWindows for Icon {
 }
 
 /// Additional methods on `SystemTray` that are specific to Windows.
+#[cfg(feature = "system-tray")]
 pub trait SystemTrayExtWindows {
   fn remove(&mut self);
 }
 
-impl SystemTrayExtWindows for SystemTray {
+#[cfg(feature = "system-tray")]
+impl SystemTrayExtWindows for crate::system_tray::SystemTray {
   /// Remove the tray icon.
   /// Call this when your application is goind to close, to make sure the icon is correctly removed from the system tray.
   fn remove(&mut self) {
