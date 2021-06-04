@@ -1,5 +1,5 @@
 use std::{
-  char, collections::HashSet, ffi::OsString, mem::MaybeUninit, os::raw::c_int,
+  char, collections::HashSet, convert::TryInto, ffi::OsString, mem::MaybeUninit, os::raw::c_int,
   os::windows::ffi::OsStringExt, sync::MutexGuard,
 };
 
@@ -78,6 +78,7 @@ impl KeyEventBuilder {
     lparam: LPARAM,
     result: &mut ProcResult,
   ) -> Vec<MessageAsKeyEvent> {
+    println!("msg_kind {:?}", msg_kind);
     match msg_kind {
       winuser::WM_SETFOCUS => {
         // synthesize keydown events
@@ -786,7 +787,7 @@ fn get_location(scancode: ExScancode, hkl: HKL) -> KeyLocation {
 }
 
 // used to build accelerators table from Key
-pub(crate) fn key_to_vk(key: &Key) -> Option<i32> {
+pub(crate) fn key_to_vk(key: &Key<'_>) -> Option<i32> {
   Some(match key {
     Key::Character(s) => {
       if let Some(code_point) = s.chars().next() {
@@ -832,7 +833,7 @@ pub(crate) fn key_to_vk(key: &Key) -> Option<i32> {
     Key::Insert => winuser::VK_INSERT,
     Key::Delete => winuser::VK_DELETE,
     Key::Help => winuser::VK_HELP,
-    Key::Meta => winuser::VK_LWIN,
+    Key::Super => winuser::VK_LWIN,
     Key::ContextMenu => winuser::VK_APPS,
     Key::Standby => winuser::VK_SLEEP,
     Key::F1 => winuser::VK_F1,

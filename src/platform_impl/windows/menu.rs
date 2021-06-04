@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use raw_window_handle::RawWindowHandle;
-use std::{ffi::CString, os::windows::ffi::OsStrExt, sync::Mutex};
+use std::{collections::HashMap, ffi::CString, fmt, os::windows::ffi::OsStrExt, sync::Mutex};
 
 use winapi::{
   shared::{basetsd, minwindef, windef},
@@ -12,11 +12,20 @@ use winapi::{
 use crate::{
   event::{Event, WindowEvent},
   hotkey::{HotKey, RawMods},
-  keyboard::{key_to_vk, Key, ModifiersState},
+  keyboard::{Key, ModifiersState},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
-  platform_impl::platform::WindowId,
   window::WindowId as RootWindowId,
 };
+
+use super::{accelerator::register_accel, keyboard::key_to_vk, WindowId};
+
+#[derive(Copy, Clone)]
+struct AccelWrapper(winuser::ACCEL);
+impl fmt::Debug for AccelWrapper {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+    f.pad(&format!(""))
+  }
+}
 
 const CUT_ID: usize = 5001;
 const COPY_ID: usize = 5002;
@@ -106,7 +115,7 @@ impl MenuItemAttributes {
 #[derive(Debug, Clone)]
 pub struct Menu {
   hmenu: windef::HMENU,
-  accels: HashMap<u32, winuser::ACCEL>,
+  accels: HashMap<u32, AccelWrapper>,
 }
 
 impl Drop for Menu {
@@ -153,19 +162,19 @@ impl Menu {
     hmenu
   }
 
-  /// Get the accels table
-  pub fn accels(&self) -> Option<Vec<winuser::ACCEL>> {
+  // Get the accels table
+  pub(crate) fn accels(&self) -> Option<Vec<winuser::ACCEL>> {
     if self.accels.is_empty() {
       return None;
     }
-    Some(self.accels.values().cloned().collect())
+    Some(self.accels.values().cloned().map(|d| d.0).collect())
   }
 
   pub fn add_item(
     &mut self,
     menu_id: MenuId,
     title: &str,
-    accelerators: Option<&HotKey>,
+    accelerators: Option<&HotKey<'_>>,
     enabled: bool,
     selected: bool,
     _menu_type: MenuType,
@@ -195,8 +204,9 @@ impl Menu {
 
       // add our accels
       if let Some(accelerators) = accelerators {
-        if let Some(accel) = convert_hotkey(id, accelerators) {
-          self.accels.insert(menu_id.0, accel);
+        println!("menu id: {:?}", menu_id.0);
+        if let Some(accelerators) = convert_hotkey(menu_id.0, accelerators) {
+          self.accels.insert(menu_id.0, AccelWrapper(accelerators));
         }
       }
       MENU_IDS.lock().unwrap().push(menu_id.0 as _);
@@ -204,8 +214,11 @@ impl Menu {
     }
   }
 
-  pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: Menu) {
+  pub fn add_submenu(&mut self, title: &str, enabled: bool, mut submenu: Menu) {
     unsafe {
+      let child_accels = std::mem::take(&mut submenu.accels);
+      self.accels.extend(child_accels);
+
       let mut flags = winuser::MF_POPUP;
       if !enabled {
         flags |= winuser::MF_DISABLED;
@@ -303,12 +316,18 @@ pub fn initialize(
 ) -> Option<windef::HMENU> {
   if let RawWindowHandle::Windows(handle) = window_handle {
     let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
-    let menu = menu_builder.into_hmenu();
+    let menu = menu_builder.clone().into_hmenu();
 
     unsafe {
       commctrl::SetWindowSubclass(handle.hwnd as _, Some(subclass_proc), 0, sender as _);
       winuser::SetMenu(handle.hwnd as _, menu);
     }
+
+    if let Some(accels) = menu_builder.accels() {
+      println!("register accel");
+      register_accel(handle.hwnd as _, &accels);
+    }
+
     Some(menu)
   } else {
     None
@@ -411,16 +430,16 @@ fn execute_edit_command(command: EditCommands) {
 }
 
 // Convert a hotkey to an accelerator.
-fn convert_hotkey(id: u32, key: &HotKey) -> Option<winuser::ACCEL> {
+fn convert_hotkey(id: u32, key: &HotKey<'_>) -> Option<winuser::ACCEL> {
   let mut virt_key = winuser::FVIRTKEY;
-  let key_mods: Modifiers = key.mods.into();
-  if key_mods.ctrl() {
+  let key_mods: ModifiersState = key.mods.into();
+  if key_mods.control_key() {
     virt_key |= winuser::FCONTROL;
   }
-  if key_mods.alt() {
+  if key_mods.alt_key() {
     virt_key |= winuser::FALT;
   }
-  if key_mods.shift() {
+  if key_mods.shift_key() {
     virt_key |= winuser::FSHIFT;
   }
 
@@ -449,26 +468,26 @@ fn convert_hotkey(id: u32, key: &HotKey) -> Option<winuser::ACCEL> {
 }
 
 // Format the hotkey in a Windows-native way.
-fn format_hotkey(key: &HotKey, s: &mut String) {
-  let key_mods: Modifiers = key.mods.into();
-  if key_mods.ctrl() {
+fn format_hotkey(key: &HotKey<'_>, s: &mut String) {
+  let key_mods: ModifiersState = key.mods.into();
+  if key_mods.control_key() {
     s.push_str("Ctrl+");
   }
-  if key_mods.shift() {
+  if key_mods.shift_key() {
     s.push_str("Shift+");
   }
-  if key_mods.alt() {
+  if key_mods.alt_key() {
     s.push_str("Alt+");
   }
-  if key_mods.meta() {
+  if key_mods.super_key() {
     s.push_str("Windows+");
   }
   match &key.key {
-    Key::Character(c) => match c.as_str() {
+    Key::Character(char) => match *char {
       "+" => s.push_str("Plus"),
       "-" => s.push_str("Minus"),
       " " => s.push_str("Space"),
-      _ => s.extend(c.chars().flat_map(|c| c.to_uppercase())),
+      _ => s.extend(char.chars().flat_map(|c| c.to_uppercase())),
     },
     Key::Escape => s.push_str("Esc"),
     Key::Delete => s.push_str("Del"),

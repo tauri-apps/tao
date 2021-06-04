@@ -40,9 +40,11 @@ use crate::{
   event::{DeviceEvent, Event, Force, RawKeyEvent, Touch, TouchPhase, WindowEvent},
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
   keyboard::{KeyCode, ModifiersState},
+  menu::{MenuId, MenuType},
   monitor::MonitorHandle as RootMonitorHandle,
   platform::scancode::KeyCodeExtScancode,
   platform_impl::platform::{
+    accelerator,
     dark_mode::try_theme,
     dpi::{become_dpi_aware, dpi_to_scale_factor, enable_non_client_dpi_scaling},
     drop_handler::FileDropHandler,
@@ -232,8 +234,15 @@ impl<T: 'static> EventLoop<T> {
         if 0 == winuser::GetMessageW(&mut msg, ptr::null_mut(), 0, 0) {
           break 'main;
         }
-        winuser::TranslateMessage(&mut msg);
-        winuser::DispatchMessageW(&mut msg);
+
+        let accels = accelerator::find_accels(winuser::GetAncestor(msg.hwnd, winuser::GA_ROOT));
+        let translated = accels.map_or(false, |it| {
+          winuser::TranslateAcceleratorW(msg.hwnd, it.handle(), &mut msg) != 0
+        });
+        if !translated {
+          winuser::TranslateMessage(&mut msg);
+          winuser::DispatchMessageW(&mut msg);
+        }
 
         if let Err(payload) = runner.take_panic_error() {
           runner.reset_runner();
@@ -1076,6 +1085,19 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
       subclass_input.send_event(event);
       result = ProcResult::Value(0);
+    }
+
+    // this is catched by the accelerator translator
+    winuser::WM_COMMAND => {
+      println!("lparam {:?}", lparam);
+      println!("wparam {:?}", wparam);
+      let menu_id = (LOWORD(wparam as u32) as u32);
+      println!("menu_id {:?}", menu_id);
+      subclass_input.send_event(Event::MenuEvent {
+        menu_id: MenuId(menu_id as u32),
+        // todo fix menutype
+        origin: MenuType::MenuBar,
+      });
     }
 
     // this is necessary for us to maintain minimize/restore state
