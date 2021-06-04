@@ -89,6 +89,10 @@ pub use self::{
 
 pub(crate) use crate::icon::NoIcon as PlatformIcon;
 
+// todo: implement iOS keyboard event
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct KeyEventExtra {}
+
 // todo: implement iOS menubar
 #[derive(Debug, Clone)]
 pub struct MenuItemAttributes;
