@@ -117,7 +117,7 @@ impl ContextMenu {
   }
 
   /// Add new item to this menu.
-  pub fn add_item(&mut self, item: MenuItemAttributes<'static>) -> CustomMenuItem {
+  pub fn add_item(&mut self, item: MenuItemAttributes<'_>) -> CustomMenuItem {
     self.0.menu_platform.add_item(
       item.id,
       item.title,
@@ -158,7 +158,7 @@ impl MenuBar {
   }
 
   /// Add new item to this menu.
-  pub fn add_item(&mut self, item: MenuItemAttributes<'static>) -> CustomMenuItem {
+  pub fn add_item(&mut self, item: MenuItemAttributes<'_>) -> CustomMenuItem {
     self.0.menu_platform.add_item(
       item.id,
       item.title,

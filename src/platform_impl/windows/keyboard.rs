@@ -1,6 +1,11 @@
 use std::{
-  char, collections::HashSet, convert::TryInto, ffi::OsString, mem::MaybeUninit, os::raw::c_int,
-  os::windows::ffi::OsStringExt, sync::MutexGuard,
+  char,
+  collections::HashSet,
+  convert::TryInto,
+  ffi::OsString,
+  mem::MaybeUninit,
+  os::{raw::c_int, windows::ffi::OsStringExt},
+  sync::MutexGuard,
 };
 
 use winapi::{
