@@ -49,11 +49,11 @@ fn main() {
         event:
           KeyEvent {
             state: ElementState::Released,
-            logical_key: Key::Character("x"),
+            logical_key,
             ..
           },
         ..
-      } => {
+      } if logical_key == Key::Character("x".to_string()) => {
         switched = !switched;
         name_windows(entered_id, switched, &window_1, &window_2);
         println!("Switched!")

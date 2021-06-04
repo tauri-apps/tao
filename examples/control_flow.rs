@@ -59,36 +59,35 @@ fn main() {
         WindowEvent::KeyboardInput {
           event:
             KeyEvent {
-              logical_key: key,
+              logical_key,
               state: ElementState::Pressed,
               ..
             },
           ..
-        } => match key {
+        } => {
           // WARNING: Consider using `key_without_modifers()` if available on your platform.
           // See the `key_binding` example
-          Key::Character("1") => {
+          if Key::Character("1".to_string()) == logical_key {
             mode = Mode::Wait;
             println!("\nmode: {:?}\n", mode);
           }
-          Key::Character("2") => {
+          if Key::Character("2".to_string()) == logical_key {
             mode = Mode::WaitUntil;
             println!("\nmode: {:?}\n", mode);
           }
-          Key::Character("3") => {
+          if Key::Character("3".to_string()) == logical_key {
             mode = Mode::Poll;
             println!("\nmode: {:?}\n", mode);
           }
-          Key::Character("r") => {
+          if Key::Character("r".to_string()) == logical_key {
             request_redraw = !request_redraw;
             println!("\nrequest_redraw: {}\n", request_redraw);
           }
-          Key::Escape => {
+          if Key::Escape == logical_key {
             close_requested = true;
           }
-          _ => (),
-        },
-        _ => (),
+        }
+        _ => {}
       },
       Event::MainEventsCleared => {
         if request_redraw && !wait_cancelled && !close_requested {

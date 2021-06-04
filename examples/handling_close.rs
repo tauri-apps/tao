@@ -47,7 +47,7 @@ fn main() {
           WindowEvent::KeyboardInput {
             event:
               KeyEvent {
-                logical_key: key,
+                logical_key: Key::Character(char),
                 state: ElementState::Released,
                 ..
               },
@@ -55,8 +55,8 @@ fn main() {
           } => {
             // WARNING: Consider using `key_without_modifers()` if available on your platform.
             // See the `key_binding` example
-            match key {
-              Key::Character("y") => {
+            match char.as_str() {
+              "y" => {
                 if close_requested {
                   // This is where you'll want to do any cleanup you need.
                   println!("Buh-bye!");
@@ -69,7 +69,7 @@ fn main() {
                   *control_flow = ControlFlow::Exit;
                 }
               }
-              Key::Character("n") => {
+              "n" => {
                 if close_requested {
                   println!("Your window will continue to stay by your side.");
                   close_requested = false;

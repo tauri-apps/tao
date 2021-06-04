@@ -47,36 +47,36 @@ fn main() {
         WindowEvent::KeyboardInput {
           event:
             KeyEvent {
-              logical_key: key,
+              logical_key,
               state: ElementState::Pressed,
               ..
             },
           ..
-        } => match key {
-          Key::Escape => *control_flow = ControlFlow::Exit,
+        } => {
+          if Key::Escape == logical_key {
+            *control_flow = ControlFlow::Exit
+          }
 
-          // WARNING: Consider using `key_without_modifers()` if available on your platform.
-          // See the `key_binding` example
-          Key::Character("f") => {
+          if Key::Character("f".to_string()) == logical_key {
             if window.fullscreen().is_some() {
               window.set_fullscreen(None);
             } else {
               window.set_fullscreen(fullscreen.clone());
             }
           }
-          Key::Character("s") => {
+
+          if Key::Character("s".to_string()) == logical_key {
             println!("window.fullscreen {:?}", window.fullscreen());
           }
-          Key::Character("m") => {
+          if Key::Character("m".to_string()) == logical_key {
             let is_maximized = window.is_maximized();
             window.set_maximized(!is_maximized);
           }
-          Key::Character("d") => {
+          if Key::Character("d".to_string()) == logical_key {
             decorations = !decorations;
             window.set_decorations(decorations);
           }
-          _ => (),
-        },
+        }
         _ => (),
       },
       _ => {}
