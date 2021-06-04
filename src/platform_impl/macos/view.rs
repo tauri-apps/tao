@@ -64,7 +64,8 @@ pub(super) struct ViewState {
   /// If a key-press does not cause an ime event, that means
   /// that the key-press cancelled the ime session. (Except arrow keys)
   key_triggered_ime: bool,
-  raw_characters: Option<String>,
+  // Not Needed Anymore
+  //raw_characters: Option<String>,
   is_key_down: bool,
   pub(super) modifiers: ModifiersState,
   phys_modifiers: HashSet<KeyCode>,
@@ -86,7 +87,6 @@ pub fn new_view(ns_window: id) -> (IdRef, Weak<Mutex<CursorState>>) {
     ime_spot: None,
     in_ime_preedit: false,
     key_triggered_ime: false,
-    raw_characters: None,
     is_key_down: false,
     modifiers: Default::default(),
     phys_modifiers: Default::default(),
@@ -612,21 +612,22 @@ extern "C" fn do_command_by_selector(_this: &Object, _sel: Sel, _command: Sel) {
   trace!("Completed `doCommandBySelector`");
 }
 
-fn get_characters(event: id, ignore_modifiers: bool) -> String {
-  unsafe {
-    let characters: id = if ignore_modifiers {
-      msg_send![event, charactersIgnoringModifiers]
-    } else {
-      msg_send![event, characters]
-    };
+// Get characters
+// fn get_characters(event: id, ignore_modifiers: bool) -> String {
+//   unsafe {
+//     let characters: id = if ignore_modifiers {
+//       msg_send![event, charactersIgnoringModifiers]
+//     } else {
+//       msg_send![event, characters]
+//     };
 
-    assert_ne!(characters, nil);
-    let slice = slice::from_raw_parts(characters.UTF8String() as *const c_uchar, characters.len());
+//     assert_ne!(characters, nil);
+//     let slice = slice::from_raw_parts(characters.UTF8String() as *const c_uchar, characters.len());
 
-    let string = str::from_utf8_unchecked(slice);
-    string.to_owned()
-  }
-}
+//     let string = str::from_utf8_unchecked(slice);
+//     string.to_owned()
+//   }
+// }
 
 // As defined in: https://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/CORPCHAR.TXT
 fn is_corporate_character(c: char) -> bool {
@@ -687,9 +688,10 @@ extern "C" fn key_down(this: &mut Object, _sel: Sel, event: id) {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
     let window_id = WindowId(get_window_id(state.ns_window));
-    let characters = get_characters(event, false);
 
-    state.raw_characters = Some(characters);
+    // keyboard refactor: don't seems to be needed anymore
+    // let characters = get_characters(event, false);
+    //state.raw_characters = Some(characters);
 
     let is_repeat: BOOL = msg_send![event, isARepeat];
     let is_repeat = is_repeat == YES;
