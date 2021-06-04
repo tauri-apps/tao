@@ -190,9 +190,9 @@ impl Menu {
 
       let mut anno_title = title.to_string();
       // format title
-      if let Some(accelerators) = accelerators {
+      if let Some(accelerators) = accelerators.clone() {
         anno_title.push('\t');
-        format_hotkey(&accelerators, &mut anno_title);
+        format_hotkey(accelerators, &mut anno_title);
       }
 
       winuser::AppendMenuW(
@@ -487,7 +487,7 @@ fn format_hotkey(key: HotKey, s: &mut String) {
     s.push_str("Windows+");
   }
   match &key.key {
-    Key::Character(char) => match *char {
+    Key::Character(char) => match char.as_str() {
       "+" => s.push_str("Plus"),
       "-" => s.push_str("Minus"),
       " " => s.push_str("Space"),

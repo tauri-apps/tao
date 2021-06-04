@@ -457,7 +457,7 @@ impl KeyEventBuilder {
     }
     let event_info = PartialKeyEventInfo {
       vkey: vk,
-      logical_key: PartialLogicalKey::This(logical_key),
+      logical_key: PartialLogicalKey::This(logical_key.clone()),
       key_without_modifiers,
       key_state,
       scancode,
@@ -465,7 +465,7 @@ impl KeyEventBuilder {
       code,
       location: get_location(scancode, locale_id),
       utf16parts: Vec::with_capacity(8),
-      text: PartialText::Text(text),
+      text: PartialText::Text(text.clone()),
     };
 
     let mut event = event_info.finalize(&mut layouts.strings);
@@ -481,7 +481,7 @@ impl KeyEventBuilder {
 enum PartialText {
   // Unicode
   System(Vec<u16>),
-  Text(Option<&'static str>),
+  Text(Option<String>),
 }
 
 enum PartialLogicalKey {
@@ -565,7 +565,7 @@ impl PartialKeyEventInfo {
     let key_is_char = matches!(preliminary_logical_key, Key::Character(_));
     let is_pressed = state == ElementState::Pressed;
 
-    let logical_key = if let Some(key) = code_as_key {
+    let logical_key = if let Some(key) = code_as_key.clone() {
       PartialLogicalKey::This(key)
     } else if is_pressed && key_is_char && !mods.contains(WindowsModifiers::CONTROL) {
       // In some cases we want to use the UNICHAR text for logical_key in order to allow
@@ -640,7 +640,7 @@ impl PartialKeyEventInfo {
     }
 
     let logical_key = match self.logical_key {
-      PartialLogicalKey::TextOr(fallback) => match text {
+      PartialLogicalKey::TextOr(fallback) => match text.clone() {
         Some(s) => {
           if s.grapheme_indices(true).count() > 1 {
             fallback
@@ -787,7 +787,7 @@ fn get_location(scancode: ExScancode, hkl: HKL) -> KeyLocation {
 }
 
 // used to build accelerators table from Key
-pub(crate) fn key_to_vk(key: &Key<'_>) -> Option<i32> {
+pub(crate) fn key_to_vk(key: &Key) -> Option<i32> {
   Some(match key {
     Key::Character(s) => {
       if let Some(code_point) = s.chars().next() {

@@ -214,16 +214,16 @@ impl Layout {
     }
     if num_lock_on {
       if let Some(key) = self.numlock_on_keys.get(&vkey) {
-        return *key;
+        return key.clone();
       }
     } else {
       if let Some(key) = self.numlock_off_keys.get(&vkey) {
-        return *key;
+        return key.clone();
       }
     }
     if let Some(keys) = self.keys.get(&mods) {
       if let Some(key) = keys.get(&keycode) {
-        return *key;
+        return key.clone();
       }
     }
     Key::Unidentified(native_code)
@@ -384,7 +384,7 @@ impl LayoutCache {
             // HACK: `ToUnicodeEx` seems to fail getting the string for the numpad
             // divide key, so we handle that explicitly here
             if !has_alt && !has_ctrl && key_code == KeyCode::NumpadDivide {
-              Key::Character("/")
+              Key::Character("/".to_string())
             } else {
               // Just use the unidentified key, we got earlier
               preliminary_key
@@ -403,7 +403,7 @@ impl LayoutCache {
           // then the alt modifier state must have come before.
           let simple_keys = layout.keys.get(&WindowsModifiers::empty()).unwrap();
           if let Some(Key::Character(key_no_altgr)) = simple_keys.get(&key_code) {
-            if let Key::Character(key) = key {
+            if let Key::Character(key) = key.clone() {
               layout.has_alt_graph = key != *key_no_altgr;
             }
           }
@@ -478,7 +478,7 @@ impl LayoutCache {
   }
 }
 
-pub fn get_or_insert_str<T>(strings: &mut HashSet<&'static str>, string: T) -> &'static str
+pub fn get_or_insert_str<T>(strings: &mut HashSet<&'static str>, string: T) -> String
 where
   T: AsRef<str>,
   String: From<T>,
@@ -486,12 +486,12 @@ where
   {
     let str_ref = string.as_ref();
     if let Some(&existing) = strings.get(str_ref) {
-      return existing;
+      return existing.to_string();
     }
   }
   let leaked = Box::leak(Box::from(String::from(string)));
   strings.insert(leaked);
-  leaked
+  leaked.to_string()
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
