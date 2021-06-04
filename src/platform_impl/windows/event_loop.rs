@@ -1089,7 +1089,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
     // this is catched by the accelerator translator
     winuser::WM_COMMAND => {
-      let menu_id = LOWORD(wparam as u16) as u16;
+      let menu_id = LOWORD(wparam as u32) as u16;
       subclass_input.send_event(Event::MenuEvent {
         menu_id: MenuId(menu_id as u16),
         // todo fix menutype
