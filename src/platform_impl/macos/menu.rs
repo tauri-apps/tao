@@ -144,7 +144,7 @@ impl Menu {
       });
     }
 
-    let menu_item = make_custom_menu_item(menu_id, &title, None, key_equivalent, menu_type);
+    let menu_item = make_custom_menu_item(menu_id, title, None, key_equivalent, menu_type);
 
     unsafe {
       if selected {
