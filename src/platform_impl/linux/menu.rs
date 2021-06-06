@@ -3,8 +3,8 @@
 
 use glib::{Cast, Sender};
 use gtk::{
-  prelude::*, AccelFlags, AccelGroup, CheckMenuItem, Menu as GtkMenu, MenuBar,
-  MenuItem as GtkMenuItem, SeparatorMenuItem,
+  prelude::*, AccelFlags, AccelGroup, CheckMenuItem, Menu as GtkMenu, MenuItem as GtkMenuItem,
+  SeparatorMenuItem,
 };
 
 use super::window::{WindowId, WindowRequest};
@@ -168,7 +168,7 @@ impl Menu {
     menu
   }
 
-  fn generate_menu<M: gtk::prelude::IsA<gtk::MenuShell>>(
+  pub(crate) fn generate_menu<M: gtk::prelude::IsA<gtk::MenuShell>>(
     self,
     menu: &mut M,
     tx: &Sender<(WindowId, WindowRequest)>,
@@ -276,16 +276,4 @@ impl Menu {
       }
     }
   }
-}
-
-// Generate menu for menu bar.
-pub fn initialize(
-  id: WindowId,
-  menu: Menu,
-  tx: &Sender<(WindowId, WindowRequest)>,
-  accel_group: &AccelGroup,
-) -> MenuBar {
-  let mut menubar = MenuBar::new();
-  let () = menu.generate_menu(&mut menubar, tx, accel_group, id);
-  menubar
 }
