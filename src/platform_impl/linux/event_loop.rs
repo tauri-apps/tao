@@ -579,6 +579,12 @@ impl<T: 'static> EventLoop<T> {
             },
             WindowRequest::SetMenu((window_menu, accel_group, mut menubar)) => {
               if let Some(window_menu) = window_menu {
+                // remove all existing elements as we overwrite
+                // but we keep same menubar reference
+                for i in menubar.get_children() {
+                  menubar.remove(&i);
+                }
+                // set new menu
                 window_menu.generate_menu(&mut menubar, &window_requests_tx, &accel_group, id);
               }
             }
