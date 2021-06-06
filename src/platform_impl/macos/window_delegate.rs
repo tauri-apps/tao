@@ -56,7 +56,7 @@ impl WindowDelegateState {
     let mut delegate_state = WindowDelegateState {
       ns_window: window.ns_window.clone(),
       ns_view: window.ns_view.clone(),
-      window: Arc::downgrade(&window),
+      window: Arc::downgrade(window),
       initial_fullscreen,
       previous_position: None,
       previous_scale_factor: scale_factor,

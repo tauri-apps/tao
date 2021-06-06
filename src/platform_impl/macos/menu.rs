@@ -162,7 +162,7 @@ impl Menu {
 
   pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: Menu) {
     unsafe {
-      let menu_title = NSString::alloc(nil).init_str(&title);
+      let menu_title = NSString::alloc(nil).init_str(title);
       let menu_item = NSMenuItem::alloc(nil).autorelease();
       let () = msg_send![submenu.menu, setTitle: menu_title];
       let () = msg_send![menu_item, setTitle: menu_title];
