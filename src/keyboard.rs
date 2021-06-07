@@ -1,4 +1,4 @@
-//! Types related to the keyboard.
+//! **UNSTABLE** -- Types related to the keyboard.
 
 // This file contains a substantial portion of the UI Events Specification by the W3C. In
 // particular, the variant names within `Key` and `KeyCode` and their documentation are modified
@@ -210,7 +210,7 @@ impl std::fmt::Debug for NativeKeyCode {
   }
 }
 
-/// Represents the location of a physical key.
+/// Represents the code of a physical key.
 ///
 /// This mostly conforms to the UI Events Specification's [`KeyboardEvent.code`] with a few
 /// exceptions:
@@ -1419,6 +1419,7 @@ impl Key {
   }
 }
 
+/// Represents the location of a physical key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum KeyLocation {

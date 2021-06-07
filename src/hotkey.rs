@@ -1,3 +1,5 @@
+//! The HotKey struct and associated types.
+
 use std::borrow::Borrow;
 
 use crate::keyboard::{IntoKey, Key, ModifiersState};
@@ -30,10 +32,10 @@ impl HotKey {
   }
 }
 
-/// A platform-agnostic representation of keyboard modifiers, for command handling.
+/// Represents the platform-agnostic keyboard modifiers, for command handling.
 ///
-/// This does one thing: it allows specifying hotkeys that use the Command key
-/// on macOS, but use the Ctrl key on other platforms.
+/// **This does one thing: it allows specifying hotkeys that use the Command key
+/// on macOS, but use the Ctrl key on other platforms.**
 #[derive(Debug, Clone, Copy)]
 pub enum SysMods {
   None,
@@ -48,10 +50,10 @@ pub enum SysMods {
   AltCmdShift,
 }
 
-//TODO: should something like this just _replace_ keymodifiers?
-/// A representation of the active modifier keys.
+/// Represents the active modifier keys.
 ///
-/// This is intended to be clearer than `Modifiers`, when describing hotkeys.
+/// This is intended to be clearer than [`ModifiersState`], when describing hotkeys.
+///
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum RawMods {
   None,
