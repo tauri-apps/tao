@@ -6,7 +6,7 @@ fn main() {
   use simple_logger::SimpleLogger;
   use tao::{
     dpi::LogicalSize,
-    event::{ElementState, Event, KeyEvent, WindowEvent},
+    event::{ElementState, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     hotkey::{HotKey, RawMods},
     keyboard::{Key, ModifiersState},
