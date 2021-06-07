@@ -90,7 +90,7 @@ fn main() {
       let mut open_new_window_element = open_new_window_element.clone();
       let mut focus_all_window = focus_all_window.clone();
 
-      let window = Window::new(&event_loop).unwrap();
+      let window = Window::new(event_loop).unwrap();
       windows.insert(window.id(), window);
       // disable button
       open_new_window_element.set_enabled(false);
