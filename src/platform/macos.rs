@@ -649,8 +649,8 @@ impl KeyCodeExtScancode for KeyCode {
       // TODO: (Artur) for me, kVK_VolumeUp is 0x48
       // macOS 10.11
       // /System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/Headers/Events.h
-      0x49 => KeyCode::AudioVolumeUp,
-      0x4a => KeyCode::AudioVolumeDown,
+      //0x49 => KeyCode::AudioVolumeUp,
+      0x49 => KeyCode::AudioVolumeDown,
       0x4b => KeyCode::NumpadDivide,
       0x4c => KeyCode::NumpadEnter,
       //0x4d => unknown,

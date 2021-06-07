@@ -9,6 +9,7 @@ mod app_state;
 mod event;
 mod event_loop;
 mod ffi;
+mod global_accelerator;
 mod menu;
 mod monitor;
 mod observer;
@@ -28,6 +29,7 @@ pub use self::{
   app_delegate::{get_aux_state_mut, AuxDelegateState},
   event::KeyEventExtra,
   event_loop::{EventLoop, EventLoopWindowTarget, Proxy as EventLoopProxy},
+  global_accelerator::GlobalAccelerator,
   menu::{Menu, MenuItemAttributes},
   monitor::{MonitorHandle, VideoMode},
   window::{Id as WindowId, PlatformSpecificWindowBuilderAttributes, UnownedWindow},

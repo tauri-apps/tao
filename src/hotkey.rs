@@ -2,7 +2,7 @@
 
 use std::borrow::Borrow;
 
-use crate::keyboard::{IntoKey, Key, ModifiersState};
+use crate::keyboard::{Key, ModifiersState};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HotKey {
@@ -11,10 +11,10 @@ pub struct HotKey {
 }
 
 impl HotKey {
-  pub fn new(mods: impl Into<Option<RawMods>>, key: impl IntoKey) -> Self {
+  pub fn new(mods: impl Into<Option<RawMods>>, key: impl Into<Key>) -> Self {
     HotKey {
       mods: mods.into().unwrap_or(RawMods::None),
-      key: key.into_key(),
+      key: key.into(),
     }
   }
 
