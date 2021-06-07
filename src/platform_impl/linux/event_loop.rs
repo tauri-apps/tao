@@ -584,8 +584,10 @@ impl<T: 'static> EventLoop<T> {
                 for i in menubar.get_children() {
                   menubar.remove(&i);
                 }
-                // set new menu
+                // create all new elements
                 window_menu.generate_menu(&mut menubar, &window_requests_tx, &accel_group, id);
+                // make sure all newly added elements are visible
+                menubar.show_all();
               }
             }
           }
