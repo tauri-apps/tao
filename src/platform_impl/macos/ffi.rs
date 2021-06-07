@@ -3,7 +3,12 @@
 
 // TODO: Upstream these
 
-#![allow(dead_code, non_snake_case, non_upper_case_globals, clippy::enum_variant_names)]
+#![allow(
+  dead_code,
+  non_snake_case,
+  non_upper_case_globals,
+  clippy::enum_variant_names
+)]
 
 use cocoa::{
   base::id,
