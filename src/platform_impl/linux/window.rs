@@ -679,6 +679,7 @@ pub enum WindowRequest {
   Menu((Option<MenuItem>, Option<MenuId>)),
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::Box)),
   KeyboardInput((EventKey, ElementState)),
+  GlobalHotKey(u16),
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {

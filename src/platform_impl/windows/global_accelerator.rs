@@ -36,7 +36,6 @@ impl GlobalAccelerator {
 
     // get key scan code
     if let Some(vk_code) = key_to_vk(&self.hotkey.key) {
-      println!("vk_code {:?}", vk_code);
       unsafe {
         let result = winuser::RegisterHotKey(
           ptr::null_mut(),

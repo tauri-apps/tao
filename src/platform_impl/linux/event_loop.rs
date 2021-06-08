@@ -21,6 +21,8 @@ use glib::Cast;
 #[cfg(any(feature = "menu", feature = "tray"))]
 use gtk::{Clipboard, Entry};
 
+use x11_dl::xlib;
+
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize},
   event::{DeviceId as RootDeviceId, ElementState, Event, MouseButton, StartCause, WindowEvent},
@@ -628,15 +630,26 @@ impl<T: 'static> EventLoop<T> {
                 }
               }
             }
+            // we use dummy window id for `GlobalHotKey`
+            WindowRequest::GlobalHotKey(_hotkey_id) => {}
           }
         } else if id == WindowId::dummy() {
-          if let WindowRequest::Menu((None, Some(menu_id))) = request {
-            if let Err(e) = event_tx.send(Event::MenuEvent {
-              menu_id,
-              origin: MenuType::ContextMenu,
-            }) {
-              log::warn!("Failed to send status bar event to event channel: {}", e);
+          match request {
+            WindowRequest::GlobalHotKey(hotkey_id) => {
+              println!("new event hot key: {:?}", hotkey_id);
+              if let Err(e) = event_tx.send(Event::GlobalHotKeyEvent(hotkey_id)) {
+                log::warn!("Failed to send global hotkey event to event channel: {}", e);
+              }
             }
+            WindowRequest::Menu((None, Some(menu_id))) => {
+              if let Err(e) = event_tx.send(Event::MenuEvent {
+                menu_id,
+                origin: MenuType::ContextMenu,
+              }) {
+                log::warn!("Failed to send status bar event to event channel: {}", e);
+              }
+            }
+            _ => {}
           }
         }
         Continue(true)
