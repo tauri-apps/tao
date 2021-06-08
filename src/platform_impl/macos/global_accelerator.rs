@@ -99,8 +99,6 @@ impl GlobalAccelerator {
       }
     }
 
-    println!("done {:?}", self);
-
     self
   }
 }
