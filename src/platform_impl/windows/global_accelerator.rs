@@ -1,13 +1,14 @@
+use super::keyboard::key_to_vk;
 use crate::{
   event_loop::EventLoopWindowTarget,
   hotkey::{GlobalAccelerator as RootGlobalAccelerator, HotKey},
   keyboard::ModifiersState,
   platform::scancode::KeyCodeExtScancode,
 };
-
-use super::keyboard::key_to_vk;
+use std::ptr;
 use winapi::{shared::windef::HWND, um::winuser};
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct GlobalAccelerator {
   pub(crate) hotkey: HotKey,
 }
@@ -36,7 +37,15 @@ impl GlobalAccelerator {
     // get key scan code
     if let Some(vk_code) = key_to_vk(&self.hotkey.key) {
       println!("vk_code {:?}", vk_code);
-    };
+      unsafe {
+        let result = winuser::RegisterHotKey(
+          ptr::null_mut(),
+          self.hotkey.clone().id() as i32,
+          converted_modifiers,
+          vk_code as u32,
+        );
+      }
+    }
 
     self
   }

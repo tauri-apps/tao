@@ -235,6 +235,13 @@ impl<T: 'static> EventLoop<T> {
           break 'main;
         }
 
+        // global accelerator
+        if msg.message == winuser::WM_HOTKEY {
+          let event_loop_runner = self.window_target.p.runner_shared.clone();
+          event_loop_runner.send_event(Event::GlobalHotKeyEvent(msg.wParam as u16));
+        }
+
+        // window accelerator
         let accels = accelerator::find_accels(winuser::GetAncestor(msg.hwnd, winuser::GA_ROOT));
         let translated = accels.map_or(false, |it| {
           winuser::TranslateAcceleratorW(msg.hwnd, it.handle(), &mut msg) != 0
