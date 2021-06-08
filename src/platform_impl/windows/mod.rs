@@ -10,6 +10,7 @@ use winapi::{
 
 pub use self::{
   event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
+  global_accelerator::{register_global_accelerators, GlobalAccelerator},
   icon::WinIcon,
   menu::{Menu, MenuItemAttributes},
   monitor::{MonitorHandle, VideoMode},
@@ -20,6 +21,7 @@ pub use self::icon::WinIcon as PlatformIcon;
 
 use crate::{event::DeviceId as RootDeviceId, icon::Icon, keyboard::Key, window::Theme};
 mod accelerator;
+mod global_accelerator;
 mod menu;
 
 #[cfg(feature = "tray")]

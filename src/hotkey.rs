@@ -1,9 +1,10 @@
 //! The HotKey struct and associated types.
 
 use crate::{
+  error::OsError,
   event_loop::EventLoopWindowTarget,
   keyboard::{Key, ModifiersState},
-  platform_impl::register_global_accelerators,
+  platform_impl::{register_global_accelerators, GlobalAccelerator as GlobalAcceleratorPlatform},
 };
 use std::{
   borrow::Borrow,
@@ -13,8 +14,17 @@ use std::{
 };
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct GlobalAccelerator(pub(crate) GlobalAcceleratorPlatform);
+
+impl GlobalAccelerator {
+  pub fn test(self) {
+    println!("TEST!!! {:?}", self.0);
+  }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct HotKeyManager {
-  registered_hotkeys: Vec<HotKey>,
+  registered_hotkeys: Vec<GlobalAccelerator>,
 }
 
 impl Default for HotKeyManager {
@@ -30,22 +40,23 @@ impl HotKeyManager {
     Default::default()
   }
   pub fn is_registered(&self, hotkey: &HotKey) -> bool {
-    self.registered_hotkeys.contains(&hotkey)
+    let hotkey = GlobalAccelerator(GlobalAcceleratorPlatform::new(hotkey.clone()));
+    self.registered_hotkeys.contains(&Box::new(hotkey))
   }
-  pub fn register(&mut self, hotkey: HotKey) -> Result<(), HotKeyManagerError> {
+  pub fn register(&mut self, hotkey: HotKey) -> Result<GlobalAccelerator, HotKeyManagerError> {
     if self.is_registered(&hotkey) {
       return Err(HotKeyManagerError::HotKeyAlreadyRegistered(hotkey));
     }
-    self.registered_hotkeys.append(&mut vec![hotkey]);
-    Ok(())
+    let hotkey = GlobalAccelerator(GlobalAcceleratorPlatform::new(hotkey));
+    self.registered_hotkeys.append(&mut vec![hotkey.clone()]);
+    Ok(hotkey)
   }
   pub fn run<T: 'static>(
-    self,
+    &mut self,
     _window_target: &EventLoopWindowTarget<T>,
-  ) -> Result<(), HotKeyManagerError> {
-    // loop all `registered_hotkeys`
-    // and register them at platform level
-    register_global_accelerators(_window_target, self.registered_hotkeys);
+  ) -> Result<(), OsError> {
+    register_global_accelerators(_window_target, &mut self.registered_hotkeys);
+    println!("registered_hotkeys {:?}", self.registered_hotkeys);
     Ok(())
   }
 }

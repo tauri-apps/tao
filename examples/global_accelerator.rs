@@ -19,7 +19,7 @@ fn main() {
   let shortcut_altctrlmeta_b = HotKey::new(RawMods::AltCtrlMeta, "b");
 
   let mut hotkey_manager = HotKeyManager::new();
-  hotkey_manager.register(shortcut_f13.clone()).unwrap();
+  let registered_f13 = hotkey_manager.register(shortcut_f13.clone()).unwrap();
   hotkey_manager
     .register(shortcut_altctrlmeta_b.clone())
     .unwrap();
@@ -43,7 +43,10 @@ fn main() {
         window.request_redraw();
       }
       Event::GlobalHotKeyEvent(hotkey_id) if hotkey_id == shortcut_f13.clone().id() => {
-        println!("Pressed on F13 !!!");
+        println!(
+          "Pressed on F13 !!!  registered_f13 {:?}",
+          registered_f13.clone().test()
+        );
       }
       Event::GlobalHotKeyEvent(hotkey_id) if hotkey_id == shortcut_altctrlmeta_b.clone().id() => {
         println!("Pressed on Alt + Ctrl + Meta + b !!!");

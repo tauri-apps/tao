@@ -4,9 +4,10 @@ use std::{
 };
 
 use crate::{
+  error::OsError,
   event::Event,
   event_loop::EventLoopWindowTarget,
-  hotkey::HotKey,
+  hotkey::{GlobalAccelerator as RootGlobalAccelerator, HotKey},
   keyboard::ModifiersState,
   platform::scancode::KeyCodeExtScancode,
 };
@@ -38,6 +39,7 @@ extern "C" {
   fn unregister_hotkey(hotkey_ref: *mut c_void) -> c_int;
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct CarbonRef(pub(crate) *mut c_void);
 impl CarbonRef {
   pub fn new(start: *mut c_void) -> Self {
@@ -48,15 +50,24 @@ impl CarbonRef {
 unsafe impl Sync for CarbonRef {}
 unsafe impl Send for CarbonRef {}
 
-struct GlobalAccelerator {
-  pub(crate) carbon_ref: CarbonRef,
+#[derive(Debug, Clone, PartialEq)]
+pub struct GlobalAccelerator {
+  pub(crate) carbon_ref: Option<CarbonRef>,
+  pub(crate) hotkey: HotKey,
 }
 
 impl GlobalAccelerator {
-  fn new(hotkey: HotKey, scan_code: u32) -> Self {
+  pub(crate) fn new(hotkey: HotKey) -> Self {
+    Self {
+      carbon_ref: None,
+      hotkey,
+    }
+  }
+
+  pub(crate) fn register(&mut self) -> &mut GlobalAccelerator {
     unsafe {
       let mut converted_modifiers: i32 = 0;
-      let modifiers: ModifiersState = hotkey.mods.into();
+      let modifiers: ModifiersState = self.hotkey.mods.into();
       if modifiers.shift_key() {
         converted_modifiers |= 512;
       }
@@ -69,19 +80,28 @@ impl GlobalAccelerator {
       if modifiers.control_key() {
         converted_modifiers |= 4096;
       }
-      // todo create unique id?
-      let handler_ref = register_hotkey(
-        hotkey.id() as i32,
-        converted_modifiers as i32,
-        scan_code as i32,
-      );
-      let saved_callback = Box::into_raw(Box::new(global_accelerator_handler));
-      make_accelerator_callback(saved_callback);
 
-      GlobalAccelerator {
-        carbon_ref: CarbonRef::new(handler_ref),
+      // get key scan code
+      if let Some(keycode) = self.hotkey.key.to_keycode() {
+        let keycode = keycode.first();
+        if let Some(keycode) = keycode {
+          if let Some(scan_code) = keycode.to_scancode() {
+            let handler_ref = register_hotkey(
+              self.hotkey.clone().id() as i32,
+              converted_modifiers as i32,
+              scan_code as i32,
+            );
+            let saved_callback = Box::into_raw(Box::new(global_accelerator_handler));
+            make_accelerator_callback(saved_callback);
+            self.carbon_ref = Some(CarbonRef::new(handler_ref));
+          }
+        }
       }
     }
+
+    println!("done {:?}", self);
+
+    self
   }
 }
 
@@ -93,7 +113,6 @@ where
   INIT.call_once(|| unsafe {
     let cb = get_trampoline::<F>();
     install_event_handler(cb, handler as *mut c_void);
-    println!("ALLS DONE");
   });
 }
 
@@ -105,19 +124,10 @@ fn global_accelerator_handler(item_id: i32) {
 
 pub fn register_global_accelerators<T>(
   _window_target: &EventLoopWindowTarget<T>,
-  all_hotkeys: Vec<HotKey>,
+  accelerators: &mut Vec<RootGlobalAccelerator>,
 ) {
-  for hotkey in all_hotkeys {
-    if let Some(hotkeys_keycode) = hotkey.key.to_keycode() {
-      // maybe we have multiple keycode for same key?
-      // if we do, lets register the same hotkey with different keycode
-      // binded to same hotkey id
-      for key_code in hotkeys_keycode {
-        if let Some(scan_code) = key_code.to_scancode() {
-          GlobalAccelerator::new(hotkey.clone(), scan_code);
-        }
-      }
-    }
+  for accel in accelerators {
+    accel.0.register();
   }
 }
 
