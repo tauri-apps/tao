@@ -1,7 +1,6 @@
 //! The HotKey struct and associated types.
 
 use crate::{
-  error::ExternalError,
   event_loop::EventLoopWindowTarget,
   keyboard::{Key, ModifiersState},
   platform_impl::register_global_accelerators,

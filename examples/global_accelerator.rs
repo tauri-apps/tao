@@ -15,22 +15,21 @@ fn main() {
   let event_loop = EventLoop::new();
 
   // register global hotkey without modifier
-  let _global_hotkey_1 = HotKey::new(None, Key::F13);
-  let _global_hotkey_2 = HotKey::new(RawMods::AltCtrlMeta, "b");
+  let shortcut_f13 = HotKey::new(None, Key::F13);
+  let shortcut_altctrlmeta_b = HotKey::new(RawMods::AltCtrlMeta, "b");
 
   let mut hotkey_manager = HotKeyManager::new();
-  let test = hotkey_manager.register(_global_hotkey_1.clone()).unwrap();
-  let test = hotkey_manager.register(_global_hotkey_2.clone()).unwrap();
-  hotkey_manager.run(&event_loop);
+  hotkey_manager.register(shortcut_f13.clone()).unwrap();
+  hotkey_manager
+    .register(shortcut_altctrlmeta_b.clone())
+    .unwrap();
+
+  hotkey_manager.run(&event_loop).unwrap();
 
   let window = WindowBuilder::new()
     .with_title("A fantastic window!")
     .build(&event_loop)
     .unwrap();
-
-  // register global hotkey with combined modifier + b
-  // Command + Alt + Shift on macOS, Ctrl + Alt + Shift on windows/linux
-  //let _global_hotkey_2 = HotKey::new(RawMods::AltCtrlMeta, "b").register_global();
 
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Wait;
@@ -42,6 +41,12 @@ fn main() {
       } if window_id == window.id() => *control_flow = ControlFlow::Exit,
       Event::MainEventsCleared => {
         window.request_redraw();
+      }
+      Event::GlobalHotKeyEvent(hotkey_id) if hotkey_id == shortcut_f13.clone().id() => {
+        println!("Pressed on F13 !!!");
+      }
+      Event::GlobalHotKeyEvent(hotkey_id) if hotkey_id == shortcut_altctrlmeta_b.clone().id() => {
+        println!("Pressed on Alt + Ctrl + Meta + b !!!");
       }
       _ => (),
     }

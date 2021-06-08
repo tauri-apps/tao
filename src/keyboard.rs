@@ -1445,7 +1445,7 @@ impl Key {
         "u" => Some(vec![KeyCode::KeyU]),
         "v" => Some(vec![KeyCode::KeyV]),
         "w" => Some(vec![KeyCode::KeyC]),
-        "z" => Some(vec![KeyCode::KeyX]),
+        "x" => Some(vec![KeyCode::KeyX]),
         "y" => Some(vec![KeyCode::KeyY]),
         "z" => Some(vec![KeyCode::KeyZ]),
         _ => None,

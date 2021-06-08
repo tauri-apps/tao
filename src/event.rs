@@ -77,7 +77,10 @@ pub enum Event<'a, T: 'static> {
 
   /// Emitted when a menu has been clicked. There are two types of menu event. One comes from the
   /// menu bar, the other comes from the status bar.
-  MenuEvent { menu_id: MenuId, origin: MenuType },
+  MenuEvent {
+    menu_id: MenuId,
+    origin: MenuType,
+  },
 
   /// Emitted when tray has been clicked.
   ///
@@ -89,6 +92,8 @@ pub enum Event<'a, T: 'static> {
     event: TrayEvent,
     position: PhysicalPosition<f64>,
   },
+
+  GlobalHotKeyEvent(u16),
 
   /// Emitted when the application has been suspended.
   Suspended,
@@ -171,6 +176,7 @@ impl<T: Clone> Clone for Event<'static, T> {
         event: *event,
         position: *position,
       },
+      GlobalHotKeyEvent(key_id) => GlobalHotKeyEvent(*key_id),
     }
   }
 }
@@ -199,6 +205,7 @@ impl<'a, T> Event<'a, T> {
         event,
         position,
       }),
+      GlobalHotKeyEvent(key_id) => Ok(GlobalHotKeyEvent(key_id)),
     }
   }
 
@@ -229,6 +236,7 @@ impl<'a, T> Event<'a, T> {
         event,
         position,
       }),
+      GlobalHotKeyEvent(key_id) => Some(GlobalHotKeyEvent(key_id)),
     }
   }
 }

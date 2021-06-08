@@ -4,11 +4,14 @@ use std::{
 };
 
 use crate::{
+  event::Event,
   event_loop::EventLoopWindowTarget,
   hotkey::HotKey,
-  keyboard::{KeyCode, ModifiersState},
+  keyboard::ModifiersState,
   platform::scancode::KeyCodeExtScancode,
 };
+
+use super::{app_state::AppState, event::EventWrapper};
 
 type KeyCallback = unsafe extern "C" fn(c_int, *mut c_void);
 
@@ -50,9 +53,10 @@ struct GlobalAccelerator {
 }
 
 impl GlobalAccelerator {
-  fn new(modifiers: ModifiersState, key: KeyCode) -> Self {
+  fn new(hotkey: HotKey, scan_code: u32) -> Self {
     unsafe {
       let mut converted_modifiers: i32 = 0;
+      let modifiers: ModifiersState = hotkey.mods.into();
       if modifiers.shift_key() {
         converted_modifiers |= 512;
       }
@@ -65,10 +69,12 @@ impl GlobalAccelerator {
       if modifiers.control_key() {
         converted_modifiers |= 4096;
       }
-      let scan_code = key.to_scancode().expect("invalid scan code");
-
       // todo create unique id?
-      let handler_ref = register_hotkey(1, converted_modifiers as i32, scan_code as i32);
+      let handler_ref = register_hotkey(
+        hotkey.id() as i32,
+        converted_modifiers as i32,
+        scan_code as i32,
+      );
       let saved_callback = Box::into_raw(Box::new(global_accelerator_handler));
       make_accelerator_callback(saved_callback);
 
@@ -92,7 +98,9 @@ where
 }
 
 fn global_accelerator_handler(item_id: i32) {
-  println!("item_id {}", item_id);
+  AppState::queue_event(EventWrapper::StaticEvent(Event::GlobalHotKeyEvent(
+    item_id as u16,
+  )));
 }
 
 pub fn register_global_accelerators<T>(
@@ -104,8 +112,10 @@ pub fn register_global_accelerators<T>(
       // maybe we have multiple keycode for same key?
       // if we do, lets register the same hotkey with different keycode
       // binded to same hotkey id
-      for keycode in hotkeys_keycode {
-        GlobalAccelerator::new(hotkey.mods.into(), keycode);
+      for key_code in hotkeys_keycode {
+        if let Some(scan_code) = key_code.to_scancode() {
+          GlobalAccelerator::new(hotkey.clone(), scan_code);
+        }
       }
     }
   }
