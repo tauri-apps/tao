@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use simple_logger::SimpleLogger;
-#[cfg(target_os = "macos")]
-use tao::platform::hotkey::HotKeyExtGlobalAccelerator;
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
-  hotkey::{HotKey, RawMods},
+  hotkey::{HotKey, HotKeyManager, RawMods},
   keyboard::Key,
   window::WindowBuilder,
 };
@@ -16,17 +14,23 @@ fn main() {
   SimpleLogger::new().init().unwrap();
   let event_loop = EventLoop::new();
 
+  // register global hotkey without modifier
+  let _global_hotkey_1 = HotKey::new(None, Key::F13);
+  let _global_hotkey_2 = HotKey::new(RawMods::AltCtrlMeta, "b");
+
+  let mut hotkey_manager = HotKeyManager::new();
+  let test = hotkey_manager.register(_global_hotkey_1.clone()).unwrap();
+  let test = hotkey_manager.register(_global_hotkey_2.clone()).unwrap();
+  hotkey_manager.run(&event_loop);
+
   let window = WindowBuilder::new()
     .with_title("A fantastic window!")
     .build(&event_loop)
     .unwrap();
 
-  // register global hotkey without modifier
-  let _global_hotkey_1 = HotKey::new(None, Key::F13).register_global();
-
   // register global hotkey with combined modifier + b
   // Command + Alt + Shift on macOS, Ctrl + Alt + Shift on windows/linux
-  let _global_hotkey_2 = HotKey::new(RawMods::AltCtrlMeta, "b").register_global();
+  //let _global_hotkey_2 = HotKey::new(RawMods::AltCtrlMeta, "b").register_global();
 
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Wait;

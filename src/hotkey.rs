@@ -1,10 +1,57 @@
 //! The HotKey struct and associated types.
 
-use std::borrow::Borrow;
-
-use crate::keyboard::{Key, ModifiersState};
+use crate::{
+  error::ExternalError,
+  event_loop::EventLoopWindowTarget,
+  keyboard::{Key, ModifiersState},
+  platform_impl::register_global_accelerators,
+};
+use std::{
+  borrow::Borrow,
+  collections::hash_map::DefaultHasher,
+  error, fmt,
+  hash::{Hash, Hasher},
+};
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct HotKeyManager {
+  registered_hotkeys: Vec<HotKey>,
+}
+
+impl Default for HotKeyManager {
+  fn default() -> Self {
+    Self {
+      registered_hotkeys: Vec::new(),
+    }
+  }
+}
+
+impl HotKeyManager {
+  pub fn new() -> Self {
+    Default::default()
+  }
+  pub fn is_registered(&self, hotkey: &HotKey) -> bool {
+    self.registered_hotkeys.contains(&hotkey)
+  }
+  pub fn register(&mut self, hotkey: HotKey) -> Result<(), HotKeyManagerError> {
+    if self.is_registered(&hotkey) {
+      return Err(HotKeyManagerError::HotKeyAlreadyRegistered(hotkey));
+    }
+    self.registered_hotkeys.append(&mut vec![hotkey]);
+    Ok(())
+  }
+  pub fn run<T: 'static>(
+    self,
+    _window_target: &EventLoopWindowTarget<T>,
+  ) -> Result<(), HotKeyManagerError> {
+    // loop all `registered_hotkeys`
+    // and register them at platform level
+    register_global_accelerators(_window_target, self.registered_hotkeys);
+    Ok(())
+  }
+}
+
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct HotKey {
   pub(crate) mods: RawMods,
   pub(crate) key: Key,
@@ -16,6 +63,10 @@ impl HotKey {
       mods: mods.into().unwrap_or(RawMods::None),
       key: key.into(),
     }
+  }
+
+  pub fn id(self) -> u16 {
+    hash_hotkey_to_u16(self)
   }
 
   /// Returns `true` if this [`Key`] and [`ModifiersState`] matches this `HotKey`.
@@ -54,7 +105,7 @@ pub enum SysMods {
 ///
 /// This is intended to be clearer than [`ModifiersState`], when describing hotkeys.
 ///
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash)]
 pub enum RawMods {
   None,
   Alt,
@@ -158,4 +209,30 @@ impl From<SysMods> for RawMods {
       SysMods::AltCmdShift => RawMods::AltCtrlShift,
     }
   }
+}
+#[derive(Debug)]
+pub enum HotKeyManagerError {
+  HotKeyAlreadyRegistered(HotKey),
+  HotKeyNotRegistered(HotKey),
+  InvalidHotKey(String),
+}
+impl error::Error for HotKeyManagerError {}
+impl fmt::Display for HotKeyManagerError {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+    match self {
+      HotKeyManagerError::HotKeyAlreadyRegistered(e) => {
+        f.pad(&format!("hotkey already registered: {:?}", e))
+      }
+      HotKeyManagerError::HotKeyNotRegistered(e) => {
+        f.pad(&format!("hotkey not registered: {:?}", e))
+      }
+      HotKeyManagerError::InvalidHotKey(e) => e.fmt(f),
+    }
+  }
+}
+
+fn hash_hotkey_to_u16(hotkey: HotKey) -> u16 {
+  let mut s = DefaultHasher::new();
+  hotkey.hash(&mut s);
+  s.finish() as u16
 }

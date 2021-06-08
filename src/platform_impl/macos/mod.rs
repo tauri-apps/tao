@@ -29,7 +29,7 @@ pub use self::{
   app_delegate::{get_aux_state_mut, AuxDelegateState},
   event::KeyEventExtra,
   event_loop::{EventLoop, EventLoopWindowTarget, Proxy as EventLoopProxy},
-  global_accelerator::GlobalAccelerator,
+  global_accelerator::register_global_accelerators,
   menu::{Menu, MenuItemAttributes},
   monitor::{MonitorHandle, VideoMode},
   window::{Id as WindowId, PlatformSpecificWindowBuilderAttributes, UnownedWindow},

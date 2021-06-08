@@ -4,6 +4,8 @@ use std::{
 };
 
 use crate::{
+  event_loop::EventLoopWindowTarget,
+  hotkey::HotKey,
   keyboard::{KeyCode, ModifiersState},
   platform::scancode::KeyCodeExtScancode,
 };
@@ -43,12 +45,12 @@ impl CarbonRef {
 unsafe impl Sync for CarbonRef {}
 unsafe impl Send for CarbonRef {}
 
-pub struct GlobalAccelerator {
+struct GlobalAccelerator {
   pub(crate) carbon_ref: CarbonRef,
 }
 
 impl GlobalAccelerator {
-  pub fn new(modifiers: ModifiersState, key: KeyCode) -> Self {
+  fn new(modifiers: ModifiersState, key: KeyCode) -> Self {
     unsafe {
       let mut converted_modifiers: i32 = 0;
       if modifiers.shift_key() {
@@ -91,6 +93,22 @@ where
 
 fn global_accelerator_handler(item_id: i32) {
   println!("item_id {}", item_id);
+}
+
+pub fn register_global_accelerators<T>(
+  _window_target: &EventLoopWindowTarget<T>,
+  all_hotkeys: Vec<HotKey>,
+) {
+  for hotkey in all_hotkeys {
+    if let Some(hotkeys_keycode) = hotkey.key.to_keycode() {
+      // maybe we have multiple keycode for same key?
+      // if we do, lets register the same hotkey with different keycode
+      // binded to same hotkey id
+      for keycode in hotkeys_keycode {
+        GlobalAccelerator::new(hotkey.mods.into(), keycode);
+      }
+    }
+  }
 }
 
 // todo implement drop?
