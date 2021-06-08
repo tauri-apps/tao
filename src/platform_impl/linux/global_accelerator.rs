@@ -16,7 +16,7 @@ use std::{
 };
 use x11_dl::{keysym, xlib};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GlobalAccelerator {
   pub(crate) hotkey: HotKey,
 }
