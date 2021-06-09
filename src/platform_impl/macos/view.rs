@@ -298,7 +298,7 @@ lazy_static! {
     decl.add_ivar::<*mut c_void>("taoState");
     decl.add_ivar::<id>("markedText");
     let protocol = Protocol::get("NSTextInputClient").unwrap();
-    decl.add_protocol(&protocol);
+    decl.add_protocol(protocol);
     ViewClass(decl.register())
   };
 }

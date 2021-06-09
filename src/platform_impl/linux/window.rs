@@ -85,8 +85,8 @@ pub struct Window {
   pub(crate) window_requests_tx: glib::Sender<(WindowId, WindowRequest)>,
   /// Gtk Acceleration Group
   pub(crate) accel_group: AccelGroup,
-  /// Gtk Menu
-  pub(crate) menu: gtk::Box,
+  // Gtk MenuBar allocation -- always available
+  menu_bar: gtk::MenuBar,
   scale_factor: Rc<AtomicI32>,
   position: Rc<(AtomicI32, AtomicI32)>,
   size: Rc<(AtomicI32, AtomicI32)>,
@@ -186,12 +186,15 @@ impl Window {
       window.set_app_paintable(true);
     }
 
-    // Set Menu Bar
-    let menu = gtk::Box::new(Orientation::Vertical, 0);
-    if let Some(menus) = attributes.window_menu {
-      window.add(&menu);
-      let menubar = menu::initialize(window_id, menus, &window_requests_tx, &accel_group);
-      menu.pack_start(&menubar, false, false, 0);
+    // We always create a box and allocate menubar, so if they set_menu after creation
+    // we can inject the menubar without re-redendering the whole window
+    let window_box = gtk::Box::new(Orientation::Vertical, 0);
+    window.add(&window_box);
+
+    let mut menu_bar = gtk::MenuBar::new();
+    window_box.pack_start(&menu_bar, false, false, 0);
+    if let Some(window_menu) = attributes.window_menu {
+      window_menu.generate_menu(&mut menu_bar, &window_requests_tx, &accel_group, window_id);
     }
 
     // Rest attributes
@@ -325,7 +328,7 @@ impl Window {
       window,
       window_requests_tx,
       accel_group,
-      menu,
+      menu_bar,
       scale_factor,
       position,
       size,
@@ -448,7 +451,7 @@ impl Window {
   pub fn set_menu(&self, menu: Option<menu::Menu>) {
     if let Err(e) = self.window_requests_tx.send((
       self.window_id,
-      WindowRequest::SetMenu((menu, self.accel_group.clone(), self.menu.clone())),
+      WindowRequest::SetMenu((menu, self.accel_group.clone(), self.menu_bar.clone())),
     )) {
       log::warn!("Fail to send menu request: {}", e);
     }
@@ -582,14 +585,12 @@ impl Window {
     }
   }
 
-  #[inline]
   pub fn hide_menu(&self) {
-    self.menu.hide();
+    self.menu_bar.hide();
   }
 
-  #[inline]
   pub fn show_menu(&self) {
-    self.menu.show_all();
+    self.menu_bar.show_all();
   }
 
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {

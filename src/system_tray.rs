@@ -84,7 +84,7 @@ impl SystemTrayBuilder {
     self,
     _window_target: &EventLoopWindowTarget<T>,
   ) -> Result<SystemTray, OsError> {
-    self.0.build(&_window_target)
+    self.0.build(_window_target)
   }
 }
 

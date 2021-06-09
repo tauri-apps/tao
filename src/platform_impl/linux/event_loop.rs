@@ -578,15 +578,17 @@ impl<T: 'static> EventLoop<T> {
               (Some(MenuItem::Minimize), None) => window.iconify(),
               _ => {}
             },
-            WindowRequest::SetMenu((menus, accel_group, menu)) => {
-              for i in menu.get_children() {
-                menu.remove(&i);
-              }
-
-              if let Some(menus) = menus {
-                let menubar = menu::initialize(id, menus, &window_requests_tx, &accel_group);
-                menu.pack_start(&menubar, false, false, 0);
-                menu.show_all();
+            WindowRequest::SetMenu((window_menu, accel_group, mut menubar)) => {
+              if let Some(window_menu) = window_menu {
+                // remove all existing elements as we overwrite
+                // but we keep same menubar reference
+                for i in menubar.get_children() {
+                  menubar.remove(&i);
+                }
+                // create all new elements
+                window_menu.generate_menu(&mut menubar, &window_requests_tx, &accel_group, id);
+                // make sure all newly added elements are visible
+                menubar.show_all();
               }
             }
             WindowRequest::KeyboardInput((event_key, element_state)) => {

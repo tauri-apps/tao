@@ -16,36 +16,43 @@ fn main() {
   SimpleLogger::new().init().unwrap();
   let event_loop = EventLoop::new();
 
-  // allocate our tray as it'll contain children
+  // create main menubar menu
   let mut menu_bar_menu = Menu::new();
 
-  // create our first menu
-  let mut my_app_menu = Menu::new();
+  // create `first_menu`
+  let mut first_menu = Menu::new();
 
-  // create a submenu
+  // create second menu
+  let mut second_menu = Menu::new();
+  // create an empty menu to be used as submenu
   let mut my_sub_menu = Menu::new();
 
   let mut test_menu_item = my_sub_menu.add_item(
     MenuItemAttributes::new("Disable menu").with_accelerators(&Accelerator::new(SysMods::Cmd, "d")),
   );
-  // add Copy to `My App` menu
-  my_app_menu.add_native_item(MenuItem::Copy);
 
-  // add our submenu under Copy
-  my_app_menu.add_submenu("Sub menu", true, my_sub_menu);
+  // add native `Copy` to `first_menu` menu
+  // in macOS native item are required to get keyboard shortcut
+  // to works correctly
+  first_menu.add_native_item(MenuItem::Copy);
 
-  let mut test_menu = Menu::new();
-  test_menu.add_item(
+  // add `my_sub_menu` children of `first_menu` with `Sub menu` title
+  first_menu.add_submenu("Sub menu", true, my_sub_menu);
+
+  // create custom item `Selected and disabled` children of `second_menu`
+  second_menu.add_item(
     MenuItemAttributes::new("Selected and disabled")
       .with_selected(true)
       .with_enabled(false),
   );
-  test_menu.add_native_item(MenuItem::Separator);
-  test_menu.add_item(MenuItemAttributes::new("Test"));
+  // add separator in `second_menu`
+  second_menu.add_native_item(MenuItem::Separator);
+  // create custom item `Change menu` children of `second_menu`
+  let change_menu = second_menu.add_item(MenuItemAttributes::new("Change menu"));
 
   // add all our childs to menu_bar_menu (order is how they'll appear)
-  menu_bar_menu.add_submenu("My app", true, my_app_menu);
-  menu_bar_menu.add_submenu("Other menu", true, test_menu);
+  menu_bar_menu.add_submenu("My app", true, first_menu);
+  menu_bar_menu.add_submenu("Other menu", true, second_menu);
 
   let window = WindowBuilder::new()
     .with_title("A fantastic window!")
@@ -68,7 +75,7 @@ fn main() {
         menu_id,
         origin: MenuType::MenuBar,
       } if menu_id == test_menu_item.clone().id() => {
-        println!("Clicked on custom change menu");
+        println!("Clicked on `Disable menu`");
         // this allow us to get access to the menu and make changes
         // without re-rendering the whole menu
         test_menu_item.set_enabled(false);
@@ -76,6 +83,18 @@ fn main() {
         test_menu_item.set_selected(true);
         #[cfg(target_os = "macos")]
         test_menu_item.set_native_image(NativeImage::StatusUnavailable);
+      }
+      Event::MenuEvent {
+        menu_id,
+        origin: MenuType::MenuBar,
+      } if menu_id == change_menu.clone().id() => {
+        println!("Clicked on `Change menu`");
+        // set new menu
+        let mut menu_bar_menu = Menu::new();
+        let mut my_app_menu = Menu::new();
+        my_app_menu.add_item(MenuItemAttributes::new("New menu!"));
+        menu_bar_menu.add_submenu("My app", true, my_app_menu);
+        window.set_menu(Some(menu_bar_menu))
       }
       _ => (),
     }
