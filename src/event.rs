@@ -93,7 +93,7 @@ pub enum Event<'a, T: 'static> {
     position: PhysicalPosition<f64>,
   },
 
-  GlobalHotKeyEvent(u16),
+  GlobalShortcutEvent(u16),
 
   /// Emitted when the application has been suspended.
   Suspended,
@@ -176,7 +176,7 @@ impl<T: Clone> Clone for Event<'static, T> {
         event: *event,
         position: *position,
       },
-      GlobalHotKeyEvent(key_id) => GlobalHotKeyEvent(*key_id),
+      GlobalShortcutEvent(key_id) => GlobalShortcutEvent(*key_id),
     }
   }
 }
@@ -205,7 +205,7 @@ impl<'a, T> Event<'a, T> {
         event,
         position,
       }),
-      GlobalHotKeyEvent(key_id) => Ok(GlobalHotKeyEvent(key_id)),
+      GlobalShortcutEvent(key_id) => Ok(GlobalShortcutEvent(key_id)),
     }
   }
 
@@ -236,7 +236,7 @@ impl<'a, T> Event<'a, T> {
         event,
         position,
       }),
-      GlobalHotKeyEvent(key_id) => Some(GlobalHotKeyEvent(key_id)),
+      GlobalShortcutEvent(key_id) => Some(GlobalShortcutEvent(key_id)),
     }
   }
 }

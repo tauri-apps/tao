@@ -24,7 +24,7 @@ use std::{
 };
 
 use crate::{
-  hotkey::HotKey,
+  accelerator::Accelerator,
   platform_impl::{Menu as MenuPlatform, MenuItemAttributes as CustomMenuItemPlatform},
 };
 
@@ -39,7 +39,7 @@ pub struct MenuBar(pub(crate) Menu);
 pub struct MenuItemAttributes<'a> {
   id: MenuId,
   title: &'a str,
-  keyboard_accelerator: Option<HotKey>,
+  keyboard_accelerator: Option<Accelerator>,
   enabled: bool,
   selected: bool,
 }
@@ -72,7 +72,7 @@ impl<'a> MenuItemAttributes<'a> {
   ///
   /// - **Windows / Android / iOS:** Unsupported
   ///
-  pub fn with_accelerators(mut self, keyboard_accelerators: &HotKey) -> Self {
+  pub fn with_accelerators(mut self, keyboard_accelerators: &Accelerator) -> Self {
     self.keyboard_accelerator = Some(keyboard_accelerators.to_owned());
     self
   }

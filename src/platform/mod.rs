@@ -13,11 +13,15 @@
 //!
 //! And the following platform-specific module:
 //!
+//! - `global_shortcut` (available on `windows`, `unix`, `macos`)
+//! - `modifier_supplement` (available on `windows`, `unix`, `macos`)
 //! - `run_return` (available on `windows`, `unix`, `macos`, and `android`)
+//! - `scancode` (available on `windows`, `unix`, `macos`)
 //!
 //! However only the module corresponding to the platform you're compiling to will be available.
 
 pub mod android;
+pub mod global_shortcut;
 pub mod ios;
 pub mod macos;
 pub mod modifier_supplement;

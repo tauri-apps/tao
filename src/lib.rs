@@ -161,9 +161,9 @@ extern crate objc;
 pub mod dpi;
 #[macro_use]
 pub mod error;
+pub mod accelerator;
 pub mod event;
 pub mod event_loop;
-pub mod hotkey;
 mod icon;
 pub mod keyboard;
 pub mod menu;

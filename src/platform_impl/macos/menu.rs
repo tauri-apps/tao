@@ -13,8 +13,8 @@ use objc::{
 use std::sync::Once;
 
 use crate::{
+  accelerator::{Accelerator, RawMods},
   event::Event,
-  hotkey::{HotKey, RawMods},
   keyboard::{Key, ModifiersState},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   platform::macos::NativeImage,
@@ -105,7 +105,7 @@ impl Menu {
     &mut self,
     menu_id: MenuId,
     title: &str,
-    accelerators: Option<HotKey>,
+    accelerators: Option<Accelerator>,
     enabled: bool,
     selected: bool,
     menu_type: MenuType,
@@ -167,7 +167,7 @@ impl Menu {
         make_menu_item(
           "Close Window",
           Some(selector("performClose:")),
-          Some(HotKey::new(None, "w")),
+          Some(Accelerator::new(None, "w")),
           menu_type,
         ),
       )),
@@ -176,7 +176,7 @@ impl Menu {
         make_menu_item(
           "Quit",
           Some(selector("terminate:")),
-          Some(HotKey::new(None, "q")),
+          Some(Accelerator::new(None, "q")),
           menu_type,
         ),
       )),
@@ -185,7 +185,7 @@ impl Menu {
         make_menu_item(
           "Hide",
           Some(selector("hide:")),
-          Some(HotKey::new(None, "h")),
+          Some(Accelerator::new(None, "h")),
           menu_type,
         ),
       )),
@@ -194,7 +194,7 @@ impl Menu {
         make_menu_item(
           "Hide Others",
           Some(selector("hideOtherApplications:")),
-          Some(HotKey::new(RawMods::AltMeta, "w")),
+          Some(Accelerator::new(RawMods::AltMeta, "w")),
           menu_type,
         ),
       )),
@@ -212,7 +212,7 @@ impl Menu {
         make_menu_item(
           "Enter Full Screen",
           Some(selector("toggleFullScreen:")),
-          Some(HotKey::new(RawMods::CtrlMeta, "w")),
+          Some(Accelerator::new(RawMods::CtrlMeta, "w")),
           menu_type,
         ),
       )),
@@ -221,7 +221,7 @@ impl Menu {
         make_menu_item(
           "Minimize",
           Some(selector("performMiniaturize:")),
-          Some(HotKey::new(None, "m")),
+          Some(Accelerator::new(None, "m")),
           menu_type,
         ),
       )),
@@ -234,7 +234,7 @@ impl Menu {
         make_menu_item(
           "Copy",
           Some(selector("copy:")),
-          Some(HotKey::new(None, "c")),
+          Some(Accelerator::new(None, "c")),
           menu_type,
         ),
       )),
@@ -243,7 +243,7 @@ impl Menu {
         make_menu_item(
           "Cut",
           Some(selector("cut:")),
-          Some(HotKey::new(None, "x")),
+          Some(Accelerator::new(None, "x")),
           menu_type,
         ),
       )),
@@ -252,7 +252,7 @@ impl Menu {
         make_menu_item(
           "Paste",
           Some(selector("paste:")),
-          Some(HotKey::new(None, "v")),
+          Some(Accelerator::new(None, "v")),
           menu_type,
         ),
       )),
@@ -261,7 +261,7 @@ impl Menu {
         make_menu_item(
           "Undo",
           Some(selector("undo:")),
-          Some(HotKey::new(None, "z")),
+          Some(Accelerator::new(None, "z")),
           menu_type,
         ),
       )),
@@ -270,7 +270,7 @@ impl Menu {
         make_menu_item(
           "Redo",
           Some(selector("redo:")),
-          Some(HotKey::new(None, "Z")),
+          Some(Accelerator::new(None, "Z")),
           menu_type,
         ),
       )),
@@ -279,7 +279,7 @@ impl Menu {
         make_menu_item(
           "Select All",
           Some(selector("selectAll:")),
-          Some(HotKey::new(None, "a")),
+          Some(Accelerator::new(None, "a")),
           menu_type,
         ),
       )),
@@ -323,7 +323,7 @@ pub(crate) fn make_custom_menu_item(
   id: MenuId,
   title: &str,
   selector: Option<Sel>,
-  accelerators: Option<HotKey>,
+  accelerators: Option<Accelerator>,
   menu_type: MenuType,
 ) -> *mut Object {
   let alloc = make_menu_alloc();
@@ -341,13 +341,13 @@ pub(crate) fn make_custom_menu_item(
 pub(crate) fn make_menu_item(
   title: &str,
   selector: Option<Sel>,
-  accelerators: Option<HotKey>,
+  accelerator: Option<Accelerator>,
   menu_type: MenuType,
 ) -> *mut Object {
   let alloc = make_menu_alloc();
   unsafe {
     let title = NSString::alloc(nil).init_str(title);
-    make_menu_item_from_alloc(alloc, title, selector, accelerators, menu_type)
+    make_menu_item_from_alloc(alloc, title, selector, accelerator, menu_type)
   }
 }
 
@@ -355,14 +355,14 @@ fn make_menu_item_from_alloc(
   alloc: *mut Object,
   title: *mut Object,
   selector: Option<Sel>,
-  accelerators: Option<HotKey>,
+  accelerator: Option<Accelerator>,
   menu_type: MenuType,
 ) -> *mut Object {
   unsafe {
-    // build our HotKey string
-    let key_equivalent = accelerators
+    // build our Accelerator string
+    let key_equivalent = accelerator
       .clone()
-      .map(HotKey::key_equivalent)
+      .map(Accelerator::key_equivalent)
       .unwrap_or_else(|| "".into());
     let key_equivalent = NSString::alloc(nil).init_str(&key_equivalent);
     // if no selector defined, that mean it's a custom
@@ -377,7 +377,7 @@ fn make_menu_item_from_alloc(
     // allocate our item to our class
     let item: id =
       msg_send![alloc, initWithTitle: title action: selector keyEquivalent: key_equivalent];
-    if let Some(masks) = accelerators.map(HotKey::key_modifier_mask) {
+    if let Some(masks) = accelerator.map(Accelerator::key_modifier_mask) {
       item.setKeyEquivalentModifierMask_(masks)
     }
 
@@ -447,7 +447,7 @@ extern "C" fn dealloc_custom_menuitem(this: &Object, _: Sel) {
   }
 }
 
-impl HotKey {
+impl Accelerator {
   /// Return the string value of this hotkey, for use with Cocoa `NSResponder`
   /// objects.
   ///

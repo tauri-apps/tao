@@ -1,85 +1,41 @@
-//! The HotKey struct and associated types.
+#![cfg(any(
+  target_os = "windows",
+  target_os = "macos",
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
 
-use crate::{
-  error::OsError,
-  event_loop::EventLoopWindowTarget,
-  keyboard::{Key, ModifiersState},
-  platform_impl::{register_global_accelerators, GlobalAccelerator as GlobalAcceleratorPlatform},
-};
+//! The Accelerator struct and associated types.
+
+use crate::keyboard::{Key, ModifiersState};
 use std::{
   borrow::Borrow,
   collections::hash_map::DefaultHasher,
-  error, fmt,
   hash::{Hash, Hasher},
 };
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct GlobalAccelerator(pub(crate) GlobalAcceleratorPlatform);
-
-impl GlobalAccelerator {
-  pub fn test(self) {
-    println!("TEST!!! {:?}", self.0);
-  }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct HotKeyManager {
-  registered_hotkeys: Vec<GlobalAccelerator>,
-}
-
-impl Default for HotKeyManager {
-  fn default() -> Self {
-    Self {
-      registered_hotkeys: Vec::new(),
-    }
-  }
-}
-
-impl HotKeyManager {
-  pub fn new() -> Self {
-    Default::default()
-  }
-  pub fn is_registered(&self, hotkey: &HotKey) -> bool {
-    let hotkey = GlobalAccelerator(GlobalAcceleratorPlatform::new(hotkey.clone()));
-    self.registered_hotkeys.contains(&Box::new(hotkey))
-  }
-  pub fn register(&mut self, hotkey: HotKey) -> Result<GlobalAccelerator, HotKeyManagerError> {
-    if self.is_registered(&hotkey) {
-      return Err(HotKeyManagerError::HotKeyAlreadyRegistered(hotkey));
-    }
-    let hotkey = GlobalAccelerator(GlobalAcceleratorPlatform::new(hotkey));
-    self.registered_hotkeys.append(&mut vec![hotkey.clone()]);
-    Ok(hotkey)
-  }
-  pub fn run<T: 'static>(
-    &mut self,
-    _window_target: &EventLoopWindowTarget<T>,
-  ) -> Result<(), OsError> {
-    register_global_accelerators(_window_target, &mut self.registered_hotkeys);
-    println!("registered_hotkeys {:?}", self.registered_hotkeys);
-    Ok(())
-  }
-}
-
 #[derive(Debug, Clone, PartialEq, Hash)]
-pub struct HotKey {
+pub struct Accelerator {
   pub(crate) mods: RawMods,
   pub(crate) key: Key,
 }
 
-impl HotKey {
+impl Accelerator {
   pub fn new(mods: impl Into<Option<RawMods>>, key: impl Into<Key>) -> Self {
-    HotKey {
+    Self {
       mods: mods.into().unwrap_or(RawMods::None),
       key: key.into(),
     }
   }
 
   pub fn id(self) -> u16 {
-    hash_hotkey_to_u16(self)
+    hash_accelerator_to_u16(self)
   }
 
-  /// Returns `true` if this [`Key`] and [`ModifiersState`] matches this `HotKey`.
+  /// Returns `true` if this [`Key`] and [`ModifiersState`] matches this `Accelerator`.
   ///
   /// [`Key`]: Key
   /// [`ModifiersState`]: crate::keyboard::ModifiersState
@@ -95,7 +51,7 @@ impl HotKey {
 
 /// Represents the platform-agnostic keyboard modifiers, for command handling.
 ///
-/// **This does one thing: it allows specifying hotkeys that use the Command key
+/// **This does one thing: it allows specifying accelerators that use the Command key
 /// on macOS, but use the Ctrl key on other platforms.**
 #[derive(Debug, Clone, Copy)]
 pub enum SysMods {
@@ -113,7 +69,7 @@ pub enum SysMods {
 
 /// Represents the active modifier keys.
 ///
-/// This is intended to be clearer than [`ModifiersState`], when describing hotkeys.
+/// This is intended to be clearer than [`ModifiersState`], when describing accelerators.
 ///
 #[derive(Debug, Clone, Copy, PartialEq, Hash)]
 pub enum RawMods {
@@ -191,7 +147,7 @@ impl From<RawMods> for ModifiersState {
   }
 }
 
-// we do this so that HotKey::new can accept `None` as an initial argument.
+// we do this so that Accelerator::new can accept `None` as an initial argument.
 impl From<SysMods> for Option<RawMods> {
   fn from(src: SysMods) -> Option<RawMods> {
     Some(src.into())
@@ -220,28 +176,8 @@ impl From<SysMods> for RawMods {
     }
   }
 }
-#[derive(Debug)]
-pub enum HotKeyManagerError {
-  HotKeyAlreadyRegistered(HotKey),
-  HotKeyNotRegistered(HotKey),
-  InvalidHotKey(String),
-}
-impl error::Error for HotKeyManagerError {}
-impl fmt::Display for HotKeyManagerError {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-    match self {
-      HotKeyManagerError::HotKeyAlreadyRegistered(e) => {
-        f.pad(&format!("hotkey already registered: {:?}", e))
-      }
-      HotKeyManagerError::HotKeyNotRegistered(e) => {
-        f.pad(&format!("hotkey not registered: {:?}", e))
-      }
-      HotKeyManagerError::InvalidHotKey(e) => e.fmt(f),
-    }
-  }
-}
 
-fn hash_hotkey_to_u16(hotkey: HotKey) -> u16 {
+fn hash_accelerator_to_u16(hotkey: Accelerator) -> u16 {
   let mut s = DefaultHasher::new();
   hotkey.hash(&mut s);
   s.finish() as u16

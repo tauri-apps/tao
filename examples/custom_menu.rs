@@ -5,9 +5,9 @@ use simple_logger::SimpleLogger;
 #[cfg(target_os = "macos")]
 use tao::platform::macos::{CustomMenuItemExtMacOS, NativeImage};
 use tao::{
+  accelerator::{Accelerator, SysMods},
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
-  hotkey::{HotKey, SysMods},
   menu::{MenuBar as Menu, MenuItem, MenuItemAttributes, MenuType},
   window::WindowBuilder,
 };
@@ -26,7 +26,7 @@ fn main() {
   let mut my_sub_menu = Menu::new();
 
   let mut test_menu_item = my_sub_menu.add_item(
-    MenuItemAttributes::new("Disable menu").with_accelerators(&HotKey::new(SysMods::Cmd, "d")),
+    MenuItemAttributes::new("Disable menu").with_accelerators(&Accelerator::new(SysMods::Cmd, "d")),
   );
   // add Copy to `My App` menu
   my_app_menu.add_native_item(MenuItem::Copy);

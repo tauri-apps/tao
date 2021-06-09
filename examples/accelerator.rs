@@ -5,10 +5,10 @@
 fn main() {
   use simple_logger::SimpleLogger;
   use tao::{
+    accelerator::{Accelerator, RawMods},
     dpi::LogicalSize,
     event::{ElementState, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    hotkey::{HotKey, RawMods},
     keyboard::{Key, ModifiersState},
     platform::modifier_supplement::KeyEventExtModifierSupplement,
     window::WindowBuilder,
@@ -17,7 +17,7 @@ fn main() {
   SimpleLogger::new().init().unwrap();
 
   // create a sample hotkey
-  let hotkey = HotKey::new(RawMods::Shift, "1");
+  let hotkey = Accelerator::new(RawMods::Shift, "1");
   // create local modifier state
   let mut modifiers = ModifiersState::default();
 
@@ -47,7 +47,7 @@ fn main() {
               "KeyEvent:  `Shift` + `1` | logical_key: {:?}",
               &event.logical_key
             );
-            // we can match manually without `HotKey`
+            // we can match manually without `Accelerator`
           } else if event.key_without_modifiers() == Key::Character("1".to_string())
             && modifiers.is_empty()
           {
