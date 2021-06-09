@@ -5,7 +5,7 @@
 fn main() {
   use simple_logger::SimpleLogger;
   use tao::{
-    accelerator::{Accelerator, RawMods},
+    accelerator::{Accelerator, RawMods, SysMods},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     keyboard::Key,
@@ -20,11 +20,11 @@ fn main() {
   let mut hotkey_manager = ShortcutManager::new(&event_loop);
 
   // create our accelerators
-  let shortcut_f13 = Accelerator::new(None, Key::F13);
+  let shortcut_shift_f1 = Accelerator::new(SysMods::Shift, Key::ArrowDown);
   let shortcut_altctrlmeta_b = Accelerator::new(RawMods::AltCtrlMeta, "b");
 
   // save a reference to unregister it later
-  let global_shortcut_f13 = hotkey_manager.register(shortcut_f13.clone()).unwrap();
+  let global_shortcut_shift_f1 = hotkey_manager.register(shortcut_shift_f1.clone()).unwrap();
 
   hotkey_manager
     .register(shortcut_altctrlmeta_b.clone())
@@ -46,11 +46,11 @@ fn main() {
       Event::MainEventsCleared => {
         window.request_redraw();
       }
-      Event::GlobalShortcutEvent(hotkey_id) if hotkey_id == shortcut_f13.clone().id() => {
-        println!("Pressed on F13 -- unregister for future use");
+      Event::GlobalShortcutEvent(hotkey_id) if hotkey_id == shortcut_shift_f1.clone().id() => {
+        println!("Pressed on Shift + arrow down -- unregister for future use");
         // unregister key
         hotkey_manager
-          .unregister(global_shortcut_f13.clone())
+          .unregister(global_shortcut_shift_f1.clone())
           .unwrap();
       }
       Event::GlobalShortcutEvent(hotkey_id) if hotkey_id == shortcut_altctrlmeta_b.clone().id() => {

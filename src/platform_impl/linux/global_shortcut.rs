@@ -319,7 +319,7 @@ fn get_x11_scancode_from_hotkey(key: Key) -> u32 {
     Key::Enter => todo!(),
     Key::Tab => todo!(),
     Key::Space => todo!(),
-    Key::ArrowDown => todo!(),
+    Key::ArrowDown => keysym::XK_Down,
     Key::ArrowLeft => todo!(),
     Key::ArrowRight => todo!(),
     Key::ArrowUp => todo!(),
