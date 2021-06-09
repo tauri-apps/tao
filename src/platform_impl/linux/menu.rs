@@ -12,7 +12,7 @@ use super::{
   window::{WindowId, WindowRequest},
 };
 use crate::{
-  hotkey::{HotKey, RawMods},
+  accelerator::{Accelerator, RawMods},
   keyboard::{Key, ModifiersState},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
 };
@@ -59,7 +59,7 @@ unsafe impl Sync for Menu {}
 #[derive(Debug, Clone)]
 pub struct MenuItemAttributes {
   id: MenuId,
-  key: Option<HotKey>,
+  key: Option<Accelerator>,
   selected: bool,
   enabled: bool,
   menu_type: MenuType,
@@ -107,7 +107,7 @@ impl Menu {
     &mut self,
     menu_id: MenuId,
     title: &str,
-    accelerators: Option<HotKey>,
+    accelerators: Option<Accelerator>,
     enabled: bool,
     selected: bool,
     menu_type: MenuType,
@@ -284,7 +284,7 @@ impl Menu {
   }
 }
 
-fn register_accelerator(item: &GtkMenuItem, accel_group: &AccelGroup, menu_key: HotKey) {
+fn register_accelerator(item: &GtkMenuItem, accel_group: &AccelGroup, menu_key: Accelerator) {
   let gdk_keyval = match &menu_key.key {
     Key::Character(text) => text.chars().next().unwrap() as u32,
     k => {
