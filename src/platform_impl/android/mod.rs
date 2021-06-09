@@ -3,10 +3,10 @@
 
 #![cfg(target_os = "android")]
 use crate::{
+  accelerator::Accelerator,
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error, event,
   event_loop::{self, ControlFlow},
-  hotkey::HotKey,
   keyboard::{Key, KeyCode, KeyLocation, NativeKeyCode},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   monitor, window,
@@ -75,7 +75,7 @@ impl Menu {
     &mut self,
     _menu_id: MenuId,
     _title: &str,
-    _accelerators: Option<HotKey>,
+    _accelerator: Option<Accelerator>,
     _enabled: bool,
     _selected: bool,
     _menu_type: MenuType,

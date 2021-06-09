@@ -1419,6 +1419,7 @@ impl Key {
   }
 
   // we use a Vec because some key include 2 keycode (specially the modifiers)
+  #[allow(dead_code)]
   pub(crate) fn to_keycode(&self) -> Option<Vec<KeyCode>> {
     match self {
       Key::Character(char) => match char.to_lowercase().as_str() {

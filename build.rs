@@ -13,9 +13,11 @@ fn main() {
   // link carbon hotkey on macOS
   #[cfg(target_os = "macos")]
   {
-    println!("cargo:rustc-link-lib=framework=Carbon");
-    cc::Build::new()
-      .file("src/platform_impl/macos/carbon_hotkey/carbon_hotkey_binding.c")
-      .compile("carbon_hotkey_binding.a");
+    if std::env::var("CARGO_CFG_TARGET_OS").map_or(false, |os| os == "macos") {
+      println!("cargo:rustc-link-lib=framework=Carbon");
+      cc::Build::new()
+        .file("src/platform_impl/macos/carbon_hotkey/carbon_hotkey_binding.c")
+        .compile("carbon_hotkey_binding.a");
+    }
   }
 }

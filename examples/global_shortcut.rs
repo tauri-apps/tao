@@ -1,17 +1,19 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use simple_logger::SimpleLogger;
-use tao::{
-  accelerator::{Accelerator, RawMods},
-  event::{Event, WindowEvent},
-  event_loop::{ControlFlow, EventLoop},
-  keyboard::Key,
-  platform::global_shortcut::ShortcutManager,
-  window::WindowBuilder,
-};
 
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 fn main() {
+  use simple_logger::SimpleLogger;
+  use tao::{
+    accelerator::{Accelerator, RawMods},
+    event::{Event, WindowEvent},
+    event_loop::{ControlFlow, EventLoop},
+    keyboard::Key,
+    platform::global_shortcut::ShortcutManager,
+    window::WindowBuilder,
+  };
+
   SimpleLogger::new().init().unwrap();
   let event_loop = EventLoop::new();
 
@@ -58,4 +60,10 @@ fn main() {
       _ => (),
     }
   });
+}
+
+// Global shortcut isn't supported on other's platforms.
+#[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+fn main() {
+  println!("This platform doesn't support global_shortcut.");
 }
