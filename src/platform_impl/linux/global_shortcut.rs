@@ -8,10 +8,7 @@ use crate::{
 use std::{
   collections::HashMap,
   ptr,
-  sync::{
-    mpsc,
-    Arc, Mutex,
-  },
+  sync::{mpsc, Arc, Mutex},
 };
 use x11_dl::{keysym, xlib};
 
@@ -197,11 +194,9 @@ impl ShortcutManager {
   pub(crate) fn unregister_all(&mut self) -> Result<(), ShortcutManagerError> {
     for (found_id, _) in self.shortcuts.lock().unwrap().iter() {
       self
-      .method_sender
-      .send(HotkeyMessage::UnregisterHotkey(*found_id))
-      .map_err(|_| ShortcutManagerError::InvalidAccelerator(
-        "Channel error".into(),
-      ))?;
+        .method_sender
+        .send(HotkeyMessage::UnregisterHotkey(*found_id))
+        .map_err(|_| ShortcutManagerError::InvalidAccelerator("Channel error".into()))?;
     }
     self.shortcuts = ListenerMap::default();
     Ok(())
@@ -219,24 +214,22 @@ impl ShortcutManager {
       }
     }
     if found_id == (-1, 0) {
-      return Err(ShortcutManagerError::AcceleratorNotRegistered(shortcut.0.accelerator));
+      return Err(ShortcutManagerError::AcceleratorNotRegistered(
+        shortcut.0.accelerator,
+      ));
     }
 
     self
       .method_sender
       .send(HotkeyMessage::UnregisterHotkey(found_id))
-      .map_err(|_| ShortcutManagerError::InvalidAccelerator(
-        "Channel error".into(),
-      ))?;
+      .map_err(|_| ShortcutManagerError::InvalidAccelerator("Channel error".into()))?;
     if self.shortcuts.lock().unwrap().remove(&found_id).is_none() {
       panic!("hotkey should never be none")
     };
     match self.method_receiver.recv() {
       Ok(HotkeyMessage::UnregisterHotkeyResult(Ok(_))) => Ok(()),
       Ok(HotkeyMessage::UnregisterHotkeyResult(Err(err))) => Err(err),
-      Err(err) => Err(ShortcutManagerError::InvalidAccelerator(
-        err.to_string(),
-      )),
+      Err(err) => Err(ShortcutManagerError::InvalidAccelerator(err.to_string())),
       _ => Err(ShortcutManagerError::InvalidAccelerator(
         "Unknown error".into(),
       )),
