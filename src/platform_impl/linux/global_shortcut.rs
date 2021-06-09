@@ -34,60 +34,6 @@ pub struct ShortcutManager {
 }
 
 impl ShortcutManager {
-  pub(crate) fn register(
-    &mut self,
-    accelerator: Accelerator,
-  ) -> Result<RootGlobalShortcut, ShortcutManagerError> {
-    let keycode = get_x11_scancode_from_hotkey(accelerator.key.clone()) as u32;
-
-    let mut converted_modifiers: u32 = 0;
-    let modifiers: ModifiersState = accelerator.mods.into();
-    if modifiers.shift_key() {
-      converted_modifiers |= xlib::ShiftMask;
-    }
-    if modifiers.super_key() {
-      converted_modifiers |= xlib::Mod4Mask;
-    }
-    if modifiers.alt_key() {
-      converted_modifiers |= xlib::Mod1Mask;
-    }
-    if modifiers.control_key() {
-      converted_modifiers |= xlib::ControlMask;
-    }
-
-    self
-      .method_sender
-      .send(HotkeyMessage::RegisterHotkey(
-        (0, 0),
-        converted_modifiers,
-        keycode,
-      ))
-      .map_err(|_| {
-        ShortcutManagerError::InvalidAccelerator("Unable to register global shortcut".into())
-      })?;
-
-    match self.method_receiver.recv() {
-      Ok(HotkeyMessage::RegisterHotkeyResult(Ok(id))) => {
-        self
-          .shortcuts
-          .lock()
-          .unwrap()
-          .insert(id, accelerator.clone().id() as u32);
-        let shortcut = GlobalShortcut { accelerator };
-        return Ok(RootGlobalShortcut(shortcut));
-      }
-      Ok(HotkeyMessage::RegisterHotkeyResult(Err(err))) => Err(err),
-      Err(err) => Err(ShortcutManagerError::InvalidAccelerator(err.to_string())),
-      _ => Err(ShortcutManagerError::InvalidAccelerator(
-        "Unknown error".into(),
-      )),
-    }
-  }
-
-  pub(crate) fn unregister_all(&self) -> Result<(), ShortcutManagerError> {
-    Ok(())
-  }
-
   pub(crate) fn new<T>(_window_target: &EventLoopWindowTarget<T>) -> Self {
     println!("here connecting...");
     let window_id = WindowId::dummy();
@@ -196,6 +142,68 @@ impl ShortcutManager {
       method_sender,
       method_receiver,
     }
+  }
+
+  pub(crate) fn register(
+    &mut self,
+    accelerator: Accelerator,
+  ) -> Result<RootGlobalShortcut, ShortcutManagerError> {
+    let keycode = get_x11_scancode_from_hotkey(accelerator.key.clone()) as u32;
+
+    let mut converted_modifiers: u32 = 0;
+    let modifiers: ModifiersState = accelerator.mods.into();
+    if modifiers.shift_key() {
+      converted_modifiers |= xlib::ShiftMask;
+    }
+    if modifiers.super_key() {
+      converted_modifiers |= xlib::Mod4Mask;
+    }
+    if modifiers.alt_key() {
+      converted_modifiers |= xlib::Mod1Mask;
+    }
+    if modifiers.control_key() {
+      converted_modifiers |= xlib::ControlMask;
+    }
+
+    self
+      .method_sender
+      .send(HotkeyMessage::RegisterHotkey(
+        (0, 0),
+        converted_modifiers,
+        keycode,
+      ))
+      .map_err(|_| {
+        ShortcutManagerError::InvalidAccelerator("Unable to register global shortcut".into())
+      })?;
+
+    match self.method_receiver.recv() {
+      Ok(HotkeyMessage::RegisterHotkeyResult(Ok(id))) => {
+        self
+          .shortcuts
+          .lock()
+          .unwrap()
+          .insert(id, accelerator.clone().id() as u32);
+        let shortcut = GlobalShortcut { accelerator };
+        return Ok(RootGlobalShortcut(shortcut));
+      }
+      Ok(HotkeyMessage::RegisterHotkeyResult(Err(err))) => Err(err),
+      Err(err) => Err(ShortcutManagerError::InvalidAccelerator(err.to_string())),
+      _ => Err(ShortcutManagerError::InvalidAccelerator(
+        "Unknown error".into(),
+      )),
+    }
+  }
+
+  pub(crate) fn unregister_all(&self) -> Result<(), ShortcutManagerError> {
+    Ok(())
+  }
+
+  pub(crate) fn unregister(
+    &self,
+    shortcut: RootGlobalShortcut,
+  ) -> Result<(), ShortcutManagerError> {
+    shortcut.0.unregister();
+    Ok(())
   }
 }
 

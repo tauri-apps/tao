@@ -76,6 +76,14 @@ impl ShortcutManager {
     }
     Ok(())
   }
+
+  pub(crate) fn unregister(
+    &self,
+    shortcut: RootGlobalShortcut,
+  ) -> Result<(), ShortcutManagerError> {
+    shortcut.0.unregister();
+    Ok(())
+  }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -86,5 +94,10 @@ pub struct GlobalShortcut {
 impl GlobalShortcut {
   pub fn id(&self) -> u16 {
     self.accelerator.clone().id()
+  }
+  pub(crate) fn unregister(&self) {
+    unsafe {
+      winuser::UnregisterHotKey(0 as HWND, self.accelerator.clone().id() as i32);
+    }
   }
 }
