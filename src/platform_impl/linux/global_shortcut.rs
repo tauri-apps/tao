@@ -1,8 +1,9 @@
 use super::window::{WindowId, WindowRequest};
 use crate::{
+  accelerator::Accelerator,
   event_loop::EventLoopWindowTarget,
-  hotkey::{GlobalAccelerator as RootGlobalAccelerator, HotKey},
   keyboard::{Key, ModifiersState},
+  platform::global_shortcut::{GlobalShortcut as RootGlobalShortcut, ShortcutManagerError},
 };
 use std::{
   collections::HashMap,
@@ -16,16 +17,198 @@ use std::{
 };
 use x11_dl::{keysym, xlib};
 
+#[derive(Debug)]
+enum HotkeyMessage {
+  RegisterHotkey(ListenerId, u32, u32),
+  RegisterHotkeyResult(Result<ListenerId, ShortcutManagerError>),
+  UnregisterHotkey(ListenerId),
+  UnregisterHotkeyResult(Result<(), ShortcutManagerError>),
+  DropThread,
+}
+
+#[derive(Debug)]
+pub struct ShortcutManager {
+  shortcuts: ListenerMap,
+  method_sender: mpsc::Sender<HotkeyMessage>,
+  method_receiver: mpsc::Receiver<HotkeyMessage>,
+}
+
+impl ShortcutManager {
+  pub(crate) fn register(
+    &mut self,
+    accelerator: Accelerator,
+  ) -> Result<RootGlobalShortcut, ShortcutManagerError> {
+    let keycode = get_x11_scancode_from_hotkey(accelerator.key.clone()) as u32;
+
+    let mut converted_modifiers: u32 = 0;
+    let modifiers: ModifiersState = accelerator.mods.into();
+    if modifiers.shift_key() {
+      converted_modifiers |= xlib::ShiftMask;
+    }
+    if modifiers.super_key() {
+      converted_modifiers |= xlib::Mod4Mask;
+    }
+    if modifiers.alt_key() {
+      converted_modifiers |= xlib::Mod1Mask;
+    }
+    if modifiers.control_key() {
+      converted_modifiers |= xlib::ControlMask;
+    }
+
+    self
+      .method_sender
+      .send(HotkeyMessage::RegisterHotkey(
+        (0, 0),
+        converted_modifiers,
+        keycode,
+      ))
+      .map_err(|_| {
+        ShortcutManagerError::InvalidAccelerator("Unable to register global shortcut".into())
+      })?;
+
+    match self.method_receiver.recv() {
+      Ok(HotkeyMessage::RegisterHotkeyResult(Ok(id))) => {
+        self
+          .shortcuts
+          .lock()
+          .unwrap()
+          .insert(id, accelerator.clone().id() as u32);
+        let shortcut = GlobalShortcut { accelerator };
+        return Ok(RootGlobalShortcut(shortcut));
+      }
+      Ok(HotkeyMessage::RegisterHotkeyResult(Err(err))) => Err(err),
+      Err(err) => Err(ShortcutManagerError::InvalidAccelerator(err.to_string())),
+      _ => Err(ShortcutManagerError::InvalidAccelerator(
+        "Unknown error".into(),
+      )),
+    }
+  }
+
+  pub(crate) fn unregister_all(&self) -> Result<(), ShortcutManagerError> {
+    Ok(())
+  }
+
+  pub(crate) fn new<T>(_window_target: &EventLoopWindowTarget<T>) -> Self {
+    println!("here connecting...");
+    let window_id = WindowId::dummy();
+    let hotkeys = ListenerMap::default();
+    let hotkey_map = hotkeys.clone();
+
+    let event_loop_channel = _window_target.p.window_requests_tx.clone();
+
+    let (method_sender, thread_receiver) = mpsc::channel();
+    let (thread_sender, method_receiver) = mpsc::channel();
+
+    std::thread::spawn(move || {
+      let event_loop_channel = event_loop_channel.clone();
+      let xlib = xlib::Xlib::open().unwrap();
+      unsafe {
+        let display = (xlib.XOpenDisplay)(ptr::null());
+        let root = (xlib.XDefaultRootWindow)(display);
+
+        // Only trigger key release at end of repeated keys
+        let mut supported_rtrn: i32 = std::mem::MaybeUninit::uninit().assume_init();
+        (xlib.XkbSetDetectableAutoRepeat)(display, 1, &mut supported_rtrn);
+
+        (xlib.XSelectInput)(display, root, xlib::KeyReleaseMask);
+        let mut event: xlib::XEvent = std::mem::MaybeUninit::uninit().assume_init();
+
+        loop {
+          let event_loop_channel = event_loop_channel.clone();
+          if (xlib.XPending)(display) > 0 {
+            (xlib.XNextEvent)(display, &mut event);
+            if let xlib::KeyRelease = event.get_type() {
+              let keycode = event.key.keycode;
+              let modifiers = event.key.state;
+              if let Some(hotkey_id) = hotkey_map.lock().unwrap().get(&(keycode as i32, modifiers))
+              {
+                event_loop_channel
+                  .send((window_id, WindowRequest::GlobalHotKey(*hotkey_id as u16)))
+                  .unwrap();
+              }
+            }
+          }
+
+          match thread_receiver.try_recv() {
+            Ok(HotkeyMessage::RegisterHotkey(_, modifiers, key)) => {
+              let keycode = (xlib.XKeysymToKeycode)(display, key.into()) as i32;
+
+              let result = (xlib.XGrabKey)(
+                display,
+                keycode,
+                modifiers,
+                root,
+                0,
+                xlib::GrabModeAsync,
+                xlib::GrabModeAsync,
+              );
+              if result == 0 {
+                if let Err(err) = thread_sender
+                  .clone()
+                  .send(HotkeyMessage::RegisterHotkeyResult(Err(
+                    ShortcutManagerError::InvalidAccelerator(
+                      "Unable to register accelerator".into(),
+                    ),
+                  )))
+                {
+                  eprintln!("hotkey: thread_sender.send error {}", err);
+                }
+              } else if let Err(err) = thread_sender.send(HotkeyMessage::RegisterHotkeyResult(Ok(
+                (keycode, modifiers),
+              ))) {
+                eprintln!("hotkey: thread_sender.send error {}", err);
+              }
+            }
+            Ok(HotkeyMessage::UnregisterHotkey(id)) => {
+              let result = (xlib.XUngrabKey)(display, id.0, id.1, root);
+              if result == 0 {
+                if let Err(err) = thread_sender
+                  .clone()
+                  .send(HotkeyMessage::UnregisterHotkeyResult(Err(
+                    ShortcutManagerError::InvalidAccelerator(
+                      "Unable to unregister accelerator".into(),
+                    ),
+                  )))
+                {
+                  eprintln!("hotkey: thread_sender.send error {}", err);
+                }
+              }
+            }
+            Ok(HotkeyMessage::DropThread) => {
+              (xlib.XCloseDisplay)(display);
+              return;
+            }
+            Err(err) => {
+              if let std::sync::mpsc::TryRecvError::Disconnected = err {
+                eprintln!("hotkey: try_recv error {}", err);
+              }
+            }
+            _ => unreachable!("other message should not arrive"),
+          };
+
+          std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+      }
+    });
+
+    ShortcutManager {
+      shortcuts: hotkeys,
+      method_sender,
+      method_receiver,
+    }
+  }
+}
+
 #[derive(Debug, Clone, PartialEq)]
-pub struct GlobalAccelerator {
-  pub(crate) hotkey: HotKey,
+pub struct GlobalShortcut {
+  pub(crate) accelerator: Accelerator,
 }
 type ListenerId = (i32, u32);
 type ListenerMap = Arc<Mutex<HashMap<ListenerId, u32>>>;
 
-impl GlobalAccelerator {
-  pub(crate) fn new(hotkey: HotKey) -> Self {
-    Self { hotkey }
+impl GlobalShortcut {
+  pub(crate) fn unregister(&self) {
+    unsafe {}
   }
 }
 
@@ -37,94 +220,6 @@ unsafe impl Sync for WindowId {}
 // to use send + sync
 unsafe impl Send for WindowRequest {}
 unsafe impl Sync for WindowRequest {}
-
-pub fn register_global_accelerators<T>(
-  _window_target: &EventLoopWindowTarget<T>,
-  accelerators: &mut Vec<RootGlobalAccelerator>,
-) {
-  let accelerators = accelerators.clone();
-
-  let tx_ = _window_target.p.window_requests_tx.clone();
-  let window_id = unsafe { WindowId::dummy() };
-
-  let hotkeys = ListenerMap::default();
-  let hotkey_map = hotkeys.clone();
-
-  std::thread::spawn(move || {
-    let tx_ = tx_.clone();
-    let xlib = xlib::Xlib::open().unwrap();
-    unsafe {
-      let display = (xlib.XOpenDisplay)(ptr::null());
-      let root = (xlib.XDefaultRootWindow)(display);
-
-      // Only trigger key release at end of repeated keys
-      let mut supported_rtrn: i32 = std::mem::MaybeUninit::uninit().assume_init();
-      (xlib.XkbSetDetectableAutoRepeat)(display, 1, &mut supported_rtrn);
-
-      (xlib.XSelectInput)(display, root, xlib::KeyReleaseMask);
-      let mut event: xlib::XEvent = std::mem::MaybeUninit::uninit().assume_init();
-
-      for accel in accelerators {
-        let keycode = get_x11_scancode_from_hotkey(accel.0.hotkey.key.clone()) as u64;
-
-        let mut converted_modifiers: u32 = 0;
-        let modifiers: ModifiersState = accel.0.hotkey.mods.into();
-        if modifiers.shift_key() {
-          converted_modifiers |= xlib::ShiftMask;
-        }
-        if modifiers.super_key() {
-          converted_modifiers |= xlib::Mod4Mask;
-        }
-        if modifiers.alt_key() {
-          converted_modifiers |= xlib::Mod1Mask as u32;
-        }
-        if modifiers.control_key() {
-          converted_modifiers |= xlib::ControlMask;
-        }
-
-        let keycode = (xlib.XKeysymToKeycode)(display, keycode) as i32;
-
-        let result = (xlib.XGrabKey)(
-          display,
-          keycode,
-          converted_modifiers,
-          root,
-          0,
-          xlib::GrabModeAsync,
-          xlib::GrabModeAsync,
-        );
-
-        if result > 0 {
-          hotkey_map
-            .lock()
-            .unwrap()
-            .insert((keycode, converted_modifiers), accel.0.hotkey.id() as u32);
-        }
-      }
-
-      println!("starting loop");
-      loop {
-        let tx_ = tx_.clone();
-        if (xlib.XPending)(display) > 0 {
-          (xlib.XNextEvent)(display, &mut event);
-          if let xlib::KeyRelease = event.get_type() {
-            let keycode = event.key.keycode;
-            let modifiers = event.key.state;
-            //thread_sender.send((modifiers, keycode));
-            if let Some(hotkey_id) = hotkey_map.lock().unwrap().get(&(keycode as i32, modifiers)) {
-              tx_
-                .send((window_id, WindowRequest::GlobalHotKey(*hotkey_id as u16)))
-                .unwrap();
-              println!("event sent");
-            }
-          }
-        }
-
-        std::thread::sleep(std::time::Duration::from_millis(50));
-      }
-    }
-  });
-}
 
 fn get_x11_scancode_from_hotkey(key: Key) -> u32 {
   match key {

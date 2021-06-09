@@ -21,7 +21,7 @@ pub struct ShortcutManager {
 }
 
 impl ShortcutManager {
-  pub(crate) fn new() -> Self {
+  pub(crate) fn new<T>(_window_target: &EventLoopWindowTarget<T>) -> Self {
     let saved_callback = Box::into_raw(Box::new(global_accelerator_handler));
     let event_handler = make_accelerator_callback(saved_callback);
     ShortcutManager {
@@ -84,12 +84,6 @@ impl ShortcutManager {
   }
 
   // connect_event_loop is not needed on macos
-  pub(crate) fn connect_event_loop<T>(
-    &self,
-    _window_target: &EventLoopWindowTarget<T>,
-  ) -> Result<(), ShortcutManagerError> {
-    Ok(())
-  }
 }
 
 unsafe extern "C" fn trampoline<F>(result: c_int, user_data: *mut c_void)

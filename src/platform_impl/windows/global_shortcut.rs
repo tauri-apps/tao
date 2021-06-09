@@ -17,7 +17,7 @@ pub struct ShortcutManager {
 }
 
 impl ShortcutManager {
-  pub(crate) fn new() -> Self {
+  pub(crate) fn new<T>(_window_target: &EventLoopWindowTarget<T>) -> Self {
     ShortcutManager {
       shortcuts: Vec::new(),
     }
@@ -54,7 +54,7 @@ impl ShortcutManager {
           );
           if result == 0 {
             return Err(ShortcutManagerError::InvalidAccelerator(
-              "Unable to register accelerator".into(),
+              "Unable to register accelerator with `winuser::RegisterHotKey`.".into(),
             ));
           }
           let shortcut = GlobalShortcut { accelerator };
@@ -63,7 +63,7 @@ impl ShortcutManager {
         },
         _ => {
           return Err(ShortcutManagerError::InvalidAccelerator(
-            "Unable to register accelerator".into(),
+            "Unable to register accelerator (unknown VKCode for this char).".into(),
           ));
         }
       }
@@ -74,14 +74,6 @@ impl ShortcutManager {
     for shortcut in &self.shortcuts {
       shortcut.unregister();
     }
-    Ok(())
-  }
-
-  // connect_event_loop is not needed on macos
-  pub(crate) fn connect_event_loop<T>(
-    &self,
-    _window_target: &EventLoopWindowTarget<T>,
-  ) -> Result<(), ShortcutManagerError> {
     Ok(())
   }
 }

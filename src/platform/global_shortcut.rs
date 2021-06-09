@@ -25,24 +25,18 @@ impl GlobalShortcut {
   }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ShortcutManager {
   registered_hotkeys: Vec<Accelerator>,
   p: ShortcutManagerPlatform,
 }
 
-impl Default for ShortcutManager {
-  fn default() -> Self {
-    Self {
-      registered_hotkeys: Vec::new(),
-      p: ShortcutManagerPlatform::new(),
-    }
-  }
-}
-
 impl ShortcutManager {
-  pub fn new() -> Self {
-    Default::default()
+  pub fn new<T: 'static>(event_loop: &EventLoopWindowTarget<T>) -> ShortcutManager {
+    ShortcutManager {
+      p: ShortcutManagerPlatform::new(event_loop),
+      registered_hotkeys: Vec::new(),
+    }
   }
 
   pub fn is_registered(&self, _hotkey: &Accelerator) -> bool {
@@ -64,13 +58,6 @@ impl ShortcutManager {
 
   pub fn unregister_all(&self) -> Result<(), ShortcutManagerError> {
     self.p.unregister_all()
-  }
-
-  pub fn connect_event_loop<T: 'static>(
-    &mut self,
-    _window_target: &EventLoopWindowTarget<T>,
-  ) -> Result<(), ShortcutManagerError> {
-    self.p.connect_event_loop(_window_target)
   }
 }
 

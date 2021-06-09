@@ -16,7 +16,7 @@ fn main() {
   let event_loop = EventLoop::new();
 
   // create new shortcut manager instance
-  let mut hotkey_manager = ShortcutManager::new();
+  let mut hotkey_manager = ShortcutManager::new(&event_loop);
 
   // create our accelerators
   let shortcut_f13 = Accelerator::new(None, Key::F13);
@@ -28,10 +28,6 @@ fn main() {
   hotkey_manager
     .register(shortcut_altctrlmeta_b.clone())
     .unwrap();
-
-  // connect the event loop to the shortcut manager
-  // (required only on linux) other platforms is no-op, it's safe to use it
-  hotkey_manager.connect_event_loop(&event_loop).unwrap();
 
   let window = WindowBuilder::new()
     .with_title("A fantastic window!")

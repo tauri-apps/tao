@@ -678,7 +678,7 @@ pub enum WindowRequest {
   WireUpEvents,
   Redraw,
   Menu((Option<MenuItem>, Option<MenuId>)),
-  SetMenu((Option<menu::Menu>, AccelGroup, gtk::Box)),
+  SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
   KeyboardInput((EventKey, ElementState)),
   GlobalHotKey(u16),
 }

@@ -10,7 +10,7 @@
 ))]
 
 mod event_loop;
-mod global_accelerator;
+mod global_shortcut;
 mod keyboard;
 mod menu;
 mod monitor;
@@ -21,7 +21,7 @@ mod window;
 #[cfg(feature = "tray")]
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 pub use self::{
-  global_accelerator::{register_global_accelerators, GlobalAccelerator},
+  global_shortcut::{GlobalShortcut, ShortcutManager},
   menu::{Menu, MenuItemAttributes},
 };
 pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
