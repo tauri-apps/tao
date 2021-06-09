@@ -1,13 +1,3 @@
-#![cfg(any(
-  target_os = "windows",
-  target_os = "macos",
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
-))]
-
 //! The Accelerator struct and associated types.
 
 use crate::keyboard::{Key, ModifiersState};
