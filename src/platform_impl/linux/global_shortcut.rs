@@ -7,11 +7,9 @@ use crate::{
 };
 use std::{
   collections::HashMap,
-  mem::MaybeUninit,
   ptr,
   sync::{
     mpsc,
-    mpsc::{Receiver, Sender},
     Arc, Mutex,
   },
 };
@@ -35,7 +33,6 @@ pub struct ShortcutManager {
 
 impl ShortcutManager {
   pub(crate) fn new<T>(_window_target: &EventLoopWindowTarget<T>) -> Self {
-    println!("here connecting...");
     let window_id = WindowId::dummy();
     let hotkeys = ListenerMap::default();
     let hotkey_map = hotkeys.clone();
@@ -150,6 +147,9 @@ impl ShortcutManager {
   ) -> Result<RootGlobalShortcut, ShortcutManagerError> {
     let keycode = get_x11_scancode_from_hotkey(accelerator.key.clone()) as u32;
 
+    println!("keycode {:?}", keycode);
+    println!("keycode {:?}", u16::MAX);
+
     let mut converted_modifiers: u32 = 0;
     let modifiers: ModifiersState = accelerator.mods.into();
     if modifiers.shift_key() {
@@ -194,7 +194,16 @@ impl ShortcutManager {
     }
   }
 
-  pub(crate) fn unregister_all(&self) -> Result<(), ShortcutManagerError> {
+  pub(crate) fn unregister_all(&mut self) -> Result<(), ShortcutManagerError> {
+    for (found_id, _) in self.shortcuts.lock().unwrap().iter() {
+      self
+      .method_sender
+      .send(HotkeyMessage::UnregisterHotkey(*found_id))
+      .map_err(|_| ShortcutManagerError::InvalidAccelerator(
+        "Channel error".into(),
+      ))?;
+    }
+    self.shortcuts = ListenerMap::default();
     Ok(())
   }
 
@@ -202,8 +211,44 @@ impl ShortcutManager {
     &self,
     shortcut: RootGlobalShortcut,
   ) -> Result<(), ShortcutManagerError> {
-    shortcut.0.unregister();
-    Ok(())
+    let mut found_id = (-1, 0);
+    for (id, shortcut_id) in self.shortcuts.lock().unwrap().iter() {
+      if *shortcut_id == shortcut.0.id() as u32 {
+        found_id = *id;
+        break;
+      }
+    }
+    if found_id == (-1, 0) {
+      return Err(ShortcutManagerError::AcceleratorNotRegistered(shortcut.0.accelerator));
+    }
+
+    self
+      .method_sender
+      .send(HotkeyMessage::UnregisterHotkey(found_id))
+      .map_err(|_| ShortcutManagerError::InvalidAccelerator(
+        "Channel error".into(),
+      ))?;
+    if self.shortcuts.lock().unwrap().remove(&found_id).is_none() {
+      panic!("hotkey should never be none")
+    };
+    match self.method_receiver.recv() {
+      Ok(HotkeyMessage::UnregisterHotkeyResult(Ok(_))) => Ok(()),
+      Ok(HotkeyMessage::UnregisterHotkeyResult(Err(err))) => Err(err),
+      Err(err) => Err(ShortcutManagerError::InvalidAccelerator(
+        err.to_string(),
+      )),
+      _ => Err(ShortcutManagerError::InvalidAccelerator(
+        "Unknown error".into(),
+      )),
+    }
+  }
+}
+
+impl Drop for ShortcutManager {
+  fn drop(&mut self) {
+    if let Err(err) = self.method_sender.send(HotkeyMessage::DropThread) {
+      eprintln!("cant send close thread message {}", err);
+    }
   }
 }
 
