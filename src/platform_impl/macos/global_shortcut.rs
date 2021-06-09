@@ -61,28 +61,26 @@ impl ShortcutManager {
       if let Some(keycode) = accelerator.key.to_keycode() {
         // we get only 1 keycode as we don't generate it for the modifier
         // it's safe to use first()
-        if let Some(keycode) = keycode.first().map(|s| s.to_scancode()) {
-          if let Some(scan_code) = keycode {
-            // register hotkey
-            let handler_ref = register_hotkey(
-              accelerator.clone().id() as i32,
-              converted_modifiers as i32,
-              scan_code as i32,
-            );
-            let shortcut = GlobalShortcut {
-              accelerator,
-              carbon_ref: CarbonRef::new(handler_ref),
-            };
-            self.shortcuts.push(shortcut.clone());
-            return Ok(RootGlobalShortcut(shortcut));
-          }
+        if let Some(Some(scan_code)) = keycode.first().map(|s| s.to_scancode()) {
+          // register hotkey
+          let handler_ref = register_hotkey(
+            accelerator.clone().id() as i32,
+            converted_modifiers as i32,
+            scan_code as i32,
+          );
+          let shortcut = GlobalShortcut {
+            accelerator,
+            carbon_ref: CarbonRef::new(handler_ref),
+          };
+          self.shortcuts.push(shortcut.clone());
+          return Ok(RootGlobalShortcut(shortcut));
         }
       }
     }
 
-    return Err(ShortcutManagerError::InvalidAccelerator(
+    Err(ShortcutManagerError::InvalidAccelerator(
       "Invalid accelerator".into(),
-    ));
+    ))
   }
 
   // connect_event_loop is not needed on macos

@@ -110,7 +110,7 @@ impl Menu {
     selected: bool,
     menu_type: MenuType,
   ) -> CustomMenuItem {
-    let menu_item = make_custom_menu_item(menu_id, &title, None, accelerators, menu_type);
+    let menu_item = make_custom_menu_item(menu_id, title, None, accelerators, menu_type);
 
     unsafe {
       if selected {
