@@ -98,7 +98,7 @@ fn main() {
       // if we got a menu event from our `open_menu_id` open a new window..
       // (used on linux)
       Event::MenuEvent { menu_id, .. } if menu_id == open_menu_id => {
-        let window = WindowBuilder::new().build(&event_loop).unwrap();
+        let window = WindowBuilder::new().build(event_loop).unwrap();
         windows.insert(window.id(), window);
       }
       // if we got `Quit` click, exit the app
@@ -121,7 +121,7 @@ fn main() {
               .with_position(window_position_center_tray(&mut bounds, window_inner_size).position)
               .with_inner_size(window_inner_size)
               .with_resizable(false)
-              .build(&event_loop)
+              .build(event_loop)
               .unwrap();
             windows.insert(window.id(), window);
           } else {
