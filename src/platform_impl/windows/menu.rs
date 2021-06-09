@@ -10,8 +10,8 @@ use winapi::{
 };
 
 use crate::{
+  accelerator::{Accelerator, RawMods},
   event::{Event, WindowEvent},
-  hotkey::{HotKey, RawMods},
   keyboard::{Key, ModifiersState},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   window::WindowId as RootWindowId,
@@ -174,7 +174,7 @@ impl Menu {
     &mut self,
     menu_id: MenuId,
     title: &str,
-    accelerators: Option<HotKey>,
+    accelerators: Option<Accelerator>,
     enabled: bool,
     selected: bool,
     _menu_type: MenuType,
@@ -204,7 +204,7 @@ impl Menu {
 
       // add our accels
       if let Some(accelerators) = accelerators {
-        if let Some(accelerators) = convert_hotkey(menu_id.0, accelerators) {
+        if let Some(accelerators) = convert_accelerator(menu_id.0, accelerators) {
           self.accels.insert(menu_id.0, AccelWrapper(accelerators));
         }
       }
@@ -428,7 +428,7 @@ fn execute_edit_command(command: EditCommands) {
 }
 
 // Convert a hotkey to an accelerator.
-fn convert_hotkey(id: u16, key: HotKey) -> Option<winuser::ACCEL> {
+fn convert_accelerator(id: u16, key: Accelerator) -> Option<winuser::ACCEL> {
   let mut virt_key = winuser::FVIRTKEY;
   let key_mods: ModifiersState = key.mods.into();
   if key_mods.control_key() {
@@ -466,7 +466,7 @@ fn convert_hotkey(id: u16, key: HotKey) -> Option<winuser::ACCEL> {
 }
 
 // Format the hotkey in a Windows-native way.
-fn format_hotkey(key: HotKey, s: &mut String) {
+fn format_hotkey(key: Accelerator, s: &mut String) {
   let key_mods: ModifiersState = key.mods.into();
   if key_mods.control_key() {
     s.push_str("Ctrl+");

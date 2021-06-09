@@ -69,10 +69,12 @@ impl ShortcutManager {
               converted_modifiers as i32,
               scan_code as i32,
             );
-            return Ok(RootGlobalShortcut(GlobalShortcut {
+            let shortcut = GlobalShortcut {
               accelerator,
               carbon_ref: CarbonRef::new(handler_ref),
-            }));
+            };
+            self.shortcuts.push(shortcut.clone());
+            return Ok(RootGlobalShortcut(shortcut));
           }
         }
       }

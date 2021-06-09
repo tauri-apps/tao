@@ -238,7 +238,7 @@ impl<T: 'static> EventLoop<T> {
         // global accelerator
         if msg.message == winuser::WM_HOTKEY {
           let event_loop_runner = self.window_target.p.runner_shared.clone();
-          event_loop_runner.send_event(Event::GlobalHotKeyEvent(msg.wParam as u16));
+          event_loop_runner.send_event(Event::GlobalShortcutEvent(msg.wParam as u16));
         }
 
         // window accelerator
