@@ -84,9 +84,7 @@ pub struct GlobalShortcut {
 }
 
 impl GlobalShortcut {
-  pub(crate) fn unregister(&self) {
-    unsafe {
-      winuser::UnregisterHotKey(0 as HWND, self.accelerator.clone().id() as i32);
-    }
+  pub fn id(&self) -> u16 {
+    self.accelerator.clone().id()
   }
 }

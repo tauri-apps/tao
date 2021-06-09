@@ -48,7 +48,9 @@ fn main() {
       Event::GlobalShortcutEvent(hotkey_id) if hotkey_id == shortcut_f13.clone().id() => {
         println!("Pressed on F13 -- unregister for future use");
         // unregister key
-        global_shortcut_f13.clone().unregister();
+        hotkey_manager
+          .unregister(global_shortcut_f13.clone())
+          .unwrap();
       }
       Event::GlobalShortcutEvent(hotkey_id) if hotkey_id == shortcut_altctrlmeta_b.clone().id() => {
         println!("Pressed on Alt + Ctrl + Meta + b");

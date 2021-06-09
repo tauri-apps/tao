@@ -37,6 +37,14 @@ impl ShortcutManager {
     Ok(())
   }
 
+  pub(crate) fn unregister(
+    &self,
+    shortcut: RootGlobalShortcut,
+  ) -> Result<(), ShortcutManagerError> {
+    shortcut.0.unregister();
+    Ok(())
+  }
+
   pub(crate) fn register(
     &mut self,
     accelerator: Accelerator,
@@ -121,6 +129,12 @@ impl CarbonRef {
 pub struct GlobalShortcut {
   pub(crate) carbon_ref: CarbonRef,
   pub(crate) accelerator: Accelerator,
+}
+
+impl GlobalShortcut {
+  pub fn id(&self) -> u16 {
+    self.accelerator.clone().id()
+  }
 }
 
 impl GlobalShortcut {

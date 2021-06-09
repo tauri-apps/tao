@@ -19,12 +19,6 @@ use std::{error, fmt};
 #[derive(Debug, Clone)]
 pub struct GlobalShortcut(pub(crate) GlobalShortcutPlatform);
 
-impl GlobalShortcut {
-  pub fn unregister(&self) {
-    self.0.unregister()
-  }
-}
-
 #[derive(Debug)]
 pub struct ShortcutManager {
   registered_hotkeys: Vec<Accelerator>,
@@ -39,9 +33,8 @@ impl ShortcutManager {
     }
   }
 
-  pub fn is_registered(&self, _hotkey: &Accelerator) -> bool {
-    //self.registered_hotkeys.contains(&Box::new(hotkey))
-    false
+  pub fn is_registered(&self, accelerator: &Accelerator) -> bool {
+    self.registered_hotkeys.contains(&Box::new(accelerator))
   }
 
   pub fn register(
@@ -56,8 +49,19 @@ impl ShortcutManager {
     self.p.register(accelerator)
   }
 
-  pub fn unregister_all(&self) -> Result<(), ShortcutManagerError> {
+  pub fn unregister_all(&mut self) -> Result<(), ShortcutManagerError> {
+    self.registered_hotkeys = Vec::new();
     self.p.unregister_all()
+  }
+
+  pub fn unregister(
+    &mut self,
+    global_shortcut: GlobalShortcut,
+  ) -> Result<(), ShortcutManagerError> {
+    self
+      .registered_hotkeys
+      .retain(|hotkey| hotkey.to_owned().id() != global_shortcut.0.id());
+    self.p.unregister(global_shortcut)
   }
 }
 

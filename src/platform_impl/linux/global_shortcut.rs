@@ -207,8 +207,8 @@ type ListenerId = (i32, u32);
 type ListenerMap = Arc<Mutex<HashMap<ListenerId, u32>>>;
 
 impl GlobalShortcut {
-  pub(crate) fn unregister(&self) {
-    unsafe {}
+  pub fn id(&self) -> u16 {
+    self.accelerator.clone().id()
   }
 }
 
