@@ -1,5 +1,3 @@
-use tao::accelerator::AcceleratorId;
-
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
@@ -8,7 +6,7 @@ fn main() {
   use simple_logger::SimpleLogger;
   use std::str::FromStr;
   use tao::{
-    accelerator::{Accelerator, RawMods, SysMods},
+    accelerator::{Accelerator, AcceleratorId, RawMods, SysMods},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     keyboard::KeyCode,
