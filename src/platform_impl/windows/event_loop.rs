@@ -36,6 +36,7 @@ use winapi::{
 };
 
 use crate::{
+  accelerator::AcceleratorId,
   dpi::{PhysicalPosition, PhysicalSize},
   event::{DeviceEvent, Event, Force, RawKeyEvent, Touch, TouchPhase, WindowEvent},
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
@@ -238,7 +239,8 @@ impl<T: 'static> EventLoop<T> {
         // global accelerator
         if msg.message == winuser::WM_HOTKEY {
           let event_loop_runner = self.window_target.p.runner_shared.clone();
-          event_loop_runner.send_event(Event::GlobalShortcutEvent(msg.wParam as u16));
+          event_loop_runner
+            .send_event(Event::GlobalShortcutEvent(AcceleratorId(msg.wParam as u16)));
         }
 
         // window accelerator

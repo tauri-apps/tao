@@ -70,6 +70,9 @@
 // --------- END OF W3C SHORT NOTICE ---------------------------------------------------------------
 
 use nameof::name_of;
+use std::{fmt, str::FromStr};
+
+use crate::error::OsError;
 
 impl ModifiersState {
   /// Returns `true` if the shift key is pressed.
@@ -669,6 +672,167 @@ pub enum KeyCode {
   F34,
   /// General-purpose function key.
   F35,
+}
+
+impl FromStr for KeyCode {
+  type Err = OsError;
+  fn from_str(accelerator_string: &str) -> Result<Self, Self::Err> {
+    let keycode = match accelerator_string.to_uppercase().as_str() {
+      "BACKQUOTE" => KeyCode::Backquote,
+      "BACKSLASH" => KeyCode::Backslash,
+      "BRACKETLEFT" => KeyCode::BracketLeft,
+      "BRACKETRIGHT" => KeyCode::BracketRight,
+      "COMMA" => KeyCode::Comma,
+      "0" => KeyCode::Digit0,
+      "1" => KeyCode::Digit1,
+      "2" => KeyCode::Digit2,
+      "3" => KeyCode::Digit3,
+      "4" => KeyCode::Digit4,
+      "5" => KeyCode::Digit5,
+      "6" => KeyCode::Digit6,
+      "7" => KeyCode::Digit7,
+      "8" => KeyCode::Digit8,
+      "9" => KeyCode::Digit9,
+      "NUMPAD0" => KeyCode::Numpad0,
+      "NUMPAD1" => KeyCode::Numpad1,
+      "NUMPAD2" => KeyCode::Numpad2,
+      "NUMPAD3" => KeyCode::Numpad3,
+      "NUMPAD4" => KeyCode::Numpad4,
+      "NUMPAD5" => KeyCode::Numpad5,
+      "NUMPAD6" => KeyCode::Numpad6,
+      "NUMPAD7" => KeyCode::Numpad7,
+      "NUMPAD8" => KeyCode::Numpad8,
+      "NUMPAD9" => KeyCode::Numpad9,
+      "=" => KeyCode::Equal,
+      "-" => KeyCode::Minus,
+      "PERIOD" => KeyCode::Period,
+      "QUOTE" => KeyCode::Quote,
+      "\\" => KeyCode::IntlBackslash,
+      "A" => KeyCode::KeyA,
+      "B" => KeyCode::KeyB,
+      "C" => KeyCode::KeyC,
+      "D" => KeyCode::KeyD,
+      "E" => KeyCode::KeyE,
+      "F" => KeyCode::KeyF,
+      "G" => KeyCode::KeyG,
+      "H" => KeyCode::KeyH,
+      "I" => KeyCode::KeyI,
+      "J" => KeyCode::KeyJ,
+      "K" => KeyCode::KeyK,
+      "L" => KeyCode::KeyL,
+      "M" => KeyCode::KeyM,
+      "N" => KeyCode::KeyN,
+      "O" => KeyCode::KeyO,
+      "P" => KeyCode::KeyP,
+      "Q" => KeyCode::KeyQ,
+      "R" => KeyCode::KeyR,
+      "S" => KeyCode::KeyS,
+      "T" => KeyCode::KeyT,
+      "U" => KeyCode::KeyU,
+      "V" => KeyCode::KeyV,
+      "W" => KeyCode::KeyW,
+      "X" => KeyCode::KeyZ,
+      "Y" => KeyCode::KeyY,
+      "Z" => KeyCode::KeyZ,
+
+      "SEMICOLON" => KeyCode::Semicolon,
+      "SLASH" => KeyCode::Slash,
+      "BACKSPACE" => KeyCode::Backspace,
+      "CAPSLOCK" => KeyCode::CapsLock,
+      "CONTEXTMENU" => KeyCode::ContextMenu,
+      "ENTER" => KeyCode::Enter,
+      "SPACE" => KeyCode::Space,
+      "TAB" => KeyCode::Tab,
+      "CONVERT" => KeyCode::Convert,
+
+      "DELETE" => KeyCode::Delete,
+      "END" => KeyCode::End,
+      "HELP" => KeyCode::Help,
+      "HOME" => KeyCode::Home,
+      "PAGEDOWN" => KeyCode::PageDown,
+      "PAGEUP" => KeyCode::PageUp,
+
+      "DOWN" => KeyCode::ArrowDown,
+      "UP" => KeyCode::ArrowUp,
+      "LEFT" => KeyCode::ArrowLeft,
+      "RIGHT" => KeyCode::ArrowRight,
+
+      "NUMLOCK" => KeyCode::NumLock,
+      "NUMPADADD" => KeyCode::NumpadAdd,
+      "NUMPADBACKSPACE" => KeyCode::NumpadBackspace,
+      "NUMPADCLEAR" => KeyCode::NumpadClear,
+      "NUMPADCOMMA" => KeyCode::NumpadComma,
+      "NUMPADDIVIDE" => KeyCode::NumpadDivide,
+      "NUMPADSUBSTRACT" => KeyCode::NumpadSubtract,
+      "NUMPADENTER" => KeyCode::NumpadEnter,
+
+      "ESCAPE" => KeyCode::Escape,
+      "ESC" => KeyCode::Escape,
+      "FN" => KeyCode::Fn,
+      "FNLOCK" => KeyCode::FnLock,
+      "PRINTSCREEN" => KeyCode::PrintScreen,
+      "SCROLLLOCK" => KeyCode::ScrollLock,
+
+      "PAUSE" => KeyCode::Pause,
+
+      "VOLUMEMUTE" => KeyCode::AudioVolumeMute,
+      "VOLUMEDOWN" => KeyCode::AudioVolumeDown,
+      "VOLUMEUP" => KeyCode::AudioVolumeUp,
+      "MEDIANEXTTRACK" => KeyCode::MediaTrackNext,
+      "MEDIAPREVIOUSTRACK" => KeyCode::MediaTrackPrevious,
+      "MEDIAPLAYPAUSE" => KeyCode::MediaPlayPause,
+      "LAUNCHMAIL" => KeyCode::LaunchMail,
+
+      "SUSPEND" => KeyCode::Suspend,
+      "F1" => KeyCode::F1,
+      "F2" => KeyCode::F2,
+      "F3" => KeyCode::F3,
+      "F4" => KeyCode::F4,
+      "F5" => KeyCode::F5,
+      "F6" => KeyCode::F6,
+      "F7" => KeyCode::F7,
+      "F8" => KeyCode::F8,
+      "F9" => KeyCode::F9,
+      "F10" => KeyCode::F10,
+      "F11" => KeyCode::F11,
+      "F12" => KeyCode::F12,
+      "F13" => KeyCode::F13,
+      "F14" => KeyCode::F14,
+      "F15" => KeyCode::F15,
+      "F16" => KeyCode::F16,
+      "F17" => KeyCode::F17,
+      "F18" => KeyCode::F18,
+      "F19" => KeyCode::F19,
+      "F20" => KeyCode::F20,
+      "F21" => KeyCode::F21,
+      "F22" => KeyCode::F22,
+      "F23" => KeyCode::F23,
+      "F24" => KeyCode::F24,
+      "F25" => KeyCode::F25,
+      "F26" => KeyCode::F26,
+      "F27" => KeyCode::F27,
+      "F28" => KeyCode::F28,
+      "F29" => KeyCode::F29,
+      "F30" => KeyCode::F30,
+      "F31" => KeyCode::F31,
+      "F32" => KeyCode::F32,
+      "F33" => KeyCode::F33,
+      "F34" => KeyCode::F34,
+      "F35" => KeyCode::F35,
+      _ => KeyCode::Unidentified(NativeKeyCode::Unidentified),
+    };
+
+    Ok(keycode)
+  }
+}
+
+impl fmt::Display for KeyCode {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      &KeyCode::Unidentified(_) => write!(f, "{:?}", "Unidentified"),
+      val => write!(f, "{:?}", val),
+    }
+  }
 }
 
 /// Key represents the meaning of a keypress.

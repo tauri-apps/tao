@@ -1,6 +1,6 @@
 use super::keyboard::key_to_vk;
 use crate::{
-  accelerator::Accelerator,
+  accelerator::{Accelerator, AcceleratorId},
   event_loop::EventLoopWindowTarget,
   keyboard::ModifiersState,
   platform::{
@@ -48,7 +48,7 @@ impl ShortcutManager {
         Some(vk_code) => unsafe {
           let result = winuser::RegisterHotKey(
             ptr::null_mut(),
-            accelerator.clone().id() as i32,
+            accelerator.clone().id().0 as i32,
             converted_modifiers,
             vk_code as u32,
           );
@@ -92,12 +92,12 @@ pub struct GlobalShortcut {
 }
 
 impl GlobalShortcut {
-  pub fn id(&self) -> u16 {
+  pub fn id(&self) -> AcceleratorId {
     self.accelerator.clone().id()
   }
   pub(crate) fn unregister(&self) {
     unsafe {
-      winuser::UnregisterHotKey(0 as HWND, self.accelerator.clone().id() as i32);
+      winuser::UnregisterHotKey(0 as HWND, self.accelerator.clone().id().0 as i32);
     }
   }
 }

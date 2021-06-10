@@ -1,6 +1,6 @@
 use super::window::{WindowId, WindowRequest};
 use crate::{
-  accelerator::Accelerator,
+  accelerator::{Accelerator, AcceleratorId},
   event_loop::EventLoopWindowTarget,
   keyboard::Key,
   platform::global_shortcut::{GlobalShortcut as RootGlobalShortcut, ShortcutManagerError},
@@ -175,7 +175,7 @@ impl ShortcutManager {
           .shortcuts
           .lock()
           .unwrap()
-          .insert(id, accelerator.clone().id() as u32);
+          .insert(id, accelerator.clone().id().0 as u32);
         let shortcut = GlobalShortcut { accelerator };
         return Ok(RootGlobalShortcut(shortcut));
       }
@@ -204,7 +204,7 @@ impl ShortcutManager {
   ) -> Result<(), ShortcutManagerError> {
     let mut found_id = (-1, 0);
     for (id, shortcut_id) in self.shortcuts.lock().unwrap().iter() {
-      if *shortcut_id == shortcut.0.id() as u32 {
+      if *shortcut_id == shortcut.0.id().0 as u32 {
         found_id = *id;
         break;
       }
@@ -249,7 +249,7 @@ type ListenerId = (i32, u32);
 type ListenerMap = Arc<Mutex<HashMap<ListenerId, u32>>>;
 
 impl GlobalShortcut {
-  pub fn id(&self) -> u16 {
+  pub fn id(&self) -> AcceleratorId {
     self.accelerator.clone().id()
   }
 }

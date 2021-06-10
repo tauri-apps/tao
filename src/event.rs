@@ -40,6 +40,7 @@ use instant::Instant;
 use std::path::PathBuf;
 
 use crate::{
+  accelerator::AcceleratorId,
   dpi::{PhysicalPosition, PhysicalSize},
   keyboard::{self, ModifiersState},
   menu::{MenuId, MenuType},
@@ -93,7 +94,7 @@ pub enum Event<'a, T: 'static> {
     position: PhysicalPosition<f64>,
   },
 
-  GlobalShortcutEvent(u16),
+  GlobalShortcutEvent(AcceleratorId),
 
   /// Emitted when the application has been suspended.
   Suspended,

@@ -1,14 +1,17 @@
+use tao::accelerator::AcceleratorId;
+
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 fn main() {
   use simple_logger::SimpleLogger;
+  use std::str::FromStr;
   use tao::{
     accelerator::{Accelerator, RawMods, SysMods},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    keyboard::Key,
+    keyboard::KeyCode,
     platform::global_shortcut::ShortcutManager,
     window::WindowBuilder,
   };
@@ -20,11 +23,11 @@ fn main() {
   let mut hotkey_manager = ShortcutManager::new(&event_loop);
 
   // create our accelerators
-  let shortcut_1 = Accelerator::new(SysMods::Shift, Key::ArrowUp);
-  let shortcut_2 = Accelerator::new(RawMods::AltCtrlMeta, "b");
-  // use string parser to generate accelerator
-  let shortcut_3 = Accelerator::from_str("COMMANDORCONTROL+SHIFT+3");
-  let shortcut_4 = Accelerator::from_str("COMMANDORCONTROL+shIfT+DOWN");
+  let shortcut_1 = Accelerator::new(SysMods::Shift, KeyCode::ArrowUp);
+  let shortcut_2 = Accelerator::new(RawMods::AltCtrlMeta, KeyCode::KeyB);
+  // use string parser to generate accelerator (require `std::str::FromStr`)
+  let shortcut_3 = Accelerator::from_str("COMMANDORCONTROL+SHIFT+3").unwrap();
+  let shortcut_4 = Accelerator::from_str("COMMANDORCONTROL+shIfT+DOWN").unwrap();
 
   // save a reference to unregister it later
   let global_shortcut_1 = hotkey_manager.register(shortcut_1.clone()).unwrap();
@@ -59,7 +62,12 @@ fn main() {
       Event::GlobalShortcutEvent(hotkey_id) if hotkey_id == shortcut_2.clone().id() => {
         println!("Pressed on `shortcut_2`");
       }
-      Event::GlobalShortcutEvent(hotkey_id) if hotkey_id == shortcut_3.clone().id() => {
+      // you can match hotkey_id with accelerator_string only if you used `from_str`
+      // by example `shortcut_1` will NOT match AcceleratorId::new("SHIFT+UP") as it's
+      // been created with a struct and the ID is generated automatically
+      Event::GlobalShortcutEvent(hotkey_id)
+        if hotkey_id == AcceleratorId::new("COMMANDORCONTROL+SHIFT+3") =>
+      {
         println!("Pressed on `shortcut_3`");
       }
       Event::GlobalShortcutEvent(hotkey_id) if hotkey_id == shortcut_4.clone().id() => {

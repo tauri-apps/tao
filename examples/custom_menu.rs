@@ -8,6 +8,7 @@ use tao::{
   accelerator::{Accelerator, SysMods},
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
+  keyboard::KeyCode,
   menu::{MenuBar as Menu, MenuItem, MenuItemAttributes, MenuType},
   window::WindowBuilder,
 };
@@ -28,7 +29,8 @@ fn main() {
   let mut my_sub_menu = Menu::new();
 
   let mut test_menu_item = my_sub_menu.add_item(
-    MenuItemAttributes::new("Disable menu").with_accelerators(&Accelerator::new(SysMods::Cmd, "d")),
+    MenuItemAttributes::new("Disable menu")
+      .with_accelerators(&Accelerator::new(SysMods::Cmd, KeyCode::KeyD)),
   );
 
   // add native `Copy` to `first_menu` menu

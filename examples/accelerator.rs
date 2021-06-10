@@ -1,3 +1,5 @@
+use tao::keyboard::KeyCode;
+
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
@@ -17,7 +19,7 @@ fn main() {
   SimpleLogger::new().init().unwrap();
 
   // create a sample hotkey
-  let hotkey = Accelerator::new(RawMods::Shift, "1");
+  let hotkey = Accelerator::new(RawMods::Shift, KeyCode::Digit1);
   // create local modifier state
   let mut modifiers = ModifiersState::default();
 
@@ -40,9 +42,7 @@ fn main() {
         }
         // catch only pressed event
         WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
-          // match with Hotkey, important to use `key_without_modifiers`
-          // otherwise `Shift` + `1` = `!`
-          if hotkey.matches(&modifiers, &event.key_without_modifiers()) {
+          if hotkey.matches(&modifiers, &event.physical_key) {
             println!(
               "KeyEvent:  `Shift` + `1` | logical_key: {:?}",
               &event.logical_key

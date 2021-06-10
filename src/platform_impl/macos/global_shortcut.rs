@@ -1,7 +1,7 @@
 use std::os::raw::{c_int, c_void};
 
 use crate::{
-  accelerator::Accelerator,
+  accelerator::{Accelerator, AcceleratorId},
   event::Event,
   event_loop::EventLoopWindowTarget,
   platform::{
@@ -63,27 +63,22 @@ impl ShortcutManager {
         converted_modifiers |= 4096;
       }
 
-      // get key scan code
-      println!("get key for : {:?}", accelerator.key);
-      if let Some(keycode) = accelerator.key.to_keycode() {
-        println!("keycode : {:?}", keycode);
-        // we get only 1 keycode as we don't generate it for the modifier
-        // it's safe to use first()
-        if let Some(Some(scan_code)) = keycode.first().map(|s| s.to_scancode()) {
-          println!("register {:?}", accelerator);
-          // register hotkey
-          let handler_ref = register_hotkey(
-            accelerator.clone().id() as i32,
-            converted_modifiers as i32,
-            scan_code as i32,
-          );
-          let shortcut = GlobalShortcut {
-            accelerator,
-            carbon_ref: CarbonRef::new(handler_ref),
-          };
-          self.shortcuts.push(shortcut.clone());
-          return Ok(RootGlobalShortcut(shortcut));
-        }
+      // we get only 1 keycode as we don't generate it for the modifier
+      // it's safe to use first()
+      if let Some(scan_code) = accelerator.key.to_scancode() {
+        println!("register {:?}", accelerator);
+        // register hotkey
+        let handler_ref = register_hotkey(
+          accelerator.clone().id().0 as i32,
+          converted_modifiers as i32,
+          scan_code as i32,
+        );
+        let shortcut = GlobalShortcut {
+          accelerator,
+          carbon_ref: CarbonRef::new(handler_ref),
+        };
+        self.shortcuts.push(shortcut.clone());
+        return Ok(RootGlobalShortcut(shortcut));
       }
     }
 
@@ -133,7 +128,7 @@ pub struct GlobalShortcut {
 }
 
 impl GlobalShortcut {
-  pub fn id(&self) -> u16 {
+  pub fn id(&self) -> AcceleratorId {
     self.accelerator.clone().id()
   }
 }
@@ -154,7 +149,7 @@ where
 
 fn global_accelerator_handler(item_id: i32) {
   AppState::queue_event(EventWrapper::StaticEvent(Event::GlobalShortcutEvent(
-    item_id as u16,
+    AcceleratorId(item_id as u16),
   )));
 }
 

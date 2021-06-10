@@ -24,6 +24,7 @@ use gtk::{Clipboard, Entry};
 use x11_dl::xlib;
 
 use crate::{
+  accelerator::AcceleratorId,
   dpi::{PhysicalPosition, PhysicalSize},
   event::{DeviceId as RootDeviceId, ElementState, Event, MouseButton, StartCause, WindowEvent},
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
@@ -639,7 +640,7 @@ impl<T: 'static> EventLoop<T> {
           match request {
             WindowRequest::GlobalHotKey(hotkey_id) => {
               println!("new event hot key: {:?}", hotkey_id);
-              if let Err(e) = event_tx.send(Event::GlobalShortcutEvent(hotkey_id)) {
+              if let Err(e) = event_tx.send(Event::GlobalShortcutEvent(AcceleratorId(hotkey_id))) {
                 log::warn!("Failed to send global hotkey event to event channel: {}", e);
               }
             }
