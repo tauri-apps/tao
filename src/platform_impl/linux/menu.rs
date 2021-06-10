@@ -306,10 +306,8 @@ fn register_accelerator(item: &GtkMenuItem, accel_group: &AccelGroup, menu_key: 
   );
 }
 
-fn modifiers_to_gdk_modifier_type(raw_modifiers: RawMods) -> gdk::ModifierType {
+fn modifiers_to_gdk_modifier_type(modifiers: ModifiersState) -> gdk::ModifierType {
   let mut result = gdk::ModifierType::empty();
-
-  let modifiers: ModifiersState = raw_modifiers.into();
 
   result.set(gdk::ModifierType::MOD1_MASK, modifiers.alt_key());
   result.set(gdk::ModifierType::CONTROL_MASK, modifiers.control_key());

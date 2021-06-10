@@ -1,8 +1,6 @@
 //! The Accelerator struct and associated types.
 
-use crate::{
-  keyboard::{Key, ModifiersState, NativeKeyCode},
-};
+use crate::keyboard::{Key, ModifiersState, NativeKeyCode};
 use std::{
   borrow::Borrow,
   collections::hash_map::DefaultHasher,

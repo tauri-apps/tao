@@ -2,7 +2,7 @@ use super::window::{WindowId, WindowRequest};
 use crate::{
   accelerator::Accelerator,
   event_loop::EventLoopWindowTarget,
-  keyboard::{Key, ModifiersState},
+  keyboard::Key,
   platform::global_shortcut::{GlobalShortcut as RootGlobalShortcut, ShortcutManagerError},
 };
 use std::{
@@ -144,21 +144,17 @@ impl ShortcutManager {
   ) -> Result<RootGlobalShortcut, ShortcutManagerError> {
     let keycode = get_x11_scancode_from_hotkey(accelerator.key.clone()) as u32;
 
-    println!("keycode {:?}", keycode);
-    println!("keycode {:?}", u16::MAX);
-
     let mut converted_modifiers: u32 = 0;
-    let modifiers: ModifiersState = accelerator.mods.into();
-    if modifiers.shift_key() {
+    if accelerator.mods.shift_key() {
       converted_modifiers |= xlib::ShiftMask;
     }
-    if modifiers.super_key() {
+    if accelerator.mods.super_key() {
       converted_modifiers |= xlib::Mod4Mask;
     }
-    if modifiers.alt_key() {
+    if accelerator.mods.alt_key() {
       converted_modifiers |= xlib::Mod1Mask;
     }
-    if modifiers.control_key() {
+    if accelerator.mods.control_key() {
       converted_modifiers |= xlib::ControlMask;
     }
 
