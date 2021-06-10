@@ -33,7 +33,7 @@ fn main() {
   let global_shortcut_1 = hotkey_manager.register(shortcut_1.clone()).unwrap();
   // register other accelerator's
   hotkey_manager.register(shortcut_2.clone()).unwrap();
-  hotkey_manager.register(shortcut_3.clone()).unwrap();
+  hotkey_manager.register(shortcut_3).unwrap();
   hotkey_manager.register(shortcut_4.clone()).unwrap();
 
   let window = WindowBuilder::new()

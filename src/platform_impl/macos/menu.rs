@@ -526,7 +526,7 @@ impl Accelerator {
   }
 
   fn key_modifier_mask(self) -> NSEventModifierFlags {
-    let mods: ModifiersState = self.mods.into();
+    let mods: ModifiersState = self.mods;
     let mut flags = NSEventModifierFlags::empty();
     if mods.shift_key() {
       flags.insert(NSEventModifierFlags::NSShiftKeyMask);

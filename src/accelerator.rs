@@ -24,7 +24,7 @@ impl Accelerator {
   pub fn new(mods: impl Into<Option<ModifiersState>>, key: KeyCode) -> Self {
     Self {
       id: None,
-      mods: mods.into().unwrap_or(ModifiersState::empty()),
+      mods: mods.into().unwrap_or_else(ModifiersState::empty),
       key,
     }
   }
@@ -294,7 +294,7 @@ fn parse_accelerator(accelerator_string: &str) -> Accelerator {
     // use the accelerator string as id
     id: Some(AcceleratorId(hash_string_to_u16(accelerator_string))),
     key,
-    mods: mods.into(),
+    mods,
   }
 }
 
