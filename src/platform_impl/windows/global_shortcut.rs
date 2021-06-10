@@ -3,10 +3,7 @@ use crate::{
   accelerator::{Accelerator, AcceleratorId},
   event_loop::EventLoopWindowTarget,
   keyboard::ModifiersState,
-  platform::{
-    global_shortcut::{GlobalShortcut as RootGlobalShortcut, ShortcutManagerError},
-    scancode::KeyCodeExtScancode,
-  },
+  platform::global_shortcut::{GlobalShortcut as RootGlobalShortcut, ShortcutManagerError},
 };
 use std::ptr;
 use winapi::{shared::windef::HWND, um::winuser};
@@ -45,7 +42,7 @@ impl ShortcutManager {
 
       // get key scan code
       match key_to_vk(&accelerator.key) {
-        Some(vk_code) => unsafe {
+        Some(vk_code) => {
           let result = winuser::RegisterHotKey(
             ptr::null_mut(),
             accelerator.clone().id().0 as i32,
@@ -60,7 +57,7 @@ impl ShortcutManager {
           let shortcut = GlobalShortcut { accelerator };
           self.shortcuts.push(shortcut.clone());
           return Ok(RootGlobalShortcut(shortcut));
-        },
+        }
         _ => {
           return Err(ShortcutManagerError::InvalidAccelerator(
             "Unable to register accelerator (unknown VKCode for this char).".into(),

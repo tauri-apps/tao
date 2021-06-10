@@ -38,9 +38,9 @@ impl Accelerator {
     AcceleratorId(hash_accelerator_to_u16(self))
   }
 
-  /// Returns `true` if this [`Key`] and [`ModifiersState`] matches this `Accelerator`.
+  /// Returns `true` if this [`KeyCode`] and [`ModifiersState`] matches this `Accelerator`.
   ///
-  /// [`Key`]: Key
+  /// [`KeyCode`]: KeyCode
   /// [`ModifiersState`]: crate::keyboard::ModifiersState
   pub fn matches(&self, modifiers: impl Borrow<ModifiersState>, key: impl Borrow<KeyCode>) -> bool {
     // Should be a const but const bit_or doesn't work here.
@@ -206,12 +206,12 @@ impl From<SysMods> for RawMods {
 
 /// Identifier of an Accelerator.
 ///
-/// Whenever you receive an event arising from a [GlobalShortcut], [MenuItemAttributes]
+/// Whenever you receive an event arising from a [GlobalShortcutEvent], [MenuEvent]
 /// or [KeyboardInput] , this event contains a `AcceleratorId` which identifies its origin.
 ///
-/// [MenuItemAttributes]: crate::menu::MenuItemAttributes
+/// [MenuEvent]: crate::event::Event::MenuEvent
 /// [KeyboardInput]: crate::event::WindowEvent::KeyboardInput
-/// [GlobalShortcut]: crate::platform::global_shortcut::GlobalShortcut
+/// [GlobalShortcutEvent]: crate::event::Event::GlobalShortcutEvent
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct AcceleratorId(pub u16);
 

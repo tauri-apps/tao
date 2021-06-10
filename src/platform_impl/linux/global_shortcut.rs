@@ -145,7 +145,6 @@ impl ShortcutManager {
     let keycode = get_x11_scancode_from_hotkey(accelerator.key.clone());
 
     if let Some(keycode) = keycode {
-
       let mut converted_modifiers: u32 = 0;
       if accelerator.mods.shift_key() {
         converted_modifiers |= xlib::ShiftMask;
@@ -159,7 +158,7 @@ impl ShortcutManager {
       if accelerator.mods.control_key() {
         converted_modifiers |= xlib::ControlMask;
       }
-  
+
       self
         .method_sender
         .send(HotkeyMessage::RegisterHotkey(
@@ -170,7 +169,7 @@ impl ShortcutManager {
         .map_err(|_| {
           ShortcutManagerError::InvalidAccelerator("Unable to register global shortcut".into())
         })?;
-  
+
       return match self.method_receiver.recv() {
         Ok(HotkeyMessage::RegisterHotkeyResult(Ok(id))) => {
           self
@@ -186,7 +185,7 @@ impl ShortcutManager {
         _ => Err(ShortcutManagerError::InvalidAccelerator(
           "Unknown error".into(),
         )),
-      }
+      };
     }
 
     Err(ShortcutManagerError::InvalidAccelerator(
@@ -373,6 +372,5 @@ fn get_x11_scancode_from_hotkey(key: KeyCode) -> Option<u32> {
     KeyCode::F12 => keysym::XK_F12,
 
     _ => return None,
-
   })
 }
