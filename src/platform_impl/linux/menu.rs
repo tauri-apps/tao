@@ -12,8 +12,8 @@ use super::{
   window::{WindowId, WindowRequest},
 };
 use crate::{
-  accelerator::{Accelerator, RawMods},
-  keyboard::{Key, ModifiersState},
+  accelerator::Accelerator,
+  keyboard::{KeyCode, ModifiersState},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
 };
 
@@ -285,8 +285,43 @@ impl Menu {
 }
 
 fn register_accelerator(item: &GtkMenuItem, accel_group: &AccelGroup, menu_key: Accelerator) {
-  let gdk_keyval = match &menu_key.key {
-    Key::Character(text) => text.chars().next().unwrap() as u32,
+  let accel_key = match &menu_key.key {
+    KeyCode::KeyA => 'A' as u32,
+    KeyCode::KeyB => 'B' as u32,
+    KeyCode::KeyC => 'C' as u32,
+    KeyCode::KeyD => 'D' as u32,
+    KeyCode::KeyE => 'E' as u32,
+    KeyCode::KeyF => 'F' as u32,
+    KeyCode::KeyG => 'G' as u32,
+    KeyCode::KeyH => 'H' as u32,
+    KeyCode::KeyI => 'I' as u32,
+    KeyCode::KeyJ => 'J' as u32,
+    KeyCode::KeyK => 'K' as u32,
+    KeyCode::KeyL => 'L' as u32,
+    KeyCode::KeyM => 'M' as u32,
+    KeyCode::KeyN => 'N' as u32,
+    KeyCode::KeyO => 'O' as u32,
+    KeyCode::KeyP => 'P' as u32,
+    KeyCode::KeyQ => 'Q' as u32,
+    KeyCode::KeyR => 'R' as u32,
+    KeyCode::KeyS => 'S' as u32,
+    KeyCode::KeyT => 'T' as u32,
+    KeyCode::KeyU => 'U' as u32,
+    KeyCode::KeyV => 'V' as u32,
+    KeyCode::KeyW => 'W' as u32,
+    KeyCode::KeyX => 'X' as u32,
+    KeyCode::KeyY => 'Y' as u32,
+    KeyCode::KeyZ => 'Z' as u32,
+    KeyCode::Digit0 => '0' as u32,
+    KeyCode::Digit1 => '1' as u32,
+    KeyCode::Digit2 => '2' as u32,
+    KeyCode::Digit3 => '3' as u32,
+    KeyCode::Digit4 => '4' as u32,
+    KeyCode::Digit5 => '5' as u32,
+    KeyCode::Digit6 => '6' as u32,
+    KeyCode::Digit7 => '7' as u32,
+    KeyCode::Digit8 => '8' as u32,
+    KeyCode::Digit9 => '9' as u32,
     k => {
       if let Some(gdk_key) = key_to_raw_key(k) {
         *gdk_key
@@ -300,7 +335,7 @@ fn register_accelerator(item: &GtkMenuItem, accel_group: &AccelGroup, menu_key: 
   item.add_accelerator(
     "activate",
     accel_group,
-    gdk_keyval,
+    accel_key,
     modifiers_to_gdk_modifier_type(menu_key.mods),
     gtk::AccelFlags::VISIBLE,
   );

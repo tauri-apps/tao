@@ -21,8 +21,6 @@ use glib::Cast;
 #[cfg(any(feature = "menu", feature = "tray"))]
 use gtk::{Clipboard, Entry};
 
-use x11_dl::xlib;
-
 use crate::{
   accelerator::AcceleratorId,
   dpi::{PhysicalPosition, PhysicalSize},
@@ -35,7 +33,7 @@ use crate::{
 };
 
 use super::{
-  keyboard, menu,
+  keyboard,
   monitor::MonitorHandle,
   window::{WindowId, WindowRequest},
   DeviceId,

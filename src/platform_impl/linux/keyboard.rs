@@ -271,59 +271,59 @@ fn hardware_keycode_to_keyval(keycode: u16) -> Option<RawKey> {
 }
 
 #[allow(non_upper_case_globals)]
-pub fn key_to_raw_key(src: &Key) -> Option<RawKey> {
+pub fn key_to_raw_key(src: &KeyCode) -> Option<RawKey> {
   Some(match src {
-    Key::Escape => Escape,
-    Key::Backspace => BackSpace,
+    KeyCode::Escape => Escape,
+    KeyCode::Backspace => BackSpace,
 
-    Key::Tab => Tab,
-    Key::Enter => Return,
+    KeyCode::Tab => Tab,
+    KeyCode::Enter => Return,
 
-    // Give "left" variants
-    Key::Control => Control_L,
-    Key::Alt => Alt_L,
-    Key::Shift => Shift_L,
-    Key::Super => Super_L,
+    KeyCode::ControlLeft => Control_L,
+    KeyCode::AltLeft => Alt_L,
+    KeyCode::ShiftLeft => Shift_L,
+    KeyCode::SuperLeft => Super_L,
 
-    Key::CapsLock => Caps_Lock,
-    Key::F1 => F1,
-    Key::F2 => F2,
-    Key::F3 => F3,
-    Key::F4 => F4,
-    Key::F5 => F5,
-    Key::F6 => F6,
-    Key::F7 => F7,
-    Key::F8 => F8,
-    Key::F9 => F9,
-    Key::F10 => F10,
-    Key::F11 => F11,
-    Key::F12 => F12,
+    KeyCode::ControlRight => Control_R,
+    KeyCode::AltRight => Alt_R,
+    KeyCode::ShiftRight => Shift_R,
+    KeyCode::SuperRight => Super_R,
 
-    Key::PrintScreen => Print,
-    Key::ScrollLock => Scroll_Lock,
+    KeyCode::CapsLock => Caps_Lock,
+    KeyCode::F1 => F1,
+    KeyCode::F2 => F2,
+    KeyCode::F3 => F3,
+    KeyCode::F4 => F4,
+    KeyCode::F5 => F5,
+    KeyCode::F6 => F6,
+    KeyCode::F7 => F7,
+    KeyCode::F8 => F8,
+    KeyCode::F9 => F9,
+    KeyCode::F10 => F10,
+    KeyCode::F11 => F11,
+    KeyCode::F12 => F12,
+
+    KeyCode::PrintScreen => Print,
+    KeyCode::ScrollLock => Scroll_Lock,
     // Pause/Break not audio.
-    Key::Pause => Pause,
+    KeyCode::Pause => Pause,
 
-    Key::Insert => Insert,
-    Key::Delete => Delete,
-    Key::Home => Home,
-    Key::End => End,
-    Key::PageUp => Page_Up,
-    Key::PageDown => Page_Down,
+    KeyCode::Insert => Insert,
+    KeyCode::Delete => Delete,
+    KeyCode::Home => Home,
+    KeyCode::End => End,
+    KeyCode::PageUp => Page_Up,
+    KeyCode::PageDown => Page_Down,
 
-    Key::NumLock => Num_Lock,
+    KeyCode::NumLock => Num_Lock,
 
-    Key::ArrowUp => Up,
-    Key::ArrowDown => Down,
-    Key::ArrowLeft => Left,
-    Key::ArrowRight => Right,
+    KeyCode::ArrowUp => Up,
+    KeyCode::ArrowDown => Down,
+    KeyCode::ArrowLeft => Left,
+    KeyCode::ArrowRight => Right,
 
-    Key::ContextMenu => Menu,
-    Key::WakeUp => WakeUp,
-    Key::LaunchApplication1 => Launch0,
-    Key::LaunchApplication2 => Launch1,
-    Key::AltGraph => ISO_Level3_Shift,
-    // TODO: probably more
+    KeyCode::ContextMenu => Menu,
+    KeyCode::WakeUp => WakeUp,
     _ => return None,
   })
 }
