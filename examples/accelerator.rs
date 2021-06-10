@@ -9,7 +9,7 @@ fn main() {
     dpi::LogicalSize,
     event::{ElementState, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    keyboard::{KeyCode, Key, ModifiersState},
+    keyboard::{Key, KeyCode, ModifiersState},
     platform::modifier_supplement::KeyEventExtModifierSupplement,
     window::WindowBuilder,
   };
