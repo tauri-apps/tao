@@ -116,7 +116,7 @@ pub trait WindowExtWindows {
   /// This is useful when a dead key is bound to trigger an action. Then
   /// this function can be called to reset the dead key state so that
   /// follow-up text input won't be affected by the dead key.
-  pub fn reset_dead_keys(&self);
+  fn reset_dead_keys(&self);
 }
 
 impl WindowExtWindows for Window {
