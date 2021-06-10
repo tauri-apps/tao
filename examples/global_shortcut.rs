@@ -20,15 +20,18 @@ fn main() {
   let mut hotkey_manager = ShortcutManager::new(&event_loop);
 
   // create our accelerators
-  let shortcut_shift_f1 = Accelerator::new(SysMods::Shift, Key::ArrowDown);
-  let shortcut_altctrlmeta_b = Accelerator::new(RawMods::AltCtrlMeta, "b");
+  let shortcut_1 = Accelerator::new(SysMods::Shift, Key::ArrowUp);
+  let shortcut_2 = Accelerator::new(RawMods::AltCtrlMeta, "b");
+  // use string parser to generate accelerator
+  let shortcut_3 = Accelerator::from_str("COMMANDORCONTROL+SHIFT+3");
+  let shortcut_4 = Accelerator::from_str("COMMANDORCONTROL+shIfT+DOWN");
 
   // save a reference to unregister it later
-  let global_shortcut_shift_f1 = hotkey_manager.register(shortcut_shift_f1.clone()).unwrap();
-
-  hotkey_manager
-    .register(shortcut_altctrlmeta_b.clone())
-    .unwrap();
+  let global_shortcut_1 = hotkey_manager.register(shortcut_1.clone()).unwrap();
+  // register other accelerator's
+  hotkey_manager.register(shortcut_2.clone()).unwrap();
+  hotkey_manager.register(shortcut_3.clone()).unwrap();
+  hotkey_manager.register(shortcut_4.clone()).unwrap();
 
   let window = WindowBuilder::new()
     .with_title("A fantastic window!")
@@ -46,15 +49,24 @@ fn main() {
       Event::MainEventsCleared => {
         window.request_redraw();
       }
-      Event::GlobalShortcutEvent(hotkey_id) if hotkey_id == shortcut_shift_f1.clone().id() => {
-        println!("Pressed on Shift + arrow down -- unregister for future use");
+      Event::GlobalShortcutEvent(hotkey_id) if hotkey_id == shortcut_1.clone().id() => {
+        println!("Pressed `shortcut_1` -- unregister for future use");
         // unregister key
         hotkey_manager
-          .unregister(global_shortcut_shift_f1.clone())
+          .unregister(global_shortcut_1.clone())
           .unwrap();
       }
-      Event::GlobalShortcutEvent(hotkey_id) if hotkey_id == shortcut_altctrlmeta_b.clone().id() => {
-        println!("Pressed on Alt + Ctrl + Meta + b");
+      Event::GlobalShortcutEvent(hotkey_id) if hotkey_id == shortcut_2.clone().id() => {
+        println!("Pressed on `shortcut_2`");
+      }
+      Event::GlobalShortcutEvent(hotkey_id) if hotkey_id == shortcut_3.clone().id() => {
+        println!("Pressed on `shortcut_3`");
+      }
+      Event::GlobalShortcutEvent(hotkey_id) if hotkey_id == shortcut_4.clone().id() => {
+        println!("Pressed on `shortcut_4`");
+      }
+      Event::GlobalShortcutEvent(hotkey_id) => {
+        println!("hotkey_id {:?}", hotkey_id);
       }
       _ => (),
     }

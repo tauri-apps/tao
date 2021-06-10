@@ -1423,6 +1423,16 @@ impl Key {
   pub(crate) fn to_keycode(&self) -> Option<Vec<KeyCode>> {
     match self {
       Key::Character(char) => match char.to_lowercase().as_str() {
+        "0" => Some(vec![KeyCode::Numpad0]),
+        "1" => Some(vec![KeyCode::Numpad1]),
+        "2" => Some(vec![KeyCode::Numpad2]),
+        "3" => Some(vec![KeyCode::Numpad3]),
+        "4" => Some(vec![KeyCode::Numpad4]),
+        "5" => Some(vec![KeyCode::Numpad5]),
+        "6" => Some(vec![KeyCode::Numpad6]),
+        "7" => Some(vec![KeyCode::Numpad7]),
+        "8" => Some(vec![KeyCode::Numpad8]),
+        "9" => Some(vec![KeyCode::Numpad9]),
         "a" => Some(vec![KeyCode::KeyA]),
         "b" => Some(vec![KeyCode::KeyB]),
         "c" => Some(vec![KeyCode::KeyC]),

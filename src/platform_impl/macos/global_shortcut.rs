@@ -4,7 +4,6 @@ use crate::{
   accelerator::Accelerator,
   event::Event,
   event_loop::EventLoopWindowTarget,
-  keyboard::ModifiersState,
   platform::{
     global_shortcut::{GlobalShortcut as RootGlobalShortcut, ShortcutManagerError},
     scancode::KeyCodeExtScancode,
@@ -51,25 +50,27 @@ impl ShortcutManager {
   ) -> Result<RootGlobalShortcut, ShortcutManagerError> {
     unsafe {
       let mut converted_modifiers: i32 = 0;
-      let modifiers: ModifiersState = accelerator.mods.into();
-      if modifiers.shift_key() {
+      if accelerator.mods.shift_key() {
         converted_modifiers |= 512;
       }
-      if modifiers.super_key() {
+      if accelerator.mods.super_key() {
         converted_modifiers |= 256;
       }
-      if modifiers.alt_key() {
+      if accelerator.mods.alt_key() {
         converted_modifiers |= 2048;
       }
-      if modifiers.control_key() {
+      if accelerator.mods.control_key() {
         converted_modifiers |= 4096;
       }
 
       // get key scan code
+      println!("get key for : {:?}", accelerator.key);
       if let Some(keycode) = accelerator.key.to_keycode() {
+        println!("keycode : {:?}", keycode);
         // we get only 1 keycode as we don't generate it for the modifier
         // it's safe to use first()
         if let Some(Some(scan_code)) = keycode.first().map(|s| s.to_scancode()) {
+          println!("register {:?}", accelerator);
           // register hotkey
           let handler_ref = register_hotkey(
             accelerator.clone().id() as i32,
