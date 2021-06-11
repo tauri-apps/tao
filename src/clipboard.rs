@@ -45,9 +45,9 @@ pub(crate) struct ClipboardFormat {
 
 // todo add more formats
 impl ClipboardFormat {
-  #[cfg(target_os = "macos")]
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
   pub const TEXT: &'static str = "public.utf8-plain-text";
-  #[cfg(target_os = "windows")]
+  #[cfg(any(target_os = "windows", target_os = "android"))]
   pub const TEXT: &'static str = "text/plain";
   #[cfg(target_os = "linux")]
   pub const TEXT: &'static str = "UTF8_STRING";
