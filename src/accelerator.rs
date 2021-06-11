@@ -29,6 +29,12 @@ impl Accelerator {
     }
   }
 
+  /// Assign a custom accelerator id.
+  pub fn with_id(mut self, id: AcceleratorId) -> Self {
+    self.id = Some(id);
+    self
+  }
+
   /// Returns an identifier unique to the accelerator.
   pub fn id(self) -> AcceleratorId {
     if let Some(id) = self.id {

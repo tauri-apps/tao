@@ -49,7 +49,7 @@ fn main() {
     // position Y axis (Windows only)
     #[cfg(target_os = "windows")]
     {
-      rectangle.position.y = rectangle.position.y - window_size.height;
+      rectangle.position.y = rectangle.position.y - window_size.height - rectangle.size.height;
     }
 
     *rectangle
