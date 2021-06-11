@@ -32,7 +32,7 @@ impl Clipboard {
     self.put_formats(&[format])
   }
 
-  pub fn read_text(&self) -> Option<String> {
+  pub(crate) fn read_text(&self) -> Option<String> {
     with_clipboard(|| unsafe {
       let handle = GetClipboardData(CF_UNICODETEXT);
       if handle.is_null() {
@@ -56,7 +56,7 @@ impl Clipboard {
     .flatten()
   }
 
-  pub fn put_formats(&mut self, formats: &[ClipboardFormat]) {
+  pub(crate) fn put_formats(&mut self, formats: &[ClipboardFormat]) {
     with_clipboard(|| unsafe {
       EmptyClipboard();
 

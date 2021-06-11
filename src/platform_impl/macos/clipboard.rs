@@ -12,7 +12,7 @@ use objc::{class, msg_send, sel, sel_impl};
 pub struct Clipboard;
 
 impl Clipboard {
-  pub fn write_text(&mut self, s: impl AsRef<str>) {
+  pub(crate) fn write_text(&mut self, s: impl AsRef<str>) {
     let s = s.as_ref();
     unsafe {
       let nsstring = NSString::alloc(nil).init_str(s);
@@ -25,7 +25,7 @@ impl Clipboard {
     }
   }
 
-  pub fn read_text(&self) -> Option<String> {
+  pub(crate) fn read_text(&self) -> Option<String> {
     unsafe {
       let pasteboard: id = msg_send![class!(NSPasteboard), generalPasteboard];
       let contents: id = msg_send![pasteboard, stringForType: NSPasteboardTypeString];

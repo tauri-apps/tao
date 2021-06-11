@@ -4,7 +4,7 @@
 use gdk::Atom;
 use gtk::{TargetEntry, TargetFlags};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Clipboard;
 
 const CLIPBOARD_TARGETS: [&str; 5] = [
@@ -16,7 +16,7 @@ const CLIPBOARD_TARGETS: [&str; 5] = [
 ];
 
 impl Clipboard {
-  pub fn write_text(&mut self, string: impl AsRef<str>) {
+  pub(crate) fn write_text(&mut self, string: impl AsRef<str>) {
     let string = string.as_ref().to_string();
 
     let display = gdk::Display::get_default().unwrap();
@@ -33,7 +33,7 @@ impl Clipboard {
     });
   }
 
-  pub fn read_text(&self) -> Option<String> {
+  pub(crate) fn read_text(&self) -> Option<String> {
     let display = gdk::Display::get_default().unwrap();
     let clipboard = gtk::Clipboard::get_default(&display).unwrap();
 
