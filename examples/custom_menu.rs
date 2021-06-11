@@ -41,10 +41,8 @@ fn main() {
   first_menu.add_native_item(MenuItem::Copy);
 
   // Create custom Copy menu with our clipboard object
-  let custom_insert_clipboard =
-  first_menu.add_item(MenuItemAttributes::new("Insert clipboard"));
-  let custom_read_clipboard =
-  first_menu.add_item(MenuItemAttributes::new("Read clipboard"));
+  let custom_insert_clipboard = first_menu.add_item(MenuItemAttributes::new("Insert clipboard"));
+  let custom_read_clipboard = first_menu.add_item(MenuItemAttributes::new("Read clipboard"));
 
   // add `my_sub_menu` children of `first_menu` with `Sub menu` title
   first_menu.add_submenu("Sub menu", true, my_sub_menu);

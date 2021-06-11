@@ -9,6 +9,7 @@ use winapi::{
 };
 
 pub use self::{
+  clipboard::Clipboard,
   event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
   icon::WinIcon,
   menu::{Menu, MenuItemAttributes},

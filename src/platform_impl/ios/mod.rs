@@ -71,8 +71,8 @@ macro_rules! assert_main_thread {
     };
 }
 
-mod clipboard;
 mod app_state;
+mod clipboard;
 mod event_loop;
 mod ffi;
 mod monitor;
