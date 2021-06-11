@@ -122,6 +122,7 @@ impl WindowId {
 
 #[macro_use]
 mod util;
+mod clipboard;
 mod dark_mode;
 mod dpi;
 mod drop_handler;

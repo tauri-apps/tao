@@ -158,6 +158,7 @@ extern crate bitflags;
 #[macro_use]
 extern crate objc;
 
+pub mod clipboard;
 pub mod dpi;
 #[macro_use]
 pub mod error;

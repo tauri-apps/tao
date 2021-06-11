@@ -5,6 +5,7 @@ use simple_logger::SimpleLogger;
 #[cfg(target_os = "macos")]
 use tao::platform::macos::{CustomMenuItemExtMacOS, NativeImage};
 use tao::{
+  clipboard::Clipboard,
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   menu::{MenuBar as Menu, MenuItem, MenuItemAttributes, MenuType},
@@ -14,6 +15,9 @@ use tao::{
 fn main() {
   SimpleLogger::new().init().unwrap();
   let event_loop = EventLoop::new();
+
+  // create clipboard instance
+  let mut cliboard = Clipboard::new();
 
   // create main menubar menu
   let mut menu_bar_menu = Menu::new();
@@ -35,6 +39,12 @@ fn main() {
   // in macOS native item are required to get keyboard shortcut
   // to works correctly
   first_menu.add_native_item(MenuItem::Copy);
+
+  // Create custom Copy menu with our clipboard object
+  let custom_insert_clipboard =
+  first_menu.add_item(MenuItemAttributes::new("Insert clipboard"));
+  let custom_read_clipboard =
+  first_menu.add_item(MenuItemAttributes::new("Read clipboard"));
 
   // add `my_sub_menu` children of `first_menu` with `Sub menu` title
   first_menu.add_submenu("Sub menu", true, my_sub_menu);
@@ -95,6 +105,18 @@ fn main() {
         my_app_menu.add_item(MenuItemAttributes::new("New menu!"));
         menu_bar_menu.add_submenu("My app", true, my_app_menu);
         window.set_menu(Some(menu_bar_menu))
+      }
+      Event::MenuEvent {
+        menu_id,
+        origin: MenuType::MenuBar,
+      } if menu_id == custom_insert_clipboard.clone().id() => {
+        cliboard.put_string("This is injected from tao!!!")
+      }
+      Event::MenuEvent {
+        menu_id,
+        origin: MenuType::MenuBar,
+      } if menu_id == custom_read_clipboard.clone().id() => {
+        println!("Clipboard content: {:?}", cliboard.get_string());
       }
       _ => (),
     }

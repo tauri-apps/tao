@@ -71,6 +71,7 @@ macro_rules! assert_main_thread {
     };
 }
 
+mod clipboard;
 mod app_state;
 mod event_loop;
 mod ffi;
@@ -82,6 +83,7 @@ use crate::menu::{CustomMenuItem, MenuId, MenuItem, MenuType};
 use std::fmt;
 
 pub use self::{
+  clipboard::Clipboard,
   event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
   monitor::{MonitorHandle, VideoMode},
   window::{PlatformSpecificWindowBuilderAttributes, Window, WindowId},

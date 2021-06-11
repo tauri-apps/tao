@@ -9,6 +9,7 @@
   target_os = "openbsd"
 ))]
 
+mod clipboard;
 mod event_loop;
 mod menu;
 mod monitor;
