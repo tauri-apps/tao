@@ -108,13 +108,13 @@ fn main() {
         menu_id,
         origin: MenuType::MenuBar,
       } if menu_id == custom_insert_clipboard.clone().id() => {
-        cliboard.put_string("This is injected from tao!!!")
+        cliboard.write_text("This is injected from tao!!!")
       }
       Event::MenuEvent {
         menu_id,
         origin: MenuType::MenuBar,
       } if menu_id == custom_read_clipboard.clone().id() => {
-        println!("Clipboard content: {:?}", cliboard.get_string());
+        println!("Clipboard content: {:?}", cliboard.read_text());
       }
       _ => (),
     }

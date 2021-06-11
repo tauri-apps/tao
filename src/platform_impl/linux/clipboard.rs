@@ -13,7 +13,7 @@ const CLIPBOARD_TARGETS: [&str; 5] = [
 ];
 
 impl Clipboard {
-  pub fn put_string(&mut self, string: impl AsRef<str>) {
+  pub fn write_text(&mut self, string: impl AsRef<str>) {
     let string = string.as_ref().to_string();
 
     let display = gdk::Display::get_default().unwrap();
@@ -30,7 +30,7 @@ impl Clipboard {
     });
   }
 
-  pub fn get_string(&self) -> Option<String> {
+  pub fn read_text(&self) -> Option<String> {
     let display = gdk::Display::get_default().unwrap();
     let clipboard = gtk::Clipboard::get_default(&display).unwrap();
 

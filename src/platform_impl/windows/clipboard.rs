@@ -23,13 +23,13 @@ use winapi::{
 pub struct Clipboard;
 
 impl Clipboard {
-  pub fn put_string(&mut self, s: impl AsRef<str>) {
+  pub fn write_text(&mut self, s: impl AsRef<str>) {
     let s = s.as_ref();
     let format: ClipboardFormat = s.into();
     self.put_formats(&[format])
   }
 
-  pub fn get_string(&self) -> Option<String> {
+  pub fn read_text(&self) -> Option<String> {
     with_clipboard(|| unsafe {
       let handle = GetClipboardData(CF_UNICODETEXT);
       if handle.is_null() {

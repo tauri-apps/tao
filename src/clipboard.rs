@@ -1,24 +1,44 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
+//! The `Clipboard` struct and associated types.
+//!
+//! ```rust,ignore
+//! let mut cliboard = Clipboard::new();
+//! cliboard.write_text("This is injected from tao!!!")
+//! let content = cliboard.read_text();
+//! ```
+//!
+
 use crate::platform_impl::Clipboard as ClipboardPlatform;
 
 #[derive(Debug, Clone, Default)]
+/// Object that allows you to access the `Clipboard` instance.
 pub struct Clipboard(ClipboardPlatform);
 
 impl Clipboard {
+  /// Creates a new `Clipboard` instance.
   pub fn new() -> Self {
     Self::default()
   }
-  pub fn put_string(&mut self, s: impl AsRef<str>) {
-    self.0.put_string(s);
+
+  /// Writes the text into the clipboard as plain text.
+  pub fn write_text(&mut self, s: impl AsRef<str>) {
+    self.0.write_text(s);
   }
-  pub fn get_string(&self) -> Option<String> {
-    self.0.get_string()
+
+  /// The content in the clipboard as plain text.
+  pub fn read_text(&self) -> Option<String> {
+    self.0.read_text()
   }
 }
 
-pub type FormatId = &'static str;
+/// Identifier of a clipboard format.
+pub(crate) type FormatId = &'static str;
 
+/// Object that allows you to access the `ClipboardFormat`.
 #[derive(Debug, Clone)]
-pub struct ClipboardFormat {
+pub(crate) struct ClipboardFormat {
   pub(crate) identifier: FormatId,
   pub(crate) data: Vec<u8>,
 }
