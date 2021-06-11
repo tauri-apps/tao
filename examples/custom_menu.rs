@@ -40,6 +40,7 @@ fn main() {
 
   // add `my_sub_menu` children of `first_menu` with `Sub menu` title
   first_menu.add_submenu("Sub menu", true, my_sub_menu);
+  first_menu.add_native_item(MenuItem::Quit);
 
   // create custom item `Selected and disabled` children of `second_menu`
   second_menu.add_item(

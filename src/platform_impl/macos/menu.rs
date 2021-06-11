@@ -167,7 +167,7 @@ impl Menu {
         make_menu_item(
           "Close Window",
           Some(selector("performClose:")),
-          Some(Accelerator::new(None, KeyCode::KeyX)),
+          Some(Accelerator::new(RawMods::Meta, KeyCode::KeyX)),
           menu_type,
         ),
       )),
@@ -176,7 +176,7 @@ impl Menu {
         make_menu_item(
           "Quit",
           Some(selector("terminate:")),
-          Some(Accelerator::new(None, KeyCode::KeyQ)),
+          Some(Accelerator::new(RawMods::Meta, KeyCode::KeyQ)),
           menu_type,
         ),
       )),
@@ -185,7 +185,7 @@ impl Menu {
         make_menu_item(
           "Hide",
           Some(selector("hide:")),
-          Some(Accelerator::new(None, KeyCode::KeyH)),
+          Some(Accelerator::new(RawMods::Meta, KeyCode::KeyH)),
           menu_type,
         ),
       )),
@@ -221,7 +221,7 @@ impl Menu {
         make_menu_item(
           "Minimize",
           Some(selector("performMiniaturize:")),
-          Some(Accelerator::new(None, KeyCode::KeyM)),
+          Some(Accelerator::new(RawMods::Meta, KeyCode::KeyM)),
           menu_type,
         ),
       )),
@@ -234,7 +234,7 @@ impl Menu {
         make_menu_item(
           "Copy",
           Some(selector("copy:")),
-          Some(Accelerator::new(None, KeyCode::KeyC)),
+          Some(Accelerator::new(RawMods::Meta, KeyCode::KeyC)),
           menu_type,
         ),
       )),
@@ -243,7 +243,7 @@ impl Menu {
         make_menu_item(
           "Cut",
           Some(selector("cut:")),
-          Some(Accelerator::new(None, KeyCode::KeyX)),
+          Some(Accelerator::new(RawMods::Meta, KeyCode::KeyX)),
           menu_type,
         ),
       )),
@@ -252,7 +252,7 @@ impl Menu {
         make_menu_item(
           "Paste",
           Some(selector("paste:")),
-          Some(Accelerator::new(None, KeyCode::KeyV)),
+          Some(Accelerator::new(RawMods::Meta, KeyCode::KeyV)),
           menu_type,
         ),
       )),
@@ -261,7 +261,7 @@ impl Menu {
         make_menu_item(
           "Undo",
           Some(selector("undo:")),
-          Some(Accelerator::new(None, KeyCode::KeyZ)),
+          Some(Accelerator::new(RawMods::Meta, KeyCode::KeyZ)),
           menu_type,
         ),
       )),
@@ -279,7 +279,7 @@ impl Menu {
         make_menu_item(
           "Select All",
           Some(selector("selectAll:")),
-          Some(Accelerator::new(None, KeyCode::KeyA)),
+          Some(Accelerator::new(RawMods::Meta, KeyCode::KeyA)),
           menu_type,
         ),
       )),
