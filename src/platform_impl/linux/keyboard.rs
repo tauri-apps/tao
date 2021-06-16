@@ -120,7 +120,7 @@ pub(crate) fn raw_key_to_location(raw: RawKey) -> KeyLocation {
   }
 }
 
-const MODIFIER_MAP: &[(Key, ModifiersState)] = &[
+const MODIFIER_MAP: &[(Key<'static>, ModifiersState)] = &[
   (Key::Shift, ModifiersState::SHIFT),
   (Key::Alt, ModifiersState::ALT),
   (Key::Control, ModifiersState::CONTROL),
