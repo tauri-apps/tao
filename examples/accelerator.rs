@@ -46,9 +46,7 @@ fn main() {
               &event.logical_key
             );
             // we can match manually without `Accelerator`
-          } else if event.key_without_modifiers() == Key::Character("1".to_string())
-            && modifiers.is_empty()
-          {
+          } else if event.key_without_modifiers() == Key::Character("1") && modifiers.is_empty() {
             println!("KeyEvent: `1`");
           }
         }

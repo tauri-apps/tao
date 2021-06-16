@@ -55,7 +55,7 @@ fn main() {
           } => {
             // WARNING: Consider using `key_without_modifers()` if available on your platform.
             // See the `key_binding` example
-            match char.as_str() {
+            match char {
               "y" => {
                 if close_requested {
                   // This is where you'll want to do any cleanup you need.

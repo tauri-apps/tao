@@ -34,7 +34,7 @@ fn main() {
       Event::WindowEvent {
         event: WindowEvent::KeyboardInput { event, .. },
         window_id,
-      } if window_id == window.id() && Key::Character("m".to_string()) == event.logical_key => {
+      } if window_id == window.id() && Key::Character("m") == event.logical_key => {
         // Pressing the 'm' key will minimize the window
         // WARNING: Consider using `key_without_modifers()` if available on your platform.
         // See the `key_binding` example

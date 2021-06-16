@@ -67,19 +67,19 @@ fn main() {
         } => {
           // WARNING: Consider using `key_without_modifers()` if available on your platform.
           // See the `key_binding` example
-          if Key::Character("1".to_string()) == logical_key {
+          if Key::Character("1") == logical_key {
             mode = Mode::Wait;
             println!("\nmode: {:?}\n", mode);
           }
-          if Key::Character("2".to_string()) == logical_key {
+          if Key::Character("2") == logical_key {
             mode = Mode::WaitUntil;
             println!("\nmode: {:?}\n", mode);
           }
-          if Key::Character("3".to_string()) == logical_key {
+          if Key::Character("3") == logical_key {
             mode = Mode::Poll;
             println!("\nmode: {:?}\n", mode);
           }
-          if Key::Character("r".to_string()) == logical_key {
+          if Key::Character("r") == logical_key {
             request_redraw = !request_redraw;
             println!("\nrequest_redraw: {}\n", request_redraw);
           }

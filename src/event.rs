@@ -177,7 +177,7 @@ impl<T: Clone> Clone for Event<'static, T> {
         event: *event,
         position: *position,
       },
-      GlobalShortcutEvent(key_id) => GlobalShortcutEvent(*key_id),
+      GlobalShortcutEvent(accelerator_id) => GlobalShortcutEvent(*accelerator_id),
     }
   }
 }
@@ -206,7 +206,7 @@ impl<'a, T> Event<'a, T> {
         event,
         position,
       }),
-      GlobalShortcutEvent(key_id) => Ok(GlobalShortcutEvent(key_id)),
+      GlobalShortcutEvent(accelerator_id) => Ok(GlobalShortcutEvent(accelerator_id)),
     }
   }
 
@@ -237,7 +237,7 @@ impl<'a, T> Event<'a, T> {
         event,
         position,
       }),
-      GlobalShortcutEvent(key_id) => Some(GlobalShortcutEvent(key_id)),
+      GlobalShortcutEvent(accelerator_id) => Some(GlobalShortcutEvent(accelerator_id)),
     }
   }
 }
@@ -701,7 +701,7 @@ pub struct KeyEvent {
   /// - **Web:** Dead keys might be reported as the real key instead
   /// of `Dead` depending on the browser/OS.
   ///
-  pub logical_key: keyboard::Key,
+  pub logical_key: keyboard::Key<'static>,
 
   /// Contains the text produced by this keypress.
   ///
@@ -722,7 +722,7 @@ pub struct KeyEvent {
   /// be interpreted as text.
   ///
   /// See also: `text_with_all_modifiers()`
-  pub text: Option<String>,
+  pub text: Option<&'static str>,
 
   pub location: keyboard::KeyLocation,
   pub state: ElementState,

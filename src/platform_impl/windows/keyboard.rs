@@ -484,7 +484,7 @@ impl KeyEventBuilder {
 enum PartialText {
   // Unicode
   System(Vec<u16>),
-  Text(Option<String>),
+  Text(Option<&'static str>),
 }
 
 enum PartialLogicalKey {
@@ -492,10 +492,10 @@ enum PartialLogicalKey {
   /// the text consists of multiple grapheme clusters (user-precieved characters) that means that
   /// dead key could not be combined with the second input, and in that case we should fall back
   /// to using what would have without a dead-key input.
-  TextOr(Key),
+  TextOr(Key<'static>),
 
   /// Use the value directly provided by this variant
-  This(Key),
+  This(Key<'static>),
 }
 
 struct PartialKeyEventInfo {
@@ -507,7 +507,7 @@ struct PartialKeyEventInfo {
   location: KeyLocation,
   logical_key: PartialLogicalKey,
 
-  key_without_modifiers: Key,
+  key_without_modifiers: Key<'static>,
 
   /// The UTF-16 code units of the text that was produced by the keypress event.
   /// This take all modifiers into account. Including CTRL

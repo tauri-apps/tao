@@ -25,14 +25,14 @@ lazy_static! {
   static ref KEY_STRINGS: Mutex<HashSet<&'static str>> = Mutex::new(HashSet::new());
 }
 
-fn insert_or_get_key_str(string: String) -> String {
+fn insert_or_get_key_str(string: String) -> &'static str {
   let mut string_set = KEY_STRINGS.lock().unwrap();
   if let Some(contained) = string_set.get(string.as_str()) {
-    return contained.to_string();
+    return contained;
   }
   let static_str = Box::leak(string.into_boxed_str());
   string_set.insert(static_str);
-  static_str.to_string()
+  static_str
 }
 
 #[derive(Debug)]
@@ -52,21 +52,21 @@ pub enum EventProxy {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct KeyEventExtra {
-  pub text_with_all_modifiers: Option<String>,
-  pub key_without_modifiers: Key,
+  pub text_with_all_modifiers: Option<&'static str>,
+  pub key_without_modifiers: Key<'static>,
 }
 
 impl KeyEventExtModifierSupplement for KeyEvent {
-  fn text_with_all_modifiers(&self) -> Option<String> {
-    self.platform_specific.text_with_all_modifiers.clone()
+  fn text_with_all_modifiers(&self) -> Option<&str> {
+    self.platform_specific.text_with_all_modifiers
   }
 
-  fn key_without_modifiers(&self) -> Key {
+  fn key_without_modifiers(&self) -> Key<'static> {
     self.platform_specific.key_without_modifiers.clone()
   }
 }
 
-pub fn get_modifierless_char(scancode: u16) -> Key {
+pub fn get_modifierless_char(scancode: u16) -> Key<'static> {
   let mut string = [0; 16];
   let input_source;
   let layout;
@@ -122,7 +122,7 @@ pub fn get_modifierless_char(scancode: u16) -> Key {
   Key::Character(insert_or_get_key_str(chars))
 }
 
-fn get_logical_key_char(ns_event: id, modifierless_chars: String) -> Key {
+fn get_logical_key_char(ns_event: id, modifierless_chars: &str) -> Key<'static> {
   let characters: id = unsafe { msg_send![ns_event, charactersIgnoringModifiers] };
   let string = unsafe { ns_string_to_rust(characters) };
   if string.is_empty() {
@@ -147,7 +147,7 @@ pub fn create_key_event(
   let scancode = get_scancode(ns_event);
   let mut physical_key = key_override.unwrap_or_else(|| KeyCode::from_scancode(scancode as u32));
 
-  let text_with_all_modifiers: Option<String> = {
+  let text_with_all_modifiers: Option<&'static str> = {
     if key_override.is_some() {
       None
     } else {
@@ -180,11 +180,11 @@ pub fn create_key_event(
     if has_alt || has_ctrl || text_with_all_modifiers.is_none() || !is_press {
       let modifierless_chars = match key_without_modifiers.clone() {
         Key::Character(ch) => ch,
-        _ => "".into(),
+        _ => "",
       };
       logical_key = get_logical_key_char(ns_event, modifierless_chars);
     } else {
-      logical_key = Key::Character(text_with_all_modifiers.clone().unwrap());
+      logical_key = Key::Character(text_with_all_modifiers.unwrap());
     }
   }
   let text = if in_ime || !is_press {
@@ -206,7 +206,7 @@ pub fn create_key_event(
   }
 }
 
-pub fn code_to_key(code: KeyCode, scancode: u16) -> Key {
+pub fn code_to_key(code: KeyCode, scancode: u16) -> Key<'static> {
   match code {
     KeyCode::Enter => Key::Enter,
     KeyCode::Tab => Key::Tab,

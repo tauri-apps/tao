@@ -53,7 +53,7 @@ fn main() {
             ..
           },
         ..
-      } if logical_key == Key::Character("x".to_string()) => {
+      } if logical_key == Key::Character("x") => {
         switched = !switched;
         name_windows(entered_id, switched, &window_1, &window_2);
         println!("Switched!")

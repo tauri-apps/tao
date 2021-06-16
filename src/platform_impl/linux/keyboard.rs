@@ -19,18 +19,18 @@ lazy_static! {
   static ref KEY_STRINGS: Mutex<HashSet<&'static str>> = Mutex::new(HashSet::new());
 }
 
-fn insert_or_get_key_str(string: String) -> String {
+fn insert_or_get_key_str(string: String) -> &'static str {
   let mut string_set = KEY_STRINGS.lock().unwrap();
   if let Some(contained) = string_set.get(string.as_str()) {
-    return contained.to_string();
+    return contained;
   }
   let static_str = Box::leak(string.into_boxed_str());
   string_set.insert(static_str);
-  static_str.to_string()
+  static_str
 }
 
 #[allow(clippy::just_underscores_and_digits, non_upper_case_globals)]
-pub(crate) fn raw_key_to_key(gdk_key: RawKey) -> Option<Key> {
+pub(crate) fn raw_key_to_key(gdk_key: RawKey) -> Option<Key<'static>> {
   let key = match gdk_key {
     Escape => Some(Key::Escape),
     BackSpace => Some(Key::Backspace),
@@ -223,7 +223,7 @@ pub(crate) fn make_key_event(
       },
     });
   } else {
-    println!("Couldn't get key from code: {:?}", physical_key);
+    eprintln!("Couldn't get key from code: {:?}", physical_key);
   }
   None
 }

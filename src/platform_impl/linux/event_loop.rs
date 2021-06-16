@@ -637,7 +637,6 @@ impl<T: 'static> EventLoop<T> {
         } else if id == WindowId::dummy() {
           match request {
             WindowRequest::GlobalHotKey(hotkey_id) => {
-              println!("new event hot key: {:?}", hotkey_id);
               if let Err(e) = event_tx.send(Event::GlobalShortcutEvent(AcceleratorId(hotkey_id))) {
                 log::warn!("Failed to send global hotkey event to event channel: {}", e);
               }

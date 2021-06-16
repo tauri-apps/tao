@@ -57,7 +57,7 @@ fn main() {
             *control_flow = ControlFlow::Exit
           }
 
-          if Key::Character("f".to_string()) == logical_key {
+          if Key::Character("f") == logical_key {
             if window.fullscreen().is_some() {
               window.set_fullscreen(None);
             } else {
@@ -65,14 +65,14 @@ fn main() {
             }
           }
 
-          if Key::Character("s".to_string()) == logical_key {
+          if Key::Character("s") == logical_key {
             println!("window.fullscreen {:?}", window.fullscreen());
           }
-          if Key::Character("m".to_string()) == logical_key {
+          if Key::Character("m") == logical_key {
             let is_maximized = window.is_maximized();
             window.set_maximized(!is_maximized);
           }
-          if Key::Character("d".to_string()) == logical_key {
+          if Key::Character("d") == logical_key {
             decorations = !decorations;
             window.set_decorations(decorations);
           }

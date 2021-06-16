@@ -851,11 +851,11 @@ impl fmt::Display for KeyCode {
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum Key {
+pub enum Key<'a> {
   /// A key string that corresponds to the character typed by the user, taking into account the
   /// user’s current locale setting, and any system-level keyboard mapping overrides that are in
   /// effect.
-  Character(String),
+  Character(&'a str),
 
   /// This variant is used when the key cannot be translated to any other variant.
   ///
@@ -1569,15 +1569,15 @@ pub enum Key {
   F35,
 }
 
-impl Key {
-  pub fn to_text(&self) -> Option<String> {
+impl<'a> Key<'a> {
+  pub fn to_text(&self) -> Option<&'a str> {
     match self {
-      Key::Character(ch) => Some(ch.into()),
-      Key::Enter => Some("\r".into()),
-      Key::Backspace => Some("\x08".into()),
-      Key::Tab => Some("\t".into()),
-      Key::Space => Some(" ".into()),
-      Key::Escape => Some("\x1b".into()),
+      Key::Character(ch) => Some(*ch),
+      Key::Enter => Some("\r"),
+      Key::Backspace => Some("\x08"),
+      Key::Tab => Some("\t"),
+      Key::Space => Some(" "),
+      Key::Escape => Some("\x1b"),
       _ => None,
     }
   }
@@ -1876,9 +1876,9 @@ impl Key {
   }
 }
 
-impl From<&str> for Key {
-  fn from(src: &str) -> Key {
-    Key::Character(src.to_string())
+impl<'a> From<&'a str> for Key<'a> {
+  fn from(src: &'a str) -> Key<'a> {
+    Key::Character(src)
   }
 }
 
