@@ -78,10 +78,7 @@ pub enum Event<'a, T: 'static> {
 
   /// Emitted when a menu has been clicked. There are two types of menu event. One comes from the
   /// menu bar, the other comes from the status bar.
-  MenuEvent {
-    menu_id: MenuId,
-    origin: MenuType,
-  },
+  MenuEvent { menu_id: MenuId, origin: MenuType },
 
   /// Emitted when tray has been clicked.
   ///
@@ -94,6 +91,11 @@ pub enum Event<'a, T: 'static> {
     position: PhysicalPosition<f64>,
   },
 
+  /// Emitted when a global shortcut is triggered.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
   GlobalShortcutEvent(AcceleratorId),
 
   /// Emitted when the application has been suspended.

@@ -408,6 +408,6 @@ pub enum MenuType {
 
 fn hash_string_to_u16(title: &str) -> u16 {
   let mut s = DefaultHasher::new();
-  title.hash(&mut s);
+  title.to_uppercase().hash(&mut s);
   s.finish() as u16
 }

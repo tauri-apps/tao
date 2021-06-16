@@ -306,7 +306,10 @@ fn parse_accelerator(accelerator_string: &str) -> Accelerator {
 
 fn hash_string_to_u16(title: &str) -> u16 {
   let mut s = DefaultHasher::new();
-  title.hash(&mut s);
+  // we transform to uppercase to make sure
+  // if we write Shift instead of SHIFT it return
+  // the same ID
+  title.to_uppercase().hash(&mut s);
   s.finish() as u16
 }
 
