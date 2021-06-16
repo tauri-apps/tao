@@ -758,7 +758,7 @@ impl VideoMode {
   }
 }
 
-fn keycode_to_logical(keycode: ndk::event::Keycode, native: NativeKeyCode) -> Key {
+fn keycode_to_logical(keycode: ndk::event::Keycode, native: NativeKeyCode) -> Key<'static> {
   use ndk::event::Keycode::*;
 
   // The android `Keycode` is sort-of layout dependent. More specifically
