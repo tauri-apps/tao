@@ -2,10 +2,12 @@
 "tao": minor
 ---
 
-**Breaking change**: New keyboard API, including `Accelerator`.
+**Breaking change**: New keyboard API, including `Accelerator` and `GlobalShortcut`.
 
 `WindowEvent::ModifiersChanged` is emitted when a new keyboard modifier is pressed. This is your responsibility to keep a local state. When the modifier is released, `ModifiersState::empty()` is emitted.
 
 `WindowEvent::KeyboardInput` as been refactored and is exposing the event `KeyEvent`.
 
-New modules available: `keyboard` and `accelerator`. Please refer to the docs and examples for more details.
+New modules available: `keyboard`, `accelerator` and `platform::global_shortcut`. 
+
+_Please refer to the docs and examples for more details._
