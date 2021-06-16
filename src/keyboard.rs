@@ -731,7 +731,7 @@ impl FromStr for KeyCode {
       "U" => KeyCode::KeyU,
       "V" => KeyCode::KeyV,
       "W" => KeyCode::KeyW,
-      "X" => KeyCode::KeyZ,
+      "X" => KeyCode::KeyX,
       "Y" => KeyCode::KeyY,
       "Z" => KeyCode::KeyZ,
 
