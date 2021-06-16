@@ -486,7 +486,7 @@ where
   {
     let str_ref = string.as_ref();
     if let Some(&existing) = strings.get(str_ref) {
-      return existing.to_string();
+      return existing;
     }
   }
   let leaked = Box::leak(Box::from(String::from(string)));
