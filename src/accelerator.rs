@@ -318,3 +318,110 @@ fn hash_accelerator_to_u16(hotkey: Accelerator) -> u16 {
   hotkey.hash(&mut s);
   s.finish() as u16
 }
+
+#[test]
+fn test_parse_accelerator() {
+  assert_eq!(
+    parse_accelerator("CTRL+X"),
+    Accelerator {
+      id: Some(AcceleratorId::new("CTRL+X")),
+      mods: ModifiersState::CONTROL,
+      key: KeyCode::KeyX,
+    }
+  );
+  assert_eq!(
+    parse_accelerator("SHIFT+C"),
+    Accelerator {
+      id: Some(AcceleratorId::new("SHIFT+C")),
+      mods: ModifiersState::SHIFT,
+      key: KeyCode::KeyC,
+    }
+  );
+  assert_eq!(
+    parse_accelerator("CTRL+Z"),
+    Accelerator {
+      id: Some(AcceleratorId::new("CTRL+Z")),
+      mods: ModifiersState::CONTROL,
+      key: KeyCode::KeyZ,
+    }
+  );
+  assert_eq!(
+    parse_accelerator("super+ctrl+SHIFT+alt+Up"),
+    Accelerator {
+      id: Some(AcceleratorId::new("super+ctrl+SHIFT+alt+Up")),
+      mods: ModifiersState::SUPER
+        | ModifiersState::CONTROL
+        | ModifiersState::SHIFT
+        | ModifiersState::ALT,
+      key: KeyCode::ArrowUp,
+    }
+  );
+  assert_eq!(
+    parse_accelerator("5"),
+    Accelerator {
+      id: Some(AcceleratorId::new("5")),
+      mods: ModifiersState::empty(),
+      key: KeyCode::Digit5,
+    }
+  );
+  assert_eq!(
+    parse_accelerator("G"),
+    Accelerator {
+      id: Some(AcceleratorId::new("G")),
+      mods: ModifiersState::empty(),
+      key: KeyCode::KeyG,
+    }
+  );
+  assert_eq!(
+    parse_accelerator("G"),
+    Accelerator {
+      // id not with same uppercase should work
+      id: Some(AcceleratorId::new("g")),
+      mods: ModifiersState::empty(),
+      key: KeyCode::KeyG,
+    }
+  );
+  assert_eq!(
+    parse_accelerator("+G"),
+    Accelerator {
+      id: Some(AcceleratorId::new("+G")),
+      mods: ModifiersState::empty(),
+      key: KeyCode::KeyG,
+    }
+  );
+  assert_eq!(
+    parse_accelerator("SHGSH+G"),
+    Accelerator {
+      id: Some(AcceleratorId::new("SHGSH+G")),
+      mods: ModifiersState::empty(),
+      key: KeyCode::KeyG,
+    }
+  );
+  assert_eq!(
+    parse_accelerator("SHiFT+F12"),
+    Accelerator {
+      id: Some(AcceleratorId::new("SHIFT+F12")),
+      mods: ModifiersState::SHIFT,
+      key: KeyCode::F12,
+    }
+  );
+  assert_eq!(
+    parse_accelerator("CmdOrCtrl+Space"),
+    Accelerator {
+      id: Some(AcceleratorId::new("CmdOrCtrl+Space")),
+      #[cfg(target_os = "macos")]
+      mods: ModifiersState::SUPER,
+      #[cfg(not(target_os = "macos"))]
+      mods: ModifiersState::CONTROL,
+      key: KeyCode::Space,
+    }
+  );
+  assert_eq!(
+    parse_accelerator("CTRL+"),
+    Accelerator {
+      id: Some(AcceleratorId::new("CTRL+")),
+      mods: ModifiersState::CONTROL,
+      key: KeyCode::Unidentified(NativeKeyCode::Unidentified),
+    }
+  );
+}
