@@ -8,6 +8,8 @@
 
 `WindowEvent::KeyboardInput` as been refactored and is exposing the event `KeyEvent`.
 
+All menus (`ContextMenu` and `MenuBar`), now includes `Accelerator` support on Windows, macOS and Linux.
+
 New modules available: `keyboard`, `accelerator` and `platform::global_shortcut`. 
 
 _Please refer to the docs and examples for more details._
