@@ -36,7 +36,7 @@ use crate::{
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct KeyEventExtra {
-  pub text_with_all_modifiers: Option<String>,
+  pub text_with_all_modifiers: Option<&'static str>,
   pub key_without_modifiers: Key<'static>,
 }
 

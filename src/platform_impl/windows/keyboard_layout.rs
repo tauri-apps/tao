@@ -384,7 +384,7 @@ impl LayoutCache {
             // HACK: `ToUnicodeEx` seems to fail getting the string for the numpad
             // divide key, so we handle that explicitly here
             if !has_alt && !has_ctrl && key_code == KeyCode::NumpadDivide {
-              Key::Character("/".to_string())
+              Key::Character("/")
             } else {
               // Just use the unidentified key, we got earlier
               preliminary_key
@@ -491,7 +491,7 @@ where
   }
   let leaked = Box::leak(Box::from(String::from(string)));
   strings.insert(leaked);
-  leaked.to_string()
+  leaked
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
