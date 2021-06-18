@@ -6,7 +6,6 @@ use crate::{
   event_loop::EventLoopWindowTarget,
   platform::{
     global_shortcut::{GlobalShortcut as RootGlobalShortcut, ShortcutManagerError},
-    scancode::KeyCodeExtScancode,
   },
 };
 

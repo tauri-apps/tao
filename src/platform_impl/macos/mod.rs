@@ -10,6 +10,7 @@ mod event;
 mod event_loop;
 mod ffi;
 mod global_shortcut;
+mod keycode;
 mod menu;
 mod monitor;
 mod observer;
@@ -30,6 +31,7 @@ pub use self::{
   event::KeyEventExtra,
   event_loop::{EventLoop, EventLoopWindowTarget, Proxy as EventLoopProxy},
   global_shortcut::{GlobalShortcut, ShortcutManager},
+  keycode::{keycode_from_scancode, keycode_to_scancode},
   menu::{Menu, MenuItemAttributes},
   monitor::{MonitorHandle, VideoMode},
   window::{Id as WindowId, PlatformSpecificWindowBuilderAttributes, UnownedWindow},

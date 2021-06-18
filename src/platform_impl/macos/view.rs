@@ -25,7 +25,6 @@ use crate::{
     DeviceEvent, ElementState, Event, MouseButton, MouseScrollDelta, TouchPhase, WindowEvent,
   },
   keyboard::{KeyCode, ModifiersState},
-  platform::scancode::KeyCodeExtScancode,
   platform_impl::platform::{
     app_state::AppState,
     event::{code_to_key, create_key_event, event_mods, get_scancode, EventWrapper},

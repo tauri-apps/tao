@@ -12,6 +12,7 @@ pub use self::{
   event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
   global_shortcut::{GlobalShortcut, ShortcutManager},
   icon::WinIcon,
+  keycode::{keycode_from_scancode, keycode_to_scancode},
   menu::{Menu, MenuItemAttributes},
   monitor::{MonitorHandle, VideoMode},
   window::Window,
@@ -22,6 +23,7 @@ pub use self::icon::WinIcon as PlatformIcon;
 use crate::{event::DeviceId as RootDeviceId, icon::Icon, keyboard::Key, window::Theme};
 mod accelerator;
 mod global_shortcut;
+mod keycode;
 mod menu;
 
 #[cfg(feature = "tray")]

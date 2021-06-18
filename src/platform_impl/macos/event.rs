@@ -14,7 +14,7 @@ use crate::{
   dpi::LogicalSize,
   event::{ElementState, Event, KeyEvent},
   keyboard::{Key, KeyCode, KeyLocation, ModifiersState, NativeKeyCode},
-  platform::{modifier_supplement::KeyEventExtModifierSupplement, scancode::KeyCodeExtScancode},
+  platform::modifier_supplement::KeyEventExtModifierSupplement,
   platform_impl::platform::{
     ffi,
     util::{ns_string_to_rust, IdRef, Never},

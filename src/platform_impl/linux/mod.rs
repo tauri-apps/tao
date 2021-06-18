@@ -12,6 +12,7 @@
 mod event_loop;
 mod global_shortcut;
 mod keyboard;
+mod keycode;
 mod menu;
 mod monitor;
 #[cfg(feature = "tray")]
@@ -21,6 +22,7 @@ mod window;
 #[cfg(feature = "tray")]
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 pub use self::{
+  keycode::{keycode_from_scancode, keycode_to_scancode},
   global_shortcut::{GlobalShortcut, ShortcutManager},
   menu::{Menu, MenuItemAttributes},
 };
