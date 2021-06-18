@@ -72,8 +72,13 @@
 use nameof::name_of;
 use std::{fmt, str::FromStr};
 
-use crate::error::OsError;
-use crate::platform_impl::{keycode_from_scancode, keycode_to_scancode};
+use crate::{
+  error::OsError,
+  platform_impl::{
+    keycode_from_scancode as platform_keycode_from_scancode,
+    keycode_to_scancode as platform_keycode_to_scancode,
+  },
+};
 
 impl ModifiersState {
   /// Returns `true` if the shift key is pressed.
@@ -677,10 +682,10 @@ pub enum KeyCode {
 
 impl KeyCode {
   pub fn to_scancode(self) -> Option<u32> {
-    keycode_to_scancode(self)
+    platform_keycode_to_scancode(self)
   }
   pub fn from_scancode(scancode: u32) -> KeyCode {
-    keycode_from_scancode(scancode)
+    platform_keycode_from_scancode(scancode)
   }
 }
 

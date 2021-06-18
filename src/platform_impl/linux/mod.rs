@@ -22,8 +22,8 @@ mod window;
 #[cfg(feature = "tray")]
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 pub use self::{
-  keycode::{keycode_from_scancode, keycode_to_scancode},
   global_shortcut::{GlobalShortcut, ShortcutManager},
+  keycode::{keycode_from_scancode, keycode_to_scancode},
   menu::{Menu, MenuItemAttributes},
 };
 pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};

@@ -6,11 +6,9 @@
 use std::{os::raw::c_void, path::Path};
 
 use libc;
-use winapi::{
-  shared::{
-    minwindef::WORD,
-    windef::{HMENU, HWND},
-  },
+use winapi::shared::{
+  minwindef::WORD,
+  windef::{HMENU, HWND},
 };
 
 use crate::{
@@ -18,7 +16,7 @@ use crate::{
   event::{DeviceId, KeyEvent},
   event_loop::EventLoop,
   monitor::MonitorHandle,
-  platform::{modifier_supplement::KeyEventExtModifierSupplement},
+  platform::modifier_supplement::KeyEventExtModifierSupplement,
   platform_impl::{EventLoop as WindowsEventLoop, Parent, WinIcon},
   window::{BadIcon, Icon, Theme, Window, WindowBuilder},
 };

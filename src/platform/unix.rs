@@ -9,8 +9,8 @@
   target_os = "openbsd"
 ))]
 
-use crate::window::Window;
 pub use crate::platform_impl::hit_test;
+use crate::window::Window;
 
 /// Additional methods on `Window` that are specific to Unix.
 pub trait WindowExtUnix {
