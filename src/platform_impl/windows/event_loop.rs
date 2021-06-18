@@ -43,7 +43,6 @@ use crate::{
   keyboard::{KeyCode, ModifiersState},
   menu::{MenuId, MenuType},
   monitor::MonitorHandle as RootMonitorHandle,
-  platform::scancode::KeyCodeExtScancode,
   platform_impl::platform::{
     accelerator,
     dark_mode::try_theme,

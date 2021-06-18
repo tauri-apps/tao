@@ -2,7 +2,6 @@ use super::KeyEventExtra;
 use crate::{
   event::{ElementState, KeyEvent},
   keyboard::{Key, KeyCode, KeyLocation, ModifiersState, NativeKeyCode},
-  platform::scancode::KeyCodeExtScancode,
 };
 use gdk::{keys::constants::*, EventKey};
 use std::{

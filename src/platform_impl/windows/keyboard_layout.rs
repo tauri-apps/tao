@@ -16,11 +16,8 @@ use winapi::{
   },
 };
 
-use crate::{
-  keyboard::{Key, KeyCode, ModifiersState, NativeKeyCode},
-  platform::scancode::KeyCodeExtScancode,
-  platform_impl::platform::keyboard::ExScancode,
-};
+use super::keyboard::ExScancode;
+use crate::keyboard::{Key, KeyCode, ModifiersState, NativeKeyCode};
 
 lazy_static! {
   pub(crate) static ref LAYOUT_CACHE: Mutex<LayoutCache> = Mutex::new(LayoutCache::default());
