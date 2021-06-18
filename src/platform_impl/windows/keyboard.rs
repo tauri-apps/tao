@@ -20,7 +20,6 @@ use unicode_segmentation::UnicodeSegmentation;
 use crate::{
   event::{ElementState, KeyEvent},
   keyboard::{Key, KeyCode, KeyLocation, NativeKeyCode},
-  platform::scancode::KeyCodeExtScancode,
   platform_impl::platform::{
     event_loop::ProcResult,
     keyboard_layout::{get_or_insert_str, Layout, LayoutCache, WindowsModifiers, LAYOUT_CACHE},

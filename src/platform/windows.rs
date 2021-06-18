@@ -15,6 +15,7 @@ use crate::{
   dpi::PhysicalSize,
   event::{DeviceId, KeyEvent},
   event_loop::EventLoop,
+  keyboard::Key,
   monitor::MonitorHandle,
   platform::modifier_supplement::KeyEventExtModifierSupplement,
   platform_impl::{EventLoop as WindowsEventLoop, Parent, WinIcon},
