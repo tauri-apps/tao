@@ -69,7 +69,6 @@
 //
 // --------- END OF W3C SHORT NOTICE ---------------------------------------------------------------
 
-use nameof::name_of;
 use std::{fmt, str::FromStr};
 
 use crate::{
@@ -178,7 +177,7 @@ mod modifiers_serde {
 }
 
 /// Contains the platform-native physical key identifier (aka scancode)
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum NativeKeyCode {
   Unidentified,
@@ -189,34 +188,6 @@ pub enum NativeKeyCode {
   /// This is the android "key code" of the event as returned by
   /// `KeyEvent.getKeyCode()`
   Android(u32),
-}
-impl std::fmt::Debug for NativeKeyCode {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    use NativeKeyCode::{Android, Gtk, MacOS, Unidentified, Windows};
-    let mut debug_tuple;
-    match self {
-      Unidentified => {
-        debug_tuple = f.debug_tuple(name_of!(Unidentified));
-      }
-      Windows(v) => {
-        debug_tuple = f.debug_tuple(name_of!(Windows));
-        debug_tuple.field(&format_args!("0x{:04X}", v));
-      }
-      MacOS(v) => {
-        debug_tuple = f.debug_tuple(name_of!(MacOS));
-        debug_tuple.field(&format_args!("0x{:02X}", v));
-      }
-      Gtk(v) => {
-        debug_tuple = f.debug_tuple(name_of!(Gtk));
-        debug_tuple.field(v);
-      }
-      Android(v) => {
-        debug_tuple = f.debug_tuple(name_of!(Android));
-        debug_tuple.field(&format_args!("0x{:04X}", v));
-      }
-    }
-    debug_tuple.finish()
-  }
 }
 
 /// Represents the code of a physical key.
