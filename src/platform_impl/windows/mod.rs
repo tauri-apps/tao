@@ -9,6 +9,7 @@ use winapi::{
 };
 
 pub use self::{
+  clipboard::Clipboard,
   event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
   global_shortcut::{GlobalShortcut, ShortcutManager},
   icon::WinIcon,
@@ -133,6 +134,7 @@ impl WindowId {
 
 #[macro_use]
 mod util;
+mod clipboard;
 mod dark_mode;
 mod dpi;
 mod drop_handler;

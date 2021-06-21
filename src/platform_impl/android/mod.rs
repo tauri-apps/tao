@@ -25,6 +25,9 @@ use std::{
   time::{Duration, Instant},
 };
 
+mod clipboard;
+pub use clipboard::Clipboard;
+
 lazy_static! {
   static ref CONFIG: RwLock<Configuration> = RwLock::new(Configuration::new());
 }

@@ -9,6 +9,7 @@
   target_os = "openbsd"
 ))]
 
+mod clipboard;
 mod event_loop;
 mod global_shortcut;
 mod keyboard;
@@ -24,6 +25,7 @@ pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 pub use self::{
   global_shortcut::{GlobalShortcut, ShortcutManager},
   keycode::{keycode_from_scancode, keycode_to_scancode},
+  clipboard::Clipboard,
   menu::{Menu, MenuItemAttributes},
 };
 pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
