@@ -9,6 +9,7 @@ use winapi::{
 };
 
 pub use self::{
+  clipboard::Clipboard,
   event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
   icon::WinIcon,
   menu::{Menu, MenuItemAttributes},
@@ -122,6 +123,7 @@ impl WindowId {
 
 #[macro_use]
 mod util;
+mod clipboard;
 mod dark_mode;
 mod dpi;
 mod drop_handler;

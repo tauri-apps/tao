@@ -9,6 +9,7 @@
   target_os = "openbsd"
 ))]
 
+mod clipboard;
 mod event_loop;
 mod menu;
 mod monitor;
@@ -16,9 +17,12 @@ mod monitor;
 mod system_tray;
 mod window;
 
-pub use self::menu::{Menu, MenuItemAttributes};
 #[cfg(feature = "tray")]
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
+pub use self::{
+  clipboard::Clipboard,
+  menu::{Menu, MenuItemAttributes},
+};
 pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
 pub use monitor::{MonitorHandle, VideoMode};
 pub use window::{

@@ -6,6 +6,7 @@
 mod app;
 mod app_delegate;
 mod app_state;
+mod clipboard;
 mod event;
 mod event_loop;
 mod ffi;
@@ -26,6 +27,7 @@ pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 
 pub use self::{
   app_delegate::{get_aux_state_mut, AuxDelegateState},
+  clipboard::Clipboard,
   event_loop::{EventLoop, EventLoopWindowTarget, Proxy as EventLoopProxy},
   menu::{Menu, MenuItemAttributes},
   monitor::{MonitorHandle, VideoMode},
