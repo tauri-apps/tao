@@ -13,9 +13,8 @@ use winapi::shared::{
 
 use crate::{
   dpi::PhysicalSize,
-  event::{DeviceId, KeyEvent},
+  event::DeviceId,
   event_loop::EventLoop,
-  keyboard::Key,
   monitor::MonitorHandle,
   platform_impl::{EventLoop as WindowsEventLoop, Parent, WinIcon},
   window::{BadIcon, Icon, Theme, Window, WindowBuilder},
