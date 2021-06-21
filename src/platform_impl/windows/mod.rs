@@ -114,7 +114,7 @@ fn wrap_device_id(id: u32) -> RootDeviceId {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct KeyEventExtra {
-  pub text_with_all_modifers: Option<&'static str>,
+  pub text_with_all_modifiers: Option<&'static str>,
   pub key_without_modifiers: Key<'static>,
 }
 

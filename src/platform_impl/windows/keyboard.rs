@@ -472,7 +472,7 @@ impl KeyEventBuilder {
 
     let mut event = event_info.finalize(&mut layouts.strings);
     event.logical_key = logical_key;
-    event.platform_specific.text_with_all_modifers = text;
+    event.platform_specific.text_with_all_modifiers = text;
     Some(MessageAsKeyEvent {
       event,
       is_synthetic: true,
@@ -663,7 +663,7 @@ impl PartialKeyEventInfo {
       state: self.key_state,
       repeat: self.is_repeat,
       platform_specific: KeyEventExtra {
-        text_with_all_modifers: char_with_all_modifiers,
+        text_with_all_modifiers: char_with_all_modifiers,
         key_without_modifiers: self.key_without_modifiers,
       },
     }
