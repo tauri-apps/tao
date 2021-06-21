@@ -29,8 +29,8 @@ pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 
 pub use self::{
   app_delegate::{get_aux_state_mut, AuxDelegateState},
-  event::KeyEventExtra,
   clipboard::Clipboard,
+  event::KeyEventExtra,
   event_loop::{EventLoop, EventLoopWindowTarget, Proxy as EventLoopProxy},
   global_shortcut::{GlobalShortcut, ShortcutManager},
   keycode::{keycode_from_scancode, keycode_to_scancode},
