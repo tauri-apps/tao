@@ -739,7 +739,7 @@ impl KeyEvent {
   ///
   /// For example, pressing <kbd>Ctrl</kbd>+<kbd>a</kbd> produces `Some("\x01")`.
   pub fn text_with_all_modifiers(&self) -> Option<&str> {
-    self.platform_specific.text_with_all_modifiers.clone()
+    self.platform_specific.text_with_all_modifiers
   }
 
   /// This value ignores all modifiers including,
