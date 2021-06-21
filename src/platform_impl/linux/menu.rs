@@ -7,8 +7,15 @@ use gtk::{
   SeparatorMenuItem,
 };
 
-use super::window::{WindowId, WindowRequest};
-use crate::menu::{CustomMenuItem, MenuId, MenuItem, MenuType};
+use super::{
+  keyboard::key_to_raw_key,
+  window::{WindowId, WindowRequest},
+};
+use crate::{
+  accelerator::Accelerator,
+  keyboard::{KeyCode, ModifiersState},
+  menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
+};
 
 macro_rules! menuitem {
   ( $description:expr, $key:expr, $accel_group:ident ) => {{
@@ -52,7 +59,7 @@ unsafe impl Sync for Menu {}
 #[derive(Debug, Clone)]
 pub struct MenuItemAttributes {
   id: MenuId,
-  key: Option<String>,
+  key: Option<Accelerator>,
   selected: bool,
   enabled: bool,
   menu_type: MenuType,
@@ -100,7 +107,7 @@ impl Menu {
     &mut self,
     menu_id: MenuId,
     title: &str,
-    accelerators: Option<&str>,
+    accelerators: Option<Accelerator>,
     enabled: bool,
     selected: bool,
     menu_type: MenuType,
@@ -113,7 +120,7 @@ impl Menu {
     };
     let custom_menu = MenuItemAttributes {
       id: menu_id,
-      key: accelerators.map(|a| a.to_string()),
+      key: accelerators,
       enabled,
       selected,
       menu_type,
@@ -201,8 +208,7 @@ impl Menu {
           ..
         } => {
           if let Some(key) = key {
-            let (key, mods) = gtk::accelerator_parse(&key);
-            gtk_item.add_accelerator("activate", accel_group, key, mods, AccelFlags::VISIBLE);
+            register_accelerator(&gtk_item, accel_group, key);
           }
 
           gtk_item.set_sensitive(enabled);
@@ -276,4 +282,72 @@ impl Menu {
       }
     }
   }
+}
+
+fn register_accelerator(item: &GtkMenuItem, accel_group: &AccelGroup, menu_key: Accelerator) {
+  let accel_key = match &menu_key.key {
+    KeyCode::KeyA => 'A' as u32,
+    KeyCode::KeyB => 'B' as u32,
+    KeyCode::KeyC => 'C' as u32,
+    KeyCode::KeyD => 'D' as u32,
+    KeyCode::KeyE => 'E' as u32,
+    KeyCode::KeyF => 'F' as u32,
+    KeyCode::KeyG => 'G' as u32,
+    KeyCode::KeyH => 'H' as u32,
+    KeyCode::KeyI => 'I' as u32,
+    KeyCode::KeyJ => 'J' as u32,
+    KeyCode::KeyK => 'K' as u32,
+    KeyCode::KeyL => 'L' as u32,
+    KeyCode::KeyM => 'M' as u32,
+    KeyCode::KeyN => 'N' as u32,
+    KeyCode::KeyO => 'O' as u32,
+    KeyCode::KeyP => 'P' as u32,
+    KeyCode::KeyQ => 'Q' as u32,
+    KeyCode::KeyR => 'R' as u32,
+    KeyCode::KeyS => 'S' as u32,
+    KeyCode::KeyT => 'T' as u32,
+    KeyCode::KeyU => 'U' as u32,
+    KeyCode::KeyV => 'V' as u32,
+    KeyCode::KeyW => 'W' as u32,
+    KeyCode::KeyX => 'X' as u32,
+    KeyCode::KeyY => 'Y' as u32,
+    KeyCode::KeyZ => 'Z' as u32,
+    KeyCode::Digit0 => '0' as u32,
+    KeyCode::Digit1 => '1' as u32,
+    KeyCode::Digit2 => '2' as u32,
+    KeyCode::Digit3 => '3' as u32,
+    KeyCode::Digit4 => '4' as u32,
+    KeyCode::Digit5 => '5' as u32,
+    KeyCode::Digit6 => '6' as u32,
+    KeyCode::Digit7 => '7' as u32,
+    KeyCode::Digit8 => '8' as u32,
+    KeyCode::Digit9 => '9' as u32,
+    k => {
+      if let Some(gdk_key) = key_to_raw_key(k) {
+        *gdk_key
+      } else {
+        dbg!("Cannot map key {:?}", k);
+        return;
+      }
+    }
+  };
+
+  item.add_accelerator(
+    "activate",
+    accel_group,
+    accel_key,
+    modifiers_to_gdk_modifier_type(menu_key.mods),
+    gtk::AccelFlags::VISIBLE,
+  );
+}
+
+fn modifiers_to_gdk_modifier_type(modifiers: ModifiersState) -> gdk::ModifierType {
+  let mut result = gdk::ModifierType::empty();
+
+  result.set(gdk::ModifierType::MOD1_MASK, modifiers.alt_key());
+  result.set(gdk::ModifierType::CONTROL_MASK, modifiers.control_key());
+  result.set(gdk::ModifierType::SHIFT_MASK, modifiers.shift_key());
+  result.set(gdk::ModifierType::META_MASK, modifiers.super_key());
+
+  result
 }

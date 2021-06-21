@@ -3,8 +3,9 @@
 
 use simple_logger::SimpleLogger;
 use tao::{
-  event::{Event, KeyboardInput, WindowEvent},
+  event::{ElementState, Event, KeyEvent, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
+  keyboard::Key,
   window::WindowBuilder,
 };
 
@@ -21,10 +22,6 @@ fn main() {
   let mut close_requested = false;
 
   event_loop.run(move |event, _, control_flow| {
-    use tao::event::{
-      ElementState::Released,
-      VirtualKeyCode::{N, Y},
-    };
     *control_flow = ControlFlow::Wait;
 
     match event {
@@ -48,16 +45,18 @@ fn main() {
             // the Y key.
           }
           WindowEvent::KeyboardInput {
-            input:
-              KeyboardInput {
-                virtual_keycode: Some(virtual_code),
-                state: Released,
+            event:
+              KeyEvent {
+                logical_key: Key::Character(char),
+                state: ElementState::Released,
                 ..
               },
             ..
           } => {
-            match virtual_code {
-              Y => {
+            // WARNING: Consider using `key_without_modifers()` if available on your platform.
+            // See the `key_binding` example
+            match char {
+              "y" => {
                 if close_requested {
                   // This is where you'll want to do any cleanup you need.
                   println!("Buh-bye!");
@@ -70,7 +69,7 @@ fn main() {
                   *control_flow = ControlFlow::Exit;
                 }
               }
-              N => {
+              "n" => {
                 if close_requested {
                   println!("Your window will continue to stay by your side.");
                   close_requested = false;

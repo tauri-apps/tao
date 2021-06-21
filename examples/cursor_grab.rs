@@ -3,8 +3,9 @@
 
 use simple_logger::SimpleLogger;
 use tao::{
-  event::{DeviceEvent, ElementState, Event, KeyboardInput, ModifiersState, WindowEvent},
+  event::{DeviceEvent, ElementState, Event, KeyEvent, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
+  keyboard::{Key, ModifiersState},
   window::WindowBuilder,
 };
 
@@ -27,19 +28,23 @@ fn main() {
       Event::WindowEvent { event, .. } => match event {
         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
         WindowEvent::KeyboardInput {
-          input:
-            KeyboardInput {
+          event:
+            KeyEvent {
+              logical_key: key,
               state: ElementState::Released,
-              virtual_keycode: Some(key),
               ..
             },
           ..
         } => {
-          use tao::event::VirtualKeyCode::*;
+          // WARNING: Consider using `key_without_modifers()` if available on your platform.
+          // See the `key_binding` example
           match key {
-            Escape => *control_flow = ControlFlow::Exit,
-            G => window.set_cursor_grab(!modifiers.shift()).unwrap(),
-            H => window.set_cursor_visible(modifiers.shift()),
+            Key::Escape => *control_flow = ControlFlow::Exit,
+            Key::Character(ch) => match ch.to_lowercase().as_str() {
+              "g" => window.set_cursor_grab(!modifiers.shift_key()).unwrap(),
+              "h" => window.set_cursor_visible(modifiers.shift_key()),
+              _ => (),
+            },
             _ => (),
           }
         }

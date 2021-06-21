@@ -5,8 +5,9 @@ use std::{thread, time};
 
 use simple_logger::SimpleLogger;
 use tao::{
-  event::{Event, KeyboardInput, WindowEvent},
+  event::{ElementState, Event, KeyEvent, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
+  keyboard::Key,
   window::WindowBuilder,
 };
 
@@ -42,7 +43,7 @@ fn main() {
   let mut close_requested = false;
 
   event_loop.run(move |event, _, control_flow| {
-    use tao::event::{ElementState, StartCause, VirtualKeyCode};
+    use tao::event::StartCause;
     println!("{:?}", event);
     match event {
       Event::NewEvents(start_cause) => {
@@ -56,36 +57,37 @@ fn main() {
           close_requested = true;
         }
         WindowEvent::KeyboardInput {
-          input:
-            KeyboardInput {
-              virtual_keycode: Some(virtual_code),
+          event:
+            KeyEvent {
+              logical_key,
               state: ElementState::Pressed,
               ..
             },
           ..
-        } => match virtual_code {
-          VirtualKeyCode::Key1 => {
+        } => {
+          // WARNING: Consider using `key_without_modifers()` if available on your platform.
+          // See the `key_binding` example
+          if Key::Character("1") == logical_key {
             mode = Mode::Wait;
             println!("\nmode: {:?}\n", mode);
           }
-          VirtualKeyCode::Key2 => {
+          if Key::Character("2") == logical_key {
             mode = Mode::WaitUntil;
             println!("\nmode: {:?}\n", mode);
           }
-          VirtualKeyCode::Key3 => {
+          if Key::Character("3") == logical_key {
             mode = Mode::Poll;
             println!("\nmode: {:?}\n", mode);
           }
-          VirtualKeyCode::R => {
+          if Key::Character("r") == logical_key {
             request_redraw = !request_redraw;
             println!("\nrequest_redraw: {}\n", request_redraw);
           }
-          VirtualKeyCode::Escape => {
+          if Key::Escape == logical_key {
             close_requested = true;
           }
-          _ => (),
-        },
-        _ => (),
+        }
+        _ => {}
       },
       Event::MainEventsCleared => {
         if request_redraw && !wait_cancelled && !close_requested {

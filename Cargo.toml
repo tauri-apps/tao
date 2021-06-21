@@ -61,17 +61,21 @@ core-graphics = "0.22"
 dispatch = "0.2"
 scopeguard = "1.1"
 
-  [target."cfg(target_os = \"macos\")".dependencies.core-video-sys]
-  version = "0.1"
-  default_features = false
-  features = [ "display_link" ]
+[target."cfg(target_os = \"macos\")".dependencies.core-video-sys]
+version = "0.1"
+default_features = false
+features = [ "display_link" ]
+
+[target."cfg(target_os = \"macos\")".build-dependencies]
+cc = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 parking_lot = "0.11"
+unicode-segmentation = "1.7.1"
 
-  [target."cfg(target_os = \"windows\")".dependencies.winapi]
-  version = "0.3"
-  features = [
+[target."cfg(target_os = \"windows\")".dependencies.winapi]
+version = "0.3"
+features = [
   "combaseapi",
   "commctrl",
   "dwmapi",
@@ -91,6 +95,7 @@ parking_lot = "0.11"
   "winerror",
   "wingdi",
   "winnt",
+  "winnls",
   "winuser",
   "impl-default"
 ]
@@ -99,8 +104,11 @@ parking_lot = "0.11"
 cairo-rs = "0.9"
 gio = "0.9"
 glib = "0.10"
+glib-sys = "0.10"
 gtk = { version = "0.9", features = [ "v3_16" ] }
 gdk = "0.13"
+gdk-sys = "0.10"
 gdk-pixbuf = { version = "0.9", features = [ "v2_36_8" ] }
 sourceview = { version = "0.9", optional = true }
 libappindicator = { version = "0.5", optional = true }
+x11-dl = "2.18"

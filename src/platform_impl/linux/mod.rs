@@ -11,6 +11,9 @@
 
 mod clipboard;
 mod event_loop;
+mod global_shortcut;
+mod keyboard;
+mod keycode;
 mod menu;
 mod monitor;
 #[cfg(feature = "tray")]
@@ -21,6 +24,8 @@ mod window;
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 pub use self::{
   clipboard::Clipboard,
+  global_shortcut::{GlobalShortcut, ShortcutManager},
+  keycode::{keycode_from_scancode, keycode_to_scancode},
   menu::{Menu, MenuItemAttributes},
 };
 pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
@@ -28,6 +33,14 @@ pub use monitor::{MonitorHandle, VideoMode};
 pub use window::{
   hit_test, PlatformIcon, PlatformSpecificWindowBuilderAttributes, Window, WindowId,
 };
+
+use crate::keyboard::Key;
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct KeyEventExtra {
+  pub text_with_all_modifiers: Option<&'static str>,
+  pub key_without_modifiers: Key<'static>,
+}
 
 #[derive(Debug, Clone)]
 pub struct OsError;

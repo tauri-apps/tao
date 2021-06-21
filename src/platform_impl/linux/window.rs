@@ -8,13 +8,14 @@ use std::{
   sync::atomic::{AtomicBool, AtomicI32, Ordering},
 };
 
-use gdk::{Cursor, EventMask, WindowEdge, WindowExt, WindowState};
+use gdk::{Cursor, EventKey, EventMask, WindowEdge, WindowExt, WindowState};
 use gdk_pixbuf::{Colorspace, Pixbuf};
 use gtk::{prelude::*, AccelGroup, ApplicationWindow, Orientation};
 
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
+  event::ElementState,
   icon::{BadIcon, Icon},
   menu::{MenuId, MenuItem},
   monitor::MonitorHandle as RootMonitorHandle,
@@ -290,9 +291,36 @@ impl Window {
       scale_factor_clone.store(window.get_scale_factor(), Ordering::Release);
     });
 
-    if let Err(e) = window_requests_tx.send((window_id, WindowRequest::WireUpEvents)) {
+    if let Err(e) = window_requests_tx
+      .clone()
+      .send((window_id, WindowRequest::WireUpEvents))
+    {
       log::warn!("Fail to send wire up events request: {}", e);
     }
+
+    let window_requests_tx_clone = window_requests_tx.clone();
+    window.connect_key_press_event(move |_window, event_key| {
+      if let Err(e) = window_requests_tx_clone.send((
+        window_id,
+        WindowRequest::KeyboardInput((event_key.to_owned(), ElementState::Pressed)),
+      )) {
+        log::warn!("Fail to send user attention request: {}", e);
+      }
+
+      Inhibit(false)
+    });
+
+    let window_requests_tx_clone = window_requests_tx.clone();
+    window.connect_key_release_event(move |_window, event_key| {
+      if let Err(e) = window_requests_tx_clone.send((
+        window_id,
+        WindowRequest::KeyboardInput((event_key.to_owned(), ElementState::Released)),
+      )) {
+        log::warn!("Fail to send user attention request: {}", e);
+      }
+
+      Inhibit(false)
+    });
 
     window.queue_draw();
     Ok(Self {
@@ -651,6 +679,8 @@ pub enum WindowRequest {
   Redraw,
   Menu((Option<MenuItem>, Option<MenuId>)),
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
+  KeyboardInput((EventKey, ElementState)),
+  GlobalHotKey(u16),
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {

@@ -22,18 +22,18 @@ use glib::Cast;
 use gtk::{Clipboard, Entry};
 
 use crate::{
+  accelerator::AcceleratorId,
   dpi::{PhysicalPosition, PhysicalSize},
-  event::{
-    DeviceId as RootDeviceId, ElementState, Event, ModifiersState, MouseButton, StartCause,
-    WindowEvent,
-  },
+  event::{DeviceId as RootDeviceId, ElementState, Event, MouseButton, StartCause, WindowEvent},
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
+  keyboard::ModifiersState,
   menu::{MenuItem, MenuType},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{CursorIcon, WindowId as RootWindowId},
 };
 
 use super::{
+  keyboard,
   monitor::MonitorHandle,
   window::{WindowId, WindowRequest},
   DeviceId,
@@ -590,15 +590,66 @@ impl<T: 'static> EventLoop<T> {
                 menubar.show_all();
               }
             }
+            WindowRequest::KeyboardInput((event_key, element_state)) => {
+              // if we have a modifier lets send it
+              let mut mods = keyboard::get_modifiers(event_key.clone());
+              if !mods.is_empty() {
+                // if we release the modifier tell the world
+                if ElementState::Released == element_state {
+                  mods = ModifiersState::empty();
+                }
+
+                if let Err(e) = event_tx.send(Event::WindowEvent {
+                  window_id: RootWindowId(id),
+                  event: WindowEvent::ModifiersChanged(mods),
+                }) {
+                  log::warn!(
+                    "Failed to send modifiers changed event to event channel: {}",
+                    e
+                  );
+                } else {
+                  // stop here we don't want to send the key event
+                  // as we emit the `ModifiersChanged`
+                  return Continue(true);
+                }
+              }
+
+              // todo: implement repeat?
+              let event = keyboard::make_key_event(&event_key, false, None, element_state);
+
+              if let Some(event) = event {
+                if let Err(e) = event_tx.send(Event::WindowEvent {
+                  window_id: RootWindowId(id),
+                  event: WindowEvent::KeyboardInput {
+                    // FIXME: currently we use a dummy device id, find if we can get device id from gtk
+                    device_id: RootDeviceId(DeviceId(0)),
+                    event,
+                    is_synthetic: false,
+                  },
+                }) {
+                  log::warn!("Failed to send keyboard event to event channel: {}", e);
+                }
+              }
+            }
+            // we use dummy window id for `GlobalHotKey`
+            WindowRequest::GlobalHotKey(_hotkey_id) => {}
           }
         } else if id == WindowId::dummy() {
-          if let WindowRequest::Menu((None, Some(menu_id))) = request {
-            if let Err(e) = event_tx.send(Event::MenuEvent {
-              menu_id,
-              origin: MenuType::ContextMenu,
-            }) {
-              log::warn!("Failed to send status bar event to event channel: {}", e);
+          match request {
+            WindowRequest::GlobalHotKey(hotkey_id) => {
+              if let Err(e) = event_tx.send(Event::GlobalShortcutEvent(AcceleratorId(hotkey_id))) {
+                log::warn!("Failed to send global hotkey event to event channel: {}", e);
+              }
             }
+            WindowRequest::Menu((None, Some(menu_id))) => {
+              if let Err(e) = event_tx.send(Event::MenuEvent {
+                menu_id,
+                origin: MenuType::ContextMenu,
+              }) {
+                log::warn!("Failed to send status bar event to event channel: {}", e);
+              }
+            }
+            _ => {}
           }
         }
         Continue(true)

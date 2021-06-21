@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use raw_window_handle::RawWindowHandle;
-use std::{ffi::CString, os::windows::ffi::OsStrExt, sync::Mutex};
+use std::{collections::HashMap, ffi::CString, fmt, os::windows::ffi::OsStrExt, sync::Mutex};
 
 use winapi::{
   shared::{basetsd, minwindef, windef},
@@ -10,11 +10,22 @@ use winapi::{
 };
 
 use crate::{
+  accelerator::Accelerator,
   event::{Event, WindowEvent},
+  keyboard::{KeyCode, ModifiersState},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
-  platform_impl::platform::WindowId,
   window::WindowId as RootWindowId,
 };
+
+use super::{accelerator::register_accel, keyboard::key_to_vk, WindowId};
+
+#[derive(Copy, Clone)]
+struct AccelWrapper(winuser::ACCEL);
+impl fmt::Debug for AccelWrapper {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+    f.pad(&format!(""))
+  }
+}
 
 const CUT_ID: usize = 5001;
 const COPY_ID: usize = 5002;
@@ -40,7 +51,7 @@ impl MenuHandler {
       menu_type,
     }
   }
-  pub fn send_click_event(&self, menu_id: u32) {
+  pub fn send_click_event(&self, menu_id: u16) {
     (self.send_event)(Event::MenuEvent {
       menu_id: MenuId(menu_id),
       origin: self.menu_type,
@@ -53,7 +64,7 @@ impl MenuHandler {
 }
 
 #[derive(Debug, Clone)]
-pub struct MenuItemAttributes(pub(crate) u32, windef::HMENU);
+pub struct MenuItemAttributes(pub(crate) u16, windef::HMENU);
 
 impl MenuItemAttributes {
   pub fn id(&self) -> MenuId {
@@ -63,7 +74,7 @@ impl MenuItemAttributes {
     unsafe {
       winuser::EnableMenuItem(
         self.1,
-        self.0,
+        self.0 as u32,
         match enabled {
           true => winuser::MF_ENABLED,
           false => winuser::MF_DISABLED,
@@ -81,14 +92,14 @@ impl MenuItemAttributes {
       let c_str = CString::new(title).unwrap();
       info.dwTypeData = c_str.as_ptr() as _;
 
-      winuser::SetMenuItemInfoA(self.1, self.0, minwindef::FALSE, &info);
+      winuser::SetMenuItemInfoA(self.1, self.0 as u32, minwindef::FALSE, &info);
     }
   }
   pub fn set_selected(&mut self, selected: bool) {
     unsafe {
       winuser::CheckMenuItem(
         self.1,
-        self.0,
+        self.0 as u32,
         match selected {
           true => winuser::MF_CHECKED,
           false => winuser::MF_UNCHECKED,
@@ -104,6 +115,7 @@ impl MenuItemAttributes {
 #[derive(Debug, Clone)]
 pub struct Menu {
   hmenu: windef::HMENU,
+  accels: HashMap<u16, AccelWrapper>,
 }
 
 impl Drop for Menu {
@@ -127,14 +139,20 @@ impl Menu {
   pub fn new() -> Self {
     unsafe {
       let hmenu = winuser::CreateMenu();
-      Menu { hmenu }
+      Menu {
+        hmenu,
+        accels: HashMap::default(),
+      }
     }
   }
 
   pub fn new_popup_menu() -> Menu {
     unsafe {
       let hmenu = winuser::CreatePopupMenu();
-      Menu { hmenu }
+      Menu {
+        hmenu,
+        accels: HashMap::default(),
+      }
     }
   }
 
@@ -144,11 +162,19 @@ impl Menu {
     hmenu
   }
 
+  // Get the accels table
+  pub(crate) fn accels(&self) -> Option<Vec<winuser::ACCEL>> {
+    if self.accels.is_empty() {
+      return None;
+    }
+    Some(self.accels.values().cloned().map(|d| d.0).collect())
+  }
+
   pub fn add_item(
     &mut self,
     menu_id: MenuId,
     title: &str,
-    _accelerators: Option<&str>,
+    accelerators: Option<Accelerator>,
     enabled: bool,
     selected: bool,
     _menu_type: MenuType,
@@ -162,20 +188,36 @@ impl Menu {
         flags |= winuser::MF_CHECKED;
       }
 
-      // FIXME: add keyboard accelerators
+      let mut anno_title = title.to_string();
+      // format title
+      if let Some(accelerators) = accelerators.clone() {
+        anno_title.push('\t');
+        format_hotkey(accelerators, &mut anno_title);
+      }
+
       winuser::AppendMenuW(
         self.hmenu,
         flags,
         menu_id.0 as _,
-        to_wstring(&title).as_mut_ptr(),
+        to_wstring(&anno_title).as_mut_ptr(),
       );
+
+      // add our accels
+      if let Some(accelerators) = accelerators {
+        if let Some(accelerators) = convert_accelerator(menu_id.0, accelerators) {
+          self.accels.insert(menu_id.0, AccelWrapper(accelerators));
+        }
+      }
       MENU_IDS.lock().unwrap().push(menu_id.0 as _);
       CustomMenuItem(MenuItemAttributes(menu_id.0, self.hmenu))
     }
   }
 
-  pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: Menu) {
+  pub fn add_submenu(&mut self, title: &str, enabled: bool, mut submenu: Menu) {
     unsafe {
+      let child_accels = std::mem::take(&mut submenu.accels);
+      self.accels.extend(child_accels);
+
       let mut flags = winuser::MF_POPUP;
       if !enabled {
         flags |= winuser::MF_DISABLED;
@@ -273,12 +315,17 @@ pub fn initialize(
 ) -> Option<windef::HMENU> {
   if let RawWindowHandle::Windows(handle) = window_handle {
     let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
-    let menu = menu_builder.into_hmenu();
+    let menu = menu_builder.clone().into_hmenu();
 
     unsafe {
       commctrl::SetWindowSubclass(handle.hwnd as _, Some(subclass_proc), 0, sender as _);
       winuser::SetMenu(handle.hwnd as _, menu);
     }
+
+    if let Some(accels) = menu_builder.accels() {
+      register_accel(handle.hwnd as _, &accels);
+    }
+
     Some(menu)
   } else {
     None
@@ -330,7 +377,7 @@ pub(crate) unsafe extern "system" fn subclass_proc(
         }
         _ => {
           if MENU_IDS.lock().unwrap().contains(&wparam) {
-            proxy.send_click_event(wparam as u32);
+            proxy.send_click_event(wparam as u16);
           }
         }
       }
@@ -377,5 +424,109 @@ fn execute_edit_command(command: EditCommands) {
       inputs.as_mut_ptr(),
       std::mem::size_of::<winuser::INPUT>() as _,
     );
+  }
+}
+
+// Convert a hotkey to an accelerator.
+fn convert_accelerator(id: u16, key: Accelerator) -> Option<winuser::ACCEL> {
+  let mut virt_key = winuser::FVIRTKEY;
+  let key_mods: ModifiersState = key.mods.into();
+  if key_mods.control_key() {
+    virt_key |= winuser::FCONTROL;
+  }
+  if key_mods.alt_key() {
+    virt_key |= winuser::FALT;
+  }
+  if key_mods.shift_key() {
+    virt_key |= winuser::FSHIFT;
+  }
+
+  let raw_key = if let Some(vk_code) = key_to_vk(&key.key) {
+    let mod_code = vk_code >> 8;
+    if mod_code & 0x1 != 0 {
+      virt_key |= winuser::FSHIFT;
+    }
+    if mod_code & 0x02 != 0 {
+      virt_key |= winuser::FCONTROL;
+    }
+    if mod_code & 0x04 != 0 {
+      virt_key |= winuser::FALT;
+    }
+    vk_code & 0x00ff
+  } else {
+    dbg!("Failed to convert key {:?} into virtual key code", key.key);
+    return None;
+  };
+
+  Some(winuser::ACCEL {
+    fVirt: virt_key,
+    key: raw_key as u16,
+    cmd: id,
+  })
+}
+
+// Format the hotkey in a Windows-native way.
+fn format_hotkey(key: Accelerator, s: &mut String) {
+  let key_mods: ModifiersState = key.mods.into();
+  if key_mods.control_key() {
+    s.push_str("Ctrl+");
+  }
+  if key_mods.shift_key() {
+    s.push_str("Shift+");
+  }
+  if key_mods.alt_key() {
+    s.push_str("Alt+");
+  }
+  if key_mods.super_key() {
+    s.push_str("Windows+");
+  }
+  match &key.key {
+    KeyCode::KeyA => s.push_str("A"),
+    KeyCode::KeyB => s.push_str("B"),
+    KeyCode::KeyC => s.push_str("C"),
+    KeyCode::KeyD => s.push_str("D"),
+    KeyCode::KeyE => s.push_str("E"),
+    KeyCode::KeyF => s.push_str("F"),
+    KeyCode::KeyG => s.push_str("G"),
+    KeyCode::KeyH => s.push_str("H"),
+    KeyCode::KeyI => s.push_str("I"),
+    KeyCode::KeyJ => s.push_str("J"),
+    KeyCode::KeyK => s.push_str("K"),
+    KeyCode::KeyL => s.push_str("L"),
+    KeyCode::KeyM => s.push_str("M"),
+    KeyCode::KeyN => s.push_str("N"),
+    KeyCode::KeyO => s.push_str("O"),
+    KeyCode::KeyP => s.push_str("P"),
+    KeyCode::KeyQ => s.push_str("Q"),
+    KeyCode::KeyR => s.push_str("R"),
+    KeyCode::KeyS => s.push_str("S"),
+    KeyCode::KeyT => s.push_str("T"),
+    KeyCode::KeyU => s.push_str("U"),
+    KeyCode::KeyV => s.push_str("V"),
+    KeyCode::KeyW => s.push_str("W"),
+    KeyCode::KeyX => s.push_str("X"),
+    KeyCode::KeyY => s.push_str("Y"),
+    KeyCode::KeyZ => s.push_str("Z"),
+    KeyCode::Digit0 => s.push_str("0"),
+    KeyCode::Digit1 => s.push_str("1"),
+    KeyCode::Digit2 => s.push_str("2"),
+    KeyCode::Digit3 => s.push_str("3"),
+    KeyCode::Digit4 => s.push_str("4"),
+    KeyCode::Digit5 => s.push_str("5"),
+    KeyCode::Digit6 => s.push_str("6"),
+    KeyCode::Digit7 => s.push_str("7"),
+    KeyCode::Digit8 => s.push_str("8"),
+    KeyCode::Digit9 => s.push_str("9"),
+    KeyCode::Escape => s.push_str("Esc"),
+    KeyCode::Delete => s.push_str("Del"),
+    KeyCode::Insert => s.push_str("Ins"),
+    KeyCode::PageUp => s.push_str("PgUp"),
+    KeyCode::PageDown => s.push_str("PgDn"),
+    // These names match LibreOffice.
+    KeyCode::ArrowLeft => s.push_str("Left"),
+    KeyCode::ArrowRight => s.push_str("Right"),
+    KeyCode::ArrowUp => s.push_str("Up"),
+    KeyCode::ArrowDown => s.push_str("Down"),
+    _ => s.push_str(&format!("{:?}", key.key)),
   }
 }

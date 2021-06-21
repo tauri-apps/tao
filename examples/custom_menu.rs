@@ -5,9 +5,11 @@ use simple_logger::SimpleLogger;
 #[cfg(target_os = "macos")]
 use tao::platform::macos::{CustomMenuItemExtMacOS, NativeImage};
 use tao::{
+  accelerator::{Accelerator, SysMods},
   clipboard::Clipboard,
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
+  keyboard::KeyCode,
   menu::{MenuBar as Menu, MenuItem, MenuItemAttributes, MenuType},
   window::WindowBuilder,
 };
@@ -25,15 +27,15 @@ fn main() {
   // create `first_menu`
   let mut first_menu = Menu::new();
 
+  // create second menu
+  let mut second_menu = Menu::new();
   // create an empty menu to be used as submenu
   let mut my_sub_menu = Menu::new();
 
-  // create second menu
-  let mut second_menu = Menu::new();
-
-  // create custom item `Disable menu` children of `my_sub_menu`
-  let mut test_menu_item =
-    my_sub_menu.add_item(MenuItemAttributes::new("Disable menu").with_accelerators("<Primary>d"));
+  let mut test_menu_item = my_sub_menu.add_item(
+    MenuItemAttributes::new("Disable menu")
+      .with_accelerators(&Accelerator::new(SysMods::Cmd, KeyCode::KeyD)),
+  );
 
   // add native `Copy` to `first_menu` menu
   // in macOS native item are required to get keyboard shortcut
@@ -46,6 +48,7 @@ fn main() {
 
   // add `my_sub_menu` children of `first_menu` with `Sub menu` title
   first_menu.add_submenu("Sub menu", true, my_sub_menu);
+  first_menu.add_native_item(MenuItem::Quit);
 
   // create custom item `Selected and disabled` children of `second_menu`
   second_menu.add_item(

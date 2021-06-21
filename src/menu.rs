@@ -23,7 +23,10 @@ use std::{
   hash::{Hash, Hasher},
 };
 
-use crate::platform_impl::{Menu as MenuPlatform, MenuItemAttributes as CustomMenuItemPlatform};
+use crate::{
+  accelerator::Accelerator,
+  platform_impl::{Menu as MenuPlatform, MenuItemAttributes as CustomMenuItemPlatform},
+};
 
 /// Object that allows you to create a `ContextMenu`.
 pub struct ContextMenu(pub(crate) Menu);
@@ -36,7 +39,7 @@ pub struct MenuBar(pub(crate) Menu);
 pub struct MenuItemAttributes<'a> {
   id: MenuId,
   title: &'a str,
-  keyboard_accelerator: Option<&'a str>,
+  keyboard_accelerator: Option<Accelerator>,
   enabled: bool,
   selected: bool,
 }
@@ -69,8 +72,8 @@ impl<'a> MenuItemAttributes<'a> {
   ///
   /// - **Windows / Android / iOS:** Unsupported
   ///
-  pub fn with_accelerators(mut self, keyboard_accelerators: &'a str) -> Self {
-    self.keyboard_accelerator = Some(keyboard_accelerators);
+  pub fn with_accelerators(mut self, keyboard_accelerators: &Accelerator) -> Self {
+    self.keyboard_accelerator = Some(keyboard_accelerators.to_owned());
     self
   }
 
@@ -371,10 +374,10 @@ impl CustomMenuItem {
 /// Whenever you receive an event arising from a particular menu, this event contains a `MenuId` which
 /// identifies its origin.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct MenuId(pub u32);
+pub struct MenuId(pub u16);
 
-impl From<MenuId> for u32 {
-  fn from(s: MenuId) -> u32 {
+impl From<MenuId> for u16 {
+  fn from(s: MenuId) -> u16 {
     s.0
   }
 }
@@ -385,7 +388,7 @@ impl MenuId {
 
   /// Create new `MenuId` from a String.
   pub fn new(unique_string: &str) -> MenuId {
-    MenuId(hash_string_to_u32(unique_string))
+    MenuId(hash_string_to_u16(unique_string))
   }
 
   /// Whenever this menu is empty.
@@ -403,8 +406,8 @@ pub enum MenuType {
   ContextMenu,
 }
 
-fn hash_string_to_u32(title: &str) -> u32 {
+fn hash_string_to_u16(title: &str) -> u16 {
   let mut s = DefaultHasher::new();
-  title.hash(&mut s);
-  s.finish() as u32
+  title.to_uppercase().hash(&mut s);
+  s.finish() as u16
 }

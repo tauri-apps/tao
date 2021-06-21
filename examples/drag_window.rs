@@ -3,10 +3,9 @@
 
 use simple_logger::SimpleLogger;
 use tao::{
-  event::{
-    ElementState, Event, KeyboardInput, MouseButton, StartCause, VirtualKeyCode, WindowEvent,
-  },
+  event::{ElementState, Event, KeyEvent, MouseButton, StartCause, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
+  keyboard::Key,
   window::{Window, WindowBuilder, WindowId},
 };
 
@@ -47,14 +46,14 @@ fn main() {
         name_windows(entered_id, switched, &window_1, &window_2)
       }
       WindowEvent::KeyboardInput {
-        input:
-          KeyboardInput {
+        event:
+          KeyEvent {
             state: ElementState::Released,
-            virtual_keycode: Some(VirtualKeyCode::X),
+            logical_key,
             ..
           },
         ..
-      } => {
+      } if logical_key == Key::Character("x") => {
         switched = !switched;
         name_windows(entered_id, switched, &window_1, &window_2);
         println!("Switched!")

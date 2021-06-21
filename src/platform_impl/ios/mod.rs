@@ -75,21 +75,30 @@ mod app_state;
 mod clipboard;
 mod event_loop;
 mod ffi;
+mod keycode;
 mod monitor;
 mod view;
 mod window;
 
-use crate::menu::{CustomMenuItem, MenuId, MenuItem, MenuType};
+use crate::{
+  accelerator::Accelerator,
+  menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
+};
 use std::fmt;
 
 pub use self::{
   clipboard::Clipboard,
   event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
+  keycode::{keycode_from_scancode, keycode_to_scancode},
   monitor::{MonitorHandle, VideoMode},
   window::{PlatformSpecificWindowBuilderAttributes, Window, WindowId},
 };
 
 pub(crate) use crate::icon::NoIcon as PlatformIcon;
+
+// todo: implement iOS keyboard event
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct KeyEventExtra {}
 
 // todo: implement iOS menubar
 #[derive(Debug, Clone)]
@@ -114,7 +123,7 @@ impl Menu {
     &mut self,
     _menu_id: MenuId,
     _title: &str,
-    _accelerators: Option<&str>,
+    _accelerator: Option<Accelerator>,
     _enabled: bool,
     _selected: bool,
     _menu_type: MenuType,

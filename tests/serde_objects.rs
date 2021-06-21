@@ -6,10 +6,8 @@
 use serde::{Deserialize, Serialize};
 use tao::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize},
-  event::{
-    ElementState, KeyboardInput, ModifiersState, MouseButton, MouseScrollDelta, TouchPhase,
-    VirtualKeyCode,
-  },
+  event::{ElementState, MouseButton, MouseScrollDelta, TouchPhase},
+  keyboard::{Key, KeyCode, KeyLocation, ModifiersState},
   window::CursorIcon,
 };
 
@@ -23,12 +21,13 @@ fn window_serde() {
 
 #[test]
 fn events_serde() {
-  needs_serde::<KeyboardInput>();
   needs_serde::<TouchPhase>();
   needs_serde::<ElementState>();
   needs_serde::<MouseButton>();
   needs_serde::<MouseScrollDelta>();
-  needs_serde::<VirtualKeyCode>();
+  needs_serde::<Key>();
+  needs_serde::<KeyCode>();
+  needs_serde::<KeyLocation>();
   needs_serde::<ModifiersState>();
 }
 

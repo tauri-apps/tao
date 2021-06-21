@@ -102,6 +102,13 @@ pub trait WindowExtWindows {
 
   /// Returns the current window theme.
   fn theme(&self) -> Theme;
+
+  /// Reset the dead key state of the keyboard.
+  ///
+  /// This is useful when a dead key is bound to trigger an action. Then
+  /// this function can be called to reset the dead key state so that
+  /// follow-up text input won't be affected by the dead key.
+  fn reset_dead_keys(&self);
 }
 
 impl WindowExtWindows for Window {
@@ -130,6 +137,11 @@ impl WindowExtWindows for Window {
   #[inline]
   fn theme(&self) -> Theme {
     self.window.theme()
+  }
+
+  #[inline]
+  fn reset_dead_keys(&self) {
+    self.window.reset_dead_keys();
   }
 }
 
