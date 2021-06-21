@@ -14,7 +14,6 @@ use crate::{
   dpi::LogicalSize,
   event::{ElementState, Event, KeyEvent},
   keyboard::{Key, KeyCode, KeyLocation, ModifiersState, NativeKeyCode},
-  platform::modifier_supplement::KeyEventExtModifierSupplement,
   platform_impl::platform::{
     ffi,
     util::{ns_string_to_rust, IdRef, Never},
@@ -54,16 +53,6 @@ pub enum EventProxy {
 pub struct KeyEventExtra {
   pub text_with_all_modifiers: Option<&'static str>,
   pub key_without_modifiers: Key<'static>,
-}
-
-impl KeyEventExtModifierSupplement for KeyEvent {
-  fn text_with_all_modifiers(&self) -> Option<&str> {
-    self.platform_specific.text_with_all_modifiers
-  }
-
-  fn key_without_modifiers(&self) -> Key<'static> {
-    self.platform_specific.key_without_modifiers.clone()
-  }
 }
 
 pub fn get_modifierless_char(scancode: u16) -> Key<'static> {

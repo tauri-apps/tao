@@ -17,7 +17,6 @@ use crate::{
   event_loop::EventLoop,
   keyboard::Key,
   monitor::MonitorHandle,
-  platform::modifier_supplement::KeyEventExtModifierSupplement,
   platform_impl::{EventLoop as WindowsEventLoop, Parent, WinIcon},
   window::{BadIcon, Icon, Theme, Window, WindowBuilder},
 };
@@ -321,17 +320,5 @@ impl SystemTrayExtWindows for crate::system_tray::SystemTray {
   /// Call this when your application is goind to close, to make sure the icon is correctly removed from the system tray.
   fn remove(&mut self) {
     self.0.remove()
-  }
-}
-
-impl KeyEventExtModifierSupplement for KeyEvent {
-  #[inline]
-  fn text_with_all_modifiers(&self) -> Option<&str> {
-    self.platform_specific.text_with_all_modifers.clone()
-  }
-
-  #[inline]
-  fn key_without_modifiers(&self) -> Key<'static> {
-    self.platform_specific.key_without_modifiers.clone()
   }
 }

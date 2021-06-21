@@ -1,7 +1,6 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 fn main() {
   use simple_logger::SimpleLogger;
   use tao::{
@@ -10,7 +9,6 @@ fn main() {
     event::{ElementState, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     keyboard::{Key, KeyCode, ModifiersState},
-    platform::modifier_supplement::KeyEventExtModifierSupplement,
     window::WindowBuilder,
   };
 
@@ -54,10 +52,4 @@ fn main() {
       }
     }
   });
-}
-
-// System tray isn't supported on other's platforms.
-#[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
-fn main() {
-  println!("This platform doesn't support `KeyEventExtModifierSupplement`.");
 }
