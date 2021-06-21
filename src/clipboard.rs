@@ -3,6 +3,10 @@
 
 //! The `Clipboard` struct and associated types.
 //!
+//! ## Platform-specific
+//!
+//! - **Android / iOS:** Unsupported
+//!
 //! ```rust,ignore
 //! let mut cliboard = Clipboard::new();
 //! cliboard.write_text("This is injected from tao!!!")
@@ -18,16 +22,28 @@ pub struct Clipboard(ClipboardPlatform);
 
 impl Clipboard {
   /// Creates a new `Clipboard` instance.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android / iOS:** Unsupported
   pub fn new() -> Self {
     Self::default()
   }
 
   /// Writes the text into the clipboard as plain text.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android / iOS:** Unsupported
   pub fn write_text(&mut self, s: impl AsRef<str>) {
     self.0.write_text(s);
   }
 
   /// The content in the clipboard as plain text.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android / iOS:** Unsupported
   pub fn read_text(&self) -> Option<String> {
     self.0.read_text()
   }
