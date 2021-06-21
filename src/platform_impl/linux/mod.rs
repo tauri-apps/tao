@@ -34,7 +34,7 @@ pub use window::{
   hit_test, PlatformIcon, PlatformSpecificWindowBuilderAttributes, Window, WindowId,
 };
 
-use crate::{event::KeyEvent, keyboard::Key};
+use crate::keyboard::Key;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct KeyEventExtra {
