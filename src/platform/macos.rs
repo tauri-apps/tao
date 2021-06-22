@@ -80,6 +80,7 @@ impl WindowExtMacOS for Window {
 }
 
 /// Corresponds to `NSApplicationActivationPolicy`.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ActivationPolicy {
   /// Corresponds to `NSApplicationActivationPolicyRegular`.
@@ -107,6 +108,7 @@ impl CustomMenuItemExtMacOS for CustomMenuItem {
 }
 
 /// Named images, defined by the system or you, for use in your app.
+#[non_exhaustive]
 pub enum NativeImage {
   /// An add item template image.
   Add,

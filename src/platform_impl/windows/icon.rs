@@ -51,6 +51,7 @@ impl RgbaIcon {
   }
 }
 
+#[non_exhaustive]
 #[derive(Debug)]
 pub enum IconType {
   Small = winuser::ICON_SMALL as isize,

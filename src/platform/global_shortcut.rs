@@ -83,6 +83,7 @@ impl ShortcutManager {
 }
 
 /// An error whose cause the `ShortcutManager` to fail.
+#[non_exhaustive]
 #[derive(Debug)]
 pub enum ShortcutManagerError {
   AcceleratorAlreadyRegistered(Accelerator),

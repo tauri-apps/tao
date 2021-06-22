@@ -656,6 +656,7 @@ impl Window {
 unsafe impl Send for Window {}
 unsafe impl Sync for Window {}
 
+#[non_exhaustive]
 pub enum WindowRequest {
   Title(String),
   Position((i32, i32)),

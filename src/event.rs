@@ -51,6 +51,7 @@ use crate::{
 /// Describes a generic event.
 ///
 /// See the module-level docs for more information on the event loop manages each event.
+#[non_exhaustive]
 #[derive(Debug, PartialEq)]
 pub enum Event<'a, T: 'static> {
   /// Emitted when new events arrive from the OS to be processed.
@@ -62,12 +63,14 @@ pub enum Event<'a, T: 'static> {
   NewEvents(StartCause),
 
   /// Emitted when the OS sends an event to a tao window.
+  #[non_exhaustive]
   WindowEvent {
     window_id: WindowId,
     event: WindowEvent<'a>,
   },
 
   /// Emitted when the OS sends an event to a device.
+  #[non_exhaustive]
   DeviceEvent {
     device_id: DeviceId,
     event: DeviceEvent,
@@ -78,6 +81,7 @@ pub enum Event<'a, T: 'static> {
 
   /// Emitted when a menu has been clicked. There are two types of menu event. One comes from the
   /// menu bar, the other comes from the status bar.
+  #[non_exhaustive]
   MenuEvent { menu_id: MenuId, origin: MenuType },
 
   /// Emitted when tray has been clicked.
@@ -85,6 +89,7 @@ pub enum Event<'a, T: 'static> {
   /// ## Platform-specific
   ///
   /// - **iOS / Android / Linux:** Unsupported.
+  #[non_exhaustive]
   TrayEvent {
     bounds: Rectangle,
     event: TrayEvent,
@@ -246,10 +251,12 @@ impl<'a, T> Event<'a, T> {
 
 /// Describes the reason the event loop is resuming.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum StartCause {
   /// Sent if the time specified by `ControlFlow::WaitUntil` has been reached. Contains the
   /// moment the timeout was requested and the requested resume time. The actual resume time is
   /// guaranteed to be equal to or after the requested resume time.
+  #[non_exhaustive]
   ResumeTimeReached {
     start: Instant,
     requested_resume: Instant,
@@ -257,6 +264,7 @@ pub enum StartCause {
 
   /// Sent if the OS has new events to send to the window, after a wait was requested. Contains
   /// the moment the wait was requested and the resume time, if requested.
+  #[non_exhaustive]
   WaitCancelled {
     start: Instant,
     requested_resume: Option<Instant>,
@@ -271,6 +279,7 @@ pub enum StartCause {
 }
 
 /// Describes an event from a `Window`.
+#[non_exhaustive]
 #[derive(Debug, PartialEq)]
 pub enum WindowEvent<'a> {
   /// The size of the window has changed. Contains the client area's new dimensions.
@@ -317,6 +326,7 @@ pub enum WindowEvent<'a> {
   /// - **Windows:** The shift key overrides NumLock. In other words, while shift is held down,
   ///   numpad keys act as if NumLock wasn't active. When this is used, the OS sends fake key
   ///   events which are not marked as `is_synthetic`.
+  #[non_exhaustive]
   KeyboardInput {
     device_id: DeviceId,
     event: KeyEvent,
@@ -623,6 +633,7 @@ impl DeviceId {
 /// may not match.
 ///
 /// Note that these events are delivered regardless of input focus.
+#[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
 pub enum DeviceEvent {
   Added,
@@ -631,6 +642,7 @@ pub enum DeviceEvent {
   /// Change in physical position of a pointing device.
   ///
   /// This represents raw, unfiltered physical motion. Not to be confused with `WindowEvent::CursorMoved`.
+  #[non_exhaustive]
   MouseMotion {
     /// (x, y) change in position in unspecified units.
     ///
@@ -639,6 +651,7 @@ pub enum DeviceEvent {
   },
 
   /// Physical scroll event
+  #[non_exhaustive]
   MouseWheel {
     delta: MouseScrollDelta,
   },
@@ -646,11 +659,13 @@ pub enum DeviceEvent {
   /// Motion on some analog axis.  This event will be reported for all arbitrary input devices
   /// that tao supports on this platform, including mouse devices.  If the device is a mouse
   /// device then this will be reported alongside the MouseMotion event.
+  #[non_exhaustive]
   Motion {
     axis: AxisId,
     value: f64,
   },
 
+  #[non_exhaustive]
   Button {
     button: ButtonId,
     state: ElementState,
@@ -658,6 +673,7 @@ pub enum DeviceEvent {
 
   Key(RawKeyEvent),
 
+  #[non_exhaustive]
   Text {
     codepoint: char,
   },
@@ -771,6 +787,7 @@ impl KeyEvent {
 }
 
 /// Describes touch-screen input state.
+#[non_exhaustive]
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum TouchPhase {
@@ -782,6 +799,7 @@ pub enum TouchPhase {
 
 /// Describes available tray events.
 // FIXME: add `hover` to TrayEvent for all platforms.
+#[non_exhaustive]
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum TrayEvent {
@@ -849,11 +867,13 @@ pub struct Touch {
 }
 
 /// Describes the force of a touch event
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Force {
   /// On iOS, the force is calibrated so that the same number corresponds to
   /// roughly the same amount of pressure on the screen regardless of the
   /// device.
+  #[non_exhaustive]
   Calibrated {
     /// The force of the touch, where a value of 1.0 represents the force of
     /// an average touch (predetermined by the system, not user-specific).
@@ -911,6 +931,7 @@ pub type AxisId = u32;
 pub type ButtonId = u32;
 
 /// Describes the input state of a key.
+#[non_exhaustive]
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum ElementState {
@@ -919,6 +940,7 @@ pub enum ElementState {
 }
 
 /// Describes a button of a mouse controller.
+#[non_exhaustive]
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MouseButton {
@@ -929,6 +951,7 @@ pub enum MouseButton {
 }
 
 /// Describes a difference in the mouse scroll wheel state.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MouseScrollDelta {

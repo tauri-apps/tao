@@ -32,6 +32,7 @@ mod system_tray;
 #[cfg(feature = "tray")]
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 
+#[non_exhaustive]
 #[derive(Clone)]
 pub enum Parent {
   None,
@@ -90,6 +91,7 @@ impl DeviceId {
   }
 }
 
+#[non_exhaustive]
 #[derive(Debug)]
 pub enum OsError {
   CreationError(&'static str),

@@ -995,6 +995,7 @@ unsafe impl raw_window_handle::HasRawWindowHandle for Window {
 }
 
 /// Describes the appearance of the mouse cursor.
+#[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum CursorIcon {
@@ -1060,6 +1061,7 @@ impl Default for CursorIcon {
 }
 
 /// Fullscreen modes.
+#[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Fullscreen {
   Exclusive(VideoMode),
@@ -1068,12 +1070,14 @@ pub enum Fullscreen {
   Borderless(Option<MonitorHandle>),
 }
 
+#[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Theme {
   Light,
   Dark,
 }
 
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UserAttentionType {
   /// ## Platform-specific
