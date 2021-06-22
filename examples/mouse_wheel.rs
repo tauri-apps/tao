@@ -28,7 +28,7 @@ fn main() {
         _ => (),
       },
       Event::DeviceEvent { event, .. } => match event {
-        DeviceEvent::MouseWheel { delta } => match delta {
+        DeviceEvent::MouseWheel { delta, .. } => match delta {
           tao::event::MouseScrollDelta::LineDelta(x, y) => {
             println!("mouse wheel Line Delta: ({},{})", x, y);
             let pixels_per_line = 120.0;
@@ -44,6 +44,7 @@ fn main() {
             pos.y -= p.y as i32;
             window.set_outer_position(pos)
           }
+          _ => (),
         },
         _ => (),
       },

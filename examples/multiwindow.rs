@@ -23,7 +23,10 @@ fn main() {
   event_loop.run(move |event, event_loop, control_flow| {
     *control_flow = ControlFlow::Wait;
 
-    if let Event::WindowEvent { event, window_id } = event {
+    if let Event::WindowEvent {
+      event, window_id, ..
+    } = event
+    {
       match event {
         WindowEvent::CloseRequested => {
           println!("Window {:?} has received the signal to close", window_id);

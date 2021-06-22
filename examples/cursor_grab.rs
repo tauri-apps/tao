@@ -52,10 +52,11 @@ fn main() {
         _ => (),
       },
       Event::DeviceEvent { event, .. } => match event {
-        DeviceEvent::MouseMotion { delta } => println!("mouse moved: {:?}", delta),
-        DeviceEvent::Button { button, state } => match state {
+        DeviceEvent::MouseMotion { delta, .. } => println!("mouse moved: {:?}", delta),
+        DeviceEvent::Button { button, state, .. } => match state {
           ElementState::Pressed => println!("mouse button {} pressed", button),
           ElementState::Released => println!("mouse button {} released", button),
+          _ => (),
         },
         _ => (),
       },

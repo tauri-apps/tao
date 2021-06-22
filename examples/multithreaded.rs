@@ -157,7 +157,9 @@ fn main() {
       false => ControlFlow::Exit,
     };
     match event {
-      Event::WindowEvent { event, window_id } => match event {
+      Event::WindowEvent {
+        event, window_id, ..
+      } => match event {
         WindowEvent::CloseRequested
         | WindowEvent::Destroyed
         | WindowEvent::KeyboardInput {

@@ -291,10 +291,7 @@ impl Window {
       scale_factor_clone.store(window.get_scale_factor(), Ordering::Release);
     });
 
-    if let Err(e) = window_requests_tx
-      .clone()
-      .send((window_id, WindowRequest::WireUpEvents))
-    {
+    if let Err(e) = window_requests_tx.send((window_id, WindowRequest::WireUpEvents)) {
       log::warn!("Fail to send wire up events request: {}", e);
     }
 

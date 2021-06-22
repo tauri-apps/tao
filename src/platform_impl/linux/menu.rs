@@ -113,10 +113,10 @@ impl Menu {
     menu_type: MenuType,
   ) -> CustomMenuItem {
     let gtk_item = if selected {
-      let item = CheckMenuItem::with_label(&title);
+      let item = CheckMenuItem::with_label(title);
       item.upcast::<GtkMenuItem>()
     } else {
-      GtkMenuItem::with_label(&title)
+      GtkMenuItem::with_label(title)
     };
     let custom_menu = MenuItemAttributes {
       id: menu_id,

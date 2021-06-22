@@ -108,7 +108,9 @@ fn main() {
     };
 
     match event {
-      Event::WindowEvent { event, window_id } => {
+      Event::WindowEvent {
+        event, window_id, ..
+      } => {
         if event == WindowEvent::CloseRequested {
           let mut open_new_window_element = open_new_window_element.clone();
           // Remove window from our hashmap
@@ -138,6 +140,7 @@ fn main() {
         menu_id,
         // specify only context menu's
         origin: MenuType::ContextMenu,
+        ..
       } => {
         // Click on Open new window or focus item
         if menu_id == open_new_window_element.clone().id()
