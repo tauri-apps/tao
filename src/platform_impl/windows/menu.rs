@@ -125,7 +125,7 @@ impl MenuItemAttributes {
 
 #[derive(Debug, Clone)]
 pub struct Menu {
-  hmenu: windef::HMENU,
+  pub(crate) hmenu: windef::HMENU,
   accels: HashMap<u16, AccelWrapper>,
 }
 
