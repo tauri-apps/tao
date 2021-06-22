@@ -65,7 +65,7 @@ fn main() {
   menu_bar_menu.add_submenu("My app", true, first_menu);
   menu_bar_menu.add_submenu("Other menu", true, second_menu);
 
-  let window = WindowBuilder::new()
+  let mut window = WindowBuilder::new()
     .with_title("A fantastic window!")
     .with_menu(menu_bar_menu)
     .build(&event_loop)

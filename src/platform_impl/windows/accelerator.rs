@@ -53,6 +53,17 @@ pub(crate) fn register_accel(hwnd: HWND, accel: &[ACCEL]) {
   table.insert(WindowHandle(hwnd), Arc::new(AccelTable::new(accel)));
 }
 
+pub(crate) fn drop_accel_table() {
+  let mut table = ACCEL_TABLES.lock().unwrap();
+  for elem in table.iter() {
+    unsafe {
+      DestroyAcceleratorTable(elem.1.accel.0);
+    }
+  }
+
+  *table = HashMap::default();
+}
+
 impl Drop for AccelTable {
   fn drop(&mut self) {
     unsafe {
