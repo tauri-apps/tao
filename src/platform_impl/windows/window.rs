@@ -44,6 +44,7 @@ use crate::{
   menu::MenuType,
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{
+    accelerator::register_accel,
     dark_mode::try_theme,
     dpi::{dpi_to_scale_factor, hwnd_dpi},
     drop_handler::FileDropHandler,
@@ -154,6 +155,9 @@ impl Window {
     match menu {
       Some(menu) => unsafe {
         winuser::SetMenu(self.hwnd(), menu.hmenu);
+        if let Some(accels) = menu.accels() {
+          register_accel(self.hwnd(), &accels);
+        }
       },
       None => unsafe {
         winuser::SetMenu(self.hwnd(), ptr::null::<windef::HMENU>() as _);
