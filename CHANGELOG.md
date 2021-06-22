@@ -1,5 +1,12 @@
 # Changelog
 
+## \[0.3.1]
+
+- Add `window_id` to `MenuEvent`.
+  - [96651dcc](https://github.com/tauri-apps/tao/commit/96651dccd2f81229a6a7d8a0fc8ffb122c099b30) feat(menu): Add `window_id` to `MenuEvent` ([#89](https://github.com/tauri-apps/tao/pull/89)) on 2021-06-22
+- Prevent duplicate `MenuEvent` on window menu in Windows.
+  - [8cf4033f](https://github.com/tauri-apps/tao/commit/8cf4033f81e1b0cdfd88e86cf34cdcd174e1a3a9) fix(windows): menu event ([#91](https://github.com/tauri-apps/tao/pull/91)) on 2021-06-22
+
 ## \[0.3.0]
 
 - Drop the event callback before exiting on macOS.
