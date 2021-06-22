@@ -624,6 +624,10 @@ impl Window {
   }
 
   /// Modifies the menu of the window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_menu(&mut self, menu: Option<MenuBar>) {
     if let Some(menu) = menu {
