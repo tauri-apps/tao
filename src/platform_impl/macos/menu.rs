@@ -18,9 +18,10 @@ use crate::{
   keyboard::{KeyCode, ModifiersState},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   platform::macos::NativeImage,
+  window::WindowId,
 };
 
-use super::{app_state::AppState, event::EventWrapper};
+use super::{app_state::AppState, event::EventWrapper, window::get_window_id};
 
 static BLOCK_PTR: &str = "taoMenuItemBlockPtr";
 
@@ -429,7 +430,20 @@ fn send_event(this: &Object, origin: MenuType) {
     let obj = ptr as *const Action;
     &*obj
   };
+
+  // active window
+  let window_id = match origin {
+    MenuType::MenuBar => unsafe {
+      let app: id = msg_send![class!(NSApplication), sharedApplication];
+      let window_id: id = msg_send![app, mainWindow];
+      Some(WindowId(get_window_id(window_id)))
+    },
+    // system tray do not send WindowId
+    MenuType::ContextMenu => None,
+  };
+
   let event = Event::MenuEvent {
+    window_id,
     menu_id: MenuId(*menu_id.0),
     origin,
   };

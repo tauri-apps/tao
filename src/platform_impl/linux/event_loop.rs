@@ -483,6 +483,7 @@ impl<T: 'static> EventLoop<T> {
             WindowRequest::Menu(m) => match m {
               (None, Some(menu_id)) => {
                 if let Err(e) = event_tx.send(Event::MenuEvent {
+                  window_id: Some(RootWindowId(id)),
                   menu_id,
                   origin: MenuType::MenuBar,
                 }) {
@@ -643,6 +644,7 @@ impl<T: 'static> EventLoop<T> {
             }
             WindowRequest::Menu((None, Some(menu_id))) => {
               if let Err(e) = event_tx.send(Event::MenuEvent {
+                window_id: None,
                 menu_id,
                 origin: MenuType::ContextMenu,
               }) {
