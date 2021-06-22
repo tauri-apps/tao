@@ -52,10 +52,15 @@ impl MenuHandler {
     }
   }
   pub fn send_click_event(&self, menu_id: u16) {
-    (self.send_event)(Event::MenuEvent {
-      menu_id: MenuId(menu_id),
-      origin: self.menu_type,
-    });
+    // we send only tray event as the window event
+    // is catched into the main event_loop process.
+    if self.menu_type == MenuType::ContextMenu {
+      (self.send_event)(Event::MenuEvent {
+        menu_id: MenuId(menu_id),
+        origin: self.menu_type,
+        window_id: self.window_id,
+      });
+    }
   }
 
   pub fn send_event(&self, event: Event<'static, ()>) {
