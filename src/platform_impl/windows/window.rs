@@ -150,8 +150,16 @@ impl Window {
     }
   }
 
-  // TODO (lemarier): allow menu update
-  pub fn set_menu(&self, _new_menu: Option<menu::Menu>) {}
+  pub fn set_menu(&self, menu: Option<menu::Menu>) {
+    match menu {
+      Some(menu) => unsafe {
+        winuser::SetMenu(self.hwnd(), menu.hmenu);
+      },
+      None => unsafe {
+        winuser::SetMenu(self.hwnd(), ptr::null::<windef::HMENU>() as _);
+      },
+    }
+  }
 
   #[inline]
   pub fn set_visible(&self, visible: bool) {
