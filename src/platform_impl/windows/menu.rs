@@ -61,7 +61,7 @@ impl MenuHandler {
     (self.send_event)(Event::MenuEvent {
       menu_id: MenuId(menu_id),
       origin: self.menu_type,
-      window_id,
+      window_id: self.window_id,
     });
   }
 
