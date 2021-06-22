@@ -78,7 +78,11 @@ pub enum Event<'a, T: 'static> {
 
   /// Emitted when a menu has been clicked. There are two types of menu event. One comes from the
   /// menu bar, the other comes from the status bar.
-  MenuEvent { menu_id: MenuId, origin: MenuType },
+  MenuEvent {
+    window_id: Option<WindowId>,
+    menu_id: MenuId,
+    origin: MenuType,
+  },
 
   /// Emitted when tray has been clicked.
   ///
@@ -166,7 +170,12 @@ impl<T: Clone> Clone for Event<'static, T> {
       LoopDestroyed => LoopDestroyed,
       Suspended => Suspended,
       Resumed => Resumed,
-      MenuEvent { menu_id, origin } => MenuEvent {
+      MenuEvent {
+        window_id,
+        menu_id,
+        origin,
+      } => MenuEvent {
+        window_id: *window_id,
         menu_id: *menu_id,
         origin: *origin,
       },
@@ -198,7 +207,15 @@ impl<'a, T> Event<'a, T> {
       LoopDestroyed => Ok(LoopDestroyed),
       Suspended => Ok(Suspended),
       Resumed => Ok(Resumed),
-      MenuEvent { menu_id, origin } => Ok(MenuEvent { menu_id, origin }),
+      MenuEvent {
+        window_id,
+        menu_id,
+        origin,
+      } => Ok(MenuEvent {
+        window_id,
+        menu_id,
+        origin,
+      }),
       TrayEvent {
         bounds,
         event,
@@ -229,7 +246,15 @@ impl<'a, T> Event<'a, T> {
       LoopDestroyed => Some(LoopDestroyed),
       Suspended => Some(Suspended),
       Resumed => Some(Resumed),
-      MenuEvent { menu_id, origin } => Some(MenuEvent { menu_id, origin }),
+      MenuEvent {
+        window_id,
+        menu_id,
+        origin,
+      } => Some(MenuEvent {
+        window_id,
+        menu_id,
+        origin,
+      }),
       TrayEvent {
         bounds,
         event,

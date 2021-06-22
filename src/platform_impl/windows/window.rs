@@ -53,7 +53,9 @@ use crate::{
     window_state::{CursorFlags, SavedWindow, WindowFlags, WindowState},
     OsError, Parent, PlatformSpecificWindowBuilderAttributes, WindowId,
   },
-  window::{CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes},
+  window::{
+    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
+  },
 };
 
 struct HMenuWrapper(windef::HMENU);
@@ -953,7 +955,7 @@ unsafe fn init<T: 'static>(
   if let Some(window_menu) = attributes.window_menu {
     let event_loop_runner = event_loop.runner_shared.clone();
     let window_handle = win.raw_window_handle();
-
+    let window_id = RootWindowId(win.id().clone());
     let menu_handler = menu::MenuHandler::new(
       Box::new(move |event| {
         if let Ok(e) = event.map_nonuser_event() {
@@ -961,6 +963,7 @@ unsafe fn init<T: 'static>(
         }
       }),
       MenuType::MenuBar,
+      Some(window_id),
     );
 
     win.menu = menu::initialize(window_menu, window_handle, menu_handler).map(|m| HMenuWrapper(m));

@@ -90,6 +90,7 @@ impl SystemTrayBuilder {
           }
         }),
         MenuType::ContextMenu,
+        None,
       );
 
       let app_system_tray = SystemTray {
@@ -150,6 +151,7 @@ impl SystemTrayBuilder {
           }
         }),
         MenuType::ContextMenu,
+        None,
       );
 
       let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));

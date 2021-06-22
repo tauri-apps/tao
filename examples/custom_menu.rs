@@ -83,10 +83,14 @@ fn main() {
         window.request_redraw();
       }
       Event::MenuEvent {
+        window_id,
         menu_id,
         origin: MenuType::MenuBar,
       } if menu_id == test_menu_item.clone().id() => {
         println!("Clicked on `Disable menu`");
+        if window_id == Some(window.id()) {
+          println!("Window ID match!");
+        }
         // this allow us to get access to the menu and make changes
         // without re-rendering the whole menu
         test_menu_item.set_enabled(false);
@@ -98,6 +102,7 @@ fn main() {
       Event::MenuEvent {
         menu_id,
         origin: MenuType::MenuBar,
+        ..
       } if menu_id == change_menu.clone().id() => {
         println!("Clicked on `Change menu`");
         // set new menu
@@ -110,12 +115,14 @@ fn main() {
       Event::MenuEvent {
         menu_id,
         origin: MenuType::MenuBar,
+        ..
       } if menu_id == custom_insert_clipboard.clone().id() => {
         cliboard.write_text("This is injected from tao!!!")
       }
       Event::MenuEvent {
         menu_id,
         origin: MenuType::MenuBar,
+        ..
       } if menu_id == custom_read_clipboard.clone().id() => {
         println!("Clipboard content: {:?}", cliboard.read_text());
       }

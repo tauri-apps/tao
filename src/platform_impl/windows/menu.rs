@@ -40,13 +40,19 @@ lazy_static! {
 }
 
 pub struct MenuHandler {
+  window_id: Option<RootWindowId>,
   menu_type: MenuType,
   send_event: Box<dyn Fn(Event<'static, ()>)>,
 }
 
 impl MenuHandler {
-  pub fn new(send_event: Box<dyn Fn(Event<'static, ()>)>, menu_type: MenuType) -> MenuHandler {
+  pub fn new(
+    send_event: Box<dyn Fn(Event<'static, ()>)>,
+    menu_type: MenuType,
+    window_id: Option<RootWindowId>,
+  ) -> MenuHandler {
     MenuHandler {
+      window_id,
       send_event,
       menu_type,
     }
