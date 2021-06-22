@@ -138,6 +138,7 @@ fn main() {
         menu_id,
         // specify only context menu's
         origin: MenuType::ContextMenu,
+        ..
       } => {
         // Click on Open new window or focus item
         if menu_id == open_new_window_element.clone().id()
