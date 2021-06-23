@@ -102,7 +102,7 @@ unicode-segmentation = "1.7.1"
 cairo-rs = "0.9"
 gio = "0.9"
 glib = "0.10"
-glib-sys = "0.10"
+glib-sys = "0.14"
 gtk = { version = "0.9", features = [ "v3_16" ] }
 gdk = "0.13"
 gdk-sys = "0.10"
