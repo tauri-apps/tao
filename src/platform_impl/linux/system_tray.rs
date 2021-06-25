@@ -69,4 +69,16 @@ impl SystemTray {
       .set_icon_theme_path(&path.to_string_lossy());
     self.app_indicator.set_icon(&icon.to_string_lossy())
   }
+
+  pub fn set_menu<T: 'static>(
+    &mut self,
+    tray_menu: Menu,
+    window_target: &EventLoopWindowTarget<T>,
+  ) {
+    let tx_ = window_target.p.window_requests_tx.clone();
+    let menu = &mut tray_menu.into_gtkmenu(&tx_, &AccelGroup::new(), WindowId::dummy());
+
+    self.app_indicator.set_menu(menu);
+    menu.show_all();
+  }
 }
