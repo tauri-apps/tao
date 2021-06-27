@@ -855,6 +855,15 @@ impl Window {
     self.window.show_menu();
   }
 
+  /// Gets the visibilty of the window menu.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  pub fn is_menu_visible(&self) -> bool {
+    self.window.is_menu_visible()
+  }
+
   /// Whether to show the window icon in the task bar or not.
   ///
   /// ## Platform-specific

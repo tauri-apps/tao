@@ -630,6 +630,11 @@ impl Window {
 
   pub fn show_menu(&self) {}
 
+  pub fn is_menu_visible(&self) -> bool {
+    warn!("`Window::is_menu_visible` is ignored on Android");
+    false
+  }
+
   pub fn set_skip_taskbar(&self, _skip: bool) {}
 
   pub fn set_cursor_icon(&self, _: window::CursorIcon) {}

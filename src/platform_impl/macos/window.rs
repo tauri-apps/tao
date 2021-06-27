@@ -1039,6 +1039,12 @@ impl UnownedWindow {
   pub fn show_menu(&self) {}
 
   #[inline]
+  pub fn is_menu_visible(&self) -> bool {
+    warn!("`Window::is_menu_visible` is ignored on Android");
+    true
+  }
+
+  #[inline]
   pub fn set_skip_taskbar(&self, _skip: bool) {}
 
   #[inline]
