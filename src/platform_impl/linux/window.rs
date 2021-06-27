@@ -594,7 +594,7 @@ impl Window {
   }
 
   pub fn is_menu_visible(&self) -> bool {
-    self.menu.get_visible()
+    self.menu_bar.get_visible()
   }
 
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
