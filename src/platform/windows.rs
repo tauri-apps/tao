@@ -5,12 +5,7 @@
 
 use std::{os::raw::c_void, path::Path};
 
-use libc;
-use winapi::shared::{
-  minwindef::WORD,
-  windef::{HMENU, HWND},
-};
-
+pub use crate::platform_impl::hit_test;
 use crate::{
   dpi::PhysicalSize,
   event::DeviceId,
@@ -18,6 +13,11 @@ use crate::{
   monitor::MonitorHandle,
   platform_impl::{EventLoop as WindowsEventLoop, Parent, WinIcon},
   window::{BadIcon, Icon, Theme, Window, WindowBuilder},
+};
+use libc;
+use winapi::shared::{
+  minwindef::WORD,
+  windef::{HMENU, HWND},
 };
 
 /// Additional methods on `EventLoop` that are specific to Windows.

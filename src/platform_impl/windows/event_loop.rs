@@ -1927,12 +1927,6 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     winuser::WM_NCHITTEST => {
-      use winapi::shared::minwindef::TRUE;
-      use winuser::{
-        GetWindowRect, HTBOTTOM, HTBOTTOMLEFT, HTBOTTOMRIGHT, HTCLIENT, HTLEFT, HTNOWHERE, HTRIGHT,
-        HTTOP, HTTOPLEFT, HTTOPRIGHT,
-      };
-
       let win_flags = subclass_input.window_state.lock().window_flags();
 
       // Only apply this hit test for borderless windows that wants to be resizable
@@ -1944,47 +1938,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           windowsx::GET_Y_LPARAM(lparam),
         );
 
-        let mut window_rect: RECT = mem::zeroed();
-        if GetWindowRect(window, <*mut _>::cast(&mut window_rect)) == TRUE {
-          const CLIENT: i32 = 0b0000;
-          const LEFT: i32 = 00001;
-          const RIGHT: i32 = 0b0010;
-          const TOP: i32 = 0b0100;
-          const BOTTOM: i32 = 0b1000;
-          const TOPLEFT: i32 = TOP | LEFT;
-          const TOPRIGHT: i32 = TOP | RIGHT;
-          const BOTTOMLEFT: i32 = BOTTOM | LEFT;
-          const BOTTOMRIGHT: i32 = BOTTOM | RIGHT;
-
-          let fake_border = 3; // change this to manipulate how far inside the window, the resize can happen
-
-          let RECT {
-            left,
-            right,
-            bottom,
-            top,
-          } = window_rect;
-
-          let hit_result = LEFT * (if cx < (left + fake_border) { 1 } else { 0 })
-            | RIGHT * (if cx >= (right - fake_border) { 1 } else { 0 })
-            | TOP * (if cy < (top + fake_border) { 1 } else { 0 })
-            | BOTTOM * (if cy >= (bottom - fake_border) { 1 } else { 0 });
-
-          result = ProcResult::Value(match hit_result {
-            CLIENT => HTCLIENT,
-            LEFT => HTLEFT,
-            RIGHT => HTRIGHT,
-            TOP => HTTOP,
-            BOTTOM => HTBOTTOM,
-            TOPLEFT => HTTOPLEFT,
-            TOPRIGHT => HTTOPRIGHT,
-            BOTTOMLEFT => HTBOTTOMLEFT,
-            BOTTOMRIGHT => HTBOTTOMRIGHT,
-            _ => HTNOWHERE,
-          })
-        } else {
-          result = ProcResult::Value(HTNOWHERE);
-        }
+        result = ProcResult::Value(crate::platform_impl::hit_test(window, cx, cy));
       } else {
         result = ProcResult::DefSubclassProc;
       }

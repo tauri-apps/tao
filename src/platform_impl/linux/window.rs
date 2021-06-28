@@ -689,7 +689,7 @@ pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
   let (right, bottom) = (left + w, top + h);
   let (cx, cy) = (cx as i32, cy as i32);
 
-  let fake_border = 5; // change this to manipulate how far inside the window, the resize can happen
+  let fake_border = 3; // change this to manipulate how far inside the window, the resize can happen
 
   let display = window.get_display();
 

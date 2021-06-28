@@ -1007,7 +1007,7 @@ unsafe fn register_window_class(
     hInstance: libloaderapi::GetModuleHandleW(ptr::null()),
     hIcon: h_icon,
     hCursor: ptr::null_mut(), // must be null in order for cursor state to work properly
-    hbrBackground: ptr::null_mut(),
+    hbrBackground: winuser::COLOR_WINDOW as _,
     lpszMenuName: ptr::null(),
     lpszClassName: class_name.as_ptr(),
     hIconSm: h_icon_small,
@@ -1147,4 +1147,56 @@ unsafe fn force_window_active(handle: HWND) {
   );
 
   winuser::SetForegroundWindow(handle);
+}
+
+pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
+  use winapi::shared::minwindef::TRUE;
+  use winuser::{
+    GetWindowRect, HTBOTTOM, HTBOTTOMLEFT, HTBOTTOMRIGHT, HTCLIENT, HTLEFT, HTNOWHERE, HTRIGHT,
+    HTTOP, HTTOPLEFT, HTTOPRIGHT,
+  };
+
+  unsafe {
+    let mut window_rect: RECT = mem::zeroed();
+    if GetWindowRect(hwnd, <*mut _>::cast(&mut window_rect)) == TRUE {
+      const CLIENT: i32 = 0b0000;
+      const LEFT: i32 = 00001;
+      const RIGHT: i32 = 0b0010;
+      const TOP: i32 = 0b0100;
+      const BOTTOM: i32 = 0b1000;
+      const TOPLEFT: i32 = TOP | LEFT;
+      const TOPRIGHT: i32 = TOP | RIGHT;
+      const BOTTOMLEFT: i32 = BOTTOM | LEFT;
+      const BOTTOMRIGHT: i32 = BOTTOM | RIGHT;
+
+      let fake_border = 3; // change this to manipulate how far inside the window, the resize can happen
+
+      let RECT {
+        left,
+        right,
+        bottom,
+        top,
+      } = window_rect;
+
+      let hit_result = LEFT * (if cx < (left + fake_border) { 1 } else { 0 })
+        | RIGHT * (if cx >= (right - fake_border) { 1 } else { 0 })
+        | TOP * (if cy < (top + fake_border) { 1 } else { 0 })
+        | BOTTOM * (if cy >= (bottom - fake_border) { 1 } else { 0 });
+
+      match hit_result {
+        CLIENT => HTCLIENT,
+        LEFT => HTLEFT,
+        RIGHT => HTRIGHT,
+        TOP => HTTOP,
+        BOTTOM => HTBOTTOM,
+        TOPLEFT => HTTOPLEFT,
+        TOPRIGHT => HTTOPRIGHT,
+        BOTTOMLEFT => HTBOTTOMLEFT,
+        BOTTOMRIGHT => HTBOTTOMRIGHT,
+        _ => HTNOWHERE,
+      }
+    } else {
+      HTNOWHERE
+    }
+  }
 }
