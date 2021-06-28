@@ -15,9 +15,12 @@ use crate::{
   window::{BadIcon, Icon, Theme, Window, WindowBuilder},
 };
 use libc;
-use winapi::shared::{
-  minwindef::WORD,
-  windef::{HMENU, HWND},
+use winapi::{
+  shared::{
+    minwindef::{self, WORD},
+    windef::{HMENU, HWND},
+  },
+  um::winuser,
 };
 
 /// Additional methods on `EventLoop` that are specific to Windows.
@@ -109,6 +112,9 @@ pub trait WindowExtWindows {
   /// this function can be called to reset the dead key state so that
   /// follow-up text input won't be affected by the dead key.
   fn reset_dead_keys(&self);
+
+  /// Starts the resizing drag from given edge
+  fn begin_resize_drag(&self, edge: isize);
 }
 
 impl WindowExtWindows for Window {
@@ -142,6 +148,25 @@ impl WindowExtWindows for Window {
   #[inline]
   fn reset_dead_keys(&self) {
     self.window.reset_dead_keys();
+  }
+
+  #[inline]
+  fn begin_resize_drag(&self, edge: isize) {
+    unsafe {
+      let point = {
+        let mut pos = std::mem::zeroed();
+        winuser::GetCursorPos(&mut pos);
+        pos
+      };
+
+      winuser::ReleaseCapture();
+      winuser::PostMessageW(
+        self.hwnd() as _,
+        winuser::WM_NCLBUTTONDOWN,
+        edge as minwindef::WPARAM,
+        &point as *const _ as minwindef::LPARAM,
+      );
+    }
   }
 }
 
