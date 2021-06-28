@@ -8,6 +8,7 @@ use parking_lot::Mutex;
 use raw_window_handle::{windows::WindowsHandle, RawWindowHandle};
 use std::{
   cell::Cell,
+  collections::HashMap,
   ffi::OsStr,
   io, mem,
   os::windows::ffi::OsStrExt,
@@ -18,7 +19,8 @@ use std::{
 use winapi::{
   ctypes::c_int,
   shared::{
-    minwindef::{HINSTANCE, LPARAM, UINT, WPARAM},
+    basetsd::LONG_PTR,
+    minwindef::{HINSTANCE, LPARAM, LRESULT, UINT, WPARAM},
     windef::{self, HWND, POINT, POINTS, RECT},
   },
   um::{
@@ -62,6 +64,13 @@ struct HMenuWrapper(windef::HMENU);
 unsafe impl Send for HMenuWrapper {}
 unsafe impl Sync for HMenuWrapper {}
 
+// We store a copy of the initial window_flags when we first create the window
+// so we can use it inside the normal window_procedure until the subclass_procedure gets attached
+lazy_static! {
+  pub static ref TEMP_WIN_FLAGS: Mutex<HashMap<i32, WindowFlags>> = Mutex::new(HashMap::new());
+  static ref ID_COUNTER: Mutex<i32> = Mutex::new(1);
+}
+
 /// The Win32 implementation of the main `Window` object.
 pub struct Window {
   /// Main handle for the window.
@@ -89,7 +98,7 @@ impl Window {
     // done. you owe me -- ossi
     unsafe {
       let drag_and_drop = pl_attr.drag_and_drop;
-      init(w_attr, pl_attr, event_loop).map(|win| {
+      init(w_attr, pl_attr, event_loop).map(|(win, id)| {
         let file_drop_handler = if drag_and_drop {
           use winapi::shared::winerror::{OLE_E_WRONGCOMPOBJ, RPC_E_CHANGED_MODE, S_OK};
 
@@ -132,6 +141,7 @@ impl Window {
           file_drop_handler,
           subclass_removed: Cell::new(false),
           recurse_depth: Cell::new(0),
+          temp_flags_id: id,
         };
 
         event_loop::subclass_window(win.window.0, subclass_input);
@@ -210,12 +220,9 @@ impl Window {
   pub fn set_outer_position(&self, position: Position) {
     let (x, y): (i32, i32) = position.to_physical::<i32>(self.scale_factor()).into();
 
-    let window_state = Arc::clone(&self.window_state);
     let window = self.window.clone();
     self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
-        f.set(WindowFlags::MAXIMIZED, false)
-      });
+      util::set_maximized(window.0, false);
     });
 
     unsafe {
@@ -264,12 +271,9 @@ impl Window {
     let scale_factor = self.scale_factor();
     let (width, height) = size.to_physical::<u32>(scale_factor).into();
 
-    let window_state = Arc::clone(&self.window_state);
     let window = self.window.clone();
     self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
-        f.set(WindowFlags::MAXIMIZED, false)
-      });
+      util::set_maximized(window.0, false);
     });
 
     util::set_inner_size_physical(self.window.0, width, height);
@@ -436,20 +440,12 @@ impl Window {
 
   #[inline]
   pub fn set_maximized(&self, maximized: bool) {
-    let window = self.window.clone();
-    let window_state = Arc::clone(&self.window_state);
-
-    self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
-        f.set(WindowFlags::MAXIMIZED, maximized)
-      });
-    });
+    util::set_maximized(self.window.0, maximized);
   }
 
   #[inline]
   pub fn is_maximized(&self) -> bool {
-    let window_state = self.window_state.lock();
-    window_state.window_flags.contains(WindowFlags::MAXIMIZED)
+    util::is_maximized(self.window.0)
   }
 
   #[inline]
@@ -817,7 +813,7 @@ unsafe fn init<T: 'static>(
   attributes: WindowAttributes,
   pl_attribs: PlatformSpecificWindowBuilderAttributes,
   event_loop: &EventLoopWindowTarget<T>,
-) -> Result<Window, RootOsError> {
+) -> Result<(Window, i32), RootOsError> {
   let title = OsStr::new(&attributes.title)
     .encode_wide()
     .chain(Some(0).into_iter())
@@ -855,6 +851,12 @@ unsafe fn init<T: 'static>(
     }
   };
 
+  // store temp window flags
+  *ID_COUNTER.lock() += 1;
+  TEMP_WIN_FLAGS
+    .lock()
+    .insert(*ID_COUNTER.lock(), window_flags);
+
   // creating the real window this time, by using the functions in `extra_functions`
   let real_window = {
     let (style, ex_style) = window_flags.to_window_styles();
@@ -870,7 +872,7 @@ unsafe fn init<T: 'static>(
       parent.unwrap_or(ptr::null_mut()),
       pl_attribs.menu.unwrap_or(ptr::null_mut()),
       libloaderapi::GetModuleHandleW(ptr::null()),
-      ptr::null_mut(),
+      Box::into_raw(Box::new(*ID_COUNTER.lock())) as _,
     );
 
     if handle.is_null() {
@@ -975,7 +977,7 @@ unsafe fn init<T: 'static>(
 
   win.set_skip_taskbar(attributes.skip_taskbar);
 
-  Ok(win)
+  Ok((win, *ID_COUNTER.lock()))
 }
 
 unsafe fn register_window_class(
@@ -999,7 +1001,7 @@ unsafe fn register_window_class(
   let class = winuser::WNDCLASSEXW {
     cbSize: mem::size_of::<winuser::WNDCLASSEXW>() as UINT,
     style: winuser::CS_HREDRAW | winuser::CS_VREDRAW | winuser::CS_OWNDC,
-    lpfnWndProc: Some(winuser::DefWindowProcW),
+    lpfnWndProc: Some(window_proc),
     cbClsExtra: 0,
     cbWndExtra: 0,
     hInstance: libloaderapi::GetModuleHandleW(ptr::null()),
@@ -1018,6 +1020,46 @@ unsafe fn register_window_class(
   winuser::RegisterClassExW(&class);
 
   class_name
+}
+
+unsafe extern "system" fn window_proc(
+  window: HWND,
+  msg: UINT,
+  wparam: WPARAM,
+  lparam: LPARAM,
+) -> LRESULT {
+  let mut userdata = winuser::GetWindowLongPtrW(window, winuser::GWL_USERDATA);
+  if userdata == 0 && msg == winuser::WM_NCCREATE {
+    let createstruct = &*(lparam as *const winuser::CREATESTRUCTW);
+    userdata = createstruct.lpCreateParams as LONG_PTR;
+    winuser::SetWindowLongPtrW(window, winuser::GWL_USERDATA, userdata);
+  }
+  let id_ptr = userdata as *mut i32;
+
+  match msg {
+    winuser::WM_NCCALCSIZE => {
+      // here we handle necessary messages with temp_window_flags until the subclass_procedure it attached.
+      // this check is necessary to stop this procedure when subclass_procedure is attached
+      if let Some(win_flags) = TEMP_WIN_FLAGS.lock().get(&*id_ptr) {
+        if !win_flags.contains(WindowFlags::DECORATIONS) {
+          // adjust the maximized borderless window to fill the work area rectangle of the display monitor
+          if util::is_maximized(window) {
+            let monitor = monitor::current_monitor(window);
+            if let Ok(monitor_info) = monitor::get_monitor_info(monitor.hmonitor()) {
+              let params = &mut *(lparam as *mut winuser::NCCALCSIZE_PARAMS);
+              params.rgrc[0] = monitor_info.rcWork;
+            }
+          }
+          0 // must return a value here, otherwise the window won't be borderless (without decorations)
+        } else {
+          winuser::DefWindowProcW(window, msg, wparam, lparam)
+        }
+      } else {
+        winuser::DefWindowProcW(window, msg, wparam, lparam)
+      }
+    }
+    _ => winuser::DefWindowProcW(window, msg, wparam, lparam),
+  }
 }
 
 struct ComInitialized(*mut ());
