@@ -1927,12 +1927,10 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     winuser::WM_NCHITTEST => {
-      use {
-        winapi::shared::minwindef::TRUE,
-        winuser::{
-          GetWindowRect, HTBOTTOM, HTBOTTOMLEFT, HTBOTTOMRIGHT, HTCLIENT, HTLEFT, HTNOWHERE,
-          HTRIGHT, HTTOP, HTTOPLEFT, HTTOPRIGHT,
-        },
+      use winapi::shared::minwindef::TRUE;
+      use winuser::{
+        GetWindowRect, HTBOTTOM, HTBOTTOMLEFT, HTBOTTOMRIGHT, HTCLIENT, HTLEFT, HTNOWHERE, HTRIGHT,
+        HTTOP, HTTOPLEFT, HTTOPRIGHT,
       };
 
       let win_flags = subclass_input.window_state.lock().window_flags();
