@@ -909,6 +909,17 @@ unsafe fn init<T: 'static>(
     DeleteObject(region as _);
   }
 
+  // make shadow for borderless windows as it is not there by default
+  if !attributes.decorations {
+    let margins = winapi::um::uxtheme::MARGINS {
+      cxLeftWidth: 1,
+      cxRightWidth: 1,
+      cyBottomHeight: 1,
+      cyTopHeight: 1,
+    };
+    dwmapi::DwmExtendFrameIntoClientArea(real_window.0, &margins);
+  }
+
   // If the system theme is dark, we need to set the window theme now
   // before we update the window flags (and possibly show the
   // window for the first time).
