@@ -1007,7 +1007,7 @@ unsafe fn register_window_class(
     hInstance: libloaderapi::GetModuleHandleW(ptr::null()),
     hIcon: h_icon,
     hCursor: ptr::null_mut(), // must be null in order for cursor state to work properly
-    hbrBackground: winuser::COLOR_WINDOW as _,
+    hbrBackground: ptr::null_mut(),
     lpszMenuName: ptr::null(),
     lpszClassName: class_name.as_ptr(),
     hIconSm: h_icon_small,
