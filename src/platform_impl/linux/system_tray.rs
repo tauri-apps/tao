@@ -72,13 +72,13 @@ impl SystemTray {
 
   pub fn set_menu<T: 'static>(
     &mut self,
-    tray_menu: Menu,
+    tray_menu: &Menu,
     window_target: &EventLoopWindowTarget<T>,
   ) {
     let tx_ = window_target.p.window_requests_tx.clone();
-    let menu = &mut tray_menu.into_gtkmenu(&tx_, &AccelGroup::new(), WindowId::dummy());
+    let mut menu = tray_menu.clone().into_gtkmenu(&tx_, &AccelGroup::new(), WindowId::dummy());
 
-    self.app_indicator.set_menu(menu);
+    self.app_indicator.set_menu(&mut menu);
     menu.show_all();
   }
 }

@@ -1,6 +1,8 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
+use std::cell::RefCell;
+
 use super::{
   dpi::{dpi_to_scale_factor, hwnd_dpi},
   menu::{subclass_proc, to_wstring, Menu, MenuHandler},
@@ -11,12 +13,11 @@ use crate::{
   error::OsError as RootOsError,
   event::{Event, Rectangle, TrayEvent},
   event_loop::EventLoopWindowTarget,
-  menu::MenuType,
+  menu::{ContextMenu, MenuType},
   system_tray::SystemTray as RootSystemTray,
 };
 use winapi::{
   shared::{
-    basetsd::LONG_PTR,
     minwindef::{LPARAM, LRESULT, UINT, WPARAM},
     windef::{HICON, HMENU, HWND, POINT, RECT},
   },
@@ -30,6 +31,7 @@ use winapi::{
 
 const WM_USER_TRAYICON: u32 = 0x400 + 1111;
 const WM_USER_TRAYICON_UID: u32 = 0x855 + 1111;
+thread_local!(static SYSTEM_TRAY_STASH: RefCell<Option<WindowsLoopData>> = RefCell::new(None));
 
 pub struct SystemTrayBuilder {
   pub(crate) icon: Vec<u8>,
@@ -81,29 +83,6 @@ impl SystemTrayBuilder {
         )));
       }
 
-      // system tray handler
-      let event_loop_runner = window_target.p.runner_shared.clone();
-      let menu_handler = MenuHandler::new(
-        Box::new(move |event| {
-          if let Ok(e) = event.map_nonuser_event() {
-            event_loop_runner.send_event(e)
-          }
-        }),
-        MenuType::ContextMenu,
-        None,
-      );
-
-      let app_system_tray = SystemTray {
-        // dummy hwnd, will populate it later
-        hwnd: std::ptr::null::<HWND>() as _,
-        hmenu,
-      };
-
-      let data = Box::into_raw(Box::new(WindowsLoopData {
-        system_tray: app_system_tray,
-        sender: menu_handler,
-      }));
-
       let hwnd = winuser::CreateWindowExW(
         0,
         class_name.as_ptr(),
@@ -116,7 +95,7 @@ impl SystemTrayBuilder {
         0 as _,
         0 as _,
         hinstance as _,
-        data as _,
+        std::ptr::null_mut(),
       );
 
       if hwnd == std::ptr::null_mut() {
@@ -142,6 +121,26 @@ impl SystemTrayBuilder {
       let app_system_tray = SystemTray { hwnd, hmenu };
       app_system_tray.set_icon_from_buffer(&self.icon, 32, 32);
 
+      // system tray handler
+      let event_loop_runner = window_target.p.runner_shared.clone();
+      let menu_handler = MenuHandler::new(
+        Box::new(move |event| {
+          if let Ok(e) = event.map_nonuser_event() {
+            event_loop_runner.send_event(e)
+          }
+        }),
+        MenuType::ContextMenu,
+        None,
+      );
+
+      SYSTEM_TRAY_STASH.with(|stash| {
+        let data = WindowsLoopData {
+          system_tray: SystemTray { hwnd, hmenu },
+          sender: menu_handler,
+        };
+        (*stash.borrow_mut()) = Some(data);
+      });
+
       // create the handler for tray menu events
       let event_loop_runner = window_target.p.runner_shared.clone();
       let menu_handler = MenuHandler::new(
@@ -157,7 +156,7 @@ impl SystemTrayBuilder {
       let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
       SetWindowSubclass(hwnd as _, Some(subclass_proc), 0, sender as _);
 
-      return Ok(RootSystemTray(SystemTray { hwnd, hmenu }));
+      return Ok(RootSystemTray(app_system_tray));
     }
   }
 }
@@ -212,6 +211,20 @@ impl SystemTray {
       }
     }
   }
+
+  pub fn set_menu<T: 'static>(
+    &mut self,
+    tray_menu: &Menu,
+    _window_target: &EventLoopWindowTarget<T>,
+  ) {
+    let new_menu = Some(tray_menu.hmenu);
+    self.hmenu = new_menu;
+    SYSTEM_TRAY_STASH.with(|stash| {
+      if let Some(ref mut data) = *stash.borrow_mut() {
+        data.system_tray.hmenu = new_menu;
+      }
+    });
+  }
 }
 
 unsafe extern "system" fn window_proc(
@@ -220,17 +233,9 @@ unsafe extern "system" fn window_proc(
   wparam: WPARAM,
   lparam: LPARAM,
 ) -> LRESULT {
-  let mut userdata = winuser::GetWindowLongPtrW(hwnd, winuser::GWL_USERDATA);
-  if userdata == 0 && msg == winuser::WM_NCCREATE {
-    let createstruct = &*(lparam as *const winuser::CREATESTRUCTW);
-    userdata = createstruct.lpCreateParams as LONG_PTR;
-    (*(userdata as *mut WindowsLoopData)).system_tray.hwnd = hwnd;
-    winuser::SetWindowLongPtrW(hwnd, winuser::GWL_USERDATA, userdata);
-  }
-  let userdata_ptr = userdata as *mut WindowsLoopData;
-
   if msg == winuser::WM_DESTROY {
     winuser::PostQuitMessage(0);
+    return 0;
   }
 
   // click on the icon
@@ -250,54 +255,57 @@ unsafe extern "system" fn window_proc(
 
     let mut cursor = POINT { x: 0, y: 0 };
     winuser::GetCursorPos(&mut cursor as _);
+    SYSTEM_TRAY_STASH.with(|stash| {
+      if let Some(ref data) = *stash.borrow() {
+        match lparam as u32 {
+          // Left click tray icon
+          winuser::WM_LBUTTONUP => {
+            data.sender.send_event(Event::TrayEvent {
+              event: TrayEvent::LeftClick,
+              position: LogicalPosition::new(cursor.x, cursor.y).to_physical(scale_factor),
+              bounds: Rectangle {
+                position: LogicalPosition::new(rect.left, rect.top).to_physical(scale_factor),
+                size: LogicalSize::new(rect.right - rect.left, rect.bottom - rect.top)
+                  .to_physical(scale_factor),
+              },
+            });
+          }
 
-    match lparam as u32 {
-      // Left click tray icon
-      winuser::WM_LBUTTONUP => {
-        (*userdata_ptr).sender.send_event(Event::TrayEvent {
-          event: TrayEvent::LeftClick,
-          position: LogicalPosition::new(cursor.x, cursor.y).to_physical(scale_factor),
-          bounds: Rectangle {
-            position: LogicalPosition::new(rect.left, rect.top).to_physical(scale_factor),
-            size: LogicalSize::new(rect.right - rect.left, rect.bottom - rect.top)
-              .to_physical(scale_factor),
-          },
-        });
-      }
+          // Right click tray icon
+          winuser::WM_RBUTTONUP => {
+            data.sender.send_event(Event::TrayEvent {
+              event: TrayEvent::RightClick,
+              position: LogicalPosition::new(cursor.x, cursor.y).to_physical(scale_factor),
+              bounds: Rectangle {
+                position: LogicalPosition::new(rect.left, rect.top).to_physical(scale_factor),
+                size: LogicalSize::new(rect.right - rect.left, rect.bottom - rect.top)
+                  .to_physical(scale_factor),
+              },
+            });
 
-      // Right click tray icon
-      winuser::WM_RBUTTONUP => {
-        (*userdata_ptr).sender.send_event(Event::TrayEvent {
-          event: TrayEvent::RightClick,
-          position: LogicalPosition::new(cursor.x, cursor.y).to_physical(scale_factor),
-          bounds: Rectangle {
-            position: LogicalPosition::new(rect.left, rect.top).to_physical(scale_factor),
-            size: LogicalSize::new(rect.right - rect.left, rect.bottom - rect.top)
-              .to_physical(scale_factor),
-          },
-        });
+            // show menu on right click
+            if let Some(menu) = data.system_tray.hmenu {
+              show_tray_menu(hwnd, menu, cursor.x, cursor.y);
+            }
+          }
 
-        // show menu on right click
-        if let Some(menu) = (*userdata_ptr).system_tray.hmenu {
-          show_tray_menu(hwnd, menu, cursor.x, cursor.y);
+          // Double click tray icon
+          winuser::WM_LBUTTONDBLCLK => {
+            data.sender.send_event(Event::TrayEvent {
+              event: TrayEvent::DoubleClick,
+              position: LogicalPosition::new(cursor.x, cursor.y).to_physical(scale_factor),
+              bounds: Rectangle {
+                position: LogicalPosition::new(rect.left, rect.top).to_physical(scale_factor),
+                size: LogicalSize::new(rect.right - rect.left, rect.bottom - rect.top)
+                  .to_physical(scale_factor),
+              },
+            });
+          }
+
+          _ => {}
         }
       }
-
-      // Double click tray icon
-      winuser::WM_LBUTTONDBLCLK => {
-        (*userdata_ptr).sender.send_event(Event::TrayEvent {
-          event: TrayEvent::DoubleClick,
-          position: LogicalPosition::new(cursor.x, cursor.y).to_physical(scale_factor),
-          bounds: Rectangle {
-            position: LogicalPosition::new(rect.left, rect.top).to_physical(scale_factor),
-            size: LogicalSize::new(rect.right - rect.left, rect.bottom - rect.top)
-              .to_physical(scale_factor),
-          },
-        });
-      }
-
-      _ => {}
-    }
+    });
   }
 
   return winuser::DefWindowProcW(hwnd, msg, wparam, lparam);

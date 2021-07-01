@@ -35,8 +35,7 @@ use crate::{
   event_loop::EventLoopWindowTarget,
   menu::ContextMenu,
   platform_impl::{
-    Menu as MenuPlatform, SystemTray as SystemTrayPlatform,
-    SystemTrayBuilder as SystemTrayBuilderPlatform,
+    SystemTray as SystemTrayPlatform, SystemTrayBuilder as SystemTrayBuilderPlatform,
   },
 };
 /// Object that allows you to build SystemTray instance.
@@ -115,11 +114,12 @@ impl SystemTray {
     self.0.set_icon(icon)
   }
 
+  /// Set new tray menu.
   pub fn set_menu<T: 'static>(
     &mut self,
-    tray_menu: MenuPlatform,
-    _window_target: &EventLoopWindowTarget<T>,
+    tray_menu: &ContextMenu,
+    window_target: &EventLoopWindowTarget<T>,
   ) {
-    self.0.set_menu(tray_menu, _window_target)
+    self.0.set_menu(&tray_menu.0.menu_platform, window_target)
   }
 }

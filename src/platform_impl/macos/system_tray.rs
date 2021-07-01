@@ -113,6 +113,14 @@ impl SystemTray {
     self.create_button_with_icon();
   }
 
+  pub fn set_menu<T: 'static>(
+    &mut self,
+    tray_menu: &Menu,
+    _window_target: &EventLoopWindowTarget<T>,
+  ) {
+   
+  }
+
   fn create_button_with_icon(&self) {
     const ICON_WIDTH: f64 = 18.0;
     const ICON_HEIGHT: f64 = 18.0;
