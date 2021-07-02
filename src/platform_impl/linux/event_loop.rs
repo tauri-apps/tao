@@ -243,9 +243,7 @@ impl<T: 'static> EventLoop<T> {
               }
             }
             WindowRequest::UserAttention(request_type) => {
-              if request_type.is_some() {
-                window.set_urgency_hint(true)
-              }
+              window.set_urgency_hint(request_type.is_some())
             }
             WindowRequest::SetSkipTaskbar(skip) => window.set_skip_taskbar_hint(skip),
             WindowRequest::CursorIcon(cursor) => {

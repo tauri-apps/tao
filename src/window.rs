@@ -830,6 +830,7 @@ impl Window {
   ///
   /// - **iOS / Android:** Unsupported.
   /// - **macOS:** `None` has no effect.
+  /// - **Linux:** Urgency levels have the same effect.
   #[inline]
   pub fn request_user_attention(&self, request_type: Option<UserAttentionType>) {
     self.window.request_user_attention(request_type)
