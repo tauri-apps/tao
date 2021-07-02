@@ -115,11 +115,7 @@ impl SystemTray {
   }
 
   /// Set new tray menu.
-  pub fn set_menu<T: 'static>(
-    &mut self,
-    tray_menu: &ContextMenu,
-    window_target: &EventLoopWindowTarget<T>,
-  ) {
-    self.0.set_menu(&tray_menu.0.menu_platform, window_target)
+  pub fn set_menu(&mut self, tray_menu: &ContextMenu) {
+    self.0.set_menu(&tray_menu.0.menu_platform)
   }
 }

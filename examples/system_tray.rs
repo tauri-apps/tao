@@ -162,7 +162,7 @@ fn main() {
         if menu_id == change_menu.clone().id() {
           let mut tray_menu = Menu::new();
           tray_menu.add_item(MenuItemAttributes::new("Quit"));
-          system_tray.set_menu(&tray_menu, &event_loop);
+          system_tray.set_menu(&tray_menu);
         }
 
         println!("Clicked on {:?}", menu_id);
