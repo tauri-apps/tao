@@ -118,7 +118,9 @@ impl SystemTray {
     tray_menu: &Menu,
     _window_target: &EventLoopWindowTarget<T>,
   ) {
-   
+    unsafe {
+      self.ns_status_bar.setMenu_(tray_menu.menu);
+    }
   }
 
   fn create_button_with_icon(&self) {

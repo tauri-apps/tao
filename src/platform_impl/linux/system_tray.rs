@@ -76,7 +76,9 @@ impl SystemTray {
     window_target: &EventLoopWindowTarget<T>,
   ) {
     let tx_ = window_target.p.window_requests_tx.clone();
-    let mut menu = tray_menu.clone().into_gtkmenu(&tx_, &AccelGroup::new(), WindowId::dummy());
+    let mut menu = tray_menu
+      .clone()
+      .into_gtkmenu(&tx_, &AccelGroup::new(), WindowId::dummy());
 
     self.app_indicator.set_menu(&mut menu);
     menu.show_all();
