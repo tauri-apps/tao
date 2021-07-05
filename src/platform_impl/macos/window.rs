@@ -420,10 +420,6 @@ impl UnownedWindow {
 
     if focus {
       unsafe {
-        // if visible, we already send it
-        if !visible {
-          window.ns_window.makeKeyAndOrderFront_(nil);
-        }
         let app: id = msg_send![class!(NSApplication), sharedApplication];
         let () = msg_send![app, activateIgnoringOtherApps: YES];
       };
