@@ -742,3 +742,11 @@ pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
 
   edge
 }
+
+impl Drop for Window {
+  fn drop(&mut self) {
+    unsafe {
+      self.window.destroy();
+    }
+  }
+}
