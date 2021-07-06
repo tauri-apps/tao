@@ -149,7 +149,6 @@ impl<T: 'static> EventLoop<T> {
 
     // Window Request
     let app = window_target.p.app.clone();
-    let windows = window_target.p.windows.clone();
     let window_requests_tx = window_target.p.window_requests_tx.clone();
     self
       .window_requests_rx
@@ -243,9 +242,7 @@ impl<T: 'static> EventLoop<T> {
               }
             }
             WindowRequest::UserAttention(request_type) => {
-              if request_type.is_some() {
-                window.set_urgency_hint(true)
-              }
+              window.set_urgency_hint(request_type.is_some())
             }
             WindowRequest::SetSkipTaskbar(skip) => window.set_skip_taskbar_hint(skip),
             WindowRequest::CursorIcon(cursor) => {
@@ -303,18 +300,16 @@ impl<T: 'static> EventLoop<T> {
               };
             }
             WindowRequest::WireUpEvents => {
-              let windows_rc = windows.clone();
               let tx_clone = event_tx.clone();
 
               window.connect_delete_event(move |_, _| {
-                windows_rc.borrow_mut().remove(&id);
                 if let Err(e) = tx_clone.send(Event::WindowEvent {
                   window_id: RootWindowId(id),
                   event: WindowEvent::CloseRequested,
                 }) {
                   log::warn!("Failed to send window close event to event channel: {}", e);
                 }
-                Inhibit(false)
+                Inhibit(true)
               });
 
               let tx_clone = event_tx.clone();

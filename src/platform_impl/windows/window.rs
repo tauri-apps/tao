@@ -734,26 +734,6 @@ impl Window {
   }
 
   #[inline]
-  pub fn set_skip_taskbar(&self, skip: bool) {
-    unsafe {
-      let mut taskbar_list: *mut ITaskbarList = std::mem::zeroed();
-      CoCreateInstance(
-        &CLSID_TaskbarList,
-        ptr::null_mut(),
-        CLSCTX_SERVER,
-        &ITaskbarList::uuidof(),
-        &mut taskbar_list as *mut _ as *mut _,
-      );
-      if skip {
-        (*taskbar_list).DeleteTab(self.hwnd());
-      } else {
-        (*taskbar_list).AddTab(self.hwnd());
-      }
-      (*taskbar_list).Release();
-    }
-  }
-
-  #[inline]
   pub fn hide_menu(&self) {
     unsafe {
       winuser::SetMenu(self.hwnd(), ptr::null::<windef::HMENU>() as _);
@@ -973,12 +953,6 @@ unsafe fn init<T: 'static>(
 
     win.menu = menu::initialize(window_menu, window_handle, menu_handler).map(|m| HMenuWrapper(m));
   }
-
-  if attributes.focus {
-    force_window_active(win.window.0);
-  }
-
-  win.set_skip_taskbar(attributes.skip_taskbar);
 
   Ok(win)
 }
