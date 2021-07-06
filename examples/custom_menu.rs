@@ -84,11 +84,15 @@ fn main() {
         window.request_redraw();
       }
       Event::MenuEvent {
+        window_id,
         menu_id,
         origin: MenuType::MenuBar,
         ..
       } if menu_id == test_menu_item.clone().id() => {
         println!("Clicked on `Disable menu`");
+        if window_id == Some(window.id()) {
+          println!("Window ID match!");
+        }
         // this allow us to get access to the menu and make changes
         // without re-rendering the whole menu
         test_menu_item.set_enabled(false);

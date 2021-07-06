@@ -113,7 +113,8 @@ impl Menu {
     menu_type: MenuType,
   ) -> CustomMenuItem {
     let gtk_item = if selected {
-      let item = CheckMenuItem::with_label(title);
+      let item = CheckMenuItem::with_label(&title);
+      item.set_active(true);
       item.upcast::<GtkMenuItem>()
     } else {
       GtkMenuItem::with_label(title)
@@ -186,11 +187,17 @@ impl Menu {
       let new_item = match menu_item.clone() {
         GtkMenuInfo {
           menu_type: GtkMenuType::Submenu,
-          sub_menu: Some(SubmenuDetail { menu, title, .. }),
+          sub_menu:
+            Some(SubmenuDetail {
+              menu,
+              title,
+              enabled,
+              ..
+            }),
           ..
         } => {
-          // FIXME: enabled is not used here
           let item = GtkMenuItem::with_label(&title);
+          item.set_sensitive(enabled);
           item.set_submenu(Some(&menu.into_gtkmenu(tx, accel_group, window_id)));
           Some(item)
         }
@@ -202,7 +209,6 @@ impl Menu {
               gtk_item,
               id,
               key,
-              selected,
               ..
             }),
           ..
@@ -212,9 +218,6 @@ impl Menu {
           }
 
           gtk_item.set_sensitive(enabled);
-
-          // todo selected
-          if selected {}
 
           let tx_ = tx.clone();
           gtk_item.connect_activate(move |_| {
