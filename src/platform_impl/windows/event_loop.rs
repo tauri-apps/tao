@@ -832,13 +832,14 @@ unsafe extern "system" fn public_window_callback<T: 'static>(
 
     // we remove the temp_win_flags as soon as the first msg to the subclass_procedure,
     // so it will disable the normal_procedure
-    if TEMP_WIN_FLAGS
-      .lock()
-      .get(&subclass_input.temp_flags_id)
-      .is_some()
-    {
-      TEMP_WIN_FLAGS.lock().remove(&subclass_input.temp_flags_id);
-    }
+    // if TEMP_WIN_FLAGS
+    //   .lock()
+    //   .get(&subclass_input.temp_flags_id)
+    //   .is_some()
+    // {
+    //   TEMP_WIN_FLAGS.lock().remove(&subclass_input.temp_flags_id);
+    // }
+    winuser::SetWindowLongPtrW(window, winuser::GWL_USERDATA, 0);
 
     let result =
       public_window_callback_inner(window, msg, wparam, lparam, uidsubclass, subclass_input);

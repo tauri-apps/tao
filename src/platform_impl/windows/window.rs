@@ -852,7 +852,7 @@ unsafe fn init<T: 'static>(
       parent.unwrap_or(ptr::null_mut()),
       pl_attribs.menu.unwrap_or(ptr::null_mut()),
       libloaderapi::GetModuleHandleW(ptr::null()),
-      Box::into_raw(Box::new(*ID_COUNTER.lock())) as _,
+      Box::into_raw(Box::new(!attributes.decorations)) as _,
     );
 
     if handle.is_null() {
@@ -1019,14 +1019,14 @@ unsafe extern "system" fn window_proc(
     userdata = createstruct.lpCreateParams as LONG_PTR;
     winuser::SetWindowLongPtrW(window, winuser::GWL_USERDATA, userdata);
   }
-  let id_ptr = userdata as *mut i32;
+  let id_ptr = userdata as *mut bool;
 
   match msg {
     winuser::WM_NCCALCSIZE => {
       // here we handle necessary messages with temp_window_flags until the subclass_procedure it attached.
       // this check is necessary to stop this procedure when subclass_procedure is attached
-      if let Some(win_flags) = TEMP_WIN_FLAGS.lock().get(&*id_ptr) {
-        if !win_flags.contains(WindowFlags::DECORATIONS) {
+      if userdata != 0 {
+        if &*id_ptr == &true {
           // adjust the maximized borderless window to fill the work area rectangle of the display monitor
           if util::is_maximized(window) {
             let monitor = monitor::current_monitor(window);
