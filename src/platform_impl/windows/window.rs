@@ -64,13 +64,6 @@ struct HMenuWrapper(windef::HMENU);
 unsafe impl Send for HMenuWrapper {}
 unsafe impl Sync for HMenuWrapper {}
 
-// We store a copy of the initial window_flags when we first create the window
-// so we can use it inside the normal window_procedure until the subclass_procedure gets attached
-lazy_static! {
-  pub static ref TEMP_WIN_FLAGS: Mutex<HashMap<i32, WindowFlags>> = Mutex::new(HashMap::new());
-  static ref ID_COUNTER: Mutex<i32> = Mutex::new(1);
-}
-
 /// The Win32 implementation of the main `Window` object.
 pub struct Window {
   /// Main handle for the window.
@@ -98,7 +91,7 @@ impl Window {
     // done. you owe me -- ossi
     unsafe {
       let drag_and_drop = pl_attr.drag_and_drop;
-      init(w_attr, pl_attr, event_loop).map(|(win, id)| {
+      init(w_attr, pl_attr, event_loop).map(|win| {
         let file_drop_handler = if drag_and_drop {
           use winapi::shared::winerror::{OLE_E_WRONGCOMPOBJ, RPC_E_CHANGED_MODE, S_OK};
 
@@ -141,7 +134,6 @@ impl Window {
           file_drop_handler,
           subclass_removed: Cell::new(false),
           recurse_depth: Cell::new(0),
-          temp_flags_id: id,
         };
 
         event_loop::subclass_window(win.window.0, subclass_input);
@@ -793,7 +785,7 @@ unsafe fn init<T: 'static>(
   attributes: WindowAttributes,
   pl_attribs: PlatformSpecificWindowBuilderAttributes,
   event_loop: &EventLoopWindowTarget<T>,
-) -> Result<(Window, i32), RootOsError> {
+) -> Result<Window, RootOsError> {
   let title = OsStr::new(&attributes.title)
     .encode_wide()
     .chain(Some(0).into_iter())
@@ -830,12 +822,6 @@ unsafe fn init<T: 'static>(
       None
     }
   };
-
-  // store temp window flags
-  *ID_COUNTER.lock() += 1;
-  TEMP_WIN_FLAGS
-    .lock()
-    .insert(*ID_COUNTER.lock(), window_flags);
 
   // creating the real window this time, by using the functions in `extra_functions`
   let real_window = {
@@ -962,7 +948,7 @@ unsafe fn init<T: 'static>(
     win.menu = menu::initialize(window_menu, window_handle, menu_handler).map(|m| HMenuWrapper(m));
   }
 
-  Ok((win, *ID_COUNTER.lock()))
+  Ok(win)
 }
 
 unsafe fn register_window_class(
@@ -986,7 +972,7 @@ unsafe fn register_window_class(
   let class = winuser::WNDCLASSEXW {
     cbSize: mem::size_of::<winuser::WNDCLASSEXW>() as UINT,
     style: winuser::CS_HREDRAW | winuser::CS_VREDRAW | winuser::CS_OWNDC,
-    lpfnWndProc: Some(window_proc),
+    lpfnWndProc: Some(winuser::DefWindowProcW),
     cbClsExtra: 0,
     cbWndExtra: 0,
     hInstance: libloaderapi::GetModuleHandleW(ptr::null()),
@@ -1021,11 +1007,13 @@ unsafe extern "system" fn window_proc(
   }
   let id_ptr = userdata as *mut bool;
 
-  match msg {
-    winuser::WM_NCCALCSIZE => {
-      // here we handle necessary messages with temp_window_flags until the subclass_procedure it attached.
-      // this check is necessary to stop this procedure when subclass_procedure is attached
-      if userdata != 0 {
+  if userdata == 0 {
+    winuser::DefWindowProcW(window, msg, wparam, lparam)
+  } else {
+    match msg {
+      winuser::WM_NCCALCSIZE => {
+        // here we handle necessary messages with temp_window_flags until the subclass_procedure it attached.
+        // this check is necessary to stop this procedure when subclass_procedure is attached
         if &*id_ptr == &true {
           // adjust the maximized borderless window to fill the work area rectangle of the display monitor
           if util::is_maximized(window) {
@@ -1039,12 +1027,11 @@ unsafe extern "system" fn window_proc(
         } else {
           winuser::DefWindowProcW(window, msg, wparam, lparam)
         }
-      } else {
-        winuser::DefWindowProcW(window, msg, wparam, lparam)
       }
+      _ => winuser::DefWindowProcW(window, msg, wparam, lparam),
     }
-    _ => winuser::DefWindowProcW(window, msg, wparam, lparam),
   }
+
 }
 
 struct ComInitialized(*mut ());

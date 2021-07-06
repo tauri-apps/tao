@@ -53,7 +53,6 @@ use crate::{
     minimal_ime::is_msg_ime_related,
     monitor::{self, MonitorHandle},
     raw_input, util,
-    window::TEMP_WIN_FLAGS,
     window_state::{CursorFlags, WindowFlags, WindowState},
     wrap_device_id, WindowId, DEVICE_ID,
   },
@@ -100,7 +99,6 @@ pub(crate) struct SubclassInput<T: 'static> {
   pub file_drop_handler: Option<FileDropHandler>,
   pub subclass_removed: Cell<bool>,
   pub recurse_depth: Cell<u32>,
-  pub temp_flags_id: i32,
 }
 
 impl<T> SubclassInput<T> {
@@ -1928,20 +1926,22 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     winuser::WM_NCHITTEST => {
-      let win_flags = subclass_input.window_state.lock().window_flags();
+      if let Some(state) = subclass_input.window_state.try_lock() {
+        let win_flags = state.window_flags();
 
-      // Only apply this hit test for borderless windows that wants to be resizable
-      if !win_flags.contains(WindowFlags::DECORATIONS) && win_flags.contains(WindowFlags::RESIZABLE)
-      {
-        // cursor location
-        let (cx, cy) = (
-          windowsx::GET_X_LPARAM(lparam),
-          windowsx::GET_Y_LPARAM(lparam),
-        );
+        // Only apply this hit test for borderless windows that wants to be resizable
+        if !win_flags.contains(WindowFlags::DECORATIONS) && win_flags.contains(WindowFlags::RESIZABLE)
+        {
+          // cursor location
+          let (cx, cy) = (
+            windowsx::GET_X_LPARAM(lparam),
+            windowsx::GET_Y_LPARAM(lparam),
+          );
 
-        result = ProcResult::Value(crate::platform_impl::hit_test(window, cx, cy));
-      } else {
-        result = ProcResult::DefSubclassProc;
+          result = ProcResult::Value(crate::platform_impl::hit_test(window, cx, cy));
+        } else {
+          result = ProcResult::DefSubclassProc;
+        }
       }
     }
 
