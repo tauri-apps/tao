@@ -250,8 +250,6 @@ impl Window {
       window.hide();
     }
 
-    window.set_skip_taskbar_hint(attributes.skip_taskbar);
-
     let w_pos = window.get_position();
     let position: Rc<(AtomicI32, AtomicI32)> = Rc::new((w_pos.0.into(), w_pos.1.into()));
     let position_clone = position.clone();
@@ -641,7 +639,7 @@ impl Window {
     todo!()
   }
 
-  pub fn set_skip_taskbar(&self, skip: bool) {
+  pub(crate) fn set_skip_taskbar(&self, skip: bool) {
     if let Err(e) = self
       .window_requests_tx
       .send((self.window_id, WindowRequest::SetSkipTaskbar(skip)))

@@ -202,11 +202,6 @@ pub struct WindowAttributes {
   ///
   /// The default is `None`.
   pub window_menu: Option<platform_impl::Menu>,
-
-  /// Whether or not the window icon should be added to the taskbar.
-  ///
-  /// The default is `false`.
-  pub skip_taskbar: bool,
 }
 
 impl Default for WindowAttributes {
@@ -228,7 +223,6 @@ impl Default for WindowAttributes {
       always_on_top: false,
       window_icon: None,
       window_menu: None,
-      skip_taskbar: false,
     }
   }
 }
@@ -399,17 +393,6 @@ impl WindowBuilder {
   #[inline]
   pub fn with_window_icon(mut self, window_icon: Option<Icon>) -> Self {
     self.window.window_icon = window_icon;
-    self
-  }
-
-  /// Sets whether or not the window icon should be added to the taskbar.
-  ///
-  /// See [`Window::set_skip_taskbar`] for details.
-  ///
-  /// [`Window::set_skip_taskbar`]: crate::window::Window::set_skip_taskbar
-  #[inline]
-  pub fn with_skip_taskbar(mut self, skip: bool) -> Self {
-    self.window.skip_taskbar = skip;
     self
   }
 
@@ -853,20 +836,6 @@ impl Window {
   #[inline]
   pub fn show_menu(&self) {
     self.window.show_menu();
-  }
-
-  /// Whether to show the window icon in the task bar or not.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **iOS / Android:** Unsupported.
-  ///
-  /// On macOS, you need to change the activation policy with
-  /// `event_loop.set_activation_policy(ActivationPolicy::Accessory);`
-  /// The `set_skip_taskbar` have no effect.
-  ///
-  pub fn set_skip_taskbar(&self, skip: bool) {
-    self.window.set_skip_taskbar(skip);
   }
 }
 
