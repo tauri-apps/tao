@@ -630,6 +630,11 @@ impl Window {
 
   pub fn show_menu(&self) {}
 
+  pub fn is_menu_visible(&self) -> bool {
+    warn!("`Window::is_menu_visible` is ignored on Android");
+    false
+  }
+
   pub fn set_cursor_icon(&self, _: window::CursorIcon) {}
 
   pub fn set_cursor_position(&self, _: Position) -> Result<(), error::ExternalError> {

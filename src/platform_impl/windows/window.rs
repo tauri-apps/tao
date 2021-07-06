@@ -750,6 +750,11 @@ impl Window {
   }
 
   #[inline]
+  pub fn is_menu_visible(&self) -> bool {
+    unsafe { winuser::GetMenu(self.hwnd()) != ptr::null_mut() }
+  }
+
+  #[inline]
   pub fn reset_dead_keys(&self) {
     // `ToUnicode` consumes the dead-key by default, so we are constructing a fake (but valid)
     // key input which we can call `ToUnicode` with.

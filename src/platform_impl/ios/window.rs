@@ -308,6 +308,11 @@ impl Inner {
     warn!("`Window::show_menu` is ignored on iOS")
   }
 
+  pub fn is_menu_visible(&self) -> bool {
+    warn!("`Window::is_menu_visible` is ignored on iOS");
+    false
+  }
+
   // Allow directly accessing the current monitor internally without unwrapping.
   fn current_monitor_inner(&self) -> RootMonitorHandle {
     unsafe {

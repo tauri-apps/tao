@@ -1027,6 +1027,12 @@ impl UnownedWindow {
   pub fn show_menu(&self) {}
 
   #[inline]
+  pub fn is_menu_visible(&self) -> bool {
+    warn!("`Window::is_menu_visible` always return true on macOS");
+    true
+  }
+
+  #[inline]
   // Allow directly accessing the current monitor internally without unwrapping.
   pub(crate) fn current_monitor_inner(&self) -> RootMonitorHandle {
     unsafe {

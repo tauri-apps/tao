@@ -820,6 +820,16 @@ impl Window {
   pub fn show_menu(&self) {
     self.window.show_menu();
   }
+
+  /// Gets the visibilty of the window menu.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  /// - **macOS:** Always return true, as the menu is always visible.
+  pub fn is_menu_visible(&self) -> bool {
+    self.window.is_menu_visible()
+  }
 }
 
 /// Cursor functions.
