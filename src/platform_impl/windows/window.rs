@@ -949,10 +949,6 @@ unsafe fn init<T: 'static>(
     win.menu = menu::initialize(window_menu, window_handle, menu_handler).map(|m| HMenuWrapper(m));
   }
 
-  if attributes.focus {
-    force_window_active(win.window.0);
-  }
-
   Ok(win)
 }
 
