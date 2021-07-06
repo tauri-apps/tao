@@ -389,7 +389,6 @@ impl UnownedWindow {
     let fullscreen = win_attribs.fullscreen.take();
     let maximized = win_attribs.maximized;
     let visible = win_attribs.visible;
-    let focus = win_attribs.focus;
     let decorations = win_attribs.decorations;
     let inner_rect = win_attribs
       .inner_size
@@ -416,17 +415,6 @@ impl UnownedWindow {
     if visible {
       // Tightly linked with `app_state::window_activation_hack`
       unsafe { window.ns_window.makeKeyAndOrderFront_(nil) };
-    }
-
-    if focus {
-      unsafe {
-        // if visible, we already send it
-        if !visible {
-          window.ns_window.makeKeyAndOrderFront_(nil);
-        }
-        let app: id = msg_send![class!(NSApplication), sharedApplication];
-        let () = msg_send![app, activateIgnoringOtherApps: YES];
-      };
     }
 
     if maximized {
@@ -1039,7 +1027,10 @@ impl UnownedWindow {
   pub fn show_menu(&self) {}
 
   #[inline]
-  pub fn set_skip_taskbar(&self, _skip: bool) {}
+  pub fn is_menu_visible(&self) -> bool {
+    warn!("`Window::is_menu_visible` always return true on macOS");
+    true
+  }
 
   #[inline]
   // Allow directly accessing the current monitor internally without unwrapping.

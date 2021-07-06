@@ -172,11 +172,6 @@ pub struct WindowAttributes {
   /// The default is `true`.
   pub visible: bool,
 
-  /// Whether the window should get focus upon creation.
-  ///
-  /// The default is `true`.
-  pub focus: bool,
-
   /// Whether the the window should be transparent. If this is true, writing colors
   /// with alpha values different than `1.0` will produce a transparent window.
   ///
@@ -202,11 +197,6 @@ pub struct WindowAttributes {
   ///
   /// The default is `None`.
   pub window_menu: Option<platform_impl::Menu>,
-
-  /// Whether or not the window icon should be added to the taskbar.
-  ///
-  /// The default is `false`.
-  pub skip_taskbar: bool,
 }
 
 impl Default for WindowAttributes {
@@ -222,13 +212,11 @@ impl Default for WindowAttributes {
       maximized: false,
       fullscreen: None,
       visible: true,
-      focus: true,
       transparent: false,
       decorations: true,
       always_on_top: false,
       window_icon: None,
       window_menu: None,
-      skip_taskbar: false,
     }
   }
 }
@@ -350,18 +338,6 @@ impl WindowBuilder {
     self
   }
 
-  /// Sets whether the window will be initially hidden or focus.
-  ///
-  /// See [`Window::set_focus`] for details.
-  ///
-  /// [`Window::set_focus`]: crate::window::Window::set_focus
-  #[inline]
-  pub fn with_focus(mut self) -> Self {
-    // in macOS with_focus and with_visible do the same thing
-    self.window.focus = true;
-    self
-  }
-
   /// Sets whether the background of the window should be transparent.
   #[inline]
   pub fn with_transparent(mut self, transparent: bool) -> Self {
@@ -399,17 +375,6 @@ impl WindowBuilder {
   #[inline]
   pub fn with_window_icon(mut self, window_icon: Option<Icon>) -> Self {
     self.window.window_icon = window_icon;
-    self
-  }
-
-  /// Sets whether or not the window icon should be added to the taskbar.
-  ///
-  /// See [`Window::set_skip_taskbar`] for details.
-  ///
-  /// [`Window::set_skip_taskbar`]: crate::window::Window::set_skip_taskbar
-  #[inline]
-  pub fn with_skip_taskbar(mut self, skip: bool) -> Self {
-    self.window.skip_taskbar = skip;
     self
   }
 
@@ -830,6 +795,7 @@ impl Window {
   ///
   /// - **iOS / Android:** Unsupported.
   /// - **macOS:** `None` has no effect.
+  /// - **Linux:** Urgency levels have the same effect.
   #[inline]
   pub fn request_user_attention(&self, request_type: Option<UserAttentionType>) {
     self.window.request_user_attention(request_type)
@@ -855,18 +821,14 @@ impl Window {
     self.window.show_menu();
   }
 
-  /// Whether to show the window icon in the task bar or not.
+  /// Gets the visibilty of the window menu.
   ///
   /// ## Platform-specific
   ///
   /// - **iOS / Android:** Unsupported.
-  ///
-  /// On macOS, you need to change the activation policy with
-  /// `event_loop.set_activation_policy(ActivationPolicy::Accessory);`
-  /// The `set_skip_taskbar` have no effect.
-  ///
-  pub fn set_skip_taskbar(&self, skip: bool) {
-    self.window.set_skip_taskbar(skip);
+  /// - **macOS:** Always return true, as the menu is always visible.
+  pub fn is_menu_visible(&self) -> bool {
+    self.window.is_menu_visible()
   }
 }
 

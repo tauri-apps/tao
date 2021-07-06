@@ -207,10 +207,6 @@ impl Window {
     }
     window.set_visible(attributes.visible);
     window.set_decorated(attributes.decorations);
-    if attributes.focus {
-      // FIXME: replace with present_with_timestamp
-      window.present();
-    }
 
     if !attributes.decorations && attributes.resizable {
       window.add_events(EventMask::POINTER_MOTION_MASK | EventMask::BUTTON_MOTION_MASK);
@@ -249,8 +245,6 @@ impl Window {
     } else {
       window.hide();
     }
-
-    window.set_skip_taskbar_hint(attributes.skip_taskbar);
 
     let w_pos = window.get_position();
     let position: Rc<(AtomicI32, AtomicI32)> = Rc::new((w_pos.0.into(), w_pos.1.into()));
@@ -593,6 +587,10 @@ impl Window {
     self.menu_bar.show_all();
   }
 
+  pub fn is_menu_visible(&self) -> bool {
+    self.menu_bar.get_visible()
+  }
+
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
     if let Err(e) = self
       .window_requests_tx
@@ -641,7 +639,7 @@ impl Window {
     todo!()
   }
 
-  pub fn set_skip_taskbar(&self, skip: bool) {
+  pub(crate) fn set_skip_taskbar(&self, skip: bool) {
     if let Err(e) = self
       .window_requests_tx
       .send((self.window_id, WindowRequest::SetSkipTaskbar(skip)))
@@ -741,4 +739,12 @@ pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
   );
 
   edge
+}
+
+impl Drop for Window {
+  fn drop(&mut self) {
+    unsafe {
+      self.window.destroy();
+    }
+  }
 }

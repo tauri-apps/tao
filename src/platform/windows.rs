@@ -109,6 +109,9 @@ pub trait WindowExtWindows {
   /// this function can be called to reset the dead key state so that
   /// follow-up text input won't be affected by the dead key.
   fn reset_dead_keys(&self);
+
+  /// Whethe to show the window icon in the taskbar or not.
+  fn set_skip_taskbar(&self, skip: bool);
 }
 
 impl WindowExtWindows for Window {
@@ -142,6 +145,33 @@ impl WindowExtWindows for Window {
   #[inline]
   fn reset_dead_keys(&self) {
     self.window.reset_dead_keys();
+  }
+
+  #[inline]
+  fn set_skip_taskbar(&self, skip: bool) {
+    use winapi::{
+      um::{
+        combaseapi::{CoCreateInstance, CLSCTX_SERVER},
+        shobjidl_core::{CLSID_TaskbarList, ITaskbarList},
+      },
+      Interface,
+    };
+    unsafe {
+      let mut taskbar_list: *mut ITaskbarList = std::mem::zeroed();
+      CoCreateInstance(
+        &CLSID_TaskbarList,
+        std::ptr::null_mut(),
+        CLSCTX_SERVER,
+        &ITaskbarList::uuidof(),
+        &mut taskbar_list as *mut _ as *mut _,
+      );
+      if skip {
+        (*taskbar_list).DeleteTab(self.hwnd() as _);
+      } else {
+        (*taskbar_list).AddTab(self.hwnd() as _);
+      }
+      (*taskbar_list).Release();
+    }
   }
 }
 

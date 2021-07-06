@@ -296,10 +296,6 @@ impl Inner {
     warn!("`Window::set_ime_position` is ignored on iOS")
   }
 
-  pub fn set_skip_taskbar(&self, _skip: bool) {
-    warn!("`Window::set_skip_taskbar` is ignored on iOS")
-  }
-
   pub fn request_user_attention(&self, _request_type: Option<UserAttentionType>) {
     warn!("`Window::request_user_attention` is ignored on iOS")
   }
@@ -310,6 +306,11 @@ impl Inner {
 
   pub fn show_menu(&self) {
     warn!("`Window::show_menu` is ignored on iOS")
+  }
+
+  pub fn is_menu_visible(&self) -> bool {
+    warn!("`Window::is_menu_visible` is ignored on iOS");
+    false
   }
 
   // Allow directly accessing the current monitor internally without unwrapping.
