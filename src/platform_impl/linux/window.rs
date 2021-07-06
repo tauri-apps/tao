@@ -207,10 +207,6 @@ impl Window {
     }
     window.set_visible(attributes.visible);
     window.set_decorated(attributes.decorations);
-    if attributes.focus {
-      // FIXME: replace with present_with_timestamp
-      window.present();
-    }
 
     if !attributes.decorations && attributes.resizable {
       window.add_events(EventMask::POINTER_MOTION_MASK | EventMask::BUTTON_MOTION_MASK);
