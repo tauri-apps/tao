@@ -874,6 +874,7 @@ unsafe fn init<T: 'static>(
   }
 
   // make shadow for borderless windows as it is not there by default
+  // FIXME: add shadow attribute?
   if !attributes.decorations {
     let margins = winapi::um::uxtheme::MARGINS {
       cxLeftWidth: 1,
