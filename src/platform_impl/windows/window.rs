@@ -18,18 +18,18 @@ use std::{
 use winapi::{
   ctypes::c_int,
   shared::{
-    minwindef::{HINSTANCE, LPARAM, UINT, WPARAM},
+    basetsd::LONG_PTR,
+    minwindef::{HINSTANCE, LPARAM, LRESULT, UINT, WPARAM},
     windef::{self, HWND, POINT, POINTS, RECT},
   },
   um::{
-    combaseapi::{self, CoCreateInstance, CLSCTX_SERVER},
-    dwmapi,
+    combaseapi, dwmapi,
     imm::{CFS_POINT, COMPOSITIONFORM},
     libloaderapi,
     objbase::COINIT_APARTMENTTHREADED,
     ole2,
     oleidl::LPDROPTARGET,
-    shobjidl_core::{CLSID_TaskbarList, ITaskbarList, ITaskbarList2},
+    shobjidl_core::{CLSID_TaskbarList, ITaskbarList2},
     wingdi::{CreateRectRgn, DeleteObject},
     winnt::{LPCWSTR, SHORT},
     winuser,
@@ -210,12 +210,9 @@ impl Window {
   pub fn set_outer_position(&self, position: Position) {
     let (x, y): (i32, i32) = position.to_physical::<i32>(self.scale_factor()).into();
 
-    let window_state = Arc::clone(&self.window_state);
     let window = self.window.clone();
     self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
-        f.set(WindowFlags::MAXIMIZED, false)
-      });
+      util::set_maximized(window.0, false);
     });
 
     unsafe {
@@ -264,12 +261,9 @@ impl Window {
     let scale_factor = self.scale_factor();
     let (width, height) = size.to_physical::<u32>(scale_factor).into();
 
-    let window_state = Arc::clone(&self.window_state);
     let window = self.window.clone();
     self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
-        f.set(WindowFlags::MAXIMIZED, false)
-      });
+      util::set_maximized(window.0, false);
     });
 
     util::set_inner_size_physical(self.window.0, width, height);
@@ -436,20 +430,12 @@ impl Window {
 
   #[inline]
   pub fn set_maximized(&self, maximized: bool) {
-    let window = self.window.clone();
-    let window_state = Arc::clone(&self.window_state);
-
-    self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
-        f.set(WindowFlags::MAXIMIZED, maximized)
-      });
-    });
+    util::set_maximized(self.window.0, maximized);
   }
 
   #[inline]
   pub fn is_maximized(&self) -> bool {
-    let window_state = self.window_state.lock();
-    window_state.window_flags.contains(WindowFlags::MAXIMIZED)
+    util::is_maximized(self.window.0)
   }
 
   #[inline]
@@ -855,7 +841,7 @@ unsafe fn init<T: 'static>(
       parent.unwrap_or(ptr::null_mut()),
       pl_attribs.menu.unwrap_or(ptr::null_mut()),
       libloaderapi::GetModuleHandleW(ptr::null()),
-      ptr::null_mut(),
+      Box::into_raw(Box::new(!attributes.decorations)) as _,
     );
 
     if handle.is_null() {
@@ -890,6 +876,18 @@ unsafe fn init<T: 'static>(
 
     dwmapi::DwmEnableBlurBehindWindow(real_window.0, &bb);
     DeleteObject(region as _);
+  }
+
+  // make shadow for borderless windows as it is not there by default
+  // FIXME: add shadow attribute?
+  if !attributes.decorations {
+    let margins = winapi::um::uxtheme::MARGINS {
+      cxLeftWidth: 1,
+      cxRightWidth: 1,
+      cyBottomHeight: 1,
+      cyTopHeight: 1,
+    };
+    dwmapi::DwmExtendFrameIntoClientArea(real_window.0, &margins);
   }
 
   // If the system theme is dark, we need to set the window theme now
@@ -978,7 +976,7 @@ unsafe fn register_window_class(
   let class = winuser::WNDCLASSEXW {
     cbSize: mem::size_of::<winuser::WNDCLASSEXW>() as UINT,
     style: winuser::CS_HREDRAW | winuser::CS_VREDRAW | winuser::CS_OWNDC,
-    lpfnWndProc: Some(winuser::DefWindowProcW),
+    lpfnWndProc: Some(window_proc),
     cbClsExtra: 0,
     cbWndExtra: 0,
     hInstance: libloaderapi::GetModuleHandleW(ptr::null()),
@@ -997,6 +995,44 @@ unsafe fn register_window_class(
   winuser::RegisterClassExW(&class);
 
   class_name
+}
+
+unsafe extern "system" fn window_proc(
+  window: HWND,
+  msg: UINT,
+  wparam: WPARAM,
+  lparam: LPARAM,
+) -> LRESULT {
+  let mut userdata = winuser::GetWindowLongPtrW(window, winuser::GWL_USERDATA);
+
+  match msg {
+    winuser::WM_NCCALCSIZE => {
+      // here we handle necessary messages with temp_window_flags until the subclass_procedure it attached.
+      // this check is necessary to stop this procedure when subclass_procedure is attached
+      if *(userdata as *mut bool) == true {
+        // adjust the maximized borderless window to fill the work area rectangle of the display monitor
+        if util::is_maximized(window) {
+          let monitor = monitor::current_monitor(window);
+          if let Ok(monitor_info) = monitor::get_monitor_info(monitor.hmonitor()) {
+            let params = &mut *(lparam as *mut winuser::NCCALCSIZE_PARAMS);
+            params.rgrc[0] = monitor_info.rcWork;
+          }
+        }
+        0 // must return a value here, otherwise the window won't be borderless (without decorations)
+      } else {
+        winuser::DefWindowProcW(window, msg, wparam, lparam)
+      }
+    }
+    winuser::WM_NCCREATE => {
+      if userdata == 0 {
+        let createstruct = &*(lparam as *const winuser::CREATESTRUCTW);
+        userdata = createstruct.lpCreateParams as LONG_PTR;
+        winuser::SetWindowLongPtrW(window, winuser::GWL_USERDATA, userdata);
+      }
+      winuser::DefWindowProcW(window, msg, wparam, lparam)
+    }
+    _ => winuser::DefWindowProcW(window, msg, wparam, lparam),
+  }
 }
 
 struct ComInitialized(*mut ());
@@ -1084,4 +1120,56 @@ unsafe fn force_window_active(handle: HWND) {
   );
 
   winuser::SetForegroundWindow(handle);
+}
+
+pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
+  use winapi::shared::minwindef::TRUE;
+  use winuser::{
+    GetWindowRect, HTBOTTOM, HTBOTTOMLEFT, HTBOTTOMRIGHT, HTCLIENT, HTLEFT, HTNOWHERE, HTRIGHT,
+    HTTOP, HTTOPLEFT, HTTOPRIGHT,
+  };
+
+  unsafe {
+    let mut window_rect: RECT = mem::zeroed();
+    if GetWindowRect(hwnd, <*mut _>::cast(&mut window_rect)) == TRUE {
+      const CLIENT: i32 = 0b0000;
+      const LEFT: i32 = 00001;
+      const RIGHT: i32 = 0b0010;
+      const TOP: i32 = 0b0100;
+      const BOTTOM: i32 = 0b1000;
+      const TOPLEFT: i32 = TOP | LEFT;
+      const TOPRIGHT: i32 = TOP | RIGHT;
+      const BOTTOMLEFT: i32 = BOTTOM | LEFT;
+      const BOTTOMRIGHT: i32 = BOTTOM | RIGHT;
+
+      let fake_border = 3; // change this to manipulate how far inside the window, the resize can happen
+
+      let RECT {
+        left,
+        right,
+        bottom,
+        top,
+      } = window_rect;
+
+      let hit_result = LEFT * (if cx < (left + fake_border) { 1 } else { 0 })
+        | RIGHT * (if cx >= (right - fake_border) { 1 } else { 0 })
+        | TOP * (if cy < (top + fake_border) { 1 } else { 0 })
+        | BOTTOM * (if cy >= (bottom - fake_border) { 1 } else { 0 });
+
+      match hit_result {
+        CLIENT => HTCLIENT,
+        LEFT => HTLEFT,
+        RIGHT => HTRIGHT,
+        TOP => HTTOP,
+        BOTTOM => HTBOTTOM,
+        TOPLEFT => HTTOPLEFT,
+        TOPRIGHT => HTTOPRIGHT,
+        BOTTOMLEFT => HTBOTTOMLEFT,
+        BOTTOMRIGHT => HTBOTTOMRIGHT,
+        _ => HTNOWHERE,
+      }
+    } else {
+      HTNOWHERE
+    }
+  }
 }

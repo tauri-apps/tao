@@ -828,6 +828,17 @@ unsafe extern "system" fn public_window_callback<T: 'static>(
       .recurse_depth
       .set(subclass_input.recurse_depth.get() + 1);
 
+    // we remove the temp_win_flags as soon as the first msg to the subclass_procedure,
+    // so it will disable the normal_procedure
+    // if TEMP_WIN_FLAGS
+    //   .lock()
+    //   .get(&subclass_input.temp_flags_id)
+    //   .is_some()
+    // {
+    //   TEMP_WIN_FLAGS.lock().remove(&subclass_input.temp_flags_id);
+    // }
+    winuser::SetWindowLongPtrW(window, winuser::GWL_USERDATA, 0);
+
     let result =
       public_window_callback_inner(window, msg, wparam, lparam, uidsubclass, subclass_input);
 
@@ -1078,18 +1089,6 @@ unsafe fn public_window_callback_inner<T: 'static>(
         window_id: RootWindowId(WindowId(window)),
         event: Resized(physical_size),
       };
-
-      {
-        let mut w = subclass_input.window_state.lock();
-        // See WindowFlags::MARKER_RETAIN_STATE_ON_SIZE docs for info on why this `if` check exists.
-        if !w
-          .window_flags()
-          .contains(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE)
-        {
-          let maximized = wparam == winuser::SIZE_MAXIMIZED;
-          w.set_window_flags_in_place(|f| f.set(WindowFlags::MAXIMIZED, maximized));
-        }
-      }
 
       subclass_input.send_event(event);
       result = ProcResult::Value(0);
@@ -1701,8 +1700,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           return;
         }
 
-        window_state.fullscreen.is_none()
-          && !window_state.window_flags().contains(WindowFlags::MAXIMIZED)
+        window_state.fullscreen.is_none() && !util::is_maximized(window)
       };
 
       let style = winuser::GetWindowLongW(window, winuser::GWL_STYLE) as _;
@@ -1775,9 +1773,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           .contains(WindowFlags::MARKER_IN_SIZE_MOVE);
         // Unset maximized if we're changing the window's size.
         if new_physical_inner_size != old_physical_inner_size {
-          WindowState::set_window_flags(window_state, window, |f| {
-            f.set(WindowFlags::MAXIMIZED, false)
-          });
+          util::set_maximized(window, false);
         }
       }
 
@@ -1907,6 +1903,45 @@ unsafe fn public_window_callback_inner<T: 'static>(
             window_id: RootWindowId(WindowId(window)),
             event: ThemeChanged(new_theme),
           });
+        }
+      }
+    }
+
+    winuser::WM_NCCALCSIZE => {
+      let win_flags = subclass_input.window_state.lock().window_flags();
+
+      if !win_flags.contains(WindowFlags::DECORATIONS) {
+        // adjust the maximized borderless window to fill the work area rectangle of the display monitor
+        if util::is_maximized(window) {
+          let monitor = monitor::current_monitor(window);
+          if let Ok(monitor_info) = monitor::get_monitor_info(monitor.hmonitor()) {
+            let params = &mut *(lparam as *mut winuser::NCCALCSIZE_PARAMS);
+            params.rgrc[0] = monitor_info.rcWork;
+          }
+        }
+        result = ProcResult::Value(0);
+      } else {
+        result = ProcResult::DefSubclassProc;
+      }
+    }
+
+    winuser::WM_NCHITTEST => {
+      if let Some(state) = subclass_input.window_state.try_lock() {
+        let win_flags = state.window_flags();
+
+        // Only apply this hit test for borderless windows that wants to be resizable
+        if !win_flags.contains(WindowFlags::DECORATIONS)
+          && win_flags.contains(WindowFlags::RESIZABLE)
+        {
+          // cursor location
+          let (cx, cy) = (
+            windowsx::GET_X_LPARAM(lparam),
+            windowsx::GET_Y_LPARAM(lparam),
+          );
+
+          result = ProcResult::Value(crate::platform_impl::hit_test(window, cx, cy));
+        } else {
+          result = ProcResult::DefSubclassProc;
         }
       }
     }

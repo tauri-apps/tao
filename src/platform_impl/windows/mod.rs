@@ -16,7 +16,7 @@ pub use self::{
   keycode::{keycode_from_scancode, keycode_to_scancode},
   menu::{Menu, MenuItemAttributes},
   monitor::{MonitorHandle, VideoMode},
-  window::Window,
+  window::{hit_test, Window},
 };
 
 pub use self::icon::WinIcon as PlatformIcon;
