@@ -23,8 +23,7 @@ use winapi::{
     windef::{self, HWND, POINT, POINTS, RECT},
   },
   um::{
-    combaseapi,
-    dwmapi,
+    combaseapi, dwmapi,
     imm::{CFS_POINT, COMPOSITIONFORM},
     libloaderapi,
     objbase::COINIT_APARTMENTTHREADED,
