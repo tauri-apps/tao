@@ -78,6 +78,7 @@ fn main() {
       Event::WindowEvent {
         event: WindowEvent::CloseRequested,
         window_id,
+        ..
       } if window_id == window.id() => *control_flow = ControlFlow::Exit,
       Event::MainEventsCleared => {
         window.request_redraw();
@@ -86,6 +87,7 @@ fn main() {
         window_id,
         menu_id,
         origin: MenuType::MenuBar,
+        ..
       } if menu_id == test_menu_item.clone().id() => {
         println!("Clicked on `Disable menu`");
         if window_id == Some(window.id()) {

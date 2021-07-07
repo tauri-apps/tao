@@ -285,10 +285,7 @@ impl Window {
       scale_factor_clone.store(window.get_scale_factor(), Ordering::Release);
     });
 
-    if let Err(e) = window_requests_tx
-      .clone()
-      .send((window_id, WindowRequest::WireUpEvents))
-    {
+    if let Err(e) = window_requests_tx.send((window_id, WindowRequest::WireUpEvents)) {
       log::warn!("Fail to send wire up events request: {}", e);
     }
 
@@ -654,6 +651,7 @@ impl Window {
 unsafe impl Send for Window {}
 unsafe impl Sync for Window {}
 
+#[non_exhaustive]
 pub enum WindowRequest {
   Title(String),
   Position((i32, i32)),

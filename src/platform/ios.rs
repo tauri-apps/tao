@@ -269,6 +269,7 @@ impl MonitorHandleExtIOS for MonitorHandle {
 }
 
 /// Valid orientations for a particular [`Window`].
+#[non_exhaustive]
 #[derive(Clone, Copy, Debug)]
 pub enum ValidOrientations {
   /// Excludes `PortraitUpsideDown` on iphone
@@ -290,6 +291,7 @@ impl Default for ValidOrientations {
 /// The device [idiom].
 ///
 /// [idiom]: https://developer.apple.com/documentation/uikit/uidevice/1620037-userinterfaceidiom?language=objc
+#[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Idiom {
   Unspecified,

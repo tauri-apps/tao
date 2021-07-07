@@ -47,10 +47,12 @@ impl ShortcutManager {
         let root = (xlib.XDefaultRootWindow)(display);
 
         // Only trigger key release at end of repeated keys
+        #[allow(clippy::uninit_assumed_init)]
         let mut supported_rtrn: i32 = std::mem::MaybeUninit::uninit().assume_init();
         (xlib.XkbSetDetectableAutoRepeat)(display, 1, &mut supported_rtrn);
 
         (xlib.XSelectInput)(display, root, xlib::KeyReleaseMask);
+        #[allow(clippy::uninit_assumed_init)]
         let mut event: xlib::XEvent = std::mem::MaybeUninit::uninit().assume_init();
 
         loop {
@@ -142,7 +144,7 @@ impl ShortcutManager {
     &mut self,
     accelerator: Accelerator,
   ) -> Result<RootGlobalShortcut, ShortcutManagerError> {
-    let keycode = get_x11_scancode_from_hotkey(accelerator.key.clone());
+    let keycode = get_x11_scancode_from_hotkey(accelerator.key);
 
     if let Some(keycode) = keycode {
       let mut converted_modifiers: u32 = 0;

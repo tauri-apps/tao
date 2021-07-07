@@ -31,12 +31,14 @@ use crate::platform_impl::platform::{
   monitor, view, MonitorHandle,
 };
 
+#[non_exhaustive]
 #[derive(Debug)]
 pub enum EventWrapper {
   StaticEvent(Event<'static, Never>),
   EventProxy(EventProxy),
 }
 
+#[non_exhaustive]
 #[derive(Debug, PartialEq)]
 pub enum EventProxy {
   DpiChangedProxy {
@@ -295,6 +297,7 @@ fn setup_control_flow_observers() {
   }
 }
 
+#[non_exhaustive]
 #[derive(Debug)]
 pub enum Never {}
 

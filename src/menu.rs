@@ -186,6 +186,7 @@ impl Default for MenuBar {
 /// Note some platforms might not support some of the variants.
 /// Unsupported variant will be no-op on such platform.
 ///
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub enum MenuItem {
   /// Shows a standard "About" item
@@ -398,6 +399,7 @@ impl MenuId {
 }
 
 /// Type of menu the click is originating from.
+#[non_exhaustive]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum MenuType {
   /// Menubar menu item.

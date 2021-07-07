@@ -407,6 +407,7 @@ impl<P: Pixel, X: Pixel> Into<[X; 2]> for PhysicalSize<P> {
 }
 
 /// A size that's either physical or logical.
+#[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Size {
@@ -449,6 +450,7 @@ impl<P: Pixel> From<LogicalSize<P>> for Size {
 }
 
 /// A position that's either physical or logical.
+#[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Position {

@@ -70,6 +70,7 @@ impl<T> fmt::Debug for EventLoopWindowTarget<T> {
 /// the control flow to `Poll`.
 ///
 /// [events_cleared]: crate::event::Event::RedrawEventsCleared
+#[non_exhaustive]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ControlFlow {
   /// When the current loop iteration finishes, immediately begin a new iteration regardless of

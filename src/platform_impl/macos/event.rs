@@ -34,14 +34,17 @@ fn insert_or_get_key_str(string: String) -> &'static str {
   static_str
 }
 
+#[non_exhaustive]
 #[derive(Debug)]
 pub enum EventWrapper {
   StaticEvent(Event<'static, Never>),
   EventProxy(EventProxy),
 }
 
+#[non_exhaustive]
 #[derive(Debug, PartialEq)]
 pub enum EventProxy {
+  #[non_exhaustive]
   DpiChangedProxy {
     ns_window: IdRef,
     suggested_size: LogicalSize<f64>,
