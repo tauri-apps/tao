@@ -196,7 +196,6 @@ impl WindowExtWindows for Window {
         (*taskbar_list).AddTab(self.hwnd() as _);
       }
       (*taskbar_list).Release();
-
     }
   }
 }

@@ -8,7 +8,6 @@ use parking_lot::Mutex;
 use raw_window_handle::{windows::WindowsHandle, RawWindowHandle};
 use std::{
   cell::Cell,
-  collections::HashMap,
   ffi::OsStr,
   io, mem,
   os::windows::ffi::OsStrExt,
@@ -24,14 +23,14 @@ use winapi::{
     windef::{self, HWND, POINT, POINTS, RECT},
   },
   um::{
-    combaseapi::{self, CoCreateInstance, CLSCTX_SERVER},
+    combaseapi,
     dwmapi,
     imm::{CFS_POINT, COMPOSITIONFORM},
     libloaderapi,
     objbase::COINIT_APARTMENTTHREADED,
     ole2,
     oleidl::LPDROPTARGET,
-    shobjidl_core::{CLSID_TaskbarList, ITaskbarList, ITaskbarList2},
+    shobjidl_core::{CLSID_TaskbarList, ITaskbarList2},
     wingdi::{CreateRectRgn, DeleteObject},
     winnt::{LPCWSTR, SHORT},
     winuser,
@@ -1000,38 +999,35 @@ unsafe extern "system" fn window_proc(
   lparam: LPARAM,
 ) -> LRESULT {
   let mut userdata = winuser::GetWindowLongPtrW(window, winuser::GWL_USERDATA);
-  if userdata == 0 && msg == winuser::WM_NCCREATE {
-    let createstruct = &*(lparam as *const winuser::CREATESTRUCTW);
-    userdata = createstruct.lpCreateParams as LONG_PTR;
-    winuser::SetWindowLongPtrW(window, winuser::GWL_USERDATA, userdata);
-  }
-  let id_ptr = userdata as *mut bool;
 
-  if userdata == 0 {
-    winuser::DefWindowProcW(window, msg, wparam, lparam)
-  } else {
-    match msg {
-      winuser::WM_NCCALCSIZE => {
-        // here we handle necessary messages with temp_window_flags until the subclass_procedure it attached.
-        // this check is necessary to stop this procedure when subclass_procedure is attached
-        if &*id_ptr == &true {
-          // adjust the maximized borderless window to fill the work area rectangle of the display monitor
-          if util::is_maximized(window) {
-            let monitor = monitor::current_monitor(window);
-            if let Ok(monitor_info) = monitor::get_monitor_info(monitor.hmonitor()) {
-              let params = &mut *(lparam as *mut winuser::NCCALCSIZE_PARAMS);
-              params.rgrc[0] = monitor_info.rcWork;
-            }
+  match msg {
+    winuser::WM_NCCALCSIZE => {
+      // here we handle necessary messages with temp_window_flags until the subclass_procedure it attached.
+      // this check is necessary to stop this procedure when subclass_procedure is attached
+      if *(userdata as *mut bool) == true {
+        // adjust the maximized borderless window to fill the work area rectangle of the display monitor
+        if util::is_maximized(window) {
+          let monitor = monitor::current_monitor(window);
+          if let Ok(monitor_info) = monitor::get_monitor_info(monitor.hmonitor()) {
+            let params = &mut *(lparam as *mut winuser::NCCALCSIZE_PARAMS);
+            params.rgrc[0] = monitor_info.rcWork;
           }
-          0 // must return a value here, otherwise the window won't be borderless (without decorations)
-        } else {
-          winuser::DefWindowProcW(window, msg, wparam, lparam)
         }
+        0 // must return a value here, otherwise the window won't be borderless (without decorations)
+      } else {
+        winuser::DefWindowProcW(window, msg, wparam, lparam)
       }
-      _ => winuser::DefWindowProcW(window, msg, wparam, lparam),
     }
+    winuser::WM_NCCREATE => {
+      if userdata == 0 {
+        let createstruct = &*(lparam as *const winuser::CREATESTRUCTW);
+        userdata = createstruct.lpCreateParams as LONG_PTR;
+        winuser::SetWindowLongPtrW(window, winuser::GWL_USERDATA, userdata);
+      }
+      winuser::DefWindowProcW(window, msg, wparam, lparam)
+    }
+    _ => winuser::DefWindowProcW(window, msg, wparam, lparam),
   }
-
 }
 
 struct ComInitialized(*mut ());

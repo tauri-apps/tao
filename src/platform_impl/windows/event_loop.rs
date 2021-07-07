@@ -1930,7 +1930,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
         let win_flags = state.window_flags();
 
         // Only apply this hit test for borderless windows that wants to be resizable
-        if !win_flags.contains(WindowFlags::DECORATIONS) && win_flags.contains(WindowFlags::RESIZABLE)
+        if !win_flags.contains(WindowFlags::DECORATIONS)
+          && win_flags.contains(WindowFlags::RESIZABLE)
         {
           // cursor location
           let (cx, cy) = (
