@@ -1009,7 +1009,7 @@ unsafe extern "system" fn window_proc(
     winuser::WM_NCCALCSIZE => {
       // here we handle necessary messages with temp_window_flags until the subclass_procedure it attached.
       // this check is necessary to stop this procedure when subclass_procedure is attached
-      if *(userdata as *mut bool) == true {
+      if userdata != 0 && *(userdata as *mut bool) == true {
         // adjust the maximized borderless window to fill the work area rectangle of the display monitor
         if util::is_maximized(window) {
           let monitor = monitor::current_monitor(window);
