@@ -828,15 +828,7 @@ unsafe extern "system" fn public_window_callback<T: 'static>(
       .recurse_depth
       .set(subclass_input.recurse_depth.get() + 1);
 
-    // we remove the temp_win_flags as soon as the first msg to the subclass_procedure,
-    // so it will disable the normal_procedure
-    // if TEMP_WIN_FLAGS
-    //   .lock()
-    //   .get(&subclass_input.temp_flags_id)
-    //   .is_some()
-    // {
-    //   TEMP_WIN_FLAGS.lock().remove(&subclass_input.temp_flags_id);
-    // }
+    // Clear userdata
     winuser::SetWindowLongPtrW(window, winuser::GWL_USERDATA, 0);
 
     let result =

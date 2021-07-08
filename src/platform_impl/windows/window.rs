@@ -878,18 +878,6 @@ unsafe fn init<T: 'static>(
     DeleteObject(region as _);
   }
 
-  // make shadow for borderless windows as it is not there by default
-  // FIXME: add shadow attribute?
-  if !attributes.decorations {
-    let margins = winapi::um::uxtheme::MARGINS {
-      cxLeftWidth: 1,
-      cxRightWidth: 1,
-      cyBottomHeight: 1,
-      cyTopHeight: 1,
-    };
-    dwmapi::DwmExtendFrameIntoClientArea(real_window.0, &margins);
-  }
-
   // If the system theme is dark, we need to set the window theme now
   // before we update the window flags (and possibly show the
   // window for the first time).
@@ -1007,8 +995,7 @@ unsafe extern "system" fn window_proc(
 
   match msg {
     winuser::WM_NCCALCSIZE => {
-      // here we handle necessary messages with temp_window_flags until the subclass_procedure it attached.
-      // this check is necessary to stop this procedure when subclass_procedure is attached
+      // Check if userdata is set and if the value of it is true
       if userdata != 0 && *(userdata as *mut bool) == true {
         // adjust the maximized borderless window to fill the work area rectangle of the display monitor
         if util::is_maximized(window) {
@@ -1024,6 +1011,7 @@ unsafe extern "system" fn window_proc(
       }
     }
     winuser::WM_NCCREATE => {
+      // Set userdata to the value of lparam. This will be cleared on event loop subclassing. 
       if userdata == 0 {
         let createstruct = &*(lparam as *const winuser::CREATESTRUCTW);
         userdata = createstruct.lpCreateParams as LONG_PTR;
