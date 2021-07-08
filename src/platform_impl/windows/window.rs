@@ -1011,7 +1011,7 @@ unsafe extern "system" fn window_proc(
       }
     }
     winuser::WM_NCCREATE => {
-      // Set userdata to the value of lparam. This will be cleared on event loop subclassing. 
+      // Set userdata to the value of lparam. This will be cleared on event loop subclassing.
       if userdata == 0 {
         let createstruct = &*(lparam as *const winuser::CREATESTRUCTW);
         userdata = createstruct.lpCreateParams as LONG_PTR;
