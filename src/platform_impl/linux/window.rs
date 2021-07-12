@@ -199,6 +199,7 @@ impl Window {
 
     // Rest attributes
     window.set_title(&attributes.title);
+    // TODO set it with Fullscreen enum
     if attributes.fullscreen.is_some() {
       window.fullscreen();
     }
