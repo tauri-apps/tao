@@ -620,16 +620,32 @@ impl Window {
   }
 
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
-    todo!()
+    let screen = self.window.get_display().get_default_screen();
+    let window = self.window.get_window().unwrap();
+    let number = screen.get_monitor_at_window(&window);
+    let handle = MonitorHandle::new(&self.window.get_display(), number);
+    Some(RootMonitorHandle { inner: handle })
   }
 
   #[inline]
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
-    todo!()
+    let mut handles = VecDeque::new();
+    let display = self.window.get_display();
+    let numbers = display.get_n_monitors();
+
+    for i in 0..numbers {
+      let monitor = MonitorHandle::new(&display, i);
+      handles.push_back(monitor);
+    }
+
+    handles
   }
 
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
-    todo!()
+    let screen = self.window.get_display().get_default_screen();
+    let number = screen.get_primary_monitor();
+    let handle = MonitorHandle::new(&self.window.get_display(), number);
+    Some(RootMonitorHandle { inner: handle })
   }
 
   pub fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
