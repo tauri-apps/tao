@@ -104,7 +104,7 @@ gio = "0.9"
 glib = "0.10"
 glib-sys = "0.10"
 gtk = { version = "0.9", features = [ "v3_16" ] }
-gdk = "0.13"
+gdk = { version = "0.13", features = [ "v3_22" ] }
 gdk-sys = "0.10"
 gdk-pixbuf = { version = "0.9", features = [ "v2_36_8" ] }
 sourceview = { version = "0.9", optional = true }

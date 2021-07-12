@@ -40,6 +40,8 @@ use super::{
 };
 
 pub struct EventLoopWindowTarget<T> {
+  /// Gdk display
+  pub(crate) display: gdk::Display,
   /// Gtk application
   pub(crate) app: gtk::Application,
   /// Window Ids of the application
@@ -52,12 +54,24 @@ pub struct EventLoopWindowTarget<T> {
 impl<T> EventLoopWindowTarget<T> {
   #[inline]
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
-    todo!()
+    let mut handles = VecDeque::new();
+    let display = &self.display;
+    let numbers = display.get_n_monitors();
+
+    for i in 0..numbers {
+      let monitor = MonitorHandle::new(&display, i);
+      handles.push_back(monitor);
+    }
+
+    handles
   }
 
   #[inline]
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
-    todo!()
+    let screen = self.display.get_default_screen();
+    let number = screen.get_primary_monitor();
+    let handle = MonitorHandle::new(&self.display, number);
+    Some(RootMonitorHandle { inner: handle })
   }
 }
 
@@ -85,7 +99,10 @@ impl<T: 'static> EventLoop<T> {
 
     // Create event loop window target.
     let (window_requests_tx, window_requests_rx) = glib::MainContext::channel(Priority::default());
+    let display = gdk::Display::get_default()
+      .expect("GdkDisplay not found. This usually means `gkt_init` hasn't called yet.");
     let window_target = EventLoopWindowTarget {
+      display,
       app,
       windows: Rc::new(RefCell::new(HashSet::new())),
       window_requests_tx,

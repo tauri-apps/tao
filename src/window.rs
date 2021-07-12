@@ -721,6 +721,7 @@ impl Window {
   ///   The dock and the menu bar are always disabled in fullscreen mode.
   /// - **iOS:** Can only be called on the main thread.
   /// - **Windows:** Screen saver is disabled in fullscreen mode.
+  /// - **Linux:** The window will only fullscreen to current monitor no matter which enum variant.
   /// - **Android:** Unsupported.
   #[inline]
   pub fn set_fullscreen(&self, fullscreen: Option<Fullscreen>) {

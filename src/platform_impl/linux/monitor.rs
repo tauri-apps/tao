@@ -7,27 +7,45 @@ use crate::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MonitorHandle;
+pub struct MonitorHandle {
+  monitor: gdk::Monitor,
+  // We have to store the monitor number in GdkScreen despite
+  // it's deprecated. Otherwise, there's no way to set it in
+  // GtkWindow in Gtk3.
+  number: i32,
+}
 
 impl MonitorHandle {
+  pub fn new(display: &gdk::Display, number: i32) -> Self {
+    let monitor = display.get_monitor(number).unwrap();
+    Self { monitor, number }
+  }
+
   #[inline]
   pub fn name(&self) -> Option<String> {
-    todo!()
+    self.monitor.get_model().map(|s| s.as_str().to_string())
   }
 
   #[inline]
   pub fn size(&self) -> PhysicalSize<u32> {
-    todo!()
+    PhysicalSize {
+      width: self.monitor.get_width_mm() as u32,
+      height: self.monitor.get_height_mm() as u32,
+    }
   }
 
   #[inline]
   pub fn position(&self) -> PhysicalPosition<i32> {
-    todo!()
+    let rect = self.monitor.get_geometry();
+    PhysicalPosition {
+      x: rect.x,
+      y: rect.y,
+    }
   }
 
   #[inline]
   pub fn scale_factor(&self) -> f64 {
-    todo!()
+    self.monitor.get_scale_factor() as f64
   }
 
   #[inline]
@@ -35,6 +53,9 @@ impl MonitorHandle {
     todo!()
   }
 }
+
+unsafe impl Send for MonitorHandle {}
+unsafe impl Sync for MonitorHandle {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct VideoMode;
