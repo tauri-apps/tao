@@ -40,7 +40,7 @@ fn main() {
         }
         WindowEvent::KeyboardInput {
           event: KeyEvent {
-            state: ElementState::Released,
+            state: ElementState::Pressed,
             ..
           },
           ..
