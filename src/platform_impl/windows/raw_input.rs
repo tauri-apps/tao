@@ -54,6 +54,7 @@ pub fn get_raw_input_device_list() -> Option<Vec<RAWINPUTDEVICELIST>> {
   Some(buffer)
 }
 
+#[non_exhaustive]
 #[allow(dead_code)]
 pub enum RawDeviceInfo {
   Mouse(RID_DEVICE_INFO_MOUSE),

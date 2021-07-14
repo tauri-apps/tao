@@ -199,6 +199,7 @@ impl Window {
 
     // Rest attributes
     window.set_title(&attributes.title);
+    // TODO set it with Fullscreen enum
     if attributes.fullscreen.is_some() {
       window.fullscreen();
     }
@@ -285,10 +286,7 @@ impl Window {
       scale_factor_clone.store(window.get_scale_factor(), Ordering::Release);
     });
 
-    if let Err(e) = window_requests_tx
-      .clone()
-      .send((window_id, WindowRequest::WireUpEvents))
-    {
+    if let Err(e) = window_requests_tx.send((window_id, WindowRequest::WireUpEvents)) {
       log::warn!("Fail to send wire up events request: {}", e);
     }
 
@@ -623,16 +621,32 @@ impl Window {
   }
 
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
-    todo!()
+    let screen = self.window.get_display().get_default_screen();
+    let window = self.window.get_window().unwrap();
+    let number = screen.get_monitor_at_window(&window);
+    let handle = MonitorHandle::new(&self.window.get_display(), number);
+    Some(RootMonitorHandle { inner: handle })
   }
 
   #[inline]
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
-    todo!()
+    let mut handles = VecDeque::new();
+    let display = self.window.get_display();
+    let numbers = display.get_n_monitors();
+
+    for i in 0..numbers {
+      let monitor = MonitorHandle::new(&display, i);
+      handles.push_back(monitor);
+    }
+
+    handles
   }
 
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
-    todo!()
+    let screen = self.window.get_display().get_default_screen();
+    let number = screen.get_primary_monitor();
+    let handle = MonitorHandle::new(&self.window.get_display(), number);
+    Some(RootMonitorHandle { inner: handle })
   }
 
   pub fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
@@ -654,6 +668,7 @@ impl Window {
 unsafe impl Send for Window {}
 unsafe impl Sync for Window {}
 
+#[non_exhaustive]
 pub enum WindowRequest {
   Title(String),
   Position((i32, i32)),
@@ -687,7 +702,7 @@ pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
   let (right, bottom) = (left + w, top + h);
   let (cx, cy) = (cx as i32, cy as i32);
 
-  let fake_border = 5; // change this to manipulate how far inside the window, the resize can happen
+  let fake_border = 3; // change this to manipulate how far inside the window, the resize can happen
 
   let display = window.get_display();
 

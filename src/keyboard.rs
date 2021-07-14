@@ -177,6 +177,7 @@ mod modifiers_serde {
 }
 
 /// Contains the platform-native physical key identifier (aka scancode)
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum NativeKeyCode {
@@ -1578,6 +1579,7 @@ impl<'a> From<&'a str> for Key<'a> {
 }
 
 /// Represents the location of a physical key.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum KeyLocation {

@@ -7,6 +7,7 @@ use std::{error, fmt};
 use crate::platform_impl;
 
 /// An error whose cause it outside Tao's control.
+#[non_exhaustive]
 #[derive(Debug)]
 pub enum ExternalError {
   /// The operation is not supported by the backend.

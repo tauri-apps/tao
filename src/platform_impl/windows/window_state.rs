@@ -94,8 +94,6 @@ bitflags! {
         const MINIMIZED = 1 << 12;
 
         const EXCLUSIVE_FULLSCREEN_OR_MASK = WindowFlags::ALWAYS_ON_TOP.bits;
-        const NO_DECORATIONS_AND_MASK = !WindowFlags::RESIZABLE.bits;
-        const INVISIBLE_AND_MASK = !WindowFlags::MAXIMIZED.bits;
     }
 }
 
@@ -187,12 +185,7 @@ impl WindowFlags {
     if self.contains(WindowFlags::MARKER_EXCLUSIVE_FULLSCREEN) {
       self |= WindowFlags::EXCLUSIVE_FULLSCREEN_OR_MASK;
     }
-    if !self.contains(WindowFlags::VISIBLE) {
-      self &= WindowFlags::INVISIBLE_AND_MASK;
-    }
-    if !self.contains(WindowFlags::DECORATIONS) {
-      self &= WindowFlags::NO_DECORATIONS_AND_MASK;
-    }
+
     self
   }
 
@@ -200,13 +193,15 @@ impl WindowFlags {
     use winapi::um::winuser::*;
 
     let (mut style, mut style_ex) = (0, 0);
+    style |= WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_SYSMENU | WS_CAPTION | WS_MINIMIZEBOX;
+    style_ex |= WS_EX_ACCEPTFILES;
 
     if self.contains(WindowFlags::RESIZABLE) {
-      style |= WS_SIZEBOX | WS_MAXIMIZEBOX;
+      style |= WS_THICKFRAME | WS_MAXIMIZEBOX;
     }
     if self.contains(WindowFlags::DECORATIONS) {
-      style |= WS_CAPTION | WS_MINIMIZEBOX | WS_BORDER;
-      style_ex = WS_EX_WINDOWEDGE;
+      style |= WS_BORDER;
+      style_ex |= WS_EX_WINDOWEDGE;
     }
     if self.contains(WindowFlags::VISIBLE) {
       style |= WS_VISIBLE;
@@ -232,10 +227,6 @@ impl WindowFlags {
     if self.contains(WindowFlags::MAXIMIZED) {
       style |= WS_MAXIMIZE;
     }
-
-    style |= WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_SYSMENU;
-    style_ex |= WS_EX_ACCEPTFILES;
-
     if self.intersects(
       WindowFlags::MARKER_EXCLUSIVE_FULLSCREEN | WindowFlags::MARKER_BORDERLESS_FULLSCREEN,
     ) {
@@ -284,18 +275,6 @@ impl WindowFlags {
             | winuser::SWP_NOACTIVATE,
         );
         winuser::InvalidateRgn(window, ptr::null_mut(), 0);
-      }
-    }
-
-    if diff.contains(WindowFlags::MAXIMIZED) || new.contains(WindowFlags::MAXIMIZED) {
-      unsafe {
-        winuser::ShowWindow(
-          window,
-          match new.contains(WindowFlags::MAXIMIZED) {
-            true => winuser::SW_MAXIMIZE,
-            false => winuser::SW_RESTORE,
-          },
-        );
       }
     }
 

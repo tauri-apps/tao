@@ -88,7 +88,9 @@ fn main() {
     *control_flow = ControlFlow::Wait;
 
     match event {
-      Event::WindowEvent { event, window_id } => {
+      Event::WindowEvent {
+        event, window_id, ..
+      } => {
         if event == WindowEvent::CloseRequested {
           println!("Window {:?} has received the signal to close", window_id);
           // Remove window from our hashmap
@@ -109,6 +111,7 @@ fn main() {
         mut bounds,
         event,
         position: _cursor_position,
+        ..
       } => {
         if event == TrayEvent::LeftClick {
           println!("{:?}", bounds.position);

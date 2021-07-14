@@ -29,7 +29,7 @@ impl Clipboard {
       .collect();
 
     clipboard.set_with_data(&targets, move |_, selection, _| {
-      selection.set(&selection.get_target(), 8 as i32, string.as_bytes());
+      selection.set(&selection.get_target(), 8i32, string.as_bytes());
     });
   }
 

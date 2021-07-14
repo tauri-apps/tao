@@ -24,7 +24,9 @@ fn main() {
     Event::NewEvents(StartCause::Init) => {
       eprintln!("Switch which window is to be dragged by pressing \"x\".")
     }
-    Event::WindowEvent { event, window_id } => match event {
+    Event::WindowEvent {
+      event, window_id, ..
+    } => match event {
       WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
       WindowEvent::MouseInput {
         state: ElementState::Pressed,

@@ -721,6 +721,7 @@ impl Window {
   ///   The dock and the menu bar are always disabled in fullscreen mode.
   /// - **iOS:** Can only be called on the main thread.
   /// - **Windows:** Screen saver is disabled in fullscreen mode.
+  /// - **Linux:** The window will only fullscreen to current monitor no matter which enum variant.
   /// - **Android:** Unsupported.
   #[inline]
   pub fn set_fullscreen(&self, fullscreen: Option<Fullscreen>) {
@@ -957,6 +958,7 @@ unsafe impl raw_window_handle::HasRawWindowHandle for Window {
 }
 
 /// Describes the appearance of the mouse cursor.
+#[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum CursorIcon {
@@ -1022,6 +1024,7 @@ impl Default for CursorIcon {
 }
 
 /// Fullscreen modes.
+#[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Fullscreen {
   Exclusive(VideoMode),
@@ -1030,12 +1033,14 @@ pub enum Fullscreen {
   Borderless(Option<MonitorHandle>),
 }
 
+#[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Theme {
   Light,
   Dark,
 }
 
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UserAttentionType {
   /// ## Platform-specific

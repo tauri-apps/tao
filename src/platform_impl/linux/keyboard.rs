@@ -30,7 +30,7 @@ fn insert_or_get_key_str(string: String) -> &'static str {
 
 #[allow(clippy::just_underscores_and_digits, non_upper_case_globals)]
 pub(crate) fn raw_key_to_key(gdk_key: RawKey) -> Option<Key<'static>> {
-  let key = match gdk_key {
+  match gdk_key {
     Escape => Some(Key::Escape),
     BackSpace => Some(Key::Backspace),
     Tab | ISO_Left_Tab => Some(Key::Tab),
@@ -98,10 +98,8 @@ pub(crate) fn raw_key_to_key(gdk_key: RawKey) -> Option<Key<'static>> {
     KP_Tab => Some(Key::Tab),
     KP_Up => Some(Key::ArrowUp),
     // TODO: more mappings (media etc)
-    _ => return None,
-  };
-
-  key
+    _ => None,
+  }
 }
 
 #[allow(clippy::just_underscores_and_digits, non_upper_case_globals)]
@@ -173,7 +171,7 @@ pub(crate) fn make_key_event(
   let keyval_with_modifiers =
     hardware_keycode_to_keyval(scancode).unwrap_or_else(|| keyval_without_modifiers.clone());
   // get unicode value, with and without modifiers
-  let text_without_modifiers = gdk::keys::keyval_to_unicode(*keyval_with_modifiers.clone());
+  let text_without_modifiers = gdk::keys::keyval_to_unicode(*keyval_with_modifiers);
   let text_with_modifiers = gdk::keys::keyval_to_unicode(*keyval_without_modifiers);
   // get physical key from the scancode (keycode)
   let physical_key = key_override.unwrap_or_else(|| KeyCode::from_scancode(scancode as u32));
@@ -192,7 +190,7 @@ pub(crate) fn make_key_event(
   });
 
   // extract the logical key
-  let logical_key = raw_key_to_key(keyval_without_modifiers.clone()).unwrap_or_else(|| {
+  let logical_key = raw_key_to_key(keyval_without_modifiers).unwrap_or_else(|| {
     if let Some(key) = text_with_modifiers {
       if key >= ' ' && key != '\x7f' {
         Key::Character(insert_or_get_key_str(key.to_string()))
@@ -215,7 +213,7 @@ pub(crate) fn make_key_event(
       physical_key,
       repeat: is_repeat,
       state,
-      text: text_with_all_modifiers.clone(),
+      text: text_with_all_modifiers,
       platform_specific: KeyEventExtra {
         text_with_all_modifiers,
         key_without_modifiers,

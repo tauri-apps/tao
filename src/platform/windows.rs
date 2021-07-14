@@ -5,12 +5,7 @@
 
 use std::{os::raw::c_void, path::Path};
 
-use libc;
-use winapi::shared::{
-  minwindef::WORD,
-  windef::{HMENU, HWND},
-};
-
+pub use crate::platform_impl::hit_test;
 use crate::{
   dpi::PhysicalSize,
   event::DeviceId,
@@ -18,6 +13,14 @@ use crate::{
   monitor::MonitorHandle,
   platform_impl::{EventLoop as WindowsEventLoop, Parent, WinIcon},
   window::{BadIcon, Icon, Theme, Window, WindowBuilder},
+};
+use libc;
+use winapi::{
+  shared::{
+    minwindef::{self, WORD},
+    windef::{HMENU, HWND},
+  },
+  um::winuser,
 };
 
 /// Additional methods on `EventLoop` that are specific to Windows.
@@ -110,6 +113,9 @@ pub trait WindowExtWindows {
   /// follow-up text input won't be affected by the dead key.
   fn reset_dead_keys(&self);
 
+  /// Starts the resizing drag from given edge
+  fn begin_resize_drag(&self, edge: isize);
+
   /// Whethe to show the window icon in the taskbar or not.
   fn set_skip_taskbar(&self, skip: bool);
 }
@@ -145,6 +151,25 @@ impl WindowExtWindows for Window {
   #[inline]
   fn reset_dead_keys(&self) {
     self.window.reset_dead_keys();
+  }
+
+  #[inline]
+  fn begin_resize_drag(&self, edge: isize) {
+    unsafe {
+      let point = {
+        let mut pos = std::mem::zeroed();
+        winuser::GetCursorPos(&mut pos);
+        pos
+      };
+
+      winuser::ReleaseCapture();
+      winuser::PostMessageW(
+        self.hwnd() as _,
+        winuser::WM_NCLBUTTONDOWN,
+        edge as minwindef::WPARAM,
+        &point as *const _ as minwindef::LPARAM,
+      );
+    }
   }
 
   #[inline]

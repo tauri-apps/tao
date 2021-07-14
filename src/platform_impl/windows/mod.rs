@@ -16,7 +16,7 @@ pub use self::{
   keycode::{keycode_from_scancode, keycode_to_scancode},
   menu::{Menu, MenuItemAttributes},
   monitor::{MonitorHandle, VideoMode},
-  window::Window,
+  window::{hit_test, Window},
 };
 
 pub use self::icon::WinIcon as PlatformIcon;
@@ -32,6 +32,7 @@ mod system_tray;
 #[cfg(feature = "tray")]
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 
+#[non_exhaustive]
 #[derive(Clone)]
 pub enum Parent {
   None,
@@ -90,6 +91,7 @@ impl DeviceId {
   }
 }
 
+#[non_exhaustive]
 #[derive(Debug)]
 pub enum OsError {
   CreationError(&'static str),

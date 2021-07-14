@@ -117,7 +117,7 @@ impl Menu {
       item.set_active(true);
       item.upcast::<GtkMenuItem>()
     } else {
-      GtkMenuItem::with_label(&title)
+      GtkMenuItem::with_label(title)
     };
     let custom_menu = MenuItemAttributes {
       id: menu_id,

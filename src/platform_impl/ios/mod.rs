@@ -166,6 +166,7 @@ impl DeviceId {
 unsafe impl Send for DeviceId {}
 unsafe impl Sync for DeviceId {}
 
+#[non_exhaustive]
 #[derive(Debug)]
 pub enum OsError {}
 

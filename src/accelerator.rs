@@ -72,6 +72,7 @@ impl FromStr for Accelerator {
 ///
 /// **This does one thing: it allows specifying accelerators that use the Command key
 /// on macOS, but use the Ctrl key on other platforms.**
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy)]
 pub enum SysMods {
   None,
@@ -90,6 +91,7 @@ pub enum SysMods {
 ///
 /// This is intended to be clearer than [`ModifiersState`], when describing accelerators.
 ///
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Hash)]
 pub enum RawMods {
   None,

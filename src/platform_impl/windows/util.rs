@@ -203,6 +203,29 @@ pub fn is_visible(window: HWND) -> bool {
   unsafe { winuser::IsWindowVisible(window) == TRUE }
 }
 
+pub fn is_maximized(window: HWND) -> bool {
+  unsafe {
+    let mut placement: winuser::WINDOWPLACEMENT = mem::zeroed();
+    placement.length = mem::size_of::<winuser::WINDOWPLACEMENT>() as u32;
+    winuser::GetWindowPlacement(window, &mut placement);
+    placement.showCmd == winuser::SW_MAXIMIZE as u32
+  }
+}
+
+pub fn set_maximized(window: HWND, maximized: bool) {
+  unsafe {
+    if winuser::IsWindowVisible(window) != 0 {
+      winuser::ShowWindow(
+        window,
+        match maximized {
+          true => winuser::SW_MAXIMIZE,
+          false => winuser::SW_RESTORE,
+        },
+      );
+    }
+  }
+}
+
 pub fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<HICON> {
   unsafe {
     match winuser::LookupIconIdFromDirectoryEx(

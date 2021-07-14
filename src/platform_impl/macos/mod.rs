@@ -62,6 +62,7 @@ pub struct Window {
   _delegate: util::IdRef,
 }
 
+#[non_exhaustive]
 #[derive(Debug)]
 pub enum OsError {
   CGError(core_graphics::base::CGError),
