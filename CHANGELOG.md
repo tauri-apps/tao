@@ -1,5 +1,34 @@
 # Changelog
 
+## \[0.4.0]
+
+- On Windows, Allow resizing of `decorations: false` aka borderless window.
+  - [f35dd03d](https://github.com/tauri-apps/tao/commit/f35dd03dc6f15d51fb348c6b404c195ba2401339) fix(windows): fix aero-snap and resizing of borderless window, fixes [#103](https://github.com/tauri-apps/tao/pull/103) [#104](https://github.com/tauri-apps/tao/pull/104) ([#110](https://github.com/tauri-apps/tao/pull/110)) on 2021-07-07
+- Do not close the window on `CloseRequested` event and let the user handle it, keeping compatibility with macOS and Windows behavior.
+  - [ea7330ef](https://github.com/tauri-apps/tao/commit/ea7330eff77dba8ab0b5e65d82313a7b15733190) fix(linux): do not close window on `CloseRequested` event ([#114](https://github.com/tauri-apps/tao/pull/114)) on 2021-07-05
+- On Windows, fix Aero-Snap for `decorations: false` aka borderless window.
+  - [f35dd03d](https://github.com/tauri-apps/tao/commit/f35dd03dc6f15d51fb348c6b404c195ba2401339) fix(windows): fix aero-snap and resizing of borderless window, fixes [#103](https://github.com/tauri-apps/tao/pull/103) [#104](https://github.com/tauri-apps/tao/pull/104) ([#110](https://github.com/tauri-apps/tao/pull/110)) on 2021-07-07
+- Implement `MonitorHandle` and related methods on Linux.
+  - [6fcfa629](https://github.com/tauri-apps/tao/commit/6fcfa62959800e6205068e74fa8648b5e12c6103) feat(linux): implement `MonitorHandle` and related methods ([#125](https://github.com/tauri-apps/tao/pull/125)) on 2021-07-12
+- Add `is_menu_visilbe` getter on `Window`
+  - [308411ca](https://github.com/tauri-apps/tao/commit/308411caeacc3b7c701d8d857964248a3411dfaa) feat: add `is_menu_visible` ([#108](https://github.com/tauri-apps/tao/pull/108)) on 2021-07-06
+- On macOS, make sure the `set_focus` is triggered even if the window is not visible.
+  - [3da167aa](https://github.com/tauri-apps/tao/commit/3da167aad9dad8ec2e3b3af52175a74a5ef07b99) fix(macos): `set_focus` should be triggered even if the window isn't visible ([#128](https://github.com/tauri-apps/tao/pull/128)) on 2021-07-14
+- Fix `with_visible(bool)` in `WindowBuilder` for macOS.
+  - [a0ac7075](https://github.com/tauri-apps/tao/commit/a0ac7075bdc5b9e37900c0f38b97a86071ce1dfd) fix(macos): Window state (`visible`) ([#119](https://github.com/tauri-apps/tao/pull/119)) on 2021-07-06
+- Mark enums as `#[non_exhaustive]` to prevent breaking changes on enum update.
+  - [9b906f50](https://github.com/tauri-apps/tao/commit/9b906f508477f0a67cc3b853909c24fe754b86c9) refactor: add `#[non_exhaustive]` attributes to enums ([#90](https://github.com/tauri-apps/tao/pull/90)) on 2021-07-07
+- Remove `with_focus` and `focus` field in `WindowAttribute`. Use `set_focus` instead in most cases.
+  - [e2399bc9](https://github.com/tauri-apps/tao/commit/e2399bc92642601d999a2579c0626dfe017a262c) Remove `with_focus` and `focus` field in `WindowAttribute` ([#121](https://github.com/tauri-apps/tao/pull/121)) on 2021-07-06
+- Revert d344825 and move `set_skip_taskbar` back behind a `WindowExtWindows` and `WindowExtUnix`.
+  - [a641d3a3](https://github.com/tauri-apps/tao/commit/a641d3a317c132661abf08723e4f87fb515e00ed) refactor: Revert d344825, move `set_skip_taskbar` behind platform-ext ([#118](https://github.com/tauri-apps/tao/pull/118)) on 2021-07-06
+- `SystemTray` expose `set_menu` to update the system tray menu once created.
+  - [578dd23e](https://github.com/tauri-apps/tao/commit/578dd23e02bbc63a2d2362b823730c470c1c029c) feat: implement `set_menu` for system tray ([#106](https://github.com/tauri-apps/tao/pull/106)) on 2021-07-14
+- Only show window behaviour when it is visible. winuser::ShowWindow will show the window and make with_visible(false) obsolete.
+  - [ff0903f6](https://github.com/tauri-apps/tao/commit/ff0903f62b7e206fd9018a7140f5d2729d4ab8ba) Only show window behaviour when it is visible ([#126](https://github.com/tauri-apps/tao/pull/126)) on 2021-07-14
+- Add `with_skip_taskbar` behind `WindowBuilderExtWindows` and `WindowBuilderExtUnix`.
+  - [e7cdb950](https://github.com/tauri-apps/tao/commit/e7cdb950c719a0efd93538324ba8773dd2c7abcc) feat(taskbar): add `with_skip_taskbar` for windows and linux ([#127](https://github.com/tauri-apps/tao/pull/127)) on 2021-07-14
+
 ## \[0.3.1]
 
 - Add `window_id` to `MenuEvent`.
