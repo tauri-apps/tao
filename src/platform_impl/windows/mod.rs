@@ -45,6 +45,7 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub parent: Parent,
   pub menu: Option<HMENU>,
   pub taskbar_icon: Option<Icon>,
+  pub skip_taskbar: bool,
   pub no_redirection_bitmap: bool,
   pub drag_and_drop: bool,
   pub preferred_theme: Option<Theme>,
@@ -59,6 +60,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       no_redirection_bitmap: false,
       drag_and_drop: true,
       preferred_theme: None,
+      skip_taskbar: false,
     }
   }
 }

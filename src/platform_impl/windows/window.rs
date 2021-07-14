@@ -43,6 +43,7 @@ use crate::{
   icon::Icon,
   menu::MenuType,
   monitor::MonitorHandle as RootMonitorHandle,
+  platform::windows::WindowExtWindows,
   platform_impl::platform::{
     dark_mode::try_theme,
     dpi::{dpi_to_scale_factor, hwnd_dpi},
@@ -902,6 +903,10 @@ unsafe fn init<T: 'static>(
     thread_executor: event_loop.create_thread_executor(),
     menu: None,
   };
+
+  if pl_attribs.skip_taskbar {
+    win.set_skip_taskbar(pl_attribs.skip_taskbar);
+  }
 
   let dimensions = attributes
     .inner_size

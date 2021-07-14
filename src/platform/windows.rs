@@ -116,7 +116,7 @@ pub trait WindowExtWindows {
   /// Starts the resizing drag from given edge
   fn begin_resize_drag(&self, edge: isize);
 
-  /// Whethe to show the window icon in the taskbar or not.
+  /// Whether to show the window icon in the taskbar or not.
   fn set_skip_taskbar(&self, skip: bool);
 }
 
@@ -247,6 +247,9 @@ pub trait WindowBuilderExtWindows {
 
   /// Forces a theme or uses the system settings if `None` was provided.
   fn with_theme(self, theme: Option<Theme>) -> WindowBuilder;
+
+  /// Whether to create the window icon with the taskbar icon or not.
+  fn with_skip_taskbar(self, skip: bool) -> WindowBuilder;
 }
 
 impl WindowBuilderExtWindows for WindowBuilder {
@@ -289,6 +292,12 @@ impl WindowBuilderExtWindows for WindowBuilder {
   #[inline]
   fn with_theme(mut self, theme: Option<Theme>) -> WindowBuilder {
     self.platform_specific.preferred_theme = theme;
+    self
+  }
+
+  #[inline]
+  fn with_skip_taskbar(mut self, skip: bool) -> WindowBuilder {
+    self.platform_specific.skip_taskbar = skip;
     self
   }
 }
