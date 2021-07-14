@@ -214,13 +214,15 @@ pub fn is_maximized(window: HWND) -> bool {
 
 pub fn set_maximized(window: HWND, maximized: bool) {
   unsafe {
-    winuser::ShowWindow(
-      window,
-      match maximized {
-        true => winuser::SW_MAXIMIZE,
-        false => winuser::SW_RESTORE,
-      },
-    );
+    if winuser::IsWindowVisible(window) != 0 {
+      winuser::ShowWindow(
+        window,
+        match maximized {
+          true => winuser::SW_MAXIMIZE,
+          false => winuser::SW_RESTORE,
+        },
+      );
+    }
   }
 }
 
