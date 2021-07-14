@@ -316,7 +316,7 @@ impl Window {
 
     window.queue_draw();
 
-    let mut win = Self {
+    let win = Self {
       window_id,
       window,
       window_requests_tx,
