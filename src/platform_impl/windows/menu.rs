@@ -157,7 +157,7 @@ impl Menu {
     }
   }
 
-  pub fn new_popup_menu() -> Menu {
+  pub fn new_popup_menu() -> Self {
     unsafe {
       let hmenu = winuser::CreatePopupMenu();
       Menu {

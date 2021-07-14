@@ -13,7 +13,7 @@ use crate::{
   error::OsError as RootOsError,
   event::{Event, Rectangle, TrayEvent},
   event_loop::EventLoopWindowTarget,
-  menu::{ContextMenu, MenuType},
+  menu::MenuType,
   system_tray::SystemTray as RootSystemTray,
 };
 use winapi::{
@@ -212,6 +212,8 @@ impl SystemTray {
     }
   }
 
+  // FIXME: Doing this, drop the menu as we do not keep a reference to it
+  // dropped by the `impl Drop for Menu`
   pub fn set_menu(&mut self, tray_menu: &Menu) {
     let new_menu = Some(tray_menu.hmenu);
     self.hmenu = new_menu;
