@@ -331,7 +331,7 @@ impl Window {
     };
 
     win.set_skip_taskbar(pl_attribs.skip_taskbar);
-    
+
     Ok(win)
   }
 
