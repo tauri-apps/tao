@@ -212,7 +212,7 @@ impl SystemTray {
     }
   }
 
-  pub fn set_menu(&mut self, _tray_menu: &Menu) {
+  pub fn set_menu(&mut self, tray_menu: &Menu) {
     let new_menu = Some(tray_menu.hmenu);
     self.hmenu = new_menu;
     SYSTEM_TRAY_STASH.with(|stash| {

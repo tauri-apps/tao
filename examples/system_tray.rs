@@ -51,10 +51,6 @@ fn main() {
   // add quit button
   let quit_element = tray_menu.add_item(MenuItemAttributes::new("Quit"));
 
-  // second menu (lifetime is important, specially on Windows)
-  let mut new_tray_menu = Menu::new();
-  new_tray_menu.add_item(MenuItemAttributes::new("Quit"));
-
   // Windows require Vec<u8> ICO file
   #[cfg(target_os = "windows")]
   let icon = include_bytes!("icon.ico").to_vec();
@@ -166,7 +162,9 @@ fn main() {
         }
 
         if menu_id == change_menu.clone().id() {
-          system_tray.set_menu(&new_tray_menu);
+          let mut tray_menu = Menu::new();
+          tray_menu.add_item(MenuItemAttributes::new("Quit"));
+          system_tray.set_menu(&tray_menu);
         }
 
         println!("Clicked on {:?}", menu_id);

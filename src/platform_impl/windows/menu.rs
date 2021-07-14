@@ -129,14 +129,6 @@ pub struct Menu {
   accels: HashMap<u16, AccelWrapper>,
 }
 
-impl Drop for Menu {
-  fn drop(&mut self) {
-    unsafe {
-      winuser::DestroyMenu(self.hmenu);
-    }
-  }
-}
-
 unsafe impl Send for Menu {}
 unsafe impl Sync for Menu {}
 
@@ -318,6 +310,22 @@ impl Menu {
     None
   }
 }
+
+/*
+  Disabled as menu's seems to be linked to the app
+  so they are dropped when the app closes.
+  see discussion here;
+
+  https://github.com/tauri-apps/tao/pull/106#issuecomment-880034210
+
+  impl Drop for Menu {
+    fn drop(&mut self) {
+      unsafe {
+        winuser::DestroyMenu(self.hmenu);
+      }
+    }
+  }
+*/
 
 pub fn initialize(
   menu_builder: Menu,
