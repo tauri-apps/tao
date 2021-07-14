@@ -330,10 +330,8 @@ impl Window {
       fullscreen: RefCell::new(attributes.fullscreen),
     };
 
-    if pl_attribs.skip_taskbar {
-      win.set_skip_taskbar(pl_attribs.skip_taskbar);
-    }
-
+    win.set_skip_taskbar(pl_attribs.skip_taskbar);
+    
     Ok(win)
   }
 

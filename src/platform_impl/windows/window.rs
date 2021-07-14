@@ -924,10 +924,6 @@ unsafe fn init<T: 'static>(
     menu: None,
   };
 
-  if pl_attribs.skip_taskbar {
-    win.set_skip_taskbar(pl_attribs.skip_taskbar);
-  }
-
   let dimensions = attributes
     .inner_size
     .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
@@ -964,6 +960,8 @@ unsafe fn init<T: 'static>(
 
     win.menu = menu::initialize(window_menu, window_handle, menu_handler).map(|m| HMenuWrapper(m));
   }
+
+  win.set_skip_taskbar(pl_attribs.skip_taskbar);
 
   Ok(win)
 }
