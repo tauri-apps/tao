@@ -43,6 +43,8 @@ fn main() {
   let mut focus_all_window =
     tray_menu.add_item(MenuItemAttributes::new("Focus window").with_enabled(false));
 
+  let change_menu = tray_menu.add_item(MenuItemAttributes::new("Change menu"));
+
   // inject submenu into tray_menu
   tray_menu.add_submenu("Sub menu", true, submenu);
 
@@ -158,6 +160,13 @@ fn main() {
           // tell our app to close at the end of the loop.
           *control_flow = ControlFlow::Exit;
         }
+
+        if menu_id == change_menu.clone().id() {
+          let mut tray_menu = Menu::new();
+          tray_menu.add_item(MenuItemAttributes::new("Quit"));
+          system_tray.set_menu(&tray_menu);
+        }
+
         println!("Clicked on {:?}", menu_id);
       }
       _ => (),

@@ -113,6 +113,12 @@ impl SystemTray {
     self.create_button_with_icon();
   }
 
+  pub fn set_menu(&mut self, tray_menu: &Menu) {
+    unsafe {
+      self.ns_status_bar.setMenu_(tray_menu.menu);
+    }
+  }
+
   fn create_button_with_icon(&self) {
     const ICON_WIDTH: f64 = 18.0;
     const ICON_HEIGHT: f64 = 18.0;

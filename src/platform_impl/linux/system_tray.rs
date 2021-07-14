@@ -5,15 +5,17 @@ use crate::{
   error::OsError, event_loop::EventLoopWindowTarget, system_tray::SystemTray as RootSystemTray,
 };
 
+use glib::Sender;
 use std::path::PathBuf;
 
 use gtk::{AccelGroup, WidgetExt};
 use libappindicator::{AppIndicator, AppIndicatorStatus};
 
-use super::{menu::Menu, WindowId};
+use super::{menu::Menu, window::WindowRequest, WindowId};
 
 pub struct SystemTrayBuilder {
-  pub(crate) system_tray: SystemTray,
+  tray_menu: Option<Menu>,
+  app_indicator: AppIndicator,
 }
 
 impl SystemTrayBuilder {
@@ -25,11 +27,10 @@ impl SystemTrayBuilder {
       &icon.to_string_lossy(),
       &path.to_string_lossy(),
     );
+
     Self {
-      system_tray: SystemTray {
-        tray_menu,
-        app_indicator,
-      },
+      tray_menu,
+      app_indicator,
     }
   }
 
@@ -38,27 +39,27 @@ impl SystemTrayBuilder {
     mut self,
     window_target: &EventLoopWindowTarget<T>,
   ) -> Result<RootSystemTray, OsError> {
-    let tx_ = window_target.p.window_requests_tx.clone();
+    let sender = window_target.p.window_requests_tx.clone();
 
-    if let Some(tray_menu) = self.system_tray.tray_menu.clone() {
-      let menu = &mut tray_menu.into_gtkmenu(&tx_, &AccelGroup::new(), WindowId::dummy());
+    if let Some(tray_menu) = self.tray_menu.clone() {
+      let menu = &mut tray_menu.into_gtkmenu(&sender, &AccelGroup::new(), WindowId::dummy());
 
-      self.system_tray.app_indicator.set_menu(menu);
+      self.app_indicator.set_menu(menu);
       menu.show_all();
     }
 
-    self
-      .system_tray
-      .app_indicator
-      .set_status(AppIndicatorStatus::Active);
+    self.app_indicator.set_status(AppIndicatorStatus::Active);
 
-    Ok(RootSystemTray(self.system_tray))
+    Ok(RootSystemTray(SystemTray {
+      app_indicator: self.app_indicator,
+      sender,
+    }))
   }
 }
 
 pub struct SystemTray {
-  tray_menu: Option<Menu>,
   app_indicator: AppIndicator,
+  sender: Sender<(WindowId, WindowRequest)>,
 }
 
 impl SystemTray {
@@ -68,5 +69,15 @@ impl SystemTray {
       .app_indicator
       .set_icon_theme_path(&path.to_string_lossy());
     self.app_indicator.set_icon(&icon.to_string_lossy())
+  }
+
+  pub fn set_menu(&mut self, tray_menu: &Menu) {
+    let mut menu =
+      tray_menu
+        .clone()
+        .into_gtkmenu(&self.sender, &AccelGroup::new(), WindowId::dummy());
+
+    self.app_indicator.set_menu(&mut menu);
+    menu.show_all();
   }
 }

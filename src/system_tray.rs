@@ -113,4 +113,9 @@ impl SystemTray {
   pub fn set_icon(&mut self, icon: PathBuf) {
     self.0.set_icon(icon)
   }
+
+  /// Set new tray menu.
+  pub fn set_menu(&mut self, tray_menu: &ContextMenu) {
+    self.0.set_menu(&tray_menu.0.menu_platform)
+  }
 }
