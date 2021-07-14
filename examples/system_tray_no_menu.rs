@@ -14,6 +14,10 @@ fn main() {
   use tao::menu::{ContextMenu, MenuItemAttributes};
   #[cfg(target_os = "macos")]
   use tao::platform::macos::{ActivationPolicy, EventLoopExtMacOS};
+  #[cfg(target_os = "linux")]
+  use tao::platform::unix::WindowBuilderExtUnix;
+  #[cfg(target_os = "windows")]
+  use tao::platform::windows::WindowBuilderExtWindows;
   use tao::{
     dpi::LogicalSize,
     event::{Event, Rectangle, TrayEvent, WindowEvent},
@@ -66,6 +70,7 @@ fn main() {
   let icon = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/icon.png");
 
   // linux require a menu so let's add only a open button
+  #[cfg(target_os = "linux")]
   let open_menu_id = MenuId::new("open_menu");
   let quit_menu_id = MenuId::new("quit_menu");
   #[cfg(target_os = "linux")]
@@ -99,8 +104,12 @@ fn main() {
       }
       // if we got a menu event from our `open_menu_id` open a new window..
       // (used on linux)
+      #[cfg(target_os = "linux")]
       Event::MenuEvent { menu_id, .. } if menu_id == open_menu_id => {
-        let window = WindowBuilder::new().build(event_loop).unwrap();
+        let window = WindowBuilder::new()
+          .with_skip_taskbar(true)
+          .build(event_loop)
+          .unwrap();
         windows.insert(window.id(), window);
       }
       // if we got `Quit` click, exit the app
@@ -119,13 +128,21 @@ fn main() {
             // window size
             let window_inner_size = LogicalSize::new(200.0, 200.0);
             // create our window
-            let window = WindowBuilder::new()
+            let mut window_builder = WindowBuilder::new();
+            window_builder = window_builder
               // position our window centered with tray bounds
               .with_position(window_position_center_tray(&mut bounds, window_inner_size).position)
               .with_inner_size(window_inner_size)
-              .with_resizable(false)
-              .build(event_loop)
-              .unwrap();
+              // disallow resize
+              .with_resizable(false);
+
+            // skip taskbar on windows & linux
+            #[cfg(any(target_os = "linux", target_os = "windows"))]
+            {
+              window_builder = window_builder.with_skip_taskbar(true);
+            }
+
+            let window = window_builder.build(event_loop).unwrap();
             windows.insert(window.id(), window);
           } else {
             for window in windows.values() {

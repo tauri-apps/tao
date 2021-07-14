@@ -23,13 +23,14 @@ use winapi::{
     windef::{self, HWND, POINT, POINTS, RECT},
   },
   um::{
-    combaseapi, dwmapi,
+    combaseapi::{self, CoCreateInstance, CLSCTX_SERVER},
+    dwmapi,
     imm::{CFS_POINT, COMPOSITIONFORM},
     libloaderapi,
     objbase::COINIT_APARTMENTTHREADED,
     ole2,
     oleidl::LPDROPTARGET,
-    shobjidl_core::{CLSID_TaskbarList, ITaskbarList2},
+    shobjidl_core::{CLSID_TaskbarList, ITaskbarList, ITaskbarList2},
     wingdi::{CreateRectRgn, DeleteObject},
     winnt::{LPCWSTR, SHORT},
     winuser,
@@ -759,6 +760,26 @@ impl Window {
       );
     }
   }
+
+  #[inline]
+  pub(crate) fn set_skip_taskbar(&self, skip: bool) {
+    unsafe {
+      let mut taskbar_list: *mut ITaskbarList = std::mem::zeroed();
+      CoCreateInstance(
+        &CLSID_TaskbarList,
+        std::ptr::null_mut(),
+        CLSCTX_SERVER,
+        &ITaskbarList::uuidof(),
+        &mut taskbar_list as *mut _ as *mut _,
+      );
+      if skip {
+        (*taskbar_list).DeleteTab(self.hwnd() as _);
+      } else {
+        (*taskbar_list).AddTab(self.hwnd() as _);
+      }
+      (*taskbar_list).Release();
+    }
+  }
 }
 
 impl Drop for Window {
@@ -939,6 +960,8 @@ unsafe fn init<T: 'static>(
 
     win.menu = menu::initialize(window_menu, window_handle, menu_handler).map(|m| HMenuWrapper(m));
   }
+
+  win.set_skip_taskbar(pl_attribs.skip_taskbar);
 
   Ok(win)
 }

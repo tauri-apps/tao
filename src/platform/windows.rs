@@ -116,7 +116,7 @@ pub trait WindowExtWindows {
   /// Starts the resizing drag from given edge
   fn begin_resize_drag(&self, edge: isize);
 
-  /// Whethe to show the window icon in the taskbar or not.
+  /// Whether to show the window icon in the taskbar or not.
   fn set_skip_taskbar(&self, skip: bool);
 }
 
@@ -174,29 +174,7 @@ impl WindowExtWindows for Window {
 
   #[inline]
   fn set_skip_taskbar(&self, skip: bool) {
-    use winapi::{
-      um::{
-        combaseapi::{CoCreateInstance, CLSCTX_SERVER},
-        shobjidl_core::{CLSID_TaskbarList, ITaskbarList},
-      },
-      Interface,
-    };
-    unsafe {
-      let mut taskbar_list: *mut ITaskbarList = std::mem::zeroed();
-      CoCreateInstance(
-        &CLSID_TaskbarList,
-        std::ptr::null_mut(),
-        CLSCTX_SERVER,
-        &ITaskbarList::uuidof(),
-        &mut taskbar_list as *mut _ as *mut _,
-      );
-      if skip {
-        (*taskbar_list).DeleteTab(self.hwnd() as _);
-      } else {
-        (*taskbar_list).AddTab(self.hwnd() as _);
-      }
-      (*taskbar_list).Release();
-    }
+    self.window.set_skip_taskbar(skip);
   }
 }
 
@@ -247,6 +225,9 @@ pub trait WindowBuilderExtWindows {
 
   /// Forces a theme or uses the system settings if `None` was provided.
   fn with_theme(self, theme: Option<Theme>) -> WindowBuilder;
+
+  /// Whether to create the window icon with the taskbar icon or not.
+  fn with_skip_taskbar(self, skip: bool) -> WindowBuilder;
 }
 
 impl WindowBuilderExtWindows for WindowBuilder {
@@ -289,6 +270,12 @@ impl WindowBuilderExtWindows for WindowBuilder {
   #[inline]
   fn with_theme(mut self, theme: Option<Theme>) -> WindowBuilder {
     self.platform_specific.preferred_theme = theme;
+    self
+  }
+
+  #[inline]
+  fn with_skip_taskbar(mut self, skip: bool) -> WindowBuilder {
+    self.platform_specific.skip_taskbar = skip;
     self
   }
 }

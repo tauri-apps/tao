@@ -30,9 +30,7 @@ pub use self::{
 };
 pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
 pub use monitor::{MonitorHandle, VideoMode};
-pub use window::{
-  hit_test, PlatformIcon, PlatformSpecificWindowBuilderAttributes, Window, WindowId,
-};
+pub use window::{hit_test, PlatformIcon, Window, WindowId};
 
 use crate::keyboard::Key;
 
@@ -41,6 +39,22 @@ pub struct KeyEventExtra {
   pub text_with_all_modifiers: Option<&'static str>,
   pub key_without_modifiers: Key<'static>,
 }
+
+#[derive(Clone)]
+pub struct PlatformSpecificWindowBuilderAttributes {
+  pub skip_taskbar: bool,
+}
+
+impl Default for PlatformSpecificWindowBuilderAttributes {
+  fn default() -> Self {
+    Self {
+      skip_taskbar: false,
+    }
+  }
+}
+
+unsafe impl Send for PlatformSpecificWindowBuilderAttributes {}
+unsafe impl Sync for PlatformSpecificWindowBuilderAttributes {}
 
 #[derive(Debug, Clone)]
 pub struct OsError;

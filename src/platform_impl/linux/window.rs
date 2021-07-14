@@ -22,10 +22,10 @@ use crate::{
   window::{CursorIcon, Fullscreen, UserAttentionType, WindowAttributes},
 };
 
-use super::{event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle};
-
-#[derive(Clone, Default)]
-pub struct PlatformSpecificWindowBuilderAttributes {}
+use super::{
+  event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle,
+  PlatformSpecificWindowBuilderAttributes,
+};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WindowId(pub(crate) u32);
@@ -99,7 +99,7 @@ impl Window {
   pub(crate) fn new<T>(
     event_loop_window_target: &EventLoopWindowTarget<T>,
     attributes: WindowAttributes,
-    _pl_attribs: PlatformSpecificWindowBuilderAttributes,
+    pl_attribs: PlatformSpecificWindowBuilderAttributes,
   ) -> Result<Self, RootOsError> {
     let app = &event_loop_window_target.app;
     let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
@@ -315,7 +315,8 @@ impl Window {
     });
 
     window.queue_draw();
-    Ok(Self {
+
+    let win = Self {
       window_id,
       window,
       window_requests_tx,
@@ -327,7 +328,11 @@ impl Window {
       maximized,
       minimized,
       fullscreen: RefCell::new(attributes.fullscreen),
-    })
+    };
+
+    win.set_skip_taskbar(pl_attribs.skip_taskbar);
+
+    Ok(win)
   }
 
   pub fn id(&self) -> WindowId {
