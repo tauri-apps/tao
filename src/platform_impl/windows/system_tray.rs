@@ -212,16 +212,26 @@ impl SystemTray {
     }
   }
 
-  // FIXME: Doing this, drop the menu as we do not keep a reference to it
-  // dropped by the `impl Drop for Menu`
   pub fn set_menu(&mut self, tray_menu: &Menu) {
-    let new_menu = Some(tray_menu.hmenu);
-    self.hmenu = new_menu;
-    SYSTEM_TRAY_STASH.with(|stash| {
-      if let Some(ref mut data) = *stash.borrow_mut() {
-        data.system_tray.hmenu = new_menu;
-      }
-    });
+    /*
+      FIXME: Doing this, drop the menu as we do not keep a reference to it
+      dropped by the `impl Drop for Menu`
+
+      To prevent release of tao 0.4 we disable the set_menu on the system tray
+      for now.
+
+      To be continued in;
+      https://github.com/tauri-apps/tao/pull/93
+
+      let new_menu = Some(tray_menu.hmenu);
+      self.hmenu = new_menu;
+      SYSTEM_TRAY_STASH.with(|stash| {
+        if let Some(ref mut data) = *stash.borrow_mut() {
+          data.system_tray.hmenu = new_menu;
+        }
+      });
+    */
+    debug!("`set_menu` is unimplemented on Windows.");
   }
 }
 

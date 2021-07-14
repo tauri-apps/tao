@@ -115,6 +115,10 @@ impl SystemTray {
   }
 
   /// Set new tray menu.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:**: Unsupported (menu is not updated, you should update the items manually)
   pub fn set_menu(&mut self, tray_menu: &ContextMenu) {
     self.0.set_menu(&tray_menu.0.menu_platform)
   }
