@@ -212,7 +212,7 @@ impl SystemTray {
     }
   }
 
-  pub fn set_menu(&mut self, tray_menu: &Menu) {
+  pub fn set_menu(&mut self, _tray_menu: &Menu) {
     /*
       FIXME: Doing this, drop the menu as we do not keep a reference to it
       dropped by the `impl Drop for Menu`
