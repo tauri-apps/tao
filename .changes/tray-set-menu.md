@@ -2,4 +2,4 @@
 "tao": minor
 ---
 
-macOS and Linux now allow `set_menu` on `SystemTray`. (Windows coming soon)
+`SystemTray` expose `set_menu` to update the system tray menu once created.
