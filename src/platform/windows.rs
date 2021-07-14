@@ -174,29 +174,7 @@ impl WindowExtWindows for Window {
 
   #[inline]
   fn set_skip_taskbar(&self, skip: bool) {
-    use winapi::{
-      um::{
-        combaseapi::{CoCreateInstance, CLSCTX_SERVER},
-        shobjidl_core::{CLSID_TaskbarList, ITaskbarList},
-      },
-      Interface,
-    };
-    unsafe {
-      let mut taskbar_list: *mut ITaskbarList = std::mem::zeroed();
-      CoCreateInstance(
-        &CLSID_TaskbarList,
-        std::ptr::null_mut(),
-        CLSCTX_SERVER,
-        &ITaskbarList::uuidof(),
-        &mut taskbar_list as *mut _ as *mut _,
-      );
-      if skip {
-        (*taskbar_list).DeleteTab(self.hwnd() as _);
-      } else {
-        (*taskbar_list).AddTab(self.hwnd() as _);
-      }
-      (*taskbar_list).Release();
-    }
+    self.window.set_skip_taskbar(skip);
   }
 }
 

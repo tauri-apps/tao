@@ -23,13 +23,14 @@ use winapi::{
     windef::{self, HWND, POINT, POINTS, RECT},
   },
   um::{
-    combaseapi, dwmapi,
+    combaseapi::{self, CoCreateInstance, CLSCTX_SERVER},
+    dwmapi,
     imm::{CFS_POINT, COMPOSITIONFORM},
     libloaderapi,
     objbase::COINIT_APARTMENTTHREADED,
     ole2,
     oleidl::LPDROPTARGET,
-    shobjidl_core::{CLSID_TaskbarList, ITaskbarList2},
+    shobjidl_core::{CLSID_TaskbarList, ITaskbarList, ITaskbarList2},
     wingdi::{CreateRectRgn, DeleteObject},
     winnt::{LPCWSTR, SHORT},
     winuser,
@@ -43,7 +44,6 @@ use crate::{
   icon::Icon,
   menu::MenuType,
   monitor::MonitorHandle as RootMonitorHandle,
-  platform::windows::WindowExtWindows,
   platform_impl::platform::{
     dark_mode::try_theme,
     dpi::{dpi_to_scale_factor, hwnd_dpi},
@@ -758,6 +758,26 @@ impl Window {
         char_buff.len() as i32,
         0,
       );
+    }
+  }
+
+  #[inline]
+  pub(crate) fn set_skip_taskbar(&self, always_on_top: bool) {
+    unsafe {
+      let mut taskbar_list: *mut ITaskbarList = std::mem::zeroed();
+      CoCreateInstance(
+        &CLSID_TaskbarList,
+        std::ptr::null_mut(),
+        CLSCTX_SERVER,
+        &ITaskbarList::uuidof(),
+        &mut taskbar_list as *mut _ as *mut _,
+      );
+      if skip {
+        (*taskbar_list).DeleteTab(self.hwnd() as _);
+      } else {
+        (*taskbar_list).AddTab(self.hwnd() as _);
+      }
+      (*taskbar_list).Release();
     }
   }
 }
