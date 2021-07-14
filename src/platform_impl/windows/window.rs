@@ -762,7 +762,7 @@ impl Window {
   }
 
   #[inline]
-  pub(crate) fn set_skip_taskbar(&self, always_on_top: bool) {
+  pub(crate) fn set_skip_taskbar(&self, skip: bool) {
     unsafe {
       let mut taskbar_list: *mut ITaskbarList = std::mem::zeroed();
       CoCreateInstance(
