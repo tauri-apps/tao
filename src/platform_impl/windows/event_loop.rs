@@ -1020,7 +1020,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         let new_monitor = winuser::MonitorFromRect(&new_rect, winuser::MONITOR_DEFAULTTONULL);
         match fullscreen {
           Fullscreen::Borderless(ref mut fullscreen_monitor) => {
-            if new_monitor != ptr::null_mut()
+            if !new_monitor.is_null()
               && fullscreen_monitor
                 .as_ref()
                 .map(|monitor| new_monitor != monitor.inner.hmonitor())

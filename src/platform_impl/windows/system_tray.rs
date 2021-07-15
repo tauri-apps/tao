@@ -98,7 +98,7 @@ impl SystemTrayBuilder {
         std::ptr::null_mut(),
       );
 
-      if hwnd == std::ptr::null_mut() {
+      if hwnd.is_null() {
         return Err(os_error!(OsError::CreationError(
           "Unable to get valid mutable pointer for winuser::CreateWindowEx"
         )));
@@ -156,7 +156,7 @@ impl SystemTrayBuilder {
       let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
       SetWindowSubclass(hwnd as _, Some(subclass_proc), 0, sender as _);
 
-      return Ok(RootSystemTray(app_system_tray));
+      Ok(RootSystemTray(app_system_tray))
     }
   }
 }
@@ -304,7 +304,7 @@ unsafe extern "system" fn window_proc(
     });
   }
 
-  return winuser::DefWindowProcW(hwnd, msg, wparam, lparam);
+  winuser::DefWindowProcW(hwnd, msg, wparam, lparam)
 }
 
 impl Drop for WindowsLoopData {

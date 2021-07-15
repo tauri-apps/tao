@@ -53,8 +53,8 @@ impl MenuHandler {
   ) -> MenuHandler {
     MenuHandler {
       window_id,
-      send_event,
       menu_type,
+      send_event,
     }
   }
   pub fn send_click_event(&self, menu_id: u16) {
@@ -449,7 +449,7 @@ fn execute_edit_command(command: EditCommands) {
 // Convert a hotkey to an accelerator.
 fn convert_accelerator(id: u16, key: Accelerator) -> Option<winuser::ACCEL> {
   let mut virt_key = winuser::FVIRTKEY;
-  let key_mods: ModifiersState = key.mods.into();
+  let key_mods: ModifiersState = key.mods;
   if key_mods.control_key() {
     virt_key |= winuser::FCONTROL;
   }
@@ -486,7 +486,7 @@ fn convert_accelerator(id: u16, key: Accelerator) -> Option<winuser::ACCEL> {
 
 // Format the hotkey in a Windows-native way.
 fn format_hotkey(key: Accelerator, s: &mut String) {
-  let key_mods: ModifiersState = key.mods.into();
+  let key_mods: ModifiersState = key.mods;
   if key_mods.control_key() {
     s.push_str("Ctrl+");
   }
@@ -500,42 +500,42 @@ fn format_hotkey(key: Accelerator, s: &mut String) {
     s.push_str("Windows+");
   }
   match &key.key {
-    KeyCode::KeyA => s.push_str("A"),
-    KeyCode::KeyB => s.push_str("B"),
-    KeyCode::KeyC => s.push_str("C"),
-    KeyCode::KeyD => s.push_str("D"),
-    KeyCode::KeyE => s.push_str("E"),
-    KeyCode::KeyF => s.push_str("F"),
-    KeyCode::KeyG => s.push_str("G"),
-    KeyCode::KeyH => s.push_str("H"),
-    KeyCode::KeyI => s.push_str("I"),
-    KeyCode::KeyJ => s.push_str("J"),
-    KeyCode::KeyK => s.push_str("K"),
-    KeyCode::KeyL => s.push_str("L"),
-    KeyCode::KeyM => s.push_str("M"),
-    KeyCode::KeyN => s.push_str("N"),
-    KeyCode::KeyO => s.push_str("O"),
-    KeyCode::KeyP => s.push_str("P"),
-    KeyCode::KeyQ => s.push_str("Q"),
-    KeyCode::KeyR => s.push_str("R"),
-    KeyCode::KeyS => s.push_str("S"),
-    KeyCode::KeyT => s.push_str("T"),
-    KeyCode::KeyU => s.push_str("U"),
-    KeyCode::KeyV => s.push_str("V"),
-    KeyCode::KeyW => s.push_str("W"),
-    KeyCode::KeyX => s.push_str("X"),
-    KeyCode::KeyY => s.push_str("Y"),
-    KeyCode::KeyZ => s.push_str("Z"),
-    KeyCode::Digit0 => s.push_str("0"),
-    KeyCode::Digit1 => s.push_str("1"),
-    KeyCode::Digit2 => s.push_str("2"),
-    KeyCode::Digit3 => s.push_str("3"),
-    KeyCode::Digit4 => s.push_str("4"),
-    KeyCode::Digit5 => s.push_str("5"),
-    KeyCode::Digit6 => s.push_str("6"),
-    KeyCode::Digit7 => s.push_str("7"),
-    KeyCode::Digit8 => s.push_str("8"),
-    KeyCode::Digit9 => s.push_str("9"),
+    KeyCode::KeyA => s.push('A'),
+    KeyCode::KeyB => s.push('B'),
+    KeyCode::KeyC => s.push('C'),
+    KeyCode::KeyD => s.push('D'),
+    KeyCode::KeyE => s.push('E'),
+    KeyCode::KeyF => s.push('F'),
+    KeyCode::KeyG => s.push('G'),
+    KeyCode::KeyH => s.push('H'),
+    KeyCode::KeyI => s.push('I'),
+    KeyCode::KeyJ => s.push('J'),
+    KeyCode::KeyK => s.push('K'),
+    KeyCode::KeyL => s.push('L'),
+    KeyCode::KeyM => s.push('M'),
+    KeyCode::KeyN => s.push('N'),
+    KeyCode::KeyO => s.push('O'),
+    KeyCode::KeyP => s.push('P'),
+    KeyCode::KeyQ => s.push('Q'),
+    KeyCode::KeyR => s.push('R'),
+    KeyCode::KeyS => s.push('S'),
+    KeyCode::KeyT => s.push('T'),
+    KeyCode::KeyU => s.push('U'),
+    KeyCode::KeyV => s.push('V'),
+    KeyCode::KeyW => s.push('W'),
+    KeyCode::KeyX => s.push('X'),
+    KeyCode::KeyY => s.push('Y'),
+    KeyCode::KeyZ => s.push('Z'),
+    KeyCode::Digit0 => s.push('0'),
+    KeyCode::Digit1 => s.push('1'),
+    KeyCode::Digit2 => s.push('2'),
+    KeyCode::Digit3 => s.push('3'),
+    KeyCode::Digit4 => s.push('4'),
+    KeyCode::Digit5 => s.push('5'),
+    KeyCode::Digit6 => s.push('6'),
+    KeyCode::Digit7 => s.push('7'),
+    KeyCode::Digit8 => s.push('8'),
+    KeyCode::Digit9 => s.push('9'),
     KeyCode::Escape => s.push_str("Esc"),
     KeyCode::Delete => s.push_str("Del"),
     KeyCode::Insert => s.push_str("Ins"),
