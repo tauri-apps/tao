@@ -1021,7 +1021,7 @@ unsafe extern "system" fn window_proc(
     winuser::WM_NCCALCSIZE => {
       // Check if userdata is set and if the value of it is true (window wants to be borderless)
       if userdata != 0 && *(userdata as *mut bool) == true {
-        // adjust the maximized borderless window to fill the work area rectangle of the display monitor
+        // adjust the maximized borderless window so it doesn't cover the taskbar
         if util::is_maximized(window) {
           let monitor = monitor::current_monitor(window);
           if let Ok(monitor_info) = monitor::get_monitor_info(monitor.hmonitor()) {
@@ -1029,7 +1029,7 @@ unsafe extern "system" fn window_proc(
             params.rgrc[0] = monitor_info.rcWork;
           }
         }
-        0 // return a value here to let
+        0 // return 0 here to make the windowo borderless
       } else {
         winuser::DefWindowProcW(window, msg, wparam, lparam)
       }
