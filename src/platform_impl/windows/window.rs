@@ -1145,7 +1145,7 @@ pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
     let mut window_rect: RECT = mem::zeroed();
     if GetWindowRect(hwnd, <*mut _>::cast(&mut window_rect)) == TRUE {
       const CLIENT: i32 = 0b0000;
-      const LEFT: i32 = 00001;
+      const LEFT: i32 = 0b0001;
       const RIGHT: i32 = 0b0010;
       const TOP: i32 = 0b0100;
       const BOTTOM: i32 = 0b1000;
@@ -1162,10 +1162,10 @@ pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
       } = window_rect;
 
       #[rustfmt::skip]
-      let result = LEFT * (if cx < (left + BORDERLESS_RESIZE_INSET) { 1 } else { 0 })
-        | RIGHT * (if cx >= (right - BORDERLESS_RESIZE_INSET) { 1 } else { 0 })
-        | TOP * (if cy < (top + BORDERLESS_RESIZE_INSET) { 1 } else { 0 })
-        | BOTTOM * (if cy >= (bottom - BORDERLESS_RESIZE_INSET) { 1 } else { 0 });
+      let result = (LEFT * (if cx < (left + BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
+        | (RIGHT * (if cx >= (right - BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
+        | (TOP * (if cy < (top + BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
+        | (BOTTOM * (if cy >= (bottom - BORDERLESS_RESIZE_INSET) { 1 } else { 0 }));
 
       match result {
         CLIENT => HTCLIENT,

@@ -657,7 +657,7 @@ pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
 
   let display = window.get_display();
 
-  const LEFT: i32 = 0b00001;
+  const LEFT: i32 = 0b0001;
   const RIGHT: i32 = 0b0010;
   const TOP: i32 = 0b0100;
   const BOTTOM: i32 = 0b1000;
