@@ -354,7 +354,7 @@ impl<T: 'static> EventLoop<T> {
                       let (cx, cy) = event.get_root();
                       let result = hit_test(&window, cx, cy);
 
-                      // we ignore the `__Unknown` variant so the window receives the click properly when it is not in the edges
+                      // we ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
                       match result {
                         WindowEdge::__Unknown(_) => (),
                         _ => window.begin_resize_drag(
