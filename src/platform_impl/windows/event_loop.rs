@@ -1903,7 +1903,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let win_flags = subclass_input.window_state.lock().window_flags();
 
       if !win_flags.contains(WindowFlags::DECORATIONS) {
-        // adjust the maximized borderless window to fill the work area rectangle of the display monitor
+        // adjust the maximized borderless window so it doesn't cover the taskbar
         if util::is_maximized(window) {
           let monitor = monitor::current_monitor(window);
           if let Ok(monitor_info) = monitor::get_monitor_info(monitor.hmonitor()) {
@@ -1911,7 +1911,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
             params.rgrc[0] = monitor_info.rcWork;
           }
         }
-        result = ProcResult::Value(0);
+        result = ProcResult::Value(0); // return 0 here to make the windowo borderless
       } else {
         result = ProcResult::DefSubclassProc;
       }
@@ -1922,9 +1922,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         let win_flags = state.window_flags();
 
         // Only apply this hit test for borderless windows that wants to be resizable
-        if !win_flags.contains(WindowFlags::DECORATIONS)
-          && win_flags.contains(WindowFlags::RESIZABLE)
-        {
+        if !win_flags.contains(WindowFlags::DECORATIONS) {
           // cursor location
           let (cx, cy) = (
             windowsx::GET_X_LPARAM(lparam),

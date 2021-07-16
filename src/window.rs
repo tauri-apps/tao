@@ -1058,3 +1058,6 @@ impl Default for UserAttentionType {
     UserAttentionType::Informational
   }
 }
+
+/// A constant used to determine how much inside the window, the resize handler should appear (only used in Linux(gtk) and Windows).
+pub const BORDERLESS_RESIZE_INSET: i32 = 3;

@@ -56,6 +56,7 @@ use crate::{
   },
   window::{
     CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
+    BORDERLESS_RESIZE_INSET,
   },
 };
 
@@ -1018,9 +1019,9 @@ unsafe extern "system" fn window_proc(
 
   match msg {
     winuser::WM_NCCALCSIZE => {
-      // Check if userdata is set and if the value of it is true
+      // Check if userdata is set and if the value of it is true (window wants to be borderless)
       if userdata != 0 && *(userdata as *mut bool) == true {
-        // adjust the maximized borderless window to fill the work area rectangle of the display monitor
+        // adjust the maximized borderless window so it doesn't cover the taskbar
         if util::is_maximized(window) {
           let monitor = monitor::current_monitor(window);
           if let Ok(monitor_info) = monitor::get_monitor_info(monitor.hmonitor()) {
@@ -1028,7 +1029,7 @@ unsafe extern "system" fn window_proc(
             params.rgrc[0] = monitor_info.rcWork;
           }
         }
-        0 // must return a value here, otherwise the window won't be borderless (without decorations)
+        0 // return 0 here to make the windowo borderless
       } else {
         winuser::DefWindowProcW(window, msg, wparam, lparam)
       }
@@ -1153,8 +1154,6 @@ pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
       const BOTTOMLEFT: i32 = BOTTOM | LEFT;
       const BOTTOMRIGHT: i32 = BOTTOM | RIGHT;
 
-      let fake_border = 3; // change this to manipulate how far inside the window, the resize can happen
-
       let RECT {
         left,
         right,
@@ -1162,12 +1161,13 @@ pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
         top,
       } = window_rect;
 
-      let hit_result = (LEFT * (if cx < (left + fake_border) { 1 } else { 0 }))
-        | (RIGHT * (if cx >= (right - fake_border) { 1 } else { 0 }))
-        | (TOP * (if cy < (top + fake_border) { 1 } else { 0 }))
-        | (BOTTOM * (if cy >= (bottom - fake_border) { 1 } else { 0 }));
+      #[rustfmt::skip]
+      let result = (LEFT * (if cx < (left + BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
+        | (RIGHT * (if cx >= (right - BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
+        | (TOP * (if cy < (top + BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
+        | (BOTTOM * (if cy >= (bottom - BORDERLESS_RESIZE_INSET) { 1 } else { 0 }));
 
-      match hit_result {
+      match result {
         CLIENT => HTCLIENT,
         LEFT => HTLEFT,
         RIGHT => HTRIGHT,
