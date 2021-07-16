@@ -493,7 +493,7 @@ impl Window {
           // string, so add it
           display_name.push(0);
 
-          let mut native_video_mode = video_mode.video_mode.native_video_mode.clone();
+          let mut native_video_mode = video_mode.video_mode.native_video_mode;
 
           let res = unsafe {
             winuser::ChangeDisplaySettingsExW(
@@ -739,7 +739,7 @@ impl Window {
 
   #[inline]
   pub fn is_menu_visible(&self) -> bool {
-    unsafe { winuser::GetMenu(self.hwnd()) != ptr::null_mut() }
+    unsafe { !winuser::GetMenu(self.hwnd()).is_null() }
   }
 
   #[inline]
@@ -936,7 +936,7 @@ unsafe fn init<T: 'static>(
   }
   win.set_visible(attributes.visible);
 
-  if let Some(_) = attributes.fullscreen {
+  if attributes.fullscreen.is_some() {
     win.set_fullscreen(attributes.fullscreen);
     force_window_active(win.window.0);
   }
@@ -948,7 +948,7 @@ unsafe fn init<T: 'static>(
   if let Some(window_menu) = attributes.window_menu {
     let event_loop_runner = event_loop.runner_shared.clone();
     let window_handle = win.raw_window_handle();
-    let window_id = RootWindowId(win.id().clone());
+    let window_id = RootWindowId(win.id());
     let menu_handler = menu::MenuHandler::new(
       Box::new(move |event| {
         if let Ok(e) = event.map_nonuser_event() {
@@ -959,7 +959,7 @@ unsafe fn init<T: 'static>(
       Some(window_id),
     );
 
-    win.menu = menu::initialize(window_menu, window_handle, menu_handler).map(|m| HMenuWrapper(m));
+    win.menu = menu::initialize(window_menu, window_handle, menu_handler).map(HMenuWrapper);
   }
 
   win.set_skip_taskbar(pl_attribs.skip_taskbar);
@@ -1083,7 +1083,7 @@ unsafe fn taskbar_mark_fullscreen(handle: HWND, fullscreen: bool) {
   TASKBAR_LIST.with(|task_bar_list_ptr| {
     let mut task_bar_list = task_bar_list_ptr.get();
 
-    if task_bar_list == ptr::null_mut() {
+    if task_bar_list.is_null() {
       use winapi::shared::winerror::S_OK;
 
       let hr = combaseapi::CoCreateInstance(
