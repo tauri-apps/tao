@@ -60,6 +60,7 @@ unsafe impl Sync for Menu {}
 pub struct MenuItemAttributes {
   id: MenuId,
   key: Option<Accelerator>,
+  title: String,
   selected: bool,
   enabled: bool,
   menu_type: MenuType,
@@ -74,6 +75,7 @@ impl MenuItemAttributes {
     self.gtk_item.set_sensitive(is_enabled);
   }
   pub fn set_title(&mut self, title: &str) {
+    self.title = title.into();
     self.gtk_item.set_label(title);
   }
 
@@ -125,6 +127,7 @@ impl Menu {
       enabled,
       selected,
       menu_type,
+      title: title.into(),
       gtk_item,
     };
 
@@ -174,6 +177,61 @@ impl Menu {
     menu.set_accel_group(Some(accel_group));
     self.generate_menu(&mut menu, tx, accel_group, window_id);
     menu
+  }
+
+  #[cfg(feature = "tray")]
+  pub fn into_ksnimenu(
+    &self,
+    tx: &Sender<(WindowId, WindowRequest)>,
+    window_id: WindowId,
+  ) -> Vec<ksni::MenuItem<super::system_tray::KsniTray>> {
+    let mut v = vec![];
+    for item in &self.gtk_items {
+      if let Some(m) = Self::generate_ksnimenu_item(item) {
+        v.push(m);
+      }
+      println!("{:#?}", item);
+    }
+    v
+  }
+
+  #[cfg(feature = "tray")]
+  fn generate_ksnimenu_item(
+    item: &GtkMenuInfo,
+  ) -> Option<ksni::menu::MenuItem<super::system_tray::KsniTray>> {
+    match item {
+      GtkMenuInfo {
+        menu_type: GtkMenuType::Custom,
+        sub_menu: None,
+        custom_menu_item: Some(i),
+        ..
+      } => {
+        let ksni_item = ksni::menu::StandardItem {
+          label: i.title.clone(),
+          enabled: i.enabled,
+          visible: true,
+          ..Default::default()
+        };
+        Some(ksni_item.into())
+      }
+      GtkMenuInfo {
+        menu_type: GtkMenuType::Submenu,
+        sub_menu: Some(s),
+        custom_menu_item: None,
+        ..
+      } => None,
+      GtkMenuInfo {
+        menu_type: GtkMenuType::Native,
+        menu_item: Some(i),
+        sub_menu: None,
+        custom_menu_item: None,
+        ..
+      } => None,
+      _ => {
+        log::error!("Wrong combination of GtkMenuInfo");
+        None
+      }
+    }
   }
 
   pub(crate) fn generate_menu<M: gtk::prelude::IsA<gtk::MenuShell>>(
