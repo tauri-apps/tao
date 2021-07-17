@@ -46,10 +46,6 @@ pub struct MenuItemAttributes<'a> {
 
 impl<'a> MenuItemAttributes<'a> {
   /// Creates a new custom menu item.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux:** `selected` render a regular item
   pub fn new(title: &'a str) -> Self {
     Self {
       id: MenuId::new(title),

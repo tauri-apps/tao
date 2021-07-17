@@ -187,7 +187,7 @@ impl Menu {
   ) -> Vec<ksni::MenuItem<super::system_tray::KsniTray>> {
     let mut v = vec![];
     for item in &self.gtk_items {
-      if let Some(m) = Self::generate_ksnimenu_item(item) {
+      if let Some(m) = Self::generate_ksnimenu_item(item, tx.clone(), window_id) {
         v.push(m);
       }
       println!("{:#?}", item);
@@ -198,6 +198,8 @@ impl Menu {
   #[cfg(feature = "tray")]
   fn generate_ksnimenu_item(
     item: &GtkMenuInfo,
+    tx: Sender<(WindowId, WindowRequest)>,
+    window_id: WindowId,
   ) -> Option<ksni::menu::MenuItem<super::system_tray::KsniTray>> {
     match item {
       GtkMenuInfo {
@@ -206,20 +208,65 @@ impl Menu {
         custom_menu_item: Some(i),
         ..
       } => {
-        let ksni_item = ksni::menu::StandardItem {
-          label: i.title.clone(),
-          enabled: i.enabled,
-          visible: true,
-          ..Default::default()
+        let id = i.id;
+
+        let ksni_item = if i.selected {
+          ksni::menu::CheckmarkItem {
+            label: i.title.clone(),
+            enabled: i.enabled,
+            visible: true,
+            activate: Box::new(move |_| {
+              if let Err(e) = tx.send((window_id, WindowRequest::Menu((None, Some(id))))) {
+                log::warn!("Fail to send menu request: {}", e);
+              }
+            }),
+            ..Default::default()
+          }
+          .into()
+        } else {
+          ksni::menu::StandardItem {
+            label: i.title.clone(),
+            enabled: i.enabled,
+            visible: true,
+            activate: Box::new(move |_| {
+              if let Err(e) = tx.send((window_id, WindowRequest::Menu((None, Some(id))))) {
+                log::warn!("Fail to send menu request: {}", e);
+              }
+            }),
+            ..Default::default()
+          }
+          .into()
         };
-        Some(ksni_item.into())
+        Some(ksni_item)
       }
       GtkMenuInfo {
         menu_type: GtkMenuType::Submenu,
-        sub_menu: Some(s),
+        sub_menu:
+          Some(SubmenuDetail {
+            menu,
+            title,
+            enabled,
+            ..
+          }),
         custom_menu_item: None,
         ..
-      } => None,
+      } => {
+        let mut submenu = vec![];
+        for item in &menu.gtk_items {
+          if let Some(i) = Self::generate_ksnimenu_item(&item, tx.clone(), window_id) {
+            submenu.push(i);
+          }
+        }
+        let ksni_item = ksni::menu::SubMenu {
+          label: title.clone(),
+          enabled: *enabled,
+          visible: true,
+          submenu,
+          ..Default::default()
+        }
+        .into();
+        Some(ksni_item)
+      }
       GtkMenuInfo {
         menu_type: GtkMenuType::Native,
         menu_item: Some(i),
