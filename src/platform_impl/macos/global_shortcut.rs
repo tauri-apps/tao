@@ -63,7 +63,6 @@ impl ShortcutManager {
       // we get only 1 keycode as we don't generate it for the modifier
       // it's safe to use first()
       if let Some(scan_code) = accelerator.key.to_scancode() {
-        println!("register {:?}", accelerator);
         // register hotkey
         let handler_ref = register_hotkey(
           accelerator.clone().id().0 as i32,
