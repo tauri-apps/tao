@@ -216,8 +216,11 @@ impl Window {
     let (x, y): (i32, i32) = position.to_physical::<i32>(self.scale_factor()).into();
 
     let window = self.window.clone();
+    let window_state = Arc::clone(&self.window_state);
     self.thread_executor.execute_in_thread(move || {
-      util::set_maximized(window.0, false);
+      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+        f.set(WindowFlags::MAXIMIZED, false)
+      });
     });
 
     unsafe {
@@ -267,8 +270,11 @@ impl Window {
     let (width, height) = size.to_physical::<u32>(scale_factor).into();
 
     let window = self.window.clone();
+    let window_state = Arc::clone(&self.window_state);
     self.thread_executor.execute_in_thread(move || {
-      util::set_maximized(window.0, false);
+      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+        f.set(WindowFlags::MAXIMIZED, false)
+      });
     });
 
     util::set_inner_size_physical(self.window.0, width, height);
@@ -435,7 +441,14 @@ impl Window {
 
   #[inline]
   pub fn set_maximized(&self, maximized: bool) {
-    util::set_maximized(self.window.0, maximized);
+    let window = self.window.clone();
+    let window_state = Arc::clone(&self.window_state);
+    self.thread_executor.execute_in_thread(move || {
+      window_state
+        .lock()
+        .set_window_flags_in_place(|f| f.set(WindowFlags::MAXIMIZED, maximized));
+      util::set_maximized(window.0, maximized);
+    });
   }
 
   #[inline]
