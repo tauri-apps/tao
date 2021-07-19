@@ -180,7 +180,7 @@ impl Menu {
   }
 
   #[cfg(feature = "tray")]
-  pub fn into_ksnimenu(
+  pub fn to_ksnimenu(
     &self,
     tx: &Sender<(WindowId, WindowRequest)>,
     window_id: WindowId,

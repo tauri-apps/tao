@@ -64,13 +64,9 @@ impl SystemTray {
   }
 
   pub fn set_menu(&mut self, tray_menu: &Menu) {
-    //let mut menu =
-    //  tray_menu
-    //    .clone()
-    //    .into_gtkmenu(&self.sender, &AccelGroup::new(), WindowId::dummy());
-
-    //self.app_indicator.set_menu(&mut menu);
-    //menu.show_all();
+    self.tray_handle.update(|tray: &mut KsniTray| {
+      tray.set_menu(tray_menu.clone());
+    });
   }
 }
 
@@ -184,12 +180,13 @@ impl ksni::Tray for KsniTray {
 
   fn menu(&self) -> KsniMenu {
     if let Some(m) = &self.menu {
-      m.into_ksnimenu(&self.sender, WindowId::dummy())
+      m.to_ksnimenu(&self.sender, WindowId::dummy())
     } else {
       vec![]
     }
   }
 }
+
 pub struct KsniAccelerator {
   modifier: String,
   key: String,
