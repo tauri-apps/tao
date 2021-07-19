@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-  error::OsError, event_loop::EventLoopWindowTarget, system_tray::SystemTray as RootSystemTray,
+  accelerator::Accelerator,
+  error::OsError,
+  event_loop::EventLoopWindowTarget,
+  keyboard::{KeyCode, ModifiersState},
+  system_tray::SystemTray as RootSystemTray,
 };
 
 use glib::Sender;
@@ -183,6 +187,83 @@ impl ksni::Tray for KsniTray {
       m.into_ksnimenu(&self.sender, WindowId::dummy())
     } else {
       vec![]
+    }
+  }
+}
+pub struct KsniAccelerator {
+  modifier: String,
+  key: String,
+}
+
+impl KsniAccelerator {
+  fn to_modifier(accel_modifier: ModifiersState) -> String {
+    match accel_modifier {
+      ModifiersState::SHIFT => "Shift".into(),
+      ModifiersState::CONTROL => "Control".into(),
+      ModifiersState::ALT => "Alt".into(),
+      ModifiersState::SUPER => "Super".into(),
+      _ => {
+        dbg!("Cannot map modifier {:?}", accel_modifier);
+        "".into()
+      }
+    }
+  }
+
+  fn to_key(accel_key: KeyCode) -> String {
+    match &accel_key {
+      KeyCode::KeyA => 'A'.into(),
+      KeyCode::KeyB => 'B'.into(),
+      KeyCode::KeyC => 'C'.into(),
+      KeyCode::KeyD => 'D'.into(),
+      KeyCode::KeyE => 'E'.into(),
+      KeyCode::KeyF => 'F'.into(),
+      KeyCode::KeyG => 'G'.into(),
+      KeyCode::KeyH => 'H'.into(),
+      KeyCode::KeyI => 'I'.into(),
+      KeyCode::KeyJ => 'J'.into(),
+      KeyCode::KeyK => 'K'.into(),
+      KeyCode::KeyL => 'L'.into(),
+      KeyCode::KeyM => 'M'.into(),
+      KeyCode::KeyN => 'N'.into(),
+      KeyCode::KeyO => 'O'.into(),
+      KeyCode::KeyP => 'P'.into(),
+      KeyCode::KeyQ => 'Q'.into(),
+      KeyCode::KeyR => 'R'.into(),
+      KeyCode::KeyS => 'S'.into(),
+      KeyCode::KeyT => 'T'.into(),
+      KeyCode::KeyU => 'U'.into(),
+      KeyCode::KeyV => 'V'.into(),
+      KeyCode::KeyW => 'W'.into(),
+      KeyCode::KeyX => 'X'.into(),
+      KeyCode::KeyY => 'Y'.into(),
+      KeyCode::KeyZ => 'Z'.into(),
+      KeyCode::Digit0 => '0'.into(),
+      KeyCode::Digit1 => '1'.into(),
+      KeyCode::Digit2 => '2'.into(),
+      KeyCode::Digit3 => '3'.into(),
+      KeyCode::Digit4 => '4'.into(),
+      KeyCode::Digit5 => '5'.into(),
+      KeyCode::Digit6 => '6'.into(),
+      KeyCode::Digit7 => '7'.into(),
+      KeyCode::Digit8 => '8'.into(),
+      KeyCode::Digit9 => '9'.into(),
+      _ => {
+        dbg!("Cannot map key {:?}", accel_key);
+        "".into()
+      }
+    }
+  }
+
+  pub fn into_vec(self) -> Vec<String> {
+    vec![self.modifier, self.key]
+  }
+}
+
+impl From<&Accelerator> for KsniAccelerator {
+  fn from(accelerator: &Accelerator) -> Self {
+    Self {
+      modifier: Self::to_modifier(accelerator.mods),
+      key: Self::to_key(accelerator.key),
     }
   }
 }

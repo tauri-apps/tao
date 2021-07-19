@@ -210,6 +210,12 @@ impl Menu {
       } => {
         let id = i.id;
 
+        let ksni_accelerator = if let Some(a) = &i.key {
+          super::system_tray::KsniAccelerator::from(a).into_vec()
+        } else {
+          vec![]
+        };
+
         let ksni_item = if i.selected {
           ksni::menu::CheckmarkItem {
             label: i.title.clone(),
@@ -220,6 +226,7 @@ impl Menu {
                 log::warn!("Fail to send menu request: {}", e);
               }
             }),
+            shortcut: vec![ksni_accelerator],
             ..Default::default()
           }
           .into()
@@ -233,6 +240,7 @@ impl Menu {
                 log::warn!("Fail to send menu request: {}", e);
               }
             }),
+            shortcut: vec![ksni_accelerator],
             ..Default::default()
           }
           .into()
