@@ -36,7 +36,7 @@ const QUIT_ID: usize = 5006;
 const MINIMIZE_ID: usize = 5007;
 
 lazy_static! {
-  static ref MENU_IDS: Mutex<Vec<usize>> = Mutex::new(vec![]);
+  static ref MENU_IDS: Mutex<Vec<u16>> = Mutex::new(vec![]);
 }
 
 pub struct MenuHandler {
@@ -58,15 +58,11 @@ impl MenuHandler {
     }
   }
   pub fn send_click_event(&self, menu_id: u16) {
-    // we send only tray event as the window event
-    // is catched into the main event_loop process.
-    if self.menu_type == MenuType::ContextMenu {
-      (self.send_event)(Event::MenuEvent {
-        menu_id: MenuId(menu_id),
-        origin: self.menu_type,
-        window_id: self.window_id,
-      });
-    }
+    (self.send_event)(Event::MenuEvent {
+      menu_id: MenuId(menu_id),
+      origin: self.menu_type,
+      window_id: self.window_id,
+    });
   }
 
   pub fn send_event(&self, event: Event<'static, ()>) {
@@ -395,8 +391,9 @@ pub(crate) unsafe extern "system" fn subclass_proc(
           winuser::ShowWindow(hwnd, winuser::SW_MINIMIZE);
         }
         _ => {
-          if MENU_IDS.lock().unwrap().contains(&wparam) {
-            proxy.send_click_event(wparam as u16);
+          let menu_id = minwindef::LOWORD(wparam as _);
+          if MENU_IDS.lock().unwrap().contains(&menu_id) {
+            proxy.send_click_event(menu_id);
           }
         }
       }
