@@ -58,8 +58,6 @@ impl MenuHandler {
     }
   }
   pub fn send_menu_event(&self, menu_id: u16) {
-    // we send only tray event as the window event
-    // is catched into the main event_loop process.
     (self.event_sender)(Event::MenuEvent {
       menu_id: MenuId(menu_id),
       origin: self.menu_type,
