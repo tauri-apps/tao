@@ -42,23 +42,25 @@ lazy_static! {
 pub struct MenuHandler {
   window_id: Option<RootWindowId>,
   menu_type: MenuType,
-  send_event: Box<dyn Fn(Event<'static, ()>)>,
+  event_sender: Box<dyn Fn(Event<'static, ()>)>,
 }
 
 impl MenuHandler {
   pub fn new(
-    send_event: Box<dyn Fn(Event<'static, ()>)>,
+    event_sender: Box<dyn Fn(Event<'static, ()>)>,
     menu_type: MenuType,
     window_id: Option<RootWindowId>,
   ) -> MenuHandler {
     MenuHandler {
       window_id,
       menu_type,
-      send_event,
+      event_sender,
     }
   }
-  pub fn send_click_event(&self, menu_id: u16) {
-    (self.send_event)(Event::MenuEvent {
+  pub fn send_menu_event(&self, menu_id: u16) {
+    // we send only tray event as the window event
+    // is catched into the main event_loop process.
+    (self.event_sender)(Event::MenuEvent {
       menu_id: MenuId(menu_id),
       origin: self.menu_type,
       window_id: self.window_id,
@@ -66,7 +68,7 @@ impl MenuHandler {
   }
 
   pub fn send_event(&self, event: Event<'static, ()>) {
-    (self.send_event)(event);
+    (self.event_sender)(event);
   }
 }
 
@@ -323,6 +325,8 @@ impl Menu {
   }
 */
 
+const MENU_SUBCLASS_ID: usize = 4568;
+
 pub fn initialize(
   menu_builder: Menu,
   window_handle: RawWindowHandle,
@@ -333,7 +337,12 @@ pub fn initialize(
     let menu = menu_builder.clone().into_hmenu();
 
     unsafe {
-      commctrl::SetWindowSubclass(handle.hwnd as _, Some(subclass_proc), 0, sender as _);
+      commctrl::SetWindowSubclass(
+        handle.hwnd as _,
+        Some(subclass_proc),
+        MENU_SUBCLASS_ID,
+        sender as _,
+      );
       winuser::SetMenu(handle.hwnd as _, menu);
     }
 
@@ -393,14 +402,10 @@ pub(crate) unsafe extern "system" fn subclass_proc(
         _ => {
           let menu_id = minwindef::LOWORD(wparam as _);
           if MENU_IDS.lock().unwrap().contains(&menu_id) {
-            proxy.send_click_event(menu_id);
+            proxy.send_menu_event(menu_id);
           }
         }
       }
-      0
-    }
-    winuser::WM_DESTROY => {
-      Box::from_raw(data as *mut MenuHandler);
       0
     }
     _ => commctrl::DefSubclassProc(hwnd, msg, wparam, lparam),
