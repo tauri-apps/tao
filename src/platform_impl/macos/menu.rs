@@ -381,7 +381,7 @@ fn make_menu_item_from_alloc(
 
     let mask = accelerator
       .map(Accelerator::key_modifier_mask)
-      .unwrap_or_else(|| NSEventModifierFlags::empty());
+      .unwrap_or_else(NSEventModifierFlags::empty);
     item.setKeyEquivalentModifierMask_(mask);
     item
   }
