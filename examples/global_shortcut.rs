@@ -9,8 +9,8 @@ fn main() {
     accelerator::{Accelerator, AcceleratorId, RawMods, SysMods},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
+    global_shortcut::ShortcutManager,
     keyboard::KeyCode,
-    platform::global_shortcut::ShortcutManager,
     window::WindowBuilder,
   };
 

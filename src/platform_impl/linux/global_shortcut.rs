@@ -2,8 +2,8 @@ use super::window::{WindowId, WindowRequest};
 use crate::{
   accelerator::{Accelerator, AcceleratorId},
   event_loop::EventLoopWindowTarget,
+  global_shortcut::{GlobalShortcut as RootGlobalShortcut, ShortcutManagerError},
   keyboard::KeyCode,
-  platform::global_shortcut::{GlobalShortcut as RootGlobalShortcut, ShortcutManagerError},
 };
 use std::{
   collections::HashMap,

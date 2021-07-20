@@ -165,6 +165,7 @@ pub mod error;
 pub mod accelerator;
 pub mod event;
 pub mod event_loop;
+pub mod global_shortcut;
 mod icon;
 pub mod keyboard;
 pub mod menu;
