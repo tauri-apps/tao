@@ -378,10 +378,10 @@ fn make_menu_item_from_alloc(
     // allocate our item to our class
     let item: id =
       msg_send![alloc, initWithTitle: title action: selector keyEquivalent: key_equivalent];
-    if let Some(masks) = accelerator.map(Accelerator::key_modifier_mask) {
-      item.setKeyEquivalentModifierMask_(masks)
-    }
 
+    let mask = accelerator.map(Accelerator::key_modifier_mask).unwrap_or(NSEventModifierFlags::empty());
+    item.setKeyEquivalentModifierMask_(mask);
+    
     item
   }
 }
@@ -468,7 +468,6 @@ impl Accelerator {
   /// Returns the empty string if no key equivalent is known.
   fn key_equivalent(self) -> String {
     match self.key {
-      KeyCode::Space => " ".into(),
       KeyCode::Minus => "-".into(),
       KeyCode::Equal => "=".into(),
       KeyCode::KeyA => "a".into(),
@@ -507,6 +506,8 @@ impl Accelerator {
       KeyCode::Digit7 => "7".into(),
       KeyCode::Digit8 => "8".into(),
       KeyCode::Digit9 => "9".into(),
+      KeyCode::Escape => "\u{1b}".into(),
+      KeyCode::Space => "\u{0020}".into(),
       // from NSText.h
       KeyCode::Enter => "\u{0003}".into(),
       KeyCode::Backspace => "\u{0008}".into(),
