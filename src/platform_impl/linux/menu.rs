@@ -26,6 +26,24 @@ macro_rules! menuitem {
   }};
 }
 
+macro_rules! ksni_menuitem {
+  ( $description:expr ) => {
+    ksni::menu::StandardItem {
+      label: $description.into(),
+      ..Default::default()
+    }
+    .into()
+  };
+  ( $description:expr, $modifier:expr, $key:expr ) => {
+    ksni::menu::StandardItem {
+      label: $description.into(),
+      shortcut: vec![vec![$modifier.into(), $key.into()]],
+      ..Default::default()
+    }
+    .into()
+  };
+}
+
 #[derive(Debug, Clone)]
 struct GtkMenuInfo {
   menu_type: GtkMenuType,
@@ -277,11 +295,49 @@ impl Menu {
       }
       GtkMenuInfo {
         menu_type: GtkMenuType::Native,
-        menu_item: Some(i),
-        sub_menu: None,
-        custom_menu_item: None,
+        menu_item: Some(MenuItem::Separator),
         ..
-      } => None,
+      } => Some(ksni::MenuItem::Sepatator),
+      GtkMenuInfo {
+        menu_type: GtkMenuType::Native,
+        menu_item: Some(MenuItem::About(s)),
+        ..
+      } => Some(ksni_menuitem!(&format!("About {}", s))),
+      GtkMenuInfo {
+        menu_type: GtkMenuType::Native,
+        menu_item: Some(MenuItem::Hide),
+        ..
+      } => Some(ksni_menuitem!("Hide", "Control", "H")),
+      GtkMenuInfo {
+        menu_type: GtkMenuType::Native,
+        menu_item: Some(MenuItem::CloseWindow),
+        ..
+      } => Some(ksni_menuitem!("Close Window", "Control", "W")),
+      GtkMenuInfo {
+        menu_type: GtkMenuType::Native,
+        menu_item: Some(MenuItem::Quit),
+        ..
+      } => Some(ksni_menuitem!("Quit", "", "Q")),
+      GtkMenuInfo {
+        menu_type: GtkMenuType::Native,
+        menu_item: Some(MenuItem::Copy),
+        ..
+      } => Some(ksni_menuitem!("Copy", "Control", "C")),
+      GtkMenuInfo {
+        menu_type: GtkMenuType::Native,
+        menu_item: Some(MenuItem::Cut),
+        ..
+      } => Some(ksni_menuitem!("Cut", "Control", "X")),
+      GtkMenuInfo {
+        menu_type: GtkMenuType::Native,
+        menu_item: Some(MenuItem::SelectAll),
+        ..
+      } => Some(ksni_menuitem!("Select All", "Control", "A")),
+      GtkMenuInfo {
+        menu_type: GtkMenuType::Native,
+        menu_item: Some(MenuItem::Paste),
+        ..
+      } => Some(ksni_menuitem!("Paste", "Control", "V")),
       _ => {
         log::error!("Wrong combination of GtkMenuInfo");
         None
