@@ -68,6 +68,7 @@ impl SystemTray {
   }
 }
 
+/// Type alias for ksni menu.
 pub(crate) type KsniMenu = Vec<ksni::MenuItem<KsniTray>>;
 
 /// Holds all properties and signals of the tray and manages the communcation via DBus.
@@ -89,6 +90,7 @@ impl KsniTray {
   ///
   /// * `title` -  The instance title.
   /// * `icon` -  Absolute file path to the icon that will be visible in tray.
+  /// * `sender` -  Information about the window.
   ///
   /// Initial status is set to `ksni::Status::Active`
   pub fn new(title: &str, icon: &PathBuf, sender: Sender<(WindowId, WindowRequest)>) -> Self {
@@ -139,10 +141,13 @@ impl KsniTray {
     self.icon_theme_path = icon_theme_path;
   }
 
+  /// Updates the menu.
   pub fn set_menu(&mut self, menu: Menu) {
     self.menu = Some(menu);
   }
 
+  /// Splits the given icon path into the folder and the filename only, as it
+  /// is required by ksni.
   fn split_icon(icon: &PathBuf) -> (String, String) {
     (
       icon
@@ -185,6 +190,8 @@ impl ksni::Tray for KsniTray {
   }
 }
 
+/// Small wrapper struct that is used to convert [`Accelerator`]
+/// to the shortcut of [`ksni::MenuItem`].
 pub struct KsniAccelerator {
   modifier: String,
   key: String,
@@ -249,6 +256,8 @@ impl KsniAccelerator {
     }
   }
 
+  /// Returns the accelerator combination that can be put to the shortcut property
+  /// of [`ksni::MenuItem`]
   pub fn into_vec(self) -> Vec<String> {
     vec![self.modifier, self.key]
   }
