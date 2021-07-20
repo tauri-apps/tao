@@ -65,7 +65,13 @@ impl ClipboardFormat {
   pub const TEXT: &'static str = "public.utf8-plain-text";
   #[cfg(any(target_os = "windows", target_os = "android"))]
   pub const TEXT: &'static str = "text/plain";
-  #[cfg(target_os = "linux")]
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
   pub const TEXT: &'static str = "UTF8_STRING";
 }
 
