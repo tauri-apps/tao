@@ -269,32 +269,27 @@ fn parse_accelerator(accelerator_string: &str) -> Accelerator {
     match token.as_str() {
       "OPTION" | "ALT" => {
         mods.set(ModifiersState::ALT, true);
-        continue;
       }
       "CONTROL" | "CTRL" => {
         mods.set(ModifiersState::CONTROL, true);
-        continue;
       }
       "COMMAND" | "CMD" | "SUPER" => {
         mods.set(ModifiersState::SUPER, true);
-        continue;
       }
       "SHIFT" => {
         mods.set(ModifiersState::SHIFT, true);
-        continue;
       }
       "COMMANDORCONTROL" | "COMMANDORCTRL" | "CMDORCTRL" | "CMDORCONTROL" => {
         #[cfg(target_os = "macos")]
         mods.set(ModifiersState::SUPER, true);
         #[cfg(not(target_os = "macos"))]
         mods.set(ModifiersState::CONTROL, true);
-        continue;
       }
-      _ => {}
-    }
-
-    if let Ok(keycode) = KeyCode::from_str(token.to_uppercase().as_str()) {
-      key = keycode;
+      _ => {
+        if let Ok(keycode) = KeyCode::from_str(token.to_uppercase().as_str()) {
+          key = keycode;
+        }
+      }
     }
   }
 
