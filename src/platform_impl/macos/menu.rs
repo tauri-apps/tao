@@ -468,6 +468,9 @@ impl Accelerator {
   /// Returns the empty string if no key equivalent is known.
   fn key_equivalent(self) -> String {
     match self.key {
+      KeyCode::Space => " ".into(),
+      KeyCode::Minus => "-".into(),
+      KeyCode::Equal => "=".into(),
       KeyCode::KeyA => "a".into(),
       KeyCode::KeyB => "b".into(),
       KeyCode::KeyC => "c".into(),
