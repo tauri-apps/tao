@@ -4,7 +4,7 @@ use crate::{
   accelerator::{Accelerator, AcceleratorId},
   event::Event,
   event_loop::EventLoopWindowTarget,
-  platform::global_shortcut::{GlobalShortcut as RootGlobalShortcut, ShortcutManagerError},
+  global_shortcut::{GlobalShortcut as RootGlobalShortcut, ShortcutManagerError},
 };
 
 use super::{app_state::AppState, event::EventWrapper};

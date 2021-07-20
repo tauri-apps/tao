@@ -2,8 +2,8 @@ use super::keyboard::key_to_vk;
 use crate::{
   accelerator::{Accelerator, AcceleratorId},
   event_loop::EventLoopWindowTarget,
+  global_shortcut::{GlobalShortcut as RootGlobalShortcut, ShortcutManagerError},
   keyboard::ModifiersState,
-  platform::global_shortcut::{GlobalShortcut as RootGlobalShortcut, ShortcutManagerError},
 };
 use std::ptr;
 use winapi::{shared::windef::HWND, um::winuser};
