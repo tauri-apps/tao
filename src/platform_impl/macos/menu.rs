@@ -379,9 +379,10 @@ fn make_menu_item_from_alloc(
     let item: id =
       msg_send![alloc, initWithTitle: title action: selector keyEquivalent: key_equivalent];
 
-    let mask = accelerator.map(Accelerator::key_modifier_mask).unwrap_or(NSEventModifierFlags::empty());
+    let mask = accelerator
+      .map(Accelerator::key_modifier_mask)
+      .unwrap_or_else(|| NSEventModifierFlags::empty());
     item.setKeyEquivalentModifierMask_(mask);
-    
     item
   }
 }
