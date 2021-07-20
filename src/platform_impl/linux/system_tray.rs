@@ -12,8 +12,6 @@ use crate::{
 use glib::Sender;
 use std::path::PathBuf;
 
-use gtk::{AccelGroup, WidgetExt};
-
 use super::{menu::Menu, window::WindowRequest, WindowId};
 
 pub struct SystemTrayBuilder {
@@ -29,16 +27,16 @@ impl SystemTrayBuilder {
 
   #[inline]
   pub fn build<T: 'static>(
-    mut self,
+    self,
     window_target: &EventLoopWindowTarget<T>,
   ) -> Result<RootSystemTray, OsError> {
     let sender = window_target.p.window_requests_tx.clone();
     let tray = match &self.tray_menu {
-      Some(m) => KsniTray::new_with_menu("tao application", &self.icon, &self.tray_menu, sender),
+      Some(_) => KsniTray::new_with_menu("tao application", &self.icon, &self.tray_menu, sender),
       None => KsniTray::new("tao application", &self.icon, sender),
     };
 
-    Ok(RootSystemTray(SystemTray::new(tray, self.tray_menu)))
+    Ok(RootSystemTray(SystemTray::new(tray)))
   }
 }
 
@@ -47,7 +45,7 @@ pub struct SystemTray {
 }
 
 impl SystemTray {
-  pub fn new(tray: KsniTray, tray_menu: Option<Menu>) -> Self {
+  pub fn new(tray: KsniTray) -> Self {
     let tray_service = ksni::TrayService::new(tray);
     let tray_handle = tray_service.handle();
     tray_service.spawn();
