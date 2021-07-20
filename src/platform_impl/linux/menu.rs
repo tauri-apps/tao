@@ -208,7 +208,6 @@ impl Menu {
       if let Some(m) = Self::generate_ksnimenu_item(item, tx.clone(), window_id) {
         v.push(m);
       }
-      println!("{:#?}", item);
     }
     v
   }
