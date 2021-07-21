@@ -70,6 +70,7 @@ impl<T> EventLoopWindowTarget<T> {
   #[inline]
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
     let screen = self.display.get_default_screen();
+    #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
     let number = screen.get_primary_monitor();
     let handle = MonitorHandle::new(&self.display, number);
     Some(RootMonitorHandle { inner: handle })
@@ -241,8 +242,8 @@ impl<T: 'static> EventLoop<T> {
             WindowRequest::DragWindow => {
               let display = window.get_display();
               if let Some(cursor) = display
-                .get_device_manager()
-                .and_then(|device_manager| device_manager.get_client_pointer())
+                .get_default_seat()
+                .and_then(|device_manager| device_manager.get_pointer())
               {
                 let (_, x, y) = cursor.get_position();
                 window.begin_move_drag(1, x, y, 0);
@@ -457,8 +458,8 @@ impl<T: 'static> EventLoop<T> {
               window.connect_motion_notify_event(move |window, _| {
                 let display = window.get_display();
                 if let Some(cursor) = display
-                  .get_device_manager()
-                  .and_then(|device_manager| device_manager.get_client_pointer())
+                  .get_default_seat()
+                  .and_then(|device_manager| device_manager.get_pointer())
                 {
                   let (_, x, y) = cursor.get_position();
                   if let Err(e) = tx_clone.send(Event::WindowEvent {
