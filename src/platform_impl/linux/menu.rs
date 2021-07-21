@@ -26,6 +26,7 @@ macro_rules! menuitem {
   }};
 }
 
+#[cfg(feature = "tray")]
 macro_rules! ksni_menuitem {
   ( $description:expr ) => {
     ksni::menu::StandardItem {
@@ -202,7 +203,7 @@ impl Menu {
     &self,
     tx: &Sender<(WindowId, WindowRequest)>,
     window_id: WindowId,
-  ) -> Vec<ksni::MenuItem<super::system_tray::KsniTray>> {
+  ) -> super::system_tray::KsniMenu {
     let mut v = vec![];
     for item in &self.gtk_items {
       if let Some(m) = Self::generate_ksnimenu_item(item, tx.clone(), window_id) {
@@ -217,7 +218,7 @@ impl Menu {
     item: &GtkMenuInfo,
     tx: Sender<(WindowId, WindowRequest)>,
     window_id: WindowId,
-  ) -> Option<ksni::menu::MenuItem<super::system_tray::KsniTray>> {
+  ) -> Option<super::system_tray::KsniMenuItem> {
     match item {
       GtkMenuInfo {
         menu_type: GtkMenuType::Custom,

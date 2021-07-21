@@ -32,7 +32,7 @@ impl SystemTrayBuilder {
   ) -> Result<RootSystemTray, OsError> {
     let sender = window_target.p.window_requests_tx.clone();
     let tray = match &self.tray_menu {
-      Some(_) => KsniTray::new_with_menu("tao application", &self.icon, &self.tray_menu, sender),
+      Some(m) => KsniTray::new_with_menu("tao application", &self.icon, &m, sender),
       None => KsniTray::new("tao application", &self.icon, sender),
     };
 
@@ -70,6 +70,7 @@ impl SystemTray {
 
 /// Type alias for ksni menu.
 pub(crate) type KsniMenu = Vec<ksni::MenuItem<KsniTray>>;
+pub(crate) type KsniMenuItem = ksni::MenuItem<KsniTray>;
 
 /// Holds all properties and signals of the tray and manages the communcation via DBus.
 pub struct KsniTray {
@@ -119,7 +120,7 @@ impl KsniTray {
   pub fn new_with_menu(
     title: &str,
     icon: &PathBuf,
-    menu: &Option<Menu>,
+    menu: &Menu,
     sender: Sender<(WindowId, WindowRequest)>,
   ) -> Self {
     let (icon_name, icon_theme_path) = Self::split_icon(&icon);
@@ -128,7 +129,7 @@ impl KsniTray {
       title: title.to_string(),
       icon_name,
       icon_theme_path,
-      menu: menu.clone(),
+      menu: Some(menu.clone()),
       status: ksni::Status::Active,
       sender,
     }
