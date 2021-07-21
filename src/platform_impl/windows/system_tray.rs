@@ -193,20 +193,6 @@ impl SystemTray {
     }
   }
 
-  pub fn remove(&self) {
-    unsafe {
-      let mut nid = NOTIFYICONDATAW {
-        uFlags: NIF_ICON,
-        hWnd: self.hwnd,
-        uID: TRAYICON_UID,
-        ..Default::default()
-      };
-      if shellapi::Shell_NotifyIconW(NIM_DELETE, &mut nid as _) == 0 {
-        debug!("Error removing system tray icon");
-      }
-    }
-  }
-
   pub fn set_menu(&mut self, tray_menu: &Menu) {
     unsafe {
       // send the new menu to the subclass proc where we will update there
@@ -222,8 +208,19 @@ impl SystemTray {
 
 impl Drop for SystemTray {
   fn drop(&mut self) {
-    self.remove();
     unsafe {
+      // remove the icon from system tray
+      let mut nid = NOTIFYICONDATAW {
+        uFlags: NIF_ICON,
+        hWnd: self.hwnd,
+        uID: TRAYICON_UID,
+        ..Default::default()
+      };
+      if shellapi::Shell_NotifyIconW(NIM_DELETE, &mut nid as _) == 0 {
+        debug!("Error removing system tray icon");
+      }
+
+      // destroy the hidden window used by the tray
       winuser::DestroyWindow(self.hwnd);
     }
   }
