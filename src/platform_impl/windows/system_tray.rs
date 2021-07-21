@@ -27,11 +27,11 @@ use winapi::{
   },
 };
 
-const WM_USER_TRAYICON: u32 = 0x400 + 1111;
-const WM_USER_UPDATE_TRAYMENU: u32 = 0x400 + 0x0421;
-const TRAYICON_UID: u32 = 0x855 + 1111;
-const TRAY_SUBCLASS_ID: usize = 5465;
-const TRAY_MENU_SUBCLASS_ID: usize = 8865;
+const WM_USER_TRAYICON: u32 = 6001;
+const WM_USER_UPDATE_TRAYMENU: u32 = 6002;
+const TRAYICON_UID: u32 = 6003;
+const TRAY_SUBCLASS_ID: usize = 6004;
+const TRAY_MENU_SUBCLASS_ID: usize = 6005;
 
 struct TrayLoopData {
   hmenu: Option<HMENU>,
