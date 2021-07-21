@@ -467,7 +467,7 @@ impl KeyEventBuilder {
       code,
       location: get_location(scancode, locale_id),
       utf16parts: Vec::with_capacity(8),
-      text: PartialText::Text(text.clone()),
+      text: PartialText::Text(text),
     };
 
     let mut event = event_info.finalize(&mut layouts.strings);
@@ -642,7 +642,7 @@ impl PartialKeyEventInfo {
     }
 
     let logical_key = match self.logical_key {
-      PartialLogicalKey::TextOr(fallback) => match text.clone() {
+      PartialLogicalKey::TextOr(fallback) => match text {
         Some(s) => {
           if s.grapheme_indices(true).count() > 1 {
             fallback

@@ -424,27 +424,7 @@ impl Menu {
           menu_item: Some(MenuItem::Quit),
           ..
         } => menuitem!("Quit", "Q", accel_group),
-        GtkMenuInfo {
-          menu_type: GtkMenuType::Native,
-          menu_item: Some(MenuItem::Copy),
-          ..
-        } => menuitem!("Copy", "<Ctrl>C", accel_group),
-        GtkMenuInfo {
-          menu_type: GtkMenuType::Native,
-          menu_item: Some(MenuItem::Cut),
-          ..
-        } => menuitem!("Cut", "<Ctrl>X", accel_group),
-        GtkMenuInfo {
-          menu_type: GtkMenuType::Native,
-          menu_item: Some(MenuItem::SelectAll),
-          ..
-        } => menuitem!("Select All", "<Ctrl>A", accel_group),
-        GtkMenuInfo {
-          menu_type: GtkMenuType::Native,
-          menu_item: Some(MenuItem::Paste),
-          ..
-        } => menuitem!("Paste", "<Ctrl>V", accel_group),
-        // todo add others
+        // TODO add others
         _ => None,
       };
 

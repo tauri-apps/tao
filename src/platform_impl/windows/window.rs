@@ -56,6 +56,7 @@ use crate::{
   },
   window::{
     CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
+    BORDERLESS_RESIZE_INSET,
   },
 };
 
@@ -492,7 +493,7 @@ impl Window {
           // string, so add it
           display_name.push(0);
 
-          let mut native_video_mode = video_mode.video_mode.native_video_mode.clone();
+          let mut native_video_mode = video_mode.video_mode.native_video_mode;
 
           let res = unsafe {
             winuser::ChangeDisplaySettingsExW(
@@ -738,7 +739,7 @@ impl Window {
 
   #[inline]
   pub fn is_menu_visible(&self) -> bool {
-    unsafe { winuser::GetMenu(self.hwnd()) != ptr::null_mut() }
+    unsafe { !winuser::GetMenu(self.hwnd()).is_null() }
   }
 
   #[inline]
@@ -935,7 +936,7 @@ unsafe fn init<T: 'static>(
   }
   win.set_visible(attributes.visible);
 
-  if let Some(_) = attributes.fullscreen {
+  if attributes.fullscreen.is_some() {
     win.set_fullscreen(attributes.fullscreen);
     force_window_active(win.window.0);
   }
@@ -947,7 +948,7 @@ unsafe fn init<T: 'static>(
   if let Some(window_menu) = attributes.window_menu {
     let event_loop_runner = event_loop.runner_shared.clone();
     let window_handle = win.raw_window_handle();
-    let window_id = RootWindowId(win.id().clone());
+    let window_id = RootWindowId(win.id());
     let menu_handler = menu::MenuHandler::new(
       Box::new(move |event| {
         if let Ok(e) = event.map_nonuser_event() {
@@ -958,7 +959,7 @@ unsafe fn init<T: 'static>(
       Some(window_id),
     );
 
-    win.menu = menu::initialize(window_menu, window_handle, menu_handler).map(|m| HMenuWrapper(m));
+    win.menu = menu::initialize(window_menu, window_handle, menu_handler).map(HMenuWrapper);
   }
 
   win.set_skip_taskbar(pl_attribs.skip_taskbar);
@@ -1018,9 +1019,9 @@ unsafe extern "system" fn window_proc(
 
   match msg {
     winuser::WM_NCCALCSIZE => {
-      // Check if userdata is set and if the value of it is true
+      // Check if userdata is set and if the value of it is true (window wants to be borderless)
       if userdata != 0 && *(userdata as *mut bool) == true {
-        // adjust the maximized borderless window to fill the work area rectangle of the display monitor
+        // adjust the maximized borderless window so it doesn't cover the taskbar
         if util::is_maximized(window) {
           let monitor = monitor::current_monitor(window);
           if let Ok(monitor_info) = monitor::get_monitor_info(monitor.hmonitor()) {
@@ -1028,7 +1029,7 @@ unsafe extern "system" fn window_proc(
             params.rgrc[0] = monitor_info.rcWork;
           }
         }
-        0 // must return a value here, otherwise the window won't be borderless (without decorations)
+        0 // return 0 here to make the windowo borderless
       } else {
         winuser::DefWindowProcW(window, msg, wparam, lparam)
       }
@@ -1082,7 +1083,7 @@ unsafe fn taskbar_mark_fullscreen(handle: HWND, fullscreen: bool) {
   TASKBAR_LIST.with(|task_bar_list_ptr| {
     let mut task_bar_list = task_bar_list_ptr.get();
 
-    if task_bar_list == ptr::null_mut() {
+    if task_bar_list.is_null() {
       use winapi::shared::winerror::S_OK;
 
       let hr = combaseapi::CoCreateInstance(
@@ -1144,7 +1145,7 @@ pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
     let mut window_rect: RECT = mem::zeroed();
     if GetWindowRect(hwnd, <*mut _>::cast(&mut window_rect)) == TRUE {
       const CLIENT: i32 = 0b0000;
-      const LEFT: i32 = 00001;
+      const LEFT: i32 = 0b0001;
       const RIGHT: i32 = 0b0010;
       const TOP: i32 = 0b0100;
       const BOTTOM: i32 = 0b1000;
@@ -1153,8 +1154,6 @@ pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
       const BOTTOMLEFT: i32 = BOTTOM | LEFT;
       const BOTTOMRIGHT: i32 = BOTTOM | RIGHT;
 
-      let fake_border = 3; // change this to manipulate how far inside the window, the resize can happen
-
       let RECT {
         left,
         right,
@@ -1162,12 +1161,13 @@ pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
         top,
       } = window_rect;
 
-      let hit_result = LEFT * (if cx < (left + fake_border) { 1 } else { 0 })
-        | RIGHT * (if cx >= (right - fake_border) { 1 } else { 0 })
-        | TOP * (if cy < (top + fake_border) { 1 } else { 0 })
-        | BOTTOM * (if cy >= (bottom - fake_border) { 1 } else { 0 });
+      #[rustfmt::skip]
+      let result = (LEFT * (if cx < (left + BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
+        | (RIGHT * (if cx >= (right - BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
+        | (TOP * (if cy < (top + BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
+        | (BOTTOM * (if cy >= (bottom - BORDERLESS_RESIZE_INSET) { 1 } else { 0 }));
 
-      match hit_result {
+      match result {
         CLIENT => HTCLIENT,
         LEFT => HTLEFT,
         RIGHT => HTRIGHT,

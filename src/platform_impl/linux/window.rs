@@ -8,18 +8,17 @@ use std::{
   sync::atomic::{AtomicBool, AtomicI32, Ordering},
 };
 
-use gdk::{Cursor, EventKey, EventMask, WindowEdge, WindowExt, WindowState};
+use gdk::{WindowEdge, WindowExt, WindowState};
 use gdk_pixbuf::{Colorspace, Pixbuf};
 use gtk::{prelude::*, AccelGroup, ApplicationWindow, Orientation};
 
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
-  event::ElementState,
   icon::{BadIcon, Icon},
   menu::{MenuId, MenuItem},
   monitor::MonitorHandle as RootMonitorHandle,
-  window::{CursorIcon, Fullscreen, UserAttentionType, WindowAttributes},
+  window::{CursorIcon, Fullscreen, UserAttentionType, WindowAttributes, BORDERLESS_RESIZE_INSET},
 };
 
 use super::{
@@ -209,33 +208,6 @@ impl Window {
     window.set_visible(attributes.visible);
     window.set_decorated(attributes.decorations);
 
-    if !attributes.decorations && attributes.resizable {
-      window.add_events(EventMask::POINTER_MOTION_MASK | EventMask::BUTTON_MOTION_MASK);
-
-      window.connect_motion_notify_event(|window, event| {
-        if let Some(gdk_window) = window.get_window() {
-          let (cx, cy) = event.get_root();
-          hit_test(&gdk_window, cx, cy);
-        }
-        Inhibit(false)
-      });
-
-      window.connect_button_press_event(|window, event| {
-        if event.get_button() == 1 {
-          if let Some(gdk_window) = window.get_window() {
-            let (cx, cy) = event.get_root();
-            let result = hit_test(&gdk_window, cx, cy);
-
-            // this check is necessary, otherwise the window won't recieve the click properly when resize isn't needed
-            if result != WindowEdge::__Unknown(8) {
-              window.begin_resize_drag(result, 1, cx as i32, cy as i32, event.get_time());
-            }
-          }
-        }
-        Inhibit(false)
-      });
-    }
-
     window.set_keep_above(attributes.always_on_top);
     if let Some(icon) = attributes.window_icon {
       window.set_icon(Some(&icon.inner.into()));
@@ -289,30 +261,6 @@ impl Window {
     if let Err(e) = window_requests_tx.send((window_id, WindowRequest::WireUpEvents)) {
       log::warn!("Fail to send wire up events request: {}", e);
     }
-
-    let window_requests_tx_clone = window_requests_tx.clone();
-    window.connect_key_press_event(move |_window, event_key| {
-      if let Err(e) = window_requests_tx_clone.send((
-        window_id,
-        WindowRequest::KeyboardInput((event_key.to_owned(), ElementState::Pressed)),
-      )) {
-        log::warn!("Fail to send user attention request: {}", e);
-      }
-
-      Inhibit(false)
-    });
-
-    let window_requests_tx_clone = window_requests_tx.clone();
-    window.connect_key_release_event(move |_window, event_key| {
-      if let Err(e) = window_requests_tx_clone.send((
-        window_id,
-        WindowRequest::KeyboardInput((event_key.to_owned(), ElementState::Released)),
-      )) {
-        log::warn!("Fail to send user attention request: {}", e);
-      }
-
-      Inhibit(false)
-    });
 
     window.queue_draw();
 
@@ -628,6 +576,7 @@ impl Window {
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
     let screen = self.window.get_display().get_default_screen();
     let window = self.window.get_window().unwrap();
+    #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
     let number = screen.get_monitor_at_window(&window);
     let handle = MonitorHandle::new(&self.window.get_display(), number);
     Some(RootMonitorHandle { inner: handle })
@@ -649,6 +598,7 @@ impl Window {
 
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
     let screen = self.window.get_display().get_default_screen();
+    #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
     let number = screen.get_primary_monitor();
     let handle = MonitorHandle::new(&self.window.get_display(), number);
     Some(RootMonitorHandle { inner: handle })
@@ -697,7 +647,6 @@ pub enum WindowRequest {
   Redraw,
   Menu((Option<MenuItem>, Option<MenuId>)),
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
-  KeyboardInput((EventKey, ElementState)),
   GlobalHotKey(u16),
 }
 
@@ -707,11 +656,7 @@ pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
   let (right, bottom) = (left + w, top + h);
   let (cx, cy) = (cx as i32, cy as i32);
 
-  let fake_border = 3; // change this to manipulate how far inside the window, the resize can happen
-
-  let display = window.get_display();
-
-  const LEFT: i32 = 0b00001;
+  const LEFT: i32 = 0b0001;
   const RIGHT: i32 = 0b0010;
   const TOP: i32 = 0b0100;
   const BOTTOM: i32 = 0b1000;
@@ -720,12 +665,13 @@ pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
   const BOTTOMLEFT: i32 = BOTTOM | LEFT;
   const BOTTOMRIGHT: i32 = BOTTOM | RIGHT;
 
-  let result = (LEFT * (if cx < (left + fake_border) { 1 } else { 0 }))
-    | (RIGHT * (if cx >= (right - fake_border) { 1 } else { 0 }))
-    | (TOP * (if cy < (top + fake_border) { 1 } else { 0 }))
-    | (BOTTOM * (if cy >= (bottom - fake_border) { 1 } else { 0 }));
+  #[rustfmt::skip]
+  let result = (LEFT * (if cx < (left + BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
+    | (RIGHT * (if cx >= (right - BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
+    | (TOP * (if cy < (top + BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
+    | (BOTTOM * (if cy >= (bottom - BORDERLESS_RESIZE_INSET) { 1 } else { 0 }));
 
-  let edge = match result {
+  match result {
     LEFT => WindowEdge::West,
     TOP => WindowEdge::North,
     RIGHT => WindowEdge::East,
@@ -734,31 +680,10 @@ pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
     TOPRIGHT => WindowEdge::NorthEast,
     BOTTOMLEFT => WindowEdge::SouthWest,
     BOTTOMRIGHT => WindowEdge::SouthEast,
-    // has to be bigger than 7. otherwise it will match the number with a variant of WindowEdge enum and we don't want to do that
-    // also if the number ever change, makke sure to change it in the connect_button_press_event for window and webview
+    // we return `WindowEdge::__Unknown` to be ignored later.
+    // we must return 8 or bigger, otherwise it will be the same as one of the other 7 variants of `WindowEdge` enum.
     _ => WindowEdge::__Unknown(8),
-  };
-
-  // FIXME: calling `window.begin_resize_drag` seems to revert the cursor back to normal style
-  window.set_cursor(
-    Cursor::from_name(
-      &display,
-      match edge {
-        WindowEdge::North => "n-resize",
-        WindowEdge::South => "s-resize",
-        WindowEdge::East => "e-resize",
-        WindowEdge::West => "w-resize",
-        WindowEdge::NorthWest => "nw-resize",
-        WindowEdge::NorthEast => "ne-resize",
-        WindowEdge::SouthEast => "se-resize",
-        WindowEdge::SouthWest => "sw-resize",
-        _ => "default",
-      },
-    )
-    .as_ref(),
-  );
-
-  edge
+  }
 }
 
 impl Drop for Window {

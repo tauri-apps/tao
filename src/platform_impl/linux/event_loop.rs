@@ -11,15 +11,10 @@ use std::{
   time::Instant,
 };
 
-use gdk::{Cursor, CursorType, WindowExt, WindowState};
+use gdk::{Cursor, CursorType, EventKey, EventMask, WindowEdge, WindowExt, WindowState};
 use gio::{prelude::*, Cancellable};
 use glib::{source::Priority, Continue, MainContext};
 use gtk::{prelude::*, AboutDialog, ApplicationWindow, Inhibit};
-
-#[cfg(any(feature = "menu", feature = "tray"))]
-use glib::Cast;
-#[cfg(any(feature = "menu", feature = "tray"))]
-use gtk::{Clipboard, Entry};
 
 use crate::{
   accelerator::AcceleratorId,
@@ -29,6 +24,7 @@ use crate::{
   keyboard::ModifiersState,
   menu::{MenuItem, MenuType},
   monitor::MonitorHandle as RootMonitorHandle,
+  platform_impl::platform::window::hit_test,
   window::{CursorIcon, WindowId as RootWindowId},
 };
 
@@ -69,6 +65,7 @@ impl<T> EventLoopWindowTarget<T> {
   #[inline]
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
     let screen = self.display.get_default_screen();
+    #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
     let number = screen.get_primary_monitor();
     let handle = MonitorHandle::new(&self.display, number);
     Some(RootMonitorHandle { inner: handle })
@@ -240,8 +237,8 @@ impl<T: 'static> EventLoop<T> {
             WindowRequest::DragWindow => {
               let display = window.get_display();
               if let Some(cursor) = display
-                .get_device_manager()
-                .and_then(|device_manager| device_manager.get_client_pointer())
+                .get_default_seat()
+                .and_then(|device_manager| device_manager.get_pointer())
               {
                 let (_, x, y) = cursor.get_position();
                 window.begin_move_drag(1, x, y, 0);
@@ -317,8 +314,61 @@ impl<T: 'static> EventLoop<T> {
               };
             }
             WindowRequest::WireUpEvents => {
-              let tx_clone = event_tx.clone();
+              // resizing `decorations: false` aka borderless
+              window.add_events(EventMask::POINTER_MOTION_MASK | EventMask::BUTTON_MOTION_MASK);
+              window.connect_motion_notify_event(|window, event| {
+                if window.get_decorated() && window.get_resizable() {
+                  if let Some(window) = window.get_window() {
+                    let (cx, cy) = event.get_root();
+                    let edge = hit_test(&window, cx, cy);
+                    // FIXME: calling `window.begin_resize_drag` seems to revert the cursor back to normal style
+                    window.set_cursor(
+                      Cursor::from_name(
+                        &window.get_display(),
+                        match edge {
+                          WindowEdge::North => "n-resize",
+                          WindowEdge::South => "s-resize",
+                          WindowEdge::East => "e-resize",
+                          WindowEdge::West => "w-resize",
+                          WindowEdge::NorthWest => "nw-resize",
+                          WindowEdge::NorthEast => "ne-resize",
+                          WindowEdge::SouthEast => "se-resize",
+                          WindowEdge::SouthWest => "sw-resize",
+                          _ => "default",
+                        },
+                      )
+                      .as_ref(),
+                    );
+                  }
+                }
+                Inhibit(false)
+              });
+              window.connect_button_press_event(|window, event| {
+                if window.get_decorated() && window.get_resizable() {
+                  if event.get_button() == 1 {
+                    if let Some(window) = window.get_window() {
+                      let (cx, cy) = event.get_root();
+                      let result = hit_test(&window, cx, cy);
 
+                      // we ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
+                      match result {
+                        WindowEdge::__Unknown(_) => (),
+                        _ => window.begin_resize_drag(
+                          result,
+                          1,
+                          cx as i32,
+                          cy as i32,
+                          event.get_time(),
+                        ),
+                      }
+                    }
+                  }
+                }
+
+                Inhibit(false)
+              });
+
+              let tx_clone = event_tx.clone();
               window.connect_delete_event(move |_, _| {
                 if let Err(e) = tx_clone.send(Event::WindowEvent {
                   window_id: RootWindowId(id),
@@ -403,8 +453,8 @@ impl<T: 'static> EventLoop<T> {
               window.connect_motion_notify_event(move |window, _| {
                 let display = window.get_display();
                 if let Some(cursor) = display
-                  .get_device_manager()
-                  .and_then(|device_manager| device_manager.get_client_pointer())
+                  .get_default_seat()
+                  .and_then(|device_manager| device_manager.get_pointer())
                 {
                   let (_, x, y) = cursor.get_position();
                   if let Err(e) = tx_clone.send(Event::WindowEvent {
@@ -490,6 +540,62 @@ impl<T: 'static> EventLoop<T> {
                 }
                 Inhibit(false)
               });
+
+              let tx_clone = event_tx.clone();
+              let keyboard_handler = Rc::new(move |event_key: EventKey, element_state| {
+                // if we have a modifier lets send it
+                let mut mods = keyboard::get_modifiers(event_key.clone());
+                if !mods.is_empty() {
+                  // if we release the modifier tell the world
+                  if ElementState::Released == element_state {
+                    mods = ModifiersState::empty();
+                  }
+
+                  if let Err(e) = tx_clone.send(Event::WindowEvent {
+                    window_id: RootWindowId(id),
+                    event: WindowEvent::ModifiersChanged(mods),
+                  }) {
+                    log::warn!(
+                      "Failed to send modifiers changed event to event channel: {}",
+                      e
+                    );
+                  } else {
+                    // stop here we don't want to send the key event
+                    // as we emit the `ModifiersChanged`
+                    return Continue(true);
+                  }
+                }
+
+                // todo: implement repeat?
+                let event = keyboard::make_key_event(&event_key, false, None, element_state);
+
+                if let Some(event) = event {
+                  if let Err(e) = tx_clone.send(Event::WindowEvent {
+                    window_id: RootWindowId(id),
+                    event: WindowEvent::KeyboardInput {
+                      // FIXME: currently we use a dummy device id, find if we can get device id from gtk
+                      device_id: RootDeviceId(DeviceId(0)),
+                      event,
+                      is_synthetic: false,
+                    },
+                  }) {
+                    log::warn!("Failed to send keyboard event to event channel: {}", e);
+                  }
+                }
+                Continue(true)
+              });
+
+              let handler = keyboard_handler.clone();
+              window.connect_key_press_event(move |_, event_key| {
+                handler(event_key.to_owned(), ElementState::Pressed);
+                Inhibit(false)
+              });
+
+              let handler = keyboard_handler.clone();
+              window.connect_key_release_event(move |_, event_key| {
+                handler(event_key.to_owned(), ElementState::Released);
+                Inhibit(false)
+              });
             }
             WindowRequest::Redraw => window.queue_draw(),
             WindowRequest::Menu(m) => match m {
@@ -517,68 +623,6 @@ impl<T: 'static> EventLoop<T> {
                   );
                 }
               }
-              #[cfg(any(feature = "menu", feature = "tray"))]
-              (Some(MenuItem::Cut), None) => {
-                if let Some(widget) = window.get_focus() {
-                  if widget.has_focus() {
-                    if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
-                      if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
-                        if let Some(buf) = view.get_buffer() {
-                          buf.cut_clipboard(&clipboard, true);
-                        }
-                      }
-                    } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
-                      entry.cut_clipboard();
-                    }
-                  }
-                }
-              }
-              #[cfg(any(feature = "menu", feature = "tray"))]
-              (Some(MenuItem::Copy), None) => {
-                if let Some(widget) = window.get_focus() {
-                  if widget.has_focus() {
-                    if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
-                      if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
-                        if let Some(buf) = view.get_buffer() {
-                          buf.copy_clipboard(&clipboard);
-                        }
-                      }
-                    } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
-                      entry.copy_clipboard();
-                    }
-                  }
-                }
-              }
-              #[cfg(any(feature = "menu", feature = "tray"))]
-              (Some(MenuItem::Paste), None) => {
-                if let Some(widget) = window.get_focus() {
-                  if widget.has_focus() {
-                    if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
-                      if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
-                        if let Some(buf) = view.get_buffer() {
-                          buf.paste_clipboard(&clipboard, None, true);
-                        }
-                      }
-                    } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
-                      entry.paste_clipboard();
-                    }
-                  }
-                }
-              }
-              #[cfg(any(feature = "menu", feature = "tray"))]
-              (Some(MenuItem::SelectAll), None) => {
-                if let Some(widget) = window.get_focus() {
-                  if widget.has_focus() {
-                    if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
-                      if let Some(buf) = view.get_buffer() {
-                        buf.select_range(&buf.get_start_iter(), &buf.get_end_iter());
-                      }
-                    } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
-                      entry.select_region(0, -1);
-                    }
-                  }
-                }
-              }
               (Some(MenuItem::EnterFullScreen), None) => {
                 let state = window.get_window().unwrap().get_state();
                 if state.contains(WindowState::FULLSCREEN) {
@@ -603,48 +647,6 @@ impl<T: 'static> EventLoop<T> {
                 menubar.show_all();
               }
             }
-            WindowRequest::KeyboardInput((event_key, element_state)) => {
-              // if we have a modifier lets send it
-              let mut mods = keyboard::get_modifiers(event_key.clone());
-              if !mods.is_empty() {
-                // if we release the modifier tell the world
-                if ElementState::Released == element_state {
-                  mods = ModifiersState::empty();
-                }
-
-                if let Err(e) = event_tx.send(Event::WindowEvent {
-                  window_id: RootWindowId(id),
-                  event: WindowEvent::ModifiersChanged(mods),
-                }) {
-                  log::warn!(
-                    "Failed to send modifiers changed event to event channel: {}",
-                    e
-                  );
-                } else {
-                  // stop here we don't want to send the key event
-                  // as we emit the `ModifiersChanged`
-                  return Continue(true);
-                }
-              }
-
-              // todo: implement repeat?
-              let event = keyboard::make_key_event(&event_key, false, None, element_state);
-
-              if let Some(event) = event {
-                if let Err(e) = event_tx.send(Event::WindowEvent {
-                  window_id: RootWindowId(id),
-                  event: WindowEvent::KeyboardInput {
-                    // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                    device_id: RootDeviceId(DeviceId(0)),
-                    event,
-                    is_synthetic: false,
-                  },
-                }) {
-                  log::warn!("Failed to send keyboard event to event channel: {}", e);
-                }
-              }
-            }
-            // we use dummy window id for `GlobalHotKey`
             WindowRequest::GlobalHotKey(_hotkey_id) => {}
           }
         } else if id == WindowId::dummy() {

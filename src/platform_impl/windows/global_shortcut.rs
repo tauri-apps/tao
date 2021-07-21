@@ -2,8 +2,8 @@ use super::keyboard::key_to_vk;
 use crate::{
   accelerator::{Accelerator, AcceleratorId},
   event_loop::EventLoopWindowTarget,
+  global_shortcut::{GlobalShortcut as RootGlobalShortcut, ShortcutManagerError},
   keyboard::ModifiersState,
-  platform::global_shortcut::{GlobalShortcut as RootGlobalShortcut, ShortcutManagerError},
 };
 use std::ptr;
 use winapi::{shared::windef::HWND, um::winuser};
@@ -26,7 +26,7 @@ impl ShortcutManager {
   ) -> Result<RootGlobalShortcut, ShortcutManagerError> {
     unsafe {
       let mut converted_modifiers: u32 = 0;
-      let modifiers: ModifiersState = accelerator.mods.into();
+      let modifiers: ModifiersState = accelerator.mods;
       if modifiers.shift_key() {
         converted_modifiers |= winuser::MOD_SHIFT as u32;
       }
@@ -56,13 +56,11 @@ impl ShortcutManager {
           }
           let shortcut = GlobalShortcut { accelerator };
           self.shortcuts.push(shortcut.clone());
-          return Ok(RootGlobalShortcut(shortcut));
+          Ok(RootGlobalShortcut(shortcut))
         }
-        _ => {
-          return Err(ShortcutManagerError::InvalidAccelerator(
-            "Unable to register accelerator (unknown VKCode for this char).".into(),
-          ));
-        }
+        _ => Err(ShortcutManagerError::InvalidAccelerator(
+          "Unable to register accelerator (unknown VKCode for this char).".into(),
+        )),
       }
     }
   }

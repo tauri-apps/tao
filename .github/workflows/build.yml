@@ -17,8 +17,6 @@ jobs:
           - { id: ubuntu-without-feat, target: x86_64-unknown-linux-gnu, os: ubuntu-latest, options: --no-default-features }
           # Ubuntu with tray feature only
           - { id: ubuntu-tray-feat, target: x86_64-unknown-linux-gnu, os: ubuntu-latest, options: --no-default-features, features: tray }
-          # Ubuntu with menu feature only
-          - { id: ubuntu-menu-feat, target: x86_64-unknown-linux-gnu, os: ubuntu-latest, options: --no-default-features, features: menu }
           # macOS
           - { id: macos, target: x86_64-apple-darwin, os: macos-latest }
           # Android on Ubuntu
@@ -59,8 +57,8 @@ jobs:
         run: |
           sudo apt-get install -y libappindicator3-dev
 
-      - name: Install libgtksourceview (ubuntu[default/tray/menu] only)
-        if: matrix.platform.id == 'ubuntu' || matrix.platform.id == 'ubuntu-tray-feat' || matrix.platform.id == 'ubuntu-menu-feat'
+      - name: Install libgtksourceview (ubuntu[default/tray] only)
+        if: matrix.platform.id == 'ubuntu' || matrix.platform.id == 'ubuntu-tray-feat'
         run: |
           sudo apt-get install -y libgtksourceview-3.0-dev
 
