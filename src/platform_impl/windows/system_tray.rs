@@ -1,11 +1,9 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::cell::RefCell;
-
 use super::{
   dpi::{dpi_to_scale_factor, hwnd_dpi},
-  menu::{subclass_proc, to_wstring, Menu, MenuHandler},
+  menu::{subclass_proc as menu_subclass_proc, to_wstring, Menu, MenuHandler},
   util, OsError,
 };
 use crate::{
@@ -18,20 +16,27 @@ use crate::{
 };
 use winapi::{
   shared::{
+    basetsd::{DWORD_PTR, UINT_PTR},
     minwindef::{LPARAM, LRESULT, UINT, WPARAM},
     windef::{HICON, HMENU, HWND, POINT, RECT},
   },
   um::{
-    commctrl::SetWindowSubclass,
-    libloaderapi,
+    commctrl, libloaderapi,
     shellapi::{self, NIF_ICON, NIF_MESSAGE, NIM_ADD, NIM_DELETE, NIM_MODIFY, NOTIFYICONDATAW},
     winuser::{self, CW_USEDEFAULT, WNDCLASSW, WS_OVERLAPPEDWINDOW},
   },
 };
 
 const WM_USER_TRAYICON: u32 = 0x400 + 1111;
-const WM_USER_TRAYICON_UID: u32 = 0x855 + 1111;
-thread_local!(static SYSTEM_TRAY_STASH: RefCell<Option<WindowsLoopData>> = RefCell::new(None));
+const WM_USER_UPDATE_TRAYMENU: u32 = 0x400 + 0x0421;
+const TRAYICON_UID: u32 = 0x855 + 1111;
+const TRAY_SUBCLASS_ID: usize = 5465;
+const TRAY_MENU_SUBCLASS_ID: usize = 8865;
+
+struct TrayLoopData {
+  hmenu: Option<HMENU>,
+  sender: Box<dyn Fn(Event<'static, ()>)>,
+}
 
 pub struct SystemTrayBuilder {
   pub(crate) icon: Vec<u8>,
@@ -57,17 +62,14 @@ impl SystemTrayBuilder {
     self,
     window_target: &EventLoopWindowTarget<T>,
   ) -> Result<RootSystemTray, RootOsError> {
-    let mut hmenu: Option<HMENU> = None;
-    if let Some(menu) = self.tray_menu {
-      hmenu = Some(menu.into_hmenu());
-    }
+    let hmenu: Option<HMENU> = self.tray_menu.map(|m| m.hmenu());
 
     let class_name = to_wstring("tao_system_tray_app");
     unsafe {
       let hinstance = libloaderapi::GetModuleHandleA(std::ptr::null_mut());
       let wnd_class = WNDCLASSW {
         style: 0,
-        lpfnWndProc: Some(window_proc),
+        lpfnWndProc: Some(winuser::DefWindowProcW),
         cbClsExtra: 0,
         cbWndExtra: 0,
         hInstance: hinstance,
@@ -107,7 +109,7 @@ impl SystemTrayBuilder {
       let mut nid = NOTIFYICONDATAW {
         uFlags: NIF_MESSAGE,
         hWnd: hwnd,
-        uID: WM_USER_TRAYICON_UID,
+        uID: TRAYICON_UID,
         uCallbackMessage: WM_USER_TRAYICON,
         ..Default::default()
       };
@@ -118,10 +120,27 @@ impl SystemTrayBuilder {
         )));
       }
 
-      let app_system_tray = SystemTray { hwnd, hmenu };
-      app_system_tray.set_icon_from_buffer(&self.icon, 32, 32);
+      let system_tray = SystemTray { hwnd };
+      system_tray.set_icon_from_buffer(&self.icon, 32, 32);
 
-      // system tray handler
+      // system_tray event handler
+      let event_loop_runner = window_target.p.runner_shared.clone();
+      let traydata = TrayLoopData {
+        hmenu,
+        sender: Box::new(move |event| {
+          if let Ok(e) = event.map_nonuser_event() {
+            event_loop_runner.send_event(e)
+          }
+        }),
+      };
+      commctrl::SetWindowSubclass(
+        hwnd,
+        Some(tray_subclass_proc),
+        TRAY_SUBCLASS_ID,
+        Box::into_raw(Box::new(traydata)) as _,
+      );
+
+      // system_tray menu event handler
       let event_loop_runner = window_target.p.runner_shared.clone();
       let menu_handler = MenuHandler::new(
         Box::new(move |event| {
@@ -132,43 +151,20 @@ impl SystemTrayBuilder {
         MenuType::ContextMenu,
         None,
       );
-
-      SYSTEM_TRAY_STASH.with(|stash| {
-        let data = WindowsLoopData {
-          system_tray: SystemTray { hwnd, hmenu },
-          sender: menu_handler,
-        };
-        (*stash.borrow_mut()) = Some(data);
-      });
-
-      // create the handler for tray menu events
-      let event_loop_runner = window_target.p.runner_shared.clone();
-      let menu_handler = MenuHandler::new(
-        Box::new(move |event| {
-          if let Ok(e) = event.map_nonuser_event() {
-            event_loop_runner.send_event(e)
-          }
-        }),
-        MenuType::ContextMenu,
-        None,
+      commctrl::SetWindowSubclass(
+        hwnd as _,
+        Some(menu_subclass_proc),
+        TRAY_MENU_SUBCLASS_ID,
+        Box::into_raw(Box::new(menu_handler)) as _,
       );
 
-      let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
-      SetWindowSubclass(hwnd as _, Some(subclass_proc), 0, sender as _);
-
-      Ok(RootSystemTray(app_system_tray))
+      Ok(RootSystemTray(system_tray))
     }
   }
 }
 
 pub struct SystemTray {
   hwnd: HWND,
-  hmenu: Option<HMENU>,
-}
-
-struct WindowsLoopData {
-  system_tray: SystemTray,
-  sender: MenuHandler,
 }
 
 impl SystemTray {
@@ -182,14 +178,13 @@ impl SystemTray {
     }
   }
 
-  // set the icon for our main instance
   fn set_hicon(&self, icon: HICON) {
     unsafe {
       let mut nid = NOTIFYICONDATAW {
         uFlags: NIF_ICON,
         hWnd: self.hwnd,
         hIcon: icon,
-        uID: WM_USER_TRAYICON_UID,
+        uID: TRAYICON_UID,
         ..Default::default()
       };
       if shellapi::Shell_NotifyIconW(NIM_MODIFY, &mut nid as _) == 0 {
@@ -203,114 +198,123 @@ impl SystemTray {
       let mut nid = NOTIFYICONDATAW {
         uFlags: NIF_ICON,
         hWnd: self.hwnd,
-        uID: WM_USER_TRAYICON_UID,
+        uID: TRAYICON_UID,
         ..Default::default()
       };
       if shellapi::Shell_NotifyIconW(NIM_DELETE, &mut nid as _) == 0 {
-        debug!("Error removing icon");
+        debug!("Error removing system tray icon");
       }
     }
   }
 
   pub fn set_menu(&mut self, tray_menu: &Menu) {
-    let new_menu = Some(tray_menu.hmenu);
-    self.hmenu = new_menu;
-    SYSTEM_TRAY_STASH.with(|stash| {
-      if let Some(ref mut data) = *stash.borrow_mut() {
-        data.system_tray.hmenu = new_menu;
-      }
-    });
+    unsafe {
+      // send the new menu to the subclass proc where we will update there
+      winuser::SendMessageW(
+        self.hwnd,
+        WM_USER_UPDATE_TRAYMENU,
+        tray_menu.hmenu() as _,
+        0,
+      );
+    }
   }
 }
 
-unsafe extern "system" fn window_proc(
+impl Drop for SystemTray {
+  fn drop(&mut self) {
+    self.remove();
+    unsafe {
+      winuser::DestroyWindow(self.hwnd);
+    }
+  }
+}
+
+unsafe extern "system" fn tray_subclass_proc(
   hwnd: HWND,
   msg: UINT,
   wparam: WPARAM,
   lparam: LPARAM,
+  _id: UINT_PTR,
+  subclass_data: DWORD_PTR,
 ) -> LRESULT {
-  if msg == winuser::WM_DESTROY {
-    winuser::PostQuitMessage(0);
-    return 0;
+  let subclass_data_ptr = &mut *(subclass_data as *mut TrayLoopData);
+  let mut traydata = &mut *subclass_data_ptr;
+
+  // update tray menu
+  if msg == WM_USER_UPDATE_TRAYMENU {
+    traydata.hmenu = Some(wparam as HMENU);
   }
 
   // click on the icon
-  if msg == WM_USER_TRAYICON {
-    let mut rect = RECT::default();
+  if msg == WM_USER_TRAYICON
+    && matches!(
+      lparam as u32,
+      winuser::WM_LBUTTONUP | winuser::WM_RBUTTONUP | winuser::WM_LBUTTONDBLCLK
+    )
+  {
+    let mut icon_rect = RECT::default();
     let nid = shellapi::NOTIFYICONIDENTIFIER {
       hWnd: hwnd,
       cbSize: std::mem::size_of::<shellapi::NOTIFYICONIDENTIFIER>() as _,
-      uID: WM_USER_TRAYICON_UID,
+      uID: TRAYICON_UID,
       ..Default::default()
     };
-
-    shellapi::Shell_NotifyIconGetRect(&nid, &mut rect);
+    shellapi::Shell_NotifyIconGetRect(&nid, &mut icon_rect);
 
     let dpi = hwnd_dpi(hwnd);
     let scale_factor = dpi_to_scale_factor(dpi);
 
     let mut cursor = POINT { x: 0, y: 0 };
     winuser::GetCursorPos(&mut cursor as _);
-    SYSTEM_TRAY_STASH.with(|stash| {
-      if let Some(ref data) = *stash.borrow() {
-        match lparam as u32 {
-          // Left click tray icon
-          winuser::WM_LBUTTONUP => {
-            data.sender.send_event(Event::TrayEvent {
-              event: TrayEvent::LeftClick,
-              position: LogicalPosition::new(cursor.x, cursor.y).to_physical(scale_factor),
-              bounds: Rectangle {
-                position: LogicalPosition::new(rect.left, rect.top).to_physical(scale_factor),
-                size: LogicalSize::new(rect.right - rect.left, rect.bottom - rect.top)
-                  .to_physical(scale_factor),
-              },
-            });
-          }
 
-          // Right click tray icon
-          winuser::WM_RBUTTONUP => {
-            data.sender.send_event(Event::TrayEvent {
-              event: TrayEvent::RightClick,
-              position: LogicalPosition::new(cursor.x, cursor.y).to_physical(scale_factor),
-              bounds: Rectangle {
-                position: LogicalPosition::new(rect.left, rect.top).to_physical(scale_factor),
-                size: LogicalSize::new(rect.right - rect.left, rect.bottom - rect.top)
-                  .to_physical(scale_factor),
-              },
-            });
+    let position = LogicalPosition::new(cursor.x, cursor.y).to_physical(scale_factor);
+    let bounds = Rectangle {
+      position: LogicalPosition::new(icon_rect.left, icon_rect.top).to_physical(scale_factor),
+      size: LogicalSize::new(
+        icon_rect.right - icon_rect.left,
+        icon_rect.bottom - icon_rect.top,
+      )
+      .to_physical(scale_factor),
+    };
 
-            // show menu on right click
-            if let Some(menu) = data.system_tray.hmenu {
-              show_tray_menu(hwnd, menu, cursor.x, cursor.y);
-            }
-          }
+    match lparam as u32 {
+      // Left click tray icon
+      winuser::WM_LBUTTONUP => {
+        (traydata.sender)(Event::TrayEvent {
+          event: TrayEvent::LeftClick,
+          position,
+          bounds,
+        });
+      }
 
-          // Double click tray icon
-          winuser::WM_LBUTTONDBLCLK => {
-            data.sender.send_event(Event::TrayEvent {
-              event: TrayEvent::DoubleClick,
-              position: LogicalPosition::new(cursor.x, cursor.y).to_physical(scale_factor),
-              bounds: Rectangle {
-                position: LogicalPosition::new(rect.left, rect.top).to_physical(scale_factor),
-                size: LogicalSize::new(rect.right - rect.left, rect.bottom - rect.top)
-                  .to_physical(scale_factor),
-              },
-            });
-          }
+      // Right click tray icon
+      winuser::WM_RBUTTONUP => {
+        (traydata.sender)(Event::TrayEvent {
+          event: TrayEvent::RightClick,
+          position,
+          bounds,
+        });
 
-          _ => {}
+        // show menu on right click
+        if let Some(menu) = traydata.hmenu {
+          show_tray_menu(hwnd, menu, cursor.x, cursor.y);
         }
       }
-    });
+
+      // Double click tray icon
+      winuser::WM_LBUTTONDBLCLK => {
+        (traydata.sender)(Event::TrayEvent {
+          event: TrayEvent::DoubleClick,
+          position,
+          bounds,
+        });
+      }
+
+      _ => {}
+    }
   }
 
-  winuser::DefWindowProcW(hwnd, msg, wparam, lparam)
-}
-
-impl Drop for WindowsLoopData {
-  fn drop(&mut self) {
-    self.system_tray.remove();
-  }
+  commctrl::DefSubclassProc(hwnd, msg, wparam, lparam)
 }
 
 unsafe fn show_tray_menu(hwnd: HWND, menu: HMENU, x: i32, y: i32) {

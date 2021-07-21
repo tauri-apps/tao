@@ -29,10 +29,18 @@ use crate::{
 };
 
 /// Object that allows you to create a `ContextMenu`.
+///
+/// ## Platform-specific
+///
+/// **Windows:** The native menu is destroyed when this stuct is dropped and can no longer be used.
 pub struct ContextMenu(pub(crate) Menu);
 /// Object that allows you to create a `MenuBar`, menu.
 ///
-/// Used by the **Window** menu in Windows and Linux and the **Menu bar** on macOS
+/// ## Platform-specific
+///
+/// **macOs:** The menu will show in the **Menu Bar**.
+/// **Linux / Windows:** The menu will be show at the top of the window.
+/// **Windows:** The native menu is destroyed when this stuct is dropped and can no longer be used.
 pub struct MenuBar(pub(crate) Menu);
 
 /// A custom menu item.
