@@ -681,7 +681,7 @@ pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
     BOTTOMLEFT => WindowEdge::SouthWest,
     BOTTOMRIGHT => WindowEdge::SouthEast,
     // we return `WindowEdge::__Unknown` to be ignored later.
-    // we must return 8 or bigger so otherwise it will be the same as one of the other 7 variants of `WindowEdge` enum.
+    // we must return 8 or bigger, otherwise it will be the same as one of the other 7 variants of `WindowEdge` enum.
     _ => WindowEdge::__Unknown(8),
   }
 }
