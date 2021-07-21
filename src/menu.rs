@@ -249,8 +249,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Android / iOS:** Unsupported
-  /// - **Linux**: require `menu` feature flag
+  /// - **Android / iOS / Linux:** Unsupported
   ///
   Copy,
 
@@ -258,8 +257,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Android / iOS:** Unsupported
-  /// - **Linux**: require `menu` feature flag
+  /// - **Android / iOS / Linux:** Unsupported
   ///
   Cut,
 
@@ -285,8 +283,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
-  /// - **Linux**: require `menu` feature flag
+  /// - **Windows / Android / iOS / Linux:** Unsupported
   ///
   SelectAll,
 
@@ -294,8 +291,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Android / iOS:** Unsupported
-  /// - **Linux**: require `menu` feature flag
+  /// - **Android / iOS / Linux:** Unsupported
   ///
   Paste,
 
