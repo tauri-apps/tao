@@ -67,18 +67,12 @@ impl SystemTrayBuilder {
     let class_name = to_wstring("tao_system_tray_app");
     unsafe {
       let hinstance = libloaderapi::GetModuleHandleA(std::ptr::null_mut());
-      let wnd_class = WNDCLASSW {
-        style: 0,
-        lpfnWndProc: Some(winuser::DefWindowProcW),
-        cbClsExtra: 0,
-        cbWndExtra: 0,
-        hInstance: hinstance,
-        hIcon: winuser::LoadIconW(hinstance, winuser::IDI_APPLICATION),
-        hCursor: winuser::LoadCursorW(hinstance, winuser::IDI_APPLICATION),
-        hbrBackground: 16 as _,
-        lpszMenuName: 0 as _,
-        lpszClassName: class_name.as_ptr(),
-      };
+
+      let mut wnd_class = WNDCLASSW::default();
+      wnd_class.lpfnWndProc = Some(winuser::DefWindowProcW);
+      wnd_class.lpszClassName = class_name.as_ptr();
+      wnd_class.hInstance = hinstance;
+
       if winuser::RegisterClassW(&wnd_class) == 0 {
         return Err(os_error!(OsError::CreationError(
           "Error with winuser::RegisterClassW"
