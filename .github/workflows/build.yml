@@ -57,11 +57,6 @@ jobs:
         run: |
           sudo apt-get install -y libappindicator3-dev
 
-      - name: Install libgtksourceview (ubuntu[default/tray] only)
-        if: matrix.platform.id == 'ubuntu' || matrix.platform.id == 'ubuntu-tray-feat'
-        run: |
-          sudo apt-get install -y libgtksourceview-3.0-dev
-
       - name: Install GCC Multilib
         if: (matrix.platform.os == 'ubuntu-latest') && contains(matrix.platform.target, 'i686')
         run: sudo apt-get install gcc-multilib
