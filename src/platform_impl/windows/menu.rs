@@ -30,10 +30,11 @@ impl fmt::Debug for AccelWrapper {
 const CUT_ID: usize = 5001;
 const COPY_ID: usize = 5002;
 const PASTE_ID: usize = 5003;
-const HIDE_ID: usize = 5004;
-const CLOSE_ID: usize = 5005;
-const QUIT_ID: usize = 5006;
-const MINIMIZE_ID: usize = 5007;
+const SELECT_ALL_ID: usize = 5004;
+const HIDE_ID: usize = 5005;
+const CLOSE_ID: usize = 5006;
+const QUIT_ID: usize = 5007;
+const MINIMIZE_ID: usize = 5008;
 
 lazy_static! {
   static ref MENU_IDS: Mutex<Vec<usize>> = Mutex::new(vec![]);
@@ -270,6 +271,14 @@ impl Menu {
           to_wstring("&Paste\tCtrl+V").as_mut_ptr(),
         );
       },
+      MenuItem::SelectAll => unsafe {
+        winuser::AppendMenuW(
+          self.hmenu,
+          winuser::MF_STRING,
+          SELECT_ALL_ID,
+          to_wstring("&Select all\tCtrl+A").as_mut_ptr(),
+        );
+      },
       MenuItem::Hide => unsafe {
         winuser::AppendMenuW(
           self.hmenu,
@@ -379,6 +388,9 @@ pub(crate) unsafe extern "system" fn subclass_proc(
         PASTE_ID => {
           execute_edit_command(EditCommands::Paste);
         }
+        SELECT_ALL_ID => {
+          execute_edit_command(EditCommands::SelectAll);
+        }
         HIDE_ID => {
           winuser::ShowWindow(hwnd, winuser::SW_HIDE);
         }
@@ -414,12 +426,14 @@ enum EditCommands {
   Copy,
   Cut,
   Paste,
+  SelectAll,
 }
 fn execute_edit_command(command: EditCommands) {
   let key = match command {
-    EditCommands::Copy => 0x43,  // c
-    EditCommands::Cut => 0x58,   // x
-    EditCommands::Paste => 0x56, // v
+    EditCommands::Copy => 0x43,      // c
+    EditCommands::Cut => 0x58,       // x
+    EditCommands::Paste => 0x56,     // v
+    EditCommands::SelectAll => 0x41, // a
   };
 
   unsafe {
