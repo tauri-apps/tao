@@ -16,11 +16,6 @@ use gio::{prelude::*, Cancellable};
 use glib::{source::Priority, Continue, MainContext};
 use gtk::{prelude::*, AboutDialog, ApplicationWindow, Inhibit};
 
-#[cfg(any(feature = "menu", feature = "tray"))]
-use glib::Cast;
-#[cfg(any(feature = "menu", feature = "tray"))]
-use gtk::{Clipboard, Entry};
-
 use crate::{
   accelerator::AcceleratorId,
   dpi::{PhysicalPosition, PhysicalSize},
@@ -626,68 +621,6 @@ impl<T: 'static> EventLoop<T> {
                     "Failed to send loop destroyed event to event channel: {}",
                     e
                   );
-                }
-              }
-              #[cfg(any(feature = "menu", feature = "tray"))]
-              (Some(MenuItem::Cut), None) => {
-                if let Some(widget) = window.get_focus() {
-                  if widget.has_focus() {
-                    if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
-                      if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
-                        if let Some(buf) = view.get_buffer() {
-                          buf.cut_clipboard(&clipboard, true);
-                        }
-                      }
-                    } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
-                      entry.cut_clipboard();
-                    }
-                  }
-                }
-              }
-              #[cfg(any(feature = "menu", feature = "tray"))]
-              (Some(MenuItem::Copy), None) => {
-                if let Some(widget) = window.get_focus() {
-                  if widget.has_focus() {
-                    if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
-                      if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
-                        if let Some(buf) = view.get_buffer() {
-                          buf.copy_clipboard(&clipboard);
-                        }
-                      }
-                    } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
-                      entry.copy_clipboard();
-                    }
-                  }
-                }
-              }
-              #[cfg(any(feature = "menu", feature = "tray"))]
-              (Some(MenuItem::Paste), None) => {
-                if let Some(widget) = window.get_focus() {
-                  if widget.has_focus() {
-                    if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
-                      if let Some(clipboard) = Clipboard::get_default(&widget.get_display()) {
-                        if let Some(buf) = view.get_buffer() {
-                          buf.paste_clipboard(&clipboard, None, true);
-                        }
-                      }
-                    } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
-                      entry.paste_clipboard();
-                    }
-                  }
-                }
-              }
-              #[cfg(any(feature = "menu", feature = "tray"))]
-              (Some(MenuItem::SelectAll), None) => {
-                if let Some(widget) = window.get_focus() {
-                  if widget.has_focus() {
-                    if let Some(view) = widget.dynamic_cast_ref::<sourceview::View>() {
-                      if let Some(buf) = view.get_buffer() {
-                        buf.select_range(&buf.get_start_iter(), &buf.get_end_iter());
-                      }
-                    } else if let Some(entry) = widget.dynamic_cast_ref::<Entry>() {
-                      entry.select_region(0, -1);
-                    }
-                  }
                 }
               }
               (Some(MenuItem::EnterFullScreen), None) => {
