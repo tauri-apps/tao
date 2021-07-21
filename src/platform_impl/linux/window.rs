@@ -8,14 +8,13 @@ use std::{
   sync::atomic::{AtomicBool, AtomicI32, Ordering},
 };
 
-use gdk::{EventKey, WindowEdge, WindowExt, WindowState};
+use gdk::{WindowEdge, WindowExt, WindowState};
 use gdk_pixbuf::{Colorspace, Pixbuf};
 use gtk::{prelude::*, AccelGroup, ApplicationWindow, Orientation};
 
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
-  event::ElementState,
   icon::{BadIcon, Icon},
   menu::{MenuId, MenuItem},
   monitor::MonitorHandle as RootMonitorHandle,
@@ -577,6 +576,7 @@ impl Window {
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
     let screen = self.window.get_display().get_default_screen();
     let window = self.window.get_window().unwrap();
+    #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
     let number = screen.get_monitor_at_window(&window);
     let handle = MonitorHandle::new(&self.window.get_display(), number);
     Some(RootMonitorHandle { inner: handle })
@@ -598,6 +598,7 @@ impl Window {
 
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
     let screen = self.window.get_display().get_default_screen();
+    #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
     let number = screen.get_primary_monitor();
     let handle = MonitorHandle::new(&self.window.get_display(), number);
     Some(RootMonitorHandle { inner: handle })
@@ -655,8 +656,6 @@ pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
   let (right, bottom) = (left + w, top + h);
   let (cx, cy) = (cx as i32, cy as i32);
 
-  let display = window.get_display();
-
   const LEFT: i32 = 0b0001;
   const RIGHT: i32 = 0b0010;
   const TOP: i32 = 0b0100;
@@ -682,7 +681,7 @@ pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
     BOTTOMLEFT => WindowEdge::SouthWest,
     BOTTOMRIGHT => WindowEdge::SouthEast,
     // we return `WindowEdge::__Unknown` to be ignored later.
-    // we must return 8 or bigger so otherwise it will be the same as one of the other 7 variants of `WindowEdge` enum.
+    // we must return 8 or bigger, otherwise it will be the same as one of the other 7 variants of `WindowEdge` enum.
     _ => WindowEdge::__Unknown(8),
   }
 }
