@@ -37,41 +37,37 @@ const QUIT_ID: usize = 5007;
 const MINIMIZE_ID: usize = 5008;
 
 lazy_static! {
-  static ref MENU_IDS: Mutex<Vec<usize>> = Mutex::new(vec![]);
+  static ref MENU_IDS: Mutex<Vec<u16>> = Mutex::new(vec![]);
 }
 
 pub struct MenuHandler {
   window_id: Option<RootWindowId>,
   menu_type: MenuType,
-  send_event: Box<dyn Fn(Event<'static, ()>)>,
+  event_sender: Box<dyn Fn(Event<'static, ()>)>,
 }
 
 impl MenuHandler {
   pub fn new(
-    send_event: Box<dyn Fn(Event<'static, ()>)>,
+    event_sender: Box<dyn Fn(Event<'static, ()>)>,
     menu_type: MenuType,
     window_id: Option<RootWindowId>,
   ) -> MenuHandler {
     MenuHandler {
       window_id,
       menu_type,
-      send_event,
+      event_sender,
     }
   }
-  pub fn send_click_event(&self, menu_id: u16) {
-    // we send only tray event as the window event
-    // is catched into the main event_loop process.
-    if self.menu_type == MenuType::ContextMenu {
-      (self.send_event)(Event::MenuEvent {
-        menu_id: MenuId(menu_id),
-        origin: self.menu_type,
-        window_id: self.window_id,
-      });
-    }
+  pub fn send_menu_event(&self, menu_id: u16) {
+    (self.event_sender)(Event::MenuEvent {
+      menu_id: MenuId(menu_id),
+      origin: self.menu_type,
+      window_id: self.window_id,
+    });
   }
 
   pub fn send_event(&self, event: Event<'static, ()>) {
-    (self.send_event)(event);
+    (self.event_sender)(event);
   }
 }
 
@@ -336,6 +332,8 @@ impl Menu {
   }
 */
 
+const MENU_SUBCLASS_ID: usize = 4568;
+
 pub fn initialize(
   menu_builder: Menu,
   window_handle: RawWindowHandle,
@@ -346,7 +344,12 @@ pub fn initialize(
     let menu = menu_builder.clone().into_hmenu();
 
     unsafe {
-      commctrl::SetWindowSubclass(handle.hwnd as _, Some(subclass_proc), 0, sender as _);
+      commctrl::SetWindowSubclass(
+        handle.hwnd as _,
+        Some(subclass_proc),
+        MENU_SUBCLASS_ID,
+        sender as _,
+      );
       winuser::SetMenu(handle.hwnd as _, menu);
     }
 
@@ -407,15 +410,12 @@ pub(crate) unsafe extern "system" fn subclass_proc(
           winuser::ShowWindow(hwnd, winuser::SW_MINIMIZE);
         }
         _ => {
-          if MENU_IDS.lock().unwrap().contains(&wparam) {
-            proxy.send_click_event(wparam as u16);
+          let menu_id = minwindef::LOWORD(wparam as _);
+          if MENU_IDS.lock().unwrap().contains(&menu_id) {
+            proxy.send_menu_event(menu_id);
           }
         }
       }
-      0
-    }
-    winuser::WM_DESTROY => {
-      Box::from_raw(data as *mut MenuHandler);
       0
     }
     _ => commctrl::DefSubclassProc(hwnd, msg, wparam, lparam),
