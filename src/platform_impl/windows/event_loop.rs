@@ -570,13 +570,8 @@ lazy_static! {
         winuser::RegisterWindowMessageA("Tao::SetRetainMaximized\0".as_ptr() as LPCSTR)
     };
     static ref THREAD_EVENT_TARGET_WINDOW_CLASS: Vec<u16> = unsafe {
-        use std::ffi::OsStr;
-        use std::os::windows::ffi::OsStrExt;
 
-        let class_name: Vec<_> = OsStr::new("Tao Thread Event Target")
-            .encode_wide()
-            .chain(Some(0).into_iter())
-            .collect();
+        let class_name= util::to_wstring("Tao Thread Event Target");
 
         let class = winuser::WNDCLASSEXW {
             cbSize: mem::size_of::<winuser::WNDCLASSEXW>() as UINT,

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use raw_window_handle::RawWindowHandle;
-use std::{collections::HashMap, ffi::CString, fmt, os::windows::ffi::OsStrExt, sync::Mutex};
+use std::{collections::HashMap, ffi::CString, fmt, sync::Mutex};
 
 use winapi::{
   shared::{basetsd, minwindef, windef},
@@ -17,7 +17,7 @@ use crate::{
   window::WindowId as RootWindowId,
 };
 
-use super::{accelerator::register_accel, keyboard::key_to_vk, WindowId};
+use super::{accelerator::register_accel, keyboard::key_to_vk, util::to_wstring, WindowId};
 
 #[derive(Copy, Clone)]
 struct AccelWrapper(winuser::ACCEL);
@@ -359,13 +359,6 @@ pub fn initialize(
   } else {
     None
   }
-}
-
-pub(crate) fn to_wstring(str: &str) -> Vec<u16> {
-  std::ffi::OsStr::new(str)
-    .encode_wide()
-    .chain(Some(0).into_iter())
-    .collect()
 }
 
 pub(crate) unsafe extern "system" fn subclass_proc(
