@@ -26,7 +26,7 @@ use crate::{
 pub(crate) type EventLoopRunnerShared<T> = Rc<EventLoopRunner<T>>;
 pub(crate) struct EventLoopRunner<T: 'static> {
   // The event loop's win32 handles
-  pub(super) thread_msg_target: HWND,
+  thread_msg_target: HWND,
   wait_thread_id: DWORD,
 
   control_flow: Cell<ControlFlow>,

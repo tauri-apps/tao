@@ -11,13 +11,14 @@ use std::{
   ffi::OsStr,
   io, mem,
   os::windows::ffi::OsStrExt,
-  panic, ptr,
+  ptr,
   sync::{mpsc::channel, Arc},
 };
 
 use winapi::{
   ctypes::c_int,
   shared::{
+    basetsd::LONG_PTR,
     minwindef::{HINSTANCE, LPARAM, LRESULT, UINT, WPARAM},
     windef::{self, HWND, POINT, POINTS, RECT},
   },
@@ -43,26 +44,21 @@ use crate::{
   icon::Icon,
   menu::MenuType,
   monitor::MonitorHandle as RootMonitorHandle,
-  platform_impl::{
-    platform::{
-      dark_mode::try_theme,
-      dpi::{dpi_to_scale_factor, hwnd_dpi},
-      drop_handler::FileDropHandler,
-      event_loop::{self, EventLoopWindowTarget, DESTROY_MSG_ID},
-      icon::{self, IconType},
-      menu, monitor, util,
-      window_state::{CursorFlags, SavedWindow, WindowFlags, WindowState},
-      Parent, PlatformSpecificWindowBuilderAttributes, WindowId,
-    },
-    OsError,
+  platform_impl::platform::{
+    dark_mode::try_theme,
+    dpi::{dpi_to_scale_factor, hwnd_dpi},
+    drop_handler::FileDropHandler,
+    event_loop::{self, EventLoopWindowTarget, DESTROY_MSG_ID},
+    icon::{self, IconType},
+    menu, monitor, util,
+    window_state::{CursorFlags, SavedWindow, WindowFlags, WindowState},
+    OsError, Parent, PlatformSpecificWindowBuilderAttributes, WindowId,
   },
   window::{
     CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
     BORDERLESS_RESIZE_INSET,
   },
 };
-
-use super::event_loop::WindowData;
 
 struct HMenuWrapper(windef::HMENU);
 unsafe impl Send for HMenuWrapper {}
@@ -95,7 +91,7 @@ impl Window {
     // done. you owe me -- ossi
     unsafe {
       let drag_and_drop = pl_attr.drag_and_drop;
-      init(w_attr, pl_attr, event_loop, |win| {
+      init(w_attr, pl_attr, event_loop).map(|win| {
         let file_drop_handler = if drag_and_drop {
           use winapi::shared::winerror::{OLE_E_WRONGCOMPOBJ, RPC_E_CHANGED_MODE, S_OK};
 
@@ -132,15 +128,16 @@ impl Window {
           None
         };
 
-        event_loop.runner_shared.register_window(win.window.0);
-
-        WindowData {
+        let subclass_input = event_loop::SubclassInput {
           window_state: win.window_state.clone(),
           event_loop_runner: event_loop.runner_shared.clone(),
           file_drop_handler,
-          userdata_removed: Cell::new(false),
+          subclass_removed: Cell::new(false),
           recurse_depth: Cell::new(0),
-        }
+        };
+
+        event_loop::subclass_window(win.window.0, subclass_input);
+        win
       })
     }
   }
@@ -216,11 +213,8 @@ impl Window {
     let (x, y): (i32, i32) = position.to_physical::<i32>(self.scale_factor()).into();
 
     let window = self.window.clone();
-    let window_state = Arc::clone(&self.window_state);
     self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
-        f.set(WindowFlags::MAXIMIZED, false)
-      });
+      util::set_maximized(window.0, false);
     });
 
     unsafe {
@@ -270,11 +264,8 @@ impl Window {
     let (width, height) = size.to_physical::<u32>(scale_factor).into();
 
     let window = self.window.clone();
-    let window_state = Arc::clone(&self.window_state);
     self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
-        f.set(WindowFlags::MAXIMIZED, false)
-      });
+      util::set_maximized(window.0, false);
     });
 
     util::set_inner_size_physical(self.window.0, width, height);
@@ -441,14 +432,7 @@ impl Window {
 
   #[inline]
   pub fn set_maximized(&self, maximized: bool) {
-    let window = self.window.clone();
-    let window_state = Arc::clone(&self.window_state);
-    self.thread_executor.execute_in_thread(move || {
-      window_state
-        .lock()
-        .set_window_flags_in_place(|f| f.set(WindowFlags::MAXIMIZED, maximized));
-      util::set_maximized(window.0, maximized);
-    });
+    util::set_maximized(self.window.0, maximized);
   }
 
   #[inline]
@@ -822,31 +806,18 @@ pub struct WindowWrapper(HWND);
 unsafe impl Sync for WindowWrapper {}
 unsafe impl Send for WindowWrapper {}
 
-pub(super) struct InitData<'a, T: 'static> {
-  // inputs
-  pub event_loop: &'a EventLoopWindowTarget<T>,
-  pub post_init: &'a dyn Fn(HWND) -> (Window, WindowData<T>),
-  // outputs
-  pub window: Option<Window>,
-}
-
-unsafe fn init<T, F>(
+unsafe fn init<T: 'static>(
   attributes: WindowAttributes,
   pl_attribs: PlatformSpecificWindowBuilderAttributes,
   event_loop: &EventLoopWindowTarget<T>,
-  create_window_data: F,
-) -> Result<Window, RootOsError>
-where
-  T: 'static,
-  F: Fn(&mut Window) -> WindowData<T>,
-{
+) -> Result<Window, RootOsError> {
   let title = OsStr::new(&attributes.title)
     .encode_wide()
     .chain(Some(0).into_iter())
     .collect::<Vec<_>>();
 
   // registering the window class
-  let class_name = register_window_class::<T>(&attributes.window_icon, &pl_attribs.taskbar_icon);
+  let class_name = register_window_class(&attributes.window_icon, &pl_attribs.taskbar_icon);
 
   let mut window_flags = WindowFlags::empty();
   window_flags.set(WindowFlags::DECORATIONS, attributes.decorations);
@@ -877,59 +848,31 @@ where
     }
   };
 
-  let mut initdata = InitData {
-    event_loop,
-    post_init: &|hwnd| {
-      let mut window = post_init(
-        WindowWrapper(hwnd),
-        attributes.clone(),
-        pl_attribs.clone(),
-        window_flags,
-        event_loop,
-      );
-      let window_data = create_window_data(&mut window);
-      (window, window_data)
-    },
-    window: None,
+  // creating the real window this time, by using the functions in `extra_functions`
+  let real_window = {
+    let (style, ex_style) = window_flags.to_window_styles();
+    let handle = winuser::CreateWindowExW(
+      ex_style,
+      class_name.as_ptr(),
+      title.as_ptr() as LPCWSTR,
+      style,
+      winuser::CW_USEDEFAULT,
+      winuser::CW_USEDEFAULT,
+      winuser::CW_USEDEFAULT,
+      winuser::CW_USEDEFAULT,
+      parent.unwrap_or(ptr::null_mut()),
+      pl_attribs.menu.unwrap_or(ptr::null_mut()),
+      libloaderapi::GetModuleHandleW(ptr::null()),
+      Box::into_raw(Box::new(!attributes.decorations)) as _,
+    );
+
+    if handle.is_null() {
+      return Err(os_error!(OsError::IoError(io::Error::last_os_error())));
+    }
+
+    WindowWrapper(handle)
   };
 
-  let (style, ex_style) = window_flags.to_window_styles();
-  let handle = winuser::CreateWindowExW(
-    ex_style,
-    class_name.as_ptr(),
-    title.as_ptr() as LPCWSTR,
-    style,
-    winuser::CW_USEDEFAULT,
-    winuser::CW_USEDEFAULT,
-    winuser::CW_USEDEFAULT,
-    winuser::CW_USEDEFAULT,
-    parent.unwrap_or(ptr::null_mut()),
-    pl_attribs.menu.unwrap_or(ptr::null_mut()),
-    libloaderapi::GetModuleHandleW(ptr::null()),
-    &mut initdata as *mut _ as *mut _,
-  );
-
-  // If the `post_init` callback in `InitData` panicked, then should resume panicking here
-  if let Err(panic_error) = event_loop.runner_shared.take_panic_error() {
-    panic::resume_unwind(panic_error)
-  }
-
-  if handle.is_null() {
-    return Err(os_error!(OsError::IoError(io::Error::last_os_error())));
-  }
-
-  // If the handle is non-null, then window creation must have succeeded, which means
-  // that we *must* have populated the `InitData.window` field.
-  Ok(initdata.window.unwrap())
-}
-
-unsafe fn post_init<T: 'static>(
-  real_window: WindowWrapper,
-  attributes: WindowAttributes,
-  pl_attribs: PlatformSpecificWindowBuilderAttributes,
-  window_flags: WindowFlags,
-  event_loop: &EventLoopWindowTarget<T>,
-) -> Window {
   // Register for touch events if applicable
   {
     let digitizer = winuser::GetSystemMetrics(winuser::SM_DIGITIZER) as u32;
@@ -1021,10 +964,10 @@ unsafe fn post_init<T: 'static>(
 
   win.set_skip_taskbar(pl_attribs.skip_taskbar);
 
-  win
+  Ok(win)
 }
 
-unsafe fn register_window_class<T: 'static>(
+unsafe fn register_window_class(
   window_icon: &Option<Icon>,
   taskbar_icon: &Option<Icon>,
 ) -> Vec<u16> {
@@ -1045,7 +988,7 @@ unsafe fn register_window_class<T: 'static>(
   let class = winuser::WNDCLASSEXW {
     cbSize: mem::size_of::<winuser::WNDCLASSEXW>() as UINT,
     style: winuser::CS_HREDRAW | winuser::CS_VREDRAW | winuser::CS_OWNDC,
-    lpfnWndProc: Some(super::event_loop::public_window_callback::<T>),
+    lpfnWndProc: Some(window_proc),
     cbClsExtra: 0,
     cbWndExtra: 0,
     hInstance: libloaderapi::GetModuleHandleW(ptr::null()),
@@ -1064,6 +1007,44 @@ unsafe fn register_window_class<T: 'static>(
   winuser::RegisterClassExW(&class);
 
   class_name
+}
+
+unsafe extern "system" fn window_proc(
+  window: HWND,
+  msg: UINT,
+  wparam: WPARAM,
+  lparam: LPARAM,
+) -> LRESULT {
+  let mut userdata = winuser::GetWindowLongPtrW(window, winuser::GWL_USERDATA);
+
+  match msg {
+    winuser::WM_NCCALCSIZE => {
+      // Check if userdata is set and if the value of it is true (window wants to be borderless)
+      if userdata != 0 && *(userdata as *mut bool) == true {
+        // adjust the maximized borderless window so it doesn't cover the taskbar
+        if util::is_maximized(window) {
+          let monitor = monitor::current_monitor(window);
+          if let Ok(monitor_info) = monitor::get_monitor_info(monitor.hmonitor()) {
+            let params = &mut *(lparam as *mut winuser::NCCALCSIZE_PARAMS);
+            params.rgrc[0] = monitor_info.rcWork;
+          }
+        }
+        0 // return 0 here to make the windowo borderless
+      } else {
+        winuser::DefWindowProcW(window, msg, wparam, lparam)
+      }
+    }
+    winuser::WM_NCCREATE => {
+      // Set userdata to the value of lparam. This will be cleared on event loop subclassing.
+      if userdata == 0 {
+        let createstruct = &*(lparam as *const winuser::CREATESTRUCTW);
+        userdata = createstruct.lpCreateParams as LONG_PTR;
+        winuser::SetWindowLongPtrW(window, winuser::GWL_USERDATA, userdata);
+      }
+      winuser::DefWindowProcW(window, msg, wparam, lparam)
+    }
+    _ => winuser::DefWindowProcW(window, msg, wparam, lparam),
+  }
 }
 
 struct ComInitialized(*mut ());
