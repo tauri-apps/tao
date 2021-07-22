@@ -94,6 +94,7 @@ bitflags! {
         const MINIMIZED = 1 << 12;
 
         const EXCLUSIVE_FULLSCREEN_OR_MASK = WindowFlags::ALWAYS_ON_TOP.bits;
+        const INVISIBLE_AND_MASK = !WindowFlags::MAXIMIZED.bits;
     }
 }
 
@@ -185,6 +186,9 @@ impl WindowFlags {
     if self.contains(WindowFlags::MARKER_EXCLUSIVE_FULLSCREEN) {
       self |= WindowFlags::EXCLUSIVE_FULLSCREEN_OR_MASK;
     }
+    if !self.contains(WindowFlags::VISIBLE) {
+      self &= WindowFlags::INVISIBLE_AND_MASK;
+    }
 
     self
   }
@@ -275,6 +279,18 @@ impl WindowFlags {
             | winuser::SWP_NOACTIVATE,
         );
         winuser::InvalidateRgn(window, ptr::null_mut(), 0);
+      }
+    }
+
+    if diff.contains(WindowFlags::MAXIMIZED) || new.contains(WindowFlags::MAXIMIZED) {
+      unsafe {
+        winuser::ShowWindow(
+          window,
+          match new.contains(WindowFlags::MAXIMIZED) {
+            true => winuser::SW_MAXIMIZE,
+            false => winuser::SW_RESTORE,
+          },
+        );
       }
     }
 

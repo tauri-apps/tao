@@ -657,7 +657,7 @@ impl Window {
   /// Sets the window to maximized or back.
   ///
   /// ## Platform-specific
-  ///
+  /// - **Windows**: Ignored if the window is hidden.
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_maximized(&self, maximized: bool) {
