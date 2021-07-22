@@ -44,19 +44,11 @@ pub struct SystemTrayBuilder {
 }
 
 impl SystemTrayBuilder {
-  /// Creates a new SystemTray for platforms where this is appropriate.
-  /// ## Platform-specific
-  ///
-  /// - **macOS / Windows:**: receive icon as bytes (`Vec<u8>`)
-  /// - **Linux:**: receive icon's path (`PathBuf`)
   #[inline]
   pub fn new(icon: Vec<u8>, tray_menu: Option<Menu>) -> Self {
     Self { icon, tray_menu }
   }
 
-  /// Builds the system tray.
-  ///
-  /// Possible causes of error include denied permission, incompatible system, and lack of memory.
   #[inline]
   pub fn build<T: 'static>(
     self,
