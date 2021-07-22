@@ -18,9 +18,7 @@ use crossbeam_channel as channel;
 use windows::{
   core::PCWSTR,
   Win32::{
-    Foundation::{
-      self as win32f, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, POINTS, RECT, WPARAM,
-    },
+    Foundation::{self as win32f, HINSTANCE, HMODULE, HWND, LPARAM, POINT, POINTS, RECT, WPARAM},
     Graphics::{
       Dwm::{DwmEnableBlurBehindWindow, DWM_BB_BLURREGION, DWM_BB_ENABLE, DWM_BLURBEHIND},
       Gdi::*,
@@ -29,7 +27,7 @@ use windows::{
     UI::{
       Input::{Ime::*, KeyboardAndMouse::*, Touch::*},
       Shell::{ITaskbarList4 as ITaskbarList, TaskbarList, *},
-      WindowsAndMessaging::{self as win32wm, *},
+      WindowsAndMessaging::*,
     },
   },
 };
@@ -61,6 +59,8 @@ use super::{
   keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS},
   util::calculate_insets_for_dpi,
 };
+
+use super::event_loop::WindowData;
 
 /// A simple non-owning wrapper around a window.
 #[derive(Clone, Copy)]
@@ -97,7 +97,7 @@ impl Window {
     // done. you owe me -- ossi
     unsafe {
       let drag_and_drop = pl_attr.drag_and_drop;
-      init(w_attr, pl_attr, event_loop).map(|win| {
+      init(w_attr, pl_attr, event_loop, |win| {
         let file_drop_handler = if drag_and_drop {
           // It is ok if the initialize result is `S_FALSE` because it might happen that
           // multiple windows are created on the same thread.
@@ -132,17 +132,16 @@ impl Window {
           None
         };
 
-        let subclass_input = event_loop::SubclassInput {
+        event_loop.runner_shared.register_window(win.window.0);
+
+        WindowData {
           window_state: win.window_state.clone(),
           event_loop_runner: event_loop.runner_shared.clone(),
           _file_drop_handler: file_drop_handler,
-          subclass_removed: Cell::new(false),
+          userdata_removed: Cell::new(false),
           recurse_depth: Cell::new(0),
           event_loop_preferred_theme: event_loop.preferred_theme.clone(),
-        };
-
-        event_loop::subclass_window(win.window.0, subclass_input);
-        win
+        }
       })
     }
   }
@@ -1113,13 +1112,26 @@ impl Drop for Window {
   }
 }
 
-unsafe fn init<T: 'static>(
+pub(super) struct InitData<'a, T: 'static> {
+  // inputs
+  pub event_loop: &'a EventLoopWindowTarget<T>,
+  pub post_init: &'a dyn Fn(HWND) -> (Window, WindowData<T>),
+  // outputs
+  pub window: Option<Window>,
+}
+
+unsafe fn init<T, F>(
   attributes: WindowAttributes,
   pl_attribs: PlatformSpecificWindowBuilderAttributes,
   event_loop: &EventLoopWindowTarget<T>,
-) -> Result<Window, RootOsError> {
+  create_window_data: F,
+) -> Result<Window, RootOsError>
+where
+  T: 'static,
+  F: Fn(&mut Window) -> WindowData<T>,
+{
   // registering the window class
-  let class_name = register_window_class(&pl_attribs.window_classname);
+  let class_name = register_window_class::<T>(&pl_attribs.window_classname);
 
   let mut window_flags = WindowFlags::empty();
   window_flags.set(WindowFlags::MARKER_DECORATIONS, attributes.decorations);
@@ -1166,109 +1178,135 @@ unsafe fn init<T: 'static>(
     }
   };
 
-  // creating the real window this time, by using the functions in `extra_functions`
-  let real_window = {
-    let (style, ex_style) = window_flags.to_window_styles();
-    let title = util::encode_wide(&attributes.title);
-
-    let (target_monitor, position) = attributes
-      .position
-      .and_then(|p| {
-        monitor::available_monitors()
-          .into_iter()
-          .find_map(|monitor| {
-            let dpi = monitor.dpi();
-            let scale_factor = dpi_to_scale_factor(dpi);
-            let position = p.to_physical::<i32>(scale_factor);
-            let (x, y): (i32, i32) = monitor.position().into();
-            let (width, height): (i32, i32) = monitor.size().into();
-
-            let frame_thickness = if window_flags.contains_shadow() {
-              util::get_frame_thickness(dpi)
-            } else {
-              0
-            };
-
-            // Only the starting position x needs to be accounted
-            if x <= position.x + frame_thickness
-              && position.x <= x + width
-              && y <= position.y
-              && position.y <= y + height
-            {
-              Some((monitor, position.into()))
-            } else {
-              None
-            }
-          })
-      })
-      .unwrap_or_else(|| (monitor::primary_monitor(), (CW_USEDEFAULT, CW_USEDEFAULT)));
-
-    let desired_size = attributes
-      .inner_size
-      .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
-    let clamped_size = attributes
-      .inner_size_constraints
-      .clamp(desired_size, target_monitor.scale_factor());
-
-    // Best effort: try to create the window with the requested inner size
-    let adjusted_size = {
-      let (mut w, mut h): (i32, i32) = clamped_size
-        .to_physical::<u32>(target_monitor.scale_factor())
-        .into();
-
-      if window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
-        let mut rect = RECT {
-          left: 0,
-          top: 0,
-          right: w,
-          bottom: h,
-        };
-
-        unsafe {
-          AdjustWindowRectEx(
-            &mut rect,
-            window_flags.to_adjusted_window_styles().0,
-            pl_attribs.menu.is_some(),
-            ex_style,
-          )?;
-        }
-
-        w = rect.right - rect.left;
-        h = rect.bottom - rect.top;
-      } else if window_flags.undecorated_with_shadows() {
-        let dpi = target_monitor.dpi();
-        let insets = calculate_insets_for_dpi(dpi);
-        w += insets.left + insets.right;
-        h += insets.top + insets.bottom;
-      }
-
-      (w, h)
-    };
-
-    let handle = CreateWindowExW(
-      ex_style,
-      PCWSTR::from_raw(class_name.as_ptr()),
-      PCWSTR::from_raw(title.as_ptr()),
-      style,
-      position.0,
-      position.1,
-      adjusted_size.0,
-      adjusted_size.1,
-      parent,
-      pl_attribs.menu,
-      GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
-      Some(Box::into_raw(Box::new(window_flags)) as _),
-    )?;
-
-    if !IsWindow(Some(handle)).as_bool() {
-      return Err(os_error!(OsError::IoError(io::Error::last_os_error())));
-    }
-
-    super::dark_mode::allow_dark_mode_for_window(handle, true);
-
-    WindowWrapper(handle)
+  let mut initdata = InitData {
+    event_loop,
+    post_init: &|hwnd| {
+      let mut window = post_init(
+        WindowWrapper(hwnd),
+        attributes.clone(),
+        pl_attribs.clone(),
+        window_flags,
+        event_loop,
+      )
+      .unwrap();
+      let window_data = create_window_data(&mut window);
+      (window, window_data)
+    },
+    window: None,
   };
 
+  // creating the real window this time, by using the functions in `extra_functions`
+
+  let (style, ex_style) = window_flags.to_window_styles();
+  let title = util::encode_wide(&attributes.title);
+
+  let (target_monitor, position) = attributes
+    .position
+    .and_then(|p| {
+      monitor::available_monitors()
+        .into_iter()
+        .find_map(|monitor| {
+          let dpi = monitor.dpi();
+          let scale_factor = dpi_to_scale_factor(dpi);
+          let position = p.to_physical::<i32>(scale_factor);
+          let (x, y): (i32, i32) = monitor.position().into();
+          let (width, height): (i32, i32) = monitor.size().into();
+
+          let frame_thickness = if window_flags.contains_shadow() {
+            util::get_frame_thickness(dpi)
+          } else {
+            0
+          };
+
+          // Only the starting position x needs to be accounted
+          if x <= position.x + frame_thickness
+            && position.x <= x + width
+            && y <= position.y
+            && position.y <= y + height
+          {
+            Some((monitor, position.into()))
+          } else {
+            None
+          }
+        })
+    })
+    .unwrap_or_else(|| (monitor::primary_monitor(), (CW_USEDEFAULT, CW_USEDEFAULT)));
+
+  let desired_size = attributes
+    .inner_size
+    .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
+  let clamped_size = attributes
+    .inner_size_constraints
+    .clamp(desired_size, target_monitor.scale_factor());
+
+  // Best effort: try to create the window with the requested inner size
+  let adjusted_size = {
+    let (mut w, mut h): (i32, i32) = clamped_size
+      .to_physical::<u32>(target_monitor.scale_factor())
+      .into();
+
+    if window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
+      let mut rect = RECT {
+        left: 0,
+        top: 0,
+        right: w,
+        bottom: h,
+      };
+
+      unsafe {
+        AdjustWindowRectEx(
+          &mut rect,
+          window_flags.to_adjusted_window_styles().0,
+          pl_attribs.menu.is_some(),
+          ex_style,
+        )?;
+      }
+
+      w = rect.right - rect.left;
+      h = rect.bottom - rect.top;
+    } else if window_flags.undecorated_with_shadows() {
+      let dpi = target_monitor.dpi();
+      let insets = calculate_insets_for_dpi(dpi);
+      w += insets.left + insets.right;
+      h += insets.top + insets.bottom;
+    }
+
+    (w, h)
+  };
+
+  let handle = CreateWindowExW(
+    ex_style,
+    PCWSTR::from_raw(class_name.as_ptr()),
+    PCWSTR::from_raw(title.as_ptr()),
+    style,
+    position.0,
+    position.1,
+    adjusted_size.0,
+    adjusted_size.1,
+    parent,
+    pl_attribs.menu,
+    GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
+    Some(&mut initdata as *mut _ as *mut _),
+  )?;
+
+  if !IsWindow(Some(handle)).as_bool() {
+    return Err(os_error!(OsError::IoError(io::Error::last_os_error())));
+  }
+
+  super::dark_mode::allow_dark_mode_for_window(handle, true);
+
+  // If the handle is non-null, then window creation must have succeeded, which means
+  // that we *must* have populated the `InitData.window` field.
+  Ok(initdata.window.unwrap())
+}
+
+unsafe fn post_init<T: 'static>(
+  real_window: WindowWrapper,
+  attributes: WindowAttributes,
+  pl_attribs: PlatformSpecificWindowBuilderAttributes,
+  window_flags: WindowFlags,
+  event_loop: &EventLoopWindowTarget<T>,
+) -> Result<Window, RootOsError> {
   // Register for touch events if applicable
   {
     let digitizer = GetSystemMetrics(SM_DIGITIZER) as u32;
@@ -1352,13 +1390,13 @@ unsafe fn init<T: 'static>(
   Ok(win)
 }
 
-unsafe fn register_window_class(window_classname: &str) -> Vec<u16> {
+unsafe fn register_window_class<T: 'static>(window_classname: &str) -> Vec<u16> {
   let class_name = util::encode_wide(window_classname);
 
   let class = WNDCLASSEXW {
     cbSize: mem::size_of::<WNDCLASSEXW>() as u32,
     style: CS_HREDRAW | CS_VREDRAW | CS_OWNDC,
-    lpfnWndProc: Some(window_proc),
+    lpfnWndProc: Some(super::event_loop::public_window_callback::<T>),
     cbClsExtra: 0,
     cbWndExtra: 0,
     hInstance: HINSTANCE(GetModuleHandleW(PCWSTR::null()).unwrap_or_default().0),
@@ -1377,62 +1415,6 @@ unsafe fn register_window_class(window_classname: &str) -> Vec<u16> {
   RegisterClassExW(&class);
 
   class_name
-}
-
-unsafe extern "system" fn window_proc(
-  window: HWND,
-  msg: u32,
-  wparam: WPARAM,
-  lparam: LPARAM,
-) -> LRESULT {
-  // This window procedure is only needed until the subclass procedure is attached.
-  // we need this because we need to respond to WM_NCCALCSIZE as soon as possible
-  // in order to make the window borderless if needed.
-  match msg {
-    win32wm::WM_NCCALCSIZE => {
-      let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
-      if userdata != 0 {
-        let window_flags = WindowFlags::from_bits_truncate(userdata as _);
-
-        if wparam == WPARAM(0) || window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
-          return DefWindowProcW(window, msg, wparam, lparam);
-        }
-
-        // adjust the maximized borderless window so it doesn't cover the taskbar
-        if util::is_maximized(window).unwrap_or(false) {
-          let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
-          if let Ok(monitor_info) =
-            monitor::get_monitor_info(MonitorFromRect(&params.rgrc[0], MONITOR_DEFAULTTONULL))
-          {
-            params.rgrc[0] = monitor_info.monitorInfo.rcWork;
-          }
-        } else if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) {
-          let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
-
-          let insets = util::calculate_window_insets(window);
-
-          params.rgrc[0].left += insets.left;
-          params.rgrc[0].top += insets.top;
-          params.rgrc[0].right -= insets.right;
-          params.rgrc[0].bottom -= insets.bottom;
-        }
-        return LRESULT(0); // return 0 here to make the window borderless
-      }
-
-      DefWindowProcW(window, msg, wparam, lparam)
-    }
-    win32wm::WM_NCCREATE => {
-      let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
-      if userdata == 0 {
-        let createstruct = &*(lparam.0 as *const CREATESTRUCTW);
-        let userdata = createstruct.lpCreateParams;
-        let window_flags = Box::from_raw(userdata as *mut WindowFlags);
-        util::SetWindowLongPtrW(window, GWL_USERDATA, window_flags.bits() as _);
-      }
-      DefWindowProcW(window, msg, wparam, lparam)
-    }
-    _ => DefWindowProcW(window, msg, wparam, lparam),
-  }
 }
 
 struct ComInitialized(Option<()>);

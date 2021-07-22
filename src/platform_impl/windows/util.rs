@@ -21,7 +21,7 @@ use once_cell::sync::Lazy;
 use windows::{
   core::{BOOL, HRESULT, PCSTR, PCWSTR},
   Win32::{
-    Foundation::{COLORREF, FARPROC, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
+    Foundation::{COLORREF, FARPROC, HWND, LPARAM, POINT, RECT, WPARAM},
     Globalization::lstrlenW,
     Graphics::Gdi::{ClientToScreen, InvalidateRgn, HMONITOR},
     System::LibraryLoader::*,
@@ -396,15 +396,6 @@ pub fn PRIMARYLANGID(hkl: HKL) -> u32 {
 #[inline]
 pub fn RGB<T: Into<u32>>(r: T, g: T, b: T) -> COLORREF {
   COLORREF(r.into() | (g.into() << 8) | (b.into() << 16))
-}
-
-pub unsafe extern "system" fn call_default_window_proc(
-  hwnd: HWND,
-  msg: u32,
-  wparam: WPARAM,
-  lparam: LPARAM,
-) -> LRESULT {
-  DefWindowProcW(hwnd, msg, wparam, lparam)
 }
 
 pub fn get_instance_handle() -> windows::Win32::Foundation::HMODULE {
