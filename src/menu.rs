@@ -32,7 +32,6 @@ use crate::{
 ///
 /// ## Platform-specific
 ///
-/// **Windows:** The native menu is destroyed when this struct is dropped and can no longer be used.
 pub struct ContextMenu(pub(crate) Menu);
 /// Object that allows you to create a `MenuBar`, menu.
 ///
@@ -40,7 +39,6 @@ pub struct ContextMenu(pub(crate) Menu);
 ///
 /// **macOs:** The menu will show in the **Menu Bar**.
 /// **Linux / Windows:** The menu will be show at the top of the window.
-/// **Windows:** The native menu is destroyed when this struct is dropped and can no longer be used.
 pub struct MenuBar(pub(crate) Menu);
 
 /// A custom menu item.

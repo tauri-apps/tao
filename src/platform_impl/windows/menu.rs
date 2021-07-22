@@ -374,9 +374,16 @@ pub(crate) unsafe extern "system" fn subclass_proc(
   wparam: minwindef::WPARAM,
   lparam: minwindef::LPARAM,
   _id: basetsd::UINT_PTR,
-  data: basetsd::DWORD_PTR,
+  subclass_input_ptr: basetsd::DWORD_PTR,
 ) -> minwindef::LRESULT {
-  let proxy = &mut *(data as *mut MenuHandler);
+  let subclass_input_ptr = subclass_input_ptr as *mut MenuHandler;
+  let subclass_input = &*(subclass_input_ptr);
+
+  if msg == winuser::WM_DESTROY {
+    Box::from_raw(subclass_input_ptr);
+    return 0;
+  }
+
   match msg {
     winuser::WM_COMMAND => {
       match wparam {
@@ -396,13 +403,13 @@ pub(crate) unsafe extern "system" fn subclass_proc(
           winuser::ShowWindow(hwnd, winuser::SW_HIDE);
         }
         CLOSE_ID => {
-          proxy.send_event(Event::WindowEvent {
+          subclass_input.send_event(Event::WindowEvent {
             window_id: RootWindowId(WindowId(hwnd)),
             event: WindowEvent::CloseRequested,
           });
         }
         QUIT_ID => {
-          proxy.send_event(Event::LoopDestroyed);
+          subclass_input.send_event(Event::LoopDestroyed);
         }
         MINIMIZE_ID => {
           winuser::ShowWindow(hwnd, winuser::SW_MINIMIZE);
@@ -410,7 +417,7 @@ pub(crate) unsafe extern "system" fn subclass_proc(
         _ => {
           let menu_id = minwindef::LOWORD(wparam as _);
           if MENU_IDS.lock().unwrap().contains(&menu_id) {
-            proxy.send_menu_event(menu_id);
+            subclass_input.send_menu_event(menu_id);
           }
         }
       }

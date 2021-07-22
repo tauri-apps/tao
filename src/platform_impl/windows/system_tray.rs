@@ -68,10 +68,12 @@ impl SystemTrayBuilder {
     unsafe {
       let hinstance = libloaderapi::GetModuleHandleA(std::ptr::null_mut());
 
-      let mut wnd_class = WNDCLASSW::default();
-      wnd_class.lpfnWndProc = Some(winuser::DefWindowProcW);
-      wnd_class.lpszClassName = class_name.as_ptr();
-      wnd_class.hInstance = hinstance;
+      let wnd_class = WNDCLASSW {
+        lpfnWndProc: Some(winuser::DefWindowProcW),
+        lpszClassName: class_name.as_ptr(),
+        hInstance: hinstance,
+        ..Default::default()
+      };
 
       if winuser::RegisterClassW(&wnd_class) == 0 {
         return Err(os_error!(OsError::CreationError(
@@ -226,17 +228,20 @@ unsafe extern "system" fn tray_subclass_proc(
   wparam: WPARAM,
   lparam: LPARAM,
   _id: UINT_PTR,
-  subclass_data: DWORD_PTR,
+  subclass_input_ptr: DWORD_PTR,
 ) -> LRESULT {
-  let subclass_data_ptr = &mut *(subclass_data as *mut TrayLoopData);
-  let mut traydata = &mut *subclass_data_ptr;
+  let subclass_input_ptr = subclass_input_ptr as *mut TrayLoopData;
+  let mut subclass_input = &mut *(subclass_input_ptr);
 
-  // update tray menu
-  if msg == WM_USER_UPDATE_TRAYMENU {
-    traydata.hmenu = Some(wparam as HMENU);
+  if msg == winuser::WM_DESTROY {
+    Box::from_raw(subclass_input_ptr);
+    return 0;
   }
 
-  // click on the icon
+  if msg == WM_USER_UPDATE_TRAYMENU {
+    subclass_input.hmenu = Some(wparam as HMENU);
+  }
+
   if msg == WM_USER_TRAYICON
     && matches!(
       lparam as u32,
@@ -269,32 +274,28 @@ unsafe extern "system" fn tray_subclass_proc(
     };
 
     match lparam as u32 {
-      // Left click tray icon
       winuser::WM_LBUTTONUP => {
-        (traydata.sender)(Event::TrayEvent {
+        (subclass_input.sender)(Event::TrayEvent {
           event: TrayEvent::LeftClick,
           position,
           bounds,
         });
       }
 
-      // Right click tray icon
       winuser::WM_RBUTTONUP => {
-        (traydata.sender)(Event::TrayEvent {
+        (subclass_input.sender)(Event::TrayEvent {
           event: TrayEvent::RightClick,
           position,
           bounds,
         });
 
-        // show menu on right click
-        if let Some(menu) = traydata.hmenu {
+        if let Some(menu) = subclass_input.hmenu {
           show_tray_menu(hwnd, menu, cursor.x, cursor.y);
         }
       }
 
-      // Double click tray icon
       winuser::WM_LBUTTONDBLCLK => {
-        (traydata.sender)(Event::TrayEvent {
+        (subclass_input.sender)(Event::TrayEvent {
           event: TrayEvent::DoubleClick,
           position,
           bounds,
