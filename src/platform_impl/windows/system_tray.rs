@@ -235,7 +235,6 @@ unsafe extern "system" fn tray_subclass_proc(
 
   if msg == winuser::WM_DESTROY {
     Box::from_raw(subclass_input_ptr);
-    return 0;
   }
 
   if msg == WM_USER_UPDATE_TRAYMENU {

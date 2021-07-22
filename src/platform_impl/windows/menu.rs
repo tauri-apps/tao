@@ -381,7 +381,6 @@ pub(crate) unsafe extern "system" fn subclass_proc(
 
   if msg == winuser::WM_DESTROY {
     Box::from_raw(subclass_input_ptr);
-    return 0;
   }
 
   match msg {
