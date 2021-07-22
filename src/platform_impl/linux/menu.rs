@@ -289,7 +289,7 @@ impl Menu {
         menu_type: GtkMenuType::Native,
         menu_item: Some(MenuItem::Separator),
         ..
-      } => Some(ksni::MenuItem::Sepatator),
+      } => Some(ksni::MenuItem::Separator),
       GtkMenuInfo {
         menu_type: GtkMenuType::Native,
         menu_item: Some(MenuItem::About(s)),
