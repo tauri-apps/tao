@@ -12,8 +12,6 @@ fn main() {
   use std::path::Path;
   #[cfg(target_os = "macos")]
   use tao::platform::macos::{CustomMenuItemExtMacOS, NativeImage};
-  #[cfg(target_os = "windows")]
-  use tao::platform::windows::SystemTrayExtWindows;
   use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -152,11 +150,6 @@ fn main() {
         }
         // click on `quit` item
         if menu_id == quit_element.clone().id() {
-          // on windows, we make sure to remove the icon from the tray
-          // it require the `SystemTrayExtWindows`
-          #[cfg(target_os = "windows")]
-          system_tray.remove();
-
           // tell our app to close at the end of the loop.
           *control_flow = ControlFlow::Exit;
         }

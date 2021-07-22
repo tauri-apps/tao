@@ -122,7 +122,7 @@ impl MenuItemAttributes {
 
 #[derive(Debug, Clone)]
 pub struct Menu {
-  pub(crate) hmenu: windef::HMENU,
+  hmenu: windef::HMENU,
   accels: HashMap<u16, AccelWrapper>,
 }
 
@@ -156,10 +156,8 @@ impl Menu {
     }
   }
 
-  pub fn into_hmenu(self) -> windef::HMENU {
-    let hmenu = self.hmenu;
-    std::mem::forget(self);
-    hmenu
+  pub fn hmenu(&self) -> windef::HMENU {
+    self.hmenu
   }
 
   // Get the accels table
@@ -226,7 +224,7 @@ impl Menu {
       winuser::AppendMenuW(
         self.hmenu,
         flags,
-        submenu.into_hmenu() as _,
+        submenu.hmenu() as _,
         to_wstring(&title).as_mut_ptr(),
       );
     }
@@ -341,7 +339,7 @@ pub fn initialize(
 ) -> Option<windef::HMENU> {
   if let RawWindowHandle::Windows(handle) = window_handle {
     let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
-    let menu = menu_builder.clone().into_hmenu();
+    let menu = menu_builder.clone().hmenu();
 
     unsafe {
       commctrl::SetWindowSubclass(
@@ -376,35 +374,41 @@ pub(crate) unsafe extern "system" fn subclass_proc(
   wparam: minwindef::WPARAM,
   lparam: minwindef::LPARAM,
   _id: basetsd::UINT_PTR,
-  data: basetsd::DWORD_PTR,
+  subclass_input_ptr: basetsd::DWORD_PTR,
 ) -> minwindef::LRESULT {
-  let proxy = &mut *(data as *mut MenuHandler);
+  let subclass_input_ptr = subclass_input_ptr as *mut MenuHandler;
+  let subclass_input = &*(subclass_input_ptr);
+
+  if msg == winuser::WM_DESTROY {
+    Box::from_raw(subclass_input_ptr);
+  }
+
   match msg {
     winuser::WM_COMMAND => {
       match wparam {
         CUT_ID => {
-          execute_edit_command(EditCommands::Cut);
+          execute_edit_command(EditCommand::Cut);
         }
         COPY_ID => {
-          execute_edit_command(EditCommands::Copy);
+          execute_edit_command(EditCommand::Copy);
         }
         PASTE_ID => {
-          execute_edit_command(EditCommands::Paste);
+          execute_edit_command(EditCommand::Paste);
         }
         SELECT_ALL_ID => {
-          execute_edit_command(EditCommands::SelectAll);
+          execute_edit_command(EditCommand::SelectAll);
         }
         HIDE_ID => {
           winuser::ShowWindow(hwnd, winuser::SW_HIDE);
         }
         CLOSE_ID => {
-          proxy.send_event(Event::WindowEvent {
+          subclass_input.send_event(Event::WindowEvent {
             window_id: RootWindowId(WindowId(hwnd)),
             event: WindowEvent::CloseRequested,
           });
         }
         QUIT_ID => {
-          proxy.send_event(Event::LoopDestroyed);
+          subclass_input.send_event(Event::LoopDestroyed);
         }
         MINIMIZE_ID => {
           winuser::ShowWindow(hwnd, winuser::SW_MINIMIZE);
@@ -412,7 +416,7 @@ pub(crate) unsafe extern "system" fn subclass_proc(
         _ => {
           let menu_id = minwindef::LOWORD(wparam as _);
           if MENU_IDS.lock().unwrap().contains(&menu_id) {
-            proxy.send_menu_event(menu_id);
+            subclass_input.send_menu_event(menu_id);
           }
         }
       }
@@ -422,18 +426,18 @@ pub(crate) unsafe extern "system" fn subclass_proc(
   }
 }
 
-enum EditCommands {
+enum EditCommand {
   Copy,
   Cut,
   Paste,
   SelectAll,
 }
-fn execute_edit_command(command: EditCommands) {
+fn execute_edit_command(command: EditCommand) {
   let key = match command {
-    EditCommands::Copy => 0x43,      // c
-    EditCommands::Cut => 0x58,       // x
-    EditCommands::Paste => 0x56,     // v
-    EditCommands::SelectAll => 0x41, // a
+    EditCommand::Copy => 0x43,      // c
+    EditCommand::Cut => 0x58,       // x
+    EditCommand::Paste => 0x56,     // v
+    EditCommand::SelectAll => 0x41, // a
   };
 
   unsafe {
