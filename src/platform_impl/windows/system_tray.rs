@@ -67,11 +67,7 @@ impl SystemTrayBuilder {
         ..Default::default()
       };
 
-      if winuser::RegisterClassW(&wnd_class) == 0 {
-        return Err(os_error!(OsError::CreationError(
-          "Error with winuser::RegisterClassW"
-        )));
-      }
+      winuser::RegisterClassW(&wnd_class);
 
       let hwnd = winuser::CreateWindowExW(
         0,
