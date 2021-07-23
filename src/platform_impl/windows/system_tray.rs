@@ -3,7 +3,7 @@
 
 use super::{
   dpi::{dpi_to_scale_factor, hwnd_dpi},
-  menu::{subclass_proc as menu_subclass_proc, to_wstring, Menu, MenuHandler},
+  menu::{subclass_proc as menu_subclass_proc, Menu, MenuHandler},
   util, OsError,
 };
 use crate::{
@@ -56,7 +56,7 @@ impl SystemTrayBuilder {
   ) -> Result<RootSystemTray, RootOsError> {
     let hmenu: Option<HMENU> = self.tray_menu.map(|m| m.hmenu());
 
-    let class_name = to_wstring("tao_system_tray_app");
+    let class_name = util::to_wstring("tao_system_tray_app");
     unsafe {
       let hinstance = libloaderapi::GetModuleHandleA(std::ptr::null_mut());
 
@@ -72,7 +72,7 @@ impl SystemTrayBuilder {
       let hwnd = winuser::CreateWindowExW(
         0,
         class_name.as_ptr(),
-        to_wstring("tao_system_tray_window").as_ptr(),
+        util::to_wstring("tao_system_tray_window").as_ptr(),
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         0,

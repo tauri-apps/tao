@@ -143,10 +143,7 @@ impl Window {
   }
 
   pub fn set_title(&self, text: &str) {
-    let text = OsStr::new(text)
-      .encode_wide()
-      .chain(Some(0).into_iter())
-      .collect::<Vec<_>>();
+    let text = util::to_wstring(text);
     unsafe {
       winuser::SetWindowTextW(self.window.0, text.as_ptr() as LPCWSTR);
     }
@@ -811,10 +808,7 @@ unsafe fn init<T: 'static>(
   pl_attribs: PlatformSpecificWindowBuilderAttributes,
   event_loop: &EventLoopWindowTarget<T>,
 ) -> Result<Window, RootOsError> {
-  let title = OsStr::new(&attributes.title)
-    .encode_wide()
-    .chain(Some(0).into_iter())
-    .collect::<Vec<_>>();
+  let title = util::to_wstring(&attributes.title);
 
   // registering the window class
   let class_name = register_window_class(&attributes.window_icon, &pl_attribs.taskbar_icon);
@@ -971,10 +965,7 @@ unsafe fn register_window_class(
   window_icon: &Option<Icon>,
   taskbar_icon: &Option<Icon>,
 ) -> Vec<u16> {
-  let class_name: Vec<_> = OsStr::new("Window Class")
-    .encode_wide()
-    .chain(Some(0).into_iter())
-    .collect();
+  let class_name = util::to_wstring("Window Class");
 
   let h_icon = taskbar_icon
     .as_ref()
