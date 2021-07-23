@@ -65,8 +65,8 @@ impl SystemTray {
 }
 
 /// Type alias for ksni menu.
-pub(crate) type KsniMenu = Vec<ksni::MenuItem<KsniTray>>;
-pub(crate) type KsniMenuItem = ksni::MenuItem<KsniTray>;
+pub(super) type KsniMenu = Vec<ksni::MenuItem<KsniTray>>;
+pub(super) type KsniMenuItem = ksni::MenuItem<KsniTray>;
 
 /// Holds all properties and signals of the tray and manages the communcation via DBus.
 pub struct KsniTray {
