@@ -215,15 +215,15 @@ impl Menu {
       GtkMenuInfo {
         menu_type: GtkMenuType::Custom,
         sub_menu: None,
-        custom_menu_item: Some(i),
+        custom_menu_item: Some(custom_item),
         ..
       } => {
-        let id = i.id;
+        let id = custom_item.id;
 
-        let ksni_item = if i.selected {
+        let ksni_item = if custom_item.selected {
           ksni::menu::CheckmarkItem {
-            label: i.title.clone(),
-            enabled: i.enabled,
+            label: custom_item.title.clone(),
+            enabled: custom_item.enabled,
             visible: true,
             activate: Box::new(move |_| {
               if let Err(e) = tx.send((window_id, WindowRequest::Menu((None, Some(id))))) {
@@ -235,8 +235,8 @@ impl Menu {
           .into()
         } else {
           ksni::menu::StandardItem {
-            label: i.title.clone(),
-            enabled: i.enabled,
+            label: custom_item.title.clone(),
+            enabled: custom_item.enabled,
             visible: true,
             activate: Box::new(move |_| {
               if let Err(e) = tx.send((window_id, WindowRequest::Menu((None, Some(id))))) {
