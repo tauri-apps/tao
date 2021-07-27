@@ -71,7 +71,6 @@ unsafe impl Sync for Menu {}
 pub struct MenuItemAttributes {
   id: MenuId,
   key: Option<Accelerator>,
-  title: String,
   selected: bool,
   enabled: bool,
   menu_type: MenuType,
@@ -79,14 +78,36 @@ pub struct MenuItemAttributes {
 }
 
 impl MenuItemAttributes {
+  pub fn new(
+    id: MenuId,
+    key: Option<Accelerator>,
+    selected: bool,
+    enabled: bool,
+    menu_type: MenuType,
+    gtk_item: GtkMenuItem,
+  ) -> Self {
+    let mut instance = Self {
+      id,
+      key,
+      enabled,
+      selected,
+      menu_type,
+      gtk_item,
+    };
+    instance.set_enabled(enabled);
+    instance.set_selected(selected);
+    instance
+  }
+
   pub fn id(self) -> MenuId {
     self.id
   }
+
   pub fn set_enabled(&mut self, is_enabled: bool) {
     self.gtk_item.set_sensitive(is_enabled);
   }
+
   pub fn set_title(&mut self, title: &str) {
-    self.title = title.into();
     self.gtk_item.set_label(title);
   }
 
@@ -132,15 +153,14 @@ impl Menu {
     } else {
       GtkMenuItem::with_label(title)
     };
-    let custom_menu = MenuItemAttributes {
-      id: menu_id,
-      key: accelerators,
-      enabled,
+    let custom_menu = MenuItemAttributes::new(
+      menu_id,
+      accelerators,
       selected,
+      enabled,
       menu_type,
-      title: title.into(),
       gtk_item,
-    };
+    );
 
     self.gtk_items.push(GtkMenuInfo {
       menu_type: GtkMenuType::Custom,
@@ -219,11 +239,21 @@ impl Menu {
         ..
       } => {
         let id = custom_item.id;
+        let label = if let Some(title) = custom_item.gtk_item.get_label() {
+          title.into()
+        } else {
+          "".into()
+        };
 
         let ksni_item = if custom_item.selected {
+          let checked = match custom_item.gtk_item.downcast_ref::<CheckMenuItem>() {
+            Some(checkmenu_item) => checkmenu_item.get_active(),
+            None => false,
+          };
           ksni::menu::CheckmarkItem {
-            label: custom_item.title.clone(),
-            enabled: custom_item.enabled,
+            label,
+            enabled: custom_item.gtk_item.get_sensitive(),
+            checked,
             visible: true,
             activate: Box::new(move |_| {
               if let Err(e) = tx.send((window_id, WindowRequest::Menu((None, Some(id))))) {
@@ -235,8 +265,8 @@ impl Menu {
           .into()
         } else {
           ksni::menu::StandardItem {
-            label: custom_item.title.clone(),
-            enabled: custom_item.enabled,
+            label,
+            enabled: custom_item.gtk_item.get_sensitive(),
             visible: true,
             activate: Box::new(move |_| {
               if let Err(e) = tx.send((window_id, WindowRequest::Menu((None, Some(id))))) {
