@@ -9,7 +9,7 @@
   target_os = "openbsd"
 ))]
 
-pub use crate::platform_impl::hit_test;
+pub use crate::platform_impl::{hit_test, Parent};
 use crate::window::{Window, WindowBuilder};
 
 /// Additional methods on `Window` that are specific to Unix.
@@ -32,11 +32,18 @@ impl WindowExtUnix for Window {
 }
 
 pub trait WindowBuilderExtUnix {
+  /// Sets a parent to the window to be created.
+  fn with_parent_window(self, parent: gtk::ApplicationWindow) -> WindowBuilder;
   /// Whether to create the window icon with the taskbar icon or not.
   fn with_skip_taskbar(self, skip: bool) -> WindowBuilder;
 }
 
 impl WindowBuilderExtUnix for WindowBuilder {
+  fn with_parent_window(mut self, parent: gtk::ApplicationWindow) -> WindowBuilder {
+    self.platform_specific.parent = Parent::ChildOf(parent);
+    self
+  }
+
   fn with_skip_taskbar(mut self, skip: bool) -> WindowBuilder {
     self.platform_specific.skip_taskbar = skip;
     self

@@ -280,6 +280,10 @@ impl Window {
 
     win.set_skip_taskbar(pl_attribs.skip_taskbar);
 
+    if let Parent::ChildOf(parent) = pl_attribs.parent {
+      win.set_parent_window(parent);
+    }
+
     Ok(win)
   }
 
