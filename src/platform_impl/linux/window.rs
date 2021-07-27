@@ -186,7 +186,7 @@ impl Window {
     }
 
     if let Parent::ChildOf(parent) = pl_attribs.parent {
-      window.set_parent_window(parent);
+      window.set_parent_window(&parent);
     }
 
     // We always create a box and allocate menubar, so if they set_menu after creation
