@@ -22,7 +22,7 @@ use crate::{
 };
 
 use super::{
-  event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle,
+  event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle, Parent,
   PlatformSpecificWindowBuilderAttributes,
 };
 
@@ -185,6 +185,10 @@ impl Window {
       window.set_app_paintable(true);
     }
 
+    if let Parent::ChildOf(parent) = pl_attribs.parent {
+      window.set_parent_window(parent);
+    }
+
     // We always create a box and allocate menubar, so if they set_menu after creation
     // we can inject the menubar without re-redendering the whole window
     let window_box = gtk::Box::new(Orientation::Vertical, 0);
@@ -279,10 +283,6 @@ impl Window {
     };
 
     win.set_skip_taskbar(pl_attribs.skip_taskbar);
-
-    if let Parent::ChildOf(parent) = pl_attribs.parent {
-      win.set_parent_window(parent);
-    }
 
     Ok(win)
   }

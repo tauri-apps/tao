@@ -56,7 +56,7 @@ pub struct PlatformSpecificWindowBuilderAttributes {
 impl Default for PlatformSpecificWindowBuilderAttributes {
   fn default() -> Self {
     Self {
-      parent: None,
+      parent: Parent::None,
       skip_taskbar: false,
     }
   }
