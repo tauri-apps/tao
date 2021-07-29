@@ -39,7 +39,7 @@ use crate::{
   },
 };
 /// Object that allows you to build SystemTray instance.
-pub struct SystemTrayBuilder(SystemTrayBuilderPlatform);
+pub struct SystemTrayBuilder(pub(crate) SystemTrayBuilderPlatform);
 
 #[cfg(target_os = "linux")]
 use std::path::PathBuf;

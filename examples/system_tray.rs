@@ -11,7 +11,7 @@ fn main() {
   #[cfg(target_os = "linux")]
   use std::path::Path;
   #[cfg(target_os = "macos")]
-  use tao::platform::macos::{CustomMenuItemExtMacOS, NativeImage};
+  use tao::platform::macos::{CustomMenuItemExtMacOS, NativeImage, SystemTrayBuilderExtMacOS};
   use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -70,6 +70,13 @@ fn main() {
   let new_icon = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/icon_dark.png");
 
   // Menu is shown with left click on macOS and right click on Windows.
+  #[cfg(target_os = "macos")]
+  let mut system_tray = SystemTrayBuilder::new(icon.clone(), Some(tray_menu))
+    .with_icon_as_template(true)
+    .build(&event_loop)
+    .unwrap();
+
+  #[cfg(not(target_os = "macos"))]
   let mut system_tray = SystemTrayBuilder::new(icon.clone(), Some(tray_menu))
     .build(&event_loop)
     .unwrap();
