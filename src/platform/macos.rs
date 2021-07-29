@@ -467,8 +467,9 @@ pub trait SystemTrayBuilderExtMacOS {
 
 #[cfg(feature = "tray")]
 impl SystemTrayBuilderExtMacOS for SystemTrayBuilder {
-  fn with_icon_as_template(self, is_template: bool) -> Self {
-    SystemTrayBuilder(self.0.with_icon_as_template(is_template))
+  fn with_icon_as_template(mut self, is_template: bool) -> Self {
+    self.0.system_tray.icon_is_template = is_template;
+    self
   }
 }
 
@@ -483,7 +484,7 @@ pub trait SystemTrayExtMacOS {
 
 #[cfg(feature = "tray")]
 impl SystemTrayExtMacOS for SystemTray {
-  fn set_icon_as_template(self, is_template: bool) {
-    self.0.set_icon_as_template(is_template)
+  fn set_icon_as_template(mut self, is_template: bool) {
+    self.0.icon_is_template = is_template
   }
 }

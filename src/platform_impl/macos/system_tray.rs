@@ -56,12 +56,6 @@ impl SystemTrayBuilder {
     }
   }
 
-  #[inline]
-  pub fn with_icon_as_template(mut self, is_template: bool) -> Self {
-    self.system_tray.icon_is_template = is_template;
-    self
-  }
-
   /// Builds the system tray.
   ///
   /// Possible causes of error include denied permission, incompatible system, and lack of memory.
