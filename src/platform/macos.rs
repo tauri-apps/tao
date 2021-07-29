@@ -456,7 +456,7 @@ impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
 pub trait SystemTrayBuilderExtMacOS {
   /// Sets the icon as a template.
   ///
-  /// Images you mark as template images should consist of only black and clear colors. 
+  /// Images you mark as template images should consist of only black and clear colors.
   /// You can use the alpha channel in the image to adjust the opacity of black content.
   ///
   /// https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc
