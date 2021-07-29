@@ -479,12 +479,12 @@ pub trait SystemTrayExtMacOS {
   ///
   /// You need to update this value before changing the icon.
   ///
-  fn set_icon_as_template(self, is_template: bool);
+  fn set_icon_as_template(&mut self, is_template: bool);
 }
 
 #[cfg(feature = "tray")]
 impl SystemTrayExtMacOS for SystemTray {
-  fn set_icon_as_template(mut self, is_template: bool) {
+  fn set_icon_as_template(&mut self, is_template: bool) {
     self.0.icon_is_template = is_template
   }
 }
