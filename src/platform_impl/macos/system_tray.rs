@@ -19,7 +19,7 @@ use cocoa::{
     NSButton, NSEventMask, NSEventModifierFlags, NSEventType, NSImage, NSSquareStatusItemLength,
     NSStatusBar, NSStatusItem, NSWindow,
   },
-  base::{id, nil},
+  base::{id, nil, NO, YES},
   foundation::{NSAutoreleasePool, NSData, NSPoint, NSSize},
 };
 use objc::{
@@ -47,12 +47,19 @@ impl SystemTrayBuilder {
 
       Self {
         system_tray: SystemTray {
+          icon_is_template: false,
           icon,
           tray_menu,
           ns_status_bar,
         },
       }
     }
+  }
+
+  #[inline]
+  pub fn with_icon_as_template(mut self, is_template: bool) -> Self {
+    self.system_tray.icon_is_template = is_template;
+    self
   }
 
   /// Builds the system tray.
@@ -102,6 +109,7 @@ impl SystemTrayBuilder {
 #[derive(Debug, Clone)]
 pub struct SystemTray {
   pub(crate) icon: Vec<u8>,
+  pub(crate) icon_is_template: bool,
   pub(crate) tray_menu: Option<Menu>,
   pub(crate) ns_status_bar: id,
 }
@@ -111,6 +119,10 @@ impl SystemTray {
     // update our icon
     self.icon = icon;
     self.create_button_with_icon();
+  }
+
+  pub fn set_icon_as_template(mut self, is_template: bool) {
+    self.icon_is_template = is_template;
   }
 
   pub fn set_menu(&mut self, tray_menu: &Menu) {
@@ -139,6 +151,11 @@ impl SystemTray {
 
       button.setImage_(nsimage);
       let _: () = msg_send![nsimage, setSize: new_size];
+      let is_template = match self.icon_is_template {
+        true => YES,
+        false => NO,
+      };
+      let _: () = msg_send![nsimage, setTemplate: is_template];
     }
   }
 }
