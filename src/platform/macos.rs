@@ -454,12 +454,10 @@ impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
 }
 
 pub trait SystemTrayBuilderExtMacOS {
-  /// Sets the icon as a template.
+  /// Sets the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
   ///
   /// Images you mark as template images should consist of only black and clear colors.
   /// You can use the alpha channel in the image to adjust the opacity of black content.
-  ///
-  /// https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc
   ///
   fn with_icon_as_template(self, is_template: bool) -> Self;
 }
@@ -471,7 +469,7 @@ impl SystemTrayBuilderExtMacOS for SystemTrayBuilder {
 }
 
 pub trait SystemTrayExtMacOS {
-  /// Sets the icon as a template.
+  /// Sets the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
   ///
   /// You need to update this value before changing the icon.
   ///
