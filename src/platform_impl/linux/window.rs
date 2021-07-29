@@ -621,7 +621,7 @@ impl Window {
     }
   }
 
-  pub(crate) fn set_parent_window<P: gtk::prelude::IsA<gdk::Window>>(&mut self, parent: &P) {
+  pub(crate) fn set_parent_window<P: gtk::prelude::IsA<gtk::Window>>(&mut self, parent: &P) {
     self.window.set_parent_window(parent);
   }
 }
