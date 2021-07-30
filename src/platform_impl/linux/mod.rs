@@ -19,12 +19,12 @@ mod monitor;
 mod system_tray;
 mod window;
 
-pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 pub use self::{
   clipboard::Clipboard,
   global_shortcut::{GlobalShortcut, ShortcutManager},
   keycode::{keycode_from_scancode, keycode_to_scancode},
   menu::{Menu, MenuItemAttributes},
+  system_tray::{SystemTray, SystemTrayBuilder},
 };
 pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
 pub use monitor::{MonitorHandle, VideoMode};

@@ -160,4 +160,3 @@ fn main() {
 fn main() {
   println!("This platform doesn't support system_tray.");
 }
-
