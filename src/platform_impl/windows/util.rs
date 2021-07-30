@@ -4,7 +4,7 @@
 use std::{
   io, mem,
   ops::BitAnd,
-  os::raw::c_void,
+  os::{raw::c_void, windows::prelude::OsStrExt},
   ptr, slice,
   sync::atomic::{AtomicBool, Ordering},
 };
@@ -40,6 +40,13 @@ pub fn wchar_ptr_to_string(wchar: *const wchar_t) -> String {
   let len = unsafe { lstrlenW(wchar) } as usize;
   let wchar_slice = unsafe { slice::from_raw_parts(wchar, len) };
   wchar_to_string(wchar_slice)
+}
+
+pub fn to_wstring(str: &str) -> Vec<u16> {
+  std::ffi::OsStr::new(str)
+    .encode_wide()
+    .chain(Some(0).into_iter())
+    .collect()
 }
 
 pub unsafe fn status_map<T, F: FnMut(&mut T) -> BOOL>(mut fun: F) -> Option<T> {

@@ -39,7 +39,7 @@ use crate::{
   },
 };
 /// Object that allows you to build SystemTray instance.
-pub struct SystemTrayBuilder(SystemTrayBuilderPlatform);
+pub struct SystemTrayBuilder(pub(crate) SystemTrayBuilderPlatform);
 
 #[cfg(target_os = "linux")]
 use std::path::PathBuf;
@@ -76,15 +76,11 @@ impl SystemTrayBuilder {
   /// Builds the SystemTray.
   ///
   /// Possible causes of error include denied permission, incompatible system, and lack of memory.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows:**: The icon is not removed automatically. Use `SystemTrayExtWindows` and use the `remove()` function when your application is closing.
   pub fn build<T: 'static>(
     self,
-    _window_target: &EventLoopWindowTarget<T>,
+    window_target: &EventLoopWindowTarget<T>,
   ) -> Result<SystemTray, OsError> {
-    self.0.build(_window_target)
+    self.0.build(window_target)
   }
 }
 

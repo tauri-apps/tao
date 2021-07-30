@@ -3,9 +3,6 @@
 
 /// This is a simple implementation of support for Windows Dark Mode,
 /// which is inspired by the solution in https://github.com/ysc3839/win32-darkmode
-use std::ffi::OsStr;
-use std::os::windows::ffi::OsStrExt;
-
 use winapi::{
   shared::{
     basetsd::SIZE_T,
@@ -17,7 +14,7 @@ use winapi::{
   um::{libloaderapi, uxtheme, winuser},
 };
 
-use crate::window::Theme;
+use crate::{platform_impl::platform::util, window::Theme};
 
 lazy_static! {
     static ref WIN10_BUILD_VERSION: Option<DWORD> = {
@@ -71,8 +68,8 @@ lazy_static! {
         }
     };
 
-    static ref DARK_THEME_NAME: Vec<u16> = widestring("DarkMode_Explorer");
-    static ref LIGHT_THEME_NAME: Vec<u16> = widestring("");
+    static ref DARK_THEME_NAME: Vec<u16> = util::to_wstring("DarkMode_Explorer");
+    static ref LIGHT_THEME_NAME: Vec<u16> = util::to_wstring("");
 }
 
 /// Attempt to set a theme on a window, if necessary.
@@ -214,11 +211,4 @@ fn is_high_contrast() -> bool {
   };
 
   ok != FALSE && (HCF_HIGHCONTRASTON & hc.dwFlags) == 1
-}
-
-fn widestring(src: &'static str) -> Vec<u16> {
-  OsStr::new(src)
-    .encode_wide()
-    .chain(Some(0).into_iter())
-    .collect()
 }
