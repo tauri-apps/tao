@@ -26,7 +26,6 @@ macro_rules! menuitem {
   }};
 }
 
-#[cfg(feature = "tray")]
 macro_rules! ksni_menuitem {
   ( $description:expr ) => {
     ksni::menu::StandardItem {
@@ -210,7 +209,6 @@ impl Menu {
     menu
   }
 
-  #[cfg(feature = "tray")]
   pub fn to_ksnimenu(
     &self,
     tx: &Sender<(WindowId, WindowRequest)>,
@@ -225,7 +223,6 @@ impl Menu {
     v
   }
 
-  #[cfg(feature = "tray")]
   fn generate_ksnimenu_item(
     item: &GtkMenuInfo,
     tx: Sender<(WindowId, WindowRequest)>,

@@ -14,7 +14,6 @@ use crate::{
   window::{Window, WindowBuilder},
 };
 
-#[cfg(feature = "tray")]
 use crate::system_tray::{SystemTray, SystemTrayBuilder};
 
 use cocoa::{appkit, base::id};
@@ -455,7 +454,6 @@ impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
   }
 }
 
-#[cfg(feature = "tray")]
 pub trait SystemTrayBuilderExtMacOS {
   /// Sets the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
   ///
@@ -465,7 +463,6 @@ pub trait SystemTrayBuilderExtMacOS {
   fn with_icon_as_template(self, is_template: bool) -> Self;
 }
 
-#[cfg(feature = "tray")]
 impl SystemTrayBuilderExtMacOS for SystemTrayBuilder {
   fn with_icon_as_template(mut self, is_template: bool) -> Self {
     self.0.system_tray.icon_is_template = is_template;
@@ -473,7 +470,6 @@ impl SystemTrayBuilderExtMacOS for SystemTrayBuilder {
   }
 }
 
-#[cfg(feature = "tray")]
 pub trait SystemTrayExtMacOS {
   /// Sets the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
   ///
@@ -482,7 +478,6 @@ pub trait SystemTrayExtMacOS {
   fn set_icon_as_template(&mut self, is_template: bool);
 }
 
-#[cfg(feature = "tray")]
 impl SystemTrayExtMacOS for SystemTray {
   fn set_icon_as_template(&mut self, is_template: bool) {
     self.0.icon_is_template = is_template

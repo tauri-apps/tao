@@ -27,9 +27,7 @@ mod global_shortcut;
 mod keycode;
 mod menu;
 
-#[cfg(feature = "tray")]
 mod system_tray;
-#[cfg(feature = "tray")]
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 
 #[non_exhaustive]

@@ -16,8 +16,6 @@ Windows, macOS, Linux, iOS and Android. Built for you, maintained for Tauri.
 
 Tao provides the following features, which can be enabled in your `Cargo.toml` file:
 * `serde`: Enables serialization/deserialization of certain types with [Serde](https://crates.io/crates/serde).
-* `tray`: Enables system tray and more menu item variants on **Linux**. This flag is enabled by default.
-  You can still create those types if you disable it. They just don't create the actual objects. We set this flag because some implementations require more installed packages. Disable this if you don't want to install `libappindicator`, `clang` packages.
 
 ## Platform-specific notes
 
@@ -50,13 +48,13 @@ Gtk and its related libraries are used to build the support of Linux. Be sure to
 #### Arch Linux / Manjaro:
 
 ```bash
-sudo pacman -S gtk3 libappindicator-gtk3 clang
+sudo pacman -S gtk3
 ```
 
 #### Debian / Ubuntu:
 
 ```bash
-sudo apt install libgtk-3-dev libappindicator3-dev clang
+sudo apt install libgtk-3-dev
 ```
 
 #### MacOS

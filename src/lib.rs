@@ -180,7 +180,6 @@ mod platform_impl;
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-#[cfg(feature = "tray")]
 pub mod system_tray;
 pub mod window;
 

@@ -16,11 +16,9 @@ mod keyboard;
 mod keycode;
 mod menu;
 mod monitor;
-#[cfg(feature = "tray")]
 mod system_tray;
 mod window;
 
-#[cfg(feature = "tray")]
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 pub use self::{
   clipboard::Clipboard,
