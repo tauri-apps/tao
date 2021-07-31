@@ -103,6 +103,7 @@ impl MenuItemAttributes {
   }
 
   pub fn set_enabled(&mut self, is_enabled: bool) {
+    self.enabled = is_enabled;
     self.gtk_item.set_sensitive(is_enabled);
   }
 
@@ -111,6 +112,7 @@ impl MenuItemAttributes {
   }
 
   pub fn set_selected(&mut self, is_selected: bool) {
+    self.selected = is_selected;
     if let Some(item) = self.gtk_item.downcast_ref::<CheckMenuItem>() {
       item.set_active(is_selected);
     }
@@ -242,15 +244,26 @@ impl Menu {
           "".into()
         };
 
-        let ksni_item = if custom_item.selected {
-          let checked = match custom_item.gtk_item.downcast_ref::<CheckMenuItem>() {
-            Some(checkmenu_item) => checkmenu_item.get_active(),
-            None => false,
-          };
-          ksni::menu::CheckmarkItem {
+        let ksni_item = match custom_item.gtk_item.downcast_ref::<CheckMenuItem>() {
+          Some(checkmenu_item) => {
+            let checked = checkmenu_item.get_active();
+            ksni::menu::CheckmarkItem {
+              label,
+              enabled: custom_item.gtk_item.get_sensitive(),
+              checked,
+              visible: true,
+              activate: Box::new(move |_| {
+                if let Err(e) = tx.send((window_id, WindowRequest::Menu((None, Some(id))))) {
+                  log::warn!("Fail to send menu request: {}", e);
+                }
+              }),
+              ..Default::default()
+            }
+            .into()
+          }
+          None => ksni::menu::StandardItem {
             label,
             enabled: custom_item.gtk_item.get_sensitive(),
-            checked,
             visible: true,
             activate: Box::new(move |_| {
               if let Err(e) = tx.send((window_id, WindowRequest::Menu((None, Some(id))))) {
@@ -259,20 +272,7 @@ impl Menu {
             }),
             ..Default::default()
           }
-          .into()
-        } else {
-          ksni::menu::StandardItem {
-            label,
-            enabled: custom_item.gtk_item.get_sensitive(),
-            visible: true,
-            activate: Box::new(move |_| {
-              if let Err(e) = tx.send((window_id, WindowRequest::Menu((None, Some(id))))) {
-                log::warn!("Fail to send menu request: {}", e);
-              }
-            }),
-            ..Default::default()
-          }
-          .into()
+          .into(),
         };
         Some(ksni_item)
       }
