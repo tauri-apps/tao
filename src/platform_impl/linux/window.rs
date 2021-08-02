@@ -8,7 +8,7 @@ use std::{
   sync::atomic::{AtomicBool, AtomicI32, Ordering},
 };
 
-use gdk::{WindowEdge, WindowExt, WindowState};
+use gdk::{WindowEdge, WindowState};
 use gdk_pixbuf::{Colorspace, Pixbuf};
 use gtk::{prelude::*, AccelGroup, ApplicationWindow, Orientation};
 
@@ -103,7 +103,7 @@ impl Window {
     let app = &event_loop_window_target.app;
     let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
     let window = gtk::ApplicationWindow::new(app);
-    let window_id = WindowId(window.get_id());
+    let window_id = WindowId(window.id());
     event_loop_window_target
       .windows
       .borrow_mut()
@@ -113,7 +113,7 @@ impl Window {
     window.add_accel_group(&accel_group);
 
     // Set Width/Height & Resizable
-    let win_scale_factor = window.get_scale_factor();
+    let win_scale_factor = window.scale_factor();
     let (width, height) = attributes
       .inner_size
       .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
@@ -169,8 +169,8 @@ impl Window {
 
     // Set Transparent
     if attributes.transparent {
-      if let Some(screen) = window.get_screen() {
-        if let Some(visual) = screen.get_rgba_visual() {
+      if let Some(screen) = window.screen() {
+        if let Some(visual) = screen.rgba_visual() {
           window.set_visual(Some(&visual));
         }
       }
@@ -178,7 +178,7 @@ impl Window {
       window.connect_draw(|_, cr| {
         cr.set_source_rgba(0., 0., 0., 0.);
         cr.set_operator(cairo::Operator::Source);
-        cr.paint();
+        let _ = cr.paint();
         cr.set_operator(cairo::Operator::Over);
         Inhibit(false)
       });
@@ -219,34 +219,34 @@ impl Window {
       window.hide();
     }
 
-    let w_pos = window.get_position();
+    let w_pos = window.position();
     let position: Rc<(AtomicI32, AtomicI32)> = Rc::new((w_pos.0.into(), w_pos.1.into()));
     let position_clone = position.clone();
 
-    let w_size = window.get_size();
+    let w_size = window.size();
     let size: Rc<(AtomicI32, AtomicI32)> = Rc::new((w_size.0.into(), w_size.1.into()));
     let size_clone = size.clone();
 
     window.connect_configure_event(move |_, event| {
-      let (x, y) = event.get_position();
+      let (x, y) = event.position();
       position_clone.0.store(x, Ordering::Release);
       position_clone.1.store(y, Ordering::Release);
 
-      let (w, h) = event.get_size();
+      let (w, h) = event.size();
       size_clone.0.store(w as i32, Ordering::Release);
       size_clone.1.store(h as i32, Ordering::Release);
 
       false
     });
 
-    let w_max = window.get_property_is_maximized();
+    let w_max = window.is_maximized();
     let maximized: Rc<AtomicBool> = Rc::new(w_max.into());
     let max_clone = maximized.clone();
     let minimized = Rc::new(AtomicBool::new(false));
     let min_clone = minimized.clone();
 
     window.connect_window_state_event(move |_window, event| {
-      let state = event.get_new_window_state();
+      let state = event.new_window_state();
       max_clone.store(state.contains(WindowState::MAXIMIZED), Ordering::Release);
       min_clone.store(state.contains(WindowState::ICONIFIED), Ordering::Release);
       Inhibit(false)
@@ -254,8 +254,8 @@ impl Window {
 
     let scale_factor: Rc<AtomicI32> = Rc::new(win_scale_factor.into());
     let scale_factor_clone = scale_factor.clone();
-    window.connect_property_scale_factor_notify(move |window| {
-      scale_factor_clone.store(window.get_scale_factor(), Ordering::Release);
+    window.connect_scale_factor_notify(move |window| {
+      scale_factor_clone.store(window.scale_factor(), Ordering::Release);
     });
 
     if let Err(e) = window_requests_tx.send((window_id, WindowRequest::WireUpEvents)) {
@@ -454,11 +454,11 @@ impl Window {
   }
 
   pub fn is_resizable(&self) -> bool {
-    self.window.get_resizable()
+    self.window.is_resizable()
   }
 
   pub fn is_decorated(&self) -> bool {
-    self.window.get_decorated()
+    self.window.is_decorated()
   }
 
   #[inline]
@@ -574,19 +574,19 @@ impl Window {
   }
 
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
-    let screen = self.window.get_display().get_default_screen();
-    let window = self.window.get_window().unwrap();
+    let screen = self.window.display().default_screen();
+    let window = self.window.window().unwrap();
     #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
-    let number = screen.get_monitor_at_window(&window);
-    let handle = MonitorHandle::new(&self.window.get_display(), number);
+    let number = screen.monitor_at_window(&window);
+    let handle = MonitorHandle::new(&self.window.display(), number);
     Some(RootMonitorHandle { inner: handle })
   }
 
   #[inline]
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
     let mut handles = VecDeque::new();
-    let display = self.window.get_display();
-    let numbers = display.get_n_monitors();
+    let display = self.window.display();
+    let numbers = display.n_monitors();
 
     for i in 0..numbers {
       let monitor = MonitorHandle::new(&display, i);
@@ -597,10 +597,10 @@ impl Window {
   }
 
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
-    let screen = self.window.get_display().get_default_screen();
+    let screen = self.window.display().default_screen();
     #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
-    let number = screen.get_primary_monitor();
-    let handle = MonitorHandle::new(&self.window.get_display(), number);
+    let number = screen.primary_monitor();
+    let handle = MonitorHandle::new(&self.window.display(), number);
     Some(RootMonitorHandle { inner: handle })
   }
 
@@ -651,8 +651,8 @@ pub enum WindowRequest {
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
-  let (left, top) = window.get_position();
-  let (w, h) = (window.get_width(), window.get_height());
+  let (left, top) = window.position();
+  let (w, h) = (window.width(), window.height());
   let (right, bottom) = (left + w, top + h);
   let (cx, cy) = (cx as i32, cy as i32);
 

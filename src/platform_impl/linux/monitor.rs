@@ -17,26 +17,26 @@ pub struct MonitorHandle {
 
 impl MonitorHandle {
   pub fn new(display: &gdk::Display, number: i32) -> Self {
-    let monitor = display.get_monitor(number).unwrap();
+    let monitor = display.monitor(number).unwrap();
     Self { monitor, number }
   }
 
   #[inline]
   pub fn name(&self) -> Option<String> {
-    self.monitor.get_model().map(|s| s.as_str().to_string())
+    self.monitor.model().map(|s| s.as_str().to_string())
   }
 
   #[inline]
   pub fn size(&self) -> PhysicalSize<u32> {
     PhysicalSize {
-      width: self.monitor.get_width_mm() as u32,
-      height: self.monitor.get_height_mm() as u32,
+      width: self.monitor.width_mm() as u32,
+      height: self.monitor.height_mm() as u32,
     }
   }
 
   #[inline]
   pub fn position(&self) -> PhysicalPosition<i32> {
-    let rect = self.monitor.get_geometry();
+    let rect = self.monitor.geometry();
     PhysicalPosition {
       x: rect.x,
       y: rect.y,
@@ -45,7 +45,7 @@ impl MonitorHandle {
 
   #[inline]
   pub fn scale_factor(&self) -> f64 {
-    self.monitor.get_scale_factor() as f64
+    self.monitor.scale_factor() as f64
   }
 
   #[inline]

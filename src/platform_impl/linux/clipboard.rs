@@ -19,8 +19,8 @@ impl Clipboard {
   pub(crate) fn write_text(&mut self, string: impl AsRef<str>) {
     let string = string.as_ref().to_string();
 
-    let display = gdk::Display::get_default().unwrap();
-    let clipboard = gtk::Clipboard::get_default(&display).unwrap();
+    let display = gdk::Display::default().unwrap();
+    let clipboard = gtk::Clipboard::default(&display).unwrap();
 
     let targets: Vec<TargetEntry> = CLIPBOARD_TARGETS
       .iter()
@@ -29,18 +29,18 @@ impl Clipboard {
       .collect();
 
     clipboard.set_with_data(&targets, move |_, selection, _| {
-      selection.set(&selection.get_target(), 8i32, string.as_bytes());
+      selection.set(&selection.target(), 8i32, string.as_bytes());
     });
   }
 
   pub(crate) fn read_text(&self) -> Option<String> {
-    let display = gdk::Display::get_default().unwrap();
-    let clipboard = gtk::Clipboard::get_default(&display).unwrap();
+    let display = gdk::Display::default().unwrap();
+    let clipboard = gtk::Clipboard::default(&display).unwrap();
 
     for target in &CLIPBOARD_TARGETS {
       let atom = Atom::intern(target);
       if let Some(selection) = clipboard.wait_for_contents(&atom) {
-        return String::from_utf8(selection.get_data()).ok();
+        return String::from_utf8(selection.data()).ok();
       }
     }
 

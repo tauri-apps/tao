@@ -130,11 +130,11 @@ const MODIFIER_MAP: &[(Key<'static>, ModifiersState)] = &[
 // we receive the next key, if needed the developer can update his local state.
 pub(crate) fn get_modifiers(key: EventKey) -> ModifiersState {
   // a keycode (scancode in Windows) is a code that refers to a physical keyboard key.
-  let scancode = key.get_hardware_keycode();
+  let scancode = key.hardware_keycode();
   // a keyval (keysym in X) is a "logical" key name, such as GDK_Enter, GDK_a, GDK_space, etc.
-  let keyval = key.get_keyval();
+  let keyval = key.keyval();
   // unicode value
-  let unicode = gdk::keys::keyval_to_unicode(*keyval);
+  let unicode = keyval.to_unicode();
   // translate to tao::keyboard::Key
   let key_from_code = raw_key_to_key(keyval).unwrap_or_else(|| {
     if let Some(key) = unicode {
@@ -165,14 +165,14 @@ pub(crate) fn make_key_event(
   state: ElementState,
 ) -> Option<KeyEvent> {
   // a keycode (scancode in Windows) is a code that refers to a physical keyboard key.
-  let scancode = key.get_hardware_keycode();
+  let scancode = key.hardware_keycode();
   // a keyval (keysym in X) is a "logical" key name, such as GDK_Enter, GDK_a, GDK_space, etc.
-  let keyval_without_modifiers = key.get_keyval();
+  let keyval_without_modifiers = key.keyval();
   let keyval_with_modifiers =
     hardware_keycode_to_keyval(scancode).unwrap_or_else(|| keyval_without_modifiers.clone());
   // get unicode value, with and without modifiers
-  let text_without_modifiers = gdk::keys::keyval_to_unicode(*keyval_with_modifiers);
-  let text_with_modifiers = gdk::keys::keyval_to_unicode(*keyval_without_modifiers);
+  let text_without_modifiers = keyval_with_modifiers.to_unicode();
+  let text_with_modifiers = keyval_without_modifiers.to_unicode();
   // get physical key from the scancode (keycode)
   let physical_key = key_override.unwrap_or_else(|| KeyCode::from_scancode(scancode as u32));
 
