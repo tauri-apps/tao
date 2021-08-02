@@ -8,8 +8,8 @@ use crate::{
 use glib::Sender;
 use std::path::PathBuf;
 
-use gtk::{AccelGroup, WidgetExt};
-use libappindicator::{AppIndicator, AppIndicatorStatus};
+use gtk::{prelude::WidgetExt, AccelGroup};
+use libayatana_appindicator::{AppIndicator, AppIndicatorStatus};
 
 use super::{menu::Menu, window::WindowRequest, WindowId};
 
