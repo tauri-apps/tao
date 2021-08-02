@@ -271,7 +271,7 @@ impl Menu {
         make_menu_item(
           "Redo",
           Some(selector("redo:")),
-          Some(Accelerator::new(RawMods::Shift, KeyCode::KeyZ)),
+          Some(Accelerator::new(RawMods::MetaShift, KeyCode::KeyZ)),
           menu_type,
         ),
       )),
