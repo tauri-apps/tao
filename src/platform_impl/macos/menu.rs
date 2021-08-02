@@ -168,7 +168,7 @@ impl Menu {
         make_menu_item(
           "Close Window",
           Some(selector("performClose:")),
-          Some(Accelerator::new(RawMods::Meta, KeyCode::KeyX)),
+          Some(Accelerator::new(RawMods::Meta, KeyCode::KeyW)),
           menu_type,
         ),
       )),
