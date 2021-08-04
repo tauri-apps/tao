@@ -27,21 +27,20 @@ fn main() {
   #[cfg(target_os = "windows")]
   let parent_window = main_window.hwnd() as HWND;
 
+  let child_window = WindowBuilder::new()
+    .with_parent_window(parent_window)
+    .with_inner_size(LogicalSize::new(200, 200))
+    .build(&event_loop)
+    .unwrap();
+
+  windows.insert(child_window.id(), child_window);
   windows.insert(main_window.id(), main_window);
 
-  event_loop.run(move |event, event_loop, control_flow| {
+  event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Wait;
 
     match event {
-      Event::NewEvents(StartCause::Init) => {
-        println!("TAO application started!");
-        let child_window = WindowBuilder::new()
-          .with_parent_window(parent_window)
-          .with_inner_size(LogicalSize::new(200, 200))
-          .build(event_loop)
-          .unwrap();
-        windows.insert(child_window.id(), child_window);
-      }
+      Event::NewEvents(StartCause::Init) => println!("TAO application started!"),
       Event::WindowEvent {
         event, window_id, ..
       } if event == WindowEvent::CloseRequested => {
