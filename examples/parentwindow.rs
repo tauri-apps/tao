@@ -1,15 +1,14 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(target_os = "macos")]
-use tao::platform::macos::{WindowBuilderExtMacOS, WindowExtMacOS};
-#[cfg(target_os = "linux")]
-use tao::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
-#[cfg(target_os = "windows")]
-use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
-
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 fn main() {
+  #[cfg(target_os = "macos")]
+  use tao::platform::macos::{WindowBuilderExtMacOS, WindowExtMacOS};
+  #[cfg(target_os = "windows")]
+  use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
+  #[cfg(target_os = "windows")]
+  use winapi::shared::windef::HWND;
   use simple_logger::SimpleLogger;
   use std::collections::HashMap;
   use tao::{
@@ -26,7 +25,7 @@ fn main() {
   #[cfg(target_os = "macos")]
   let parent_window = main_window.ns_window();
   #[cfg(target_os = "windows")]
-  let parent_window = main_window.hwnd();
+  let parent_window = main_window.hwnd() as HWND;
 
   windows.insert(main_window.id(), main_window);
 
@@ -45,14 +44,12 @@ fn main() {
       }
       Event::WindowEvent {
         event, window_id, ..
-      } => {
-        if event == WindowEvent::CloseRequested {
-          println!("Window {:?} has received the signal to close", window_id);
-          // This drop the window, causing it to close.
-          windows.remove(&window_id);
-          if windows.is_empty() {
-            *control_flow = ControlFlow::Exit;
-          }
+      } if event == WindowEvent::CloseRequested => {
+        println!("Window {:?} has received the signal to close", window_id);
+        // This drop the window, causing it to close.
+        windows.remove(&window_id);
+        if windows.is_empty() {
+          *control_flow = ControlFlow::Exit;
         }
       }
       _ => (),
