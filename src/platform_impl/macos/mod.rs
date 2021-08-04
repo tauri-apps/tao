@@ -36,7 +36,7 @@ pub use self::{
   keycode::{keycode_from_scancode, keycode_to_scancode},
   menu::{Menu, MenuItemAttributes},
   monitor::{MonitorHandle, VideoMode},
-  window::{Id as WindowId, PlatformSpecificWindowBuilderAttributes, UnownedWindow},
+  window::{Id as WindowId, Parent, PlatformSpecificWindowBuilderAttributes, UnownedWindow},
 };
 use crate::{
   error::OsError as RootOsError, event::DeviceId as RootDeviceId, window::WindowAttributes,

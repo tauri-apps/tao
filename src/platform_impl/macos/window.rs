@@ -34,7 +34,8 @@ use crate::{
 use cocoa::{
   appkit::{
     self, CGFloat, NSApp, NSApplication, NSApplicationPresentationOptions, NSColor,
-    NSRequestUserAttentionType, NSScreen, NSView, NSWindow, NSWindowButton, NSWindowStyleMask,
+    NSRequestUserAttentionType, NSScreen, NSView, NSWindow, NSWindowButton, NSWindowOrderingMode,
+    NSWindowStyleMask,
   },
   base::{id, nil},
   foundation::{NSAutoreleasePool, NSDictionary, NSPoint, NSRect, NSSize},
@@ -62,8 +63,16 @@ pub fn get_window_id(window_cocoa_id: id) -> Id {
   Id(window_cocoa_id as *const Object as _)
 }
 
+#[non_exhaustive]
+#[derive(Clone)]
+pub enum Parent {
+  None,
+  ChildOf(*mut c_void),
+}
+
 #[derive(Clone)]
 pub struct PlatformSpecificWindowBuilderAttributes {
+  pub parent: Parent,
   pub movable_by_window_background: bool,
   pub titlebar_transparent: bool,
   pub title_hidden: bool,
@@ -79,6 +88,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
   #[inline]
   fn default() -> Self {
     Self {
+      parent: Parent::None,
       movable_by_window_background: false,
       titlebar_transparent: false,
       title_hidden: false,
@@ -227,6 +237,10 @@ fn create_window(
           let size = NSSize::new(x as CGFloat, y as CGFloat);
           ns_window.setResizeIncrements_(size);
         }
+      }
+
+      if let Parent::ChildOf(parent) = pl_attrs.parent {
+        let _: () = msg_send![parent as id, addChildWindow: *ns_window ordered: NSWindowOrderingMode::NSWindowAbove];
       }
 
       if !pl_attrs.has_shadow {
