@@ -46,16 +46,13 @@ fn main() {
       Event::WindowEvent {
         event, window_id, ..
       } => {
-        match event {
-          WindowEvent::CloseRequested => {
-            println!("Window {:?} has received the signal to close", window_id);
-            // This drop the window, causing it to close.
-            windows.remove(&window_id);
-            if windows.is_empty() {
-              *control_flow = ControlFlow::Exit;
-            }
+        if event == WindowEvent::CloseRequested {
+          println!("Window {:?} has received the signal to close", window_id);
+          // This drop the window, causing it to close.
+          windows.remove(&window_id);
+          if windows.is_empty() {
+            *control_flow = ControlFlow::Exit;
           }
-          _ => (),
         }
       }
       _ => (),
