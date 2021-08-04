@@ -39,7 +39,7 @@ fn main() {
         let child_window = WindowBuilder::new()
           .with_parent_window(parent_window)
           .with_inner_size(LogicalSize::new(200, 200))
-          .build(&event_loop)
+          .build(event_loop)
           .unwrap();
         windows.insert(child_window.id(), child_window);
       }
