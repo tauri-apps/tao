@@ -22,7 +22,7 @@ use crate::{
 };
 
 use super::{
-  event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle, Parent,
+  event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle,
   PlatformSpecificWindowBuilderAttributes,
 };
 
@@ -279,10 +279,6 @@ impl Window {
     };
 
     win.set_skip_taskbar(pl_attribs.skip_taskbar);
-
-    if let Parent::ChildOf(parent) = pl_attribs.parent {
-      win.set_parent_window(&parent);
-    }
 
     Ok(win)
   }
@@ -619,10 +615,6 @@ impl Window {
     {
       log::warn!("Fail to send skip taskbar request: {}", e);
     }
-  }
-
-  pub(crate) fn set_parent_window<P: gtk::prelude::IsA<gtk::Window>>(&mut self, parent: &P) {
-    self.window.set_parent_window(parent);
   }
 }
 

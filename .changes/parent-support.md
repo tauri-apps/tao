@@ -2,4 +2,4 @@
 "tao": patch
 ---
 
-Allow window to be created as parent of window.
+macOS: Add `with_parent_window()` on `WindowBuilder`.
