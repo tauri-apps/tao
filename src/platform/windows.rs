@@ -174,7 +174,7 @@ impl WindowExtWindows for Window {
 
   #[inline]
   fn set_skip_taskbar(&self, skip: bool) {
-    self.window.set_skip_taskbar(skip);
+    self.window.set_skip_taskbar(skip, true);
   }
 }
 

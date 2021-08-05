@@ -12,7 +12,7 @@ use std::{
   io, mem,
   os::windows::ffi::OsStrExt,
   ptr,
-  sync::{mpsc::channel, Arc},
+  sync::{mpsc::channel, Arc, atomic::{AtomicBool, Ordering}},
 };
 
 use winapi::{
@@ -77,6 +77,9 @@ pub struct Window {
 
   // The menu associated with the window
   menu: Option<HMenuWrapper>,
+
+  // Option to skip taskbar
+  skip_taskbar: AtomicBool,
 }
 
 impl Window {
@@ -154,13 +157,26 @@ impl Window {
 
   #[inline]
   pub fn set_visible(&self, visible: bool) {
-    let window = self.window.clone();
-    let window_state = Arc::clone(&self.window_state);
-    self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
-        f.set(WindowFlags::VISIBLE, visible)
+    let prev = self.is_visible();
+    let skip_taskbar = self.skip_taskbar.load(Ordering::Acquire);
+    // hidden window also skip taskbar, we need to check if it conflicts with skip_taskbar
+    if prev && !visible && skip_taskbar {
+      self.set_skip_taskbar(false, false);
+    }
+
+    if prev != visible {
+      let window = self.window.clone();
+      let window_state = Arc::clone(&self.window_state);
+      self.thread_executor.execute_in_thread(move || {
+        WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+          f.set(WindowFlags::VISIBLE, visible)
+        });
       });
-    });
+    }
+
+    if !prev && visible && skip_taskbar {
+      self.set_skip_taskbar(true, false);
+    }
   }
 
   #[inline]
@@ -760,22 +776,29 @@ impl Window {
   }
 
   #[inline]
-  pub(crate) fn set_skip_taskbar(&self, skip: bool) {
-    unsafe {
-      let mut taskbar_list: *mut ITaskbarList = std::mem::zeroed();
-      CoCreateInstance(
-        &CLSID_TaskbarList,
-        std::ptr::null_mut(),
-        CLSCTX_SERVER,
-        &ITaskbarList::uuidof(),
-        &mut taskbar_list as *mut _ as *mut _,
-      );
-      if skip {
-        (*taskbar_list).DeleteTab(self.hwnd() as _);
-      } else {
-        (*taskbar_list).AddTab(self.hwnd() as _);
+  pub(crate) fn set_skip_taskbar(&self, skip: bool, state: bool) {
+    // Update self field state
+    if state {
+      self.skip_taskbar.store(skip, Ordering::Release);
+    }
+
+    if self.is_visible() {
+      unsafe {
+        let mut taskbar_list: *mut ITaskbarList = std::mem::zeroed();
+        CoCreateInstance(
+          &CLSID_TaskbarList,
+          std::ptr::null_mut(),
+          CLSCTX_SERVER,
+          &ITaskbarList::uuidof(),
+          &mut taskbar_list as *mut _ as *mut _,
+        );
+        if skip {
+          (*taskbar_list).DeleteTab(self.hwnd() as _);
+        } else {
+          (*taskbar_list).AddTab(self.hwnd() as _);
+        }
+        (*taskbar_list).Release();
       }
-      (*taskbar_list).Release();
     }
   }
 }
@@ -917,7 +940,10 @@ unsafe fn init<T: 'static>(
     window_state,
     thread_executor: event_loop.create_thread_executor(),
     menu: None,
+    skip_taskbar: AtomicBool::new(pl_attribs.skip_taskbar)
   };
+
+  win.set_skip_taskbar(pl_attribs.skip_taskbar, false);
 
   let dimensions = attributes
     .inner_size
@@ -955,8 +981,6 @@ unsafe fn init<T: 'static>(
 
     win.menu = menu::initialize(window_menu, window_handle, menu_handler).map(HMenuWrapper);
   }
-
-  win.set_skip_taskbar(pl_attribs.skip_taskbar);
 
   Ok(win)
 }
