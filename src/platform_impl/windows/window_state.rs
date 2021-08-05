@@ -42,6 +42,8 @@ pub struct WindowState {
   pub ime_handler: MinimalIme,
 
   pub window_flags: WindowFlags,
+
+  pub skip_taskbar: bool,
 }
 
 #[derive(Clone)]
@@ -104,6 +106,7 @@ impl WindowState {
     scale_factor: f64,
     current_theme: Theme,
     preferred_theme: Option<Theme>,
+    skip_taskbar: bool,
   ) -> WindowState {
     WindowState {
       mouse: MouseProperties {
@@ -130,6 +133,8 @@ impl WindowState {
       key_event_builder: KeyEventBuilder::default(),
       ime_handler: MinimalIme::default(),
       window_flags: WindowFlags::empty(),
+
+      skip_taskbar,
     }
   }
 

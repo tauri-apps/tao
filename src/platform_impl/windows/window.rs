@@ -12,7 +12,7 @@ use std::{
   io, mem,
   os::windows::ffi::OsStrExt,
   ptr,
-  sync::{mpsc::channel, Arc, atomic::{AtomicBool, Ordering}},
+  sync::{mpsc::channel, Arc},
 };
 
 use winapi::{
@@ -77,9 +77,6 @@ pub struct Window {
 
   // The menu associated with the window
   menu: Option<HMenuWrapper>,
-
-  // Option to skip taskbar
-  skip_taskbar: AtomicBool,
 }
 
 impl Window {
@@ -158,7 +155,7 @@ impl Window {
   #[inline]
   pub fn set_visible(&self, visible: bool) {
     let prev = self.is_visible();
-    let skip_taskbar = self.skip_taskbar.load(Ordering::Acquire);
+    let skip_taskbar = self.window_state.lock().skip_taskbar;
     // hidden window also skip taskbar, we need to check if it conflicts with skip_taskbar
     if prev && !visible && skip_taskbar {
       self.set_skip_taskbar(false, false);
@@ -779,7 +776,8 @@ impl Window {
   pub(crate) fn set_skip_taskbar(&self, skip: bool, state: bool) {
     // Update self field state
     if state {
-      self.skip_taskbar.store(skip, Ordering::Release);
+      let mut window_state = self.window_state.lock();
+      window_state.skip_taskbar = skip;
     }
 
     if self.is_visible() {
@@ -929,6 +927,7 @@ unsafe fn init<T: 'static>(
       scale_factor,
       current_theme,
       pl_attribs.preferred_theme,
+      pl_attribs.skip_taskbar,
     );
     let window_state = Arc::new(Mutex::new(window_state));
     WindowState::set_window_flags(window_state.lock(), real_window.0, |f| *f = window_flags);
@@ -940,7 +939,6 @@ unsafe fn init<T: 'static>(
     window_state,
     thread_executor: event_loop.create_thread_executor(),
     menu: None,
-    skip_taskbar: AtomicBool::new(pl_attribs.skip_taskbar)
   };
 
   win.set_skip_taskbar(pl_attribs.skip_taskbar, false);
