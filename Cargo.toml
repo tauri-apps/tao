@@ -27,7 +27,8 @@ targets = [
 
 [features]
 default = [ "tray" ]
-tray = [ "libayatana-appindicator" ]
+tray = [ "tauri-libappindicator" ]
+ayatana = [ "libayatana-appindicator" ]
 dox = [ "gtk/dox" ]
 
 [dependencies]
@@ -107,4 +108,5 @@ gdk = { version = "0.14", features = [ "v3_22" ] }
 gdk-sys = "0.14"
 gdk-pixbuf = { version = "0.14", features = [ "v2_36_8" ] }
 libayatana-appindicator = { version = "0.1.4", optional = true }
+tauri-libappindicator = { version = "0.1", optional = true }
 x11-dl = "2.18"

@@ -9,6 +9,9 @@ use glib::Sender;
 use std::path::PathBuf;
 
 use gtk::{prelude::WidgetExt, AccelGroup};
+#[cfg(not(feature = "ayatana"))]
+use libappindicator::{AppIndicator, AppIndicatorStatus};
+#[cfg(feature = "ayatana")]
 use libayatana_appindicator::{AppIndicator, AppIndicatorStatus};
 
 use super::{menu::Menu, window::WindowRequest, WindowId};
