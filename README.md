@@ -18,6 +18,8 @@ Tao provides the following features, which can be enabled in your `Cargo.toml` f
 * `serde`: Enables serialization/deserialization of certain types with [Serde](https://crates.io/crates/serde).
 * `tray`: Enables system tray and more menu item variants on **Linux**. This flag is enabled by default.
   You can still create those types if you disable it. They just don't create the actual objects. We set this flag because some implementations require more installed packages. Disable this if you don't want to install `libappindicator`, `clang` packages.
+* `ayatana`: Enable this if you wish to use more update `libayatana-appindicator` since `libappindicator` is no longer
+  maintained.
 
 ## Platform-specific notes
 

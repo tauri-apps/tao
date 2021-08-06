@@ -11,7 +11,7 @@ use std::{
   time::Instant,
 };
 
-use gdk::{Cursor, CursorType, EventKey, EventMask, WindowEdge, WindowExt, WindowState};
+use gdk::{Cursor, CursorType, EventKey, EventMask, WindowEdge, WindowState};
 use gio::{prelude::*, Cancellable};
 use glib::{source::Priority, Continue, MainContext};
 use gtk::{prelude::*, AboutDialog, ApplicationWindow, Inhibit};
@@ -52,7 +52,7 @@ impl<T> EventLoopWindowTarget<T> {
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
     let mut handles = VecDeque::new();
     let display = &self.display;
-    let numbers = display.get_n_monitors();
+    let numbers = display.n_monitors();
 
     for i in 0..numbers {
       let monitor = MonitorHandle::new(&display, i);
@@ -64,9 +64,9 @@ impl<T> EventLoopWindowTarget<T> {
 
   #[inline]
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
-    let screen = self.display.get_default_screen();
+    let screen = self.display.default_screen();
     #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
-    let number = screen.get_primary_monitor();
+    let number = screen.primary_monitor();
     let handle = MonitorHandle::new(&self.display, number);
     Some(RootMonitorHandle { inner: handle })
   }
@@ -90,13 +90,13 @@ impl<T: 'static> EventLoop<T> {
   }
 
   fn new_gtk() -> Result<EventLoop<T>, Box<dyn Error>> {
-    let app = gtk::Application::new(None, gio::ApplicationFlags::empty())?;
+    let app = gtk::Application::new(None, gio::ApplicationFlags::empty());
     let cancellable: Option<&Cancellable> = None;
     app.register(cancellable)?;
 
     // Create event loop window target.
     let (window_requests_tx, window_requests_rx) = glib::MainContext::channel(Priority::default());
-    let display = gdk::Display::get_default()
+    let display = gdk::Display::default()
       .expect("GdkDisplay not found. This usually means `gkt_init` hasn't called yet.");
     let window_target = EventLoopWindowTarget {
       display,
@@ -167,7 +167,7 @@ impl<T: 'static> EventLoop<T> {
     self
       .window_requests_rx
       .attach(Some(&context), move |(id, request)| {
-        if let Some(window) = app.get_window_by_id(id.0) {
+        if let Some(window) = app.window_by_id(id.0) {
           match request {
             WindowRequest::Title(title) => window.set_title(&title),
             WindowRequest::Position((x, y)) => window.move_(x, y),
@@ -235,12 +235,12 @@ impl<T: 'static> EventLoop<T> {
               }
             }
             WindowRequest::DragWindow => {
-              let display = window.get_display();
+              let display = window.display();
               if let Some(cursor) = display
-                .get_default_seat()
-                .and_then(|device_manager| device_manager.get_pointer())
+                .default_seat()
+                .and_then(|device_manager| device_manager.pointer())
               {
-                let (_, x, y) = cursor.get_position();
+                let (_, x, y) = cursor.position();
                 window.begin_move_drag(1, x, y, 0);
               }
             }
@@ -260,8 +260,8 @@ impl<T: 'static> EventLoop<T> {
             }
             WindowRequest::SetSkipTaskbar(skip) => window.set_skip_taskbar_hint(skip),
             WindowRequest::CursorIcon(cursor) => {
-              if let Some(gdk_window) = window.get_window() {
-                let display = window.get_display();
+              if let Some(gdk_window) = window.window() {
+                let display = window.display();
                 match cursor {
                   Some(cr) => gdk_window.set_cursor(
                     Cursor::from_name(
@@ -306,7 +306,7 @@ impl<T: 'static> EventLoop<T> {
                     )
                     .as_ref(),
                   ),
-                  None => gdk_window.set_cursor(Some(&Cursor::new_for_display(
+                  None => gdk_window.set_cursor(Some(&Cursor::for_display(
                     &display,
                     CursorType::BlankCursor,
                   ))),
@@ -317,14 +317,14 @@ impl<T: 'static> EventLoop<T> {
               // resizing `decorations: false` aka borderless
               window.add_events(EventMask::POINTER_MOTION_MASK | EventMask::BUTTON_MOTION_MASK);
               window.connect_motion_notify_event(|window, event| {
-                if window.get_decorated() && window.get_resizable() {
-                  if let Some(window) = window.get_window() {
-                    let (cx, cy) = event.get_root();
+                if window.is_decorated() && window.is_resizable() {
+                  if let Some(window) = window.window() {
+                    let (cx, cy) = event.root();
                     let edge = hit_test(&window, cx, cy);
                     // FIXME: calling `window.begin_resize_drag` seems to revert the cursor back to normal style
                     window.set_cursor(
                       Cursor::from_name(
-                        &window.get_display(),
+                        &window.display(),
                         match edge {
                           WindowEdge::North => "n-resize",
                           WindowEdge::South => "s-resize",
@@ -344,22 +344,18 @@ impl<T: 'static> EventLoop<T> {
                 Inhibit(false)
               });
               window.connect_button_press_event(|window, event| {
-                if window.get_decorated() && window.get_resizable() {
-                  if event.get_button() == 1 {
-                    if let Some(window) = window.get_window() {
-                      let (cx, cy) = event.get_root();
+                if window.is_decorated() && window.is_resizable() {
+                  if event.button() == 1 {
+                    if let Some(window) = window.window() {
+                      let (cx, cy) = event.root();
                       let result = hit_test(&window, cx, cy);
 
                       // we ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
                       match result {
                         WindowEdge::__Unknown(_) => (),
-                        _ => window.begin_resize_drag(
-                          result,
-                          1,
-                          cx as i32,
-                          cy as i32,
-                          event.get_time(),
-                        ),
+                        _ => {
+                          window.begin_resize_drag(result, 1, cx as i32, cy as i32, event.time())
+                        }
                       }
                     }
                   }
@@ -381,7 +377,7 @@ impl<T: 'static> EventLoop<T> {
 
               let tx_clone = event_tx.clone();
               window.connect_configure_event(move |_, event| {
-                let (x, y) = event.get_position();
+                let (x, y) = event.position();
                 if let Err(e) = tx_clone.send(Event::WindowEvent {
                   window_id: RootWindowId(id),
                   event: WindowEvent::Moved(PhysicalPosition::new(x, y)),
@@ -389,7 +385,7 @@ impl<T: 'static> EventLoop<T> {
                   log::warn!("Failed to send window moved event to event channel: {}", e);
                 }
 
-                let (w, h) = event.get_size();
+                let (w, h) = event.size();
                 if let Err(e) = tx_clone.send(Event::WindowEvent {
                   window_id: RootWindowId(id),
                   event: WindowEvent::Resized(PhysicalSize::new(w, h)),
@@ -404,7 +400,7 @@ impl<T: 'static> EventLoop<T> {
 
               let tx_clone = event_tx.clone();
               window.connect_window_state_event(move |_window, event| {
-                let state = event.get_new_window_state();
+                let state = event.new_window_state();
 
                 if let Err(e) = tx_clone.send(Event::WindowEvent {
                   window_id: RootWindowId(id),
@@ -451,12 +447,12 @@ impl<T: 'static> EventLoop<T> {
 
               let tx_clone = event_tx.clone();
               window.connect_motion_notify_event(move |window, _| {
-                let display = window.get_display();
+                let display = window.display();
                 if let Some(cursor) = display
-                  .get_default_seat()
-                  .and_then(|device_manager| device_manager.get_pointer())
+                  .default_seat()
+                  .and_then(|device_manager| device_manager.pointer())
                 {
-                  let (_, x, y) = cursor.get_position();
+                  let (_, x, y) = cursor.position();
                   if let Err(e) = tx_clone.send(Event::WindowEvent {
                     window_id: RootWindowId(id),
                     event: WindowEvent::CursorMoved {
@@ -489,7 +485,7 @@ impl<T: 'static> EventLoop<T> {
 
               let tx_clone = event_tx.clone();
               window.connect_button_press_event(move |_, event| {
-                let button = event.get_button();
+                let button = event.button();
                 if let Err(e) = tx_clone.send(Event::WindowEvent {
                   window_id: RootWindowId(id),
                   event: WindowEvent::MouseInput {
@@ -516,7 +512,7 @@ impl<T: 'static> EventLoop<T> {
 
               let tx_clone = event_tx.clone();
               window.connect_button_release_event(move |_, event| {
-                let button = event.get_button();
+                let button = event.button();
                 if let Err(e) = tx_clone.send(Event::WindowEvent {
                   window_id: RootWindowId(id),
                   event: WindowEvent::MouseInput {
@@ -624,7 +620,7 @@ impl<T: 'static> EventLoop<T> {
                 }
               }
               (Some(MenuItem::EnterFullScreen), None) => {
-                let state = window.get_window().unwrap().get_state();
+                let state = window.window().unwrap().state();
                 if state.contains(WindowState::FULLSCREEN) {
                   window.unfullscreen();
                 } else {
@@ -638,7 +634,7 @@ impl<T: 'static> EventLoop<T> {
               if let Some(window_menu) = window_menu {
                 // remove all existing elements as we overwrite
                 // but we keep same menubar reference
-                for i in menubar.get_children() {
+                for i in menubar.children() {
                   menubar.remove(&i);
                 }
                 // create all new elements
