@@ -28,9 +28,10 @@ impl MonitorHandle {
 
   #[inline]
   pub fn size(&self) -> PhysicalSize<u32> {
+    let rect = self.monitor.geometry();
     PhysicalSize {
-      width: self.monitor.width_mm() as u32,
-      height: self.monitor.height_mm() as u32,
+      width: rect.width as u32,
+      height: rect.height as u32,
     }
   }
 
