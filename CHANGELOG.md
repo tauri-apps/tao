@@ -1,5 +1,47 @@
 # Changelog
 
+## \[0.5.0]
+
+- Move `global_shortcut` mod to the lib root.
+  - [6e72e54c](https://github.com/tauri-apps/tao/commit/6e72e54c9bb897a8f4319f3f5ec8f7d96bec75d2) refactor: move `global_shortcut` mod to lib roo ([#145](https://github.com/tauri-apps/tao/pull/145)) on 2021-07-20
+
+- Bump gtk-rs to version 0.14. This also introduces a new feature `ayatana` for developers to use updated
+  `libayatana-appindicator` since the original `libappindicator` is no longer maintained.
+  - [1c0f5274](https://github.com/tauri-apps/tao/commit/1c0f5274cb7246a80b382ecf7ae3f7e6c858f2f2) chore: bump gtk to v0.14 ([#173](https://github.com/tauri-apps/tao/pull/173)) on 2021-08-06
+
+- Remove Clipboard MenuItem on Linux since they only work on a few sepcific widget.
+  - [969052ab](https://github.com/tauri-apps/tao/commit/969052abab84ff6ad7b43f39e444e944b2de862d) fix(linux): remove clipboard menuitems on Linux ([#150](https://github.com/tauri-apps/tao/pull/150)) on 2021-07-21
+
+- Fixes incorrect monitor size on Linux.
+  - [eb051931](https://github.com/tauri-apps/tao/commit/eb0519316626d02a00569176f835ec8bc4f7746e) fix(linux): incorrect monitor size, fixes: [#175](https://github.com/tauri-apps/tao/pull/175) ([#176](https://github.com/tauri-apps/tao/pull/176)) on 2021-08-08
+
+- Fix `no key equivalent for Accelerator` for `Space`, `Escape`, `Minus` and `Equal` keycode.
+  - [ecd3c405](https://github.com/tauri-apps/tao/commit/ecd3c405cd57852e3a55a9a6539784b99f32bf6c) fix(accelerator): add missing KeyCode to prevent `no key equivalent for Accelerator` ([#148](https://github.com/tauri-apps/tao/pull/148)) on 2021-07-20
+
+- Fix incorrect macOS Redo and Close Window shortcuts
+  - [f4d718a8](https://github.com/tauri-apps/tao/commit/f4d718a89a03ca0ae53817e7895acb953175ef6b) fix(macos): Fix incorrect Redo and CloseWindow accelerators ([#166](https://github.com/tauri-apps/tao/pull/166)) on 2021-08-03
+
+- - Support [macOS tray icon template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) to adjust automatically based on taskbar color.
+
+- Images you mark as template images should consist of only black and clear colors. You can use the alpha channel in the image to adjust the opacity of black content, however.
+
+- [577458c4](https://github.com/tauri-apps/tao/commit/577458c4588d667524ef483956d85a4420402bb2) feat(tray): Support macOS icon template ([#162](https://github.com/tauri-apps/tao/pull/162)) on 2021-07-29
+
+- macOS: Add `with_parent_window()` on `WindowBuilder`.
+  - [73c7aac7](https://github.com/tauri-apps/tao/commit/73c7aac7b04355862c68a42179f52c9f9dec727d) feat(macOS): Allow creation of child Window ([#160](https://github.com/tauri-apps/tao/pull/160)) on 2021-08-04
+
+- Removed `SystemTrayExtWindows::remove()`, the icon will be automatically removed when `SystemTray` is dropped.
+  - [cc9d2b17](https://github.com/tauri-apps/tao/commit/cc9d2b1726d378ee28ca69e6e5e2255c2d71f214) refactor: refactor `system_tray` impl on windows ([#153](https://github.com/tauri-apps/tao/pull/153)) on 2021-07-22
+
+- Add `MenuItem::SelectAll` implementation on windows.
+  - [222adeb2](https://github.com/tauri-apps/tao/commit/222adeb238c290b8101507aed976869c34a8d4ab) feat(window): add `Select all` native menu item ([#146](https://github.com/tauri-apps/tao/pull/146)) on 2021-07-21
+
+- Add flags to support all other possible unix systems.
+  - [546f51a3](https://github.com/tauri-apps/tao/commit/546f51a3974c15af0d6c84525d3c8e448911f8a8) Add flags to support other unix systems. ([#142](https://github.com/tauri-apps/tao/pull/142)) on 2021-07-20
+
+- Fix confliction between `set_skip_taksbar(true)` and `set_visible(false)`.
+  - [226e6611](https://github.com/tauri-apps/tao/commit/226e66113aa96495d50e8c6024afbf991f41dc7d) fix(Windows): conflict between taskbar and visible ([#172](https://github.com/tauri-apps/tao/pull/172)) on 2021-08-06
+
 ## \[0.4.0]
 
 - On Windows, Allow resizing of `decorations: false` aka borderless window.
