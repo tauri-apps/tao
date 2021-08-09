@@ -1,5 +1,12 @@
 # Changelog
 
+## \[0.5.1]
+
+- Remove feature flag that break doc builds
+  - [324eca05](https://github.com/tauri-apps/tao/commit/324eca05d3075e5610f83d1161e23ace656f586e) Update README.md on 2021-05-08
+  - [2a90e63c](https://github.com/tauri-apps/tao/commit/2a90e63c8efde9f291172fd89bc1564bfe336aeb) publish new versions on 2021-05-08
+  - [eb6f4f9e](https://github.com/tauri-apps/tao/commit/eb6f4f9e18ae7b7537613653ade4f32cb32c5700) Remove feature flag that breaks doc build ([#178](https://github.com/tauri-apps/tao/pull/178)) on 2021-08-09
+
 ## \[0.5.0]
 
 - Move `global_shortcut` mod to the lib root.
