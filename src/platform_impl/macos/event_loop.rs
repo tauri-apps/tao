@@ -18,7 +18,7 @@ use cocoa::{
   base::{id, nil, YES},
   foundation::{NSAutoreleasePool, NSPoint},
 };
-use crossbeam_channel::{self as channel, Sender, Receiver};
+use crossbeam_channel::{self as channel, Receiver, Sender};
 use scopeguard::defer;
 
 use crate::{

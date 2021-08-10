@@ -5,12 +5,12 @@ use crate::{
   global_shortcut::{GlobalShortcut as RootGlobalShortcut, ShortcutManagerError},
   keyboard::KeyCode,
 };
+use crossbeam_channel::{self as channel, Receiver, Sender, TryRecvError};
 use std::{
   collections::HashMap,
   ptr,
   sync::{Arc, Mutex},
 };
-use crossbeam_channel::{Sender, Receiver, self as channel, TryRecvError};
 use x11_dl::{keysym, xlib};
 
 #[derive(Debug)]

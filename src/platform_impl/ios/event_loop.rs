@@ -9,8 +9,7 @@ use std::{
   mem, ptr,
 };
 
-use crossbeam_channel::{self as channel, Sender, Receiver};
-
+use crossbeam_channel::{self as channel, Receiver, Sender};
 
 use crate::{
   dpi::LogicalSize,

@@ -5,6 +5,7 @@
 
 mod runner;
 
+use crossbeam_channel::{self as channel, Receiver, Sender};
 use parking_lot::Mutex;
 use std::{
   cell::Cell,
@@ -16,11 +17,10 @@ use std::{
   thread,
   time::{Duration, Instant},
 };
-use winapi::shared::basetsd::{DWORD_PTR, UINT_PTR};
-use crossbeam_channel::{self as channel, Sender, Receiver};
 use winapi::{
   ctypes::c_int,
   shared::{
+    basetsd::{DWORD_PTR, UINT_PTR},
     minwindef::{BOOL, DWORD, HIWORD, INT, LOWORD, LPARAM, LRESULT, UINT, WORD, WPARAM},
     windef::{HWND, POINT, RECT},
     windowsx, winerror,

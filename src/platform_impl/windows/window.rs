@@ -6,14 +6,7 @@
 use mem::MaybeUninit;
 use parking_lot::Mutex;
 use raw_window_handle::{windows::WindowsHandle, RawWindowHandle};
-use std::{
-  cell::Cell,
-  ffi::OsStr,
-  io, mem,
-  os::windows::ffi::OsStrExt,
-  ptr,
-  sync::Arc,
-};
+use std::{cell::Cell, ffi::OsStr, io, mem, os::windows::ffi::OsStrExt, ptr, sync::Arc};
 
 use crossbeam_channel as channel;
 use winapi::{
