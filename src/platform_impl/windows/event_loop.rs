@@ -12,15 +12,12 @@ use std::{
   marker::PhantomData,
   mem, panic, ptr,
   rc::Rc,
-  sync::{
-    mpsc::{self, Receiver, Sender},
-    Arc,
-  },
+  sync::Arc,
   thread,
   time::{Duration, Instant},
 };
 use winapi::shared::basetsd::{DWORD_PTR, UINT_PTR};
-
+use crossbeam_channel::{self as channel, Sender, Receiver};
 use winapi::{
   ctypes::c_int,
   shared::{
@@ -627,7 +624,7 @@ fn subclass_event_target_window<T>(
   event_loop_runner: EventLoopRunnerShared<T>,
 ) -> Sender<T> {
   unsafe {
-    let (tx, rx) = mpsc::channel();
+    let (tx, rx) = channel::unbound();
 
     let subclass_input = ThreadMsgTargetSubclassInput {
       event_loop_runner,

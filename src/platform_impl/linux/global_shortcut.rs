@@ -8,8 +8,9 @@ use crate::{
 use std::{
   collections::HashMap,
   ptr,
-  sync::{mpsc, Arc, Mutex},
+  sync::{Arc, Mutex},
 };
+use crossbeam_channel::{Sender, Receiver, self as channel, TryRecvError};
 use x11_dl::{keysym, xlib};
 
 #[derive(Debug)]
@@ -24,8 +25,8 @@ enum HotkeyMessage {
 #[derive(Debug)]
 pub struct ShortcutManager {
   shortcuts: ListenerMap,
-  method_sender: mpsc::Sender<HotkeyMessage>,
-  method_receiver: mpsc::Receiver<HotkeyMessage>,
+  method_sender: Sender<HotkeyMessage>,
+  method_receiver: Receiver<HotkeyMessage>,
 }
 
 impl ShortcutManager {
@@ -36,8 +37,8 @@ impl ShortcutManager {
 
     let event_loop_channel = _window_target.p.window_requests_tx.clone();
 
-    let (method_sender, thread_receiver) = mpsc::channel();
-    let (thread_sender, method_receiver) = mpsc::channel();
+    let (method_sender, thread_receiver) = channel::unbounded();
+    let (thread_sender, method_receiver) = channel::unbounded();
 
     std::thread::spawn(move || {
       let event_loop_channel = event_loop_channel.clone();
@@ -121,7 +122,7 @@ impl ShortcutManager {
               return;
             }
             Err(err) => {
-              if let std::sync::mpsc::TryRecvError::Disconnected = err {
+              if let TryRecvError::Disconnected = err {
                 eprintln!("hotkey: try_recv error {}", err);
               }
             }
