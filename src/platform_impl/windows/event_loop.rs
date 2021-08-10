@@ -490,6 +490,7 @@ pub struct EventLoopProxy<T: 'static> {
   event_send: Sender<T>,
 }
 unsafe impl<T: Send + 'static> Send for EventLoopProxy<T> {}
+unsafe impl<T: Send + 'static> Sync for EventLoopProxy<T> {}
 
 impl<T: 'static> Clone for EventLoopProxy<T> {
   fn clone(&self) -> Self {
@@ -624,7 +625,7 @@ fn subclass_event_target_window<T>(
   event_loop_runner: EventLoopRunnerShared<T>,
 ) -> Sender<T> {
   unsafe {
-    let (tx, rx) = channel::unbound();
+    let (tx, rx) = channel::unbounded();
 
     let subclass_input = ThreadMsgTargetSubclassInput {
       event_loop_runner,
