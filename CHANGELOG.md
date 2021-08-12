@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.5.2]
+
+- Fix missing `Sync` trait on EventLoopProxy. This commit also introduces `crossbeam-channel` crate which could also improve the performance.
+  - [6122dc5e](https://github.com/tauri-apps/tao/commit/6122dc5ec2041225a697d9673f350bcc2dda44a3) feat: add crossbeam-channel ([#181](https://github.com/tauri-apps/tao/pull/181)) on 2021-08-12
+
 ## \[0.5.1]
 
 - Remove feature flag that break doc builds
