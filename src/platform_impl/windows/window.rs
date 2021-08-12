@@ -6,15 +6,9 @@
 use mem::MaybeUninit;
 use parking_lot::Mutex;
 use raw_window_handle::{windows::WindowsHandle, RawWindowHandle};
-use std::{
-  cell::Cell,
-  ffi::OsStr,
-  io, mem,
-  os::windows::ffi::OsStrExt,
-  ptr,
-  sync::{mpsc::channel, Arc},
-};
+use std::{cell::Cell, ffi::OsStr, io, mem, os::windows::ffi::OsStrExt, ptr, sync::Arc};
 
+use crossbeam_channel as channel;
 use winapi::{
   ctypes::c_int,
   shared::{
@@ -346,7 +340,7 @@ impl Window {
   pub fn set_cursor_grab(&self, grab: bool) -> Result<(), ExternalError> {
     let window = self.window.clone();
     let window_state = Arc::clone(&self.window_state);
-    let (tx, rx) = channel();
+    let (tx, rx) = channel::unbounded();
 
     self.thread_executor.execute_in_thread(move || {
       let result = window_state
@@ -363,7 +357,7 @@ impl Window {
   pub fn set_cursor_visible(&self, visible: bool) {
     let window = self.window.clone();
     let window_state = Arc::clone(&self.window_state);
-    let (tx, rx) = channel();
+    let (tx, rx) = channel::unbounded();
 
     self.thread_executor.execute_in_thread(move || {
       let result = window_state

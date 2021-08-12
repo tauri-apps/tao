@@ -5,6 +5,7 @@
 
 mod runner;
 
+use crossbeam_channel::{self as channel, Receiver, Sender};
 use parking_lot::Mutex;
 use std::{
   cell::Cell,
@@ -12,18 +13,14 @@ use std::{
   marker::PhantomData,
   mem, panic, ptr,
   rc::Rc,
-  sync::{
-    mpsc::{self, Receiver, Sender},
-    Arc,
-  },
+  sync::Arc,
   thread,
   time::{Duration, Instant},
 };
-use winapi::shared::basetsd::{DWORD_PTR, UINT_PTR};
-
 use winapi::{
   ctypes::c_int,
   shared::{
+    basetsd::{DWORD_PTR, UINT_PTR},
     minwindef::{BOOL, DWORD, HIWORD, INT, LOWORD, LPARAM, LRESULT, UINT, WORD, WPARAM},
     windef::{HWND, POINT, RECT},
     windowsx, winerror,
@@ -493,6 +490,7 @@ pub struct EventLoopProxy<T: 'static> {
   event_send: Sender<T>,
 }
 unsafe impl<T: Send + 'static> Send for EventLoopProxy<T> {}
+unsafe impl<T: Send + 'static> Sync for EventLoopProxy<T> {}
 
 impl<T: 'static> Clone for EventLoopProxy<T> {
   fn clone(&self) -> Self {
@@ -627,7 +625,7 @@ fn subclass_event_target_window<T>(
   event_loop_runner: EventLoopRunnerShared<T>,
 ) -> Sender<T> {
   unsafe {
-    let (tx, rx) = mpsc::channel();
+    let (tx, rx) = channel::unbounded();
 
     let subclass_input = ThreadMsgTargetSubclassInput {
       event_loop_runner,

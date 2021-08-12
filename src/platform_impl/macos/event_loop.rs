@@ -11,7 +11,6 @@ use std::{
   panic::{catch_unwind, resume_unwind, RefUnwindSafe, UnwindSafe},
   process, ptr,
   rc::{Rc, Weak},
-  sync::mpsc,
 };
 
 use cocoa::{
@@ -19,7 +18,7 @@ use cocoa::{
   base::{id, nil, YES},
   foundation::{NSAutoreleasePool, NSPoint},
 };
-
+use crossbeam_channel::{self as channel, Receiver, Sender};
 use scopeguard::defer;
 
 use crate::{
@@ -65,13 +64,13 @@ impl PanicInfo {
 }
 
 pub struct EventLoopWindowTarget<T: 'static> {
-  pub sender: mpsc::Sender<T>, // this is only here to be cloned elsewhere
-  pub receiver: mpsc::Receiver<T>,
+  pub sender: Sender<T>, // this is only here to be cloned elsewhere
+  pub receiver: Receiver<T>,
 }
 
 impl<T> Default for EventLoopWindowTarget<T> {
   fn default() -> Self {
-    let (sender, receiver) = mpsc::channel();
+    let (sender, receiver) = channel::unbounded();
     EventLoopWindowTarget { sender, receiver }
   }
 }
@@ -244,11 +243,12 @@ pub fn stop_app_on_panic<F: FnOnce() -> R + UnwindSafe, R>(
 }
 
 pub struct Proxy<T> {
-  sender: mpsc::Sender<T>,
+  sender: Sender<T>,
   source: CFRunLoopSourceRef,
 }
 
 unsafe impl<T: Send> Send for Proxy<T> {}
+unsafe impl<T: Send> Sync for Proxy<T> {}
 
 impl<T> Drop for Proxy<T> {
   fn drop(&mut self) {
@@ -265,7 +265,7 @@ impl<T> Clone for Proxy<T> {
 }
 
 impl<T> Proxy<T> {
-  fn new(sender: mpsc::Sender<T>) -> Self {
+  fn new(sender: Sender<T>) -> Self {
     unsafe {
       // just wake up the eventloop
       extern "C" fn event_loop_proxy_handler(_: *mut c_void) {}
@@ -287,7 +287,7 @@ impl<T> Proxy<T> {
     self
       .sender
       .send(event)
-      .map_err(|mpsc::SendError(x)| EventLoopClosed(x))?;
+      .map_err(|channel::SendError(x)| EventLoopClosed(x))?;
     unsafe {
       // let the main thread know there's a new event
       CFRunLoopSourceSignal(self.source);
