@@ -474,7 +474,9 @@ impl UnownedWindow {
   #[inline]
   // Shortener for set_visible(true)
   pub fn set_focus(&self) {
-    util::set_focus(*self.ns_window);
+    unsafe {
+      util::set_focus(*self.ns_window);
+    }
   }
 
   pub fn request_redraw(&self) {
