@@ -24,7 +24,7 @@ use crate::{
   keyboard::ModifiersState,
   menu::{MenuItem, MenuType},
   monitor::MonitorHandle as RootMonitorHandle,
-  platform_impl::platform::window::hit_test,
+  platform_impl::platform::{window::hit_test, DEVICE_ID},
   window::{CursorIcon, WindowId as RootWindowId},
 };
 
@@ -433,8 +433,7 @@ impl<T: 'static> EventLoop<T> {
                 if let Err(e) = tx_clone.send(Event::WindowEvent {
                   window_id: RootWindowId(id),
                   event: WindowEvent::CursorEntered {
-                    // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                    device_id: RootDeviceId(DeviceId(0)),
+                    device_id: DEVICE_ID,
                   },
                 }) {
                   log::warn!(
@@ -457,8 +456,7 @@ impl<T: 'static> EventLoop<T> {
                     window_id: RootWindowId(id),
                     event: WindowEvent::CursorMoved {
                       position: PhysicalPosition::new(x as f64, y as f64),
-                      // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                      device_id: RootDeviceId(DeviceId(0)),
+                      device_id: DEVICE_ID,
                       // this field is depracted so it is fine to pass empty state
                       modifiers: ModifiersState::empty(),
                     },
@@ -474,8 +472,7 @@ impl<T: 'static> EventLoop<T> {
                 if let Err(e) = tx_clone.send(Event::WindowEvent {
                   window_id: RootWindowId(id),
                   event: WindowEvent::CursorLeft {
-                    // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                    device_id: RootDeviceId(DeviceId(0)),
+                    device_id: DEVICE_ID,
                   },
                 }) {
                   log::warn!("Failed to send cursor left event to event channel: {}", e);
@@ -496,8 +493,7 @@ impl<T: 'static> EventLoop<T> {
                       _ => MouseButton::Other(button as u16),
                     },
                     state: ElementState::Pressed,
-                    // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                    device_id: RootDeviceId(DeviceId(0)),
+                    device_id: DEVICE_ID,
                     // this field is depracted so it is fine to pass empty state
                     modifiers: ModifiersState::empty(),
                   },
@@ -523,8 +519,7 @@ impl<T: 'static> EventLoop<T> {
                       _ => MouseButton::Other(button as u16),
                     },
                     state: ElementState::Released,
-                    // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                    device_id: RootDeviceId(DeviceId(0)),
+                    device_id: DEVICE_ID,
                     // this field is depracted so it is fine to pass empty state
                     modifiers: ModifiersState::empty(),
                   },
@@ -569,8 +564,7 @@ impl<T: 'static> EventLoop<T> {
                   if let Err(e) = tx_clone.send(Event::WindowEvent {
                     window_id: RootWindowId(id),
                     event: WindowEvent::KeyboardInput {
-                      // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                      device_id: RootDeviceId(DeviceId(0)),
+                      device_id: DEVICE_ID,
                       event,
                       is_synthetic: false,
                     },
