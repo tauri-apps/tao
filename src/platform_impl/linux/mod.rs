@@ -32,8 +32,7 @@ pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
 pub use monitor::{MonitorHandle, VideoMode};
 pub use window::{hit_test, PlatformIcon, Window, WindowId};
 
-use crate::event::DeviceId as RootDeviceId;
-use crate::keyboard::Key;
+use crate::{event::DeviceId as RootDeviceId, keyboard::Key};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct KeyEventExtra {
