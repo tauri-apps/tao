@@ -148,28 +148,19 @@ impl Window {
 
   #[inline]
   pub fn set_visible(&self, visible: bool) {
-    let prev = self.is_visible();
     let skip_taskbar = self.window_state.lock().skip_taskbar;
-    // Hidden window also skips taskbar, we need to check if it conflicts with skip_taskbar state
-    // If it's moving from visible to hidden, we need to unset skip_taskbar
-    if prev && !visible && skip_taskbar {
-      self.set_skip_taskbar(false, false);
-    }
+    let already_skipped = self.window_state.lock().already_skipped;
 
-    // If it's still the same, there's no need to set it again
-    if prev != visible {
-      let window = self.window.clone();
-      let window_state = Arc::clone(&self.window_state);
-      self.thread_executor.execute_in_thread(move || {
-        WindowState::set_window_flags(window_state.lock(), window.0, |f| {
-          f.set(WindowFlags::VISIBLE, visible)
-        });
+    let window = self.window.clone();
+    let window_state = Arc::clone(&self.window_state);
+    self.thread_executor.execute_in_thread(move || {
+      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+        f.set(WindowFlags::VISIBLE, visible)
       });
-    }
+    });
 
-    // If it's moving from hidden to visible, we set skip_taskbar back
-    if !prev && visible && skip_taskbar {
-      self.set_skip_taskbar(true, false);
+    if visible && skip_taskbar != already_skipped {
+      self.set_skip_taskbar(skip_taskbar);
     }
   }
 
@@ -770,12 +761,9 @@ impl Window {
   }
 
   #[inline]
-  pub(crate) fn set_skip_taskbar(&self, skip: bool, state: bool) {
-    // Update self skip_taskbar state if true
-    if state {
-      let mut window_state = self.window_state.lock();
-      window_state.skip_taskbar = skip;
-    }
+  pub(crate) fn set_skip_taskbar(&self, skip: bool) {
+    let mut window_state = self.window_state.lock();
+    window_state.skip_taskbar = skip;
 
     if self.is_visible() {
       unsafe {
@@ -794,6 +782,8 @@ impl Window {
         }
         (*taskbar_list).Release();
       }
+
+      window_state.already_skipped = skip
     }
   }
 }
@@ -938,7 +928,7 @@ unsafe fn init<T: 'static>(
     menu: None,
   };
 
-  win.set_skip_taskbar(pl_attribs.skip_taskbar, false);
+  win.set_skip_taskbar(pl_attribs.skip_taskbar);
 
   let dimensions = attributes
     .inner_size
