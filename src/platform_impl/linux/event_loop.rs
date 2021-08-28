@@ -315,9 +315,14 @@ impl<T: 'static> EventLoop<T> {
             }
             WindowRequest::WireUpEvents => {
               // resizing `decorations: false` aka borderless
-              window.add_events(EventMask::POINTER_MOTION_MASK | EventMask::BUTTON_MOTION_MASK);
+              window.add_events(
+                EventMask::POINTER_MOTION_MASK
+                  | EventMask::BUTTON1_MOTION_MASK
+                  | EventMask::BUTTON_PRESS_MASK
+                  | EventMask::TOUCH_MASK,
+              );
               window.connect_motion_notify_event(|window, event| {
-                if window.is_decorated() && window.is_resizable() {
+                if !window.is_decorated() && window.is_resizable() {
                   if let Some(window) = window.window() {
                     let (cx, cy) = event.root();
                     let edge = hit_test(&window, cx, cy);
@@ -344,7 +349,7 @@ impl<T: 'static> EventLoop<T> {
                 Inhibit(false)
               });
               window.connect_button_press_event(|window, event| {
-                if window.is_decorated() && window.is_resizable() {
+                if !window.is_decorated() && window.is_resizable() {
                   if event.button() == 1 {
                     if let Some(window) = window.window() {
                       let (cx, cy) = event.root();
@@ -355,6 +360,32 @@ impl<T: 'static> EventLoop<T> {
                         WindowEdge::__Unknown(_) => (),
                         _ => {
                           window.begin_resize_drag(result, 1, cx as i32, cy as i32, event.time())
+                        }
+                      }
+                    }
+                  }
+                }
+
+                Inhibit(false)
+              });
+              window.connect_touch_event(|window, event| {
+                if !window.is_decorated() && window.is_resizable() {
+                  if let Some(window) = window.window() {
+                    if let Some((cx, cy)) = event.root_coords() {
+                      if let Some(device) = event.device() {
+                        let result = hit_test(&window, cx, cy);
+
+                        // we ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
+                        match result {
+                          WindowEdge::__Unknown(_) => (),
+                          _ => window.begin_resize_drag_for_device(
+                            result,
+                            &device,
+                            0,
+                            cx as i32,
+                            cy as i32,
+                            event.time(),
+                          ),
                         }
                       }
                     }
