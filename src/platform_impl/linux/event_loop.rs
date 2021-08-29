@@ -258,7 +258,10 @@ impl<T: 'static> EventLoop<T> {
             WindowRequest::UserAttention(request_type) => {
               window.set_urgency_hint(request_type.is_some())
             }
-            WindowRequest::SetSkipTaskbar(skip) => window.set_skip_taskbar_hint(skip),
+            WindowRequest::SetSkipTaskbar(skip) => {
+              window.set_skip_taskbar_hint(skip);
+              window.set_skip_pager_hint(skip)
+            }
             WindowRequest::CursorIcon(cursor) => {
               if let Some(gdk_window) = window.window() {
                 let display = window.display();
