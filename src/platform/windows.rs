@@ -157,6 +157,7 @@ impl WindowExtWindows for Window {
   fn begin_resize_drag(&self, edge: isize, button: u32, x: i32, y: i32) {
     unsafe {
       let point = POINT { x, y };
+      winuser::ReleaseCapture();
       winuser::PostMessageW(
         self.hwnd() as _,
         button as minwindef::UINT,
