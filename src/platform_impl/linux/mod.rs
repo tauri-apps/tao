@@ -32,7 +32,7 @@ pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
 pub use monitor::{MonitorHandle, VideoMode};
 pub use window::{hit_test, PlatformIcon, Window, WindowId};
 
-use crate::keyboard::Key;
+use crate::{event::DeviceId as RootDeviceId, keyboard::Key};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct KeyEventExtra {
@@ -73,3 +73,6 @@ impl DeviceId {
     Self(0)
   }
 }
+
+// FIXME: currently we use a dummy device id, find if we can get device id from gtk
+pub(crate) const DEVICE_ID: RootDeviceId = RootDeviceId(DeviceId(0));
