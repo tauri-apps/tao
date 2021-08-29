@@ -18,7 +18,7 @@ use libc;
 use winapi::{
   shared::{
     minwindef::{self, WORD},
-    windef::{HMENU, HWND},
+    windef::{HMENU, HWND, POINT},
   },
   um::winuser,
 };
@@ -114,7 +114,7 @@ pub trait WindowExtWindows {
   fn reset_dead_keys(&self);
 
   /// Starts the resizing drag from given edge
-  fn begin_resize_drag(&self, edge: isize);
+  fn begin_resize_drag(&self, edge: isize, button: u32, x: i32, y: i32);
 
   /// Whether to show the window icon in the taskbar or not.
   fn set_skip_taskbar(&self, skip: bool);
@@ -154,18 +154,12 @@ impl WindowExtWindows for Window {
   }
 
   #[inline]
-  fn begin_resize_drag(&self, edge: isize) {
+  fn begin_resize_drag(&self, edge: isize, button: u32, x: i32, y: i32) {
     unsafe {
-      let point = {
-        let mut pos = std::mem::zeroed();
-        winuser::GetCursorPos(&mut pos);
-        pos
-      };
-
-      winuser::ReleaseCapture();
+      let point = POINT { x, y };
       winuser::PostMessageW(
         self.hwnd() as _,
-        winuser::WM_NCLBUTTONDOWN,
+        button as minwindef::UINT,
         edge as minwindef::WPARAM,
         &point as *const _ as minwindef::LPARAM,
       );
