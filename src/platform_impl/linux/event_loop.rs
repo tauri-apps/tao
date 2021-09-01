@@ -317,7 +317,7 @@ impl<T: 'static> EventLoop<T> {
               };
             }
             WindowRequest::WireUpEvents => {
-              // resizing `decorations: false` aka borderless
+              // Resizing `decorations: false` aka borderless
               window.add_events(
                 EventMask::POINTER_MOTION_MASK
                   | EventMask::BUTTON1_MOTION_MASK
@@ -329,7 +329,6 @@ impl<T: 'static> EventLoop<T> {
                   if let Some(window) = window.window() {
                     let (cx, cy) = event.root();
                     let edge = hit_test(&window, cx, cy);
-                    // FIXME: calling `window.begin_resize_drag` seems to revert the cursor back to normal style
                     window.set_cursor(
                       Cursor::from_name(
                         &window.display(),
@@ -358,10 +357,11 @@ impl<T: 'static> EventLoop<T> {
                       let (cx, cy) = event.root();
                       let result = hit_test(&window, cx, cy);
 
-                      // we ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
+                      // Ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
                       match result {
                         WindowEdge::__Unknown(_) => (),
                         _ => {
+                          // FIXME: calling `window.begin_resize_drag` uses the default cursor, it should show a resizing cursor instead
                           window.begin_resize_drag(result, 1, cx as i32, cy as i32, event.time())
                         }
                       }
@@ -378,7 +378,7 @@ impl<T: 'static> EventLoop<T> {
                       if let Some(device) = event.device() {
                         let result = hit_test(&window, cx, cy);
 
-                        // we ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
+                        // Ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
                         match result {
                           WindowEdge::__Unknown(_) => (),
                           _ => window.begin_resize_drag_for_device(
