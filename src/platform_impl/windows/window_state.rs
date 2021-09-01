@@ -44,6 +44,7 @@ pub struct WindowState {
   pub window_flags: WindowFlags,
 
   pub skip_taskbar: bool,
+  pub already_skipped: bool,
 }
 
 #[derive(Clone)]
@@ -135,6 +136,7 @@ impl WindowState {
       window_flags: WindowFlags::empty(),
 
       skip_taskbar,
+      already_skipped: false,
     }
   }
 
