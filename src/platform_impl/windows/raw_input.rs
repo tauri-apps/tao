@@ -6,44 +6,31 @@ use std::{
   ptr,
 };
 
-use winapi::{
-  ctypes::wchar_t,
-  shared::{
-    hidusage::{HID_USAGE_GENERIC_KEYBOARD, HID_USAGE_GENERIC_MOUSE, HID_USAGE_PAGE_GENERIC},
-    minwindef::{TRUE, UINT, USHORT},
-    windef::HWND,
-  },
-  um::{
-    winnt::HANDLE,
-    winuser::{
-      self, HRAWINPUT, RAWINPUT, RAWINPUTDEVICE, RAWINPUTDEVICELIST, RAWINPUTHEADER,
-      RIDEV_DEVNOTIFY, RIDEV_INPUTSINK, RIDI_DEVICEINFO, RIDI_DEVICENAME, RID_DEVICE_INFO,
-      RID_DEVICE_INFO_HID, RID_DEVICE_INFO_KEYBOARD, RID_DEVICE_INFO_MOUSE, RID_INPUT, RIM_TYPEHID,
-      RIM_TYPEKEYBOARD, RIM_TYPEMOUSE,
-    },
-  },
+use webview2_com_sys::Windows::Win32::{
+  Devices::HumanInterfaceDevice::*,
+  Foundation::{HANDLE, HWND},
+  UI::{KeyboardAndMouseInput::*, WindowsAndMessaging::*},
 };
 
 use crate::{event::ElementState, platform_impl::platform::util};
 
 #[allow(dead_code)]
 pub fn get_raw_input_device_list() -> Option<Vec<RAWINPUTDEVICELIST>> {
-  let list_size = size_of::<RAWINPUTDEVICELIST>() as UINT;
+  let list_size = size_of::<RAWINPUTDEVICELIST>() as u32;
 
   let mut num_devices = 0;
-  let status =
-    unsafe { winuser::GetRawInputDeviceList(ptr::null_mut(), &mut num_devices, list_size) };
+  let status = unsafe { GetRawInputDeviceList(ptr::null_mut(), &mut num_devices, list_size) };
 
-  if status == UINT::max_value() {
+  if status == u32::max_value() {
     return None;
   }
 
   let mut buffer = Vec::with_capacity(num_devices as _);
 
   let num_stored =
-    unsafe { winuser::GetRawInputDeviceList(buffer.as_ptr() as _, &mut num_devices, list_size) };
+    unsafe { GetRawInputDeviceList(buffer.as_ptr() as _, &mut num_devices, list_size) };
 
-  if num_stored == UINT::max_value() {
+  if num_stored == u32::max_value() {
     return None;
   }
 
@@ -66,9 +53,9 @@ impl From<RID_DEVICE_INFO> for RawDeviceInfo {
   fn from(info: RID_DEVICE_INFO) -> Self {
     unsafe {
       match info.dwType {
-        RIM_TYPEMOUSE => RawDeviceInfo::Mouse(*info.u.mouse()),
-        RIM_TYPEKEYBOARD => RawDeviceInfo::Keyboard(*info.u.keyboard()),
-        RIM_TYPEHID => RawDeviceInfo::Hid(*info.u.hid()),
+        RIM_TYPEMOUSE => RawDeviceInfo::Mouse(info.Anonymous.mouse),
+        RIM_TYPEKEYBOARD => RawDeviceInfo::Keyboard(info.Anonymous.keyboard),
+        RIM_TYPEHID => RawDeviceInfo::Hid(info.Anonymous.hid),
         _ => unreachable!(),
       }
     }
@@ -78,13 +65,13 @@ impl From<RID_DEVICE_INFO> for RawDeviceInfo {
 #[allow(dead_code)]
 pub fn get_raw_input_device_info(handle: HANDLE) -> Option<RawDeviceInfo> {
   let mut info: RID_DEVICE_INFO = unsafe { mem::zeroed() };
-  let info_size = size_of::<RID_DEVICE_INFO>() as UINT;
+  let info_size = size_of::<RID_DEVICE_INFO>() as u32;
 
   info.cbSize = info_size;
 
   let mut minimum_size = 0;
   let status = unsafe {
-    winuser::GetRawInputDeviceInfoW(
+    GetRawInputDeviceInfoW(
       handle,
       RIDI_DEVICEINFO,
       &mut info as *mut _ as _,
@@ -92,7 +79,7 @@ pub fn get_raw_input_device_info(handle: HANDLE) -> Option<RawDeviceInfo> {
     )
   };
 
-  if status == UINT::max_value() || status == 0 {
+  if status == u32::max_value() || status == 0 {
     return None;
   }
 
@@ -103,18 +90,17 @@ pub fn get_raw_input_device_info(handle: HANDLE) -> Option<RawDeviceInfo> {
 
 pub fn get_raw_input_device_name(handle: HANDLE) -> Option<String> {
   let mut minimum_size = 0;
-  let status = unsafe {
-    winuser::GetRawInputDeviceInfoW(handle, RIDI_DEVICENAME, ptr::null_mut(), &mut minimum_size)
-  };
+  let status =
+    unsafe { GetRawInputDeviceInfoW(handle, RIDI_DEVICENAME, ptr::null_mut(), &mut minimum_size) };
 
   if status != 0 {
     return None;
   }
 
-  let mut name: Vec<wchar_t> = Vec::with_capacity(minimum_size as _);
+  let mut name: Vec<u16> = Vec::with_capacity(minimum_size as _);
 
   let status = unsafe {
-    winuser::GetRawInputDeviceInfoW(
+    GetRawInputDeviceInfoW(
       handle,
       RIDI_DEVICENAME,
       name.as_ptr() as _,
@@ -122,7 +108,7 @@ pub fn get_raw_input_device_name(handle: HANDLE) -> Option<String> {
     )
   };
 
-  if status == UINT::max_value() || status == 0 {
+  if status == u32::max_value() || status == 0 {
     return None;
   }
 
@@ -134,13 +120,12 @@ pub fn get_raw_input_device_name(handle: HANDLE) -> Option<String> {
 }
 
 pub fn register_raw_input_devices(devices: &[RAWINPUTDEVICE]) -> bool {
-  let device_size = size_of::<RAWINPUTDEVICE>() as UINT;
+  let device_size = size_of::<RAWINPUTDEVICE>() as u32;
 
-  let success = unsafe {
-    winuser::RegisterRawInputDevices(devices.as_ptr() as _, devices.len() as _, device_size)
-  };
+  let success =
+    unsafe { RegisterRawInputDevices(devices.as_ptr() as _, devices.len() as _, device_size) };
 
-  success == TRUE
+  success.as_bool()
 }
 
 pub fn register_all_mice_and_keyboards_for_raw_input(window_handle: HWND) -> bool {
@@ -168,11 +153,11 @@ pub fn register_all_mice_and_keyboards_for_raw_input(window_handle: HWND) -> boo
 
 pub fn get_raw_input_data(handle: HRAWINPUT) -> Option<RAWINPUT> {
   let mut data: RAWINPUT = unsafe { mem::zeroed() };
-  let mut data_size = size_of::<RAWINPUT>() as UINT;
-  let header_size = size_of::<RAWINPUTHEADER>() as UINT;
+  let mut data_size = size_of::<RAWINPUT>() as u32;
+  let header_size = size_of::<RAWINPUTHEADER>() as u32;
 
   let status = unsafe {
-    winuser::GetRawInputData(
+    GetRawInputData(
       handle,
       RID_INPUT,
       &mut data as *mut _ as _,
@@ -181,7 +166,7 @@ pub fn get_raw_input_data(handle: HRAWINPUT) -> Option<RAWINPUT> {
     )
   };
 
-  if status == UINT::max_value() || status == 0 {
+  if status == u32::max_value() || status == 0 {
     return None;
   }
 
@@ -189,36 +174,36 @@ pub fn get_raw_input_data(handle: HRAWINPUT) -> Option<RAWINPUT> {
 }
 
 fn button_flags_to_element_state(
-  button_flags: USHORT,
-  down_flag: USHORT,
-  up_flag: USHORT,
+  button_flags: u16,
+  down_flag: u32,
+  up_flag: u32,
 ) -> Option<ElementState> {
   // We assume the same button won't be simultaneously pressed and released.
-  if util::has_flag(button_flags, down_flag) {
+  if util::has_flag(button_flags, down_flag as u16) {
     Some(ElementState::Pressed)
-  } else if util::has_flag(button_flags, up_flag) {
+  } else if util::has_flag(button_flags, up_flag as u16) {
     Some(ElementState::Released)
   } else {
     None
   }
 }
 
-pub fn get_raw_mouse_button_state(button_flags: USHORT) -> [Option<ElementState>; 3] {
+pub fn get_raw_mouse_button_state(button_flags: u16) -> [Option<ElementState>; 3] {
   [
     button_flags_to_element_state(
       button_flags,
-      winuser::RI_MOUSE_LEFT_BUTTON_DOWN,
-      winuser::RI_MOUSE_LEFT_BUTTON_UP,
+      RI_MOUSE_LEFT_BUTTON_DOWN,
+      RI_MOUSE_LEFT_BUTTON_UP,
     ),
     button_flags_to_element_state(
       button_flags,
-      winuser::RI_MOUSE_MIDDLE_BUTTON_DOWN,
-      winuser::RI_MOUSE_MIDDLE_BUTTON_UP,
+      RI_MOUSE_MIDDLE_BUTTON_DOWN,
+      RI_MOUSE_MIDDLE_BUTTON_UP,
     ),
     button_flags_to_element_state(
       button_flags,
-      winuser::RI_MOUSE_RIGHT_BUTTON_DOWN,
-      winuser::RI_MOUSE_RIGHT_BUTTON_UP,
+      RI_MOUSE_RIGHT_BUTTON_DOWN,
+      RI_MOUSE_RIGHT_BUTTON_UP,
     ),
   ]
 }

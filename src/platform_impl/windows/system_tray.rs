@@ -14,17 +14,10 @@ use crate::{
   menu::MenuType,
   system_tray::SystemTray as RootSystemTray,
 };
-use winapi::{
-  shared::{
-    basetsd::{DWORD_PTR, UINT_PTR},
-    minwindef::{LPARAM, LRESULT, UINT, WPARAM},
-    windef::{HICON, HMENU, HWND, POINT, RECT},
-  },
-  um::{
-    commctrl, libloaderapi,
-    shellapi::{self, NIF_ICON, NIF_MESSAGE, NIM_ADD, NIM_DELETE, NIM_MODIFY, NOTIFYICONDATAW},
-    winuser::{self, CW_USEDEFAULT, WNDCLASSW, WS_OVERLAPPEDWINDOW},
-  },
+use webview2_com_sys::Windows::Win32::{
+  Foundation::{HWND, LPARAM, LRESULT, POINT, PSTR, PWSTR, RECT, WPARAM},
+  System::LibraryLoader::*,
+  UI::{Shell::*, WindowsAndMessaging::*},
 };
 
 const WM_USER_TRAYICON: u32 = 6001;
@@ -43,6 +36,15 @@ pub struct SystemTrayBuilder {
   pub(crate) tray_menu: Option<Menu>,
 }
 
+unsafe extern "system" fn call_default_window_proc(
+  hwnd: HWND,
+  msg: u32,
+  wparam: WPARAM,
+  lparam: LPARAM,
+) -> LRESULT {
+  DefWindowProcW(hwnd, msg, wparam, lparam)
+}
+
 impl SystemTrayBuilder {
   #[inline]
   pub fn new(icon: Vec<u8>, tray_menu: Option<Menu>) -> Self {
@@ -56,37 +58,37 @@ impl SystemTrayBuilder {
   ) -> Result<RootSystemTray, RootOsError> {
     let hmenu: Option<HMENU> = self.tray_menu.map(|m| m.hmenu());
 
-    let class_name = util::to_wstring("tao_system_tray_app");
+    let mut class_name = util::to_wstring("tao_system_tray_app");
     unsafe {
-      let hinstance = libloaderapi::GetModuleHandleA(std::ptr::null_mut());
+      let hinstance = GetModuleHandleA(PSTR::default());
 
       let wnd_class = WNDCLASSW {
-        lpfnWndProc: Some(winuser::DefWindowProcW),
-        lpszClassName: class_name.as_ptr(),
+        lpfnWndProc: Some(call_default_window_proc),
+        lpszClassName: PWSTR(class_name.as_mut_ptr()),
         hInstance: hinstance,
         ..Default::default()
       };
 
-      winuser::RegisterClassW(&wnd_class);
+      RegisterClassW(&wnd_class);
 
-      let hwnd = winuser::CreateWindowExW(
-        0,
-        class_name.as_ptr(),
-        util::to_wstring("tao_system_tray_window").as_ptr(),
+      let hwnd = CreateWindowExW(
+        WINDOW_EX_STYLE(0),
+        PWSTR(class_name.as_mut_ptr()),
+        PWSTR(util::to_wstring("tao_system_tray_window").as_mut_ptr()),
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         0,
         CW_USEDEFAULT,
         0,
-        0 as _,
-        0 as _,
-        hinstance as _,
+        HWND::default(),
+        HMENU::default(),
+        hinstance,
         std::ptr::null_mut(),
       );
 
       if hwnd.is_null() {
         return Err(os_error!(OsError::CreationError(
-          "Unable to get valid mutable pointer for winuser::CreateWindowEx"
+          "Unable to get valid mutable pointer for CreateWindowEx"
         )));
       }
 
@@ -95,10 +97,10 @@ impl SystemTrayBuilder {
         hWnd: hwnd,
         uID: TRAYICON_UID,
         uCallbackMessage: WM_USER_TRAYICON,
-        ..Default::default()
+        ..std::mem::zeroed()
       };
 
-      if shellapi::Shell_NotifyIconW(NIM_ADD, &mut nid as _) == 0 {
+      if !Shell_NotifyIconW(NIM_ADD, &mut nid as _).as_bool() {
         return Err(os_error!(OsError::CreationError(
           "Error with shellapi::Shell_NotifyIconW"
         )));
@@ -117,7 +119,7 @@ impl SystemTrayBuilder {
           }
         }),
       };
-      commctrl::SetWindowSubclass(
+      SetWindowSubclass(
         hwnd,
         Some(tray_subclass_proc),
         TRAY_SUBCLASS_ID,
@@ -135,8 +137,8 @@ impl SystemTrayBuilder {
         MenuType::ContextMenu,
         None,
       );
-      commctrl::SetWindowSubclass(
-        hwnd as _,
+      SetWindowSubclass(
+        hwnd,
         Some(menu_subclass_proc),
         TRAY_MENU_SUBCLASS_ID,
         Box::into_raw(Box::new(menu_handler)) as _,
@@ -169,9 +171,9 @@ impl SystemTray {
         hWnd: self.hwnd,
         hIcon: icon,
         uID: TRAYICON_UID,
-        ..Default::default()
+        ..std::mem::zeroed()
       };
-      if shellapi::Shell_NotifyIconW(NIM_MODIFY, &mut nid as _) == 0 {
+      if !Shell_NotifyIconW(NIM_MODIFY, &mut nid as _).as_bool() {
         debug!("Error setting icon");
       }
     }
@@ -180,11 +182,11 @@ impl SystemTray {
   pub fn set_menu(&mut self, tray_menu: &Menu) {
     unsafe {
       // send the new menu to the subclass proc where we will update there
-      winuser::SendMessageW(
+      SendMessageW(
         self.hwnd,
         WM_USER_UPDATE_TRAYMENU,
-        tray_menu.hmenu() as _,
-        0,
+        WPARAM(tray_menu.hmenu().0 as usize),
+        LPARAM(0),
       );
     }
   }
@@ -198,57 +200,56 @@ impl Drop for SystemTray {
         uFlags: NIF_ICON,
         hWnd: self.hwnd,
         uID: TRAYICON_UID,
-        ..Default::default()
+        ..std::mem::zeroed()
       };
-      if shellapi::Shell_NotifyIconW(NIM_DELETE, &mut nid as _) == 0 {
+      if !Shell_NotifyIconW(NIM_DELETE, &mut nid as _).as_bool() {
         debug!("Error removing system tray icon");
       }
 
       // destroy the hidden window used by the tray
-      winuser::DestroyWindow(self.hwnd);
+      DestroyWindow(self.hwnd);
     }
   }
 }
 
 unsafe extern "system" fn tray_subclass_proc(
   hwnd: HWND,
-  msg: UINT,
+  msg: u32,
   wparam: WPARAM,
   lparam: LPARAM,
-  _id: UINT_PTR,
-  subclass_input_ptr: DWORD_PTR,
+  _id: usize,
+  subclass_input_ptr: usize,
 ) -> LRESULT {
   let subclass_input_ptr = subclass_input_ptr as *mut TrayLoopData;
   let mut subclass_input = &mut *(subclass_input_ptr);
 
-  if msg == winuser::WM_DESTROY {
+  if msg == WM_DESTROY {
     Box::from_raw(subclass_input_ptr);
   }
 
   if msg == WM_USER_UPDATE_TRAYMENU {
-    subclass_input.hmenu = Some(wparam as HMENU);
+    subclass_input.hmenu = Some(HMENU(wparam.0 as isize));
   }
 
   if msg == WM_USER_TRAYICON
     && matches!(
-      lparam as u32,
-      winuser::WM_LBUTTONUP | winuser::WM_RBUTTONUP | winuser::WM_LBUTTONDBLCLK
+      lparam.0 as u32,
+      WM_LBUTTONUP | WM_RBUTTONUP | WM_LBUTTONDBLCLK
     )
   {
-    let mut icon_rect = RECT::default();
-    let nid = shellapi::NOTIFYICONIDENTIFIER {
+    let nid = NOTIFYICONIDENTIFIER {
       hWnd: hwnd,
-      cbSize: std::mem::size_of::<shellapi::NOTIFYICONIDENTIFIER>() as _,
+      cbSize: std::mem::size_of::<NOTIFYICONIDENTIFIER>() as _,
       uID: TRAYICON_UID,
-      ..Default::default()
+      ..std::mem::zeroed()
     };
-    shellapi::Shell_NotifyIconGetRect(&nid, &mut icon_rect);
+    let icon_rect = Shell_NotifyIconGetRect(&nid).unwrap_or(RECT::default());
 
     let dpi = hwnd_dpi(hwnd);
     let scale_factor = dpi_to_scale_factor(dpi);
 
     let mut cursor = POINT { x: 0, y: 0 };
-    winuser::GetCursorPos(&mut cursor as _);
+    GetCursorPos(&mut cursor as _);
 
     let position = LogicalPosition::new(cursor.x, cursor.y).to_physical(scale_factor);
     let bounds = Rectangle {
@@ -260,8 +261,8 @@ unsafe extern "system" fn tray_subclass_proc(
       .to_physical(scale_factor),
     };
 
-    match lparam as u32 {
-      winuser::WM_LBUTTONUP => {
+    match lparam.0 as u32 {
+      WM_LBUTTONUP => {
         (subclass_input.sender)(Event::TrayEvent {
           event: TrayEvent::LeftClick,
           position,
@@ -269,7 +270,7 @@ unsafe extern "system" fn tray_subclass_proc(
         });
       }
 
-      winuser::WM_RBUTTONUP => {
+      WM_RBUTTONUP => {
         (subclass_input.sender)(Event::TrayEvent {
           event: TrayEvent::RightClick,
           position,
@@ -281,7 +282,7 @@ unsafe extern "system" fn tray_subclass_proc(
         }
       }
 
-      winuser::WM_LBUTTONDBLCLK => {
+      WM_LBUTTONDBLCLK => {
         (subclass_input.sender)(Event::TrayEvent {
           event: TrayEvent::DoubleClick,
           position,
@@ -293,21 +294,21 @@ unsafe extern "system" fn tray_subclass_proc(
     }
   }
 
-  commctrl::DefSubclassProc(hwnd, msg, wparam, lparam)
+  DefSubclassProc(hwnd, msg, wparam, lparam)
 }
 
 unsafe fn show_tray_menu(hwnd: HWND, menu: HMENU, x: i32, y: i32) {
   // bring the hidden window to the foreground so the pop up menu
   // would automatically hide on click outside
-  winuser::SetForegroundWindow(hwnd);
+  SetForegroundWindow(hwnd);
   // track the click
-  winuser::TrackPopupMenu(
+  TrackPopupMenu(
     menu,
-    0,
+    // align bottom / right, maybe we could expose this later..
+    TPM_BOTTOMALIGN | TPM_LEFTALIGN,
     x,
     y,
-    // align bottom / right, maybe we could expose this later..
-    (winuser::TPM_BOTTOMALIGN | winuser::TPM_LEFTALIGN) as _,
+    0,
     hwnd,
     std::ptr::null_mut(),
   );

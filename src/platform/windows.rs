@@ -3,7 +3,7 @@
 
 #![cfg(target_os = "windows")]
 
-use std::{os::raw::c_void, path::Path};
+use std::path::Path;
 
 pub use crate::platform_impl::hit_test;
 use crate::{
@@ -14,13 +14,10 @@ use crate::{
   platform_impl::{EventLoop as WindowsEventLoop, Parent, WinIcon},
   window::{BadIcon, Icon, Theme, Window, WindowBuilder},
 };
-use libc;
-use winapi::{
-  shared::{
-    minwindef::{self, WORD},
-    windef::{HMENU, HWND},
-  },
-  um::winuser,
+use webview2_com_sys::Windows::Win32::{
+  Foundation::{HINSTANCE, HWND, LPARAM, POINT, WPARAM},
+  Graphics::Gdi::HMONITOR,
+  UI::{KeyboardAndMouseInput::*, WindowsAndMessaging::*},
 };
 
 /// Additional methods on `EventLoop` that are specific to Windows.
@@ -79,11 +76,11 @@ impl<T> EventLoopExtWindows for EventLoop<T> {
 /// Additional methods on `Window` that are specific to Windows.
 pub trait WindowExtWindows {
   /// Returns the HINSTANCE of the window
-  fn hinstance(&self) -> *mut libc::c_void;
+  fn hinstance(&self) -> HINSTANCE;
   /// Returns the native handle that is used by this window.
   ///
   /// The pointer will become invalid when the native window was destroyed.
-  fn hwnd(&self) -> *mut libc::c_void;
+  fn hwnd(&self) -> HWND;
 
   /// Enables or disables mouse and keyboard input to the specified window.
   ///
@@ -122,19 +119,19 @@ pub trait WindowExtWindows {
 
 impl WindowExtWindows for Window {
   #[inline]
-  fn hinstance(&self) -> *mut libc::c_void {
-    self.window.hinstance() as *mut _
+  fn hinstance(&self) -> HINSTANCE {
+    self.window.hinstance()
   }
 
   #[inline]
-  fn hwnd(&self) -> *mut libc::c_void {
-    self.window.hwnd() as *mut _
+  fn hwnd(&self) -> HWND {
+    self.window.hwnd()
   }
 
   #[inline]
   fn set_enable(&self, enabled: bool) {
     unsafe {
-      winapi::um::winuser::EnableWindow(self.hwnd() as _, enabled as _);
+      EnableWindow(self.hwnd(), enabled);
     }
   }
 
@@ -156,19 +153,20 @@ impl WindowExtWindows for Window {
   #[inline]
   fn begin_resize_drag(&self, edge: isize) {
     unsafe {
+      let w_param = WPARAM(edge as usize);
+
       let point = {
-        let mut pos = std::mem::zeroed();
-        winuser::GetCursorPos(&mut pos);
+        let mut pos = POINT::default();
+        GetCursorPos(&mut pos);
         pos
       };
 
-      winuser::ReleaseCapture();
-      winuser::PostMessageW(
-        self.hwnd() as _,
-        winuser::WM_NCLBUTTONDOWN,
-        edge as minwindef::WPARAM,
-        &point as *const _ as minwindef::LPARAM,
-      );
+      let low_word = point.x as u32 & 0xFFFF;
+      let high_word = (point.y as u32 & 0xFFFF) << 16;
+      let l_param = LPARAM((low_word | high_word) as isize);
+
+      ReleaseCapture();
+      PostMessageW(self.hwnd(), WM_NCLBUTTONDOWN, w_param, l_param);
     }
   }
 
@@ -203,7 +201,8 @@ pub trait WindowBuilderExtWindows {
   ///
   /// Parent and menu are mutually exclusive; a child window cannot have a menu!
   ///
-  /// The menu must have been manually created beforehand with [`winapi::um::winuser::CreateMenu`] or similar.
+  /// The menu must have been manually created beforehand with [`webview2_com_sys::Windows::Win32::UI::WindowsAndMessaging::CreateMenu`]
+  /// or similar.
   ///
   /// Note: Dark mode cannot be supported for win32 menus, it's simply not possible to change how the menus look.
   /// If you use this, it is recommended that you combine it with `with_theme(Some(Theme::Light))` to avoid a jarring effect.
@@ -286,7 +285,7 @@ pub trait MonitorHandleExtWindows {
   fn native_id(&self) -> String;
 
   /// Returns the handle of the monitor - `HMONITOR`.
-  fn hmonitor(&self) -> *mut c_void;
+  fn hmonitor(&self) -> HMONITOR;
 }
 
 impl MonitorHandleExtWindows for MonitorHandle {
@@ -296,8 +295,8 @@ impl MonitorHandleExtWindows for MonitorHandle {
   }
 
   #[inline]
-  fn hmonitor(&self) -> *mut c_void {
-    self.inner.hmonitor() as *mut _
+  fn hmonitor(&self) -> HMONITOR {
+    self.inner.hmonitor()
   }
 }
 
@@ -334,7 +333,7 @@ pub trait IconExtWindows: Sized {
   ///
   /// In cases where the specified size does not exist in the file, Windows may perform scaling
   /// to get an icon of the desired size.
-  fn from_resource(ordinal: WORD, size: Option<PhysicalSize<u32>>) -> Result<Self, BadIcon>;
+  fn from_resource(ordinal: u16, size: Option<PhysicalSize<u32>>) -> Result<Self, BadIcon>;
 }
 
 impl IconExtWindows for Icon {
@@ -343,7 +342,7 @@ impl IconExtWindows for Icon {
     Ok(Icon { inner: win_icon })
   }
 
-  fn from_resource(ordinal: WORD, size: Option<PhysicalSize<u32>>) -> Result<Self, BadIcon> {
+  fn from_resource(ordinal: u16, size: Option<PhysicalSize<u32>>) -> Result<Self, BadIcon> {
     let win_icon = WinIcon::from_resource(ordinal, size)?;
     Ok(Icon { inner: win_icon })
   }
