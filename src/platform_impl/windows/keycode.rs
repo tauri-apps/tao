@@ -1,17 +1,13 @@
 use crate::keyboard::{KeyCode, NativeKeyCode};
-use winapi::{
-  shared::minwindef::LOWORD,
-  um::{
-    winnt::{LANG_KOREAN, PRIMARYLANGID},
-    winuser::GetKeyboardLayout,
-  },
+use webview2_com_sys::Windows::Win32::{
+  System::SystemServices::LANG_KOREAN, UI::KeyboardAndMouseInput::GetKeyboardLayout,
 };
 
 pub fn keycode_to_scancode(code: KeyCode) -> Option<u32> {
   // See `from_scancode` for more info
   let hkl = unsafe { GetKeyboardLayout(0) };
 
-  let primary_lang_id = PRIMARYLANGID(LOWORD(hkl as u32));
+  let primary_lang_id = ((hkl.0 as usize) & 0x3FF) as u32;
   let is_korean = primary_lang_id == LANG_KOREAN;
 
   match code {

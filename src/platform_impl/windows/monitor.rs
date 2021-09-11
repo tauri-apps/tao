@@ -85,13 +85,6 @@ impl VideoMode {
 #[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub struct MonitorHandle(isize);
 
-// Send is not implemented for HMONITOR, we have to wrap it and implement it manually.
-// For more info see:
-// https://github.com/retep998/winapi-rs/issues/360
-// https://github.com/retep998/winapi-rs/issues/396
-
-unsafe impl Send for MonitorHandle {}
-
 unsafe extern "system" fn monitor_enum_proc(
   hmonitor: HMONITOR,
   _hdc: HDC,

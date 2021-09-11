@@ -70,7 +70,7 @@ unsafe impl Sync for PlatformSpecificWindowBuilderAttributes {}
 
 // Cursor name in UTF-16. Used to set cursor in `WM_SETCURSOR`.
 #[derive(Debug, Clone, Copy)]
-pub struct Cursor(pub *const winapi::ctypes::wchar_t);
+pub struct Cursor(pub *const u16);
 unsafe impl Send for Cursor {}
 unsafe impl Sync for Cursor {}
 

@@ -16,7 +16,7 @@ use crate::{platform_impl::platform::util, window::Theme};
 lazy_static! {
     static ref WIN10_BUILD_VERSION: Option<u32> = {
         // FIXME: RtlGetVersion is a documented windows API,
-        // should be part of winapi!
+        // should be part of win32metadata!
 
         #[allow(non_snake_case)]
         #[repr(C)]
