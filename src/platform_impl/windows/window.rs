@@ -112,8 +112,7 @@ impl Window {
           )
           .into();
 
-          RegisterDragDrop(win.window.0, file_drop_handler.clone())
-            .expect("RegisterDragDrop failed");
+          assert!(RegisterDragDrop(win.window.0, file_drop_handler.clone()).is_ok());
           Some(file_drop_handler)
         } else {
           None
