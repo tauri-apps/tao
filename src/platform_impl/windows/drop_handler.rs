@@ -152,7 +152,7 @@ impl FileDropHandler {
         debug!(
           "{}",
           match error.code() {
-            DV_E_FORMATETC => {
+            c if c == DV_E_FORMATETC => {
               // If the dropped item is not a file this error will occur.
               // In this case it is OK to return without taking further action.
               "Error occured while processing dropped/hovered item: item is not a file."

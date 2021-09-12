@@ -78,7 +78,7 @@ impl KeyEventBuilder {
     result: &mut ProcResult,
   ) -> Vec<MessageAsKeyEvent> {
     match msg_kind {
-      WM_SETFOCUS => {
+      _ if msg_kind == WM_SETFOCUS => {
         // synthesize keydown events
         let kbd_state = get_async_kbd_state();
         let key_events = self.synthesize_kbd_state(ElementState::Pressed, &kbd_state);
@@ -86,7 +86,7 @@ impl KeyEventBuilder {
           return key_events;
         }
       }
-      WM_KILLFOCUS => {
+      _ if msg_kind == WM_KILLFOCUS => {
         // sythesize keyup events
         let kbd_state = get_kbd_state();
         let key_events = self.synthesize_kbd_state(ElementState::Released, &kbd_state);
@@ -94,7 +94,7 @@ impl KeyEventBuilder {
           return key_events;
         }
       }
-      WM_KEYDOWN | WM_SYSKEYDOWN => {
+      _ if msg_kind == WM_KEYDOWN || msg_kind == WM_SYSKEYDOWN => {
         if msg_kind == WM_SYSKEYDOWN && wparam.0 as u32 == VK_F4 {
           // Don't dispatch Alt+F4 to the application.
           // This is handled in `event_loop.rs`
@@ -147,7 +147,7 @@ impl KeyEventBuilder {
           }];
         }
       }
-      WM_DEADCHAR | WM_SYSDEADCHAR => {
+      _ if msg_kind == WM_DEADCHAR || msg_kind == WM_SYSDEADCHAR => {
         *result = ProcResult::Value(0);
         // At this point, we know that there isn't going to be any more events related to
         // this key press
@@ -159,7 +159,7 @@ impl KeyEventBuilder {
           is_synthetic: false,
         }];
       }
-      WM_CHAR | WM_SYSCHAR => {
+      _ if msg_kind == WM_CHAR || msg_kind == WM_SYSCHAR => {
         if self.event_info.is_none() {
           trace!("Received a CHAR message but no `event_info` was available. The message is probably IME, returning.");
           return vec![];
@@ -260,7 +260,7 @@ impl KeyEventBuilder {
           }];
         }
       }
-      WM_KEYUP | WM_SYSKEYUP => {
+      _ if msg_kind == WM_KEYUP || msg_kind == WM_SYSKEYUP => {
         *result = ProcResult::Value(0);
 
         let mut layouts = LAYOUT_CACHE.lock().unwrap();
@@ -351,8 +351,19 @@ impl KeyEventBuilder {
     let do_non_modifier = |key_events: &mut Vec<_>, layouts: &mut _| {
       for vk in 0..256 {
         match vk {
-          VK_CONTROL | VK_LCONTROL | VK_RCONTROL | VK_SHIFT | VK_LSHIFT | VK_RSHIFT | VK_MENU
-          | VK_LMENU | VK_RMENU | VK_CAPITAL => continue,
+          _ if vk == VK_CONTROL
+            || vk == VK_LCONTROL
+            || vk == VK_RCONTROL
+            || vk == VK_SHIFT
+            || vk == VK_LSHIFT
+            || vk == VK_RSHIFT
+            || vk == VK_MENU
+            || vk == VK_LMENU
+            || vk == VK_RMENU
+            || vk == VK_CAPITAL =>
+          {
+            continue
+          }
           _ => (),
         }
         if !is_key_pressed!(vk) {
@@ -735,7 +746,7 @@ fn is_current_fake(curr_info: &PartialKeyEventInfo, next_msg: MSG, layout: &Layo
 }
 
 fn get_location(scancode: ExScancode, hkl: HKL) -> KeyLocation {
-  const VK_ABNT_C2: c_int = 0xc2;
+  const VK_ABNT_C2: u32 = 0xc2;
 
   let extension = 0xE000;
   let extended = (scancode & extension) == extension;
@@ -745,20 +756,50 @@ fn get_location(scancode: ExScancode, hkl: HKL) -> KeyLocation {
   // This is taken from the `druid` GUI library, specifically
   // druid-shell/src/platform/windows/keyboard.rs
   match vkey {
-    VK_LSHIFT | VK_LCONTROL | VK_LMENU | VK_LWIN => KeyLocation::Left,
-    VK_RSHIFT | VK_RCONTROL | VK_RMENU | VK_RWIN => KeyLocation::Right,
-    VK_RETURN if extended => KeyLocation::Numpad,
-    VK_INSERT | VK_DELETE | VK_END | VK_DOWN | VK_NEXT | VK_LEFT | VK_CLEAR | VK_RIGHT
-    | VK_HOME | VK_UP | VK_PRIOR => {
+    _ if vkey == VK_LSHIFT || vkey == VK_LCONTROL || vkey == VK_LMENU || vkey == VK_LWIN => {
+      KeyLocation::Left
+    }
+    _ if vkey == VK_RSHIFT || vkey == VK_RCONTROL || vkey == VK_RMENU || vkey == VK_RWIN => {
+      KeyLocation::Right
+    }
+    _ if vkey == VK_RETURN && extended => KeyLocation::Numpad,
+    _ if vkey == VK_INSERT
+      || vkey == VK_DELETE
+      || vkey == VK_END
+      || vkey == VK_DOWN
+      || vkey == VK_NEXT
+      || vkey == VK_LEFT
+      || vkey == VK_CLEAR
+      || vkey == VK_RIGHT
+      || vkey == VK_HOME
+      || vkey == VK_UP
+      || vkey == VK_PRIOR =>
+    {
       if extended {
         KeyLocation::Standard
       } else {
         KeyLocation::Numpad
       }
     }
-    VK_NUMPAD0 | VK_NUMPAD1 | VK_NUMPAD2 | VK_NUMPAD3 | VK_NUMPAD4 | VK_NUMPAD5 | VK_NUMPAD6
-    | VK_NUMPAD7 | VK_NUMPAD8 | VK_NUMPAD9 | VK_DECIMAL | VK_DIVIDE | VK_MULTIPLY | VK_SUBTRACT
-    | VK_ADD => KeyLocation::Numpad,
+    _ if vkey == VK_NUMPAD0
+      || vkey == VK_NUMPAD1
+      || vkey == VK_NUMPAD2
+      || vkey == VK_NUMPAD3
+      || vkey == VK_NUMPAD4
+      || vkey == VK_NUMPAD5
+      || vkey == VK_NUMPAD6
+      || vkey == VK_NUMPAD7
+      || vkey == VK_NUMPAD8
+      || vkey == VK_NUMPAD9
+      || vkey == VK_DECIMAL
+      || vkey == VK_DIVIDE
+      || vkey == VK_MULTIPLY
+      || vkey == VK_SUBTRACT
+      || vkey == VK_ADD
+      || vkey == VK_ABNT_C2 =>
+    {
+      KeyLocation::Numpad
+    }
     _ => KeyLocation::Standard,
   }
 }

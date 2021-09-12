@@ -31,7 +31,7 @@ use webview2_com_sys::Windows::Win32::{
     WindowsProgramming::INFINITE,
   },
   UI::{
-    Controls::HOVER_DEFAULT,
+    Controls::{HOVER_DEFAULT, WM_MOUSELEAVE},
     KeyboardAndMouseInput::*,
     PointerInput::*,
     Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
@@ -51,7 +51,6 @@ use crate::{
     accelerator,
     dark_mode::try_theme,
     dpi::{become_dpi_aware, dpi_to_scale_factor, enable_non_client_dpi_scaling},
-    drop_handler::FileDropHandler,
     keyboard::is_msg_keyboard_related,
     keyboard_layout::LAYOUT_CACHE,
     minimal_ime::is_msg_ime_related,
@@ -101,7 +100,7 @@ lazy_static! {
 pub(crate) struct SubclassInput<T: 'static> {
   pub window_state: Arc<Mutex<WindowState>>,
   pub event_loop_runner: EventLoopRunnerShared<T>,
-  pub file_drop_handler: Option<IDropTarget>,
+  pub _file_drop_handler: Option<IDropTarget>,
   pub subclass_removed: Cell<bool>,
   pub recurse_depth: Cell<u32>,
 }
@@ -895,7 +894,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
   // Send new modifiers before sending key events.
   let mods_changed_callback = || match msg {
-    WM_KEYDOWN | WM_SYSKEYDOWN | WM_KEYUP | WM_SYSKEYUP => {
+    _ if msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN || msg == WM_KEYUP || msg == WM_SYSKEYUP => {
       update_modifiers(window, subclass_input);
       result = ProcResult::Value(0);
     }
@@ -964,7 +963,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
   // the closure to catch_unwind directly so that the match body indendation wouldn't change and
   // the git blame and history would be preserved.
   let callback = || match msg {
-    WM_ENTERSIZEMOVE => {
+    _ if msg == WM_ENTERSIZEMOVE => {
       subclass_input
         .window_state
         .lock()
@@ -972,7 +971,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_EXITSIZEMOVE => {
+    _ if msg == WM_EXITSIZEMOVE => {
       subclass_input
         .window_state
         .lock()
@@ -980,16 +979,16 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_NCCREATE => {
+    _ if msg == WM_NCCREATE => {
       enable_non_client_dpi_scaling(window);
     }
-    WM_NCLBUTTONDOWN => {
+    _ if msg == WM_NCLBUTTONDOWN => {
       if wparam == WPARAM(HTCAPTION as usize) {
         PostMessageW(window, WM_MOUSEMOVE, WPARAM(0), lparam);
       }
     }
 
-    WM_CLOSE => {
+    _ if msg == WM_CLOSE => {
       use crate::event::WindowEvent::CloseRequested;
       subclass_input.send_event(Event::WindowEvent {
         window_id: RootWindowId(WindowId(window.0)),
@@ -998,9 +997,9 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_DESTROY => {
+    _ if msg == WM_DESTROY => {
       use crate::event::WindowEvent::Destroyed;
-      RevokeDragDrop(window);
+      let _ = RevokeDragDrop(window);
       subclass_input.send_event(Event::WindowEvent {
         window_id: RootWindowId(WindowId(window.0)),
         event: Destroyed,
@@ -1009,13 +1008,13 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_NCDESTROY => {
+    _ if msg == WM_NCDESTROY => {
       remove_window_subclass::<T>(window);
       subclass_input.subclass_removed.set(true);
       result = ProcResult::Value(0);
     }
 
-    WM_PAINT => {
+    _ if msg == WM_PAINT => {
       if subclass_input.event_loop_runner.should_buffer() {
         // this branch can happen in response to `UpdateWindow`, if win32 decides to
         // redraw the window outside the normal flow of the event loop.
@@ -1030,7 +1029,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       }
     }
 
-    WM_WINDOWPOSCHANGING => {
+    _ if msg == WM_WINDOWPOSCHANGING => {
       let mut window_state = subclass_input.window_state.lock();
       if let Some(ref mut fullscreen) = window_state.fullscreen {
         let window_pos = &mut *(lparam.0 as *mut WINDOWPOS);
@@ -1082,7 +1081,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     // WM_MOVE supplies client area positions, so we send Moved here instead.
-    WM_WINDOWPOSCHANGED => {
+    _ if msg == WM_WINDOWPOSCHANGED => {
       use crate::event::WindowEvent::Moved;
 
       let windowpos = lparam.0 as *const WINDOWPOS;
@@ -1098,7 +1097,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::DefSubclassProc;
     }
 
-    WM_SIZE => {
+    _ if msg == WM_SIZE => {
       use crate::event::WindowEvent::Resized;
       let w = lparam.0 as u32 & 0xFFFF;
       let h = (lparam.0 as u32 & 0xFFFF_0000) >> 16;
@@ -1114,7 +1113,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     // this is necessary for us to maintain minimize/restore state
-    WM_SYSCOMMAND => {
+    _ if msg == WM_SYSCOMMAND => {
       if wparam == WPARAM(SC_RESTORE as usize) {
         let mut w = subclass_input.window_state.lock();
         w.set_window_flags_in_place(|f| f.set(WindowFlags::MINIMIZED, false));
@@ -1136,7 +1135,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::DefWindowProc;
     }
 
-    WM_MOUSEMOVE => {
+    _ if msg == WM_MOUSEMOVE => {
       use crate::event::WindowEvent::{CursorEntered, CursorMoved};
       let mouse_was_outside_window = {
         let mut w = subclass_input.window_state.lock();
@@ -1192,7 +1191,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_MOUSELEAVE => {
+    _ if msg == WM_MOUSELEAVE => {
       use crate::event::WindowEvent::CursorLeft;
       {
         let mut w = subclass_input.window_state.lock();
@@ -1211,7 +1210,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_MOUSEWHEEL => {
+    _ if msg == WM_MOUSEWHEEL => {
       use crate::event::MouseScrollDelta::LineDelta;
 
       let value = (wparam.0 >> 16) as i16;
@@ -1233,7 +1232,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_MOUSEHWHEEL => {
+    _ if msg == WM_MOUSEHWHEEL => {
       use crate::event::MouseScrollDelta::LineDelta;
 
       let value = (wparam.0 >> 16) as i16;
@@ -1255,13 +1254,13 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_KEYDOWN | WM_SYSKEYDOWN => {
+    _ if msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN => {
       if msg == WM_SYSKEYDOWN && wparam.0 as u32 == VK_F4 {
         result = ProcResult::DefSubclassProc;
       }
     }
 
-    WM_LBUTTONDOWN => {
+    _ if msg == WM_LBUTTONDOWN => {
       use crate::event::{ElementState::Pressed, MouseButton::Left, WindowEvent::MouseInput};
 
       capture_mouse(window, &mut *subclass_input.window_state.lock());
@@ -1280,7 +1279,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_LBUTTONUP => {
+    _ if msg == WM_LBUTTONUP => {
       use crate::event::{ElementState::Released, MouseButton::Left, WindowEvent::MouseInput};
 
       release_mouse(subclass_input.window_state.lock());
@@ -1299,7 +1298,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_RBUTTONDOWN => {
+    _ if msg == WM_RBUTTONDOWN => {
       use crate::event::{ElementState::Pressed, MouseButton::Right, WindowEvent::MouseInput};
 
       capture_mouse(window, &mut *subclass_input.window_state.lock());
@@ -1318,7 +1317,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_RBUTTONUP => {
+    _ if msg == WM_RBUTTONUP => {
       use crate::event::{ElementState::Released, MouseButton::Right, WindowEvent::MouseInput};
 
       release_mouse(subclass_input.window_state.lock());
@@ -1337,7 +1336,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_MBUTTONDOWN => {
+    _ if msg == WM_MBUTTONDOWN => {
       use crate::event::{ElementState::Pressed, MouseButton::Middle, WindowEvent::MouseInput};
 
       capture_mouse(window, &mut *subclass_input.window_state.lock());
@@ -1356,7 +1355,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_MBUTTONUP => {
+    _ if msg == WM_MBUTTONUP => {
       use crate::event::{ElementState::Released, MouseButton::Middle, WindowEvent::MouseInput};
 
       release_mouse(subclass_input.window_state.lock());
@@ -1375,7 +1374,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_XBUTTONDOWN => {
+    _ if msg == WM_XBUTTONDOWN => {
       use crate::event::{ElementState::Pressed, MouseButton::Other, WindowEvent::MouseInput};
       let xbutton = (wparam.0 >> 16) as u16;
 
@@ -1395,7 +1394,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_XBUTTONUP => {
+    _ if msg == WM_XBUTTONUP => {
       use crate::event::{ElementState::Released, MouseButton::Other, WindowEvent::MouseInput};
       let xbutton = (wparam.0 >> 16) as u16;
 
@@ -1415,7 +1414,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_CAPTURECHANGED => {
+    _ if msg == WM_CAPTURECHANGED => {
       // lparam here is a handle to the window which is gaining mouse capture.
       // If it is the same as our window, then we're essentially retaining the capture. This
       // can happen if `SetCapture` is called on our window when it already has the mouse
@@ -1426,7 +1425,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_TOUCH => {
+    _ if msg == WM_TOUCH => {
       let pcount = (wparam.0 & 0xFFFF) as u16 as usize;
       let mut inputs = Vec::with_capacity(pcount);
       inputs.set_len(pcount);
@@ -1476,7 +1475,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_POINTERDOWN | WM_POINTERUPDATE | WM_POINTERUP => {
+    _ if msg == WM_POINTERDOWN || msg == WM_POINTERUPDATE || msg == WM_POINTERUP => {
       if let (
         Some(GetPointerFrameInfoHistory),
         Some(SkipPointerFrameMessages),
@@ -1561,7 +1560,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           }
 
           let force = match pointer_info.pointerType {
-            PT_TOUCH => {
+            t if t == PT_TOUCH => {
               let mut touch_info = mem::MaybeUninit::uninit();
               GET_POINTER_TOUCH_INFO.and_then(|GetPointerTouchInfo| {
                 match GetPointerTouchInfo(pointer_info.pointerId, touch_info.as_mut_ptr()) {
@@ -1570,7 +1569,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
                 }
               })
             }
-            PT_PEN => {
+            t if t == PT_PEN => {
               let mut pen_info = mem::MaybeUninit::uninit();
               GET_POINTER_PEN_INFO.and_then(|GetPointerPenInfo| {
                 match GetPointerPenInfo(pointer_info.pointerId, pen_info.as_mut_ptr()) {
@@ -1611,7 +1610,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_SETFOCUS => {
+    _ if msg == WM_SETFOCUS => {
       use crate::event::WindowEvent::Focused;
       update_modifiers(window, subclass_input);
 
@@ -1623,7 +1622,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_KILLFOCUS => {
+    _ if msg == WM_KILLFOCUS => {
       use crate::event::WindowEvent::{Focused, ModifiersChanged};
 
       subclass_input.window_state.lock().modifiers_state = ModifiersState::empty();
@@ -1639,7 +1638,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_SETCURSOR => {
+    _ if msg == WM_SETCURSOR => {
       let set_cursor_to = {
         let window_state = subclass_input.window_state.lock();
         // The return value for the preceding `WM_NCHITTEST` message is conveniently
@@ -1663,7 +1662,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       }
     }
 
-    WM_GETMINMAXINFO => {
+    _ if msg == WM_GETMINMAXINFO => {
       let mmi = lparam.0 as *mut MINMAXINFO;
 
       let window_state = subclass_input.window_state.lock();
@@ -1692,7 +1691,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
     // Only sent on Windows 8.1 or newer. On Windows 7 and older user has to log out to change
     // DPI, therefore all applications are closed while DPI is changing.
-    WM_DPICHANGED => {
+    _ if msg == WM_DPICHANGED => {
       use crate::event::WindowEvent::ScaleFactorChanged;
 
       // This message actually provides two DPI values - x and y. However MSDN says that
@@ -1900,7 +1899,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(0);
     }
 
-    WM_SETTINGCHANGE => {
+    _ if msg == WM_WININICHANGE => {
       use crate::event::WindowEvent::ThemeChanged;
 
       let preferred_theme = subclass_input.window_state.lock().preferred_theme;
@@ -1920,7 +1919,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       }
     }
 
-    WM_NCCALCSIZE => {
+    _ if msg == WM_NCCALCSIZE => {
       let win_flags = subclass_input.window_state.lock().window_flags();
 
       if !win_flags.contains(WindowFlags::DECORATIONS) {
@@ -1938,7 +1937,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       }
     }
 
-    WM_NCHITTEST => {
+    _ if msg == WM_NCHITTEST => {
       if let Some(state) = subclass_input.window_state.try_lock() {
         let win_flags = state.window_flags();
 
@@ -2006,14 +2005,14 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
   // the closure to catch_unwind directly so that the match body indendation wouldn't change and
   // the git blame and history would be preserved.
   let callback = || match msg {
-    WM_NCDESTROY => {
+    _ if msg == WM_NCDESTROY => {
       remove_event_target_window_subclass::<T>(window);
       subclass_removed = true;
       LRESULT(0)
     }
     // Because WM_PAINT comes after all other messages, we use it during modal loops to detect
     // when the event queue has been emptied. See `process_event` for more details.
-    WM_PAINT => {
+    _ if msg == WM_PAINT => {
       ValidateRect(window, ptr::null());
       // If the WM_PAINT handler in `public_window_callback` has already flushed the redraw
       // events, `handling_events` will return false and we won't emit a second
@@ -2039,10 +2038,10 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       DefSubclassProc(window, msg, wparam, lparam)
     }
 
-    WM_INPUT_DEVICE_CHANGE => {
+    _ if msg == WM_INPUT_DEVICE_CHANGE => {
       let event = match wparam.0 as u32 {
-        GIDC_ARRIVAL => DeviceEvent::Added,
-        GIDC_REMOVAL => DeviceEvent::Removed,
+        wp if wp == GIDC_ARRIVAL => DeviceEvent::Added,
+        wp if wp == GIDC_REMOVAL => DeviceEvent::Removed,
         _ => unreachable!(),
       };
 
@@ -2054,7 +2053,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       LRESULT(0)
     }
 
-    WM_INPUT => {
+    _ if msg == WM_INPUT => {
       if let Some(data) = raw_input::get_raw_input_data(HRAWINPUT(lparam.0)) {
         handle_raw_input(&subclass_input, data);
       }

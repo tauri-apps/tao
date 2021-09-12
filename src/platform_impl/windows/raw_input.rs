@@ -53,9 +53,9 @@ impl From<RID_DEVICE_INFO> for RawDeviceInfo {
   fn from(info: RID_DEVICE_INFO) -> Self {
     unsafe {
       match info.dwType {
-        RIM_TYPEMOUSE => RawDeviceInfo::Mouse(info.Anonymous.mouse),
-        RIM_TYPEKEYBOARD => RawDeviceInfo::Keyboard(info.Anonymous.keyboard),
-        RIM_TYPEHID => RawDeviceInfo::Hid(info.Anonymous.hid),
+        t if t == RIM_TYPEMOUSE => RawDeviceInfo::Mouse(info.Anonymous.mouse),
+        t if t == RIM_TYPEKEYBOARD => RawDeviceInfo::Keyboard(info.Anonymous.keyboard),
+        t if t == RIM_TYPEHID => RawDeviceInfo::Hid(info.Anonymous.hid),
         _ => unreachable!(),
       }
     }

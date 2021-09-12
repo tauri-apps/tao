@@ -89,10 +89,10 @@ impl Window {
           // multiple windows are created on the same thread.
           if let Err(error) = OleInitialize(ptr::null_mut()) {
             match error.code() {
-              OLE_E_WRONGCOMPOBJ => {
+              c if c == OLE_E_WRONGCOMPOBJ => {
                 panic!("OleInitialize failed! Result was: `OLE_E_WRONGCOMPOBJ`")
               }
-              RPC_E_CHANGED_MODE => panic!(
+              c if c == RPC_E_CHANGED_MODE => panic!(
                 "OleInitialize failed! Result was: `RPC_E_CHANGED_MODE`. \
                               Make sure other crates are not using multithreaded COM library \
                               on the same thread or disable drag and drop support."
@@ -109,9 +109,11 @@ impl Window {
                 file_drop_runner.send_event(e)
               }
             }),
-          ).into();
+          )
+          .into();
 
-          RegisterDragDrop(win.window.0, file_drop_handler.clone()).expect("RegisterDragDrop failed");
+          RegisterDragDrop(win.window.0, file_drop_handler.clone())
+            .expect("RegisterDragDrop failed");
           Some(file_drop_handler)
         } else {
           None
@@ -120,7 +122,7 @@ impl Window {
         let subclass_input = event_loop::SubclassInput {
           window_state: win.window_state.clone(),
           event_loop_runner: event_loop.runner_shared.clone(),
-          file_drop_handler,
+          _file_drop_handler: file_drop_handler,
           subclass_removed: Cell::new(false),
           recurse_depth: Cell::new(0),
         };
@@ -893,7 +895,7 @@ unsafe fn init<T: 'static>(
       fTransitionOnMaximized: false.into(),
     };
 
-    DwmEnableBlurBehindWindow(real_window.0, &bb);
+    let _ = DwmEnableBlurBehindWindow(real_window.0, &bb);
     DeleteObject(region);
   }
 
@@ -1013,7 +1015,7 @@ unsafe extern "system" fn window_proc(
   let mut userdata = GetWindowLongPtrW(window, GWL_USERDATA);
 
   match msg {
-    WM_NCCALCSIZE => {
+    _ if msg == WM_NCCALCSIZE => {
       // Check if userdata is set and if the value of it is true (window wants to be borderless)
       if userdata != 0 && *(userdata as *mut bool) == true {
         // adjust the maximized borderless window so it doesn't cover the taskbar
@@ -1029,7 +1031,7 @@ unsafe extern "system" fn window_proc(
         DefWindowProcW(window, msg, wparam, lparam)
       }
     }
-    WM_NCCREATE => {
+    _ if msg == WM_NCCREATE => {
       // Set userdata to the value of lparam. This will be cleared on event loop subclassing.
       if userdata == 0 {
         let createstruct = &*(lparam.0 as *const CREATESTRUCTW);
@@ -1042,18 +1044,22 @@ unsafe extern "system" fn window_proc(
   }
 }
 
-struct ComInitialized(*mut ());
+struct ComInitialized(Option<()>);
 impl Drop for ComInitialized {
   fn drop(&mut self) {
-    unsafe { CoUninitialize() };
+    if let Some(()) = self.0.take() {
+      unsafe { CoUninitialize() };
+    }
   }
 }
 
 thread_local! {
     static COM_INITIALIZED: ComInitialized = {
         unsafe {
-            CoInitializeEx(ptr::null_mut(), COINIT_APARTMENTTHREADED);
-            ComInitialized(ptr::null_mut())
+            ComInitialized(match CoInitializeEx(ptr::null_mut(), COINIT_APARTMENTTHREADED) {
+              Ok(()) => Some(()),
+              Err(_) => None,
+            })
         }
     };
 
@@ -1093,7 +1099,7 @@ unsafe fn taskbar_mark_fullscreen(handle: HWND, fullscreen: bool) {
       *task_bar_list_ptr.borrow_mut() = task_bar_list.clone();
     }
 
-    task_bar_list
+    let _ = task_bar_list
       .unwrap()
       .MarkFullscreenWindow(handle, fullscreen);
   })
@@ -1155,15 +1161,15 @@ pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
         | (BOTTOM * (if cy >= (bottom - BORDERLESS_RESIZE_INSET) { 1 } else { 0 }));
 
       match result {
-        CLIENT => LRESULT(HTCLIENT as i32),
-        LEFT => LRESULT(HTLEFT as i32),
-        RIGHT => LRESULT(HTRIGHT as i32),
-        TOP => LRESULT(HTTOP as i32),
-        BOTTOM => LRESULT(HTBOTTOM as i32),
-        TOPLEFT => LRESULT(HTTOPLEFT as i32),
-        TOPRIGHT => LRESULT(HTTOPRIGHT as i32),
-        BOTTOMLEFT => LRESULT(HTBOTTOMLEFT as i32),
-        BOTTOMRIGHT => LRESULT(HTBOTTOMRIGHT as i32),
+        _ if result == CLIENT => LRESULT(HTCLIENT as i32),
+        _ if result == LEFT => LRESULT(HTLEFT as i32),
+        _ if result == RIGHT => LRESULT(HTRIGHT as i32),
+        _ if result == TOP => LRESULT(HTTOP as i32),
+        _ if result == BOTTOM => LRESULT(HTBOTTOM as i32),
+        _ if result == TOPLEFT => LRESULT(HTTOPLEFT as i32),
+        _ if result == TOPRIGHT => LRESULT(HTTOPRIGHT as i32),
+        _ if result == BOTTOMLEFT => LRESULT(HTBOTTOMLEFT as i32),
+        _ if result == BOTTOMRIGHT => LRESULT(HTBOTTOMRIGHT as i32),
         _ => LRESULT(HTNOWHERE as i32),
       }
     } else {

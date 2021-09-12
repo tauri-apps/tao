@@ -29,7 +29,7 @@ pub fn become_dpi_aware() {
         }
       } else if let Some(SetProcessDpiAwareness) = *SET_PROCESS_DPI_AWARENESS {
         // We are on Windows 8.1 or later.
-        SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
+        let _ = SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
       } else if let Some(SetProcessDPIAware) = *SET_PROCESS_DPI_AWARE {
         // We are on Vista or later.
         SetProcessDPIAware();

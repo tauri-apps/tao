@@ -83,7 +83,7 @@ pub fn try_theme(hwnd: HWND, preferred_theme: Option<Theme>) -> Theme {
     } else {
       Theme::Light
     };
-    let mut theme_name = PWSTR(
+    let theme_name = PWSTR(
       match theme {
         Theme::Dark => DARK_THEME_NAME.clone(),
         Theme::Light => LIGHT_THEME_NAME.clone(),

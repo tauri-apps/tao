@@ -262,7 +262,7 @@ unsafe extern "system" fn tray_subclass_proc(
     };
 
     match lparam.0 as u32 {
-      WM_LBUTTONUP => {
+      lp if lp == WM_LBUTTONUP => {
         (subclass_input.sender)(Event::TrayEvent {
           event: TrayEvent::LeftClick,
           position,
@@ -270,7 +270,7 @@ unsafe extern "system" fn tray_subclass_proc(
         });
       }
 
-      WM_RBUTTONUP => {
+      lp if lp == WM_RBUTTONUP => {
         (subclass_input.sender)(Event::TrayEvent {
           event: TrayEvent::RightClick,
           position,
@@ -282,7 +282,7 @@ unsafe extern "system" fn tray_subclass_proc(
         }
       }
 
-      WM_LBUTTONDBLCLK => {
+      lp if lp == WM_LBUTTONDBLCLK => {
         (subclass_input.sender)(Event::TrayEvent {
           event: TrayEvent::DoubleClick,
           position,

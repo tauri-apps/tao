@@ -377,33 +377,33 @@ pub(crate) unsafe extern "system" fn subclass_proc(
   }
 
   match msg {
-    WM_COMMAND => {
+    _ if msg == WM_COMMAND => {
       match wparam.0 {
-        CUT_ID => {
+        wp if wp == CUT_ID => {
           execute_edit_command(EditCommand::Cut);
         }
-        COPY_ID => {
+        wp if wp == COPY_ID => {
           execute_edit_command(EditCommand::Copy);
         }
-        PASTE_ID => {
+        wp if wp == PASTE_ID => {
           execute_edit_command(EditCommand::Paste);
         }
-        SELECT_ALL_ID => {
+        wp if wp == SELECT_ALL_ID => {
           execute_edit_command(EditCommand::SelectAll);
         }
-        HIDE_ID => {
+        wp if wp == HIDE_ID => {
           ShowWindow(hwnd, SW_HIDE);
         }
-        CLOSE_ID => {
+        wp if wp == CLOSE_ID => {
           subclass_input.send_event(Event::WindowEvent {
             window_id: RootWindowId(WindowId(hwnd.0)),
             event: WindowEvent::CloseRequested,
           });
         }
-        QUIT_ID => {
+        wp if wp == QUIT_ID => {
           subclass_input.send_event(Event::LoopDestroyed);
         }
-        MINIMIZE_ID => {
+        wp if wp == MINIMIZE_ID => {
           ShowWindow(hwnd, SW_MINIMIZE);
         }
         _ => {
