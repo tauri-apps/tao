@@ -283,7 +283,7 @@ impl KeyEventBuilder {
           let (_, layout) = layouts.get_current_layout();
           let is_fake = {
             let event_info = valid_event_info.as_ref().unwrap();
-            is_current_fake(&event_info, next_msg, layout)
+            is_current_fake(event_info, next_msg, layout)
           };
           if is_fake {
             valid_event_info = None;
@@ -313,11 +313,7 @@ impl KeyEventBuilder {
     let mut layouts = LAYOUT_CACHE.lock().unwrap();
     let (locale_id, _) = layouts.get_current_layout();
 
-    macro_rules! is_key_pressed {
-      ($vk:expr) => {
-        kbd_state[$vk as usize] & 0x80 != 0
-      };
-    }
+    let is_key_pressed = |vk: u32| &kbd_state[vk as usize] & 0x80 != 0;
 
     // Is caps-lock active? Note that this is different from caps-lock
     // being held down.
@@ -335,7 +331,7 @@ impl KeyEventBuilder {
     // For the sake of simplicity we are choosing to always sythesize
     // caps-lock first, and always use the current caps-lock state
     // to determine the produced text
-    if is_key_pressed!(VK_CAPITAL) {
+    if is_key_pressed(VK_CAPITAL) {
       let event = self.create_synthetic(
         VK_CAPITAL,
         key_state,
@@ -366,7 +362,7 @@ impl KeyEventBuilder {
           }
           _ => (),
         }
-        if !is_key_pressed!(vk) {
+        if !is_key_pressed(vk) {
           continue;
         }
         let event = self.create_synthetic(
@@ -392,7 +388,7 @@ impl KeyEventBuilder {
         VK_RMENU,
       ];
       for vk in CLEAR_MODIFIER_VKS.iter() {
-        if is_key_pressed!(*vk) {
+        if is_key_pressed(*vk) {
           let event = self.create_synthetic(
             *vk,
             key_state,

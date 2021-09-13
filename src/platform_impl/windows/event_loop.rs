@@ -253,8 +253,8 @@ impl<T: 'static> EventLoop<T> {
           TranslateAcceleratorW(msg.hwnd, it.handle(), &mut msg) != 0
         });
         if !translated {
-          TranslateMessage(&mut msg);
-          DispatchMessageW(&mut msg);
+          TranslateMessage(&msg);
+          DispatchMessageW(&msg);
         }
 
         if let Err(payload) = runner.take_panic_error() {
@@ -356,16 +356,14 @@ fn wait_thread(parent_thread_id: u32, msg_window_id: HWND) {
 
       if wait_until_opt.is_some() {
         if PeekMessageW(&mut msg, HWND::default(), 0, 0, PM_REMOVE).as_bool() {
-          TranslateMessage(&mut msg);
-          DispatchMessageW(&mut msg);
+          TranslateMessage(&msg);
+          DispatchMessageW(&msg);
         }
+      } else if !GetMessageW(&mut msg, HWND::default(), 0, 0).as_bool() {
+        break 'main;
       } else {
-        if !GetMessageW(&mut msg, HWND::default(), 0, 0).as_bool() {
-          break 'main;
-        } else {
-          TranslateMessage(&mut msg);
-          DispatchMessageW(&mut msg);
-        }
+        TranslateMessage(&msg);
+        DispatchMessageW(&msg);
       }
 
       if msg.message == *WAIT_UNTIL_MSG_ID {
@@ -774,8 +772,8 @@ unsafe fn flush_paint_messages<T: 'static>(
         return;
       }
 
-      TranslateMessage(&mut msg);
-      DispatchMessageW(&mut msg);
+      TranslateMessage(&msg);
+      DispatchMessageW(&msg);
     });
     true
   } else {
@@ -1486,8 +1484,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
         *GET_POINTER_DEVICE_RECTS,
       ) {
         let pointer_id = (wparam.0 & 0xFFFF) as u32;
-        let mut entries_count = 0 as u32;
-        let mut pointers_count = 0 as u32;
+        let mut entries_count = 0_u32;
+        let mut pointers_count = 0_u32;
         if !GetPointerFrameInfoHistory(
           pointer_id,
           &mut entries_count as *mut _,
@@ -1835,52 +1833,52 @@ unsafe fn public_window_callback_inner<T: 'static>(
         let new_dpi_monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONULL);
         let conservative_rect_monitor =
           MonitorFromRect(&mut conservative_rect, MONITOR_DEFAULTTONULL);
-        new_outer_rect = if conservative_rect_monitor == new_dpi_monitor {
-          conservative_rect
-        } else {
-          let get_monitor_rect = |monitor| {
-            let mut monitor_info = MONITORINFO {
-              cbSize: mem::size_of::<MONITORINFO>() as _,
-              ..MONITORINFO::default()
+        new_outer_rect = {
+          if conservative_rect_monitor != new_dpi_monitor {
+            let get_monitor_rect = |monitor| {
+              let mut monitor_info = MONITORINFO {
+                cbSize: mem::size_of::<MONITORINFO>() as _,
+                ..MONITORINFO::default()
+              };
+              GetMonitorInfoW(monitor, &mut monitor_info);
+              monitor_info.rcMonitor
             };
-            GetMonitorInfoW(monitor, &mut monitor_info);
-            monitor_info.rcMonitor
-          };
-          let wrong_monitor = conservative_rect_monitor;
-          let wrong_monitor_rect = get_monitor_rect(wrong_monitor);
-          let new_monitor_rect = get_monitor_rect(new_dpi_monitor);
+            let wrong_monitor = conservative_rect_monitor;
+            let wrong_monitor_rect = get_monitor_rect(wrong_monitor);
+            let new_monitor_rect = get_monitor_rect(new_dpi_monitor);
 
-          // The direction to nudge the window in to get the window onto the monitor with
-          // the new DPI factor. We calculate this by seeing which monitor edges are
-          // shared and nudging away from the wrong monitor based on those.
-          let delta_nudge_to_dpi_monitor = (
-            if wrong_monitor_rect.left == new_monitor_rect.right {
-              -1
-            } else if wrong_monitor_rect.right == new_monitor_rect.left {
-              1
-            } else {
-              0
-            },
-            if wrong_monitor_rect.bottom == new_monitor_rect.top {
-              1
-            } else if wrong_monitor_rect.top == new_monitor_rect.bottom {
-              -1
-            } else {
-              0
-            },
-          );
+            // The direction to nudge the window in to get the window onto the monitor with
+            // the new DPI factor. We calculate this by seeing which monitor edges are
+            // shared and nudging away from the wrong monitor based on those.
+            let delta_nudge_to_dpi_monitor = (
+              if wrong_monitor_rect.left == new_monitor_rect.right {
+                -1
+              } else if wrong_monitor_rect.right == new_monitor_rect.left {
+                1
+              } else {
+                0
+              },
+              if wrong_monitor_rect.bottom == new_monitor_rect.top {
+                1
+              } else if wrong_monitor_rect.top == new_monitor_rect.bottom {
+                -1
+              } else {
+                0
+              },
+            );
 
-          let abort_after_iterations = new_monitor_rect.right - new_monitor_rect.left
-            + new_monitor_rect.bottom
-            - new_monitor_rect.top;
-          for _ in 0..abort_after_iterations {
-            conservative_rect.left += delta_nudge_to_dpi_monitor.0;
-            conservative_rect.right += delta_nudge_to_dpi_monitor.0;
-            conservative_rect.top += delta_nudge_to_dpi_monitor.1;
-            conservative_rect.bottom += delta_nudge_to_dpi_monitor.1;
+            let abort_after_iterations = new_monitor_rect.right - new_monitor_rect.left
+              + new_monitor_rect.bottom
+              - new_monitor_rect.top;
+            for _ in 0..abort_after_iterations {
+              conservative_rect.left += delta_nudge_to_dpi_monitor.0;
+              conservative_rect.right += delta_nudge_to_dpi_monitor.0;
+              conservative_rect.top += delta_nudge_to_dpi_monitor.1;
+              conservative_rect.bottom += delta_nudge_to_dpi_monitor.1;
 
-            if MonitorFromRect(&mut conservative_rect, MONITOR_DEFAULTTONULL) == new_dpi_monitor {
-              break;
+              if MonitorFromRect(&mut conservative_rect, MONITOR_DEFAULTTONULL) == new_dpi_monitor {
+                break;
+              }
             }
           }
 
@@ -2124,7 +2122,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
 }
 
 unsafe fn handle_raw_input<T: 'static>(
-  subclass_input: &Box<ThreadMsgTargetSubclassInput<T>>,
+  subclass_input: &ThreadMsgTargetSubclassInput<T>,
   data: RAWINPUT,
 ) {
   use crate::event::{

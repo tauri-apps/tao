@@ -225,7 +225,7 @@ impl Menu {
         self.hmenu,
         flags,
         submenu.hmenu().0 as usize,
-        PWSTR(to_wstring(&title).as_mut_ptr()),
+        PWSTR(to_wstring(title).as_mut_ptr()),
       );
     }
   }
@@ -339,7 +339,7 @@ pub fn initialize(
 ) -> Option<HMENU> {
   if let RawWindowHandle::Windows(handle) = window_handle {
     let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
-    let menu = menu_builder.clone().hmenu();
+    let menu = menu_builder.hmenu();
 
     unsafe {
       SetWindowSubclass(

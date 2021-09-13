@@ -210,11 +210,10 @@ impl Layout {
       if let Some(key) = self.numlock_on_keys.get(&vkey) {
         return key.clone();
       }
-    } else {
-      if let Some(key) = self.numlock_off_keys.get(&vkey) {
-        return key.clone();
-      }
+    } else if let Some(key) = self.numlock_off_keys.get(&vkey) {
+      return key.clone();
     }
+
     if let Some(keys) = self.keys.get(&mods) {
       if let Some(key) = keys.get(&keycode) {
         return key.clone();

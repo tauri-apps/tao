@@ -851,8 +851,8 @@ unsafe fn init<T: 'static>(
       CW_USEDEFAULT,
       CW_USEDEFAULT,
       CW_USEDEFAULT,
-      parent.unwrap_or(HWND::default()),
-      pl_attribs.menu.unwrap_or(HMENU::default()),
+      parent.unwrap_or_default(),
+      pl_attribs.menu.unwrap_or_default(),
       GetModuleHandleW(PWSTR::default()),
       Box::into_raw(Box::new(!attributes.decorations)) as _,
     );
@@ -968,11 +968,11 @@ unsafe fn register_window_class(
   let h_icon = taskbar_icon
     .as_ref()
     .map(|icon| icon.inner.as_raw_handle())
-    .unwrap_or(HICON::default());
+    .unwrap_or_default();
   let h_icon_small = window_icon
     .as_ref()
     .map(|icon| icon.inner.as_raw_handle())
-    .unwrap_or(HICON::default());
+    .unwrap_or_default();
 
   let class = WNDCLASSEXW {
     cbSize: mem::size_of::<WNDCLASSEXW>() as u32,
@@ -1009,7 +1009,7 @@ unsafe extern "system" fn window_proc(
   match msg {
     _ if msg == WM_NCCALCSIZE => {
       // Check if userdata is set and if the value of it is true (window wants to be borderless)
-      if userdata != 0 && *(userdata as *mut bool) == true {
+      if userdata != 0 && *(userdata as *const bool) {
         // adjust the maximized borderless window so it doesn't cover the taskbar
         if util::is_maximized(window) {
           let monitor = monitor::current_monitor(window);

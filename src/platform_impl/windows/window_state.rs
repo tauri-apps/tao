@@ -208,7 +208,7 @@ impl WindowFlags {
       style |= WS_VISIBLE;
     }
     if self.contains(WindowFlags::ON_TASKBAR) {
-      style_ex = style_ex | WS_EX_APPWINDOW;
+      style_ex |= WS_EX_APPWINDOW;
     }
     if self.contains(WindowFlags::ALWAYS_ON_TOP) {
       style_ex |= WS_EX_TOPMOST;

@@ -15,7 +15,7 @@ use crate::{
   system_tray::SystemTray as RootSystemTray,
 };
 use webview2_com_sys::Windows::Win32::{
-  Foundation::{HWND, LPARAM, LRESULT, POINT, PSTR, PWSTR, RECT, WPARAM},
+  Foundation::{HWND, LPARAM, LRESULT, POINT, PSTR, PWSTR, WPARAM},
   System::LibraryLoader::*,
   UI::{Shell::*, WindowsAndMessaging::*},
 };
@@ -243,7 +243,7 @@ unsafe extern "system" fn tray_subclass_proc(
       uID: TRAYICON_UID,
       ..std::mem::zeroed()
     };
-    let icon_rect = Shell_NotifyIconGetRect(&nid).unwrap_or(RECT::default());
+    let icon_rect = Shell_NotifyIconGetRect(&nid).unwrap_or_default();
 
     let dpi = hwnd_dpi(hwnd);
     let scale_factor = dpi_to_scale_factor(dpi);

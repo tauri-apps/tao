@@ -205,8 +205,10 @@ pub fn is_visible(window: HWND) -> bool {
 }
 
 pub fn is_maximized(window: HWND) -> bool {
-  let mut placement = WINDOWPLACEMENT::default();
-  placement.length = mem::size_of::<WINDOWPLACEMENT>() as u32;
+  let mut placement = WINDOWPLACEMENT {
+    length: mem::size_of::<WINDOWPLACEMENT>() as u32,
+    ..WINDOWPLACEMENT::default()
+  };
   unsafe {
     GetWindowPlacement(window, &mut placement);
   }

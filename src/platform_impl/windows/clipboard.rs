@@ -54,8 +54,8 @@ impl Clipboard {
       EmptyClipboard();
 
       for format in formats {
-        let handle = make_handle(&format);
-        let format_id = match get_format_id(&format.identifier) {
+        let handle = make_handle(format);
+        let format_id = match get_format_id(format.identifier) {
           Some(id) => id,
           None => {
             println!("failed to register clipboard format {}", &format.identifier);
