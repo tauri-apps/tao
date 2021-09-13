@@ -1563,18 +1563,20 @@ unsafe fn public_window_callback_inner<T: 'static>(
             t if t == PT_TOUCH => {
               let mut touch_info = mem::MaybeUninit::uninit();
               GET_POINTER_TOUCH_INFO.and_then(|GetPointerTouchInfo| {
-                match GetPointerTouchInfo(pointer_info.pointerId, touch_info.as_mut_ptr()) {
-                  BOOL(0) => None,
-                  _ => normalize_pointer_pressure(touch_info.assume_init().pressure),
+                if GetPointerTouchInfo(pointer_info.pointerId, touch_info.as_mut_ptr()).as_bool() {
+                  normalize_pointer_pressure(touch_info.assume_init().pressure)
+                } else {
+                  None
                 }
               })
             }
             t if t == PT_PEN => {
               let mut pen_info = mem::MaybeUninit::uninit();
               GET_POINTER_PEN_INFO.and_then(|GetPointerPenInfo| {
-                match GetPointerPenInfo(pointer_info.pointerId, pen_info.as_mut_ptr()) {
-                  BOOL(0) => None,
-                  _ => normalize_pointer_pressure(pen_info.assume_init().pressure),
+                if GetPointerPenInfo(pointer_info.pointerId, pen_info.as_mut_ptr()).as_bool() {
+                  normalize_pointer_pressure(pen_info.assume_init().pressure)
+                } else {
+                  None
                 }
               })
             }
