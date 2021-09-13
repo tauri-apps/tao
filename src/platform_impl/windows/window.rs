@@ -307,7 +307,7 @@ impl Window {
 
   #[inline]
   pub fn hinstance(&self) -> HINSTANCE {
-    unsafe { HINSTANCE(GetWindowLongPtrW(self.hwnd(), GWLP_HINSTANCE) as _) }
+    HINSTANCE(util::get_window_long_ptr(self.hwnd(), GWLP_HINSTANCE) as _)
   }
 
   #[inline]
@@ -1004,7 +1004,7 @@ unsafe extern "system" fn window_proc(
   wparam: WPARAM,
   lparam: LPARAM,
 ) -> LRESULT {
-  let mut userdata = GetWindowLongPtrW(window, GWL_USERDATA);
+  let mut userdata = util::get_window_long_ptr(window, GWL_USERDATA);
 
   match msg {
     _ if msg == WM_NCCALCSIZE => {
@@ -1028,7 +1028,7 @@ unsafe extern "system" fn window_proc(
       if userdata == 0 {
         let createstruct = &*(lparam.0 as *const CREATESTRUCTW);
         userdata = createstruct.lpCreateParams as isize;
-        SetWindowLongPtrW(window, GWL_USERDATA, userdata);
+        util::set_window_long_ptr(window, GWL_USERDATA, userdata);
       }
       DefWindowProcW(window, msg, wparam, lparam)
     }

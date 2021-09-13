@@ -229,6 +229,26 @@ pub fn set_maximized(window: HWND, maximized: bool) {
   }
 }
 
+#[cfg(target_pointer_width = "32")]
+pub fn set_window_long_ptr(window: HWND, index: WINDOW_LONG_PTR_INDEX, value: isize) -> isize {
+  unsafe { SetWindowLongA(window, index, value as _) as _ }
+}
+
+#[cfg(target_pointer_width = "64")]
+pub fn set_window_long_ptr(window: HWND, index: WINDOW_LONG_PTR_INDEX, value: isize) -> isize {
+  unsafe { SetWindowLongPtrA(window, index, value) }
+}
+
+#[cfg(target_pointer_width = "32")]
+pub fn get_window_long_ptr(window: HWND, index: WINDOW_LONG_PTR_INDEX) -> isize {
+  unsafe { GetWindowLongA(window, index) as _ }
+}
+
+#[cfg(target_pointer_width = "64")]
+pub fn get_window_long_ptr(window: HWND, index: WINDOW_LONG_PTR_INDEX) -> isize {
+  unsafe { GetWindowLongPtrA(window, index) }
+}
+
 pub fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<HICON> {
   unsafe {
     match LookupIconIdFromDirectoryEx(buffer.as_ptr() as _, true, width, height, LR_DEFAULTCOLOR)

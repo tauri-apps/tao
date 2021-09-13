@@ -621,8 +621,8 @@ unsafe extern "system" fn call_default_window_proc(
 }
 
 fn create_event_target_window() -> HWND {
-  unsafe {
-    let window = CreateWindowExW(
+  let window = unsafe {
+    CreateWindowExW(
       WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_LAYERED,
       PWSTR(THREAD_EVENT_TARGET_WINDOW_CLASS.clone().as_mut_ptr()),
       PWSTR::default(),
@@ -635,17 +635,17 @@ fn create_event_target_window() -> HWND {
       HMENU::default(),
       GetModuleHandleW(PWSTR::default()),
       ptr::null_mut(),
-    );
-    SetWindowLongPtrW(
-      window,
-      GWL_STYLE,
-      // The window technically has to be visible to receive WM_PAINT messages (which are used
-      // for delivering events during resizes), but it isn't displayed to the user because of
-      // the LAYERED style.
-      (WS_VISIBLE | WS_POPUP).0 as isize,
-    );
-    window
-  }
+    )
+  };
+  util::set_window_long_ptr(
+    window,
+    GWL_STYLE,
+    // The window technically has to be visible to receive WM_PAINT messages (which are used
+    // for delivering events during resizes), but it isn't displayed to the user because of
+    // the LAYERED style.
+    (WS_VISIBLE | WS_POPUP).0 as isize,
+  );
+  window
 }
 
 fn subclass_event_target_window<T>(
@@ -854,7 +854,7 @@ unsafe extern "system" fn public_window_callback<T: 'static>(
       .set(subclass_input.recurse_depth.get() + 1);
 
     // Clear userdata
-    SetWindowLongPtrW(window, GWL_USERDATA, 0);
+    util::set_window_long_ptr(window, GWL_USERDATA, 0);
 
     let result =
       public_window_callback_inner(window, msg, wparam, lparam, uidsubclass, subclass_input);
@@ -1162,8 +1162,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
         });
       }
 
-      let x = (lparam.0 & 0xFFFF) as u16 as i16 as f64;
-      let y = ((lparam.0 & 0xFFFF_0000) >> 16) as u16 as i16 as f64;
+      let x = ((lparam.0 as usize) & 0xFFFF) as u16 as i16 as f64;
+      let y = (((lparam.0 as usize) & 0xFFFF_0000) >> 16) as u16 as i16 as f64;
       let position = PhysicalPosition::new(x, y);
       let cursor_moved;
       {
@@ -1945,8 +1945,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
         if !win_flags.contains(WindowFlags::DECORATIONS) {
           // cursor location
           let (cx, cy) = (
-            (lparam.0 & 0xFFFF) as u16 as i16 as i32,
-            ((lparam.0 & 0xFFFF_0000) >> 16) as u16 as i16 as i32,
+            ((lparam.0 as usize) & 0xFFFF) as u16 as i16 as i32,
+            (((lparam.0 as usize) & 0xFFFF_0000) >> 16) as u16 as i16 as i32,
           );
 
           result = ProcResult::Value(crate::platform_impl::hit_test(window, cx, cy).0);
