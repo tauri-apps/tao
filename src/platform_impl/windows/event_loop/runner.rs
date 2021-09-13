@@ -435,7 +435,7 @@ impl<T> BufferedEvent<T> {
           },
         });
         util::set_inner_size_physical(
-          HWND(window_id.0.0),
+          HWND(window_id.0 .0),
           new_inner_size.width as _,
           new_inner_size.height as _,
         );

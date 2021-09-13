@@ -120,7 +120,8 @@ impl FileDropHandler {
       tymed: TYMED_HGLOBAL.0 as u32,
     };
 
-    match data_obj.as_ref()
+    match data_obj
+      .as_ref()
       .expect("Received null IDataObject")
       .GetData(&mut drop_format)
     {

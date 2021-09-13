@@ -12,7 +12,7 @@ use std::{
 use crate::{dpi::PhysicalSize, window::CursorIcon};
 
 use webview2_com_sys::Windows::Win32::{
-  Foundation::{BOOL, FARPROC, HWND, PWSTR, RECT},
+  Foundation::{BOOL, FARPROC, HWND, POINT, PWSTR, RECT},
   Globalization::lstrlenW,
   Graphics::Gdi::{ClientToScreen, InvalidateRgn, HMONITOR, HRGN},
   System::{LibraryLoader::*, SystemServices::DPI_AWARENESS_CONTEXT},
@@ -67,19 +67,20 @@ pub fn get_window_rect(hwnd: HWND) -> Option<RECT> {
 }
 
 pub fn get_client_rect(hwnd: HWND) -> Result<RECT, io::Error> {
-  unsafe {
-    let mut rect = mem::zeroed();
-    let mut top_left = mem::zeroed();
+  let mut rect = RECT::default();
+  let mut top_left = POINT::default();
 
+  unsafe {
     win_to_err(|| ClientToScreen(hwnd, &mut top_left))?;
     win_to_err(|| GetClientRect(hwnd, &mut rect))?;
-    rect.left += top_left.x;
-    rect.top += top_left.y;
-    rect.right += top_left.x;
-    rect.bottom += top_left.y;
-
-    Ok(rect)
   }
+
+  rect.left += top_left.x;
+  rect.top += top_left.y;
+  rect.right += top_left.x;
+  rect.bottom += top_left.y;
+
+  Ok(rect)
 }
 
 pub fn adjust_size(hwnd: HWND, size: PhysicalSize<u32>) -> PhysicalSize<u32> {
@@ -204,12 +205,12 @@ pub fn is_visible(window: HWND) -> bool {
 }
 
 pub fn is_maximized(window: HWND) -> bool {
+  let mut placement = WINDOWPLACEMENT::default();
+  placement.length = mem::size_of::<WINDOWPLACEMENT>() as u32;
   unsafe {
-    let mut placement: WINDOWPLACEMENT = mem::zeroed();
-    placement.length = mem::size_of::<WINDOWPLACEMENT>() as u32;
     GetWindowPlacement(window, &mut placement);
-    placement.showCmd == SW_MAXIMIZE
   }
+  placement.showCmd == SW_MAXIMIZE
 }
 
 pub fn set_maximized(window: HWND, maximized: bool) {

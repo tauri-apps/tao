@@ -18,8 +18,8 @@ use std::{
 use crossbeam_channel as channel;
 use webview2_com_sys::Windows::Win32::{
   Foundation::{
-    HINSTANCE, HWND, LPARAM, LRESULT, OLE_E_WRONGCOMPOBJ, POINT, POINTS, PWSTR, RECT,
-    RPC_E_CHANGED_MODE, WPARAM,
+    HINSTANCE, HWND, LPARAM, LRESULT, OLE_E_WRONGCOMPOBJ, POINT, PWSTR, RECT, RPC_E_CHANGED_MODE,
+    WPARAM,
   },
   Globalization::*,
   Graphics::{
@@ -204,7 +204,7 @@ impl Window {
 
   #[inline]
   pub fn inner_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
-    let mut position: POINT = unsafe { mem::zeroed() };
+    let mut position = POINT::default();
     if !unsafe { ClientToScreen(self.window.0, &mut position) }.as_bool() {
       panic!("Unexpected ClientToScreen failure")
     }
@@ -236,7 +236,7 @@ impl Window {
 
   #[inline]
   pub fn inner_size(&self) -> PhysicalSize<u32> {
-    let mut rect: RECT = unsafe { mem::zeroed() };
+    let mut rect = RECT::default();
     if !unsafe { GetClientRect(self.window.0, &mut rect) }.as_bool() {
       panic!("Unexpected GetClientRect failure")
     }
@@ -391,22 +391,15 @@ impl Window {
 
   #[inline]
   pub fn drag_window(&self) -> Result<(), ExternalError> {
+    let mut pos = POINT::default();
     unsafe {
-      let points = {
-        let mut pos = mem::zeroed();
-        GetCursorPos(&mut pos);
-        pos
-      };
-      let points = POINTS {
-        x: points.x as i16,
-        y: points.y as i16,
-      };
+      GetCursorPos(&mut pos);
       ReleaseCapture();
       PostMessageW(
         self.window.0,
         WM_NCLBUTTONDOWN,
         WPARAM(HTCAPTION as _),
-        LPARAM(&points as *const _ as _),
+        LPARAM(((pos.x as i16 as u16 as u32) | ((pos.y as i16 as u16 as u32) << 16)) as _),
       );
     }
 
@@ -562,7 +555,7 @@ impl Window {
         Some(fullscreen) => {
           // Save window bounds before entering fullscreen
           let placement = unsafe {
-            let mut placement = mem::zeroed();
+            let mut placement = WINDOWPLACEMENT::default();
             GetWindowPlacement(window.0, &mut placement);
             placement
           };
@@ -671,7 +664,7 @@ impl Window {
       let mut composition_form = COMPOSITIONFORM {
         dwStyle: CFS_POINT,
         ptCurrentPos: POINT { x, y },
-        rcArea: unsafe { mem::zeroed() },
+        rcArea: RECT::default(),
       };
       unsafe {
         let himc = ImmGetContext(self.window.0);
@@ -1133,8 +1126,8 @@ unsafe fn force_window_active(handle: HWND) {
 }
 
 pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
+  let mut window_rect = RECT::default();
   unsafe {
-    let mut window_rect: RECT = mem::zeroed();
     if GetWindowRect(hwnd, <*mut _>::cast(&mut window_rect)).as_bool() {
       const CLIENT: i32 = 0b0000;
       const LEFT: i32 = 0b0001;

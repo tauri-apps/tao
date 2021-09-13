@@ -319,7 +319,7 @@ fn main_thread_id() -> u32 {
 
 fn get_wait_thread_id() -> u32 {
   unsafe {
-    let mut msg = mem::zeroed();
+    let mut msg = MSG::default();
     let result = GetMessageW(
       &mut msg,
       HWND::default(),
@@ -352,7 +352,7 @@ fn wait_thread(parent_thread_id: u32, msg_window_id: HWND) {
       // Zeroing out the message ensures that the `WaitUntilInstantBox` doesn't get
       // double-freed if `MsgWaitForMultipleObjectsEx` returns early and there aren't
       // additional messages to process.
-      msg = mem::zeroed();
+      msg = MSG::default();
 
       if wait_until_opt.is_some() {
         if PeekMessageW(&mut msg, HWND::default(), 0, 0, PM_REMOVE).as_bool() {
@@ -756,7 +756,7 @@ unsafe fn flush_paint_messages<T: 'static>(
 ) -> bool {
   if !runner.redrawing() {
     runner.main_events_cleared();
-    let mut msg = mem::zeroed();
+    let mut msg = MSG::default();
     runner.owned_windows(|redraw_window| {
       if Some(redraw_window) == except {
         return;
@@ -1742,9 +1742,9 @@ unsafe fn public_window_callback_inner<T: 'static>(
       }
 
       let old_physical_inner_rect = {
-        let mut old_physical_inner_rect = mem::zeroed();
+        let mut old_physical_inner_rect = RECT::default();
         GetClientRect(window, &mut old_physical_inner_rect);
-        let mut origin = mem::zeroed();
+        let mut origin = POINT::default();
         ClientToScreen(window, &mut origin);
 
         old_physical_inner_rect.left += origin.x;
@@ -1814,7 +1814,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         if dragging_window {
           let bias = {
             let cursor_pos = {
-              let mut pos = mem::zeroed();
+              let mut pos = POINT::default();
               GetCursorPos(&mut pos);
               pos
             };
@@ -1841,7 +1841,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           let get_monitor_rect = |monitor| {
             let mut monitor_info = MONITORINFO {
               cbSize: mem::size_of::<MONITORINFO>() as _,
-              ..mem::zeroed()
+              ..MONITORINFO::default()
             };
             GetMonitorInfoW(monitor, &mut monitor_info);
             monitor_info.rcMonitor
@@ -2085,7 +2085,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       // if the control_flow is WaitUntil, make sure the given moment has actually passed
       // before emitting NewEvents
       if let ControlFlow::WaitUntil(wait_until) = subclass_input.event_loop_runner.control_flow() {
-        let mut msg = mem::zeroed();
+        let mut msg = MSG::default();
         while Instant::now() < wait_until {
           if PeekMessageW(&mut msg, HWND::default(), 0, 0, PM_NOREMOVE).as_bool() {
             // This works around a "feature" in PeekMessageW. If the message PeekMessageW
@@ -2095,7 +2095,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
             // queue. We fix it by re-dispatching an internal paint message to that
             // window.
             if msg.message == WM_PAINT {
-              let mut rect = mem::zeroed();
+              let mut rect = RECT::default();
               if !GetUpdateRect(msg.hwnd, &mut rect, false).as_bool() {
                 RedrawWindow(msg.hwnd, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
               }
