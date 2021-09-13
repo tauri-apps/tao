@@ -24,7 +24,7 @@ use crate::{
   keyboard::ModifiersState,
   menu::{MenuItem, MenuType},
   monitor::MonitorHandle as RootMonitorHandle,
-  platform_impl::platform::window::hit_test,
+  platform_impl::platform::{window::hit_test, DEVICE_ID},
   window::{CursorIcon, WindowId as RootWindowId},
 };
 
@@ -258,7 +258,10 @@ impl<T: 'static> EventLoop<T> {
             WindowRequest::UserAttention(request_type) => {
               window.set_urgency_hint(request_type.is_some())
             }
-            WindowRequest::SetSkipTaskbar(skip) => window.set_skip_taskbar_hint(skip),
+            WindowRequest::SetSkipTaskbar(skip) => {
+              window.set_skip_taskbar_hint(skip);
+              window.set_skip_pager_hint(skip)
+            }
             WindowRequest::CursorIcon(cursor) => {
               if let Some(gdk_window) = window.window() {
                 let display = window.display();
@@ -314,14 +317,18 @@ impl<T: 'static> EventLoop<T> {
               };
             }
             WindowRequest::WireUpEvents => {
-              // resizing `decorations: false` aka borderless
-              window.add_events(EventMask::POINTER_MOTION_MASK | EventMask::BUTTON_MOTION_MASK);
+              // Resizing `decorations: false` aka borderless
+              window.add_events(
+                EventMask::POINTER_MOTION_MASK
+                  | EventMask::BUTTON1_MOTION_MASK
+                  | EventMask::BUTTON_PRESS_MASK
+                  | EventMask::TOUCH_MASK,
+              );
               window.connect_motion_notify_event(|window, event| {
-                if window.is_decorated() && window.is_resizable() {
+                if !window.is_decorated() && window.is_resizable() {
                   if let Some(window) = window.window() {
                     let (cx, cy) = event.root();
                     let edge = hit_test(&window, cx, cy);
-                    // FIXME: calling `window.begin_resize_drag` seems to revert the cursor back to normal style
                     window.set_cursor(
                       Cursor::from_name(
                         &window.display(),
@@ -344,17 +351,44 @@ impl<T: 'static> EventLoop<T> {
                 Inhibit(false)
               });
               window.connect_button_press_event(|window, event| {
-                if window.is_decorated() && window.is_resizable() {
+                if !window.is_decorated() && window.is_resizable() {
                   if event.button() == 1 {
                     if let Some(window) = window.window() {
                       let (cx, cy) = event.root();
                       let result = hit_test(&window, cx, cy);
 
-                      // we ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
+                      // Ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
                       match result {
                         WindowEdge::__Unknown(_) => (),
                         _ => {
+                          // FIXME: calling `window.begin_resize_drag` uses the default cursor, it should show a resizing cursor instead
                           window.begin_resize_drag(result, 1, cx as i32, cy as i32, event.time())
+                        }
+                      }
+                    }
+                  }
+                }
+
+                Inhibit(false)
+              });
+              window.connect_touch_event(|window, event| {
+                if !window.is_decorated() && window.is_resizable() {
+                  if let Some(window) = window.window() {
+                    if let Some((cx, cy)) = event.root_coords() {
+                      if let Some(device) = event.device() {
+                        let result = hit_test(&window, cx, cy);
+
+                        // Ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
+                        match result {
+                          WindowEdge::__Unknown(_) => (),
+                          _ => window.begin_resize_drag_for_device(
+                            result,
+                            &device,
+                            0,
+                            cx as i32,
+                            cy as i32,
+                            event.time(),
+                          ),
                         }
                       }
                     }
@@ -433,8 +467,7 @@ impl<T: 'static> EventLoop<T> {
                 if let Err(e) = tx_clone.send(Event::WindowEvent {
                   window_id: RootWindowId(id),
                   event: WindowEvent::CursorEntered {
-                    // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                    device_id: RootDeviceId(DeviceId(0)),
+                    device_id: DEVICE_ID,
                   },
                 }) {
                   log::warn!(
@@ -457,8 +490,7 @@ impl<T: 'static> EventLoop<T> {
                     window_id: RootWindowId(id),
                     event: WindowEvent::CursorMoved {
                       position: PhysicalPosition::new(x as f64, y as f64),
-                      // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                      device_id: RootDeviceId(DeviceId(0)),
+                      device_id: DEVICE_ID,
                       // this field is depracted so it is fine to pass empty state
                       modifiers: ModifiersState::empty(),
                     },
@@ -474,8 +506,7 @@ impl<T: 'static> EventLoop<T> {
                 if let Err(e) = tx_clone.send(Event::WindowEvent {
                   window_id: RootWindowId(id),
                   event: WindowEvent::CursorLeft {
-                    // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                    device_id: RootDeviceId(DeviceId(0)),
+                    device_id: DEVICE_ID,
                   },
                 }) {
                   log::warn!("Failed to send cursor left event to event channel: {}", e);
@@ -496,8 +527,7 @@ impl<T: 'static> EventLoop<T> {
                       _ => MouseButton::Other(button as u16),
                     },
                     state: ElementState::Pressed,
-                    // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                    device_id: RootDeviceId(DeviceId(0)),
+                    device_id: DEVICE_ID,
                     // this field is depracted so it is fine to pass empty state
                     modifiers: ModifiersState::empty(),
                   },
@@ -523,8 +553,7 @@ impl<T: 'static> EventLoop<T> {
                       _ => MouseButton::Other(button as u16),
                     },
                     state: ElementState::Released,
-                    // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                    device_id: RootDeviceId(DeviceId(0)),
+                    device_id: DEVICE_ID,
                     // this field is depracted so it is fine to pass empty state
                     modifiers: ModifiersState::empty(),
                   },
@@ -569,8 +598,7 @@ impl<T: 'static> EventLoop<T> {
                   if let Err(e) = tx_clone.send(Event::WindowEvent {
                     window_id: RootWindowId(id),
                     event: WindowEvent::KeyboardInput {
-                      // FIXME: currently we use a dummy device id, find if we can get device id from gtk
-                      device_id: RootDeviceId(DeviceId(0)),
+                      device_id: DEVICE_ID,
                       event,
                       is_synthetic: false,
                     },

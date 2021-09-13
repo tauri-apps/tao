@@ -111,7 +111,7 @@ pub trait WindowExtWindows {
   fn reset_dead_keys(&self);
 
   /// Starts the resizing drag from given edge
-  fn begin_resize_drag(&self, edge: isize);
+  fn begin_resize_drag(&self, edge: isize, button: u32, x: i32, y: i32);
 
   /// Whether to show the window icon in the taskbar or not.
   fn set_skip_taskbar(&self, skip: bool);
@@ -151,7 +151,7 @@ impl WindowExtWindows for Window {
   }
 
   #[inline]
-  fn begin_resize_drag(&self, edge: isize) {
+  fn begin_resize_drag(&self, edge: isize, button: u32, x: i32, y: i32) {
     unsafe {
       let w_param = WPARAM(edge as usize);
 
@@ -160,19 +160,18 @@ impl WindowExtWindows for Window {
         GetCursorPos(&mut pos);
         pos
       };
-
       let low_word = point.x as u32 & 0xFFFF;
       let high_word = (point.y as u32 & 0xFFFF) << 16;
       let l_param = LPARAM((low_word | high_word) as isize);
 
       ReleaseCapture();
-      PostMessageW(self.hwnd(), WM_NCLBUTTONDOWN, w_param, l_param);
+      PostMessageW(self.hwnd(), button, w_param, l_param);
     }
   }
 
   #[inline]
   fn set_skip_taskbar(&self, skip: bool) {
-    self.window.set_skip_taskbar(skip, true);
+    self.window.set_skip_taskbar(skip);
   }
 }
 
