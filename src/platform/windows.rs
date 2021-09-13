@@ -15,7 +15,7 @@ use crate::{
   window::{BadIcon, Icon, Theme, Window, WindowBuilder},
 };
 use webview2_com_sys::Windows::Win32::{
-  Foundation::{HINSTANCE, HWND, LPARAM, POINT, WPARAM},
+  Foundation::{HINSTANCE, HWND, LPARAM, WPARAM},
   Graphics::Gdi::HMONITOR,
   UI::{KeyboardAndMouseInput::*, WindowsAndMessaging::*},
 };
@@ -155,13 +155,8 @@ impl WindowExtWindows for Window {
     unsafe {
       let w_param = WPARAM(edge as usize);
 
-      let point = {
-        let mut pos = POINT::default();
-        GetCursorPos(&mut pos);
-        pos
-      };
-      let low_word = point.x as u32 & 0xFFFF;
-      let high_word = (point.y as u32 & 0xFFFF) << 16;
+      let low_word = x as u32 & 0xFFFF;
+      let high_word = (y as u32 & 0xFFFF) << 16;
       let l_param = LPARAM((low_word | high_word) as isize);
 
       ReleaseCapture();
