@@ -40,17 +40,9 @@ pub struct KeyEventExtra {
   pub key_without_modifiers: Key<'static>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct PlatformSpecificWindowBuilderAttributes {
   pub skip_taskbar: bool,
-}
-
-impl Default for PlatformSpecificWindowBuilderAttributes {
-  fn default() -> Self {
-    Self {
-      skip_taskbar: false,
-    }
-  }
 }
 
 unsafe impl Send for PlatformSpecificWindowBuilderAttributes {}

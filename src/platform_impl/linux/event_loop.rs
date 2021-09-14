@@ -19,7 +19,7 @@ use gtk::{prelude::*, AboutDialog, ApplicationWindow, Inhibit};
 use crate::{
   accelerator::AcceleratorId,
   dpi::{PhysicalPosition, PhysicalSize},
-  event::{DeviceId as RootDeviceId, ElementState, Event, MouseButton, StartCause, WindowEvent},
+  event::{ElementState, Event, MouseButton, StartCause, WindowEvent},
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
   keyboard::ModifiersState,
   menu::{MenuItem, MenuType},
@@ -32,7 +32,6 @@ use super::{
   keyboard,
   monitor::MonitorHandle,
   window::{WindowId, WindowRequest},
-  DeviceId,
 };
 
 pub struct EventLoopWindowTarget<T> {
@@ -55,7 +54,7 @@ impl<T> EventLoopWindowTarget<T> {
     let numbers = display.n_monitors();
 
     for i in 0..numbers {
-      let monitor = MonitorHandle::new(&display, i);
+      let monitor = MonitorHandle::new(display, i);
       handles.push_back(monitor);
     }
 
@@ -351,19 +350,17 @@ impl<T: 'static> EventLoop<T> {
                 Inhibit(false)
               });
               window.connect_button_press_event(|window, event| {
-                if !window.is_decorated() && window.is_resizable() {
-                  if event.button() == 1 {
-                    if let Some(window) = window.window() {
-                      let (cx, cy) = event.root();
-                      let result = hit_test(&window, cx, cy);
+                if !window.is_decorated() && window.is_resizable() && event.button() == 1 {
+                  if let Some(window) = window.window() {
+                    let (cx, cy) = event.root();
+                    let result = hit_test(&window, cx, cy);
 
-                      // Ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
-                      match result {
-                        WindowEdge::__Unknown(_) => (),
-                        _ => {
-                          // FIXME: calling `window.begin_resize_drag` uses the default cursor, it should show a resizing cursor instead
-                          window.begin_resize_drag(result, 1, cx as i32, cy as i32, event.time())
-                        }
+                    // Ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
+                    match result {
+                      WindowEdge::__Unknown(_) => (),
+                      _ => {
+                        // FIXME: calling `window.begin_resize_drag` uses the default cursor, it should show a resizing cursor instead
+                        window.begin_resize_drag(result, 1, cx as i32, cy as i32, event.time())
                       }
                     }
                   }

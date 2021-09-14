@@ -57,6 +57,7 @@ unsafe impl Send for Menu {}
 unsafe impl Sync for Menu {}
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct MenuItemAttributes {
   id: MenuId,
   key: Option<Accelerator>,
@@ -113,7 +114,7 @@ impl Menu {
     menu_type: MenuType,
   ) -> CustomMenuItem {
     let gtk_item = if selected {
-      let item = CheckMenuItem::with_label(&title);
+      let item = CheckMenuItem::with_label(title);
       item.set_active(true);
       item.upcast::<GtkMenuItem>()
     } else {

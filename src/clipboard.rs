@@ -54,6 +54,7 @@ pub(crate) type FormatId = &'static str;
 
 /// Object that allows you to access the `ClipboardFormat`.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub(crate) struct ClipboardFormat {
   pub(crate) identifier: FormatId,
   pub(crate) data: Vec<u8>,
