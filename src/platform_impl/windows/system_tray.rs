@@ -17,7 +17,10 @@ use crate::{
 use webview2_com_sys::Windows::Win32::{
   Foundation::{HWND, LPARAM, LRESULT, POINT, PSTR, PWSTR, WPARAM},
   System::LibraryLoader::*,
-  UI::{Shell::*, WindowsAndMessaging::*},
+  UI::{
+    Shell::*,
+    WindowsAndMessaging::{self as win32wm, *},
+  },
 };
 
 const WM_USER_TRAYICON: u32 = 6001;
@@ -262,7 +265,7 @@ unsafe extern "system" fn tray_subclass_proc(
     };
 
     match lparam.0 as u32 {
-      lp if lp == WM_LBUTTONUP => {
+      win32wm::WM_LBUTTONUP => {
         (subclass_input.sender)(Event::TrayEvent {
           event: TrayEvent::LeftClick,
           position,
@@ -270,7 +273,7 @@ unsafe extern "system" fn tray_subclass_proc(
         });
       }
 
-      lp if lp == WM_RBUTTONUP => {
+      win32wm::WM_RBUTTONUP => {
         (subclass_input.sender)(Event::TrayEvent {
           event: TrayEvent::RightClick,
           position,
@@ -282,7 +285,7 @@ unsafe extern "system" fn tray_subclass_proc(
         }
       }
 
-      lp if lp == WM_LBUTTONDBLCLK => {
+      win32wm::WM_LBUTTONDBLCLK => {
         (subclass_input.sender)(Event::TrayEvent {
           event: TrayEvent::DoubleClick,
           position,

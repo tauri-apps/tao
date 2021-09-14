@@ -6,7 +6,11 @@ use std::{collections::HashMap, fmt, sync::Mutex};
 
 use webview2_com_sys::Windows::Win32::{
   Foundation::{HWND, LPARAM, LRESULT, PSTR, PWSTR, WPARAM},
-  UI::{KeyboardAndMouseInput::*, Shell::*, WindowsAndMessaging::*},
+  UI::{
+    KeyboardAndMouseInput::*,
+    Shell::*,
+    WindowsAndMessaging::{self as win32wm, *},
+  },
 };
 
 use crate::{
@@ -377,33 +381,33 @@ pub(crate) unsafe extern "system" fn subclass_proc(
   }
 
   match msg {
-    _ if msg == WM_COMMAND => {
+    win32wm::WM_COMMAND => {
       match wparam.0 {
-        wp if wp == CUT_ID => {
+        CUT_ID => {
           execute_edit_command(EditCommand::Cut);
         }
-        wp if wp == COPY_ID => {
+        COPY_ID => {
           execute_edit_command(EditCommand::Copy);
         }
-        wp if wp == PASTE_ID => {
+        PASTE_ID => {
           execute_edit_command(EditCommand::Paste);
         }
-        wp if wp == SELECT_ALL_ID => {
+        SELECT_ALL_ID => {
           execute_edit_command(EditCommand::SelectAll);
         }
-        wp if wp == HIDE_ID => {
+        HIDE_ID => {
           ShowWindow(hwnd, SW_HIDE);
         }
-        wp if wp == CLOSE_ID => {
+        CLOSE_ID => {
           subclass_input.send_event(Event::WindowEvent {
             window_id: RootWindowId(WindowId(hwnd.0)),
             event: WindowEvent::CloseRequested,
           });
         }
-        wp if wp == QUIT_ID => {
+        QUIT_ID => {
           subclass_input.send_event(Event::LoopDestroyed);
         }
-        wp if wp == MINIMIZE_ID => {
+        MINIMIZE_ID => {
           ShowWindow(hwnd, SW_MINIMIZE);
         }
         _ => {

@@ -105,7 +105,7 @@ impl FileDropHandler {
     F: Fn(PathBuf),
   {
     use Windows::Win32::{
-      Foundation::DV_E_FORMATETC,
+      Foundation as win32f,
       System::{
         Com::{DVASPECT_CONTENT, FORMATETC, TYMED_HGLOBAL},
         SystemServices::CF_HDROP,
@@ -153,7 +153,7 @@ impl FileDropHandler {
         debug!(
           "{}",
           match error.code() {
-            c if c == DV_E_FORMATETC => {
+            win32f::DV_E_FORMATETC => {
               // If the dropped item is not a file this error will occur.
               // In this case it is OK to return without taking further action.
               "Error occured while processing dropped/hovered item: item is not a file."

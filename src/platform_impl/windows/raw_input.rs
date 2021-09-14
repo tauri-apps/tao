@@ -9,7 +9,7 @@ use std::{
 use webview2_com_sys::Windows::Win32::{
   Devices::HumanInterfaceDevice::*,
   Foundation::{HANDLE, HWND},
-  UI::{KeyboardAndMouseInput::*, WindowsAndMessaging::*},
+  UI::{KeyboardAndMouseInput::{self as win32kmi, *}, WindowsAndMessaging::*},
 };
 
 use crate::{event::ElementState, platform_impl::platform::util};
@@ -53,9 +53,9 @@ impl From<RID_DEVICE_INFO> for RawDeviceInfo {
   fn from(info: RID_DEVICE_INFO) -> Self {
     unsafe {
       match info.dwType {
-        t if t == RIM_TYPEMOUSE => RawDeviceInfo::Mouse(info.Anonymous.mouse),
-        t if t == RIM_TYPEKEYBOARD => RawDeviceInfo::Keyboard(info.Anonymous.keyboard),
-        t if t == RIM_TYPEHID => RawDeviceInfo::Hid(info.Anonymous.hid),
+        win32kmi::RIM_TYPEMOUSE => RawDeviceInfo::Mouse(info.Anonymous.mouse),
+        win32kmi::RIM_TYPEKEYBOARD => RawDeviceInfo::Keyboard(info.Anonymous.keyboard),
+        win32kmi::RIM_TYPEHID => RawDeviceInfo::Hid(info.Anonymous.hid),
         _ => unreachable!(),
       }
     }

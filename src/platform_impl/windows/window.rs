@@ -17,17 +17,19 @@ use std::{
 
 use crossbeam_channel as channel;
 use webview2_com_sys::Windows::Win32::{
-  Foundation::{
-    HINSTANCE, HWND, LPARAM, LRESULT, OLE_E_WRONGCOMPOBJ, POINT, PWSTR, RECT, RPC_E_CHANGED_MODE,
-    WPARAM,
-  },
+  Foundation::{self as win32f, HINSTANCE, HWND, LPARAM, LRESULT, POINT, PWSTR, RECT, WPARAM},
   Globalization::*,
   Graphics::{
     Dwm::{DwmEnableBlurBehindWindow, DWM_BB_BLURREGION, DWM_BB_ENABLE, DWM_BLURBEHIND},
     Gdi::*,
   },
   System::{Com::*, Diagnostics::Debug::*, LibraryLoader::*},
-  UI::{KeyboardAndMouseInput::*, Shell::*, TouchInput::*, WindowsAndMessaging::*},
+  UI::{
+    KeyboardAndMouseInput::*,
+    Shell::*,
+    TouchInput::*,
+    WindowsAndMessaging::{self as win32wm, *},
+  },
 };
 
 use crate::{
@@ -89,13 +91,13 @@ impl Window {
           // multiple windows are created on the same thread.
           if let Err(error) = OleInitialize(ptr::null_mut()) {
             match error.code() {
-              c if c == OLE_E_WRONGCOMPOBJ => {
+              win32f::OLE_E_WRONGCOMPOBJ => {
                 panic!("OleInitialize failed! Result was: `OLE_E_WRONGCOMPOBJ`")
               }
-              c if c == RPC_E_CHANGED_MODE => panic!(
+              win32f::RPC_E_CHANGED_MODE => panic!(
                 "OleInitialize failed! Result was: `RPC_E_CHANGED_MODE`. \
-                              Make sure other crates are not using multithreaded COM library \
-                              on the same thread or disable drag and drop support."
+                Make sure other crates are not using multithreaded COM library \
+                on the same thread or disable drag and drop support."
               ),
               _ => (),
             };
@@ -997,7 +999,7 @@ unsafe extern "system" fn window_proc(
   let mut userdata = util::get_window_long_ptr(window, GWL_USERDATA);
 
   match msg {
-    _ if msg == WM_NCCALCSIZE => {
+    win32wm::WM_NCCALCSIZE => {
       // Check if userdata is set and if the value of it is true (window wants to be borderless)
       if userdata != 0 && *(userdata as *const bool) {
         // adjust the maximized borderless window so it doesn't cover the taskbar
@@ -1013,7 +1015,7 @@ unsafe extern "system" fn window_proc(
         DefWindowProcW(window, msg, wparam, lparam)
       }
     }
-    _ if msg == WM_NCCREATE => {
+    win32wm::WM_NCCREATE => {
       // Set userdata to the value of lparam. This will be cleared on event loop subclassing.
       if userdata == 0 {
         let createstruct = &*(lparam.0 as *const CREATESTRUCTW);
@@ -1143,15 +1145,15 @@ pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
         | (BOTTOM * (if cy >= (bottom - BORDERLESS_RESIZE_INSET) { 1 } else { 0 }));
 
       match result {
-        _ if result == CLIENT => LRESULT(HTCLIENT as i32),
-        _ if result == LEFT => LRESULT(HTLEFT as i32),
-        _ if result == RIGHT => LRESULT(HTRIGHT as i32),
-        _ if result == TOP => LRESULT(HTTOP as i32),
-        _ if result == BOTTOM => LRESULT(HTBOTTOM as i32),
-        _ if result == TOPLEFT => LRESULT(HTTOPLEFT as i32),
-        _ if result == TOPRIGHT => LRESULT(HTTOPRIGHT as i32),
-        _ if result == BOTTOMLEFT => LRESULT(HTBOTTOMLEFT as i32),
-        _ if result == BOTTOMRIGHT => LRESULT(HTBOTTOMRIGHT as i32),
+        CLIENT => LRESULT(HTCLIENT as i32),
+        LEFT => LRESULT(HTLEFT as i32),
+        RIGHT => LRESULT(HTRIGHT as i32),
+        TOP => LRESULT(HTTOP as i32),
+        BOTTOM => LRESULT(HTBOTTOM as i32),
+        TOPLEFT => LRESULT(HTTOPLEFT as i32),
+        TOPRIGHT => LRESULT(HTTOPRIGHT as i32),
+        BOTTOMLEFT => LRESULT(HTBOTTOMLEFT as i32),
+        BOTTOMRIGHT => LRESULT(HTBOTTOMRIGHT as i32),
         _ => LRESULT(HTNOWHERE as i32),
       }
     } else {

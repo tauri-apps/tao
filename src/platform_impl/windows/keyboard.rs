@@ -1,15 +1,15 @@
 use std::{
-  char,
-  collections::HashSet,
-  ffi::OsString,
-  mem::MaybeUninit,
-  os::{raw::c_int, windows::ffi::OsStringExt},
+  char, collections::HashSet, ffi::OsString, mem::MaybeUninit, os::windows::ffi::OsStringExt,
   sync::MutexGuard,
 };
 
 use webview2_com_sys::Windows::Win32::{
   Foundation::{HWND, LPARAM, WPARAM},
-  UI::{KeyboardAndMouseInput::*, TextServices::HKL, WindowsAndMessaging::*},
+  UI::{
+    KeyboardAndMouseInput::*,
+    TextServices::HKL,
+    WindowsAndMessaging::{self as win32wm, *},
+  },
 };
 
 use unicode_segmentation::UnicodeSegmentation;
@@ -78,7 +78,7 @@ impl KeyEventBuilder {
     result: &mut ProcResult,
   ) -> Vec<MessageAsKeyEvent> {
     match msg_kind {
-      _ if msg_kind == WM_SETFOCUS => {
+      win32wm::WM_SETFOCUS => {
         // synthesize keydown events
         let kbd_state = get_async_kbd_state();
         let key_events = self.synthesize_kbd_state(ElementState::Pressed, &kbd_state);
@@ -86,7 +86,7 @@ impl KeyEventBuilder {
           return key_events;
         }
       }
-      _ if msg_kind == WM_KILLFOCUS => {
+      win32wm::WM_KILLFOCUS => {
         // sythesize keyup events
         let kbd_state = get_kbd_state();
         let key_events = self.synthesize_kbd_state(ElementState::Released, &kbd_state);
@@ -94,7 +94,7 @@ impl KeyEventBuilder {
           return key_events;
         }
       }
-      _ if msg_kind == WM_KEYDOWN || msg_kind == WM_SYSKEYDOWN => {
+      win32wm::WM_KEYDOWN | win32wm::WM_SYSKEYDOWN => {
         if msg_kind == WM_SYSKEYDOWN && wparam.0 as u32 == VK_F4 {
           // Don't dispatch Alt+F4 to the application.
           // This is handled in `event_loop.rs`
@@ -147,7 +147,7 @@ impl KeyEventBuilder {
           }];
         }
       }
-      _ if msg_kind == WM_DEADCHAR || msg_kind == WM_SYSDEADCHAR => {
+      win32wm::WM_DEADCHAR | win32wm::WM_SYSDEADCHAR => {
         *result = ProcResult::Value(0);
         // At this point, we know that there isn't going to be any more events related to
         // this key press
@@ -159,7 +159,7 @@ impl KeyEventBuilder {
           is_synthetic: false,
         }];
       }
-      _ if msg_kind == WM_CHAR || msg_kind == WM_SYSCHAR => {
+      win32wm::WM_CHAR | win32wm::WM_SYSCHAR => {
         if self.event_info.is_none() {
           trace!("Received a CHAR message but no `event_info` was available. The message is probably IME, returning.");
           return vec![];
@@ -260,7 +260,7 @@ impl KeyEventBuilder {
           }];
         }
       }
-      _ if msg_kind == WM_KEYUP || msg_kind == WM_SYSKEYUP => {
+      win32wm::WM_KEYUP | win32wm::WM_SYSKEYUP => {
         *result = ProcResult::Value(0);
 
         let mut layouts = LAYOUT_CACHE.lock().unwrap();
@@ -754,50 +754,46 @@ fn get_location(scancode: ExScancode, hkl: HKL) -> KeyLocation {
   // This is taken from the `druid` GUI library, specifically
   // druid-shell/src/platform/windows/keyboard.rs
   match vkey {
-    _ if vkey == VK_LSHIFT || vkey == VK_LCONTROL || vkey == VK_LMENU || vkey == VK_LWIN => {
+    win32wm::VK_LSHIFT | win32wm::VK_LCONTROL | win32wm::VK_LMENU | win32wm::VK_LWIN => {
       KeyLocation::Left
     }
-    _ if vkey == VK_RSHIFT || vkey == VK_RCONTROL || vkey == VK_RMENU || vkey == VK_RWIN => {
+    win32wm::VK_RSHIFT | win32wm::VK_RCONTROL | win32wm::VK_RMENU | win32wm::VK_RWIN => {
       KeyLocation::Right
     }
-    _ if vkey == VK_RETURN && extended => KeyLocation::Numpad,
-    _ if vkey == VK_INSERT
-      || vkey == VK_DELETE
-      || vkey == VK_END
-      || vkey == VK_DOWN
-      || vkey == VK_NEXT
-      || vkey == VK_LEFT
-      || vkey == VK_CLEAR
-      || vkey == VK_RIGHT
-      || vkey == VK_HOME
-      || vkey == VK_UP
-      || vkey == VK_PRIOR =>
-    {
+    win32wm::VK_RETURN if extended => KeyLocation::Numpad,
+    win32wm::VK_INSERT
+    | win32wm::VK_DELETE
+    | win32wm::VK_END
+    | win32wm::VK_DOWN
+    | win32wm::VK_NEXT
+    | win32wm::VK_LEFT
+    | win32wm::VK_CLEAR
+    | win32wm::VK_RIGHT
+    | win32wm::VK_HOME
+    | win32wm::VK_UP
+    | win32wm::VK_PRIOR => {
       if extended {
         KeyLocation::Standard
       } else {
         KeyLocation::Numpad
       }
     }
-    _ if vkey == VK_NUMPAD0
-      || vkey == VK_NUMPAD1
-      || vkey == VK_NUMPAD2
-      || vkey == VK_NUMPAD3
-      || vkey == VK_NUMPAD4
-      || vkey == VK_NUMPAD5
-      || vkey == VK_NUMPAD6
-      || vkey == VK_NUMPAD7
-      || vkey == VK_NUMPAD8
-      || vkey == VK_NUMPAD9
-      || vkey == VK_DECIMAL
-      || vkey == VK_DIVIDE
-      || vkey == VK_MULTIPLY
-      || vkey == VK_SUBTRACT
-      || vkey == VK_ADD
-      || vkey == VK_ABNT_C2 =>
-    {
-      KeyLocation::Numpad
-    }
+    win32wm::VK_NUMPAD0
+    | win32wm::VK_NUMPAD1
+    | win32wm::VK_NUMPAD2
+    | win32wm::VK_NUMPAD3
+    | win32wm::VK_NUMPAD4
+    | win32wm::VK_NUMPAD5
+    | win32wm::VK_NUMPAD6
+    | win32wm::VK_NUMPAD7
+    | win32wm::VK_NUMPAD8
+    | win32wm::VK_NUMPAD9
+    | win32wm::VK_DECIMAL
+    | win32wm::VK_DIVIDE
+    | win32wm::VK_MULTIPLY
+    | win32wm::VK_SUBTRACT
+    | win32wm::VK_ADD
+    | VK_ABNT_C2 => KeyLocation::Numpad,
     _ => KeyLocation::Standard,
   }
 }

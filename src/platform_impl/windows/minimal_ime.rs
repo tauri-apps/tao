@@ -2,25 +2,22 @@ use std::mem::MaybeUninit;
 
 use webview2_com_sys::Windows::Win32::{
   Foundation::{HWND, LPARAM, WPARAM},
-  UI::WindowsAndMessaging::*,
+  UI::WindowsAndMessaging::{self as win32wm, *},
 };
 
 use crate::platform_impl::platform::event_loop::ProcResult;
 
 pub fn is_msg_ime_related(msg_kind: u32) -> bool {
-  match msg_kind {
-    _ if msg_kind == WM_IME_COMPOSITION
-      || msg_kind == WM_IME_COMPOSITIONFULL
-      || msg_kind == WM_IME_STARTCOMPOSITION
-      || msg_kind == WM_IME_ENDCOMPOSITION
-      || msg_kind == WM_IME_CHAR
-      || msg_kind == WM_CHAR
-      || msg_kind == WM_SYSCHAR =>
-    {
-      true
-    }
-    _ => false,
-  }
+  matches!(
+    msg_kind,
+    win32wm::WM_IME_COMPOSITION
+      | win32wm::WM_IME_COMPOSITIONFULL
+      | win32wm::WM_IME_STARTCOMPOSITION
+      | win32wm::WM_IME_ENDCOMPOSITION
+      | win32wm::WM_IME_CHAR
+      | win32wm::WM_CHAR
+      | win32wm::WM_SYSCHAR
+  )
 }
 
 pub struct MinimalIme {
@@ -47,10 +44,10 @@ impl MinimalIme {
     result: &mut ProcResult,
   ) -> Option<String> {
     match msg_kind {
-      _ if msg_kind == WM_IME_ENDCOMPOSITION => {
+      win32wm::WM_IME_ENDCOMPOSITION => {
         self.getting_ime_text = true;
       }
-      _ if msg_kind == WM_CHAR || msg_kind == WM_SYSCHAR => {
+      win32wm::WM_CHAR | win32wm::WM_SYSCHAR => {
         if self.getting_ime_text {
           *result = ProcResult::Value(0);
           self.utf16parts.push(wparam.0 as u16);
