@@ -122,10 +122,10 @@ impl KeyEventBuilder {
         if has_next_key_message {
           let next_msg = unsafe { next_msg.assume_init() };
           let next_msg_kind = next_msg.message;
-          let next_belongs_to_this = !matches!(
-            next_msg_kind,
-            WM_KEYDOWN | WM_SYSKEYDOWN | WM_KEYUP | WM_SYSKEYUP
-          );
+          let next_belongs_to_this = next_msg_kind == WM_KEYDOWN
+            || next_msg_kind == WM_SYSKEYDOWN
+            || next_msg_kind == WM_KEYUP
+            || next_msg_kind == WM_SYSKEYUP;
           if next_belongs_to_this {
             self.event_info = finished_event_info.take();
           } else {
@@ -705,12 +705,14 @@ fn get_kbd_state() -> [u8; 256] {
 /// been removed from the event queue. See also: get_kbd_state
 fn get_async_kbd_state() -> [u8; 256] {
   unsafe {
-    let mut kbd_state: [u8; 256] = MaybeUninit::uninit().assume_init();
+    let mut kbd_state: [u8; 256] = [0; 256];
     for (vk, state) in kbd_state.iter_mut().enumerate() {
       let vk = vk as u32;
-      let async_state = GetAsyncKeyState(vk as c_int);
+      let async_state = GetAsyncKeyState(vk as i32);
       let is_down = (async_state & (1 << 15)) != 0;
-      *state = if is_down { 0x80 } else { 0 };
+      if is_down {
+        *state = 0x80;
+      }
 
       if matches!(vk, VK_CAPITAL | VK_NUMLOCK | VK_SCROLL) {
         // Toggle states aren't reported by `GetAsyncKeyState`

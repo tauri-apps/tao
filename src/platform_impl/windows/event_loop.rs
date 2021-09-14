@@ -1707,7 +1707,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         old_scale_factor = window_state.scale_factor;
         window_state.scale_factor = new_scale_factor;
 
-        if new_scale_factor == old_scale_factor {
+        if (new_scale_factor - old_scale_factor).abs() < f64::EPSILON {
           result = ProcResult::Value(0);
           return;
         }
