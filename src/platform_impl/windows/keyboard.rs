@@ -57,13 +57,9 @@ pub struct MessageAsKeyEvent {
 ///
 /// Key release messages are a bit different due to the fact that they don't contribute to
 /// text input. The "sequence" only consists of one WM_KEYUP / WM_SYSKEYUP event.
+#[derive(Default)]
 pub struct KeyEventBuilder {
   event_info: Option<PartialKeyEventInfo>,
-}
-impl Default for KeyEventBuilder {
-  fn default() -> Self {
-    KeyEventBuilder { event_info: None }
-  }
 }
 impl KeyEventBuilder {
   /// Call this function for every window message.
