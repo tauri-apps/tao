@@ -45,6 +45,31 @@ pub fn to_wstring(str: &str) -> Vec<u16> {
     .collect()
 }
 
+#[inline]
+pub fn to_loword(dword: u32) -> u16 {
+  (dword & 0xFFFF) as u16
+}
+
+#[inline]
+pub fn to_hiword(dword: u32) -> u16 {
+  ((dword & 0xFFFF_0000) >> 16) as u16
+}
+
+#[inline]
+pub fn to_x_param(lparam: LPARAM) -> i16 {
+  ((lparam.0 as usize) & 0xFFFF) as u16 as i16
+}
+
+#[inline]
+pub fn to_y_param(lparam: LPARAM) -> i16 {
+  (((lparam.0 as usize) & 0xFFFF_0000) >> 16) as u16 as i16
+}
+
+#[inline]
+pub fn to_wheel_delta(wparam: WPARAM) -> i16 {
+  ((wparam.0 & 0xFFFF_0000) >> 16) as u16 as i16
+}
+
 pub unsafe fn status_map<T, F: FnMut(&mut T) -> BOOL>(mut fun: F) -> Option<T> {
   let mut data: T = mem::zeroed();
   if fun(&mut data).as_bool() {

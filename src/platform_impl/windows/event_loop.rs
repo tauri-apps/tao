@@ -1088,8 +1088,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
     win32wm::WM_SIZE => {
       use crate::event::WindowEvent::Resized;
-      let w = lparam.0 as u32 & 0xFFFF;
-      let h = (lparam.0 as u32 & 0xFFFF_0000) >> 16;
+      let w = util::to_loword(lparam.0 as u32) as u32;
+      let h = util::to_hiword(lparam.0 as u32) as u32;
 
       let physical_size = PhysicalSize::new(w, h);
       let event = Event::WindowEvent {
@@ -1153,8 +1153,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
         });
       }
 
-      let x = ((lparam.0 as usize) & 0xFFFF) as u16 as i16 as f64;
-      let y = (((lparam.0 as usize) & 0xFFFF_0000) >> 16) as u16 as i16 as f64;
+      let x = util::to_x_param(lparam) as f64;
+      let y = util::to_y_param(lparam) as f64;
       let position = PhysicalPosition::new(x, y);
       let cursor_moved;
       {
@@ -1202,7 +1202,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     win32wm::WM_MOUSEWHEEL => {
       use crate::event::MouseScrollDelta::LineDelta;
 
-      let value = (wparam.0 >> 16) as i16;
+      let value = util::to_wheel_delta(wparam);
       let value = value as i32;
       let value = value as f32 / WHEEL_DELTA as f32;
 
@@ -1365,7 +1365,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
     win32wm::WM_XBUTTONDOWN => {
       use crate::event::{ElementState::Pressed, MouseButton::Other, WindowEvent::MouseInput};
-      let xbutton = (wparam.0 >> 16) as u16;
+      let xbutton = util::to_hiword(wparam.0 as u32);
 
       capture_mouse(window, &mut *subclass_input.window_state.lock());
 
@@ -1415,7 +1415,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     win32wm::WM_TOUCH => {
-      let pcount = (wparam.0 & 0xFFFF) as u16 as usize;
+      let pcount = util::to_loword(wparam.0 as u32) as usize;
       let mut inputs = Vec::with_capacity(pcount);
       inputs.set_len(pcount);
       let htouch = HTOUCHINPUT(lparam.0);
@@ -1474,7 +1474,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         *SKIP_POINTER_FRAME_MESSAGES,
         *GET_POINTER_DEVICE_RECTS,
       ) {
-        let pointer_id = (wparam.0 & 0xFFFF) as u32;
+        let pointer_id = util::to_loword(wparam.0 as u32) as u32;
         let mut entries_count = 0_u32;
         let mut pointers_count = 0_u32;
         if !GetPointerFrameInfoHistory(
@@ -1635,7 +1635,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         // The return value for the preceding `WM_NCHITTEST` message is conveniently
         // provided through the low-order word of lParam. We use that here since
         // `WM_MOUSEMOVE` seems to come after `WM_SETCURSOR` for a given cursor movement.
-        let in_client_area = (lparam.0 & 0xFFFF) as u32 == HTCLIENT;
+        let in_client_area = util::to_loword(lparam.0 as u32) as u32 == HTCLIENT;
         if in_client_area {
           Some(window_state.mouse.cursor)
         } else {
@@ -1689,7 +1689,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       // "you only need to use either the X-axis or the Y-axis value when scaling your
       // application since they are the same".
       // https://msdn.microsoft.com/en-us/library/windows/desktop/dn312083(v=vs.85).aspx
-      let new_dpi_x = (wparam.0 & 0xFFFF) as u32;
+      let new_dpi_x = util::to_loword(wparam.0 as u32) as u32;
       let new_scale_factor = dpi_to_scale_factor(new_dpi_x);
       let old_scale_factor: f64;
 
@@ -1936,8 +1936,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
         if !win_flags.contains(WindowFlags::DECORATIONS) {
           // cursor location
           let (cx, cy) = (
-            ((lparam.0 as usize) & 0xFFFF) as u16 as i16 as i32,
-            (((lparam.0 as usize) & 0xFFFF_0000) >> 16) as u16 as i16 as i32,
+            util::to_x_param(lparam) as i32,
+            util::to_y_param(lparam) as i32,
           );
 
           result = ProcResult::Value(crate::platform_impl::hit_test(window, cx, cy).0);

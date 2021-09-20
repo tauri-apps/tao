@@ -21,7 +21,7 @@ use crate::{
   window::WindowId as RootWindowId,
 };
 
-use super::{accelerator::register_accel, keyboard::key_to_vk, WindowId};
+use super::{accelerator::register_accel, keyboard::key_to_vk, util, WindowId};
 
 #[derive(Copy, Clone)]
 struct AccelWrapper(ACCEL);
@@ -361,7 +361,7 @@ pub(crate) unsafe extern "system" fn subclass_proc(
           ShowWindow(hwnd, SW_MINIMIZE);
         }
         _ => {
-          let menu_id = (wparam.0 & 0xFFFF) as _;
+          let menu_id = util::to_loword(wparam.0 as u32);
           if MENU_IDS.lock().unwrap().contains(&menu_id) {
             subclass_input.send_menu_event(menu_id);
           }
