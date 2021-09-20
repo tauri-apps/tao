@@ -12,7 +12,7 @@ use std::{
 use crate::{dpi::PhysicalSize, window::CursorIcon};
 
 use webview2_com_sys::Windows::Win32::{
-  Foundation::{BOOL, FARPROC, HWND, POINT, PWSTR, RECT},
+  Foundation::{BOOL, FARPROC, HWND, LPARAM, LRESULT, POINT, PWSTR, RECT, WPARAM},
   Globalization::lstrlenW,
   Graphics::Gdi::{ClientToScreen, InvalidateRgn, HMONITOR, HRGN},
   System::{LibraryLoader::*, SystemServices::DPI_AWARENESS_CONTEXT},
@@ -247,6 +247,15 @@ pub fn get_window_long_ptr(window: HWND, index: WINDOW_LONG_PTR_INDEX) -> isize 
 #[cfg(target_pointer_width = "64")]
 pub fn get_window_long_ptr(window: HWND, index: WINDOW_LONG_PTR_INDEX) -> isize {
   unsafe { GetWindowLongPtrA(window, index) }
+}
+
+pub unsafe extern "system" fn call_default_window_proc(
+  hwnd: HWND,
+  msg: u32,
+  wparam: WPARAM,
+  lparam: LPARAM,
+) -> LRESULT {
+  DefWindowProcW(hwnd, msg, wparam, lparam)
 }
 
 pub fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<HICON> {

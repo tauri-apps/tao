@@ -593,7 +593,7 @@ lazy_static! {
         let class = WNDCLASSEXW {
             cbSize: mem::size_of::<WNDCLASSEXW>() as u32,
             style: WNDCLASS_STYLES(0),
-            lpfnWndProc: Some(call_default_window_proc),
+            lpfnWndProc: Some(util::call_default_window_proc),
             cbClsExtra: 0,
             cbWndExtra: 0,
             hInstance: GetModuleHandleW(PWSTR::default()),
@@ -609,15 +609,6 @@ lazy_static! {
 
         class_name
     };
-}
-
-unsafe extern "system" fn call_default_window_proc(
-  hwnd: HWND,
-  msg: u32,
-  wparam: WPARAM,
-  lparam: LPARAM,
-) -> LRESULT {
-  DefWindowProcW(hwnd, msg, wparam, lparam)
 }
 
 fn create_event_target_window() -> HWND {

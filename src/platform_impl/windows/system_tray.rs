@@ -39,15 +39,6 @@ pub struct SystemTrayBuilder {
   pub(crate) tray_menu: Option<Menu>,
 }
 
-unsafe extern "system" fn call_default_window_proc(
-  hwnd: HWND,
-  msg: u32,
-  wparam: WPARAM,
-  lparam: LPARAM,
-) -> LRESULT {
-  DefWindowProcW(hwnd, msg, wparam, lparam)
-}
-
 impl SystemTrayBuilder {
   #[inline]
   pub fn new(icon: Vec<u8>, tray_menu: Option<Menu>) -> Self {
@@ -66,7 +57,7 @@ impl SystemTrayBuilder {
       let hinstance = GetModuleHandleA(PSTR::default());
 
       let wnd_class = WNDCLASSW {
-        lpfnWndProc: Some(call_default_window_proc),
+        lpfnWndProc: Some(util::call_default_window_proc),
         lpszClassName: PWSTR(class_name.as_mut_ptr()),
         hInstance: hinstance,
         ..Default::default()
