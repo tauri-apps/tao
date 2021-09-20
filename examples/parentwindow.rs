@@ -25,7 +25,7 @@ fn main() {
   #[cfg(target_os = "macos")]
   let parent_window = main_window.ns_window();
   #[cfg(target_os = "windows")]
-  let parent_window = main_window.hwnd() as HWND;
+  let parent_window = HWND(main_window.hwnd() as _);
 
   let child_window = WindowBuilder::new()
     .with_parent_window(parent_window)

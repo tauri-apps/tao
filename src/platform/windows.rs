@@ -14,8 +14,9 @@ use crate::{
   platform_impl::{EventLoop as WindowsEventLoop, Parent, WinIcon},
   window::{BadIcon, Icon, Theme, Window, WindowBuilder},
 };
+use libc;
 use webview2_com_sys::Windows::Win32::{
-  Foundation::{HINSTANCE, HWND, LPARAM, WPARAM},
+  Foundation::{HWND, LPARAM, WPARAM},
   Graphics::Gdi::HMONITOR,
   UI::{KeyboardAndMouseInput::*, WindowsAndMessaging::*},
 };
@@ -76,11 +77,11 @@ impl<T> EventLoopExtWindows for EventLoop<T> {
 /// Additional methods on `Window` that are specific to Windows.
 pub trait WindowExtWindows {
   /// Returns the HINSTANCE of the window
-  fn hinstance(&self) -> HINSTANCE;
+  fn hinstance(&self) -> *mut libc::c_void;
   /// Returns the native handle that is used by this window.
   ///
   /// The pointer will become invalid when the native window was destroyed.
-  fn hwnd(&self) -> HWND;
+  fn hwnd(&self) -> *mut libc::c_void;
 
   /// Enables or disables mouse and keyboard input to the specified window.
   ///
@@ -119,19 +120,19 @@ pub trait WindowExtWindows {
 
 impl WindowExtWindows for Window {
   #[inline]
-  fn hinstance(&self) -> HINSTANCE {
-    self.window.hinstance()
+  fn hinstance(&self) -> *mut libc::c_void {
+    self.window.hinstance().0 as _
   }
 
   #[inline]
-  fn hwnd(&self) -> HWND {
-    self.window.hwnd()
+  fn hwnd(&self) -> *mut libc::c_void {
+    self.window.hwnd().0 as _
   }
 
   #[inline]
   fn set_enable(&self, enabled: bool) {
     unsafe {
-      EnableWindow(self.hwnd(), enabled);
+      EnableWindow(self.window.hwnd(), enabled);
     }
   }
 
@@ -160,7 +161,7 @@ impl WindowExtWindows for Window {
       let l_param = LPARAM((low_word | high_word) as isize);
 
       ReleaseCapture();
-      PostMessageW(self.hwnd(), button, w_param, l_param);
+      PostMessageW(self.window.hwnd(), button, w_param, l_param);
     }
   }
 
