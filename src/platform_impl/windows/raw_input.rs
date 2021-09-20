@@ -9,7 +9,10 @@ use std::{
 use webview2_com_sys::Windows::Win32::{
   Devices::HumanInterfaceDevice::*,
   Foundation::{HANDLE, HWND},
-  UI::{KeyboardAndMouseInput::{self as win32kmi, *}, WindowsAndMessaging::*},
+  UI::{
+    KeyboardAndMouseInput::{self as win32kmi, *},
+    WindowsAndMessaging::*,
+  },
 };
 
 use crate::{event::ElementState, platform_impl::platform::util};
