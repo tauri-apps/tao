@@ -68,7 +68,7 @@ impl SystemTrayBuilder {
       let hwnd = CreateWindowExW(
         WINDOW_EX_STYLE(0),
         PWSTR(class_name.as_mut_ptr()),
-        PWSTR(util::to_wstring("tao_system_tray_window").as_mut_ptr()),
+        "tao_system_tray_window",
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         0,

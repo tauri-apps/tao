@@ -21,7 +21,7 @@ use crate::{
   window::WindowId as RootWindowId,
 };
 
-use super::{accelerator::register_accel, keyboard::key_to_vk, util::to_wstring, WindowId};
+use super::{accelerator::register_accel, keyboard::key_to_vk, WindowId};
 
 #[derive(Copy, Clone)]
 struct AccelWrapper(ACCEL);
@@ -197,12 +197,7 @@ impl Menu {
         format_hotkey(accelerators, &mut anno_title);
       }
 
-      AppendMenuW(
-        self.hmenu,
-        flags,
-        menu_id.0 as _,
-        PWSTR(to_wstring(&anno_title).as_mut_ptr()),
-      );
+      AppendMenuW(self.hmenu, flags, menu_id.0 as _, anno_title);
 
       // add our accels
       if let Some(accelerators) = accelerators {
@@ -225,12 +220,7 @@ impl Menu {
         flags |= MF_DISABLED;
       }
 
-      AppendMenuW(
-        self.hmenu,
-        flags,
-        submenu.hmenu().0 as usize,
-        PWSTR(to_wstring(title).as_mut_ptr()),
-      );
+      AppendMenuW(self.hmenu, flags, submenu.hmenu().0 as usize, title);
     }
   }
 
@@ -246,68 +236,28 @@ impl Menu {
         };
       }
       MenuItem::Cut => unsafe {
-        AppendMenuW(
-          self.hmenu,
-          MF_STRING,
-          CUT_ID,
-          PWSTR(to_wstring("&Cut\tCtrl+X").as_mut_ptr()),
-        );
+        AppendMenuW(self.hmenu, MF_STRING, CUT_ID, "&Cut\tCtrl+X");
       },
       MenuItem::Copy => unsafe {
-        AppendMenuW(
-          self.hmenu,
-          MF_STRING,
-          COPY_ID,
-          PWSTR(to_wstring("&Copy\tCtrl+C").as_mut_ptr()),
-        );
+        AppendMenuW(self.hmenu, MF_STRING, COPY_ID, "&Copy\tCtrl+C");
       },
       MenuItem::Paste => unsafe {
-        AppendMenuW(
-          self.hmenu,
-          MF_STRING,
-          PASTE_ID,
-          PWSTR(to_wstring("&Paste\tCtrl+V").as_mut_ptr()),
-        );
+        AppendMenuW(self.hmenu, MF_STRING, PASTE_ID, "&Paste\tCtrl+V");
       },
       MenuItem::SelectAll => unsafe {
-        AppendMenuW(
-          self.hmenu,
-          MF_STRING,
-          SELECT_ALL_ID,
-          PWSTR(to_wstring("&Select all\tCtrl+A").as_mut_ptr()),
-        );
+        AppendMenuW(self.hmenu, MF_STRING, SELECT_ALL_ID, "&Select all\tCtrl+A");
       },
       MenuItem::Hide => unsafe {
-        AppendMenuW(
-          self.hmenu,
-          MF_STRING,
-          HIDE_ID,
-          PWSTR(to_wstring("&Hide\tCtrl+H").as_mut_ptr()),
-        );
+        AppendMenuW(self.hmenu, MF_STRING, HIDE_ID, "&Hide\tCtrl+H");
       },
       MenuItem::CloseWindow => unsafe {
-        AppendMenuW(
-          self.hmenu,
-          MF_STRING,
-          CLOSE_ID,
-          PWSTR(to_wstring("&Close\tAlt+F4").as_mut_ptr()),
-        );
+        AppendMenuW(self.hmenu, MF_STRING, CLOSE_ID, "&Close\tAlt+F4");
       },
       MenuItem::Quit => unsafe {
-        AppendMenuW(
-          self.hmenu,
-          MF_STRING,
-          QUIT_ID,
-          PWSTR(to_wstring("&Quit").as_mut_ptr()),
-        );
+        AppendMenuW(self.hmenu, MF_STRING, QUIT_ID, "&Quit");
       },
       MenuItem::Minimize => unsafe {
-        AppendMenuW(
-          self.hmenu,
-          MF_STRING,
-          MINIMIZE_ID,
-          PWSTR(to_wstring("&Minimize").as_mut_ptr()),
-        );
+        AppendMenuW(self.hmenu, MF_STRING, MINIMIZE_ID, "&Minimize");
       },
       // FIXME: create all shortcuts of MenuItem if possible...
       // like linux?

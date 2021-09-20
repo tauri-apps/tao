@@ -135,9 +135,8 @@ impl Window {
   }
 
   pub fn set_title(&self, text: &str) {
-    let mut text = util::to_wstring(text);
     unsafe {
-      SetWindowTextW(self.window.0, PWSTR(text.as_mut_ptr()));
+      SetWindowTextW(self.window.0, text);
     }
   }
 
@@ -797,8 +796,6 @@ unsafe fn init<T: 'static>(
   pl_attribs: PlatformSpecificWindowBuilderAttributes,
   event_loop: &EventLoopWindowTarget<T>,
 ) -> Result<Window, RootOsError> {
-  let mut title = util::to_wstring(&attributes.title);
-
   // registering the window class
   let mut class_name = register_window_class(&attributes.window_icon, &pl_attribs.taskbar_icon);
 
@@ -837,7 +834,7 @@ unsafe fn init<T: 'static>(
     let handle = CreateWindowExW(
       ex_style,
       PWSTR(class_name.as_mut_ptr()),
-      PWSTR(title.as_mut_ptr()),
+      attributes.title.as_str(),
       style,
       CW_USEDEFAULT,
       CW_USEDEFAULT,
