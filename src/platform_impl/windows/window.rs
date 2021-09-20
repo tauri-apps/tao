@@ -1141,18 +1141,18 @@ pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
         | (TOP * (if cy < (top + BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
         | (BOTTOM * (if cy >= (bottom - BORDERLESS_RESIZE_INSET) { 1 } else { 0 }));
 
-      match result {
-        CLIENT => LRESULT(HTCLIENT as i32),
-        LEFT => LRESULT(HTLEFT as i32),
-        RIGHT => LRESULT(HTRIGHT as i32),
-        TOP => LRESULT(HTTOP as i32),
-        BOTTOM => LRESULT(HTBOTTOM as i32),
-        TOPLEFT => LRESULT(HTTOPLEFT as i32),
-        TOPRIGHT => LRESULT(HTTOPRIGHT as i32),
-        BOTTOMLEFT => LRESULT(HTBOTTOMLEFT as i32),
-        BOTTOMRIGHT => LRESULT(HTBOTTOMRIGHT as i32),
-        _ => LRESULT(HTNOWHERE as i32),
-      }
+      LRESULT(match result {
+        CLIENT => HTCLIENT,
+        LEFT => HTLEFT,
+        RIGHT => HTRIGHT,
+        TOP => HTTOP,
+        BOTTOM => HTBOTTOM,
+        TOPLEFT => HTTOPLEFT,
+        TOPRIGHT => HTTOPRIGHT,
+        BOTTOMLEFT => HTBOTTOMLEFT,
+        BOTTOMRIGHT => HTBOTTOMRIGHT,
+        _ => HTNOWHERE,
+      } as i32)
     } else {
       LRESULT(HTNOWHERE as i32)
     }
