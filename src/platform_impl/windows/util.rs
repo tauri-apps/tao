@@ -16,7 +16,10 @@ use webview2_com_sys::Windows::Win32::{
   Globalization::lstrlenW,
   Graphics::Gdi::{ClientToScreen, InvalidateRgn, HMONITOR, HRGN},
   System::{LibraryLoader::*, SystemServices::DPI_AWARENESS_CONTEXT},
-  UI::{Controls::LR_DEFAULTCOLOR, HiDpi::*, KeyboardAndMouseInput::*, WindowsAndMessaging::*},
+  UI::{
+    Controls::LR_DEFAULTCOLOR, HiDpi::*, KeyboardAndMouseInput::*, TextServices::HKL,
+    WindowsAndMessaging::*,
+  },
 };
 
 use windows::HRESULT;
@@ -45,29 +48,47 @@ pub fn to_wstring(str: &str) -> Vec<u16> {
     .collect()
 }
 
+/// Implementation of the `LOWORD` macro.
 #[inline]
-pub fn to_loword(dword: u32) -> u16 {
+pub fn get_loword(dword: u32) -> u16 {
   (dword & 0xFFFF) as u16
 }
 
+/// Implementation of the `HIWORD` macro.
 #[inline]
-pub fn to_hiword(dword: u32) -> u16 {
+pub fn get_hiword(dword: u32) -> u16 {
   ((dword & 0xFFFF_0000) >> 16) as u16
 }
 
+/// Implementation of the `GET_X_LPARAM` macro.
 #[inline]
-pub fn to_x_param(lparam: LPARAM) -> i16 {
+pub fn get_x_lparam(lparam: LPARAM) -> i16 {
   ((lparam.0 as usize) & 0xFFFF) as u16 as i16
 }
 
+/// Implementation of the `GET_Y_LPARAM` macro.
 #[inline]
-pub fn to_y_param(lparam: LPARAM) -> i16 {
+pub fn get_y_lparam(lparam: LPARAM) -> i16 {
   (((lparam.0 as usize) & 0xFFFF_0000) >> 16) as u16 as i16
 }
 
+/// Inverse of [get_x_lparam] and [get_y_lparam] to put the (`x`, `y`) signed
+/// coordinates/values back into an [LPARAM].
 #[inline]
-pub fn to_wheel_delta(wparam: WPARAM) -> i16 {
+pub fn make_x_y_lparam(x: i16, y: i16) -> LPARAM {
+  LPARAM(((x as u16 as u32) | ((y as u16 as u32) << 16)) as usize as isize)
+}
+
+/// Implementation of the `GET_WHEEL_DELTA_WPARAM` macro.
+#[inline]
+pub fn get_wheel_delta_wparam(wparam: WPARAM) -> i16 {
   ((wparam.0 & 0xFFFF_0000) >> 16) as u16 as i16
+}
+
+/// Implementation of the `PRIMARYLANGID` macro.
+#[inline]
+pub fn primary_lang_id(hkl: HKL) -> u32 {
+  ((hkl.0 as usize) & 0x3FF) as u32
 }
 
 pub unsafe fn status_map<T, F: FnMut(&mut T) -> BOOL>(mut fun: F) -> Option<T> {

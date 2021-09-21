@@ -16,7 +16,7 @@ use crate::{
 };
 use libc;
 use webview2_com_sys::Windows::Win32::{
-  Foundation::{HWND, LPARAM, WPARAM},
+  Foundation::HWND,
   Graphics::Gdi::HMONITOR,
   UI::{KeyboardAndMouseInput::*, WindowsAndMessaging::*},
 };
@@ -153,16 +153,7 @@ impl WindowExtWindows for Window {
 
   #[inline]
   fn begin_resize_drag(&self, edge: isize, button: u32, x: i32, y: i32) {
-    unsafe {
-      let w_param = WPARAM(edge as usize);
-
-      let low_word = x as u32 & 0xFFFF;
-      let high_word = (y as u32 & 0xFFFF) << 16;
-      let l_param = LPARAM((low_word | high_word) as isize);
-
-      ReleaseCapture();
-      PostMessageW(self.window.hwnd(), button, w_param, l_param);
-    }
+    self.window.begin_resize_drag(edge, button, x, y)
   }
 
   #[inline]

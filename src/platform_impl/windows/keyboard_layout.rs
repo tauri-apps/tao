@@ -18,7 +18,10 @@ use webview2_com_sys::Windows::Win32::{
 };
 
 use super::keyboard::ExScancode;
-use crate::keyboard::{Key, KeyCode, ModifiersState, NativeKeyCode};
+use crate::{
+  keyboard::{Key, KeyCode, ModifiersState, NativeKeyCode},
+  platform_impl::platform::util,
+};
 
 lazy_static! {
   pub(crate) static ref LAYOUT_CACHE: Mutex<LayoutCache> = Mutex::new(LayoutCache::default());
@@ -517,7 +520,7 @@ fn is_numpad_specific(vk: u32) -> bool {
 }
 
 fn keycode_to_vkey(keycode: KeyCode, hkl: HKL) -> u32 {
-  let primary_lang_id = ((hkl.0 as usize) & 0x3FF) as u32;
+  let primary_lang_id = util::primary_lang_id(hkl);
   let is_korean = primary_lang_id == LANG_KOREAN;
   let is_japanese = primary_lang_id == LANG_JAPANESE;
 
@@ -739,7 +742,7 @@ fn vkey_to_non_char_key(
   // List of the Web key names and their corresponding platform-native key names:
   // https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values
 
-  let primary_lang_id = ((hkl.0 as usize) & 0x3FF) as u32;
+  let primary_lang_id = util::primary_lang_id(hkl);
   let is_korean = primary_lang_id == LANG_KOREAN;
   let is_japanese = primary_lang_id == LANG_JAPANESE;
 

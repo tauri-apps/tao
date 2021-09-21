@@ -391,7 +391,7 @@ impl Window {
         self.window.0,
         WM_NCLBUTTONDOWN,
         WPARAM(HTCAPTION as _),
-        LPARAM(((pos.x as i16 as u16 as u32) | ((pos.y as i16 as u16 as u32) << 16)) as _),
+        util::make_x_y_lparam(pos.x as i16, pos.y as i16),
       );
     }
 
@@ -742,6 +742,17 @@ impl Window {
         char_buff.len() as i32,
         0,
       );
+    }
+  }
+
+  #[inline]
+  pub fn begin_resize_drag(&self, edge: isize, button: u32, x: i32, y: i32) {
+    unsafe {
+      let w_param = WPARAM(edge as usize);
+      let l_param = util::make_x_y_lparam(x as i16, y as i16);
+
+      ReleaseCapture();
+      PostMessageW(self.hwnd(), button, w_param, l_param);
     }
   }
 
