@@ -17,7 +17,6 @@ use crate::{
 use libc;
 use webview2_com_sys::Windows::Win32::{
   Foundation::HWND,
-  Graphics::Gdi::HMONITOR,
   UI::{KeyboardAndMouseInput::*, WindowsAndMessaging::*},
 };
 
@@ -271,7 +270,7 @@ pub trait MonitorHandleExtWindows {
   fn native_id(&self) -> String;
 
   /// Returns the handle of the monitor - `HMONITOR`.
-  fn hmonitor(&self) -> HMONITOR;
+  fn hmonitor(&self) -> *mut libc::c_void;
 }
 
 impl MonitorHandleExtWindows for MonitorHandle {
@@ -281,8 +280,8 @@ impl MonitorHandleExtWindows for MonitorHandle {
   }
 
   #[inline]
-  fn hmonitor(&self) -> HMONITOR {
-    self.inner.hmonitor()
+  fn hmonitor(&self) -> *mut libc::c_void {
+    self.inner.hmonitor().0 as _
   }
 }
 
