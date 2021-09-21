@@ -85,6 +85,12 @@ pub fn get_wheel_delta_wparam(wparam: WPARAM) -> i16 {
   ((wparam.0 & 0xFFFF_0000) >> 16) as u16 as i16
 }
 
+/// Implementation of the `GET_XBUTTON_WPARAM` macro.
+#[inline]
+pub fn get_xbutton_wparam(wparam: WPARAM) -> u16 {
+  ((wparam.0 & 0xFFFF_0000) >> 16) as u16
+}
+
 /// Implementation of the `PRIMARYLANGID` macro.
 #[inline]
 pub fn primary_lang_id(hkl: HKL) -> u32 {

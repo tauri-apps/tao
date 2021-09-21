@@ -1363,7 +1363,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
     win32wm::WM_XBUTTONDOWN => {
       use crate::event::{ElementState::Pressed, MouseButton::Other, WindowEvent::MouseInput};
-      let xbutton = util::get_hiword(wparam.0 as u32);
+      let xbutton = util::get_xbutton_wparam(wparam);
 
       capture_mouse(window, &mut *subclass_input.window_state.lock());
 
@@ -1383,7 +1383,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
     win32wm::WM_XBUTTONUP => {
       use crate::event::{ElementState::Released, MouseButton::Other, WindowEvent::MouseInput};
-      let xbutton = util::get_hiword(wparam.0 as u32);
+      let xbutton = util::get_xbutton_wparam(wparam);
 
       release_mouse(subclass_input.window_state.lock());
 
