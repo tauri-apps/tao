@@ -5,8 +5,7 @@ use crate::{
   global_shortcut::{GlobalShortcut as RootGlobalShortcut, ShortcutManagerError},
   keyboard::ModifiersState,
 };
-use std::ptr;
-use winapi::{shared::windef::HWND, um::winuser};
+use webview2_com_sys::Windows::Win32::{Foundation::HWND, UI::KeyboardAndMouseInput::*};
 
 #[derive(Debug, Clone)]
 pub struct ShortcutManager {
@@ -25,33 +24,33 @@ impl ShortcutManager {
     accelerator: Accelerator,
   ) -> Result<RootGlobalShortcut, ShortcutManagerError> {
     unsafe {
-      let mut converted_modifiers: u32 = 0;
+      let mut converted_modifiers = HOT_KEY_MODIFIERS(0);
       let modifiers: ModifiersState = accelerator.mods;
       if modifiers.shift_key() {
-        converted_modifiers |= winuser::MOD_SHIFT as u32;
+        converted_modifiers |= MOD_SHIFT;
       }
       if modifiers.super_key() {
-        converted_modifiers |= winuser::MOD_WIN as u32;
+        converted_modifiers |= MOD_WIN;
       }
       if modifiers.alt_key() {
-        converted_modifiers |= winuser::MOD_ALT as u32;
+        converted_modifiers |= MOD_ALT;
       }
       if modifiers.control_key() {
-        converted_modifiers |= winuser::MOD_CONTROL as u32;
+        converted_modifiers |= MOD_CONTROL;
       }
 
       // get key scan code
       match key_to_vk(&accelerator.key) {
         Some(vk_code) => {
-          let result = winuser::RegisterHotKey(
-            ptr::null_mut(),
+          let result = RegisterHotKey(
+            HWND::default(),
             accelerator.clone().id().0 as i32,
             converted_modifiers,
             vk_code as u32,
           );
-          if result == 0 {
+          if !result.as_bool() {
             return Err(ShortcutManagerError::InvalidAccelerator(
-              "Unable to register accelerator with `winuser::RegisterHotKey`.".into(),
+              "Unable to register accelerator with `RegisterHotKey`.".into(),
             ));
           }
           let shortcut = GlobalShortcut { accelerator };
@@ -92,7 +91,7 @@ impl GlobalShortcut {
   }
   pub(crate) fn unregister(&self) {
     unsafe {
-      winuser::UnregisterHotKey(0 as HWND, self.accelerator.clone().id().0 as i32);
+      UnregisterHotKey(HWND::default(), self.accelerator.clone().id().0 as i32);
     }
   }
 }
