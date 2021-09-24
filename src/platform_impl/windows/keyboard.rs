@@ -835,6 +835,7 @@ pub(crate) fn key_to_vk(key: &KeyCode) -> Option<u32> {
     KeyCode::Digit9 => unsafe { VkKeyScanW('9' as u16) as u32 },
     KeyCode::Backspace => VK_BACK,
     KeyCode::Tab => VK_TAB,
+    KeyCode::Space => VK_SPACE,
     KeyCode::Enter => VK_RETURN,
     KeyCode::Pause => VK_PAUSE,
     KeyCode::CapsLock => VK_CAPITAL,
