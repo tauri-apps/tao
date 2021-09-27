@@ -134,6 +134,7 @@ pub struct EventLoop<T: 'static> {
   window_target: RootELW<T>,
 }
 
+#[derive(Clone)]
 pub struct EventLoopWindowTarget<T: 'static> {
   thread_id: u32,
   thread_msg_target: HWND,
