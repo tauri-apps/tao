@@ -63,6 +63,7 @@ impl PanicInfo {
   }
 }
 
+#[derive(Clone)]
 pub struct EventLoopWindowTarget<T: 'static> {
   pub sender: Sender<T>, // this is only here to be cloned elsewhere
   pub receiver: Receiver<T>,
