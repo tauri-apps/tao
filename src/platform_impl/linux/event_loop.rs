@@ -34,6 +34,7 @@ use super::{
   window::{WindowId, WindowRequest},
 };
 
+#[derive(Clone)]
 pub struct EventLoopWindowTarget<T> {
   /// Gdk display
   pub(crate) display: gdk::Display,
