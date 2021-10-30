@@ -443,25 +443,25 @@ impl MonitorHandleExtMacOS for MonitorHandle {
 
 /// Additional methods on `EventLoopWindowTarget` that are specific to macOS.
 pub trait EventLoopWindowTargetExtMacOS {
-  /// Show the entire application, see [`EventLoopWindowTargetExtMacOs::hide_application()`].
-  fn show_application(&self);
   /// Hide the entire application. In most applications this is typically triggered with Command-H.
   fn hide_application(&self);
+  /// Show the entire application, see [`EventLoopWindowTargetExtMacOs::hide_application()`].
+  fn show_application(&self);
   /// Hide the other applications. In most applications this is typically triggered with Command+Option-H.
   fn hide_other_applications(&self);
 }
 
 impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
-  fn unhide_application(&self) {
-    let cls = objc::runtime::Class::get("NSApplication").unwrap();
-    let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
-    unsafe { msg_send![app, unhide: 0] }
-  }
-
   fn hide_application(&self) {
     let cls = objc::runtime::Class::get("NSApplication").unwrap();
     let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
     unsafe { msg_send![app, hide: 0] }
+  }
+
+  fn show_application(&self) {
+    let cls = objc::runtime::Class::get("NSApplication").unwrap();
+    let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
+    unsafe { msg_send![app, unhide: 0] }
   }
 
   fn hide_other_applications(&self) {

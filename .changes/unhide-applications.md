@@ -2,4 +2,4 @@
 tao: minor
 ---
 
-Add macOS `unhide_application()` method
+Add macOS `show_application()` method
