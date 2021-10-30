@@ -445,7 +445,7 @@ impl MonitorHandleExtMacOS for MonitorHandle {
 pub trait EventLoopWindowTargetExtMacOS {
   /// Hide the entire application. In most applications this is typically triggered with Command-H.
   fn hide_application(&self);
-  /// Show the entire application, see [`EventLoopWindowTargetExtMacOs::hide_application()`].
+  /// Show the entire application.
   fn show_application(&self);
   /// Hide the other applications. In most applications this is typically triggered with Command+Option-H.
   fn hide_other_applications(&self);
