@@ -115,6 +115,10 @@ impl ShortcutManager {
                 {
                   eprintln!("hotkey: thread_sender.send error {}", err);
                 }
+              } else if let Err(err) =
+                thread_sender.send(HotkeyMessage::UnregisterHotkeyResult(Ok(())))
+              {
+                eprintln!("hotkey: thread_sender.send error {}", err);
               }
             }
             Ok(HotkeyMessage::DropThread) => {
