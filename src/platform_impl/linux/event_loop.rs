@@ -7,7 +7,7 @@ use std::{
   error::Error,
   process,
   rc::Rc,
-  sync::{mpsc::SendError, Mutex},
+  sync::mpsc::SendError,
   time::Instant,
 };
 
@@ -694,12 +694,10 @@ impl<T: 'static> EventLoop<T> {
       });
 
     // Event control flow
-    let events = Rc::new(Mutex::new(Vec::new()));
-    let events_ = events.clone();
-    event_rx.attach(Some(&context), move |event| {
-      let mut e = events_.lock().unwrap();
-      e.push(event);
-      Continue(true)
+    let (e, events) = crossbeam_channel::unbounded();
+    event_rx.attach(Some(&context), move |event| match e.send(event) {
+      Ok(_) => Continue(true),
+      Err(_) => Continue(false),
     });
 
     loop {
@@ -709,8 +707,7 @@ impl<T: 'static> EventLoop<T> {
           break;
         }
         ControlFlow::Wait => {
-          let mut e = events.lock().unwrap();
-          if !e.is_empty() {
+          if !events.is_empty() {
             callback(
               Event::NewEvents(StartCause::WaitCancelled {
                 start: Instant::now(),
@@ -720,7 +717,7 @@ impl<T: 'static> EventLoop<T> {
               &mut control_flow,
             );
 
-            for event in e.drain(..) {
+            while let Ok(event) = events.try_recv() {
               match event {
                 Event::LoopDestroyed => control_flow = ControlFlow::Exit,
                 _ => callback(event, &window_target, &mut control_flow),
@@ -733,7 +730,6 @@ impl<T: 'static> EventLoop<T> {
           }
         }
         ControlFlow::WaitUntil(requested_resume) => {
-          let mut e = events.lock().unwrap();
           let start = Instant::now();
           if start >= requested_resume {
             callback(
@@ -745,7 +741,7 @@ impl<T: 'static> EventLoop<T> {
               &mut control_flow,
             );
 
-            for event in e.drain(..) {
+            while let Ok(event) = events.try_recv() {
               match event {
                 Event::LoopDestroyed => control_flow = ControlFlow::Exit,
                 _ => callback(event, &window_target, &mut control_flow),
@@ -755,7 +751,7 @@ impl<T: 'static> EventLoop<T> {
             if control_flow != ControlFlow::Exit {
               callback(Event::MainEventsCleared, &window_target, &mut control_flow);
             }
-          } else if !e.is_empty() {
+          } else if !events.is_empty() {
             callback(
               Event::NewEvents(StartCause::WaitCancelled {
                 start,
@@ -765,7 +761,7 @@ impl<T: 'static> EventLoop<T> {
               &mut control_flow,
             );
 
-            for event in e.drain(..) {
+            while let Ok(event) = events.try_recv() {
               match event {
                 Event::LoopDestroyed => control_flow = ControlFlow::Exit,
                 _ => callback(event, &window_target, &mut control_flow),
@@ -778,19 +774,20 @@ impl<T: 'static> EventLoop<T> {
           }
         }
         ControlFlow::Poll => {
-          let mut e = events.lock().unwrap();
           callback(
             Event::NewEvents(StartCause::Poll),
             &window_target,
             &mut control_flow,
           );
-          for event in e.drain(..) {
+          while let Ok(event) = events.try_recv() {
             match event {
               Event::LoopDestroyed => control_flow = ControlFlow::Exit,
               _ => callback(event, &window_target, &mut control_flow),
             }
           }
-          callback(Event::MainEventsCleared, &window_target, &mut control_flow);
+          if control_flow != ControlFlow::Exit {
+            callback(Event::MainEventsCleared, &window_target, &mut control_flow);
+          }
         }
       }
 
