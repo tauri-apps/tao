@@ -445,6 +445,8 @@ impl MonitorHandleExtMacOS for MonitorHandle {
 pub trait EventLoopWindowTargetExtMacOS {
   /// Hide the entire application. In most applications this is typically triggered with Command-H.
   fn hide_application(&self);
+  /// Show the entire application.
+  fn show_application(&self);
   /// Hide the other applications. In most applications this is typically triggered with Command+Option-H.
   fn hide_other_applications(&self);
 }
@@ -454,6 +456,12 @@ impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
     let cls = objc::runtime::Class::get("NSApplication").unwrap();
     let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
     unsafe { msg_send![app, hide: 0] }
+  }
+
+  fn show_application(&self) {
+    let cls = objc::runtime::Class::get("NSApplication").unwrap();
+    let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
+    unsafe { msg_send![app, unhide: 0] }
   }
 
   fn hide_other_applications(&self) {
