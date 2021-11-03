@@ -1,4 +1,4 @@
-# tao
+<img src=".github/splash.png" alt="TAO - Window Creation Library" />
 
 [![](https://img.shields.io/crates/v/tao?style=flat-square)](https://crates.io/crates/tao) [![](https://img.shields.io/docsrs/tao?style=flat-square)](https://docs.rs/tao/) ![](https://img.shields.io/crates/l/tao?style=flat-square)
 

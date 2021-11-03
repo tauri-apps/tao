@@ -463,6 +463,7 @@ impl<T> Clone for EventLoopProxy<T> {
   }
 }
 
+#[derive(Clone)]
 pub struct EventLoopWindowTarget<T: 'static> {
   _marker: std::marker::PhantomData<T>,
 }

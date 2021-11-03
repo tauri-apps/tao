@@ -10,31 +10,35 @@ use std::{
 
 use crate::event::{ModifiersState, ScanCode, VirtualKeyCode};
 
-use winapi::{
-  shared::minwindef::{HKL, HKL__, LPARAM, UINT, WPARAM},
-  um::winuser,
+use webview2_com_sys::Windows::Win32::{
+  Foundation::{HWND, LPARAM, WPARAM},
+  UI::{
+    KeyboardAndMouseInput::*,
+    TextServices::HKL,
+    WindowsAndMessaging::{self as win32wm, *},
+  },
 };
 
 fn key_pressed(vkey: c_int) -> bool {
-  unsafe { (winuser::GetKeyState(vkey) & (1 << 15)) == (1 << 15) }
+  unsafe { (GetKeyState(vkey) & (1 << 15)) == (1 << 15) }
 }
 
 pub fn get_key_mods() -> ModifiersState {
-  let filter_out_altgr = layout_uses_altgr() && key_pressed(winuser::VK_RMENU);
+  let filter_out_altgr = layout_uses_altgr() && key_pressed(VK_RMENU);
 
   let mut mods = ModifiersState::empty();
-  mods.set(ModifiersState::SHIFT, key_pressed(winuser::VK_SHIFT));
+  mods.set(ModifiersState::SHIFT, key_pressed(VK_SHIFT));
   mods.set(
     ModifiersState::CTRL,
-    key_pressed(winuser::VK_CONTROL) && !filter_out_altgr,
+    key_pressed(VK_CONTROL) && !filter_out_altgr,
   );
   mods.set(
     ModifiersState::ALT,
-    key_pressed(winuser::VK_MENU) && !filter_out_altgr,
+    key_pressed(VK_MENU) && !filter_out_altgr,
   );
   mods.set(
     ModifiersState::LOGO,
-    key_pressed(winuser::VK_LWIN) || key_pressed(winuser::VK_RWIN),
+    key_pressed(VK_LWIN) || key_pressed(VK_RWIN),
   );
   mods
 }
@@ -90,7 +94,7 @@ impl From<ModifiersStateSide> for ModifiersState {
 
 pub fn get_pressed_keys() -> impl Iterator<Item = c_int> {
   let mut keyboard_state = vec![0u8; 256];
-  unsafe { winuser::GetKeyboardState(keyboard_state.as_mut_ptr()) };
+  unsafe { GetKeyboardState(keyboard_state.as_mut_ptr()) };
   keyboard_state
     .into_iter()
     .enumerate()
@@ -100,7 +104,7 @@ pub fn get_pressed_keys() -> impl Iterator<Item = c_int> {
 
 unsafe fn get_char(keyboard_state: &[u8; 256], v_key: u32, hkl: HKL) -> Option<char> {
   let mut unicode_bytes = [0u16; 5];
-  let len = winuser::ToUnicodeEx(
+  let len = ToUnicodeEx(
     v_key,
     0,
     keyboard_state.as_ptr(),
@@ -132,7 +136,7 @@ fn layout_uses_altgr() -> bool {
     static ACTIVE_LAYOUT: AtomicPtr<HKL__> = AtomicPtr::new(ptr::null_mut());
     static USES_ALTGR: AtomicBool = AtomicBool::new(false);
 
-    let hkl = winuser::GetKeyboardLayout(0);
+    let hkl = GetKeyboardLayout(0);
     let old_hkl = ACTIVE_LAYOUT.swap(hkl, Ordering::SeqCst);
 
     if hkl == old_hkl {
@@ -142,8 +146,8 @@ fn layout_uses_altgr() -> bool {
     let mut keyboard_state_altgr = [0u8; 256];
     // AltGr is an alias for Ctrl+Alt for... some reason. Whatever it is, those are the keypresses
     // we have to emulate to do an AltGr test.
-    keyboard_state_altgr[winuser::VK_MENU as usize] = 0x80;
-    keyboard_state_altgr[winuser::VK_CONTROL as usize] = 0x80;
+    keyboard_state_altgr[VK_MENU as usize] = 0x80;
+    keyboard_state_altgr[VK_CONTROL as usize] = 0x80;
 
     let keyboard_state_empty = [0u8; 256];
 
@@ -163,55 +167,55 @@ fn layout_uses_altgr() -> bool {
   }
 }
 
-pub fn vkey_to_tao_vkey(vkey: c_int) -> Option<VirtualKeyCode> {
+pub fn vkey_to_tao_vkey(vkey: u32) -> Option<VirtualKeyCode> {
   // VK_* codes are documented here https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731(v=vs.85).aspx
   match vkey {
-    //winuser::VK_LBUTTON => Some(VirtualKeyCode::Lbutton),
-    //winuser::VK_RBUTTON => Some(VirtualKeyCode::Rbutton),
-    //winuser::VK_CANCEL => Some(VirtualKeyCode::Cancel),
-    //winuser::VK_MBUTTON => Some(VirtualKeyCode::Mbutton),
-    //winuser::VK_XBUTTON1 => Some(VirtualKeyCode::Xbutton1),
-    //winuser::VK_XBUTTON2 => Some(VirtualKeyCode::Xbutton2),
-    winuser::VK_BACK => Some(VirtualKeyCode::Back),
-    winuser::VK_TAB => Some(VirtualKeyCode::Tab),
-    //winuser::VK_CLEAR => Some(VirtualKeyCode::Clear),
-    winuser::VK_RETURN => Some(VirtualKeyCode::Return),
-    winuser::VK_LSHIFT => Some(VirtualKeyCode::LShift),
-    winuser::VK_RSHIFT => Some(VirtualKeyCode::RShift),
-    winuser::VK_LCONTROL => Some(VirtualKeyCode::LControl),
-    winuser::VK_RCONTROL => Some(VirtualKeyCode::RControl),
-    winuser::VK_LMENU => Some(VirtualKeyCode::LAlt),
-    winuser::VK_RMENU => Some(VirtualKeyCode::RAlt),
-    winuser::VK_PAUSE => Some(VirtualKeyCode::Pause),
-    winuser::VK_CAPITAL => Some(VirtualKeyCode::Capital),
-    winuser::VK_KANA => Some(VirtualKeyCode::Kana),
-    //winuser::VK_HANGUEL => Some(VirtualKeyCode::Hanguel),
-    //winuser::VK_HANGUL => Some(VirtualKeyCode::Hangul),
-    //winuser::VK_JUNJA => Some(VirtualKeyCode::Junja),
-    //winuser::VK_FINAL => Some(VirtualKeyCode::Final),
-    //winuser::VK_HANJA => Some(VirtualKeyCode::Hanja),
-    winuser::VK_KANJI => Some(VirtualKeyCode::Kanji),
-    winuser::VK_ESCAPE => Some(VirtualKeyCode::Escape),
-    winuser::VK_CONVERT => Some(VirtualKeyCode::Convert),
-    winuser::VK_NONCONVERT => Some(VirtualKeyCode::NoConvert),
-    //winuser::VK_ACCEPT => Some(VirtualKeyCode::Accept),
-    //winuser::VK_MODECHANGE => Some(VirtualKeyCode::Modechange),
-    winuser::VK_SPACE => Some(VirtualKeyCode::Space),
-    winuser::VK_PRIOR => Some(VirtualKeyCode::PageUp),
-    winuser::VK_NEXT => Some(VirtualKeyCode::PageDown),
-    winuser::VK_END => Some(VirtualKeyCode::End),
-    winuser::VK_HOME => Some(VirtualKeyCode::Home),
-    winuser::VK_LEFT => Some(VirtualKeyCode::Left),
-    winuser::VK_UP => Some(VirtualKeyCode::Up),
-    winuser::VK_RIGHT => Some(VirtualKeyCode::Right),
-    winuser::VK_DOWN => Some(VirtualKeyCode::Down),
-    //winuser::VK_SELECT => Some(VirtualKeyCode::Select),
-    //winuser::VK_PRINT => Some(VirtualKeyCode::Print),
-    //winuser::VK_EXECUTE => Some(VirtualKeyCode::Execute),
-    winuser::VK_SNAPSHOT => Some(VirtualKeyCode::Snapshot),
-    winuser::VK_INSERT => Some(VirtualKeyCode::Insert),
-    winuser::VK_DELETE => Some(VirtualKeyCode::Delete),
-    //winuser::VK_HELP => Some(VirtualKeyCode::Help),
+    //win32wm::VK_LBUTTON => Some(VirtualKeyCode::Lbutton),
+    //win32wm::VK_RBUTTON => Some(VirtualKeyCode::Rbutton),
+    //win32wm::VK_CANCEL => Some(VirtualKeyCode::Cancel),
+    //win32wm::VK_MBUTTON => Some(VirtualKeyCode::Mbutton),
+    //win32wm::VK_XBUTTON1 => Some(VirtualKeyCode::Xbutton1),
+    //win32wm::VK_XBUTTON2 => Some(VirtualKeyCode::Xbutton2),
+    win32wm::VK_BACK => Some(VirtualKeyCode::Back),
+    win32wm::VK_TAB => Some(VirtualKeyCode::Tab),
+    //win32wm::VK_CLEAR => Some(VirtualKeyCode::Clear),
+    win32wm::VK_RETURN => Some(VirtualKeyCode::Return),
+    win32wm::VK_LSHIFT => Some(VirtualKeyCode::LShift),
+    win32wm::VK_RSHIFT => Some(VirtualKeyCode::RShift),
+    win32wm::VK_LCONTROL => Some(VirtualKeyCode::LControl),
+    win32wm::VK_RCONTROL => Some(VirtualKeyCode::RControl),
+    win32wm::VK_LMENU => Some(VirtualKeyCode::LAlt),
+    win32wm::VK_RMENU => Some(VirtualKeyCode::RAlt),
+    win32wm::VK_PAUSE => Some(VirtualKeyCode::Pause),
+    win32wm::VK_CAPITAL => Some(VirtualKeyCode::Capital),
+    win32wm::VK_KANA => Some(VirtualKeyCode::Kana),
+    //win32wm::VK_HANGUEL => Some(VirtualKeyCode::Hanguel),
+    //win32wm::VK_HANGUL => Some(VirtualKeyCode::Hangul),
+    //win32wm::VK_JUNJA => Some(VirtualKeyCode::Junja),
+    //win32wm::VK_FINAL => Some(VirtualKeyCode::Final),
+    //win32wm::VK_HANJA => Some(VirtualKeyCode::Hanja),
+    win32wm::VK_KANJI => Some(VirtualKeyCode::Kanji),
+    win32wm::VK_ESCAPE => Some(VirtualKeyCode::Escape),
+    win32wm::VK_CONVERT => Some(VirtualKeyCode::Convert),
+    win32wm::VK_NONCONVERT => Some(VirtualKeyCode::NoConvert),
+    //win32wm::VK_ACCEPT => Some(VirtualKeyCode::Accept),
+    //win32wm::VK_MODECHANGE => Some(VirtualKeyCode::Modechange),
+    win32wm::VK_SPACE => Some(VirtualKeyCode::Space),
+    win32wm::VK_PRIOR => Some(VirtualKeyCode::PageUp),
+    win32wm::VK_NEXT => Some(VirtualKeyCode::PageDown),
+    win32wm::VK_END => Some(VirtualKeyCode::End),
+    win32wm::VK_HOME => Some(VirtualKeyCode::Home),
+    win32wm::VK_LEFT => Some(VirtualKeyCode::Left),
+    win32wm::VK_UP => Some(VirtualKeyCode::Up),
+    win32wm::VK_RIGHT => Some(VirtualKeyCode::Right),
+    win32wm::VK_DOWN => Some(VirtualKeyCode::Down),
+    //win32wm::VK_SELECT => Some(VirtualKeyCode::Select),
+    //win32wm::VK_PRINT => Some(VirtualKeyCode::Print),
+    //win32wm::VK_EXECUTE => Some(VirtualKeyCode::Execute),
+    win32wm::VK_SNAPSHOT => Some(VirtualKeyCode::Snapshot),
+    win32wm::VK_INSERT => Some(VirtualKeyCode::Insert),
+    win32wm::VK_DELETE => Some(VirtualKeyCode::Delete),
+    //win32wm::VK_HELP => Some(VirtualKeyCode::Help),
     0x30 => Some(VirtualKeyCode::Key0),
     0x31 => Some(VirtualKeyCode::Key1),
     0x32 => Some(VirtualKeyCode::Key2),
@@ -248,121 +252,119 @@ pub fn vkey_to_tao_vkey(vkey: c_int) -> Option<VirtualKeyCode> {
     0x58 => Some(VirtualKeyCode::X),
     0x59 => Some(VirtualKeyCode::Y),
     0x5A => Some(VirtualKeyCode::Z),
-    winuser::VK_LWIN => Some(VirtualKeyCode::LWin),
-    winuser::VK_RWIN => Some(VirtualKeyCode::RWin),
-    winuser::VK_APPS => Some(VirtualKeyCode::Apps),
-    winuser::VK_SLEEP => Some(VirtualKeyCode::Sleep),
-    winuser::VK_NUMPAD0 => Some(VirtualKeyCode::Numpad0),
-    winuser::VK_NUMPAD1 => Some(VirtualKeyCode::Numpad1),
-    winuser::VK_NUMPAD2 => Some(VirtualKeyCode::Numpad2),
-    winuser::VK_NUMPAD3 => Some(VirtualKeyCode::Numpad3),
-    winuser::VK_NUMPAD4 => Some(VirtualKeyCode::Numpad4),
-    winuser::VK_NUMPAD5 => Some(VirtualKeyCode::Numpad5),
-    winuser::VK_NUMPAD6 => Some(VirtualKeyCode::Numpad6),
-    winuser::VK_NUMPAD7 => Some(VirtualKeyCode::Numpad7),
-    winuser::VK_NUMPAD8 => Some(VirtualKeyCode::Numpad8),
-    winuser::VK_NUMPAD9 => Some(VirtualKeyCode::Numpad9),
-    winuser::VK_MULTIPLY => Some(VirtualKeyCode::NumpadMultiply),
-    winuser::VK_ADD => Some(VirtualKeyCode::NumpadAdd),
-    //winuser::VK_SEPARATOR => Some(VirtualKeyCode::Separator),
-    winuser::VK_SUBTRACT => Some(VirtualKeyCode::NumpadSubtract),
-    winuser::VK_DECIMAL => Some(VirtualKeyCode::NumpadDecimal),
-    winuser::VK_DIVIDE => Some(VirtualKeyCode::NumpadDivide),
-    winuser::VK_F1 => Some(VirtualKeyCode::F1),
-    winuser::VK_F2 => Some(VirtualKeyCode::F2),
-    winuser::VK_F3 => Some(VirtualKeyCode::F3),
-    winuser::VK_F4 => Some(VirtualKeyCode::F4),
-    winuser::VK_F5 => Some(VirtualKeyCode::F5),
-    winuser::VK_F6 => Some(VirtualKeyCode::F6),
-    winuser::VK_F7 => Some(VirtualKeyCode::F7),
-    winuser::VK_F8 => Some(VirtualKeyCode::F8),
-    winuser::VK_F9 => Some(VirtualKeyCode::F9),
-    winuser::VK_F10 => Some(VirtualKeyCode::F10),
-    winuser::VK_F11 => Some(VirtualKeyCode::F11),
-    winuser::VK_F12 => Some(VirtualKeyCode::F12),
-    winuser::VK_F13 => Some(VirtualKeyCode::F13),
-    winuser::VK_F14 => Some(VirtualKeyCode::F14),
-    winuser::VK_F15 => Some(VirtualKeyCode::F15),
-    winuser::VK_F16 => Some(VirtualKeyCode::F16),
-    winuser::VK_F17 => Some(VirtualKeyCode::F17),
-    winuser::VK_F18 => Some(VirtualKeyCode::F18),
-    winuser::VK_F19 => Some(VirtualKeyCode::F19),
-    winuser::VK_F20 => Some(VirtualKeyCode::F20),
-    winuser::VK_F21 => Some(VirtualKeyCode::F21),
-    winuser::VK_F22 => Some(VirtualKeyCode::F22),
-    winuser::VK_F23 => Some(VirtualKeyCode::F23),
-    winuser::VK_F24 => Some(VirtualKeyCode::F24),
-    winuser::VK_NUMLOCK => Some(VirtualKeyCode::Numlock),
-    winuser::VK_SCROLL => Some(VirtualKeyCode::Scroll),
-    winuser::VK_BROWSER_BACK => Some(VirtualKeyCode::NavigateBackward),
-    winuser::VK_BROWSER_FORWARD => Some(VirtualKeyCode::NavigateForward),
-    winuser::VK_BROWSER_REFRESH => Some(VirtualKeyCode::WebRefresh),
-    winuser::VK_BROWSER_STOP => Some(VirtualKeyCode::WebStop),
-    winuser::VK_BROWSER_SEARCH => Some(VirtualKeyCode::WebSearch),
-    winuser::VK_BROWSER_FAVORITES => Some(VirtualKeyCode::WebFavorites),
-    winuser::VK_BROWSER_HOME => Some(VirtualKeyCode::WebHome),
-    winuser::VK_VOLUME_MUTE => Some(VirtualKeyCode::Mute),
-    winuser::VK_VOLUME_DOWN => Some(VirtualKeyCode::VolumeDown),
-    winuser::VK_VOLUME_UP => Some(VirtualKeyCode::VolumeUp),
-    winuser::VK_MEDIA_NEXT_TRACK => Some(VirtualKeyCode::NextTrack),
-    winuser::VK_MEDIA_PREV_TRACK => Some(VirtualKeyCode::PrevTrack),
-    winuser::VK_MEDIA_STOP => Some(VirtualKeyCode::MediaStop),
-    winuser::VK_MEDIA_PLAY_PAUSE => Some(VirtualKeyCode::PlayPause),
-    winuser::VK_LAUNCH_MAIL => Some(VirtualKeyCode::Mail),
-    winuser::VK_LAUNCH_MEDIA_SELECT => Some(VirtualKeyCode::MediaSelect),
-    /*winuser::VK_LAUNCH_APP1 => Some(VirtualKeyCode::Launch_app1),
-    winuser::VK_LAUNCH_APP2 => Some(VirtualKeyCode::Launch_app2),*/
-    winuser::VK_OEM_PLUS => Some(VirtualKeyCode::Equals),
-    winuser::VK_OEM_COMMA => Some(VirtualKeyCode::Comma),
-    winuser::VK_OEM_MINUS => Some(VirtualKeyCode::Minus),
-    winuser::VK_OEM_PERIOD => Some(VirtualKeyCode::Period),
-    winuser::VK_OEM_1 => map_text_keys(vkey),
-    winuser::VK_OEM_2 => map_text_keys(vkey),
-    winuser::VK_OEM_3 => map_text_keys(vkey),
-    winuser::VK_OEM_4 => map_text_keys(vkey),
-    winuser::VK_OEM_5 => map_text_keys(vkey),
-    winuser::VK_OEM_6 => map_text_keys(vkey),
-    winuser::VK_OEM_7 => map_text_keys(vkey),
-    /* winuser::VK_OEM_8 => Some(VirtualKeyCode::Oem_8), */
-    winuser::VK_OEM_102 => Some(VirtualKeyCode::OEM102),
-    /*winuser::VK_PROCESSKEY => Some(VirtualKeyCode::Processkey),
-    winuser::VK_PACKET => Some(VirtualKeyCode::Packet),
-    winuser::VK_ATTN => Some(VirtualKeyCode::Attn),
-    winuser::VK_CRSEL => Some(VirtualKeyCode::Crsel),
-    winuser::VK_EXSEL => Some(VirtualKeyCode::Exsel),
-    winuser::VK_EREOF => Some(VirtualKeyCode::Ereof),
-    winuser::VK_PLAY => Some(VirtualKeyCode::Play),
-    winuser::VK_ZOOM => Some(VirtualKeyCode::Zoom),
-    winuser::VK_NONAME => Some(VirtualKeyCode::Noname),
-    winuser::VK_PA1 => Some(VirtualKeyCode::Pa1),
-    winuser::VK_OEM_CLEAR => Some(VirtualKeyCode::Oem_clear),*/
+    win32wm::VK_LWIN => Some(VirtualKeyCode::LWin),
+    win32wm::VK_RWIN => Some(VirtualKeyCode::RWin),
+    win32wm::VK_APPS => Some(VirtualKeyCode::Apps),
+    win32wm::VK_SLEEP => Some(VirtualKeyCode::Sleep),
+    win32wm::VK_NUMPAD0 => Some(VirtualKeyCode::Numpad0),
+    win32wm::VK_NUMPAD1 => Some(VirtualKeyCode::Numpad1),
+    win32wm::VK_NUMPAD2 => Some(VirtualKeyCode::Numpad2),
+    win32wm::VK_NUMPAD3 => Some(VirtualKeyCode::Numpad3),
+    win32wm::VK_NUMPAD4 => Some(VirtualKeyCode::Numpad4),
+    win32wm::VK_NUMPAD5 => Some(VirtualKeyCode::Numpad5),
+    win32wm::VK_NUMPAD6 => Some(VirtualKeyCode::Numpad6),
+    win32wm::VK_NUMPAD7 => Some(VirtualKeyCode::Numpad7),
+    win32wm::VK_NUMPAD8 => Some(VirtualKeyCode::Numpad8),
+    win32wm::VK_NUMPAD9 => Some(VirtualKeyCode::Numpad9),
+    win32wm::VK_MULTIPLY => Some(VirtualKeyCode::NumpadMultiply),
+    win32wm::VK_ADD => Some(VirtualKeyCode::NumpadAdd),
+    //win32wm::VK_SEPARATOR => Some(VirtualKeyCode::Separator),
+    win32wm::VK_SUBTRACT => Some(VirtualKeyCode::NumpadSubtract),
+    win32wm::VK_DECIMAL => Some(VirtualKeyCode::NumpadDecimal),
+    win32wm::VK_DIVIDE => Some(VirtualKeyCode::NumpadDivide),
+    win32wm::VK_F1 => Some(VirtualKeyCode::F1),
+    win32wm::VK_F2 => Some(VirtualKeyCode::F2),
+    win32wm::VK_F3 => Some(VirtualKeyCode::F3),
+    win32wm::VK_F4 => Some(VirtualKeyCode::F4),
+    win32wm::VK_F5 => Some(VirtualKeyCode::F5),
+    win32wm::VK_F6 => Some(VirtualKeyCode::F6),
+    win32wm::VK_F7 => Some(VirtualKeyCode::F7),
+    win32wm::VK_F8 => Some(VirtualKeyCode::F8),
+    win32wm::VK_F9 => Some(VirtualKeyCode::F9),
+    win32wm::VK_F10 => Some(VirtualKeyCode::F10),
+    win32wm::VK_F11 => Some(VirtualKeyCode::F11),
+    win32wm::VK_F12 => Some(VirtualKeyCode::F12),
+    win32wm::VK_F13 => Some(VirtualKeyCode::F13),
+    win32wm::VK_F14 => Some(VirtualKeyCode::F14),
+    win32wm::VK_F15 => Some(VirtualKeyCode::F15),
+    win32wm::VK_F16 => Some(VirtualKeyCode::F16),
+    win32wm::VK_F17 => Some(VirtualKeyCode::F17),
+    win32wm::VK_F18 => Some(VirtualKeyCode::F18),
+    win32wm::VK_F19 => Some(VirtualKeyCode::F19),
+    win32wm::VK_F20 => Some(VirtualKeyCode::F20),
+    win32wm::VK_F21 => Some(VirtualKeyCode::F21),
+    win32wm::VK_F22 => Some(VirtualKeyCode::F22),
+    win32wm::VK_F23 => Some(VirtualKeyCode::F23),
+    win32wm::VK_F24 => Some(VirtualKeyCode::F24),
+    win32wm::VK_NUMLOCK => Some(VirtualKeyCode::Numlock),
+    win32wm::VK_SCROLL => Some(VirtualKeyCode::Scroll),
+    win32wm::VK_BROWSER_BACK => Some(VirtualKeyCode::NavigateBackward),
+    win32wm::VK_BROWSER_FORWARD => Some(VirtualKeyCode::NavigateForward),
+    win32wm::VK_BROWSER_REFRESH => Some(VirtualKeyCode::WebRefresh),
+    win32wm::VK_BROWSER_STOP => Some(VirtualKeyCode::WebStop),
+    win32wm::VK_BROWSER_SEARCH => Some(VirtualKeyCode::WebSearch),
+    win32wm::VK_BROWSER_FAVORITES => Some(VirtualKeyCode::WebFavorites),
+    win32wm::VK_BROWSER_HOME => Some(VirtualKeyCode::WebHome),
+    win32wm::VK_VOLUME_MUTE => Some(VirtualKeyCode::Mute),
+    win32wm::VK_VOLUME_DOWN => Some(VirtualKeyCode::VolumeDown),
+    win32wm::VK_VOLUME_UP => Some(VirtualKeyCode::VolumeUp),
+    win32wm::VK_MEDIA_NEXT_TRACK => Some(VirtualKeyCode::NextTrack),
+    win32wm::VK_MEDIA_PREV_TRACK => Some(VirtualKeyCode::PrevTrack),
+    win32wm::VK_MEDIA_STOP => Some(VirtualKeyCode::MediaStop),
+    win32wm::VK_MEDIA_PLAY_PAUSE => Some(VirtualKeyCode::PlayPause),
+    win32wm::VK_LAUNCH_MAIL => Some(VirtualKeyCode::Mail),
+    win32wm::VK_LAUNCH_MEDIA_SELECT => Some(VirtualKeyCode::MediaSelect),
+    /*win32wm::VK_LAUNCH_APP1 => Some(VirtualKeyCode::Launch_app1),
+    win32wm::VK_LAUNCH_APP2 => Some(VirtualKeyCode::Launch_app2),*/
+    win32wm::VK_OEM_PLUS => Some(VirtualKeyCode::Equals),
+    win32wm::VK_OEM_COMMA => Some(VirtualKeyCode::Comma),
+    win32wm::VK_OEM_MINUS => Some(VirtualKeyCode::Minus),
+    win32wm::VK_OEM_PERIOD => Some(VirtualKeyCode::Period),
+    win32wm::VK_OEM_1 => map_text_keys(vkey),
+    win32wm::VK_OEM_2 => map_text_keys(vkey),
+    win32wm::VK_OEM_3 => map_text_keys(vkey),
+    win32wm::VK_OEM_4 => map_text_keys(vkey),
+    win32wm::VK_OEM_5 => map_text_keys(vkey),
+    win32wm::VK_OEM_6 => map_text_keys(vkey),
+    win32wm::VK_OEM_7 => map_text_keys(vkey),
+    /* win32wm::VK_OEM_8 => Some(VirtualKeyCode::Oem_8), */
+    win32wm::VK_OEM_102 => Some(VirtualKeyCode::OEM102),
+    /*win32wm::VK_PROCESSKEY => Some(VirtualKeyCode::Processkey),
+    win32wm::VK_PACKET => Some(VirtualKeyCode::Packet),
+    win32wm::VK_ATTN => Some(VirtualKeyCode::Attn),
+    win32wm::VK_CRSEL => Some(VirtualKeyCode::Crsel),
+    win32wm::VK_EXSEL => Some(VirtualKeyCode::Exsel),
+    win32wm::VK_EREOF => Some(VirtualKeyCode::Ereof),
+    win32wm::VK_PLAY => Some(VirtualKeyCode::Play),
+    win32wm::VK_ZOOM => Some(VirtualKeyCode::Zoom),
+    win32wm::VK_NONAME => Some(VirtualKeyCode::Noname),
+    win32wm::VK_PA1 => Some(VirtualKeyCode::Pa1),
+    win32wm::VK_OEM_CLEAR => Some(VirtualKeyCode::Oem_clear),*/
     _ => None,
   }
 }
 
 pub fn handle_extended_keys(
-  vkey: c_int,
+  vkey: u32,
   mut scancode: UINT,
   extended: bool,
 ) -> Option<(c_int, UINT)> {
   // Welcome to hell https://blog.molecular-matters.com/2011/09/05/properly-handling-keyboard-input/
   scancode = if extended { 0xE000 } else { 0x0000 } | scancode;
   let vkey = match vkey {
-    winuser::VK_SHIFT => unsafe {
-      winuser::MapVirtualKeyA(scancode, winuser::MAPVK_VSC_TO_VK_EX) as _
-    },
-    winuser::VK_CONTROL => {
+    win32wm::VK_SHIFT => unsafe { MapVirtualKeyA(scancode, MAPVK_VSC_TO_VK_EX) as _ },
+    win32wm::VK_CONTROL => {
       if extended {
-        winuser::VK_RCONTROL
+        VK_RCONTROL
       } else {
-        winuser::VK_LCONTROL
+        VK_LCONTROL
       }
     }
-    winuser::VK_MENU => {
+    win32wm::VK_MENU => {
       if extended {
-        winuser::VK_RMENU
+        VK_RMENU
       } else {
-        winuser::VK_LMENU
+        VK_LMENU
       }
     }
     _ => {
@@ -370,20 +372,20 @@ pub fn handle_extended_keys(
         // When VK_PAUSE is pressed it emits a LeftControl + NumLock scancode event sequence, but reports VK_PAUSE
         // as the virtual key on both events, or VK_PAUSE on the first event or 0xFF when using raw input.
         // Don't emit anything for the LeftControl event in the pair...
-        0xE01D if vkey == winuser::VK_PAUSE => return None,
+        0xE01D if vkey == VK_PAUSE => return None,
         // ...and emit the Pause event for the second event in the pair.
-        0x45 if vkey == winuser::VK_PAUSE || vkey == 0xFF as _ => {
+        0x45 if vkey == VK_PAUSE || vkey == 0xFF as _ => {
           scancode = 0xE059;
-          winuser::VK_PAUSE
+          VK_PAUSE
         }
         // VK_PAUSE has an incorrect vkey value when used with modifiers. VK_PAUSE also reports a different
         // scancode when used with modifiers than when used without
         0xE046 => {
           scancode = 0xE059;
-          winuser::VK_PAUSE
+          VK_PAUSE
         }
         // VK_SCROLL has an incorrect vkey value when used with modifiers.
-        0x46 => winuser::VK_SCROLL,
+        0x46 => VK_SCROLL,
         _ => vkey,
       }
     }
@@ -404,8 +406,7 @@ pub fn process_key_params(
 // This is needed as windows doesn't properly distinguish
 // some virtual key codes for different keyboard layouts
 fn map_text_keys(win_virtual_key: i32) -> Option<VirtualKeyCode> {
-  let char_key =
-    unsafe { winuser::MapVirtualKeyA(win_virtual_key as u32, winuser::MAPVK_VK_TO_CHAR) } & 0x7FFF;
+  let char_key = unsafe { MapVirtualKeyA(win_virtual_key as u32, MAPVK_VK_TO_CHAR) } & 0x7FFF;
   match char::from_u32(char_key) {
     Some(';') => Some(VirtualKeyCode::Semicolon),
     Some('/') => Some(VirtualKeyCode::Slash),

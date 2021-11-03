@@ -16,7 +16,7 @@ fn main() {
     window::WindowBuilder,
   };
   #[cfg(target_os = "windows")]
-  use winapi::shared::windef::HWND;
+  use webview2_com_sys::Windows::Win32::Foundation::HWND;
   SimpleLogger::new().init().unwrap();
   let event_loop = EventLoop::new();
   let mut windows = HashMap::new();
@@ -25,7 +25,7 @@ fn main() {
   #[cfg(target_os = "macos")]
   let parent_window = main_window.ns_window();
   #[cfg(target_os = "windows")]
-  let parent_window = main_window.hwnd() as HWND;
+  let parent_window = HWND(main_window.hwnd() as _);
 
   let child_window = WindowBuilder::new()
     .with_parent_window(parent_window)

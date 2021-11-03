@@ -7,8 +7,9 @@ use std::{
   fmt::{self, Debug},
   marker::PhantomData,
   mem, ptr,
-  sync::mpsc::{self, Receiver, Sender},
 };
+
+use crossbeam_channel::{self as channel, Receiver, Sender};
 
 use crate::{
   dpi::LogicalSize,
@@ -48,6 +49,7 @@ pub enum EventProxy {
   },
 }
 
+#[derive(Clone)]
 pub struct EventLoopWindowTarget<T: 'static> {
   receiver: Receiver<T>,
   sender_to_clone: Sender<T>,
@@ -85,7 +87,7 @@ impl<T: 'static> EventLoop<T> {
       view::create_delegate_class();
     }
 
-    let (sender_to_clone, receiver) = mpsc::channel();
+    let (sender_to_clone, receiver) = channel::unbounded();
 
     // this line sets up the main run loop before `UIApplicationMain`
     setup_control_flow_observers();
@@ -192,7 +194,7 @@ impl<T> EventLoopProxy<T> {
     self
       .sender
       .send(event)
-      .map_err(|::std::sync::mpsc::SendError(x)| EventLoopClosed(x))?;
+      .map_err(|channel::SendError(x)| EventLoopClosed(x))?;
     unsafe {
       // let the main thread know there's a new event
       CFRunLoopSourceSignal(self.source);
