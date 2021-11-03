@@ -785,7 +785,9 @@ impl<T: 'static> EventLoop<T> {
               _ => callback(event, &window_target, &mut control_flow),
             }
           }
-          callback(Event::MainEventsCleared, &window_target, &mut control_flow);
+          if control_flow != ControlFlow::Exit {
+            callback(Event::MainEventsCleared, &window_target, &mut control_flow);
+          }
         }
       }
 
