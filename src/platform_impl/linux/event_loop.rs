@@ -694,7 +694,7 @@ impl<T: 'static> EventLoop<T> {
       });
 
     // Event control flow
-    let (e, events) = crossbeam::channel::unbounded();
+    let (e, events) = crossbeam_channel::unbounded();
     event_rx.attach(Some(&context), move |event| match e.send(event) {
       Ok(_) => Continue(true),
       Err(_) => Continue(false),
