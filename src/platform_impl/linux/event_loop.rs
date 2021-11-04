@@ -696,6 +696,9 @@ impl<T: 'static> EventLoop<T> {
   where
     F: FnMut(Event<'_, T>, &RootELW<T>, &mut ControlFlow) + 'static,
   {
+    let context = MainContext::default();
+    context.push_thread_default();
+
     let mut control_flow = ControlFlow::default();
     let window_target = &self.window_target;
     let events = &self.events;
@@ -795,6 +798,8 @@ impl<T: 'static> EventLoop<T> {
 
       gtk::main_iteration();
     }
+
+    context.pop_thread_default();
   }
 
   #[inline]
