@@ -152,6 +152,9 @@ impl MonitorHandle {
   }
 
   /// Returns all fullscreen video modes supported by this monitor.
+  ///
+  /// ## Platform-specific
+  /// - **Linux:** Unsupported. This will always return empty iterator.
   #[inline]
   pub fn video_modes(&self) -> impl Iterator<Item = VideoMode> {
     self.inner.video_modes()
