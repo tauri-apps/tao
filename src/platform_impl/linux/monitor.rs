@@ -64,21 +64,21 @@ pub struct VideoMode;
 impl VideoMode {
   #[inline]
   pub fn size(&self) -> PhysicalSize<u32> {
-    todo!("VideoMode is unsupported on Linux.")
+    panic!("VideoMode is unsupported on Linux.")
   }
 
   #[inline]
   pub fn bit_depth(&self) -> u16 {
-    todo!("VideoMode is unsupported on Linux.")
+    panic!("VideoMode is unsupported on Linux.")
   }
 
   #[inline]
   pub fn refresh_rate(&self) -> u16 {
-    todo!("VideoMode is unsupported on Linux.")
+    panic!("VideoMode is unsupported on Linux.")
   }
 
   #[inline]
   pub fn monitor(&self) -> RootMonitorHandle {
-    todo!("VideoMode is unsupported on Linux.")
+    panic!("VideoMode is unsupported on Linux.")
   }
 }
