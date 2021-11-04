@@ -132,6 +132,7 @@
 //! [`platform`]: platform
 //! [`raw_window_handle`]: ./window/struct.Window.html#method.raw_window_handle
 #![allow(
+  clippy::match_str_case_mismatch,
   clippy::upper_case_acronyms,
   clippy::from_over_into,
   clippy::option_map_unit_fn,
