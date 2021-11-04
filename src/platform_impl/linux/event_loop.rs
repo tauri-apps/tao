@@ -25,7 +25,7 @@ use crate::{
   menu::{MenuItem, MenuType},
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{window::hit_test, DEVICE_ID},
-  window::{CursorIcon, WindowId as RootWindowId},
+  window::{CursorIcon, Fullscreen, WindowId as RootWindowId},
 };
 
 use super::{
@@ -245,7 +245,13 @@ impl<T: 'static> EventLoop<T> {
               }
             }
             WindowRequest::Fullscreen(fullscreen) => match fullscreen {
-              Some(_) => window.fullscreen(),
+              Some(f) => {
+                if let Fullscreen::Borderless(Some(monitor)) = f {
+                  let number = monitor.inner.number;
+                  let screen = window.display().default_screen();
+                  window.fullscreen_on_monitor(&screen, number);
+                }
+              }
               None => window.unfullscreen(),
             },
             WindowRequest::Decorations(decorations) => window.set_decorated(decorations),
@@ -838,14 +844,13 @@ impl<T: 'static> EventLoopProxy<T> {
 }
 
 fn assert_is_main_thread(suggested_method: &str) {
-  if !is_main_thread() {
-    panic!(
-      "Initializing the event loop outside of the main thread is a significant \
+  assert!(
+    is_main_thread(),
+    "Initializing the event loop outside of the main thread is a significant \
              cross-platform compatibility hazard. If you really, absolutely need to create an \
              EventLoop on a different thread, please use the `EventLoopExtUnix::{}` function.",
-      suggested_method
-    );
-  }
+    suggested_method
+  );
 }
 
 #[cfg(target_os = "linux")]
