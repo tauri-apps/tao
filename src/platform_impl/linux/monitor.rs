@@ -12,7 +12,7 @@ pub struct MonitorHandle {
   // We have to store the monitor number in GdkScreen despite
   // it's deprecated. Otherwise, there's no way to set it in
   // GtkWindow in Gtk3.
-  number: i32,
+  pub(crate) number: i32,
 }
 
 impl MonitorHandle {
@@ -51,7 +51,7 @@ impl MonitorHandle {
 
   #[inline]
   pub fn video_modes(&self) -> Box<dyn Iterator<Item = RootVideoMode>> {
-    todo!()
+    Box::new(Vec::new().into_iter())
   }
 }
 
@@ -64,21 +64,21 @@ pub struct VideoMode;
 impl VideoMode {
   #[inline]
   pub fn size(&self) -> PhysicalSize<u32> {
-    todo!()
+    todo!("VideoMode is unsupported on Linux.")
   }
 
   #[inline]
   pub fn bit_depth(&self) -> u16 {
-    todo!()
+    todo!("VideoMode is unsupported on Linux.")
   }
 
   #[inline]
   pub fn refresh_rate(&self) -> u16 {
-    todo!()
+    todo!("VideoMode is unsupported on Linux.")
   }
 
   #[inline]
   pub fn monitor(&self) -> RootMonitorHandle {
-    todo!()
+    todo!("VideoMode is unsupported on Linux.")
   }
 }
