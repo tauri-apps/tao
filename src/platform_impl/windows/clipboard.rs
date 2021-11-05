@@ -4,7 +4,7 @@
 use crate::clipboard::{ClipboardFormat, FormatId};
 use std::{ffi::OsStr, os::windows::ffi::OsStrExt, ptr};
 use windows::Win32::{
-  Foundation::{GetLastError, HANDLE, HWND, PSTR, PWSTR},
+  Foundation::{HANDLE, HWND, PSTR, PWSTR},
   System::{
     DataExchange::{
       CloseClipboard, EmptyClipboard, GetClipboardData, OpenClipboard, RegisterClipboardFormatA,
@@ -67,7 +67,7 @@ impl Clipboard {
           println!(
             "failed to set clipboard for fmt {}, error: {}",
             &format.identifier,
-            GetLastError().0
+            windows::runtime::Error::from_win32().code().0
           );
         }
       }
@@ -89,7 +89,7 @@ fn register_identifier(ident: &str) -> Option<u32> {
   unsafe {
     let pb_format = RegisterClipboardFormatA(ident);
     if pb_format == 0 {
-      let err = GetLastError().0;
+      let err = windows::runtime::Error::from_win32().code().0;
       println!(
         "failed to register clipboard format '{}'; error {}.",
         ident, err
