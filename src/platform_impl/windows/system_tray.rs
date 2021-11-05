@@ -14,7 +14,7 @@ use crate::{
   menu::MenuType,
   system_tray::SystemTray as RootSystemTray,
 };
-use webview2_com_sys::Windows::Win32::{
+use windows::Win32::{
   Foundation::{HWND, LPARAM, LRESULT, POINT, PSTR, PWSTR, WPARAM},
   System::LibraryLoader::*,
   UI::{
@@ -80,7 +80,7 @@ impl SystemTrayBuilder {
         std::ptr::null_mut(),
       );
 
-      if hwnd.is_null() {
+      if hwnd.0 == 0 {
         return Err(os_error!(OsError::CreationError(
           "Unable to get valid mutable pointer for CreateWindowEx"
         )));

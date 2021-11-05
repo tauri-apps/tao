@@ -1,10 +1,9 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use webview2_com_sys::Windows::Win32::{
+use windows::Win32::{
   Foundation::{BOOL, HWND, LPARAM, POINT, PWSTR, RECT},
   Graphics::Gdi::*,
-  UI::DisplayDevices::DEVMODEW,
 };
 
 use std::{
@@ -133,7 +132,7 @@ impl Window {
 
 pub(crate) fn get_monitor_info(hmonitor: HMONITOR) -> Result<MONITORINFOEXW, io::Error> {
   let mut monitor_info = MONITORINFOEXW::default();
-  monitor_info.__AnonymousBase_winuser_L13558_C43.cbSize = mem::size_of::<MONITORINFOEXW>() as u32;
+  monitor_info.__AnonymousBase_winuser_L13571_C43.cbSize = mem::size_of::<MONITORINFOEXW>() as u32;
   let status = unsafe {
     GetMonitorInfoW(
       hmonitor,
@@ -175,19 +174,19 @@ impl MonitorHandle {
     let monitor_info = get_monitor_info(self.hmonitor()).unwrap();
     PhysicalSize {
       width: (monitor_info
-        .__AnonymousBase_winuser_L13558_C43
+        .__AnonymousBase_winuser_L13571_C43
         .rcMonitor
         .right
         - monitor_info
-          .__AnonymousBase_winuser_L13558_C43
+          .__AnonymousBase_winuser_L13571_C43
           .rcMonitor
           .left) as u32,
       height: (monitor_info
-        .__AnonymousBase_winuser_L13558_C43
+        .__AnonymousBase_winuser_L13571_C43
         .rcMonitor
         .bottom
         - monitor_info
-          .__AnonymousBase_winuser_L13558_C43
+          .__AnonymousBase_winuser_L13571_C43
           .rcMonitor
           .top) as u32,
     }
@@ -198,11 +197,11 @@ impl MonitorHandle {
     let monitor_info = get_monitor_info(self.hmonitor()).unwrap();
     PhysicalPosition {
       x: monitor_info
-        .__AnonymousBase_winuser_L13558_C43
+        .__AnonymousBase_winuser_L13571_C43
         .rcMonitor
         .left,
       y: monitor_info
-        .__AnonymousBase_winuser_L13558_C43
+        .__AnonymousBase_winuser_L13571_C43
         .rcMonitor
         .top,
     }

@@ -5,7 +5,7 @@
 
 use std::sync::Once;
 
-use webview2_com_sys::Windows::Win32::{
+use windows::Win32::{
   Foundation::HWND,
   Graphics::Gdi::*,
   UI::{HiDpi::*, WindowsAndMessaging::*},
@@ -70,7 +70,7 @@ pub fn dpi_to_scale_factor(dpi: u32) -> f64 {
 
 pub unsafe fn hwnd_dpi(hwnd: HWND) -> u32 {
   let hdc = GetDC(hwnd);
-  if hdc.is_null() {
+  if hdc.0 == 0 {
     panic!("[tao] `GetDC` returned null!");
   }
   if let Some(GetDpiForWindow) = *GET_DPI_FOR_WINDOW {
@@ -82,7 +82,7 @@ pub unsafe fn hwnd_dpi(hwnd: HWND) -> u32 {
   } else if let Some(GetDpiForMonitor) = *GET_DPI_FOR_MONITOR {
     // We are on Windows 8.1 or later.
     let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-    if monitor.is_null() {
+    if monitor.0 == 0 {
       return BASE_DPI;
     }
 
@@ -98,7 +98,7 @@ pub unsafe fn hwnd_dpi(hwnd: HWND) -> u32 {
     if IsProcessDPIAware().as_bool() {
       // If the process is DPI aware, then scaling must be handled by the application using
       // this DPI value.
-      GetDeviceCaps(hdc, GET_DEVICE_CAPS_INDEX(LOGPIXELSX)) as u32
+      GetDeviceCaps(hdc, LOGPIXELSX) as u32
     } else {
       // If the process is DPI unaware, then scaling is performed by the OS; we thus return
       // 96 (scale factor 1.0) to prevent the window from being re-scaled by both the

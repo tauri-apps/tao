@@ -3,7 +3,7 @@
 
 #![cfg(target_os = "windows")]
 
-use webview2_com_sys::Windows::Win32::{
+use windows::Win32::{
   Foundation::{HANDLE, HWND},
   UI::WindowsAndMessaging::HMENU,
 };

@@ -16,18 +16,16 @@ use std::{
 };
 
 use crossbeam_channel as channel;
-use webview2_com_sys::Windows::Win32::{
+use windows::Win32::{
   Foundation::{self as win32f, HINSTANCE, HWND, LPARAM, LRESULT, POINT, PWSTR, RECT, WPARAM},
-  Globalization::*,
   Graphics::{
     Dwm::{DwmEnableBlurBehindWindow, DWM_BB_BLURREGION, DWM_BB_ENABLE, DWM_BLURBEHIND},
     Gdi::*,
   },
-  System::{Com::*, Diagnostics::Debug::*, LibraryLoader::*},
+  System::{Com::*, LibraryLoader::*, Ole::*},
   UI::{
-    KeyboardAndMouseInput::*,
+    Input::{KeyboardAndMouse::*, Touch::*, Ime::*},
     Shell::*,
-    TouchInput::*,
     WindowsAndMessaging::{self as win32wm, *},
   },
 };
@@ -478,12 +476,12 @@ impl Window {
           // string, so add it
           display_name.push(0);
 
-          let mut native_video_mode = video_mode.video_mode.native_video_mode;
+          let native_video_mode = video_mode.video_mode.native_video_mode;
 
           let res = unsafe {
             ChangeDisplaySettingsExW(
               PWSTR(display_name.as_mut_ptr()),
-              &mut native_video_mode,
+              &native_video_mode,
               HWND::default(),
               CDS_FULLSCREEN,
               std::ptr::null_mut(),
@@ -653,14 +651,14 @@ impl Window {
 
   pub(crate) fn set_ime_position_physical(&self, x: i32, y: i32) {
     if unsafe { GetSystemMetrics(SM_IMMENABLED) } != 0 {
-      let mut composition_form = COMPOSITIONFORM {
+      let composition_form = COMPOSITIONFORM {
         dwStyle: CFS_POINT,
         ptCurrentPos: POINT { x, y },
         rcArea: RECT::default(),
       };
       unsafe {
         let himc = ImmGetContext(self.window.0);
-        ImmSetCompositionWindow(himc, &mut composition_form);
+        ImmSetCompositionWindow(himc, &composition_form);
         ImmReleaseContext(self.window.0, himc);
       }
     }
@@ -688,14 +686,14 @@ impl Window {
         })
         .unwrap_or((FLASHW_STOP, 0));
 
-      let mut flash_info = FLASHWINFO {
+      let flash_info = FLASHWINFO {
         cbSize: mem::size_of::<FLASHWINFO>() as u32,
         hwnd: window.0,
         dwFlags: flags,
         uCount: count,
         dwTimeout: 0,
       };
-      FlashWindowEx(&mut flash_info);
+      FlashWindowEx(&flash_info);
     });
   }
 
@@ -722,7 +720,7 @@ impl Window {
 
   #[inline]
   pub fn is_menu_visible(&self) -> bool {
-    unsafe { !GetMenu(self.hwnd()).is_null() }
+    unsafe { GetMenu(self.hwnd()).0 != 0 }
   }
 
   #[inline]
@@ -730,7 +728,7 @@ impl Window {
     // `ToUnicode` consumes the dead-key by default, so we are constructing a fake (but valid)
     // key input which we can call `ToUnicode` with.
     unsafe {
-      let vk = VK_SPACE as u32;
+      let vk = u32::from(VK_SPACE.0);
       let scancode = MapVirtualKeyW(vk, MAPVK_VK_TO_VSC);
       let kbd_state = [0; 256];
       let mut char_buff = [MaybeUninit::uninit(); 8];
@@ -857,7 +855,7 @@ unsafe fn init<T: 'static>(
       Box::into_raw(Box::new(!attributes.decorations)) as _,
     );
 
-    if handle.is_null() {
+    if handle.0 == 0 {
       return Err(os_error!(OsError::IoError(io::Error::last_os_error())));
     }
 
@@ -1015,7 +1013,7 @@ unsafe extern "system" fn window_proc(
           let monitor = monitor::current_monitor(window);
           if let Ok(monitor_info) = monitor::get_monitor_info(monitor.hmonitor()) {
             let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
-            params.rgrc[0] = monitor_info.__AnonymousBase_winuser_L13558_C43.rcWork;
+            params.rgrc[0] = monitor_info.__AnonymousBase_winuser_L13571_C43.rcWork;
           }
         }
         LRESULT(0) // return 0 here to make the windowo borderless
@@ -1077,7 +1075,7 @@ unsafe fn taskbar_mark_fullscreen(handle: HWND, fullscreen: bool) {
     let mut task_bar_list = task_bar_list_ptr.borrow().clone();
 
     if task_bar_list.is_none() {
-      let result: windows::Result<ITaskbarList2> = CoCreateInstance(&TaskbarList, None, CLSCTX_ALL);
+      let result: windows::runtime::Result<ITaskbarList2> = CoCreateInstance(&TaskbarList, None, CLSCTX_ALL);
       if let Ok(created) = result {
         if let Ok(()) = created.HrInit() {
           task_bar_list = Some(created);
@@ -1102,7 +1100,7 @@ unsafe fn force_window_active(handle: HWND) {
   // This is a little hack which can "steal" the foreground window permission
   // We only call this function in the window creation, so it should be fine.
   // See : https://stackoverflow.com/questions/10740346/setforegroundwindow-only-working-while-visual-studio-is-open
-  let alt_sc = MapVirtualKeyW(VK_MENU as _, MAPVK_VK_TO_VSC);
+  let alt_sc = MapVirtualKeyW(u32::from(VK_MENU.0), MAPVK_VK_TO_VSC);
 
   let mut inputs: [INPUT; 2] = mem::zeroed();
   inputs[0].r#type = INPUT_KEYBOARD;
@@ -1129,15 +1127,15 @@ pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
   let mut window_rect = RECT::default();
   unsafe {
     if GetWindowRect(hwnd, <*mut _>::cast(&mut window_rect)).as_bool() {
-      const CLIENT: i32 = 0b0000;
-      const LEFT: i32 = 0b0001;
-      const RIGHT: i32 = 0b0010;
-      const TOP: i32 = 0b0100;
-      const BOTTOM: i32 = 0b1000;
-      const TOPLEFT: i32 = TOP | LEFT;
-      const TOPRIGHT: i32 = TOP | RIGHT;
-      const BOTTOMLEFT: i32 = BOTTOM | LEFT;
-      const BOTTOMRIGHT: i32 = BOTTOM | RIGHT;
+      const CLIENT: isize = 0b0000;
+      const LEFT: isize = 0b0001;
+      const RIGHT: isize = 0b0010;
+      const TOP: isize = 0b0100;
+      const BOTTOM: isize = 0b1000;
+      const TOPLEFT: isize = TOP | LEFT;
+      const TOPRIGHT: isize = TOP | RIGHT;
+      const BOTTOMLEFT: isize = BOTTOM | LEFT;
+      const BOTTOMRIGHT: isize = BOTTOM | RIGHT;
 
       let RECT {
         left,
@@ -1163,9 +1161,9 @@ pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
         BOTTOMLEFT => HTBOTTOMLEFT,
         BOTTOMRIGHT => HTBOTTOMRIGHT,
         _ => HTNOWHERE,
-      } as i32)
+      } as isize)
     } else {
-      LRESULT(HTNOWHERE as i32)
+      LRESULT(HTNOWHERE as isize)
     }
   }
 }

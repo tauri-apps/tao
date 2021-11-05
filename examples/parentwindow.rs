@@ -16,7 +16,7 @@ fn main() {
     window::WindowBuilder,
   };
   #[cfg(target_os = "windows")]
-  use webview2_com_sys::Windows::Win32::Foundation::HWND;
+  use windows::Win32::Foundation::HWND;
   SimpleLogger::new().init().unwrap();
   let event_loop = EventLoop::new();
   let mut windows = HashMap::new();

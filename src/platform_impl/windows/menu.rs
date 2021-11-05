@@ -4,10 +4,10 @@
 use raw_window_handle::RawWindowHandle;
 use std::{collections::HashMap, fmt, sync::Mutex};
 
-use webview2_com_sys::Windows::Win32::{
+use windows::Win32::{
   Foundation::{HWND, LPARAM, LRESULT, PSTR, PWSTR, WPARAM},
   UI::{
-    KeyboardAndMouseInput::*,
+    Input::KeyboardAndMouse::*,
     Shell::*,
     WindowsAndMessaging::{self as win32wm, *},
   },
@@ -96,14 +96,14 @@ impl MenuItemAttributes {
   }
   pub fn set_title(&mut self, title: &str) {
     unsafe {
-      let mut info = MENUITEMINFOA {
+      let info = MENUITEMINFOA {
         cbSize: std::mem::size_of::<MENUITEMINFOA>() as _,
         fMask: MIIM_STRING,
+        dwTypeData: PSTR(String::from(title).as_mut_ptr()),
         ..Default::default()
       };
-      info.dwTypeData = PSTR(String::from(title).as_mut_ptr());
 
-      SetMenuItemInfoA(self.1, self.0 as u32, false, &mut info);
+      SetMenuItemInfoA(self.1, self.0 as u32, false, &info);
     }
   }
   pub fn set_selected(&mut self, selected: bool) {
@@ -393,10 +393,10 @@ fn execute_edit_command(command: EditCommand) {
     inputs[0].Anonymous.ki.wVk = VK_CONTROL as _;
 
     inputs[1].r#type = INPUT_KEYBOARD;
-    inputs[1].Anonymous.ki.wVk = key;
+    inputs[1].Anonymous.ki.wVk = VIRTUAL_KEY::from(key);
 
     inputs[2].r#type = INPUT_KEYBOARD;
-    inputs[2].Anonymous.ki.wVk = key;
+    inputs[2].Anonymous.ki.wVk = VIRTUAL_KEY::from(key);
     inputs[2].Anonymous.ki.dwFlags = KEYEVENTF_KEYUP;
 
     inputs[3].r#type = INPUT_KEYBOARD;
@@ -426,7 +426,7 @@ fn convert_accelerator(id: u16, key: Accelerator) -> Option<ACCEL> {
   }
 
   let raw_key = if let Some(vk_code) = key_to_vk(&key.key) {
-    let mod_code = vk_code >> 8;
+    let mod_code = vk_code.0 >> 8;
     if mod_code & 0x1 != 0 {
       virt_key |= FSHIFT;
     }
@@ -436,7 +436,7 @@ fn convert_accelerator(id: u16, key: Accelerator) -> Option<ACCEL> {
     if mod_code & 0x04 != 0 {
       virt_key |= FALT;
     }
-    vk_code & 0x00ff
+    vk_code.0 & 0x00ff
   } else {
     dbg!("Failed to convert key {:?} into virtual key code", key.key);
     return None;

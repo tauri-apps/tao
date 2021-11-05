@@ -10,7 +10,7 @@ use crate::{
 };
 use parking_lot::MutexGuard;
 use std::io;
-use webview2_com_sys::Windows::Win32::{
+use windows::Win32::{
   Foundation::{HWND, LPARAM, RECT, WPARAM},
   Graphics::Gdi::{InvalidateRgn, HRGN},
   UI::WindowsAndMessaging::*,

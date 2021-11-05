@@ -10,10 +10,10 @@ use std::{
 
 use crate::event::{ModifiersState, ScanCode, VirtualKeyCode};
 
-use webview2_com_sys::Windows::Win32::{
+use windows::Win32::{
   Foundation::{HWND, LPARAM, WPARAM},
   UI::{
-    KeyboardAndMouseInput::*,
+    Input::KeyboardAndMouse::*,
     TextServices::HKL,
     WindowsAndMessaging::{self as win32wm, *},
   },

@@ -3,11 +3,16 @@
 
 use std::{ffi::OsString, os::windows::ffi::OsStringExt, path::PathBuf, ptr};
 
-use webview2_com_sys::Windows::{
-  self,
+use windows::{
+  self as Windows,
+  runtime::implement,
   Win32::{
-    Foundation::{HWND, POINTL, PWSTR},
-    System::Com::{IDataObject, DROPEFFECT_COPY, DROPEFFECT_NONE},
+    Foundation::{DV_E_FORMATETC, HWND, POINTL, PWSTR},
+    System::{
+      Com::{IDataObject, DVASPECT_CONTENT, FORMATETC, TYMED_HGLOBAL},
+      Ole::{DROPEFFECT_COPY, DROPEFFECT_NONE},
+      SystemServices::CF_HDROP,
+    },
     UI::Shell::{DragFinish, DragQueryFileW, HDROP},
   },
 };
@@ -16,7 +21,7 @@ use crate::platform_impl::platform::WindowId;
 
 use crate::{event::Event, window::WindowId as SuperWindowId};
 
-#[windows::implement(Windows::Win32::System::Com::IDropTarget)]
+#[implement(Windows::Win32::System::Ole::IDropTarget)]
 pub struct FileDropHandler {
   window: HWND,
   send_event: Box<dyn Fn(Event<'static, ()>)>,
@@ -41,7 +46,7 @@ impl FileDropHandler {
     _grfKeyState: u32,
     _pt: POINTL,
     pdwEffect: *mut u32,
-  ) -> windows::Result<()> {
+  ) -> windows::runtime::Result<()> {
     use crate::event::WindowEvent::HoveredFile;
     let hdrop = Self::iterate_filenames(pDataObj, |filename| {
       (self.send_event)(Event::WindowEvent {
@@ -64,12 +69,12 @@ impl FileDropHandler {
     _grfKeyState: u32,
     _pt: POINTL,
     pdwEffect: *mut u32,
-  ) -> windows::Result<()> {
+  ) -> windows::runtime::Result<()> {
     *pdwEffect = self.cursor_effect;
     Ok(())
   }
 
-  unsafe fn DragLeave(&self) -> windows::Result<()> {
+  unsafe fn DragLeave(&self) -> windows::runtime::Result<()> {
     use crate::event::WindowEvent::HoveredFileCancelled;
     if self.hovered_is_valid {
       (self.send_event)(Event::WindowEvent {
@@ -86,7 +91,7 @@ impl FileDropHandler {
     _grfKeyState: u32,
     _pt: POINTL,
     _pdwEffect: *mut u32,
-  ) -> windows::Result<()> {
+  ) -> windows::runtime::Result<()> {
     use crate::event::WindowEvent::DroppedFile;
     let hdrop = Self::iterate_filenames(pDataObj, |filename| {
       (self.send_event)(Event::WindowEvent {
@@ -104,15 +109,7 @@ impl FileDropHandler {
   where
     F: Fn(PathBuf),
   {
-    use Windows::Win32::{
-      Foundation as win32f,
-      System::{
-        Com::{DVASPECT_CONTENT, FORMATETC, TYMED_HGLOBAL},
-        SystemServices::CF_HDROP,
-      },
-    };
-
-    let mut drop_format = FORMATETC {
+    let drop_format = FORMATETC {
       cfFormat: CF_HDROP.0 as u16,
       ptd: ptr::null_mut(),
       dwAspect: DVASPECT_CONTENT.0 as u32,
@@ -123,7 +120,7 @@ impl FileDropHandler {
     match data_obj
       .as_ref()
       .expect("Received null IDataObject")
-      .GetData(&mut drop_format)
+      .GetData(&drop_format)
     {
       Ok(medium) => {
         let hglobal = medium.Anonymous.hGlobal;
@@ -153,7 +150,7 @@ impl FileDropHandler {
         debug!(
           "{}",
           match error.code() {
-            win32f::DV_E_FORMATETC => {
+            DV_E_FORMATETC => {
               // If the dropped item is not a file this error will occur.
               // In this case it is OK to return without taking further action.
               "Error occured while processing dropped/hovered item: item is not a file."

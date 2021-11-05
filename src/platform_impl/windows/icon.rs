@@ -3,10 +3,10 @@
 
 use std::{fmt, io, iter::once, mem, os::windows::ffi::OsStrExt, path::Path, sync::Arc};
 
-use webview2_com_sys::Windows::Win32::{
+use windows::Win32::{
   Foundation::{HINSTANCE, HWND, LPARAM, PWSTR, WPARAM},
   System::LibraryLoader::*,
-  UI::{Controls::*, WindowsAndMessaging::*},
+  UI::WindowsAndMessaging::*,
 };
 
 use crate::{dpi::PhysicalSize, icon::*};
@@ -40,7 +40,7 @@ impl RgbaIcon {
         rgba.as_ptr() as *const u8,
       ) as HICON
     };
-    if !handle.is_null() {
+    if handle.0 != 0 {
       Ok(WinIcon::from_handle(handle))
     } else {
       Err(BadIcon::OsError(io::Error::last_os_error()))
@@ -99,7 +99,7 @@ impl WinIcon {
       }
       .0,
     );
-    if !handle.is_null() {
+    if handle.0 != 0 {
       Ok(WinIcon::from_handle(handle))
     } else {
       Err(BadIcon::OsError(io::Error::last_os_error()))
@@ -122,7 +122,7 @@ impl WinIcon {
       }
       .0,
     );
-    if !handle.is_null() {
+    if !handle.0 != 0 {
       Ok(WinIcon::from_handle(handle))
     } else {
       Err(BadIcon::OsError(io::Error::last_os_error()))
