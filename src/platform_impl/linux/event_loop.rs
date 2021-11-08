@@ -694,7 +694,7 @@ impl<T: 'static> EventLoop<T> {
 
   pub(crate) fn run_return<F>(&mut self, mut callback: F)
   where
-    F: FnMut(Event<'_, T>, &RootELW<T>, &mut ControlFlow) + 'static,
+    F: FnMut(Event<'_, T>, &RootELW<T>, &mut ControlFlow),
   {
     let context = MainContext::default();
     context.push_thread_default();
