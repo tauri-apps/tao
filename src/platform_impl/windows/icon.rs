@@ -122,7 +122,7 @@ impl WinIcon {
       }
       .0,
     );
-    if !handle.0 != 0 {
+    if handle.0 != 0 {
       Ok(WinIcon::from_handle(handle))
     } else {
       Err(BadIcon::OsError(io::Error::last_os_error()))
