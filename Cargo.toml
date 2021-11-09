@@ -74,7 +74,7 @@ parking_lot = "0.11"
 unicode-segmentation = "1.8.0"
 
 [target."cfg(target_os = \"windows\")".dependencies.windows]
-version = "0.24.0"
+version = "0.25.0"
 features = [
   "build",
   "Win32_Devices_HumanInterfaceDevice",
