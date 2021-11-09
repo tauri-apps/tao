@@ -118,10 +118,10 @@ impl KeyEventBuilder {
         if has_next_key_message {
           let next_msg = unsafe { next_msg.assume_init() };
           let next_msg_kind = next_msg.message;
-          let next_belongs_to_this = next_msg_kind == WM_KEYDOWN
-            || next_msg_kind == WM_SYSKEYDOWN
-            || next_msg_kind == WM_KEYUP
-            || next_msg_kind == WM_SYSKEYUP;
+          let next_belongs_to_this = !matches!(
+            next_msg_kind,
+            win32wm::WM_KEYDOWN | win32wm::WM_SYSKEYDOWN | win32wm::WM_KEYUP | win32wm::WM_SYSKEYUP
+          );
           if next_belongs_to_this {
             self.event_info = finished_event_info.take();
           } else {
