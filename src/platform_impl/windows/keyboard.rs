@@ -712,7 +712,10 @@ fn get_async_kbd_state() -> [u8; 256] {
         *state = 0x80;
       }
 
-      if matches!(vk, win32km::VK_CAPITAL | win32km::VK_NUMLOCK | win32km::VK_SCROLL) {
+      if matches!(
+        vk,
+        win32km::VK_CAPITAL | win32km::VK_NUMLOCK | win32km::VK_SCROLL
+      ) {
         // Toggle states aren't reported by `GetAsyncKeyState`
         let toggle_state = GetKeyState(i32::from(vk.0));
         let is_active = (toggle_state & 1) != 0;
@@ -746,7 +749,8 @@ fn get_location(scancode: ExScancode, hkl: HKL) -> KeyLocation {
 
   let extension = 0xE000;
   let extended = (scancode & extension) == extension;
-  let vkey = VIRTUAL_KEY::from(unsafe { MapVirtualKeyExW(scancode as u32, MAPVK_VSC_TO_VK_EX, hkl) as u16 });
+  let vkey =
+    VIRTUAL_KEY::from(unsafe { MapVirtualKeyExW(scancode as u32, MAPVK_VSC_TO_VK_EX, hkl) as u16 });
 
   // Use the native VKEY and the extended flag to cover most cases
   // This is taken from the `druid` GUI library, specifically

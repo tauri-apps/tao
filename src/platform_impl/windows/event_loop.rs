@@ -1819,8 +1819,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         // Check to see if the new window rect is on the monitor with the new DPI factor.
         // If it isn't, offset the window so that it is.
         let new_dpi_monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONULL);
-        let conservative_rect_monitor =
-          MonitorFromRect(&conservative_rect, MONITOR_DEFAULTTONULL);
+        let conservative_rect_monitor = MonitorFromRect(&conservative_rect, MONITOR_DEFAULTTONULL);
         new_outer_rect = {
           if conservative_rect_monitor != new_dpi_monitor {
             let get_monitor_rect = |monitor| {

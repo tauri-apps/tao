@@ -24,7 +24,7 @@ use windows::Win32::{
   },
   System::{Com::*, LibraryLoader::*, Ole::*},
   UI::{
-    Input::{KeyboardAndMouse::*, Touch::*, Ime::*},
+    Input::{Ime::*, KeyboardAndMouse::*, Touch::*},
     Shell::*,
     WindowsAndMessaging::{self as win32wm, *},
   },
@@ -1075,7 +1075,8 @@ unsafe fn taskbar_mark_fullscreen(handle: HWND, fullscreen: bool) {
     let mut task_bar_list = task_bar_list_ptr.borrow().clone();
 
     if task_bar_list.is_none() {
-      let result: windows::runtime::Result<ITaskbarList2> = CoCreateInstance(&TaskbarList, None, CLSCTX_ALL);
+      let result: windows::runtime::Result<ITaskbarList2> =
+        CoCreateInstance(&TaskbarList, None, CLSCTX_ALL);
       if let Ok(created) = result {
         if let Ok(()) = created.HrInit() {
           task_bar_list = Some(created);

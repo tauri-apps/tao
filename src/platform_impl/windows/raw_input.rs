@@ -9,7 +9,10 @@ use std::{
 use windows::Win32::{
   Devices::HumanInterfaceDevice::*,
   Foundation::{HANDLE, HWND},
-  UI::{Input::{self as win32i, *}, WindowsAndMessaging::*},
+  UI::{
+    Input::{self as win32i, *},
+    WindowsAndMessaging::*,
+  },
 };
 
 use crate::{event::ElementState, platform_impl::platform::util};

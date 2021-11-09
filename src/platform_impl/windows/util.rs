@@ -392,9 +392,7 @@ macro_rules! get_function {
       concat!($lib, '\0'),
       concat!(stringify!($func), '\0'),
     )
-    .map(|f| unsafe {
-      std::mem::transmute::<windows::Win32::Foundation::FARPROC, $func>(f)
-    })
+    .map(|f| unsafe { std::mem::transmute::<windows::Win32::Foundation::FARPROC, $func>(f) })
   };
 }
 
