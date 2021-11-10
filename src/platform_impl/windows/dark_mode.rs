@@ -3,7 +3,7 @@
 
 /// This is a simple implementation of support for Windows Dark Mode,
 /// which is inspired by the solution in https://github.com/ysc3839/win32-darkmode
-use webview2_com_sys::Windows::Win32::{
+use windows::Win32::{
   Foundation::{BOOL, HWND, PSTR, PWSTR},
   System::LibraryLoader::*,
   UI::{Accessibility::*, Controls::*, WindowsAndMessaging::*},
@@ -158,7 +158,7 @@ fn should_apps_use_dark_mode() -> bool {
 
         let module = LoadLibraryA("uxtheme.dll");
 
-        if module.is_null() {
+        if module.0 == 0 {
           return None;
         }
 

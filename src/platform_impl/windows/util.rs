@@ -11,18 +11,16 @@ use std::{
 
 use crate::{dpi::PhysicalSize, window::CursorIcon};
 
-use webview2_com_sys::Windows::Win32::{
-  Foundation::{BOOL, FARPROC, HWND, LPARAM, LRESULT, POINT, PWSTR, RECT, WPARAM},
-  Globalization::lstrlenW,
-  Graphics::Gdi::{ClientToScreen, InvalidateRgn, HMONITOR, HRGN},
-  System::{LibraryLoader::*, SystemServices::DPI_AWARENESS_CONTEXT},
-  UI::{
-    Controls::LR_DEFAULTCOLOR, HiDpi::*, KeyboardAndMouseInput::*, TextServices::HKL,
-    WindowsAndMessaging::*,
+use windows::{
+  runtime::HRESULT,
+  Win32::{
+    Foundation::{BOOL, FARPROC, HWND, LPARAM, LRESULT, POINT, PWSTR, RECT, WPARAM},
+    Globalization::lstrlenW,
+    Graphics::Gdi::{ClientToScreen, InvalidateRgn, HMONITOR, HRGN},
+    System::LibraryLoader::*,
+    UI::{HiDpi::*, Input::KeyboardAndMouse::*, TextServices::HKL, WindowsAndMessaging::*},
   },
 };
-
-use windows::HRESULT;
 
 pub fn has_flag<T>(bitset: T, flag: T) -> bool
 where
@@ -193,7 +191,7 @@ pub fn adjust_window_rect_with_styles(
     status_map(|r| {
       *r = rect;
 
-      let b_menu: BOOL = GetMenu(hwnd).is_null().into();
+      let b_menu: BOOL = (GetMenu(hwnd).0 != 0).into();
 
       if let (Some(get_dpi_for_window), Some(adjust_window_rect_ex_for_dpi)) =
         (*GET_DPI_FOR_WINDOW, *ADJUST_WINDOW_RECT_EX_FOR_DPI)
@@ -335,7 +333,7 @@ pub fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<H
           // if a bad icon is provided it'll fail here or in
           // the LookupIconIdFromDirectoryEx if this is a bad format (example png's)
           // with my tests, even some ICO's were failing...
-          hicon if hicon.is_null() => {
+          hicon if hicon.0 == 0 => {
             debug!("Unable to CreateIconFromResourceEx");
             None
           }
@@ -381,7 +379,7 @@ pub(super) fn get_function_impl(library: &str, function: &str) -> Option<FARPROC
 
   // Library names we will use are ASCII so we can use the A version to avoid string conversion.
   let module = unsafe { LoadLibraryA(library) };
-  if module.is_null() {
+  if module.0 == 0 {
     return None;
   }
 
@@ -394,9 +392,7 @@ macro_rules! get_function {
       concat!($lib, '\0'),
       concat!(stringify!($func), '\0'),
     )
-    .map(|f| unsafe {
-      std::mem::transmute::<webview2_com_sys::Windows::Win32::Foundation::FARPROC, $func>(f)
-    })
+    .map(|f| unsafe { std::mem::transmute::<windows::Win32::Foundation::FARPROC, $func>(f) })
   };
 }
 

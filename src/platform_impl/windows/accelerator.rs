@@ -8,7 +8,7 @@ use std::{
 
 use lazy_static::lazy_static;
 
-use webview2_com_sys::Windows::Win32::{Foundation::HWND, UI::WindowsAndMessaging::*};
+use windows::Win32::{Foundation::HWND, UI::WindowsAndMessaging::*};
 
 // NOTE:
 // https://docs.microsoft.com/en-us/windows/win32/wsw/thread-safety

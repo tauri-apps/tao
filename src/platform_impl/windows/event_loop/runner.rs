@@ -10,7 +10,7 @@ use std::{
   time::Instant,
 };
 
-use webview2_com_sys::Windows::Win32::{
+use windows::Win32::{
   Foundation::HWND,
   Graphics::Gdi::{RedrawWindow, HRGN, RDW_INTERNALPAINT},
 };

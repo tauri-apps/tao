@@ -72,8 +72,37 @@ cc = "1"
 [target."cfg(target_os = \"windows\")".dependencies]
 parking_lot = "0.11"
 unicode-segmentation = "1.8.0"
-webview2-com-sys = "0.4.0"
-windows = "0.19.0"
+
+[target."cfg(target_os = \"windows\")".dependencies.windows]
+version = "0.25.0"
+features = [
+  "build",
+  "Win32_Devices_HumanInterfaceDevice",
+  "Win32_Foundation",
+  "Win32_Globalization",
+  "Win32_Graphics_Dwm",
+  "Win32_Graphics_Gdi",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_DataExchange",
+  "Win32_System_Diagnostics_Debug",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Memory",
+  "Win32_System_Ole",
+  "Win32_System_SystemServices",
+  "Win32_System_Threading",
+  "Win32_System_WindowsProgramming",
+  "Win32_UI_Accessibility",
+  "Win32_UI_Controls",
+  "Win32_UI_HiDpi",
+  "Win32_UI_Input_Ime",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_Input_Pointer",
+  "Win32_UI_Input_Touch",
+  "Win32_UI_Shell",
+  "Win32_UI_TextServices",
+  "Win32_UI_WindowsAndMessaging",
+]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 cairo-rs = "0.14"

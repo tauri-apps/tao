@@ -1,7 +1,7 @@
 use std::mem::MaybeUninit;
 
-use webview2_com_sys::Windows::Win32::{
-  Foundation::{HWND, LPARAM, WPARAM},
+use windows::Win32::{
+  Foundation::{HWND, LPARAM, LRESULT, WPARAM},
   UI::WindowsAndMessaging::{self as win32wm, *},
 };
 
@@ -49,7 +49,7 @@ impl MinimalIme {
       }
       win32wm::WM_CHAR | win32wm::WM_SYSCHAR => {
         if self.getting_ime_text {
-          *result = ProcResult::Value(0);
+          *result = ProcResult::Value(LRESULT::default());
           self.utf16parts.push(wparam.0 as u16);
 
           let more_char_coming;
