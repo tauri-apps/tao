@@ -191,7 +191,7 @@ pub fn adjust_window_rect_with_styles(
     status_map(|r| {
       *r = rect;
 
-      let b_menu: BOOL = (GetMenu(hwnd).0 == 0).into();
+      let b_menu: BOOL = (GetMenu(hwnd).0 != 0).into();
 
       if let (Some(get_dpi_for_window), Some(adjust_window_rect_ex_for_dpi)) =
         (*GET_DPI_FOR_WINDOW, *ADJUST_WINDOW_RECT_EX_FOR_DPI)
