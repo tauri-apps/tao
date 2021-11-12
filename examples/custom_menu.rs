@@ -1,7 +1,6 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use simple_logger::SimpleLogger;
 #[cfg(target_os = "macos")]
 use tao::platform::macos::{CustomMenuItemExtMacOS, NativeImage};
 use tao::{
@@ -15,7 +14,7 @@ use tao::{
 };
 
 fn main() {
-  SimpleLogger::new().init().unwrap();
+  env_logger::init();
   let event_loop = EventLoop::new();
 
   // create clipboard instance

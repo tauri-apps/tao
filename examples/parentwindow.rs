@@ -3,7 +3,6 @@
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 fn main() {
-  use simple_logger::SimpleLogger;
   use std::collections::HashMap;
   #[cfg(target_os = "macos")]
   use tao::platform::macos::{WindowBuilderExtMacOS, WindowExtMacOS};
@@ -17,7 +16,7 @@ fn main() {
   };
   #[cfg(target_os = "windows")]
   use windows::Win32::Foundation::HWND;
-  SimpleLogger::new().init().unwrap();
+  env_logger::init();
   let event_loop = EventLoop::new();
   let mut windows = HashMap::new();
   let main_window = WindowBuilder::new().build(&event_loop).unwrap();

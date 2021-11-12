@@ -6,7 +6,6 @@
 fn main() {
   use std::{collections::HashMap, sync::mpsc, thread, time::Duration};
 
-  use simple_logger::SimpleLogger;
   use tao::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
     event::{ElementState, Event, KeyEvent, WindowEvent},
@@ -18,7 +17,7 @@ fn main() {
   const WINDOW_COUNT: usize = 3;
   const WINDOW_SIZE: PhysicalSize<u32> = PhysicalSize::new(600, 400);
 
-  SimpleLogger::new().init().unwrap();
+  env_logger::init();
   let event_loop = EventLoop::new();
   let mut window_senders = HashMap::with_capacity(WINDOW_COUNT);
   for _ in 0..WINDOW_COUNT {
