@@ -2,4 +2,4 @@
 tao: minor
 ---
 
-`,` `-` `.` `=` `;` `/` `\` `'` `` ` `` `[` `]` `Space` `Tab` and `F13`-`F24`
+Add support for more accelerator keys: `,` `-` `.` `=` `;` `/` `\` `'` `` ` `` `[` `]` `Space` `Tab` and `F13`-`F24`
