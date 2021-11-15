@@ -803,7 +803,6 @@ fn get_location(scancode: ExScancode, hkl: HKL) -> KeyLocation {
 // used to build accelerators table from Key
 pub(crate) fn key_to_vk(key: &KeyCode) -> Option<VIRTUAL_KEY> {
   Some(match key {
-<<<<<<< HEAD
     KeyCode::KeyA => VIRTUAL_KEY::from(unsafe { VkKeyScanW('a' as u16) as u16 }),
     KeyCode::KeyB => VIRTUAL_KEY::from(unsafe { VkKeyScanW('b' as u16) as u16 }),
     KeyCode::KeyC => VIRTUAL_KEY::from(unsafe { VkKeyScanW('c' as u16) as u16 }),
@@ -915,8 +914,6 @@ pub(crate) fn key_to_vk(key: &KeyCode) -> Option<VIRTUAL_KEY> {
     KeyCode::MediaPlayPause => VK_MEDIA_PLAY_PAUSE,
     KeyCode::LaunchMail => VK_LAUNCH_MAIL,
     KeyCode::Convert => VK_CONVERT,
-=======
->>>>>>> b047ae41 (feat: support accelerator key strings `,` `-` `.` `Space` `Tab` and `F13`-`F24` (#228))
     _ => return None,
   })
 }
