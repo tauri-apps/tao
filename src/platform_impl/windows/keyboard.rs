@@ -803,6 +803,7 @@ fn get_location(scancode: ExScancode, hkl: HKL) -> KeyLocation {
 // used to build accelerators table from Key
 pub(crate) fn key_to_vk(key: &KeyCode) -> Option<VIRTUAL_KEY> {
   Some(match key {
+<<<<<<< HEAD
     KeyCode::KeyA => VIRTUAL_KEY::from(unsafe { VkKeyScanW('a' as u16) as u16 }),
     KeyCode::KeyB => VIRTUAL_KEY::from(unsafe { VkKeyScanW('b' as u16) as u16 }),
     KeyCode::KeyC => VIRTUAL_KEY::from(unsafe { VkKeyScanW('c' as u16) as u16 }),
@@ -839,6 +840,17 @@ pub(crate) fn key_to_vk(key: &KeyCode) -> Option<VIRTUAL_KEY> {
     KeyCode::Digit7 => VIRTUAL_KEY::from(unsafe { VkKeyScanW('7' as u16) as u16 }),
     KeyCode::Digit8 => VIRTUAL_KEY::from(unsafe { VkKeyScanW('8' as u16) as u16 }),
     KeyCode::Digit9 => VIRTUAL_KEY::from(unsafe { VkKeyScanW('9' as u16) as u16 }),
+    KeyCode::Comma => VK_OEM_COMMA,
+    KeyCode::Minus => VK_OEM_MINUS,
+    KeyCode::Period => VK_OEM_PERIOD,
+    KeyCode::Equal => VIRTUAL_KEY::from(unsafe { VkKeyScanW('=' as u16) as u16 }),
+    KeyCode::Semicolon => VIRTUAL_KEY::from(unsafe { VkKeyScanW(';' as u16) as u16 }),
+    KeyCode::Slash => VIRTUAL_KEY::from(unsafe { VkKeyScanW('/' as u16) as u16 }),
+    KeyCode::Backslash => VIRTUAL_KEY::from(unsafe { VkKeyScanW('\\' as u16) as u16 }),
+    KeyCode::Quote => VIRTUAL_KEY::from(unsafe { VkKeyScanW('\'' as u16) as u16 }),
+    KeyCode::Backquote => VIRTUAL_KEY::from(unsafe { VkKeyScanW('`' as u16) as u16 }),
+    KeyCode::BracketLeft => VIRTUAL_KEY::from(unsafe { VkKeyScanW('[' as u16) as u16 }),
+    KeyCode::BracketRight => VIRTUAL_KEY::from(unsafe { VkKeyScanW(']' as u16) as u16 }),
     KeyCode::Backspace => VK_BACK,
     KeyCode::Tab => VK_TAB,
     KeyCode::Space => VK_SPACE,
@@ -880,6 +892,11 @@ pub(crate) fn key_to_vk(key: &KeyCode) -> Option<VIRTUAL_KEY> {
     KeyCode::F17 => VK_F17,
     KeyCode::F18 => VK_F18,
     KeyCode::F19 => VK_F19,
+    KeyCode::F20 => VK_F20,
+    KeyCode::F21 => VK_F21,
+    KeyCode::F22 => VK_F22,
+    KeyCode::F23 => VK_F23,
+    KeyCode::F24 => VK_F24,
     KeyCode::NumLock => VK_NUMLOCK,
     KeyCode::ScrollLock => VK_SCROLL,
     KeyCode::BrowserBack => VK_BROWSER_BACK,
@@ -898,6 +915,8 @@ pub(crate) fn key_to_vk(key: &KeyCode) -> Option<VIRTUAL_KEY> {
     KeyCode::MediaPlayPause => VK_MEDIA_PLAY_PAUSE,
     KeyCode::LaunchMail => VK_LAUNCH_MAIL,
     KeyCode::Convert => VK_CONVERT,
+=======
+>>>>>>> b047ae41 (feat: support accelerator key strings `,` `-` `.` `Space` `Tab` and `F13`-`F24` (#228))
     _ => return None,
   })
 }
