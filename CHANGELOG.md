@@ -1,5 +1,14 @@
 # Changelog
 
+## \[0.6.0]
+
+- Add support for more accelerator keys: `,` `-` `.` `=` `;` `/` `\` `'` `` ` `` `[` `]` `Space` `Tab` and `F13`-`F24`
+  - [b047ae41](https://github.com/tauri-apps/tao/commit/b047ae41a83b94cb140cb3a3decd1ddb4ea6d405) feat: support accelerator key strings `,` `-` `.` `Space` `Tab` and `F13`-`F24` ([#228](https://github.com/tauri-apps/tao/pull/228)) on 2021-11-15
+- Allow more strings to parse to keycode, for example `,` is now parsed as a comma.
+  - [f0a3dcee](https://github.com/tauri-apps/tao/commit/f0a3dceec585cbfa6749746fdf59054d17ab4d0b) feat: Allow more strings to parse to keycode ([#229](https://github.com/tauri-apps/tao/pull/229)) on 2021-11-03
+- Add macOS `show_application()` method
+  - [7e10b0df](https://github.com/tauri-apps/tao/commit/7e10b0dfd5018aa3dc326ca99f663efe92a255df) feat(macos): Add `unhide_application` method, closes [#182](https://github.com/tauri-apps/tao/pull/182) ([#231](https://github.com/tauri-apps/tao/pull/231)) on 2021-11-03
+
 ## \[0.5.2]
 
 - Fix missing `Sync` trait on EventLoopProxy. This commit also introduces `crossbeam-channel` crate which could also improve the performance.
