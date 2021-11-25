@@ -263,7 +263,9 @@ impl Window {
       log::warn!("Fail to send wire up events request: {}", e);
     }
 
-    window.queue_draw();
+    if let Err(e) = window_requests_tx.send((window_id, WindowRequest::Redraw)) {
+      log::warn!("Fail to send redraw request: {}", e);
+    }
 
     let win = Self {
       window_id,
