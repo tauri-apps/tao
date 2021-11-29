@@ -588,7 +588,13 @@ impl<T: 'static> EventLoop<T> {
               Inhibit(false)
             });
           }
-          WindowRequest::Redraw => window.queue_draw(),
+          WindowRequest::Redraw => {
+            if let Err(e) = event_tx.send(Event::RedrawRequested(RootWindowId(id))) {
+              log::warn!("Failed to send redraw event to event channel: {}", e);
+            }
+
+            window.queue_draw();
+          }
           WindowRequest::Menu(m) => match m {
             (None, Some(menu_id)) => {
               if let Err(e) = event_tx.send(Event::MenuEvent {
@@ -705,6 +711,7 @@ impl<T: 'static> EventLoop<T> {
 
     window_target.p.app.activate();
 
+    let mut queue_redraw = Vec::new();
     loop {
       match control_flow {
         ControlFlow::Exit => {
@@ -722,15 +729,35 @@ impl<T: 'static> EventLoop<T> {
               &mut control_flow,
             );
 
-            while let Ok(event) = events.try_recv() {
-              match event {
-                Event::LoopDestroyed => control_flow = ControlFlow::Exit,
-                _ => callback(event, &window_target, &mut control_flow),
-              }
-            }
-
             if control_flow != ControlFlow::Exit {
-              callback(Event::MainEventsCleared, &window_target, &mut control_flow);
+              while let Ok(event) = events.try_recv() {
+                match event {
+                  Event::LoopDestroyed => control_flow = ControlFlow::Exit,
+                  e @ Event::RedrawRequested(_) => queue_redraw.push(e),
+                  _ => callback(event, &window_target, &mut control_flow),
+                }
+                if control_flow == ControlFlow::Exit {
+                  break;
+                }
+              }
+
+              if control_flow != ControlFlow::Exit {
+                callback(Event::MainEventsCleared, &window_target, &mut control_flow);
+
+                if control_flow != ControlFlow::Exit {
+                  while let Some(event) = queue_redraw.pop() {
+                    callback(event, &window_target, &mut control_flow);
+                    if control_flow == ControlFlow::Exit {
+                      break;
+                    }
+                  }
+                  callback(
+                    Event::RedrawEventsCleared,
+                    &window_target,
+                    &mut control_flow,
+                  );
+                }
+              }
             }
           }
         }
@@ -746,15 +773,35 @@ impl<T: 'static> EventLoop<T> {
               &mut control_flow,
             );
 
-            while let Ok(event) = events.try_recv() {
-              match event {
-                Event::LoopDestroyed => control_flow = ControlFlow::Exit,
-                _ => callback(event, &window_target, &mut control_flow),
-              }
-            }
-
             if control_flow != ControlFlow::Exit {
-              callback(Event::MainEventsCleared, &window_target, &mut control_flow);
+              while let Ok(event) = events.try_recv() {
+                match event {
+                  Event::LoopDestroyed => control_flow = ControlFlow::Exit,
+                  e @ Event::RedrawRequested(_) => queue_redraw.push(e),
+                  _ => callback(event, &window_target, &mut control_flow),
+                }
+
+                if control_flow == ControlFlow::Exit {
+                  break;
+                }
+              }
+
+              if control_flow != ControlFlow::Exit {
+                callback(Event::MainEventsCleared, &window_target, &mut control_flow);
+                if control_flow != ControlFlow::Exit {
+                  while let Some(event) = queue_redraw.pop() {
+                    callback(event, &window_target, &mut control_flow);
+                    if control_flow == ControlFlow::Exit {
+                      break;
+                    }
+                  }
+                  callback(
+                    Event::RedrawEventsCleared,
+                    &window_target,
+                    &mut control_flow,
+                  );
+                }
+              }
             }
           } else if !events.is_empty() {
             callback(
@@ -766,15 +813,35 @@ impl<T: 'static> EventLoop<T> {
               &mut control_flow,
             );
 
-            while let Ok(event) = events.try_recv() {
-              match event {
-                Event::LoopDestroyed => control_flow = ControlFlow::Exit,
-                _ => callback(event, &window_target, &mut control_flow),
-              }
-            }
-
             if control_flow != ControlFlow::Exit {
-              callback(Event::MainEventsCleared, &window_target, &mut control_flow);
+              while let Ok(event) = events.try_recv() {
+                match event {
+                  Event::LoopDestroyed => control_flow = ControlFlow::Exit,
+                  e @ Event::RedrawRequested(_) => queue_redraw.push(e),
+                  _ => callback(event, &window_target, &mut control_flow),
+                }
+
+                if control_flow == ControlFlow::Exit {
+                  break;
+                }
+              }
+
+              if control_flow != ControlFlow::Exit {
+                callback(Event::MainEventsCleared, &window_target, &mut control_flow);
+                if control_flow != ControlFlow::Exit {
+                  while let Some(event) = queue_redraw.pop() {
+                    callback(event, &window_target, &mut control_flow);
+                    if control_flow == ControlFlow::Exit {
+                      break;
+                    }
+                  }
+                  callback(
+                    Event::RedrawEventsCleared,
+                    &window_target,
+                    &mut control_flow,
+                  );
+                }
+              }
             }
           }
         }
@@ -784,14 +851,36 @@ impl<T: 'static> EventLoop<T> {
             &window_target,
             &mut control_flow,
           );
-          while let Ok(event) = events.try_recv() {
-            match event {
-              Event::LoopDestroyed => control_flow = ControlFlow::Exit,
-              _ => callback(event, &window_target, &mut control_flow),
-            }
-          }
+
           if control_flow != ControlFlow::Exit {
-            callback(Event::MainEventsCleared, &window_target, &mut control_flow);
+            while let Ok(event) = events.try_recv() {
+              match event {
+                Event::LoopDestroyed => control_flow = ControlFlow::Exit,
+                e @ Event::RedrawRequested(_) => queue_redraw.push(e),
+                _ => callback(event, &window_target, &mut control_flow),
+              }
+
+              if control_flow == ControlFlow::Exit {
+                break;
+              }
+            }
+
+            if control_flow != ControlFlow::Exit {
+              callback(Event::MainEventsCleared, &window_target, &mut control_flow);
+              if control_flow != ControlFlow::Exit {
+                while let Some(event) = queue_redraw.pop() {
+                  callback(event, &window_target, &mut control_flow);
+                  if control_flow == ControlFlow::Exit {
+                    break;
+                  }
+                }
+                callback(
+                  Event::RedrawEventsCleared,
+                  &window_target,
+                  &mut control_flow,
+                );
+              }
+            }
           }
         }
       }
