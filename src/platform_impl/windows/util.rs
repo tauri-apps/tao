@@ -12,7 +12,7 @@ use std::{
 use crate::{dpi::PhysicalSize, window::CursorIcon};
 
 use windows::{
-  runtime::HRESULT,
+  core::HRESULT,
   Win32::{
     Foundation::{BOOL, FARPROC, HWND, LPARAM, LRESULT, POINT, PWSTR, RECT, WPARAM},
     Globalization::lstrlenW,

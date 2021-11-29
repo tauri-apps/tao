@@ -143,9 +143,6 @@ impl Window {
 
   #[inline]
   pub fn set_visible(&self, visible: bool) {
-    let skip_taskbar = self.window_state.lock().skip_taskbar;
-    let already_skipped = self.window_state.lock().already_skipped;
-
     let window = self.window.clone();
     let window_state = Arc::clone(&self.window_state);
     self.thread_executor.execute_in_thread(move || {
@@ -153,10 +150,6 @@ impl Window {
         f.set(WindowFlags::VISIBLE, visible)
       });
     });
-
-    if visible && skip_taskbar != already_skipped {
-      self.set_skip_taskbar(skip_taskbar);
-    }
   }
 
   #[inline]
@@ -756,23 +749,17 @@ impl Window {
 
   #[inline]
   pub(crate) fn set_skip_taskbar(&self, skip: bool) {
-    let mut window_state = self.window_state.lock();
-    window_state.skip_taskbar = skip;
-
-    if self.is_visible() {
-      unsafe {
-        let taskbar_list: ITaskbarList = CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER)
-          .expect("failed to create TaskBarList");
-        if skip {
-          taskbar_list
-            .DeleteTab(self.hwnd())
-            .expect("DeleteTab failed");
-        } else {
-          taskbar_list.AddTab(self.hwnd()).expect("AddTab failed");
-        }
+    unsafe {
+      com_initialized();
+      let taskbar_list: ITaskbarList =
+        CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).expect("failed to create TaskBarList");
+      if skip {
+        taskbar_list
+          .DeleteTab(self.hwnd())
+          .expect("DeleteTab failed");
+      } else {
+        taskbar_list.AddTab(self.hwnd()).expect("AddTab failed");
       }
-
-      window_state.already_skipped = skip
     }
   }
 }
@@ -901,7 +888,6 @@ unsafe fn init<T: 'static>(
       scale_factor,
       current_theme,
       pl_attribs.preferred_theme,
-      pl_attribs.skip_taskbar,
     );
     let window_state = Arc::new(Mutex::new(window_state));
     WindowState::set_window_flags(window_state.lock(), real_window.0, |f| *f = window_flags);
@@ -1075,7 +1061,7 @@ unsafe fn taskbar_mark_fullscreen(handle: HWND, fullscreen: bool) {
     let mut task_bar_list = task_bar_list_ptr.borrow().clone();
 
     if task_bar_list.is_none() {
-      let result: windows::runtime::Result<ITaskbarList2> =
+      let result: windows::core::Result<ITaskbarList2> =
         CoCreateInstance(&TaskbarList, None, CLSCTX_ALL);
       if let Ok(created) = result {
         if let Ok(()) = created.HrInit() {
