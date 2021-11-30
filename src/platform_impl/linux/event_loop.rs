@@ -446,24 +446,18 @@ impl<T: 'static> EventLoop<T> {
             });
 
             let tx_clone = event_tx.clone();
-            window.connect_motion_notify_event(move |window, _| {
-              let display = window.display();
-              if let Some(cursor) = display
-                .default_seat()
-                .and_then(|device_manager| device_manager.pointer())
-              {
-                let (_, x, y) = cursor.position();
-                if let Err(e) = tx_clone.send(Event::WindowEvent {
-                  window_id: RootWindowId(id),
-                  event: WindowEvent::CursorMoved {
-                    position: PhysicalPosition::new(x as f64, y as f64),
-                    device_id: DEVICE_ID,
-                    // this field is depracted so it is fine to pass empty state
-                    modifiers: ModifiersState::empty(),
-                  },
-                }) {
-                  log::warn!("Failed to send cursor moved event to event channel: {}", e);
-                }
+            window.connect_motion_notify_event(move |_window, event| {
+              let (x, y) = event.position();
+              if let Err(e) = tx_clone.send(Event::WindowEvent {
+                window_id: RootWindowId(id),
+                event: WindowEvent::CursorMoved {
+                  position: PhysicalPosition::new(x, y),
+                  device_id: DEVICE_ID,
+                  // this field is depracted so it is fine to pass empty state
+                  modifiers: ModifiersState::empty(),
+                },
+              }) {
+                log::warn!("Failed to send cursor moved event to event channel: {}", e);
               }
               Inhibit(false)
             });
