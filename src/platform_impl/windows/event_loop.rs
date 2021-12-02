@@ -349,7 +349,7 @@ fn wait_thread(parent_thread_id: u32, msg_window_id: HWND) {
     let mut wait_until_opt = None;
     'main: loop {
       // Zeroing out the message ensures that the `WaitUntilInstantBox` doesn't get
-      // double-freed if `WaitForMultipleObjectsEx` returns early and there aren't
+      // double-freed if `MsgWaitForMultipleObjectsEx` returns early and there aren't
       // additional messages to process.
       msg = MSG::default();
 
