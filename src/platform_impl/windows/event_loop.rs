@@ -27,7 +27,7 @@ use windows::Win32::{
   System::{
     LibraryLoader::GetModuleHandleW,
     Ole::{IDropTarget, RevokeDragDrop},
-    Threading::{GetCurrentThreadId, MsgWaitForMultipleObjectsEx, MWMO_INPUTAVAILABLE},
+    Threading::GetCurrentThreadId,
     WindowsProgramming::INFINITE,
   },
   UI::{
@@ -349,7 +349,7 @@ fn wait_thread(parent_thread_id: u32, msg_window_id: HWND) {
     let mut wait_until_opt = None;
     'main: loop {
       // Zeroing out the message ensures that the `WaitUntilInstantBox` doesn't get
-      // double-freed if `MsgWaitForMultipleObjectsEx` returns early and there aren't
+      // double-freed if `WaitForMultipleObjectsEx` returns early and there aren't
       // additional messages to process.
       msg = MSG::default();
 
@@ -377,12 +377,12 @@ fn wait_thread(parent_thread_id: u32, msg_window_id: HWND) {
           // MsgWaitForMultipleObjects tends to overshoot just a little bit. We subtract
           // 1 millisecond from the requested time and spinlock for the remainder to
           // compensate for that.
-          let resume_reason = WIN32_ERROR(MsgWaitForMultipleObjectsEx(
+          let resume_reason = WIN32_ERROR(win32wm::MsgWaitForMultipleObjectsEx(
             0,
             ptr::null(),
             dur2timeout(wait_until - now).saturating_sub(1),
             QS_ALLEVENTS,
-            MWMO_INPUTAVAILABLE,
+            win32wm::MWMO_INPUTAVAILABLE,
           ));
           if resume_reason == WAIT_TIMEOUT {
             PostMessageW(
