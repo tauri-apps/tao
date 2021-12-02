@@ -198,9 +198,10 @@ impl Window {
 
     // Rest attributes
     window.set_title(&attributes.title);
-    // TODO set it with Fullscreen enum
-    if attributes.fullscreen.is_some() {
-      window.fullscreen();
+    if let Some(Fullscreen::Borderless(Some(f))) = &attributes.fullscreen {
+      let number = f.inner.number;
+      let screen = window.display().default_screen();
+      window.fullscreen_on_monitor(&screen, number);
     }
     if attributes.maximized {
       window.maximize();
@@ -262,7 +263,9 @@ impl Window {
       log::warn!("Fail to send wire up events request: {}", e);
     }
 
-    window.queue_draw();
+    if let Err(e) = window_requests_tx.send((window_id, WindowRequest::Redraw)) {
+      log::warn!("Fail to send redraw request: {}", e);
+    }
 
     let win = Self {
       window_id,

@@ -4,24 +4,21 @@
 use std::{
   io, mem,
   ops::BitAnd,
-  os::{raw::c_void, windows::prelude::OsStrExt},
+  os::windows::prelude::OsStrExt,
   ptr, slice,
   sync::atomic::{AtomicBool, Ordering},
 };
 
 use crate::{dpi::PhysicalSize, window::CursorIcon};
-use winapi::{
-  ctypes::wchar_t,
-  shared::{
-    minwindef::{BOOL, DWORD, TRUE, UINT},
-    windef::{DPI_AWARENESS_CONTEXT, HICON, HMONITOR, HWND, LPRECT, RECT},
-  },
-  um::{
-    libloaderapi::{GetProcAddress, LoadLibraryA},
-    shellscalingapi::{MONITOR_DPI_TYPE, PROCESS_DPI_AWARENESS},
-    winbase::lstrlenW,
-    winnt::{HRESULT, LONG, LPCSTR},
-    winuser,
+
+use windows::{
+  runtime::HRESULT,
+  Win32::{
+    Foundation::{BOOL, FARPROC, HWND, LPARAM, LRESULT, POINT, PWSTR, RECT, WPARAM},
+    Globalization::lstrlenW,
+    Graphics::Gdi::{ClientToScreen, InvalidateRgn, HMONITOR, HRGN},
+    System::LibraryLoader::*,
+    UI::{HiDpi::*, Input::KeyboardAndMouse::*, TextServices::HKL, WindowsAndMessaging::*},
   },
 };
 
@@ -32,13 +29,13 @@ where
   bitset & flag == flag
 }
 
-pub fn wchar_to_string(wchar: &[wchar_t]) -> String {
+pub fn wchar_to_string(wchar: &[u16]) -> String {
   String::from_utf16_lossy(wchar)
 }
 
-pub fn wchar_ptr_to_string(wchar: *const wchar_t) -> String {
+pub fn wchar_ptr_to_string(wchar: PWSTR) -> String {
   let len = unsafe { lstrlenW(wchar) } as usize;
-  let wchar_slice = unsafe { slice::from_raw_parts(wchar, len) };
+  let wchar_slice = unsafe { slice::from_raw_parts(wchar.0, len) };
   wchar_to_string(wchar_slice)
 }
 
@@ -49,9 +46,58 @@ pub fn to_wstring(str: &str) -> Vec<u16> {
     .collect()
 }
 
+/// Implementation of the `LOWORD` macro.
+#[inline]
+pub fn get_loword(dword: u32) -> u16 {
+  (dword & 0xFFFF) as u16
+}
+
+/// Implementation of the `HIWORD` macro.
+#[inline]
+pub fn get_hiword(dword: u32) -> u16 {
+  ((dword & 0xFFFF_0000) >> 16) as u16
+}
+
+/// Implementation of the `GET_X_LPARAM` macro.
+#[inline]
+pub fn get_x_lparam(lparam: LPARAM) -> i16 {
+  ((lparam.0 as usize) & 0xFFFF) as u16 as i16
+}
+
+/// Implementation of the `GET_Y_LPARAM` macro.
+#[inline]
+pub fn get_y_lparam(lparam: LPARAM) -> i16 {
+  (((lparam.0 as usize) & 0xFFFF_0000) >> 16) as u16 as i16
+}
+
+/// Inverse of [get_x_lparam] and [get_y_lparam] to put the (`x`, `y`) signed
+/// coordinates/values back into an [LPARAM].
+#[inline]
+pub fn make_x_y_lparam(x: i16, y: i16) -> LPARAM {
+  LPARAM(((x as u16 as u32) | ((y as u16 as u32) << 16)) as usize as isize)
+}
+
+/// Implementation of the `GET_WHEEL_DELTA_WPARAM` macro.
+#[inline]
+pub fn get_wheel_delta_wparam(wparam: WPARAM) -> i16 {
+  ((wparam.0 & 0xFFFF_0000) >> 16) as u16 as i16
+}
+
+/// Implementation of the `GET_XBUTTON_WPARAM` macro.
+#[inline]
+pub fn get_xbutton_wparam(wparam: WPARAM) -> u16 {
+  ((wparam.0 & 0xFFFF_0000) >> 16) as u16
+}
+
+/// Implementation of the `PRIMARYLANGID` macro.
+#[inline]
+pub fn primary_lang_id(hkl: HKL) -> u32 {
+  ((hkl.0 as usize) & 0x3FF) as u32
+}
+
 pub unsafe fn status_map<T, F: FnMut(&mut T) -> BOOL>(mut fun: F) -> Option<T> {
   let mut data: T = mem::zeroed();
-  if fun(&mut data) != 0 {
+  if fun(&mut data).as_bool() {
     Some(data)
   } else {
     None
@@ -59,7 +105,7 @@ pub unsafe fn status_map<T, F: FnMut(&mut T) -> BOOL>(mut fun: F) -> Option<T> {
 }
 
 fn win_to_err<F: FnOnce() -> BOOL>(f: F) -> Result<(), io::Error> {
-  if f() != 0 {
+  if f().as_bool() {
     Ok(())
   } else {
     Err(io::Error::last_os_error())
@@ -67,32 +113,33 @@ fn win_to_err<F: FnOnce() -> BOOL>(f: F) -> Result<(), io::Error> {
 }
 
 pub fn get_window_rect(hwnd: HWND) -> Option<RECT> {
-  unsafe { status_map(|rect| winuser::GetWindowRect(hwnd, rect)) }
+  unsafe { status_map(|rect| GetWindowRect(hwnd, rect)) }
 }
 
 pub fn get_client_rect(hwnd: HWND) -> Result<RECT, io::Error> {
+  let mut rect = RECT::default();
+  let mut top_left = POINT::default();
+
   unsafe {
-    let mut rect = mem::zeroed();
-    let mut top_left = mem::zeroed();
-
-    win_to_err(|| winuser::ClientToScreen(hwnd, &mut top_left))?;
-    win_to_err(|| winuser::GetClientRect(hwnd, &mut rect))?;
-    rect.left += top_left.x;
-    rect.top += top_left.y;
-    rect.right += top_left.x;
-    rect.bottom += top_left.y;
-
-    Ok(rect)
+    win_to_err(|| ClientToScreen(hwnd, &mut top_left))?;
+    win_to_err(|| GetClientRect(hwnd, &mut rect))?;
   }
+
+  rect.left += top_left.x;
+  rect.top += top_left.y;
+  rect.right += top_left.x;
+  rect.bottom += top_left.y;
+
+  Ok(rect)
 }
 
 pub fn adjust_size(hwnd: HWND, size: PhysicalSize<u32>) -> PhysicalSize<u32> {
   let (width, height): (u32, u32) = size.into();
   let rect = RECT {
     left: 0,
-    right: width as LONG,
+    right: width as i32,
     top: 0,
-    bottom: height as LONG,
+    bottom: height as i32,
   };
   let rect = adjust_window_rect(hwnd, rect).unwrap_or(rect);
   PhysicalSize::new((rect.right - rect.left) as _, (rect.bottom - rect.top) as _)
@@ -105,57 +152,54 @@ pub(crate) fn set_inner_size_physical(window: HWND, x: u32, y: u32) {
       RECT {
         top: 0,
         left: 0,
-        bottom: y as LONG,
-        right: x as LONG,
+        bottom: y as i32,
+        right: x as i32,
       },
     )
     .expect("adjust_window_rect failed");
 
-    let outer_x = (rect.right - rect.left).abs() as _;
-    let outer_y = (rect.top - rect.bottom).abs() as _;
-    winuser::SetWindowPos(
+    let outer_x = (rect.right - rect.left).abs();
+    let outer_y = (rect.top - rect.bottom).abs();
+    SetWindowPos(
       window,
-      ptr::null_mut(),
+      HWND::default(),
       0,
       0,
       outer_x,
       outer_y,
-      winuser::SWP_ASYNCWINDOWPOS
-        | winuser::SWP_NOZORDER
-        | winuser::SWP_NOREPOSITION
-        | winuser::SWP_NOMOVE
-        | winuser::SWP_NOACTIVATE,
+      SWP_ASYNCWINDOWPOS | SWP_NOZORDER | SWP_NOREPOSITION | SWP_NOMOVE | SWP_NOACTIVATE,
     );
-    winuser::InvalidateRgn(window, ptr::null_mut(), 0);
+    InvalidateRgn(window, HRGN::default(), BOOL::default());
   }
 }
 
 pub fn adjust_window_rect(hwnd: HWND, rect: RECT) -> Option<RECT> {
   unsafe {
-    let style = winuser::GetWindowLongW(hwnd, winuser::GWL_STYLE);
-    let style_ex = winuser::GetWindowLongW(hwnd, winuser::GWL_EXSTYLE);
-    adjust_window_rect_with_styles(hwnd, style as _, style_ex as _, rect)
+    let style = WINDOW_STYLE(GetWindowLongW(hwnd, GWL_STYLE) as u32);
+    let style_ex = WINDOW_EX_STYLE(GetWindowLongW(hwnd, GWL_EXSTYLE) as u32);
+    adjust_window_rect_with_styles(hwnd, style, style_ex, rect)
   }
 }
 
 pub fn adjust_window_rect_with_styles(
   hwnd: HWND,
-  style: DWORD,
-  style_ex: DWORD,
+  style: WINDOW_STYLE,
+  style_ex: WINDOW_EX_STYLE,
   rect: RECT,
 ) -> Option<RECT> {
   unsafe {
     status_map(|r| {
       *r = rect;
 
-      let b_menu = !winuser::GetMenu(hwnd).is_null() as BOOL;
+      let b_menu: BOOL = (GetMenu(hwnd).0 != 0).into();
+
       if let (Some(get_dpi_for_window), Some(adjust_window_rect_ex_for_dpi)) =
         (*GET_DPI_FOR_WINDOW, *ADJUST_WINDOW_RECT_EX_FOR_DPI)
       {
         let dpi = get_dpi_for_window(hwnd);
-        adjust_window_rect_ex_for_dpi(r, style as _, b_menu, style_ex as _, dpi)
+        adjust_window_rect_ex_for_dpi(r, style, b_menu, style_ex, dpi)
       } else {
-        winuser::AdjustWindowRectEx(r, style as _, b_menu, style_ex as _)
+        AdjustWindowRectEx(r, style, b_menu, style_ex)
       }
     })
   }
@@ -165,14 +209,14 @@ pub fn set_cursor_hidden(hidden: bool) {
   static HIDDEN: AtomicBool = AtomicBool::new(false);
   let changed = HIDDEN.swap(hidden, Ordering::SeqCst) ^ hidden;
   if changed {
-    unsafe { winuser::ShowCursor(!hidden as BOOL) };
+    unsafe { ShowCursor(!hidden) };
   }
 }
 
 pub fn get_cursor_clip() -> Result<RECT, io::Error> {
   unsafe {
-    let mut rect: RECT = mem::zeroed();
-    win_to_err(|| winuser::GetClipCursor(&mut rect)).map(|_| rect)
+    let mut rect = RECT::default();
+    win_to_err(|| GetClipCursor(&mut rect)).map(|_| rect)
   }
 }
 
@@ -185,63 +229,89 @@ pub fn set_cursor_clip(rect: Option<RECT>) -> Result<(), io::Error> {
       .as_ref()
       .map(|r| r as *const RECT)
       .unwrap_or(ptr::null());
-    win_to_err(|| winuser::ClipCursor(rect_ptr))
+    win_to_err(|| ClipCursor(rect_ptr))
   }
 }
 
 pub fn get_desktop_rect() -> RECT {
   unsafe {
-    let left = winuser::GetSystemMetrics(winuser::SM_XVIRTUALSCREEN);
-    let top = winuser::GetSystemMetrics(winuser::SM_YVIRTUALSCREEN);
+    let left = GetSystemMetrics(SM_XVIRTUALSCREEN);
+    let top = GetSystemMetrics(SM_YVIRTUALSCREEN);
     RECT {
       left,
       top,
-      right: left + winuser::GetSystemMetrics(winuser::SM_CXVIRTUALSCREEN),
-      bottom: top + winuser::GetSystemMetrics(winuser::SM_CYVIRTUALSCREEN),
+      right: left + GetSystemMetrics(SM_CXVIRTUALSCREEN),
+      bottom: top + GetSystemMetrics(SM_CYVIRTUALSCREEN),
     }
   }
 }
 
 pub fn is_focused(window: HWND) -> bool {
-  window == unsafe { winuser::GetActiveWindow() }
+  window == unsafe { GetActiveWindow() }
 }
 
 pub fn is_visible(window: HWND) -> bool {
-  unsafe { winuser::IsWindowVisible(window) == TRUE }
+  unsafe { IsWindowVisible(window).as_bool() }
 }
 
 pub fn is_maximized(window: HWND) -> bool {
+  let mut placement = WINDOWPLACEMENT {
+    length: mem::size_of::<WINDOWPLACEMENT>() as u32,
+    ..WINDOWPLACEMENT::default()
+  };
   unsafe {
-    let mut placement: winuser::WINDOWPLACEMENT = mem::zeroed();
-    placement.length = mem::size_of::<winuser::WINDOWPLACEMENT>() as u32;
-    winuser::GetWindowPlacement(window, &mut placement);
-    placement.showCmd == winuser::SW_MAXIMIZE as u32
+    GetWindowPlacement(window, &mut placement);
   }
+  placement.showCmd == SW_MAXIMIZE
 }
 
 pub fn set_maximized(window: HWND, maximized: bool) {
   unsafe {
-    if winuser::IsWindowVisible(window) != 0 {
-      winuser::ShowWindow(
+    if IsWindowVisible(window).as_bool() {
+      ShowWindow(
         window,
         match maximized {
-          true => winuser::SW_MAXIMIZE,
-          false => winuser::SW_RESTORE,
+          true => SW_MAXIMIZE,
+          false => SW_RESTORE,
         },
       );
     }
   }
 }
 
+#[cfg(target_pointer_width = "32")]
+pub fn set_window_long_ptr(window: HWND, index: WINDOW_LONG_PTR_INDEX, value: isize) -> isize {
+  unsafe { SetWindowLongA(window, index, value as _) as _ }
+}
+
+#[cfg(target_pointer_width = "64")]
+pub fn set_window_long_ptr(window: HWND, index: WINDOW_LONG_PTR_INDEX, value: isize) -> isize {
+  unsafe { SetWindowLongPtrA(window, index, value) }
+}
+
+#[cfg(target_pointer_width = "32")]
+pub fn get_window_long_ptr(window: HWND, index: WINDOW_LONG_PTR_INDEX) -> isize {
+  unsafe { GetWindowLongA(window, index) as _ }
+}
+
+#[cfg(target_pointer_width = "64")]
+pub fn get_window_long_ptr(window: HWND, index: WINDOW_LONG_PTR_INDEX) -> isize {
+  unsafe { GetWindowLongPtrA(window, index) }
+}
+
+pub unsafe extern "system" fn call_default_window_proc(
+  hwnd: HWND,
+  msg: u32,
+  wparam: WPARAM,
+  lparam: LPARAM,
+) -> LRESULT {
+  DefWindowProcW(hwnd, msg, wparam, lparam)
+}
+
 pub fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<HICON> {
   unsafe {
-    match winuser::LookupIconIdFromDirectoryEx(
-      buffer.as_ptr() as _,
-      1,
-      width,
-      height,
-      winuser::LR_DEFAULTCOLOR,
-    ) as isize
+    match LookupIconIdFromDirectoryEx(buffer.as_ptr() as _, true, width, height, LR_DEFAULTCOLOR)
+      as isize
     {
       0 => {
         debug!("Unable to LookupIconIdFromDirectoryEx");
@@ -250,20 +320,20 @@ pub fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<H
       offset => {
         // once we got the pointer offset for the directory
         // lets create our resource
-        match winuser::CreateIconFromResourceEx(
+        match CreateIconFromResourceEx(
           buffer.as_ptr().offset(offset) as _,
           buffer.len() as _,
-          1,
+          true,
           0x00030000,
           0,
           0,
-          winuser::LR_DEFAULTCOLOR,
+          LR_DEFAULTCOLOR,
         ) {
           // windows is really tough on icons
           // if a bad icon is provided it'll fail here or in
           // the LookupIconIdFromDirectoryEx if this is a bad format (example png's)
           // with my tests, even some ICO's were failing...
-          hicon if hicon.is_null() => {
+          hicon if hicon.0 == 0 => {
             debug!("Unable to CreateIconFromResourceEx");
             None
           }
@@ -275,50 +345,45 @@ pub fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<H
 }
 
 impl CursorIcon {
-  pub(crate) fn to_windows_cursor(self) -> *const wchar_t {
+  pub(crate) fn to_windows_cursor(self) -> PWSTR {
     match self {
-      CursorIcon::Arrow | CursorIcon::Default => winuser::IDC_ARROW,
-      CursorIcon::Hand => winuser::IDC_HAND,
-      CursorIcon::Crosshair => winuser::IDC_CROSS,
-      CursorIcon::Text | CursorIcon::VerticalText => winuser::IDC_IBEAM,
-      CursorIcon::NotAllowed | CursorIcon::NoDrop => winuser::IDC_NO,
+      CursorIcon::Arrow | CursorIcon::Default => IDC_ARROW,
+      CursorIcon::Hand => IDC_HAND,
+      CursorIcon::Crosshair => IDC_CROSS,
+      CursorIcon::Text | CursorIcon::VerticalText => IDC_IBEAM,
+      CursorIcon::NotAllowed | CursorIcon::NoDrop => IDC_NO,
       CursorIcon::Grab | CursorIcon::Grabbing | CursorIcon::Move | CursorIcon::AllScroll => {
-        winuser::IDC_SIZEALL
+        IDC_SIZEALL
       }
       CursorIcon::EResize | CursorIcon::WResize | CursorIcon::EwResize | CursorIcon::ColResize => {
-        winuser::IDC_SIZEWE
+        IDC_SIZEWE
       }
       CursorIcon::NResize | CursorIcon::SResize | CursorIcon::NsResize | CursorIcon::RowResize => {
-        winuser::IDC_SIZENS
+        IDC_SIZENS
       }
-      CursorIcon::NeResize | CursorIcon::SwResize | CursorIcon::NeswResize => winuser::IDC_SIZENESW,
-      CursorIcon::NwResize | CursorIcon::SeResize | CursorIcon::NwseResize => winuser::IDC_SIZENWSE,
-      CursorIcon::Wait => winuser::IDC_WAIT,
-      CursorIcon::Progress => winuser::IDC_APPSTARTING,
-      CursorIcon::Help => winuser::IDC_HELP,
-      _ => winuser::IDC_ARROW, // use arrow for the missing cases.
+      CursorIcon::NeResize | CursorIcon::SwResize | CursorIcon::NeswResize => IDC_SIZENESW,
+      CursorIcon::NwResize | CursorIcon::SeResize | CursorIcon::NwseResize => IDC_SIZENWSE,
+      CursorIcon::Wait => IDC_WAIT,
+      CursorIcon::Progress => IDC_APPSTARTING,
+      CursorIcon::Help => IDC_HELP,
+      _ => IDC_ARROW, // use arrow for the missing cases.
     }
   }
 }
 
 // Helper function to dynamically load function pointer.
 // `library` and `function` must be zero-terminated.
-pub(super) fn get_function_impl(library: &str, function: &str) -> Option<*const c_void> {
+pub(super) fn get_function_impl(library: &str, function: &str) -> Option<FARPROC> {
   assert_eq!(library.chars().last(), Some('\0'));
   assert_eq!(function.chars().last(), Some('\0'));
 
   // Library names we will use are ASCII so we can use the A version to avoid string conversion.
-  let module = unsafe { LoadLibraryA(library.as_ptr() as LPCSTR) };
-  if module.is_null() {
+  let module = unsafe { LoadLibraryA(library) };
+  if module.0 == 0 {
     return None;
   }
 
-  let function_ptr = unsafe { GetProcAddress(module, function.as_ptr() as LPCSTR) };
-  if function_ptr.is_null() {
-    return None;
-  }
-
-  Some(function_ptr as _)
+  unsafe { GetProcAddress(module, function) }
 }
 
 macro_rules! get_function {
@@ -327,7 +392,7 @@ macro_rules! get_function {
       concat!($lib, '\0'),
       concat!(stringify!($func), '\0'),
     )
-    .map(|f| unsafe { std::mem::transmute::<*const _, $func>(f) })
+    .map(|f| unsafe { std::mem::transmute::<windows::Win32::Foundation::FARPROC, $func>(f) })
   };
 }
 
@@ -336,20 +401,20 @@ pub type SetProcessDpiAwareness =
   unsafe extern "system" fn(value: PROCESS_DPI_AWARENESS) -> HRESULT;
 pub type SetProcessDpiAwarenessContext =
   unsafe extern "system" fn(value: DPI_AWARENESS_CONTEXT) -> BOOL;
-pub type GetDpiForWindow = unsafe extern "system" fn(hwnd: HWND) -> UINT;
+pub type GetDpiForWindow = unsafe extern "system" fn(hwnd: HWND) -> u32;
 pub type GetDpiForMonitor = unsafe extern "system" fn(
   hmonitor: HMONITOR,
   dpi_type: MONITOR_DPI_TYPE,
-  dpi_x: *mut UINT,
-  dpi_y: *mut UINT,
+  dpi_x: *mut u32,
+  dpi_y: *mut u32,
 ) -> HRESULT;
 pub type EnableNonClientDpiScaling = unsafe extern "system" fn(hwnd: HWND) -> BOOL;
 pub type AdjustWindowRectExForDpi = unsafe extern "system" fn(
-  rect: LPRECT,
-  dwStyle: DWORD,
+  rect: *mut RECT,
+  dwStyle: WINDOW_STYLE,
   bMenu: BOOL,
-  dwExStyle: DWORD,
-  dpi: UINT,
+  dwExStyle: WINDOW_EX_STYLE,
+  dpi: u32,
 ) -> BOOL;
 
 lazy_static! {

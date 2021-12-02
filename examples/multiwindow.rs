@@ -3,7 +3,6 @@
 
 use std::collections::HashMap;
 
-use simple_logger::SimpleLogger;
 use tao::{
   event::{ElementState, Event, KeyEvent, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
@@ -11,7 +10,7 @@ use tao::{
 };
 
 fn main() {
-  SimpleLogger::new().init().unwrap();
+  env_logger::init();
   let event_loop = EventLoop::new();
 
   let mut windows = HashMap::new();

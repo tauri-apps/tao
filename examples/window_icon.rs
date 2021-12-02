@@ -4,7 +4,6 @@
 extern crate image;
 use std::path::Path;
 
-use simple_logger::SimpleLogger;
 use tao::{
   event::Event,
   event_loop::{ControlFlow, EventLoop},
@@ -13,7 +12,7 @@ use tao::{
 
 #[allow(clippy::single_match)]
 fn main() {
-  SimpleLogger::new().init().unwrap();
+  env_logger::init();
 
   // You'll have to choose an icon size at your own discretion. On Linux, the icon should be
   // provided in whatever size it was naturally drawn; that is, don’t scale the image before passing

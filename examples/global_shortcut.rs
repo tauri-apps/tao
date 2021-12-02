@@ -3,7 +3,6 @@
 
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 fn main() {
-  use simple_logger::SimpleLogger;
   use std::str::FromStr;
   use tao::{
     accelerator::{Accelerator, AcceleratorId, RawMods, SysMods},
@@ -14,7 +13,7 @@ fn main() {
     window::WindowBuilder,
   };
 
-  SimpleLogger::new().init().unwrap();
+  env_logger::init();
   let event_loop = EventLoop::new();
 
   // create new shortcut manager instance

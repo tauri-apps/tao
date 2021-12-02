@@ -7,7 +7,6 @@
 fn main() {
   use std::{thread::sleep, time::Duration};
 
-  use simple_logger::SimpleLogger;
   use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -16,7 +15,7 @@ fn main() {
   };
   let mut event_loop = EventLoop::new();
 
-  SimpleLogger::new().init().unwrap();
+  env_logger::init();
   let _window = WindowBuilder::new()
     .with_title("A fantastic window!")
     .build(&event_loop)

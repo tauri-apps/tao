@@ -132,16 +132,18 @@
 //! [`platform`]: platform
 //! [`raw_window_handle`]: ./window/struct.Window.html#method.raw_window_handle
 #![allow(
+  clippy::match_str_case_mismatch,
   clippy::upper_case_acronyms,
   clippy::from_over_into,
   clippy::option_map_unit_fn,
   clippy::needless_lifetimes,
   clippy::type_complexity,
   clippy::identity_op,
-  clippy::wrong_self_convention
+  clippy::wrong_self_convention,
+  clippy::non_send_fields_in_send_ty
 )]
 #![deny(rust_2018_idioms)]
-#![deny(broken_intra_doc_links)]
+#![deny(rustdoc::broken_intra_doc_links)]
 
 #[allow(unused_imports)]
 #[macro_use]

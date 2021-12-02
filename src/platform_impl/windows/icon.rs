@@ -1,15 +1,12 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{fmt, io, iter::once, mem, os::windows::ffi::OsStrExt, path::Path, ptr, sync::Arc};
+use std::{fmt, io, iter::once, mem, os::windows::ffi::OsStrExt, path::Path, sync::Arc};
 
-use winapi::{
-  ctypes::{c_int, wchar_t},
-  shared::{
-    minwindef::{BYTE, LPARAM, WORD, WPARAM},
-    windef::{HICON, HWND},
-  },
-  um::{libloaderapi, winuser},
+use windows::Win32::{
+  Foundation::{HINSTANCE, HWND, LPARAM, PWSTR, WPARAM},
+  System::LibraryLoader::*,
+  UI::WindowsAndMessaging::*,
 };
 
 use crate::{dpi::PhysicalSize, icon::*};
@@ -33,17 +30,17 @@ impl RgbaIcon {
     }
     assert_eq!(and_mask.len(), pixel_count);
     let handle = unsafe {
-      winuser::CreateIcon(
-        ptr::null_mut(),
-        self.width as c_int,
-        self.height as c_int,
+      CreateIcon(
+        HINSTANCE::default(),
+        self.width as i32,
+        self.height as i32,
         1,
-        (PIXEL_SIZE * 8) as BYTE,
-        and_mask.as_ptr() as *const BYTE,
-        rgba.as_ptr() as *const BYTE,
+        (PIXEL_SIZE * 8) as u8,
+        and_mask.as_ptr() as *const u8,
+        rgba.as_ptr() as *const u8,
       ) as HICON
     };
-    if !handle.is_null() {
+    if handle.0 != 0 {
       Ok(WinIcon::from_handle(handle))
     } else {
       Err(BadIcon::OsError(io::Error::last_os_error()))
@@ -54,8 +51,8 @@ impl RgbaIcon {
 #[non_exhaustive]
 #[derive(Debug)]
 pub enum IconType {
-  Small = winuser::ICON_SMALL as isize,
-  Big = winuser::ICON_BIG as isize,
+  Small = ICON_SMALL as isize,
+  Big = ICON_BIG as isize,
 }
 
 #[derive(Debug)]
@@ -79,7 +76,7 @@ impl WinIcon {
     path: P,
     size: Option<PhysicalSize<u32>>,
   ) -> Result<Self, BadIcon> {
-    let wide_path: Vec<u16> = path
+    let mut wide_path: Vec<u16> = path
       .as_ref()
       .as_os_str()
       .encode_wide()
@@ -89,40 +86,43 @@ impl WinIcon {
     // width / height of 0 along with LR_DEFAULTSIZE tells windows to load the default icon size
     let (width, height) = size.map(Into::into).unwrap_or((0, 0));
 
-    let handle = unsafe {
-      winuser::LoadImageW(
-        ptr::null_mut(),
-        wide_path.as_ptr() as *const wchar_t,
-        winuser::IMAGE_ICON,
-        width as c_int,
-        height as c_int,
-        winuser::LR_DEFAULTSIZE | winuser::LR_LOADFROMFILE,
-      ) as HICON
-    };
-    if !handle.is_null() {
+    let handle = HICON(
+      unsafe {
+        LoadImageW(
+          HINSTANCE::default(),
+          PWSTR(wide_path.as_mut_ptr()),
+          IMAGE_ICON,
+          width as i32,
+          height as i32,
+          LR_DEFAULTSIZE | LR_LOADFROMFILE,
+        )
+      }
+      .0,
+    );
+    if handle.0 != 0 {
       Ok(WinIcon::from_handle(handle))
     } else {
       Err(BadIcon::OsError(io::Error::last_os_error()))
     }
   }
 
-  pub fn from_resource(
-    resource_id: WORD,
-    size: Option<PhysicalSize<u32>>,
-  ) -> Result<Self, BadIcon> {
+  pub fn from_resource(resource_id: u16, size: Option<PhysicalSize<u32>>) -> Result<Self, BadIcon> {
     // width / height of 0 along with LR_DEFAULTSIZE tells windows to load the default icon size
     let (width, height) = size.map(Into::into).unwrap_or((0, 0));
-    let handle = unsafe {
-      winuser::LoadImageW(
-        libloaderapi::GetModuleHandleW(ptr::null_mut()),
-        winuser::MAKEINTRESOURCEW(resource_id),
-        winuser::IMAGE_ICON,
-        width as c_int,
-        height as c_int,
-        winuser::LR_DEFAULTSIZE,
-      ) as HICON
-    };
-    if !handle.is_null() {
+    let handle = HICON(
+      unsafe {
+        LoadImageW(
+          GetModuleHandleW(PWSTR::default()),
+          PWSTR(resource_id as usize as *mut u16),
+          IMAGE_ICON,
+          width as i32,
+          height as i32,
+          LR_DEFAULTSIZE,
+        )
+      }
+      .0,
+    );
+    if handle.0 != 0 {
       Ok(WinIcon::from_handle(handle))
     } else {
       Err(BadIcon::OsError(io::Error::last_os_error()))
@@ -136,11 +136,11 @@ impl WinIcon {
 
   pub fn set_for_window(&self, hwnd: HWND, icon_type: IconType) {
     unsafe {
-      winuser::SendMessageW(
+      SendMessageW(
         hwnd,
-        winuser::WM_SETICON,
-        icon_type as WPARAM,
-        self.as_raw_handle() as LPARAM,
+        WM_SETICON,
+        WPARAM(icon_type as _),
+        LPARAM(self.as_raw_handle().0 as _),
       );
     }
   }
@@ -154,7 +154,7 @@ impl WinIcon {
 
 impl Drop for RaiiIcon {
   fn drop(&mut self) {
-    unsafe { winuser::DestroyIcon(self.handle) };
+    unsafe { DestroyIcon(self.handle) };
   }
 }
 
@@ -166,6 +166,6 @@ impl fmt::Debug for WinIcon {
 
 pub fn unset_for_window(hwnd: HWND, icon_type: IconType) {
   unsafe {
-    winuser::SendMessageW(hwnd, winuser::WM_SETICON, icon_type as WPARAM, 0 as LPARAM);
+    SendMessageW(hwnd, WM_SETICON, WPARAM(icon_type as _), LPARAM(0));
   }
 }

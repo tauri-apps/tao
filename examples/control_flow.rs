@@ -3,7 +3,6 @@
 
 use std::{thread, time};
 
-use simple_logger::SimpleLogger;
 use tao::{
   event::{ElementState, Event, KeyEvent, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
@@ -23,7 +22,7 @@ const POLL_SLEEP_TIME: time::Duration = time::Duration::from_millis(100);
 
 #[allow(clippy::single_match)]
 fn main() {
-  SimpleLogger::new().init().unwrap();
+  env_logger::init();
 
   println!("Press '1' to switch to Wait mode.");
   println!("Press '2' to switch to WaitUntil mode.");
