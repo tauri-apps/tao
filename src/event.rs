@@ -144,7 +144,7 @@ pub enum Event<'a, T: 'static> {
   /// - **Linux: This is triggered by `draw` signal of the gtk window. It can be used to detect if
   /// the window is requested to redraw. But widgets it contains are usually not tied to its signal.
   /// So if you really want to draw each component, please consider using `connect_draw` method
-  /// from [`WidgetExt`] directly.** 
+  /// from [`WidgetExt`] directly.**
   ///
   /// [`WidgetExt`]: https://gtk-rs.org/gtk3-rs/stable/latest/docs/gtk/prelude/trait.WidgetExt.html
   RedrawRequested(WindowId),

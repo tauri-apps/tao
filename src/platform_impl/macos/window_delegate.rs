@@ -498,20 +498,20 @@ extern "C" fn window_will_use_fullscreen_presentation_options(
   // user-provided options are ignored in exclusive fullscreen.
   let mut options: NSUInteger = proposed_options;
   with_state(this, |state| {
-  state.with_window(|window| {
-            trace!("Locked shared state in `window_will_use_fullscreen_presentation_options`");
-            let shared_state = window.shared_state.lock().unwrap();
-            if let Some(Fullscreen::Exclusive(_)) = shared_state.fullscreen {
-                options = (NSApplicationPresentationOptions::NSApplicationPresentationFullScreen
-                    | NSApplicationPresentationOptions::NSApplicationPresentationHideDock
-                    | NSApplicationPresentationOptions::NSApplicationPresentationHideMenuBar)
-                    .bits();
-            }
-            trace!("Unlocked shared state in `window_will_use_fullscreen_presentation_options`");
-        })
-    });
+    state.with_window(|window| {
+      trace!("Locked shared state in `window_will_use_fullscreen_presentation_options`");
+      let shared_state = window.shared_state.lock().unwrap();
+      if let Some(Fullscreen::Exclusive(_)) = shared_state.fullscreen {
+        options = (NSApplicationPresentationOptions::NSApplicationPresentationFullScreen
+          | NSApplicationPresentationOptions::NSApplicationPresentationHideDock
+          | NSApplicationPresentationOptions::NSApplicationPresentationHideMenuBar)
+          .bits();
+      }
+      trace!("Unlocked shared state in `window_will_use_fullscreen_presentation_options`");
+    })
+  });
 
-    options
+  options
 }
 
 /// Invoked when entered fullscreen
