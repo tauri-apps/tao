@@ -286,13 +286,15 @@ impl<T: 'static> EventLoop<T> {
             };
           }
           WindowRequest::WireUpEvents => {
-            // Resizing `decorations: false` aka borderless
             window.add_events(
               EventMask::POINTER_MOTION_MASK
                 | EventMask::BUTTON1_MOTION_MASK
                 | EventMask::BUTTON_PRESS_MASK
-                | EventMask::TOUCH_MASK,
+                | EventMask::TOUCH_MASK
+                | EventMask::FOCUS_CHANGE_MASK,
             );
+
+            // Resizing `decorations: false` aka borderless
             window.connect_motion_notify_event(|window, event| {
               if !window.is_decorated() && window.is_resizable() {
                 if let Some(window) = window.window() {
@@ -400,12 +402,24 @@ impl<T: 'static> EventLoop<T> {
             });
 
             let tx_clone = event_tx.clone();
-            window.connect_window_state_event(move |_window, event| {
-              let state = event.new_window_state();
-
+            window.connect_focus_in_event(move |_window, _| {
               if let Err(e) = tx_clone.send(Event::WindowEvent {
                 window_id: RootWindowId(id),
-                event: WindowEvent::Focused(state.contains(WindowState::FOCUSED)),
+                event: WindowEvent::Focused(true),
+              }) {
+                log::warn!(
+                  "Failed to send window focused event to event channel: {}",
+                  e
+                );
+              }
+              Inhibit(false)
+            });
+
+            let tx_clone = event_tx.clone();
+            window.connect_focus_out_event(move |_window, _| {
+              if let Err(e) = tx_clone.send(Event::WindowEvent {
+                window_id: RootWindowId(id),
+                event: WindowEvent::Focused(false),
               }) {
                 log::warn!(
                   "Failed to send window focused event to event channel: {}",
