@@ -13,7 +13,7 @@ use gdk_pixbuf::{Colorspace, Pixbuf};
 use gtk::{prelude::*, AccelGroup, ApplicationWindow, Orientation};
 
 use crate::{
-  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+  dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::{BadIcon, Icon},
   menu::{MenuId, MenuItem},
@@ -163,7 +163,7 @@ impl Window {
 
     // Set Position
     if let Some(position) = attributes.position {
-      let (x, y): (i32, i32) = position.to_physical::<i32>(win_scale_factor as f64).into();
+      let (x, y): (i32, i32) = position.to_logical::<i32>(win_scale_factor as f64).into();
       window.move_(x, y);
     }
 
@@ -246,7 +246,7 @@ impl Window {
     let minimized = Rc::new(AtomicBool::new(false));
     let min_clone = minimized.clone();
 
-    window.connect_window_state_event(move |_window, event| {
+    window.connect_window_state_event(move |_, event| {
       let state = event.new_window_state();
       max_clone.store(state.contains(WindowState::MAXIMIZED), Ordering::Release);
       min_clone.store(state.contains(WindowState::ICONIFIED), Ordering::Release);
@@ -305,24 +305,24 @@ impl Window {
 
   pub fn inner_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
     let (x, y) = &*self.position;
-    Ok(PhysicalPosition::new(
-      x.load(Ordering::Acquire),
-      y.load(Ordering::Acquire),
-    ))
+    Ok(
+      LogicalPosition::new(x.load(Ordering::Acquire), y.load(Ordering::Acquire))
+        .to_physical(self.scale_factor.load(Ordering::Acquire) as f64),
+    )
   }
 
   pub fn outer_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
     let (x, y) = &*self.position;
-    Ok(PhysicalPosition::new(
-      x.load(Ordering::Acquire),
-      y.load(Ordering::Acquire),
-    ))
+    Ok(
+      LogicalPosition::new(x.load(Ordering::Acquire), y.load(Ordering::Acquire))
+        .to_physical(self.scale_factor.load(Ordering::Acquire) as f64),
+    )
   }
 
   pub fn set_outer_position<P: Into<Position>>(&self, position: P) {
     let (x, y): (i32, i32) = position
       .into()
-      .to_physical::<i32>(self.scale_factor())
+      .to_logical::<i32>(self.scale_factor())
       .into();
 
     if let Err(e) = self
@@ -336,10 +336,11 @@ impl Window {
   pub fn inner_size(&self) -> PhysicalSize<u32> {
     let (width, height) = &*self.size;
 
-    PhysicalSize::new(
+    LogicalSize::new(
       width.load(Ordering::Acquire) as u32,
       height.load(Ordering::Acquire) as u32,
     )
+    .to_physical(self.scale_factor.load(Ordering::Acquire) as f64)
   }
 
   pub fn set_inner_size<S: Into<Size>>(&self, size: S) {
@@ -356,10 +357,11 @@ impl Window {
   pub fn outer_size(&self) -> PhysicalSize<u32> {
     let (width, height) = &*self.size;
 
-    PhysicalSize::new(
+    LogicalSize::new(
       width.load(Ordering::Acquire) as u32,
       height.load(Ordering::Acquire) as u32,
     )
+    .to_physical(self.scale_factor.load(Ordering::Acquire) as f64)
   }
 
   pub fn set_min_inner_size<S: Into<Size>>(&self, min_size: Option<S>) {

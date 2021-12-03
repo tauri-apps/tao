@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-  dpi::{PhysicalPosition, PhysicalSize},
+  dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize},
   monitor::{MonitorHandle as RootMonitorHandle, VideoMode as RootVideoMode},
 };
 
@@ -29,19 +29,21 @@ impl MonitorHandle {
   #[inline]
   pub fn size(&self) -> PhysicalSize<u32> {
     let rect = self.monitor.geometry();
-    PhysicalSize {
+    LogicalSize {
       width: rect.width as u32,
       height: rect.height as u32,
     }
+    .to_physical(self.scale_factor())
   }
 
   #[inline]
   pub fn position(&self) -> PhysicalPosition<i32> {
     let rect = self.monitor.geometry();
-    PhysicalPosition {
+    LogicalPosition {
       x: rect.x,
       y: rect.y,
     }
+    .to_physical(self.scale_factor())
   }
 
   #[inline]
