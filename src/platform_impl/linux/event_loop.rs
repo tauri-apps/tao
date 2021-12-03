@@ -570,9 +570,25 @@ impl<T: 'static> EventLoop<T> {
               Continue(true)
             });
 
+            let tx_clone = event_tx.clone();
+            // TODO Add actual IME from system
+            let ime = gtk::IMContextSimple::default();
+            ime.set_client_window(window.window().as_ref());
+            ime.focus_in();
+            ime.connect_commit(move |_, s| {
+                if let Err(e) = tx_clone.send(Event::WindowEvent {
+                    window_id: RootWindowId(id),
+                    event: WindowEvent::ReceivedImeText(s.to_string()),
+                }) {
+                  log::warn!("Failed to send received IME text event to event channel: {}", e);
+                }
+            });
+
             let handler = keyboard_handler.clone();
             window.connect_key_press_event(move |_, event_key| {
               handler(event_key.to_owned(), ElementState::Pressed);
+              ime.filter_keypress(event_key);
+
               Inhibit(false)
             });
 
@@ -581,6 +597,7 @@ impl<T: 'static> EventLoop<T> {
               handler(event_key.to_owned(), ElementState::Released);
               Inhibit(false)
             });
+
           }
           WindowRequest::Redraw => window.queue_draw(),
           WindowRequest::Menu(m) => match m {
