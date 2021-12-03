@@ -408,7 +408,7 @@ impl<T: 'static> EventLoop<T> {
                 event: WindowEvent::Focused(true),
               }) {
                 log::warn!(
-                  "Failed to send window focused event to event channel: {}",
+                  "Failed to send window focus-in event to event channel: {}",
                   e
                 );
               }
@@ -422,7 +422,7 @@ impl<T: 'static> EventLoop<T> {
                 event: WindowEvent::Focused(false),
               }) {
                 log::warn!(
-                  "Failed to send window focused event to event channel: {}",
+                  "Failed to send window focus-out event to event channel: {}",
                   e
                 );
               }
