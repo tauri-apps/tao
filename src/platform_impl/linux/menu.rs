@@ -18,10 +18,15 @@ use crate::{
 };
 
 macro_rules! menuitem {
-  ( $description:expr, $key:expr, $accel_group:ident ) => {{
+  ( $description:expr, $key:expr, $accel_group:ident, $window_id:expr, $native_menu_item:expr, $tx:ident ) => {{
     let item = GtkMenuItem::with_label($description);
     let (key, mods) = gtk::accelerator_parse($key);
     item.add_accelerator("activate", $accel_group, key, mods, AccelFlags::VISIBLE);
+    item.connect_activate(move |_| {
+      if let Err(e) = $tx.send(($window_id, WindowRequest::Menu(($native_menu_item, None)))) {
+        log::warn!("Fail to send native menu request: {}", e);
+      }
+    });
     Some(item)
   }};
 }
@@ -246,17 +251,47 @@ impl Menu {
           menu_type: GtkMenuType::Native,
           menu_item: Some(MenuItem::Hide),
           ..
-        } => menuitem!("Hide", "<Ctrl>H", accel_group),
+        } => {
+          let tx_clone = tx.clone();
+          menuitem!(
+            "Hide",
+            "<Ctrl>H",
+            accel_group,
+            window_id,
+            Some(MenuItem::Hide),
+            tx_clone
+          )
+        }
         GtkMenuInfo {
           menu_type: GtkMenuType::Native,
           menu_item: Some(MenuItem::CloseWindow),
           ..
-        } => menuitem!("Close Window", "<Ctrl>W", accel_group),
+        } => {
+          let tx_clone = tx.clone();
+          menuitem!(
+            "Close Window",
+            "<Ctrl>W",
+            accel_group,
+            window_id,
+            Some(MenuItem::CloseWindow),
+            tx_clone
+          )
+        }
         GtkMenuInfo {
           menu_type: GtkMenuType::Native,
           menu_item: Some(MenuItem::Quit),
           ..
-        } => menuitem!("Quit", "Q", accel_group),
+        } => {
+          let tx_clone = tx.clone();
+          menuitem!(
+            "Quit",
+            "<Ctrl>Q",
+            accel_group,
+            window_id,
+            Some(MenuItem::Quit),
+            tx_clone
+          )
+        }
         // TODO add others
         _ => None,
       };
