@@ -901,16 +901,3 @@ fn is_main_thread() -> bool {
   std::thread::current().name() == Some("main")
 }
 
-#[inline]
-fn callback_check<F, T>(
-  cb: &mut F,
-  event: Event<'_, T>,
-  elw: &RootELW<T>,
-  flow: &mut ControlFlow,
-) -> bool
-where
-  F: FnMut(Event<'_, T>, &RootELW<T>, &mut ControlFlow),
-{
-  cb(event, elw, flow);
-  *flow != ControlFlow::Exit
-}
