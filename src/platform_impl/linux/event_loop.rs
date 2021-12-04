@@ -79,6 +79,8 @@ pub struct EventLoop<T: 'static> {
   user_event_tx: glib::Sender<T>,
   /// Event queue of EventLoop
   events: crossbeam_channel::Receiver<Event<'static, T>>,
+  /// Draw queue of EventLoop
+  draws: crossbeam_channel::Receiver<WindowId>,
 }
 
 impl<T: 'static> EventLoop<T> {
@@ -97,7 +99,8 @@ impl<T: 'static> EventLoop<T> {
     app.register(cancellable)?;
 
     // Send StartCause::Init event
-    let (event_tx, event_rx) = glib::MainContext::channel::<Event<'_, T>>(Priority::default());
+    let (event_tx, event_rx) = crossbeam_channel::unbounded();
+    let (draw_tx, draw_rx) = crossbeam_channel::unbounded();
     let event_tx_ = event_tx.clone();
     app.connect_activate(move |_| {
       if let Err(e) = event_tx_.send(Event::NewEvents(StartCause::Init)) {
@@ -603,7 +606,7 @@ impl<T: 'static> EventLoop<T> {
             });
           }
           WindowRequest::Redraw => {
-            if let Err(e) = event_tx.send(Event::RedrawRequested(RootWindowId(id))) {
+            if let Err(e) = draw_tx.send(id) {
               log::warn!("Failed to send redraw event to event channel: {}", e);
             }
 
@@ -682,13 +685,6 @@ impl<T: 'static> EventLoop<T> {
       Continue(true)
     });
 
-    // Event control flow
-    let (e, events) = crossbeam_channel::unbounded();
-    event_rx.attach(Some(&context), move |event| match e.send(event) {
-      Ok(_) => Continue(true),
-      Err(_) => Continue(false),
-    });
-
     // Create event loop itself.
     let event_loop = Self {
       window_target: RootELW {
@@ -696,7 +692,8 @@ impl<T: 'static> EventLoop<T> {
         _marker: std::marker::PhantomData,
       },
       user_event_tx,
-      events,
+      events: event_rx,
+      draws: draw_rx,
     };
 
     context.pop_thread_default();
@@ -722,6 +719,7 @@ impl<T: 'static> EventLoop<T> {
     let mut control_flow = ControlFlow::default();
     let window_target = &self.window_target;
     let events = &self.events;
+    let draws = &self.draws;
 
     window_target.p.app.activate();
 
@@ -734,34 +732,26 @@ impl<T: 'static> EventLoop<T> {
         }
         ControlFlow::Wait => {
           if !events.is_empty() {
-            callback(
+            if callback_check(
+              &mut callback,
               Event::NewEvents(StartCause::WaitCancelled {
                 start: Instant::now(),
                 requested_resume: None,
               }),
               &window_target,
               &mut control_flow,
-            );
-
-            if control_flow != ControlFlow::Exit {
+            ) {
               while let Ok(event) = events.try_recv() {
                 match event {
                   Event::LoopDestroyed => control_flow = ControlFlow::Exit,
-                  e @ Event::RedrawRequested(_) => queue_redraw.push(e),
-                  _ => callback(event, &window_target, &mut control_flow),
-                }
-                if control_flow == ControlFlow::Exit {
-                  break;
+                  _ => if !callback_check(&mut callback, event, &window_target, &mut control_flow) { break; },
                 }
               }
 
               if control_flow != ControlFlow::Exit {
-                callback(Event::MainEventsCleared, &window_target, &mut control_flow);
-
-                if control_flow != ControlFlow::Exit {
-                  while let Some(event) = queue_redraw.pop() {
-                    callback(event, &window_target, &mut control_flow);
-                    if control_flow == ControlFlow::Exit {
+                if callback_check(&mut callback, Event::MainEventsCleared, &window_target, &mut control_flow) {
+                  while let Ok(id) = draws.try_recv() {
+                    if callback_check(&mut callback, Event::RedrawRequested(RootWindowId(id)), &window_target, &mut control_flow) {
                       break;
                     }
                   }
@@ -973,4 +963,13 @@ fn is_main_thread() -> bool {
 #[cfg(target_os = "netbsd")]
 fn is_main_thread() -> bool {
   std::thread::current().name() == Some("main")
+}
+
+#[inline]
+fn callback_check<F, T>(cb: &mut F, event: Event<'_, T>, elw: &RootELW<T>, flow: &mut ControlFlow) -> bool
+where
+F: FnMut(Event<'_, T>, &RootELW<T>, &mut ControlFlow)
+{
+  cb(event, elw, flow);
+  *flow != ControlFlow::Exit
 }
