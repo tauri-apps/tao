@@ -47,6 +47,7 @@ fn main() {
 
   // add `my_sub_menu` children of `first_menu` with `Sub menu` title
   first_menu.add_submenu("Sub menu", true, my_sub_menu);
+  first_menu.add_native_item(MenuItem::CloseWindow);
   first_menu.add_native_item(MenuItem::Quit);
 
   // create custom item `Selected and disabled` children of `second_menu`
@@ -79,9 +80,6 @@ fn main() {
         window_id,
         ..
       } if window_id == window.id() => *control_flow = ControlFlow::Exit,
-      Event::MainEventsCleared => {
-        window.request_redraw();
-      }
       Event::MenuEvent {
         window_id,
         menu_id,
