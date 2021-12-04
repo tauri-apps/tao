@@ -67,7 +67,7 @@ impl Clipboard {
           println!(
             "failed to set clipboard for fmt {}, error: {}",
             &format.identifier,
-            windows::core::Error::from_win32().code().0
+            windows::runtime::Error::from_win32().code().0
           );
         }
       }
@@ -89,7 +89,7 @@ fn register_identifier(ident: &str) -> Option<u32> {
   unsafe {
     let pb_format = RegisterClipboardFormatA(ident);
     if pb_format == 0 {
-      let err = windows::core::Error::from_win32().code().0;
+      let err = windows::runtime::Error::from_win32().code().0;
       println!(
         "failed to register clipboard format '{}'; error {}.",
         ident, err

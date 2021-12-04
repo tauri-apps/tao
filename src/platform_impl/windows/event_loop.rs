@@ -27,7 +27,7 @@ use windows::Win32::{
   System::{
     LibraryLoader::GetModuleHandleW,
     Ole::{IDropTarget, RevokeDragDrop},
-    Threading::GetCurrentThreadId,
+    Threading::{GetCurrentThreadId, MsgWaitForMultipleObjectsEx, MWMO_INPUTAVAILABLE},
     WindowsProgramming::INFINITE,
   },
   UI::{
@@ -377,12 +377,12 @@ fn wait_thread(parent_thread_id: u32, msg_window_id: HWND) {
           // MsgWaitForMultipleObjects tends to overshoot just a little bit. We subtract
           // 1 millisecond from the requested time and spinlock for the remainder to
           // compensate for that.
-          let resume_reason = WIN32_ERROR(win32wm::MsgWaitForMultipleObjectsEx(
+          let resume_reason = WIN32_ERROR(MsgWaitForMultipleObjectsEx(
             0,
             ptr::null(),
             dur2timeout(wait_until - now).saturating_sub(1),
             QS_ALLEVENTS,
-            win32wm::MWMO_INPUTAVAILABLE,
+            MWMO_INPUTAVAILABLE,
           ));
           if resume_reason == WAIT_TIMEOUT {
             PostMessageW(

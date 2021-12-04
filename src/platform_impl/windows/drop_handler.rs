@@ -5,7 +5,7 @@ use std::{ffi::OsString, os::windows::ffi::OsStringExt, path::PathBuf, ptr};
 
 use windows::{
   self as Windows,
-  core::implement,
+  runtime::implement,
   Win32::{
     Foundation::{self as win32f, HWND, POINTL, PWSTR},
     System::{
@@ -46,7 +46,7 @@ impl FileDropHandler {
     _grfKeyState: u32,
     _pt: POINTL,
     pdwEffect: *mut u32,
-  ) -> windows::core::Result<()> {
+  ) -> windows::runtime::Result<()> {
     use crate::event::WindowEvent::HoveredFile;
     let hdrop = Self::iterate_filenames(pDataObj, |filename| {
       (self.send_event)(Event::WindowEvent {
@@ -69,12 +69,12 @@ impl FileDropHandler {
     _grfKeyState: u32,
     _pt: POINTL,
     pdwEffect: *mut u32,
-  ) -> windows::core::Result<()> {
+  ) -> windows::runtime::Result<()> {
     *pdwEffect = self.cursor_effect;
     Ok(())
   }
 
-  unsafe fn DragLeave(&self) -> windows::core::Result<()> {
+  unsafe fn DragLeave(&self) -> windows::runtime::Result<()> {
     use crate::event::WindowEvent::HoveredFileCancelled;
     if self.hovered_is_valid {
       (self.send_event)(Event::WindowEvent {
@@ -91,7 +91,7 @@ impl FileDropHandler {
     _grfKeyState: u32,
     _pt: POINTL,
     _pdwEffect: *mut u32,
-  ) -> windows::core::Result<()> {
+  ) -> windows::runtime::Result<()> {
     use crate::event::WindowEvent::DroppedFile;
     let hdrop = Self::iterate_filenames(pDataObj, |filename| {
       (self.send_event)(Event::WindowEvent {

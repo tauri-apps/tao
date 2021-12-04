@@ -1061,7 +1061,7 @@ unsafe fn taskbar_mark_fullscreen(handle: HWND, fullscreen: bool) {
     let mut task_bar_list = task_bar_list_ptr.borrow().clone();
 
     if task_bar_list.is_none() {
-      let result: windows::core::Result<ITaskbarList2> =
+      let result: windows::runtime::Result<ITaskbarList2> =
         CoCreateInstance(&TaskbarList, None, CLSCTX_ALL);
       if let Ok(created) = result {
         if let Ok(()) = created.HrInit() {
