@@ -72,12 +72,6 @@ impl<T> EventLoopWindowTarget<T> {
   }
 }
 
-enum EventState {
-  NewStart,
-  EventQueue,
-  DrawQueue,
-}
-
 pub struct EventLoop<T: 'static> {
   /// Window target.
   window_target: RootELW<T>,
@@ -715,10 +709,43 @@ impl<T: 'static> EventLoop<T> {
     process::exit(0)
   }
 
+  /// This is the core event loop logic. It basically loops on `gtk_main_iteration` and processes one
+  /// event along with that iteration. Depends on current control flow and what it should do, an
+  /// event state is defined. The whole state flow chart runs like following:
+  ///
+  ///                                   Poll/Wait/WaitUntil
+  ///       +-------------------------------------------------------------------------+
+  ///       |                                                                         |
+  ///       |                   Receiving event from event channel                    |   Receiving event from draw channel
+  ///       |                               +-------+                                 |   +---+
+  ///       v                               v       |                                 |   v   |
+  /// +----------+  Poll/Wait/WaitUntil   +------------+  Poll/Wait/WaitUntil   +-----------+ |
+  /// | NewStart | ---------------------> | EventQueue | ---------------------> | DrawQueue | |
+  /// +----------+                        +------------+                        +-----------+ |
+  ///       |Exit                                |Exit                            Exit|   |   |
+  ///       +------------------------------------+------------------------------------+   +---+
+  ///                                            |
+  ///                                            v
+  ///                                    +---------------+
+  ///                                    | LoopDestroyed |
+  ///                                    +---------------+
+  ///
+  /// There are a dew notibale event will sent to callback when state is transisted:
+  /// - On any state moves to `LoopDestroyed`, a `LoopDestroyed` event is sent.
+  /// - On `NewStart` to `EventQueue`, a `NewEvents` with corresponding `StartCause` depends on
+  /// current control flow is sent.
+  /// - On `EventQueue` to `DrawQueue`, a `MainEventsCleared` event is sent.
+  /// - On `DrawQueue` back to `NewStart`, a `RedrawEventsCleared` event is sent.
   pub(crate) fn run_return<F>(&mut self, mut callback: F)
   where
     F: FnMut(Event<'_, T>, &RootELW<T>, &mut ControlFlow),
   {
+    enum EventState {
+      NewStart,
+      EventQueue,
+      DrawQueue,
+    }
+
     let context = MainContext::default();
     context.push_thread_default();
 
