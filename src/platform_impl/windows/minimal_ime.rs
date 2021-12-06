@@ -80,6 +80,9 @@ impl MinimalIme {
             self.getting_ime_text = false;
             return result;
           }
+        } else {
+          *result = ProcResult::Value(LRESULT::default());
+          return String::from_utf16(&[wparam.0 as u16]).ok();
         }
       }
       _ => (),

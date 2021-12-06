@@ -460,24 +460,18 @@ impl<T: 'static> EventLoop<T> {
             });
 
             let tx_clone = event_tx.clone();
-            window.connect_motion_notify_event(move |window, _| {
-              let display = window.display();
-              if let Some(cursor) = display
-                .default_seat()
-                .and_then(|device_manager| device_manager.pointer())
-              {
-                let (_, x, y) = cursor.position();
-                if let Err(e) = tx_clone.send(Event::WindowEvent {
-                  window_id: RootWindowId(id),
-                  event: WindowEvent::CursorMoved {
-                    position: PhysicalPosition::new(x as f64, y as f64),
-                    device_id: DEVICE_ID,
-                    // this field is depracted so it is fine to pass empty state
-                    modifiers: ModifiersState::empty(),
-                  },
-                }) {
-                  log::warn!("Failed to send cursor moved event to event channel: {}", e);
-                }
+            window.connect_motion_notify_event(move |_window, event| {
+              let (x, y) = event.position();
+              if let Err(e) = tx_clone.send(Event::WindowEvent {
+                window_id: RootWindowId(id),
+                event: WindowEvent::CursorMoved {
+                  position: PhysicalPosition::new(x, y),
+                  device_id: DEVICE_ID,
+                  // this field is depracted so it is fine to pass empty state
+                  modifiers: ModifiersState::empty(),
+                },
+              }) {
+                log::warn!("Failed to send cursor moved event to event channel: {}", e);
               }
               Inhibit(false)
             });
@@ -590,9 +584,25 @@ impl<T: 'static> EventLoop<T> {
               Continue(true)
             });
 
+            let tx_clone = event_tx.clone();
+            // TODO Add actual IME from system
+            let ime = gtk::IMContextSimple::default();
+            ime.set_client_window(window.window().as_ref());
+            ime.focus_in();
+            ime.connect_commit(move |_, s| {
+                if let Err(e) = tx_clone.send(Event::WindowEvent {
+                    window_id: RootWindowId(id),
+                    event: WindowEvent::ReceivedImeText(s.to_string()),
+                }) {
+                  log::warn!("Failed to send received IME text event to event channel: {}", e);
+                }
+            });
+
             let handler = keyboard_handler.clone();
             window.connect_key_press_event(move |_, event_key| {
               handler(event_key.to_owned(), ElementState::Pressed);
+              ime.filter_keypress(event_key);
+
               Inhibit(false)
             });
 
@@ -601,6 +611,7 @@ impl<T: 'static> EventLoop<T> {
               handler(event_key.to_owned(), ElementState::Released);
               Inhibit(false)
             });
+
           }
           WindowRequest::Redraw => {
             if let Err(e) = event_tx.send(Event::RedrawRequested(RootWindowId(id))) {
