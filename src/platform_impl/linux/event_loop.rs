@@ -865,7 +865,7 @@ impl<T: 'static> EventLoop<T> {
           },
         },
       }
-      gtk::main_iteration();
+      gtk::main_iteration_do(false);
     }
 
     context.pop_thread_default();
