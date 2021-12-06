@@ -713,6 +713,7 @@ impl<T: 'static> EventLoop<T> {
   /// event along with that iteration. Depends on current control flow and what it should do, an
   /// event state is defined. The whole state flow chart runs like following:
   ///
+  /// ```ignore
   ///                                   Poll/Wait/WaitUntil
   ///       +-------------------------------------------------------------------------+
   ///       |                                                                         |
@@ -729,6 +730,7 @@ impl<T: 'static> EventLoop<T> {
   ///                                    +---------------+
   ///                                    | LoopDestroyed |
   ///                                    +---------------+
+  /// ```
   ///
   /// There are a dew notibale event will sent to callback when state is transisted:
   /// - On any state moves to `LoopDestroyed`, a `LoopDestroyed` event is sent.
