@@ -593,12 +593,15 @@ impl<T: 'static> EventLoop<T> {
             ime.set_client_window(window.window().as_ref());
             ime.focus_in();
             ime.connect_commit(move |_, s| {
-                if let Err(e) = tx_clone.send(Event::WindowEvent {
-                    window_id: RootWindowId(id),
-                    event: WindowEvent::ReceivedImeText(s.to_string()),
-                }) {
-                  log::warn!("Failed to send received IME text event to event channel: {}", e);
-                }
+              if let Err(e) = tx_clone.send(Event::WindowEvent {
+                window_id: RootWindowId(id),
+                event: WindowEvent::ReceivedImeText(s.to_string()),
+              }) {
+                log::warn!(
+                  "Failed to send received IME text event to event channel: {}",
+                  e
+                );
+              }
             });
 
             let handler = keyboard_handler.clone();
@@ -614,7 +617,6 @@ impl<T: 'static> EventLoop<T> {
               handler(event_key.to_owned(), ElementState::Released);
               Inhibit(false)
             });
-
           }
           WindowRequest::Redraw => {
             if let Err(e) = draw_tx.send(id) {
@@ -771,6 +773,7 @@ impl<T: 'static> EventLoop<T> {
 
     let mut state = EventState::NewStart;
     loop {
+      let mut blocking = false;
       match state {
         EventState::NewStart => match control_flow {
           ControlFlow::Exit => {
@@ -788,6 +791,8 @@ impl<T: 'static> EventLoop<T> {
                 &mut control_flow,
               );
               state = EventState::EventQueue;
+            } else {
+              blocking = true;
             }
           }
           ControlFlow::WaitUntil(requested_resume) => {
@@ -812,6 +817,8 @@ impl<T: 'static> EventLoop<T> {
                 &mut control_flow,
               );
               state = EventState::EventQueue;
+            } else {
+              blocking = true;
             }
           }
           ControlFlow::Poll => {
@@ -865,7 +872,7 @@ impl<T: 'static> EventLoop<T> {
           },
         },
       }
-      gtk::main_iteration_do(false);
+      gtk::main_iteration_do(blocking);
     }
 
     context.pop_thread_default();
@@ -940,4 +947,3 @@ fn is_main_thread() -> bool {
 fn is_main_thread() -> bool {
   std::thread::current().name() == Some("main")
 }
-
