@@ -290,14 +290,14 @@ impl Window {
 
   #[inline]
   pub fn hinstance(&self) -> HINSTANCE {
-    HINSTANCE(util::get_window_long_ptr(self.hwnd(), GWLP_HINSTANCE) as _)
+    util::get_window_long_ptr(self.hwnd(), GWLP_HINSTANCE)
   }
 
   #[inline]
   pub fn raw_window_handle(&self) -> RawWindowHandle {
     let handle = WindowsHandle {
-      hwnd: self.window.0 .0 as *mut _,
-      hinstance: self.hinstance().0 as *mut _,
+      hwnd: self.window.0 as *mut _,
+      hinstance: self.hinstance() as *mut _,
       ..WindowsHandle::empty()
     };
     RawWindowHandle::Windows(handle)
@@ -381,7 +381,7 @@ impl Window {
       PostMessageW(
         self.window.0,
         WM_NCLBUTTONDOWN,
-        WPARAM(HTCAPTION as _),
+        HTCAPTION as WPARAM,
         util::make_x_y_lparam(pos.x as i16, pos.y as i16),
       );
     }
@@ -391,7 +391,7 @@ impl Window {
 
   #[inline]
   pub fn id(&self) -> WindowId {
-    WindowId(self.window.0 .0)
+    WindowId(self.window.0)
   }
 
   #[inline]
@@ -713,7 +713,7 @@ impl Window {
 
   #[inline]
   pub fn is_menu_visible(&self) -> bool {
-    unsafe { GetMenu(self.hwnd()).0 != 0 }
+    unsafe { GetMenu(self.hwnd()) != 0 }
   }
 
   #[inline]
@@ -721,7 +721,7 @@ impl Window {
     // `ToUnicode` consumes the dead-key by default, so we are constructing a fake (but valid)
     // key input which we can call `ToUnicode` with.
     unsafe {
-      let vk = u32::from(VK_SPACE.0);
+      let vk = u32::from(VK_SPACE);
       let scancode = MapVirtualKeyW(vk, MAPVK_VK_TO_VSC);
       let kbd_state = [0; 256];
       let mut char_buff = [MaybeUninit::uninit(); 8];
@@ -739,7 +739,7 @@ impl Window {
   #[inline]
   pub fn begin_resize_drag(&self, edge: isize, button: u32, x: i32, y: i32) {
     unsafe {
-      let w_param = WPARAM(edge as usize);
+      let w_param = edge as WPARAM;
       let l_param = util::make_x_y_lparam(x as i16, y as i16);
 
       ReleaseCapture();
@@ -770,7 +770,7 @@ impl Drop for Window {
     unsafe {
       // The window must be destroyed from the same thread that created it, so we send a
       // custom message to be handled by our callback to do the actual work.
-      PostMessageW(self.window.0, *DESTROY_MSG_ID, WPARAM(0), LPARAM(0));
+      PostMessageW(self.window.0, *DESTROY_MSG_ID, 0, 0);
     }
   }
 }
@@ -842,7 +842,7 @@ unsafe fn init<T: 'static>(
       Box::into_raw(Box::new(!attributes.decorations)) as _,
     );
 
-    if handle.0 == 0 {
+    if handle == 0 {
       return Err(os_error!(OsError::IoError(io::Error::last_os_error())));
     }
 
@@ -998,11 +998,11 @@ unsafe extern "system" fn window_proc(
         if util::is_maximized(window) {
           let monitor = monitor::current_monitor(window);
           if let Ok(monitor_info) = monitor::get_monitor_info(monitor.hmonitor()) {
-            let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
-            params.rgrc[0] = monitor_info.__AnonymousBase_winuser_L13571_C43.rcWork;
+            let params = &mut *(lparam as *mut NCCALCSIZE_PARAMS);
+            params.rgrc[0] = monitor_info.monitorInfo.rcWork;
           }
         }
-        LRESULT(0) // return 0 here to make the windowo borderless
+        0 // return 0 here to make the window borderless
       } else {
         DefWindowProcW(window, msg, wparam, lparam)
       }
@@ -1010,7 +1010,7 @@ unsafe extern "system" fn window_proc(
     win32wm::WM_NCCREATE => {
       // Set userdata to the value of lparam. This will be cleared on event loop subclassing.
       if userdata == 0 {
-        let createstruct = &*(lparam.0 as *const CREATESTRUCTW);
+        let createstruct = &*(lparam as *const CREATESTRUCTW);
         userdata = createstruct.lpCreateParams as isize;
         util::set_window_long_ptr(window, GWL_USERDATA, userdata);
       }
@@ -1061,7 +1061,7 @@ unsafe fn taskbar_mark_fullscreen(handle: HWND, fullscreen: bool) {
     let mut task_bar_list = task_bar_list_ptr.borrow().clone();
 
     if task_bar_list.is_none() {
-      let result: windows::runtime::Result<ITaskbarList2> =
+      let result: windows::core::Result<ITaskbarList2> =
         CoCreateInstance(&TaskbarList, None, CLSCTX_ALL);
       if let Ok(created) = result {
         if let Ok(()) = created.HrInit() {
@@ -1087,7 +1087,7 @@ unsafe fn force_window_active(handle: HWND) {
   // This is a little hack which can "steal" the foreground window permission
   // We only call this function in the window creation, so it should be fine.
   // See : https://stackoverflow.com/questions/10740346/setforegroundwindow-only-working-while-visual-studio-is-open
-  let alt_sc = MapVirtualKeyW(u32::from(VK_MENU.0), MAPVK_VK_TO_VSC);
+  let alt_sc = MapVirtualKeyW(u32::from(VK_MENU), MAPVK_VK_TO_VSC);
 
   let mut inputs: [INPUT; 2] = mem::zeroed();
   inputs[0].r#type = INPUT_KEYBOARD;
@@ -1137,7 +1137,7 @@ pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
         | (TOP * (if cy < (top + BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
         | (BOTTOM * (if cy >= (bottom - BORDERLESS_RESIZE_INSET) { 1 } else { 0 }));
 
-      LRESULT(match result {
+      (match result {
         CLIENT => HTCLIENT,
         LEFT => HTLEFT,
         RIGHT => HTRIGHT,
@@ -1148,9 +1148,9 @@ pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
         BOTTOMLEFT => HTBOTTOMLEFT,
         BOTTOMRIGHT => HTBOTTOMRIGHT,
         _ => HTNOWHERE,
-      } as isize)
+      }) as LRESULT
     } else {
-      LRESULT(HTNOWHERE as isize)
+      HTNOWHERE as LRESULT
     }
   }
 }

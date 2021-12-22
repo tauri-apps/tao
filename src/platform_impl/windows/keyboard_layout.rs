@@ -28,7 +28,7 @@ lazy_static! {
 }
 
 fn key_pressed(vkey: VIRTUAL_KEY) -> bool {
-  unsafe { (GetKeyState(u32::from(vkey.0) as i32) & (1 << 15)) == (1 << 15) }
+  unsafe { (GetKeyState(u32::from(vkey) as i32) & (1 << 15)) == (1 << 15) }
 }
 
 const NUMPAD_VKEYS: [VIRTUAL_KEY; 16] = [
@@ -85,19 +85,19 @@ bitflags! {
 
 impl WindowsModifiers {
   pub fn active_modifiers(key_state: &[u8; 256]) -> WindowsModifiers {
-    let shift = key_state[usize::from(VK_SHIFT.0)] & 0x80 != 0;
-    let lshift = key_state[usize::from(VK_LSHIFT.0)] & 0x80 != 0;
-    let rshift = key_state[usize::from(VK_RSHIFT.0)] & 0x80 != 0;
+    let shift = key_state[usize::from(VK_SHIFT)] & 0x80 != 0;
+    let lshift = key_state[usize::from(VK_LSHIFT)] & 0x80 != 0;
+    let rshift = key_state[usize::from(VK_RSHIFT)] & 0x80 != 0;
 
-    let control = key_state[usize::from(VK_CONTROL.0)] & 0x80 != 0;
-    let lcontrol = key_state[usize::from(VK_LCONTROL.0)] & 0x80 != 0;
-    let rcontrol = key_state[usize::from(VK_RCONTROL.0)] & 0x80 != 0;
+    let control = key_state[usize::from(VK_CONTROL)] & 0x80 != 0;
+    let lcontrol = key_state[usize::from(VK_LCONTROL)] & 0x80 != 0;
+    let rcontrol = key_state[usize::from(VK_RCONTROL)] & 0x80 != 0;
 
-    let alt = key_state[usize::from(VK_MENU.0)] & 0x80 != 0;
-    let lalt = key_state[usize::from(VK_LMENU.0)] & 0x80 != 0;
-    let ralt = key_state[usize::from(VK_RMENU.0)] & 0x80 != 0;
+    let alt = key_state[usize::from(VK_MENU)] & 0x80 != 0;
+    let lalt = key_state[usize::from(VK_LMENU)] & 0x80 != 0;
+    let ralt = key_state[usize::from(VK_RMENU)] & 0x80 != 0;
 
-    let caps = key_state[usize::from(VK_CAPITAL.0)] & 0x01 != 0;
+    let caps = key_state[usize::from(VK_CAPITAL)] & 0x01 != 0;
 
     let mut result = WindowsModifiers::empty();
     if shift || lshift || rshift {
@@ -118,30 +118,30 @@ impl WindowsModifiers {
 
   pub fn apply_to_kbd_state(self, key_state: &mut [u8; 256]) {
     if self.intersects(Self::SHIFT) {
-      key_state[usize::from(VK_SHIFT.0)] |= 0x80;
+      key_state[usize::from(VK_SHIFT)] |= 0x80;
     } else {
-      key_state[usize::from(VK_SHIFT.0)] &= !0x80;
-      key_state[usize::from(VK_LSHIFT.0)] &= !0x80;
-      key_state[usize::from(VK_RSHIFT.0)] &= !0x80;
+      key_state[usize::from(VK_SHIFT)] &= !0x80;
+      key_state[usize::from(VK_LSHIFT)] &= !0x80;
+      key_state[usize::from(VK_RSHIFT)] &= !0x80;
     }
     if self.intersects(Self::CONTROL) {
-      key_state[usize::from(VK_CONTROL.0)] |= 0x80;
+      key_state[usize::from(VK_CONTROL)] |= 0x80;
     } else {
-      key_state[usize::from(VK_CONTROL.0)] &= !0x80;
-      key_state[usize::from(VK_LCONTROL.0)] &= !0x80;
-      key_state[usize::from(VK_RCONTROL.0)] &= !0x80;
+      key_state[usize::from(VK_CONTROL)] &= !0x80;
+      key_state[usize::from(VK_LCONTROL)] &= !0x80;
+      key_state[usize::from(VK_RCONTROL)] &= !0x80;
     }
     if self.intersects(Self::ALT) {
-      key_state[usize::from(VK_MENU.0)] |= 0x80;
+      key_state[usize::from(VK_MENU)] |= 0x80;
     } else {
-      key_state[usize::from(VK_MENU.0)] &= !0x80;
-      key_state[usize::from(VK_LMENU.0)] &= !0x80;
-      key_state[usize::from(VK_RMENU.0)] &= !0x80;
+      key_state[usize::from(VK_MENU)] &= !0x80;
+      key_state[usize::from(VK_LMENU)] &= !0x80;
+      key_state[usize::from(VK_RMENU)] &= !0x80;
     }
     if self.intersects(Self::CAPS_LOCK) {
-      key_state[usize::from(VK_CAPITAL.0)] |= 0x01;
+      key_state[usize::from(VK_CAPITAL)] |= 0x01;
     } else {
-      key_state[usize::from(VK_CAPITAL.0)] &= !0x01;
+      key_state[usize::from(VK_CAPITAL)] &= !0x01;
     }
   }
 
@@ -214,10 +214,10 @@ impl Layout {
       }
     }
     if num_lock_on {
-      if let Some(key) = self.numlock_on_keys.get(&vkey.0) {
+      if let Some(key) = self.numlock_on_keys.get(&vkey) {
         return key.clone();
       }
-    } else if let Some(key) = self.numlock_off_keys.get(&vkey.0) {
+    } else if let Some(key) = self.numlock_off_keys.get(&vkey) {
       return key.clone();
     }
 
@@ -243,7 +243,7 @@ impl LayoutCache {
   /// The current layout is then returned.
   pub fn get_current_layout<'a>(&'a mut self) -> (HKL, &'a Layout) {
     let locale_id = unsafe { GetKeyboardLayout(0) };
-    match self.layouts.entry(locale_id.0) {
+    match self.layouts.entry(locale_id) {
       Entry::Occupied(entry) => (locale_id, entry.into_mut()),
       Entry::Vacant(entry) => {
         let layout = Self::prepare_layout(&mut self.strings, locale_id);
@@ -299,38 +299,37 @@ impl LayoutCache {
     //    \/                    \/
     // map_value: Key  <-  map_vkey: VK
     layout.numlock_off_keys.reserve(NUMPAD_KEYCODES.len());
-    for vk in 0..256 {
+    for vk in 0_u16..256 {
       let scancode =
         unsafe { MapVirtualKeyExW(u32::from(vk), MAPVK_VK_TO_VSC_EX, locale_id as HKL) };
       if scancode == 0 {
         continue;
       }
-      let vk = VIRTUAL_KEY::from(vk);
       let keycode = KeyCode::from_scancode(scancode);
       if !is_numpad_specific(vk) && NUMPAD_KEYCODES.contains(&keycode) {
         let native_code = NativeKeyCode::Windows(scancode as u16);
         let map_vkey = keycode_to_vkey(keycode, locale_id);
-        if map_vkey.0 == 0 {
+        if map_vkey == 0 {
           continue;
         }
         let map_value = vkey_to_non_char_key(vk, native_code, locale_id, false);
         if matches!(map_value, Key::Unidentified(_)) {
           continue;
         }
-        layout.numlock_off_keys.insert(map_vkey.0, map_value);
+        layout.numlock_off_keys.insert(map_vkey, map_value);
       }
     }
 
     layout.numlock_on_keys.reserve(NUMPAD_VKEYS.len());
     for vk in NUMPAD_VKEYS.iter() {
       let scancode =
-        unsafe { MapVirtualKeyExW(u32::from(vk.0), MAPVK_VK_TO_VSC_EX, locale_id as HKL) };
+        unsafe { MapVirtualKeyExW(u32::from(*vk), MAPVK_VK_TO_VSC_EX, locale_id as HKL) };
       let unicode = Self::to_unicode_string(&key_state, *vk, scancode, locale_id);
       if let ToUnicodeResult::Str(s) = unicode {
         let static_str = get_or_insert_str(strings, s);
         layout
           .numlock_on_keys
-          .insert(vk.0, Key::Character(static_str));
+          .insert(*vk, Key::Character(static_str));
       }
     }
 
@@ -346,13 +345,11 @@ impl LayoutCache {
       // This is reinforced by the fact that the keyboard state array has 256
       // elements. This array is allowed to be indexed by virtual key values
       // giving the key state for the virtual key used for indexing.
-      for vk in 0..256 {
+      for vk in 0_u16..256 {
         let scancode = unsafe { MapVirtualKeyExW(u32::from(vk), MAPVK_VK_TO_VSC_EX, locale_id) };
         if scancode == 0 {
           continue;
         }
-
-        let vk = VIRTUAL_KEY::from(vk);
         let native_code = NativeKeyCode::Windows(scancode as ExScancode);
         let key_code = KeyCode::from_scancode(scancode);
         // Let's try to get the key from just the scancode and vk
@@ -438,7 +435,7 @@ impl LayoutCache {
     unsafe {
       let mut label_wide = [0u16; 8];
       let mut wide_len = ToUnicodeEx(
-        u32::from(vkey.0),
+        u32::from(vkey),
         scancode,
         (&key_state[0]) as *const _,
         PWSTR((&mut label_wide[0]) as *mut _),
@@ -449,7 +446,7 @@ impl LayoutCache {
       if wide_len < 0 {
         // If it's dead, we run `ToUnicode` again to consume the dead-key
         wide_len = ToUnicodeEx(
-          u32::from(vkey.0),
+          u32::from(vkey),
           scancode,
           (&key_state[0]) as *const _,
           PWSTR((&mut label_wide[0]) as *mut _),

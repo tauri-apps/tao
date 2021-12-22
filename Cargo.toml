@@ -72,11 +72,12 @@ cc = "1"
 [target."cfg(target_os = \"windows\")".dependencies]
 parking_lot = "0.11"
 unicode-segmentation = "1.8.0"
+windows_macros = "0.29.0"
 
 [target."cfg(target_os = \"windows\")".dependencies.windows]
-version = "0.25.0"
+version = "0.29.0"
 features = [
-  "build",
+  "alloc",
   "Win32_Devices_HumanInterfaceDevice",
   "Win32_Foundation",
   "Win32_Globalization",

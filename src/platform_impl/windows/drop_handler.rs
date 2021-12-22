@@ -5,7 +5,6 @@ use std::{ffi::OsString, os::windows::ffi::OsStringExt, path::PathBuf, ptr};
 
 use windows::{
   self as Windows,
-  runtime::implement,
   Win32::{
     Foundation::{self as win32f, HWND, POINTL, PWSTR},
     System::{
@@ -16,6 +15,8 @@ use windows::{
     UI::Shell::{DragFinish, DragQueryFileW, HDROP},
   },
 };
+
+use windows_macros::implement;
 
 use crate::platform_impl::platform::WindowId;
 
@@ -46,11 +47,11 @@ impl FileDropHandler {
     _grfKeyState: u32,
     _pt: POINTL,
     pdwEffect: *mut u32,
-  ) -> windows::runtime::Result<()> {
+  ) -> windows::core::Result<()> {
     use crate::event::WindowEvent::HoveredFile;
     let hdrop = Self::iterate_filenames(pDataObj, |filename| {
       (self.send_event)(Event::WindowEvent {
-        window_id: SuperWindowId(WindowId(self.window.0)),
+        window_id: SuperWindowId(WindowId(self.window)),
         event: HoveredFile(filename),
       });
     });
@@ -69,16 +70,16 @@ impl FileDropHandler {
     _grfKeyState: u32,
     _pt: POINTL,
     pdwEffect: *mut u32,
-  ) -> windows::runtime::Result<()> {
+  ) -> windows::core::Result<()> {
     *pdwEffect = self.cursor_effect;
     Ok(())
   }
 
-  unsafe fn DragLeave(&self) -> windows::runtime::Result<()> {
+  unsafe fn DragLeave(&self) -> windows::core::Result<()> {
     use crate::event::WindowEvent::HoveredFileCancelled;
     if self.hovered_is_valid {
       (self.send_event)(Event::WindowEvent {
-        window_id: SuperWindowId(WindowId(self.window.0)),
+        window_id: SuperWindowId(WindowId(self.window)),
         event: HoveredFileCancelled,
       });
     }
@@ -91,11 +92,11 @@ impl FileDropHandler {
     _grfKeyState: u32,
     _pt: POINTL,
     _pdwEffect: *mut u32,
-  ) -> windows::runtime::Result<()> {
+  ) -> windows::core::Result<()> {
     use crate::event::WindowEvent::DroppedFile;
     let hdrop = Self::iterate_filenames(pDataObj, |filename| {
       (self.send_event)(Event::WindowEvent {
-        window_id: SuperWindowId(WindowId(self.window.0)),
+        window_id: SuperWindowId(WindowId(self.window)),
         event: DroppedFile(filename),
       });
     });
@@ -110,11 +111,11 @@ impl FileDropHandler {
     F: Fn(PathBuf),
   {
     let drop_format = FORMATETC {
-      cfFormat: CF_HDROP.0 as u16,
+      cfFormat: CF_HDROP as u16,
       ptd: ptr::null_mut(),
-      dwAspect: DVASPECT_CONTENT.0 as u32,
+      dwAspect: DVASPECT_CONTENT as u32,
       lindex: -1,
-      tymed: TYMED_HGLOBAL.0 as u32,
+      tymed: TYMED_HGLOBAL as u32,
     };
 
     match data_obj
@@ -124,7 +125,7 @@ impl FileDropHandler {
     {
       Ok(medium) => {
         let hglobal = medium.Anonymous.hGlobal;
-        let hdrop = HDROP(hglobal);
+        let hdrop = hglobal;
 
         // The second parameter (0xFFFFFFFF) instructs the function to return the item count
         let item_count = DragQueryFileW(hdrop, 0xFFFFFFFF, PWSTR::default(), 0);

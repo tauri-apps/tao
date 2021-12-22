@@ -11,7 +11,7 @@ use crate::{
 use parking_lot::MutexGuard;
 use std::io;
 use windows::Win32::{
-  Foundation::{HWND, LPARAM, RECT, WPARAM},
+  Foundation::{HWND, RECT},
   Graphics::Gdi::{InvalidateRgn, HRGN},
   UI::WindowsAndMessaging::*,
 };
@@ -188,7 +188,7 @@ impl WindowFlags {
   }
 
   pub fn to_window_styles(self) -> (WINDOW_STYLE, WINDOW_EX_STYLE) {
-    let (mut style, mut style_ex) = (WINDOW_STYLE(0), WINDOW_EX_STYLE(0));
+    let (mut style, mut style_ex) = (0, 0);
     style |= WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_SYSMENU | WS_CAPTION | WS_MINIMIZEBOX;
     style_ex |= WS_EX_ACCEPTFILES;
 
@@ -226,7 +226,7 @@ impl WindowFlags {
     if self.intersects(
       WindowFlags::MARKER_EXCLUSIVE_FULLSCREEN | WindowFlags::MARKER_BORDERLESS_FULLSCREEN,
     ) {
-      style &= WINDOW_STYLE(!WS_OVERLAPPEDWINDOW.0);
+      style &= !WS_OVERLAPPEDWINDOW;
     }
 
     (style, style_ex)
@@ -288,17 +288,12 @@ impl WindowFlags {
       let (style, style_ex) = new.to_window_styles();
 
       unsafe {
-        SendMessageW(
-          window,
-          *event_loop::SET_RETAIN_STATE_ON_SIZE_MSG_ID,
-          WPARAM(1),
-          LPARAM(0),
-        );
+        SendMessageW(window, *event_loop::SET_RETAIN_STATE_ON_SIZE_MSG_ID, 1, 0);
 
         // This condition is necessary to avoid having an unrestorable window
         if !new.contains(WindowFlags::MINIMIZED) {
-          SetWindowLongW(window, GWL_STYLE, style.0 as i32);
-          SetWindowLongW(window, GWL_EXSTYLE, style_ex.0 as i32);
+          SetWindowLongW(window, GWL_STYLE, style as i32);
+          SetWindowLongW(window, GWL_EXSTYLE, style_ex as i32);
         }
 
         let mut flags = SWP_NOZORDER | SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED;
@@ -314,12 +309,7 @@ impl WindowFlags {
 
         // Refresh the window frame
         SetWindowPos(window, HWND::default(), 0, 0, 0, 0, flags);
-        SendMessageW(
-          window,
-          *event_loop::SET_RETAIN_STATE_ON_SIZE_MSG_ID,
-          WPARAM(0),
-          LPARAM(0),
-        );
+        SendMessageW(window, *event_loop::SET_RETAIN_STATE_ON_SIZE_MSG_ID, 0, 0);
       }
     }
   }
