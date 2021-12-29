@@ -27,7 +27,7 @@ impl Clipboard {
 
   pub(crate) fn read_text(&self) -> Option<String> {
     with_clipboard(|| unsafe {
-      let handle = GetClipboardData(CF_UNICODETEXT.0);
+      let handle = GetClipboardData(CF_UNICODETEXT);
       if handle.0 == 0 {
         None
       } else {
@@ -67,7 +67,7 @@ impl Clipboard {
           println!(
             "failed to set clipboard for fmt {}, error: {}",
             &format.identifier,
-            windows::runtime::Error::from_win32().code().0
+            windows::core::Error::from_win32().code().0
           );
         }
       }
@@ -80,7 +80,7 @@ fn get_format_id(format: FormatId) -> Option<u32> {
     return Some(*id);
   }
   match format {
-    ClipboardFormat::TEXT => Some(CF_UNICODETEXT.0),
+    ClipboardFormat::TEXT => Some(CF_UNICODETEXT),
     other => register_identifier(other),
   }
 }
@@ -89,7 +89,7 @@ fn register_identifier(ident: &str) -> Option<u32> {
   unsafe {
     let pb_format = RegisterClipboardFormatA(ident);
     if pb_format == 0 {
-      let err = windows::runtime::Error::from_win32().code().0;
+      let err = windows::core::Error::from_win32().code().0;
       println!(
         "failed to register clipboard format '{}'; error {}.",
         ident, err

@@ -158,7 +158,7 @@ fn should_apps_use_dark_mode() -> bool {
 
         let module = LoadLibraryA("uxtheme.dll");
 
-        if module.0 == 0 {
+        if module == 0 {
           return None;
         }
 
@@ -182,7 +182,7 @@ const HCF_HIGHCONTRASTON: u32 = 1;
 fn is_high_contrast() -> bool {
   let mut hc = HIGHCONTRASTA {
     cbSize: 0,
-    dwFlags: HIGHCONTRASTW_FLAGS(0),
+    dwFlags: 0,
     lpszDefaultScheme: PSTR::default(),
   };
 
@@ -191,9 +191,9 @@ fn is_high_contrast() -> bool {
       SPI_GETHIGHCONTRAST,
       std::mem::size_of_val(&hc) as _,
       &mut hc as *mut _ as _,
-      SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
+      0,
     )
   };
 
-  ok.as_bool() && (HIGHCONTRASTW_FLAGS(HCF_HIGHCONTRASTON) & hc.dwFlags).0 != 0
+  ok.as_bool() && (HCF_HIGHCONTRASTON & hc.dwFlags) != 0
 }

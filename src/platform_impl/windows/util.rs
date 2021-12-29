@@ -12,7 +12,7 @@ use std::{
 use crate::{dpi::PhysicalSize, window::CursorIcon};
 
 use windows::{
-  runtime::HRESULT,
+  core::HRESULT,
   Win32::{
     Foundation::{BOOL, FARPROC, HWND, LPARAM, LRESULT, POINT, PWSTR, RECT, WPARAM},
     Globalization::lstrlenW,
@@ -61,38 +61,38 @@ pub fn get_hiword(dword: u32) -> u16 {
 /// Implementation of the `GET_X_LPARAM` macro.
 #[inline]
 pub fn get_x_lparam(lparam: LPARAM) -> i16 {
-  ((lparam.0 as usize) & 0xFFFF) as u16 as i16
+  ((lparam as usize) & 0xFFFF) as u16 as i16
 }
 
 /// Implementation of the `GET_Y_LPARAM` macro.
 #[inline]
 pub fn get_y_lparam(lparam: LPARAM) -> i16 {
-  (((lparam.0 as usize) & 0xFFFF_0000) >> 16) as u16 as i16
+  (((lparam as usize) & 0xFFFF_0000) >> 16) as u16 as i16
 }
 
 /// Inverse of [get_x_lparam] and [get_y_lparam] to put the (`x`, `y`) signed
 /// coordinates/values back into an [LPARAM].
 #[inline]
 pub fn make_x_y_lparam(x: i16, y: i16) -> LPARAM {
-  LPARAM(((x as u16 as u32) | ((y as u16 as u32) << 16)) as usize as isize)
+  ((x as u16 as u32) | ((y as u16 as u32) << 16)) as usize as LPARAM
 }
 
 /// Implementation of the `GET_WHEEL_DELTA_WPARAM` macro.
 #[inline]
 pub fn get_wheel_delta_wparam(wparam: WPARAM) -> i16 {
-  ((wparam.0 & 0xFFFF_0000) >> 16) as u16 as i16
+  ((wparam & 0xFFFF_0000) >> 16) as u16 as i16
 }
 
 /// Implementation of the `GET_XBUTTON_WPARAM` macro.
 #[inline]
 pub fn get_xbutton_wparam(wparam: WPARAM) -> u16 {
-  ((wparam.0 & 0xFFFF_0000) >> 16) as u16
+  ((wparam & 0xFFFF_0000) >> 16) as u16
 }
 
 /// Implementation of the `PRIMARYLANGID` macro.
 #[inline]
 pub fn primary_lang_id(hkl: HKL) -> u32 {
-  ((hkl.0 as usize) & 0x3FF) as u32
+  ((hkl as usize) & 0x3FF) as u32
 }
 
 pub unsafe fn status_map<T, F: FnMut(&mut T) -> BOOL>(mut fun: F) -> Option<T> {
@@ -175,8 +175,8 @@ pub(crate) fn set_inner_size_physical(window: HWND, x: u32, y: u32) {
 
 pub fn adjust_window_rect(hwnd: HWND, rect: RECT) -> Option<RECT> {
   unsafe {
-    let style = WINDOW_STYLE(GetWindowLongW(hwnd, GWL_STYLE) as u32);
-    let style_ex = WINDOW_EX_STYLE(GetWindowLongW(hwnd, GWL_EXSTYLE) as u32);
+    let style = GetWindowLongW(hwnd, GWL_STYLE) as WINDOW_STYLE;
+    let style_ex = GetWindowLongW(hwnd, GWL_EXSTYLE) as WINDOW_EX_STYLE;
     adjust_window_rect_with_styles(hwnd, style, style_ex, rect)
   }
 }
@@ -191,7 +191,7 @@ pub fn adjust_window_rect_with_styles(
     status_map(|r| {
       *r = rect;
 
-      let b_menu: BOOL = (GetMenu(hwnd).0 != 0).into();
+      let b_menu: BOOL = (GetMenu(hwnd) != 0).into();
 
       if let (Some(get_dpi_for_window), Some(adjust_window_rect_ex_for_dpi)) =
         (*GET_DPI_FOR_WINDOW, *ADJUST_WINDOW_RECT_EX_FOR_DPI)
@@ -333,7 +333,7 @@ pub fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<H
           // if a bad icon is provided it'll fail here or in
           // the LookupIconIdFromDirectoryEx if this is a bad format (example png's)
           // with my tests, even some ICO's were failing...
-          hicon if hicon.0 == 0 => {
+          0 => {
             debug!("Unable to CreateIconFromResourceEx");
             None
           }
@@ -373,13 +373,13 @@ impl CursorIcon {
 
 // Helper function to dynamically load function pointer.
 // `library` and `function` must be zero-terminated.
-pub(super) fn get_function_impl(library: &str, function: &str) -> Option<FARPROC> {
+pub(super) fn get_function_impl(library: &str, function: &str) -> FARPROC {
   assert_eq!(library.chars().last(), Some('\0'));
   assert_eq!(function.chars().last(), Some('\0'));
 
   // Library names we will use are ASCII so we can use the A version to avoid string conversion.
   let module = unsafe { LoadLibraryA(library) };
-  if module.0 == 0 {
+  if module == 0 {
     return None;
   }
 
@@ -392,7 +392,7 @@ macro_rules! get_function {
       concat!($lib, '\0'),
       concat!(stringify!($func), '\0'),
     )
-    .map(|f| unsafe { std::mem::transmute::<windows::Win32::Foundation::FARPROC, $func>(f) })
+    .map(|f| unsafe { std::mem::transmute::<_, $func>(f) })
   };
 }
 
