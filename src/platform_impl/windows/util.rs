@@ -18,7 +18,12 @@ use windows::{
     Globalization::lstrlenW,
     Graphics::Gdi::{ClientToScreen, InvalidateRgn, HMONITOR, HRGN},
     System::LibraryLoader::*,
-    UI::{HiDpi::*, Input::KeyboardAndMouse::*, TextServices::HKL, WindowsAndMessaging::*},
+    UI::{
+      HiDpi::*,
+      Input::KeyboardAndMouse::*,
+      TextServices::HKL,
+      WindowsAndMessaging::{self as win32wm, *},
+    },
   },
 };
 
@@ -44,55 +49,6 @@ pub fn to_wstring(str: &str) -> Vec<u16> {
     .encode_wide()
     .chain(Some(0).into_iter())
     .collect()
-}
-
-/// Implementation of the `LOWORD` macro.
-#[inline]
-pub fn get_loword(dword: u32) -> u16 {
-  (dword & 0xFFFF) as u16
-}
-
-/// Implementation of the `HIWORD` macro.
-#[inline]
-pub fn get_hiword(dword: u32) -> u16 {
-  ((dword & 0xFFFF_0000) >> 16) as u16
-}
-
-/// Implementation of the `GET_X_LPARAM` macro.
-#[inline]
-pub fn get_x_lparam(lparam: LPARAM) -> i16 {
-  ((lparam as usize) & 0xFFFF) as u16 as i16
-}
-
-/// Implementation of the `GET_Y_LPARAM` macro.
-#[inline]
-pub fn get_y_lparam(lparam: LPARAM) -> i16 {
-  (((lparam as usize) & 0xFFFF_0000) >> 16) as u16 as i16
-}
-
-/// Inverse of [get_x_lparam] and [get_y_lparam] to put the (`x`, `y`) signed
-/// coordinates/values back into an [LPARAM].
-#[inline]
-pub fn make_x_y_lparam(x: i16, y: i16) -> LPARAM {
-  ((x as u16 as u32) | ((y as u16 as u32) << 16)) as usize as LPARAM
-}
-
-/// Implementation of the `GET_WHEEL_DELTA_WPARAM` macro.
-#[inline]
-pub fn get_wheel_delta_wparam(wparam: WPARAM) -> i16 {
-  ((wparam & 0xFFFF_0000) >> 16) as u16 as i16
-}
-
-/// Implementation of the `GET_XBUTTON_WPARAM` macro.
-#[inline]
-pub fn get_xbutton_wparam(wparam: WPARAM) -> u16 {
-  ((wparam & 0xFFFF_0000) >> 16) as u16
-}
-
-/// Implementation of the `PRIMARYLANGID` macro.
-#[inline]
-pub fn primary_lang_id(hkl: HKL) -> u32 {
-  ((hkl as usize) & 0x3FF) as u32
 }
 
 pub unsafe fn status_map<T, F: FnMut(&mut T) -> BOOL>(mut fun: F) -> Option<T> {
@@ -279,35 +235,6 @@ pub fn set_maximized(window: HWND, maximized: bool) {
   }
 }
 
-#[cfg(target_pointer_width = "32")]
-pub fn set_window_long_ptr(window: HWND, index: WINDOW_LONG_PTR_INDEX, value: isize) -> isize {
-  unsafe { SetWindowLongA(window, index, value as _) as _ }
-}
-
-#[cfg(target_pointer_width = "64")]
-pub fn set_window_long_ptr(window: HWND, index: WINDOW_LONG_PTR_INDEX, value: isize) -> isize {
-  unsafe { SetWindowLongPtrA(window, index, value) }
-}
-
-#[cfg(target_pointer_width = "32")]
-pub fn get_window_long_ptr(window: HWND, index: WINDOW_LONG_PTR_INDEX) -> isize {
-  unsafe { GetWindowLongA(window, index) as _ }
-}
-
-#[cfg(target_pointer_width = "64")]
-pub fn get_window_long_ptr(window: HWND, index: WINDOW_LONG_PTR_INDEX) -> isize {
-  unsafe { GetWindowLongPtrA(window, index) }
-}
-
-pub unsafe extern "system" fn call_default_window_proc(
-  hwnd: HWND,
-  msg: u32,
-  wparam: WPARAM,
-  lparam: LPARAM,
-) -> LRESULT {
-  DefWindowProcW(hwnd, msg, wparam, lparam)
-}
-
 pub fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<HICON> {
   unsafe {
     match LookupIconIdFromDirectoryEx(buffer.as_ptr() as _, true, width, height, LR_DEFAULTCOLOR)
@@ -432,4 +359,95 @@ lazy_static! {
     get_function!("shcore.dll", SetProcessDpiAwareness);
   pub static ref SET_PROCESS_DPI_AWARE: Option<SetProcessDPIAware> =
     get_function!("user32.dll", SetProcessDPIAware);
+}
+
+#[allow(non_snake_case)]
+#[cfg(target_pointer_width = "32")]
+pub fn SetWindowLongPtrA(window: HWND, index: WINDOW_LONG_PTR_INDEX, value: isize) -> isize {
+  unsafe { win32wm::SetWindowLongA(window, index, value as _) as _ }
+}
+
+#[allow(non_snake_case)]
+#[cfg(target_pointer_width = "64")]
+pub fn SetWindowLongPtrA(window: HWND, index: WINDOW_LONG_PTR_INDEX, value: isize) -> isize {
+  unsafe { win32wm::SetWindowLongPtrA(window, index, value) }
+}
+
+#[allow(non_snake_case)]
+#[cfg(target_pointer_width = "32")]
+pub fn GetWindowLongPtrA(window: HWND, index: WINDOW_LONG_PTR_INDEX) -> isize {
+  unsafe { win32wm::GetWindowLongA(window, index) as _ }
+}
+
+#[allow(non_snake_case)]
+#[cfg(target_pointer_width = "64")]
+pub fn GetWindowLongPtrA(window: HWND, index: WINDOW_LONG_PTR_INDEX) -> isize {
+  unsafe { win32wm::GetWindowLongPtrA(window, index) }
+}
+
+/// Implementation of the `LOWORD` macro.
+#[allow(non_snake_case)]
+#[inline]
+pub fn LOWORD(dword: u32) -> u16 {
+  (dword & 0xFFFF) as u16
+}
+
+/// Implementation of the `HIWORD` macro.
+#[allow(non_snake_case)]
+#[inline]
+pub fn HIWORD(dword: u32) -> u16 {
+  ((dword & 0xFFFF_0000) >> 16) as u16
+}
+
+/// Implementation of the `GET_X_LPARAM` macro.
+#[allow(non_snake_case)]
+#[inline]
+pub fn GET_X_LPARAM(lparam: LPARAM) -> i16 {
+  ((lparam as usize) & 0xFFFF) as u16 as i16
+}
+
+/// Implementation of the `GET_Y_LPARAM` macro.
+#[allow(non_snake_case)]
+#[inline]
+pub fn GET_Y_LPARAM(lparam: LPARAM) -> i16 {
+  (((lparam as usize) & 0xFFFF_0000) >> 16) as u16 as i16
+}
+
+/// Implementation of the `MAKELPARAM` macro.
+/// Inverse of [GET_X_LPARAM] and [GET_Y_LPARAM] to put the (`x`, `y`) signed
+/// coordinates/values back into an [LPARAM].
+#[allow(non_snake_case)]
+#[inline]
+pub fn MAKELPARAM(x: i16, y: i16) -> LPARAM {
+  ((x as u16 as u32) | ((y as u16 as u32) << 16)) as usize as LPARAM
+}
+
+/// Implementation of the `GET_WHEEL_DELTA_WPARAM` macro.
+#[allow(non_snake_case)]
+#[inline]
+pub fn GET_WHEEL_DELTA_WPARAM(wparam: WPARAM) -> i16 {
+  ((wparam & 0xFFFF_0000) >> 16) as u16 as i16
+}
+
+/// Implementation of the `GET_XBUTTON_WPARAM` macro.
+#[allow(non_snake_case)]
+#[inline]
+pub fn GET_XBUTTON_WPARAM(wparam: WPARAM) -> u16 {
+  ((wparam & 0xFFFF_0000) >> 16) as u16
+}
+
+/// Implementation of the `PRIMARYLANGID` macro.
+#[allow(non_snake_case)]
+#[inline]
+pub fn PRIMARYLANGID(hkl: HKL) -> u32 {
+  ((hkl as usize) & 0x3FF) as u32
+}
+
+pub unsafe extern "system" fn call_default_window_proc(
+  hwnd: HWND,
+  msg: u32,
+  wparam: WPARAM,
+  lparam: LPARAM,
+) -> LRESULT {
+  DefWindowProcW(hwnd, msg, wparam, lparam)
 }

@@ -360,7 +360,7 @@ pub(crate) unsafe extern "system" fn subclass_proc(
           ShowWindow(hwnd, SW_MINIMIZE);
         }
         _ => {
-          let menu_id = util::get_loword(wparam as u32);
+          let menu_id = util::LOWORD(wparam as u32);
           if MENU_IDS.lock().unwrap().contains(&menu_id) {
             subclass_input.send_menu_event(menu_id);
           }

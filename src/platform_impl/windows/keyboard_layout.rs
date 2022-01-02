@@ -520,7 +520,7 @@ fn is_numpad_specific(vk: VIRTUAL_KEY) -> bool {
 }
 
 fn keycode_to_vkey(keycode: KeyCode, hkl: HKL) -> VIRTUAL_KEY {
-  let primary_lang_id = util::primary_lang_id(hkl);
+  let primary_lang_id = util::PRIMARYLANGID(hkl);
   let is_korean = primary_lang_id == LANG_KOREAN;
   let is_japanese = primary_lang_id == LANG_JAPANESE;
 
@@ -742,7 +742,7 @@ fn vkey_to_non_char_key(
   // List of the Web key names and their corresponding platform-native key names:
   // https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values
 
-  let primary_lang_id = util::primary_lang_id(hkl);
+  let primary_lang_id = util::PRIMARYLANGID(hkl);
   let is_korean = primary_lang_id == LANG_KOREAN;
   let is_japanese = primary_lang_id == LANG_JAPANESE;
 

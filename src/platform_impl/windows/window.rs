@@ -290,7 +290,7 @@ impl Window {
 
   #[inline]
   pub fn hinstance(&self) -> HINSTANCE {
-    util::get_window_long_ptr(self.hwnd(), GWLP_HINSTANCE)
+    util::GetWindowLongPtrA(self.hwnd(), GWLP_HINSTANCE)
   }
 
   #[inline]
@@ -382,7 +382,7 @@ impl Window {
         self.window.0,
         WM_NCLBUTTONDOWN,
         HTCAPTION as WPARAM,
-        util::make_x_y_lparam(pos.x as i16, pos.y as i16),
+        util::MAKELPARAM(pos.x as i16, pos.y as i16),
       );
     }
 
@@ -740,7 +740,7 @@ impl Window {
   pub fn begin_resize_drag(&self, edge: isize, button: u32, x: i32, y: i32) {
     unsafe {
       let w_param = edge as WPARAM;
-      let l_param = util::make_x_y_lparam(x as i16, y as i16);
+      let l_param = util::MAKELPARAM(x as i16, y as i16);
 
       ReleaseCapture();
       PostMessageW(self.hwnd(), button, w_param, l_param);
@@ -988,7 +988,7 @@ unsafe extern "system" fn window_proc(
   wparam: WPARAM,
   lparam: LPARAM,
 ) -> LRESULT {
-  let mut userdata = util::get_window_long_ptr(window, GWL_USERDATA);
+  let mut userdata = util::GetWindowLongPtrA(window, GWL_USERDATA);
 
   match msg {
     win32wm::WM_NCCALCSIZE => {
@@ -1012,7 +1012,7 @@ unsafe extern "system" fn window_proc(
       if userdata == 0 {
         let createstruct = &*(lparam as *const CREATESTRUCTW);
         userdata = createstruct.lpCreateParams as isize;
-        util::set_window_long_ptr(window, GWL_USERDATA, userdata);
+        util::SetWindowLongPtrA(window, GWL_USERDATA, userdata);
       }
       DefWindowProcW(window, msg, wparam, lparam)
     }

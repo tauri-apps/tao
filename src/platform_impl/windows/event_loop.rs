@@ -610,7 +610,7 @@ fn create_event_target_window() -> HWND {
       ptr::null_mut(),
     )
   };
-  util::set_window_long_ptr(
+  util::SetWindowLongPtrA(
     window,
     GWL_STYLE,
     // The window technically has to be visible to receive WM_PAINT messages (which are used
@@ -822,7 +822,7 @@ unsafe extern "system" fn public_window_callback<T: 'static>(
       .set(subclass_input.recurse_depth.get() + 1);
 
     // Clear userdata
-    util::set_window_long_ptr(window, GWL_USERDATA, 0);
+    util::SetWindowLongPtrA(window, GWL_USERDATA, 0);
 
     let result =
       public_window_callback_inner(window, msg, wparam, lparam, uidsubclass, subclass_input);
@@ -1061,8 +1061,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
     win32wm::WM_SIZE => {
       use crate::event::WindowEvent::Resized;
-      let w = u32::from(util::get_loword(lparam as u32));
-      let h = u32::from(util::get_hiword(lparam as u32));
+      let w = u32::from(util::LOWORD(lparam as u32));
+      let h = u32::from(util::HIWORD(lparam as u32));
 
       let physical_size = PhysicalSize::new(w, h);
       let event = Event::WindowEvent {
@@ -1126,8 +1126,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
         });
       }
 
-      let x = f64::from(util::get_x_lparam(lparam));
-      let y = f64::from(util::get_y_lparam(lparam));
+      let x = f64::from(util::GET_X_LPARAM(lparam));
+      let y = f64::from(util::GET_Y_LPARAM(lparam));
       let position = PhysicalPosition::new(x, y);
       let cursor_moved;
       {
@@ -1175,7 +1175,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     win32wm::WM_MOUSEWHEEL => {
       use crate::event::MouseScrollDelta::LineDelta;
 
-      let value = f32::from(util::get_wheel_delta_wparam(wparam));
+      let value = f32::from(util::GET_WHEEL_DELTA_WPARAM(wparam));
       let value = value / WHEEL_DELTA as f32;
 
       let modifiers = update_modifiers(window, subclass_input);
@@ -1196,7 +1196,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     win32wm::WM_MOUSEHWHEEL => {
       use crate::event::MouseScrollDelta::LineDelta;
 
-      let value = f32::from(util::get_wheel_delta_wparam(wparam));
+      let value = f32::from(util::GET_WHEEL_DELTA_WPARAM(wparam));
       let value = value / WHEEL_DELTA as f32;
 
       let modifiers = update_modifiers(window, subclass_input);
@@ -1336,7 +1336,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
     win32wm::WM_XBUTTONDOWN => {
       use crate::event::{ElementState::Pressed, MouseButton::Other, WindowEvent::MouseInput};
-      let xbutton = util::get_xbutton_wparam(wparam);
+      let xbutton = util::GET_XBUTTON_WPARAM(wparam);
 
       capture_mouse(window, &mut *subclass_input.window_state.lock());
 
@@ -1356,7 +1356,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
     win32wm::WM_XBUTTONUP => {
       use crate::event::{ElementState::Released, MouseButton::Other, WindowEvent::MouseInput};
-      let xbutton = util::get_xbutton_wparam(wparam);
+      let xbutton = util::GET_XBUTTON_WPARAM(wparam);
 
       release_mouse(subclass_input.window_state.lock());
 
@@ -1386,7 +1386,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     win32wm::WM_TOUCH => {
-      let pcount = usize::from(util::get_loword(wparam as u32));
+      let pcount = usize::from(util::LOWORD(wparam as u32));
       let mut inputs = Vec::with_capacity(pcount);
       inputs.set_len(pcount);
       let htouch = lparam;
@@ -1445,7 +1445,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         *SKIP_POINTER_FRAME_MESSAGES,
         *GET_POINTER_DEVICE_RECTS,
       ) {
-        let pointer_id = u32::from(util::get_loword(wparam as u32));
+        let pointer_id = u32::from(util::LOWORD(wparam as u32));
         let mut entries_count = 0_u32;
         let mut pointers_count = 0_u32;
         if !GetPointerFrameInfoHistory(
@@ -1606,7 +1606,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         // The return value for the preceding `WM_NCHITTEST` message is conveniently
         // provided through the low-order word of lParam. We use that here since
         // `WM_MOUSEMOVE` seems to come after `WM_SETCURSOR` for a given cursor movement.
-        let in_client_area = u32::from(util::get_loword(lparam as u32)) == HTCLIENT;
+        let in_client_area = u32::from(util::LOWORD(lparam as u32)) == HTCLIENT;
         if in_client_area {
           Some(window_state.mouse.cursor)
         } else {
@@ -1660,7 +1660,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       // "you only need to use either the X-axis or the Y-axis value when scaling your
       // application since they are the same".
       // https://msdn.microsoft.com/en-us/library/windows/desktop/dn312083(v=vs.85).aspx
-      let new_dpi_x = u32::from(util::get_loword(wparam as u32));
+      let new_dpi_x = u32::from(util::LOWORD(wparam as u32));
       let new_scale_factor = dpi_to_scale_factor(new_dpi_x);
       let old_scale_factor: f64;
 
@@ -1906,8 +1906,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
         if !win_flags.contains(WindowFlags::DECORATIONS) {
           // cursor location
           let (cx, cy) = (
-            i32::from(util::get_x_lparam(lparam)),
-            i32::from(util::get_y_lparam(lparam)),
+            i32::from(util::GET_X_LPARAM(lparam)),
+            i32::from(util::GET_Y_LPARAM(lparam)),
           );
 
           result = ProcResult::Value(crate::platform_impl::hit_test(window, cx, cy));
