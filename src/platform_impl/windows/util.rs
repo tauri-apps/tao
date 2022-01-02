@@ -363,26 +363,26 @@ lazy_static! {
 
 #[allow(non_snake_case)]
 #[cfg(target_pointer_width = "32")]
-pub fn SetWindowLongPtrA(window: HWND, index: WINDOW_LONG_PTR_INDEX, value: isize) -> isize {
-  unsafe { win32wm::SetWindowLongA(window, index, value as _) as _ }
+pub fn SetWindowLongPtrW(window: HWND, index: WINDOW_LONG_PTR_INDEX, value: isize) -> isize {
+  unsafe { win32wm::SetWindowLongW(window, index, value as _) as _ }
 }
 
 #[allow(non_snake_case)]
 #[cfg(target_pointer_width = "64")]
 pub fn SetWindowLongPtrA(window: HWND, index: WINDOW_LONG_PTR_INDEX, value: isize) -> isize {
-  unsafe { win32wm::SetWindowLongPtrA(window, index, value) }
+  unsafe { win32wm::SetWindowLongPtrW(window, index, value) }
 }
 
 #[allow(non_snake_case)]
 #[cfg(target_pointer_width = "32")]
 pub fn GetWindowLongPtrA(window: HWND, index: WINDOW_LONG_PTR_INDEX) -> isize {
-  unsafe { win32wm::GetWindowLongA(window, index) as _ }
+  unsafe { win32wm::GetWindowLongW(window, index) as _ }
 }
 
 #[allow(non_snake_case)]
 #[cfg(target_pointer_width = "64")]
-pub fn GetWindowLongPtrA(window: HWND, index: WINDOW_LONG_PTR_INDEX) -> isize {
-  unsafe { win32wm::GetWindowLongPtrA(window, index) }
+pub fn GetWindowLongPtrW(window: HWND, index: WINDOW_LONG_PTR_INDEX) -> isize {
+  unsafe { win32wm::GetWindowLongPtrW(window, index) }
 }
 
 /// Implementation of the `LOWORD` macro.

@@ -1,7 +1,6 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use raw_window_handle::RawWindowHandle;
 use std::{collections::HashMap, fmt, sync::Mutex};
 
 use windows::Win32::{
@@ -285,33 +284,20 @@ impl Menu {
 
 const MENU_SUBCLASS_ID: usize = 4568;
 
-pub fn initialize(
-  menu_builder: Menu,
-  window_handle: RawWindowHandle,
-  menu_handler: MenuHandler,
-) -> Option<HMENU> {
-  if let RawWindowHandle::Windows(handle) = window_handle {
-    let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
-    let menu = menu_builder.hmenu();
+pub fn initialize(menu_builder: Menu, window: HWND, menu_handler: MenuHandler) -> HMENU {
+  let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
+  let menu = menu_builder.hmenu();
 
-    unsafe {
-      SetWindowSubclass(
-        handle.hwnd as HWND,
-        Some(subclass_proc),
-        MENU_SUBCLASS_ID,
-        sender as _,
-      );
-      SetMenu(handle.hwnd as HWND, menu);
-    }
-
-    if let Some(accels) = menu_builder.accels() {
-      register_accel(handle.hwnd as HWND, &accels);
-    }
-
-    Some(menu)
-  } else {
-    None
+  unsafe {
+    SetWindowSubclass(window, Some(subclass_proc), MENU_SUBCLASS_ID, sender as _);
+    SetMenu(window, menu);
   }
+
+  if let Some(accels) = menu_builder.accels() {
+    register_accel(window, &accels);
+  }
+
+  menu
 }
 
 pub(crate) unsafe extern "system" fn subclass_proc(
