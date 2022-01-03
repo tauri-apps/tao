@@ -341,7 +341,7 @@ impl Inner {
   }
 
   pub fn raw_window_handle(&self) -> RawWindowHandle {
-    let handle = UiKitHandle::empty();
+    let mut handle = UiKitHandle::empty();
     handle.ui_window = self.window as _;
     handle.ui_view = self.view as _;
     handle.ui_view_controller = self.view_controller as _;
