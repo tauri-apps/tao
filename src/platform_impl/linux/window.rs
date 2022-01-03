@@ -11,6 +11,7 @@ use std::{
 use gdk::{WindowEdge, WindowState};
 use gdk_pixbuf::{Colorspace, Pixbuf};
 use gtk::{prelude::*, AccelGroup, ApplicationWindow, Orientation};
+use raw_window_handle::{RawWindowHandle, XlibHandle};
 
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
@@ -607,8 +608,18 @@ impl Window {
     Some(RootMonitorHandle { inner: handle })
   }
 
-  pub fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    todo!()
+  pub fn raw_window_handle(&self) -> RawWindowHandle {
+    // TODO: add wayland support
+    let mut handle = XlibHandle::empty();
+    unsafe {
+      if let Some(window) = self.window.window() {
+        handle.window = gdk_x11_sys::gdk_x11_window_get_xid(window.as_ptr() as *mut _);
+      }
+      if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
+        handle.display = (xlib.XOpenDisplay)(std::ptr::null()) as _;
+      }
+    }
+    RawWindowHandle::Xlib(handle)
   }
 
   pub(crate) fn set_skip_taskbar(&self, skip: bool) {
