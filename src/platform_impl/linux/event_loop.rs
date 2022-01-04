@@ -18,7 +18,7 @@ use gtk::{prelude::*, AboutDialog, ApplicationWindow, Inhibit};
 
 use crate::{
   accelerator::AcceleratorId,
-  dpi::{PhysicalPosition, PhysicalSize},
+  dpi::{LogicalPosition, LogicalSize},
   event::{ElementState, Event, MouseButton, StartCause, WindowEvent},
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
   keyboard::ModifiersState,
@@ -294,6 +294,7 @@ impl<T: 'static> EventLoop<T> {
                 | EventMask::BUTTON1_MOTION_MASK
                 | EventMask::BUTTON_PRESS_MASK
                 | EventMask::TOUCH_MASK
+                | EventMask::STRUCTURE_MASK
                 | EventMask::FOCUS_CHANGE_MASK,
             );
 
@@ -382,11 +383,15 @@ impl<T: 'static> EventLoop<T> {
             });
 
             let tx_clone = event_tx.clone();
-            window.connect_configure_event(move |_, event| {
+            window.connect_configure_event(move |window, event| {
+              let scale_factor = window.scale_factor();
+
               let (x, y) = event.position();
               if let Err(e) = tx_clone.send(Event::WindowEvent {
                 window_id: RootWindowId(id),
-                event: WindowEvent::Moved(PhysicalPosition::new(x, y)),
+                event: WindowEvent::Moved(
+                  LogicalPosition::new(x, y).to_physical(scale_factor as f64),
+                ),
               }) {
                 log::warn!("Failed to send window moved event to event channel: {}", e);
               }
@@ -394,7 +399,9 @@ impl<T: 'static> EventLoop<T> {
               let (w, h) = event.size();
               if let Err(e) = tx_clone.send(Event::WindowEvent {
                 window_id: RootWindowId(id),
-                event: WindowEvent::Resized(PhysicalSize::new(w, h)),
+                event: WindowEvent::Resized(
+                  LogicalSize::new(w, h).to_physical(scale_factor as f64),
+                ),
               }) {
                 log::warn!(
                   "Failed to send window resized event to event channel: {}",
@@ -405,7 +412,7 @@ impl<T: 'static> EventLoop<T> {
             });
 
             let tx_clone = event_tx.clone();
-            window.connect_focus_in_event(move |_window, _| {
+            window.connect_focus_in_event(move |_, _| {
               if let Err(e) = tx_clone.send(Event::WindowEvent {
                 window_id: RootWindowId(id),
                 event: WindowEvent::Focused(true),
@@ -419,7 +426,7 @@ impl<T: 'static> EventLoop<T> {
             });
 
             let tx_clone = event_tx.clone();
-            window.connect_focus_out_event(move |_window, _| {
+            window.connect_focus_out_event(move |_, _| {
               if let Err(e) = tx_clone.send(Event::WindowEvent {
                 window_id: RootWindowId(id),
                 event: WindowEvent::Focused(false),
@@ -463,18 +470,25 @@ impl<T: 'static> EventLoop<T> {
             });
 
             let tx_clone = event_tx.clone();
-            window.connect_motion_notify_event(move |_window, event| {
-              let (x, y) = event.position();
-              if let Err(e) = tx_clone.send(Event::WindowEvent {
-                window_id: RootWindowId(id),
-                event: WindowEvent::CursorMoved {
-                  position: PhysicalPosition::new(x, y),
-                  device_id: DEVICE_ID,
-                  // this field is depracted so it is fine to pass empty state
-                  modifiers: ModifiersState::empty(),
-                },
-              }) {
-                log::warn!("Failed to send cursor moved event to event channel: {}", e);
+            window.connect_motion_notify_event(move |window, _| {
+              let display = window.display();
+              if let Some(cursor) = display
+                .default_seat()
+                .and_then(|device_manager| device_manager.pointer())
+              {
+                let scale_factor = window.scale_factor();
+                let (_, x, y) = cursor.position();
+                if let Err(e) = tx_clone.send(Event::WindowEvent {
+                  window_id: RootWindowId(id),
+                  event: WindowEvent::CursorMoved {
+                    position: LogicalPosition::new(x, y).to_physical(scale_factor as f64),
+                    device_id: DEVICE_ID,
+                    // this field is depracted so it is fine to pass empty state
+                    modifiers: ModifiersState::empty(),
+                  },
+                }) {
+                  log::warn!("Failed to send cursor moved event to event channel: {}", e);
+                }
               }
               Inhibit(false)
             });
@@ -615,6 +629,38 @@ impl<T: 'static> EventLoop<T> {
             let handler = keyboard_handler.clone();
             window.connect_key_release_event(move |_, event_key| {
               handler(event_key.to_owned(), ElementState::Released);
+              Inhibit(false)
+            });
+
+            let tx_clone = event_tx.clone();
+            window.connect_window_state_event(move |window, event| {
+              let state = event.changed_mask();
+              if state.contains(WindowState::ICONIFIED) || state.contains(WindowState::MAXIMIZED) {
+                let scale_factor = window.scale_factor();
+
+                let (x, y) = window.position();
+                if let Err(e) = tx_clone.send(Event::WindowEvent {
+                  window_id: RootWindowId(id),
+                  event: WindowEvent::Moved(
+                    LogicalPosition::new(x, y).to_physical(scale_factor as f64),
+                  ),
+                }) {
+                  log::warn!("Failed to send window moved event to event channel: {}", e);
+                }
+
+                let (w, h) = window.size();
+                if let Err(e) = tx_clone.send(Event::WindowEvent {
+                  window_id: RootWindowId(id),
+                  event: WindowEvent::Resized(
+                    LogicalSize::new(w, h).to_physical(scale_factor as f64),
+                  ),
+                }) {
+                  log::warn!(
+                    "Failed to send window resized event to event channel: {}",
+                    e
+                  );
+                }
+              }
               Inhibit(false)
             });
           }
