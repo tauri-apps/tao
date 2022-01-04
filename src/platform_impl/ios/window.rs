@@ -1,7 +1,7 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use raw_window_handle::{ios::IOSHandle, RawWindowHandle};
+use raw_window_handle::{RawWindowHandle, UiKitHandle};
 use std::{
   collections::VecDeque,
   ops::{Deref, DerefMut},
@@ -341,13 +341,11 @@ impl Inner {
   }
 
   pub fn raw_window_handle(&self) -> RawWindowHandle {
-    let handle = IOSHandle {
-      ui_window: self.window as _,
-      ui_view: self.view as _,
-      ui_view_controller: self.view_controller as _,
-      ..IOSHandle::empty()
-    };
-    RawWindowHandle::IOS(handle)
+    let mut handle = UiKitHandle::empty();
+    handle.ui_window = self.window as _;
+    handle.ui_view = self.view as _;
+    handle.ui_view_controller = self.view_controller as _;
+    RawWindowHandle::UiKit(handle)
   }
 }
 

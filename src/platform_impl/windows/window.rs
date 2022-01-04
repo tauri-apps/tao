@@ -5,7 +5,7 @@
 
 use mem::MaybeUninit;
 use parking_lot::Mutex;
-use raw_window_handle::{windows::WindowsHandle, RawWindowHandle};
+use raw_window_handle::{RawWindowHandle, Win32Handle};
 use std::{
   cell::{Cell, RefCell},
   ffi::OsStr,
@@ -290,17 +290,15 @@ impl Window {
 
   #[inline]
   pub fn hinstance(&self) -> HINSTANCE {
-    util::GetWindowLongPtrA(self.hwnd(), GWLP_HINSTANCE)
+    util::GetWindowLongPtrW(self.hwnd(), GWLP_HINSTANCE)
   }
 
   #[inline]
   pub fn raw_window_handle(&self) -> RawWindowHandle {
-    let handle = WindowsHandle {
-      hwnd: self.window.0 as *mut _,
-      hinstance: self.hinstance() as *mut _,
-      ..WindowsHandle::empty()
-    };
-    RawWindowHandle::Windows(handle)
+    let mut handle = Win32Handle::empty();
+    handle.hwnd = self.window.0 as *mut _;
+    handle.hinstance = self.hinstance() as *mut _;
+    RawWindowHandle::Win32(handle)
   }
 
   #[inline]
@@ -839,7 +837,7 @@ unsafe fn init<T: 'static>(
       parent.unwrap_or_default(),
       pl_attribs.menu.unwrap_or_default(),
       GetModuleHandleW(PWSTR::default()),
-      Box::into_raw(Box::new(!attributes.decorations)) as _,
+      Box::into_raw(Box::new(window_flags)) as _,
     );
 
     if handle == 0 {
@@ -925,7 +923,6 @@ unsafe fn init<T: 'static>(
 
   if let Some(window_menu) = attributes.window_menu {
     let event_loop_runner = event_loop.runner_shared.clone();
-    let window_handle = win.raw_window_handle();
     let window_id = RootWindowId(win.id());
     let menu_handler = menu::MenuHandler::new(
       Box::new(move |event| {
@@ -937,7 +934,11 @@ unsafe fn init<T: 'static>(
       Some(window_id),
     );
 
-    win.menu = menu::initialize(window_menu, window_handle, menu_handler).map(HMenuWrapper);
+    win.menu = Some(HMenuWrapper(menu::initialize(
+      window_menu,
+      win.hwnd(),
+      menu_handler,
+    )));
   }
 
   Ok(win)
@@ -988,32 +989,42 @@ unsafe extern "system" fn window_proc(
   wparam: WPARAM,
   lparam: LPARAM,
 ) -> LRESULT {
-  let mut userdata = util::GetWindowLongPtrA(window, GWL_USERDATA);
-
+  // This window procedure is only needed until the subclass procedure is attached.
+  // we need this because we need to respond to WM_NCCALCSIZE as soon as possible
+  // in order to make the window borderless if needed.
   match msg {
     win32wm::WM_NCCALCSIZE => {
-      // Check if userdata is set and if the value of it is true (window wants to be borderless)
-      if userdata != 0 && *(userdata as *const bool) {
-        // adjust the maximized borderless window so it doesn't cover the taskbar
-        if util::is_maximized(window) {
-          let monitor = monitor::current_monitor(window);
-          if let Ok(monitor_info) = monitor::get_monitor_info(monitor.hmonitor()) {
-            let params = &mut *(lparam as *mut NCCALCSIZE_PARAMS);
-            params.rgrc[0] = monitor_info.monitorInfo.rcWork;
+      let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
+      if userdata != 0 {
+        let window_flags = *(userdata as *mut WindowFlags);
+        if !window_flags.contains(WindowFlags::DECORATIONS) {
+          // adjust the maximized borderless window so it doesn't cover the taskbar
+          if util::is_maximized(window) {
+            let monitor = monitor::current_monitor(window);
+            if let Ok(monitor_info) = monitor::get_monitor_info(monitor.hmonitor()) {
+              let params = &mut *(lparam as *mut NCCALCSIZE_PARAMS);
+              params.rgrc[0] = monitor_info.monitorInfo.rcWork;
+            }
           }
+          return 0; // return 0 here to make the window borderless
         }
-        0 // return 0 here to make the window borderless
-      } else {
-        DefWindowProcW(window, msg, wparam, lparam)
       }
+      DefWindowProcW(window, msg, wparam, lparam)
     }
     win32wm::WM_NCCREATE => {
-      // Set userdata to the value of lparam. This will be cleared on event loop subclassing.
+      let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
       if userdata == 0 {
         let createstruct = &*(lparam as *const CREATESTRUCTW);
-        userdata = createstruct.lpCreateParams as isize;
-        util::SetWindowLongPtrA(window, GWL_USERDATA, userdata);
+        let userdata = createstruct.lpCreateParams;
+        let userdata = &mut *(userdata as *mut WindowFlags);
+        util::SetWindowLongPtrA(window, GWL_USERDATA, Box::into_raw(Box::new(userdata)) as _);
       }
+      DefWindowProcW(window, msg, wparam, lparam)
+    }
+    win32wm::WM_DESTROY => {
+      let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
+      let window_flags = userdata as *mut WindowFlags;
+      Box::from_raw(window_flags);
       DefWindowProcW(window, msg, wparam, lparam)
     }
     _ => DefWindowProcW(window, msg, wparam, lparam),

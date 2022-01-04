@@ -38,7 +38,7 @@ lazy_static = "1"
 libc = "0.2"
 log = "0.4"
 serde = { version = "1", optional = true, features = [ "serde_derive" ] }
-raw-window-handle = "0.3"
+raw-window-handle = "0.4"
 bitflags = "1"
 crossbeam-channel = "0.5"
 
@@ -113,6 +113,7 @@ glib-sys = "0.14"
 gtk = { version = "0.14", features = [ "v3_22" ] }
 gdk = { version = "0.14", features = [ "v3_22" ] }
 gdk-sys = "0.14"
+gdkx11-sys = "0.14"
 gdk-pixbuf = { version = "0.14", features = [ "v2_36_8" ] }
 libayatana-appindicator = { version = "0.1.6", optional = true }
 libappindicator = { version = "0.6", optional = true }
