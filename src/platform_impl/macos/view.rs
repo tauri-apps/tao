@@ -557,13 +557,11 @@ extern "C" fn insert_text(this: &Object, _sel: Sel, string: id, _replacement_ran
     // We don't need this now, but it's here if that changes.
     //let event: id = msg_send![NSApp(), currentEvent];
 
-    // We only send the IME text input here. The text coming from the
-    // keyboard is handled by `key_down`
+    AppState::queue_event(EventWrapper::StaticEvent(Event::WindowEvent {
+      window_id: WindowId(get_window_id(state.ns_window)),
+      event: WindowEvent::ReceivedImeText(string),
+    }));
     if state.in_ime_preedit {
-      AppState::queue_event(EventWrapper::StaticEvent(Event::WindowEvent {
-        window_id: WindowId(get_window_id(state.ns_window)),
-        event: WindowEvent::ReceivedImeText(string),
-      }));
       state.in_ime_preedit = false;
       state.key_triggered_ime = true;
     }

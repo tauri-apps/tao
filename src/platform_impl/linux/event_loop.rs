@@ -79,6 +79,8 @@ pub struct EventLoop<T: 'static> {
   user_event_tx: glib::Sender<T>,
   /// Event queue of EventLoop
   events: crossbeam_channel::Receiver<Event<'static, T>>,
+  /// Draw queue of EventLoop
+  draws: crossbeam_channel::Receiver<WindowId>,
 }
 
 impl<T: 'static> EventLoop<T> {
@@ -97,7 +99,8 @@ impl<T: 'static> EventLoop<T> {
     app.register(cancellable)?;
 
     // Send StartCause::Init event
-    let (event_tx, event_rx) = glib::MainContext::channel::<Event<'_, T>>(Priority::default());
+    let (event_tx, event_rx) = crossbeam_channel::unbounded();
+    let (draw_tx, draw_rx) = crossbeam_channel::unbounded();
     let event_tx_ = event_tx.clone();
     app.connect_activate(move |_| {
       if let Err(e) = event_tx_.send(Event::NewEvents(StartCause::Init)) {
@@ -598,9 +601,28 @@ impl<T: 'static> EventLoop<T> {
               Continue(true)
             });
 
+            let tx_clone = event_tx.clone();
+            // TODO Add actual IME from system
+            let ime = gtk::IMContextSimple::default();
+            ime.set_client_window(window.window().as_ref());
+            ime.focus_in();
+            ime.connect_commit(move |_, s| {
+              if let Err(e) = tx_clone.send(Event::WindowEvent {
+                window_id: RootWindowId(id),
+                event: WindowEvent::ReceivedImeText(s.to_string()),
+              }) {
+                log::warn!(
+                  "Failed to send received IME text event to event channel: {}",
+                  e
+                );
+              }
+            });
+
             let handler = keyboard_handler.clone();
             window.connect_key_press_event(move |_, event_key| {
               handler(event_key.to_owned(), ElementState::Pressed);
+              ime.filter_keypress(event_key);
+
               Inhibit(false)
             });
 
@@ -643,7 +665,7 @@ impl<T: 'static> EventLoop<T> {
             });
           }
           WindowRequest::Redraw => {
-            if let Err(e) = event_tx.send(Event::RedrawRequested(RootWindowId(id))) {
+            if let Err(e) = draw_tx.send(id) {
               log::warn!("Failed to send redraw event to event channel: {}", e);
             }
 
@@ -722,13 +744,6 @@ impl<T: 'static> EventLoop<T> {
       Continue(true)
     });
 
-    // Event control flow
-    let (e, events) = crossbeam_channel::unbounded();
-    event_rx.attach(Some(&context), move |event| match e.send(event) {
-      Ok(_) => Continue(true),
-      Err(_) => Continue(false),
-    });
-
     // Create event loop itself.
     let event_loop = Self {
       window_target: RootELW {
@@ -736,7 +751,8 @@ impl<T: 'static> EventLoop<T> {
         _marker: std::marker::PhantomData,
       },
       user_event_tx,
-      events,
+      events: event_rx,
+      draws: draw_rx,
     };
 
     context.pop_thread_default();
@@ -752,194 +768,157 @@ impl<T: 'static> EventLoop<T> {
     process::exit(0)
   }
 
+  /// This is the core event loop logic. It basically loops on `gtk_main_iteration` and processes one
+  /// event along with that iteration. Depends on current control flow and what it should do, an
+  /// event state is defined. The whole state flow chart runs like following:
+  ///
+  /// ```ignore
+  ///                                   Poll/Wait/WaitUntil
+  ///       +-------------------------------------------------------------------------+
+  ///       |                                                                         |
+  ///       |                   Receiving event from event channel                    |   Receiving event from draw channel
+  ///       |                               +-------+                                 |   +---+
+  ///       v                               v       |                                 |   v   |
+  /// +----------+  Poll/Wait/WaitUntil   +------------+  Poll/Wait/WaitUntil   +-----------+ |
+  /// | NewStart | ---------------------> | EventQueue | ---------------------> | DrawQueue | |
+  /// +----------+                        +------------+                        +-----------+ |
+  ///       |Exit                                |Exit                            Exit|   |   |
+  ///       +------------------------------------+------------------------------------+   +---+
+  ///                                            |
+  ///                                            v
+  ///                                    +---------------+
+  ///                                    | LoopDestroyed |
+  ///                                    +---------------+
+  /// ```
+  ///
+  /// There are a dew notibale event will sent to callback when state is transisted:
+  /// - On any state moves to `LoopDestroyed`, a `LoopDestroyed` event is sent.
+  /// - On `NewStart` to `EventQueue`, a `NewEvents` with corresponding `StartCause` depends on
+  /// current control flow is sent.
+  /// - On `EventQueue` to `DrawQueue`, a `MainEventsCleared` event is sent.
+  /// - On `DrawQueue` back to `NewStart`, a `RedrawEventsCleared` event is sent.
   pub(crate) fn run_return<F>(&mut self, mut callback: F)
   where
     F: FnMut(Event<'_, T>, &RootELW<T>, &mut ControlFlow),
   {
+    enum EventState {
+      NewStart,
+      EventQueue,
+      DrawQueue,
+    }
+
     let context = MainContext::default();
     context.push_thread_default();
 
     let mut control_flow = ControlFlow::default();
     let window_target = &self.window_target;
     let events = &self.events;
+    let draws = &self.draws;
 
     window_target.p.app.activate();
 
-    let mut queue_redraw = Vec::new();
+    let mut state = EventState::NewStart;
     loop {
-      match control_flow {
-        ControlFlow::Exit => {
-          callback(Event::LoopDestroyed, &window_target, &mut control_flow);
-          break;
-        }
-        ControlFlow::Wait => {
-          if !events.is_empty() {
-            callback(
-              Event::NewEvents(StartCause::WaitCancelled {
-                start: Instant::now(),
-                requested_resume: None,
-              }),
-              &window_target,
-              &mut control_flow,
-            );
-
-            if control_flow != ControlFlow::Exit {
-              while let Ok(event) = events.try_recv() {
-                match event {
-                  Event::LoopDestroyed => control_flow = ControlFlow::Exit,
-                  e @ Event::RedrawRequested(_) => queue_redraw.push(e),
-                  _ => callback(event, &window_target, &mut control_flow),
-                }
-                if control_flow == ControlFlow::Exit {
-                  break;
-                }
-              }
-
-              if control_flow != ControlFlow::Exit {
-                callback(Event::MainEventsCleared, &window_target, &mut control_flow);
-
-                if control_flow != ControlFlow::Exit {
-                  while let Some(event) = queue_redraw.pop() {
-                    callback(event, &window_target, &mut control_flow);
-                    if control_flow == ControlFlow::Exit {
-                      break;
-                    }
-                  }
-                  callback(
-                    Event::RedrawEventsCleared,
-                    &window_target,
-                    &mut control_flow,
-                  );
-                }
-              }
+      let mut blocking = false;
+      match state {
+        EventState::NewStart => match control_flow {
+          ControlFlow::Exit => {
+            callback(Event::LoopDestroyed, &window_target, &mut control_flow);
+            break;
+          }
+          ControlFlow::Wait => {
+            if !events.is_empty() || !draws.is_empty() {
+              callback(
+                Event::NewEvents(StartCause::WaitCancelled {
+                  start: Instant::now(),
+                  requested_resume: None,
+                }),
+                &window_target,
+                &mut control_flow,
+              );
+              state = EventState::EventQueue;
+            } else {
+              blocking = true;
             }
           }
-        }
-        ControlFlow::WaitUntil(requested_resume) => {
-          let start = Instant::now();
-          if start >= requested_resume {
-            callback(
-              Event::NewEvents(StartCause::ResumeTimeReached {
-                start,
-                requested_resume,
-              }),
-              &window_target,
-              &mut control_flow,
-            );
-
-            if control_flow != ControlFlow::Exit {
-              while let Ok(event) = events.try_recv() {
-                match event {
-                  Event::LoopDestroyed => control_flow = ControlFlow::Exit,
-                  e @ Event::RedrawRequested(_) => queue_redraw.push(e),
-                  _ => callback(event, &window_target, &mut control_flow),
-                }
-
-                if control_flow == ControlFlow::Exit {
-                  break;
-                }
-              }
-
-              if control_flow != ControlFlow::Exit {
-                callback(Event::MainEventsCleared, &window_target, &mut control_flow);
-                if control_flow != ControlFlow::Exit {
-                  while let Some(event) = queue_redraw.pop() {
-                    callback(event, &window_target, &mut control_flow);
-                    if control_flow == ControlFlow::Exit {
-                      break;
-                    }
-                  }
-                  callback(
-                    Event::RedrawEventsCleared,
-                    &window_target,
-                    &mut control_flow,
-                  );
-                }
-              }
-            }
-          } else if !events.is_empty() {
-            callback(
-              Event::NewEvents(StartCause::WaitCancelled {
-                start,
-                requested_resume: Some(requested_resume),
-              }),
-              &window_target,
-              &mut control_flow,
-            );
-
-            if control_flow != ControlFlow::Exit {
-              while let Ok(event) = events.try_recv() {
-                match event {
-                  Event::LoopDestroyed => control_flow = ControlFlow::Exit,
-                  e @ Event::RedrawRequested(_) => queue_redraw.push(e),
-                  _ => callback(event, &window_target, &mut control_flow),
-                }
-
-                if control_flow == ControlFlow::Exit {
-                  break;
-                }
-              }
-
-              if control_flow != ControlFlow::Exit {
-                callback(Event::MainEventsCleared, &window_target, &mut control_flow);
-                if control_flow != ControlFlow::Exit {
-                  while let Some(event) = queue_redraw.pop() {
-                    callback(event, &window_target, &mut control_flow);
-                    if control_flow == ControlFlow::Exit {
-                      break;
-                    }
-                  }
-                  callback(
-                    Event::RedrawEventsCleared,
-                    &window_target,
-                    &mut control_flow,
-                  );
-                }
-              }
+          ControlFlow::WaitUntil(requested_resume) => {
+            let start = Instant::now();
+            if start >= requested_resume {
+              callback(
+                Event::NewEvents(StartCause::ResumeTimeReached {
+                  start,
+                  requested_resume,
+                }),
+                &window_target,
+                &mut control_flow,
+              );
+              state = EventState::EventQueue;
+            } else if !events.is_empty() {
+              callback(
+                Event::NewEvents(StartCause::WaitCancelled {
+                  start,
+                  requested_resume: Some(requested_resume),
+                }),
+                &window_target,
+                &mut control_flow,
+              );
+              state = EventState::EventQueue;
+            } else {
+              blocking = true;
             }
           }
-        }
-        ControlFlow::Poll => {
-          callback(
-            Event::NewEvents(StartCause::Poll),
-            &window_target,
-            &mut control_flow,
-          );
-
-          if control_flow != ControlFlow::Exit {
-            while let Ok(event) = events.try_recv() {
-              match event {
-                Event::LoopDestroyed => control_flow = ControlFlow::Exit,
-                e @ Event::RedrawRequested(_) => queue_redraw.push(e),
-                _ => callback(event, &window_target, &mut control_flow),
-              }
-
-              if control_flow == ControlFlow::Exit {
-                break;
-              }
-            }
-
-            if control_flow != ControlFlow::Exit {
+          ControlFlow::Poll => {
+            callback(
+              Event::NewEvents(StartCause::Poll),
+              &window_target,
+              &mut control_flow,
+            );
+            state = EventState::EventQueue;
+          }
+        },
+        EventState::EventQueue => match control_flow {
+          ControlFlow::Exit => {
+            callback(Event::LoopDestroyed, &window_target, &mut control_flow);
+            break;
+          }
+          _ => match events.try_recv() {
+            Ok(event) => match event {
+              Event::LoopDestroyed => control_flow = ControlFlow::Exit,
+              _ => callback(event, &window_target, &mut control_flow),
+            },
+            Err(_) => {
               callback(Event::MainEventsCleared, &window_target, &mut control_flow);
-              if control_flow != ControlFlow::Exit {
-                while let Some(event) = queue_redraw.pop() {
-                  callback(event, &window_target, &mut control_flow);
-                  if control_flow == ControlFlow::Exit {
-                    break;
-                  }
-                }
-                callback(
-                  Event::RedrawEventsCleared,
-                  &window_target,
-                  &mut control_flow,
-                );
+              if draws.is_empty() {
+                state = EventState::NewStart;
+              } else {
+                state = EventState::DrawQueue;
               }
             }
+          },
+        },
+        EventState::DrawQueue => match control_flow {
+          ControlFlow::Exit => {
+            callback(Event::LoopDestroyed, &window_target, &mut control_flow);
+            break;
           }
-        }
+          _ => match draws.try_recv() {
+            Ok(id) => callback(
+              Event::RedrawRequested(RootWindowId(id)),
+              &window_target,
+              &mut control_flow,
+            ),
+            Err(_) => {
+              callback(
+                Event::RedrawEventsCleared,
+                &window_target,
+                &mut control_flow,
+              );
+              state = EventState::NewStart;
+            }
+          },
+        },
       }
-
-      gtk::main_iteration();
+      gtk::main_iteration_do(blocking);
     }
 
     context.pop_thread_default();

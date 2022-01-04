@@ -120,12 +120,12 @@ pub trait WindowExtWindows {
 impl WindowExtWindows for Window {
   #[inline]
   fn hinstance(&self) -> *mut libc::c_void {
-    self.window.hinstance().0 as _
+    self.window.hinstance() as _
   }
 
   #[inline]
   fn hwnd(&self) -> *mut libc::c_void {
-    self.window.hwnd().0 as _
+    self.window.hwnd() as _
   }
 
   #[inline]
@@ -281,7 +281,7 @@ impl MonitorHandleExtWindows for MonitorHandle {
 
   #[inline]
   fn hmonitor(&self) -> *mut libc::c_void {
-    self.inner.hmonitor().0 as _
+    self.inner.hmonitor() as _
   }
 }
 

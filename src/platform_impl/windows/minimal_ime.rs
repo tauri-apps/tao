@@ -1,7 +1,7 @@
 use std::mem::MaybeUninit;
 
 use windows::Win32::{
-  Foundation::{HWND, LPARAM, LRESULT, WPARAM},
+  Foundation::{HWND, LPARAM, WPARAM},
   UI::WindowsAndMessaging::{self as win32wm, *},
 };
 
@@ -48,9 +48,9 @@ impl MinimalIme {
         self.getting_ime_text = true;
       }
       win32wm::WM_CHAR | win32wm::WM_SYSCHAR => {
+        *result = ProcResult::Value(0);
         if self.getting_ime_text {
-          *result = ProcResult::Value(LRESULT::default());
-          self.utf16parts.push(wparam.0 as u16);
+          self.utf16parts.push(wparam as u16);
 
           let more_char_coming;
           unsafe {
@@ -80,6 +80,8 @@ impl MinimalIme {
             self.getting_ime_text = false;
             return result;
           }
+        } else {
+          return String::from_utf16(&[wparam as u16]).ok();
         }
       }
       _ => (),

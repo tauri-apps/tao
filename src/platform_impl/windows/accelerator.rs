@@ -39,18 +39,18 @@ impl AccelTable {
   fn new(accel: &[ACCEL]) -> AccelTable {
     let accel = unsafe { CreateAcceleratorTableW(accel as *const _ as *mut _, accel.len() as i32) };
     AccelTable {
-      accel: AccelHandle(accel.0),
+      accel: AccelHandle(accel),
     }
   }
 
   pub(crate) fn handle(&self) -> HACCEL {
-    HACCEL(self.accel.0)
+    self.accel.0
   }
 }
 
 pub(crate) fn register_accel(hwnd: HWND, accel: &[ACCEL]) {
   let mut table = ACCEL_TABLES.lock().unwrap();
-  table.insert(WindowHandle(hwnd.0), Arc::new(AccelTable::new(accel)));
+  table.insert(WindowHandle(hwnd), Arc::new(AccelTable::new(accel)));
 }
 
 impl Drop for AccelTable {
@@ -63,5 +63,5 @@ impl Drop for AccelTable {
 
 pub(crate) fn find_accels(hwnd: HWND) -> Option<Arc<AccelTable>> {
   let table = ACCEL_TABLES.lock().unwrap();
-  table.get(&WindowHandle(hwnd.0)).cloned()
+  table.get(&WindowHandle(hwnd)).cloned()
 }

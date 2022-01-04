@@ -18,11 +18,6 @@
 //!   .unwrap();
 //! ```
 //!
-//! # Windows
-//! The icon is not removed automatically.
-//!
-//! Use `SystemTrayExtWindows` and use the `remove()` function when your application is closing.
-//!
 //! # Linux
 //! A menu is required or the tray return an error containing `assertion 'G_IS_DBUS_CONNECTION (connection)'`.
 //!

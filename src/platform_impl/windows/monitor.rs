@@ -90,7 +90,7 @@ unsafe extern "system" fn monitor_enum_proc(
   _place: *mut RECT,
   data: LPARAM,
 ) -> BOOL {
-  let monitors = data.0 as *mut VecDeque<MonitorHandle>;
+  let monitors = data as *mut VecDeque<MonitorHandle>;
   (*monitors).push_back(MonitorHandle::new(hmonitor));
   true.into() // continue enumeration
 }
@@ -102,7 +102,7 @@ pub fn available_monitors() -> VecDeque<MonitorHandle> {
       HDC::default(),
       ptr::null_mut(),
       Some(monitor_enum_proc),
-      LPARAM(&mut monitors as *mut _ as isize),
+      &mut monitors as *mut _ as LPARAM,
     );
   }
   monitors
@@ -132,7 +132,7 @@ impl Window {
 
 pub(crate) fn get_monitor_info(hmonitor: HMONITOR) -> Result<MONITORINFOEXW, io::Error> {
   let mut monitor_info = MONITORINFOEXW::default();
-  monitor_info.__AnonymousBase_winuser_L13571_C43.cbSize = mem::size_of::<MONITORINFOEXW>() as u32;
+  monitor_info.monitorInfo.cbSize = mem::size_of::<MONITORINFOEXW>() as u32;
   let status = unsafe {
     GetMonitorInfoW(
       hmonitor,
@@ -148,7 +148,7 @@ pub(crate) fn get_monitor_info(hmonitor: HMONITOR) -> Result<MONITORINFOEXW, io:
 
 impl MonitorHandle {
   pub(crate) fn new(hmonitor: HMONITOR) -> Self {
-    MonitorHandle(hmonitor.0)
+    MonitorHandle(hmonitor)
   }
 
   #[inline]
@@ -166,29 +166,17 @@ impl MonitorHandle {
 
   #[inline]
   pub fn hmonitor(&self) -> HMONITOR {
-    HMONITOR(self.0)
+    self.0
   }
 
   #[inline]
   pub fn size(&self) -> PhysicalSize<u32> {
     let monitor_info = get_monitor_info(self.hmonitor()).unwrap();
     PhysicalSize {
-      width: (monitor_info
-        .__AnonymousBase_winuser_L13571_C43
-        .rcMonitor
-        .right
-        - monitor_info
-          .__AnonymousBase_winuser_L13571_C43
-          .rcMonitor
-          .left) as u32,
-      height: (monitor_info
-        .__AnonymousBase_winuser_L13571_C43
-        .rcMonitor
-        .bottom
-        - monitor_info
-          .__AnonymousBase_winuser_L13571_C43
-          .rcMonitor
-          .top) as u32,
+      width: (monitor_info.monitorInfo.rcMonitor.right - monitor_info.monitorInfo.rcMonitor.left)
+        as u32,
+      height: (monitor_info.monitorInfo.rcMonitor.bottom - monitor_info.monitorInfo.rcMonitor.top)
+        as u32,
     }
   }
 
@@ -196,14 +184,8 @@ impl MonitorHandle {
   pub fn position(&self) -> PhysicalPosition<i32> {
     let monitor_info = get_monitor_info(self.hmonitor()).unwrap();
     PhysicalPosition {
-      x: monitor_info
-        .__AnonymousBase_winuser_L13571_C43
-        .rcMonitor
-        .left,
-      y: monitor_info
-        .__AnonymousBase_winuser_L13571_C43
-        .rcMonitor
-        .top,
+      x: monitor_info.monitorInfo.rcMonitor.left,
+      y: monitor_info.monitorInfo.rcMonitor.top,
     }
   }
 
@@ -226,7 +208,7 @@ impl MonitorHandle {
         let device_name = PWSTR(monitor_info.szDevice.as_mut_ptr());
         let mut mode: DEVMODEW = mem::zeroed();
         mode.dmSize = mem::size_of_val(&mode) as u16;
-        if !EnumDisplaySettingsExW(device_name, ENUM_DISPLAY_SETTINGS_MODE(i), &mut mode, 0)
+        if !EnumDisplaySettingsExW(device_name, i as ENUM_DISPLAY_SETTINGS_MODE, &mut mode, 0)
           .as_bool()
         {
           break;

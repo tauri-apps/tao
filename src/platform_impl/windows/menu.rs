@@ -114,8 +114,7 @@ impl MenuItemAttributes {
         match selected {
           true => MF_CHECKED,
           false => MF_UNCHECKED,
-        }
-        .0,
+        },
       );
     }
   }
@@ -220,7 +219,7 @@ impl Menu {
         flags |= MF_DISABLED;
       }
 
-      AppendMenuW(self.hmenu, flags, submenu.hmenu().0 as usize, title);
+      AppendMenuW(self.hmenu, flags, submenu.hmenu() as usize, title);
     }
   }
 
@@ -297,16 +296,16 @@ pub fn initialize(
 
     unsafe {
       SetWindowSubclass(
-        HWND(handle.hwnd as _),
+        handle.hwnd as HWND,
         Some(subclass_proc),
         MENU_SUBCLASS_ID,
         sender as _,
       );
-      SetMenu(HWND(handle.hwnd as _), menu);
+      SetMenu(handle.hwnd as HWND, menu);
     }
 
     if let Some(accels) = menu_builder.accels() {
-      register_accel(HWND(handle.hwnd as _), &accels);
+      register_accel(handle.hwnd as HWND, &accels);
     }
 
     Some(menu)
@@ -332,7 +331,7 @@ pub(crate) unsafe extern "system" fn subclass_proc(
 
   match msg {
     win32wm::WM_COMMAND => {
-      match wparam.0 {
+      match wparam {
         CUT_ID => {
           execute_edit_command(EditCommand::Cut);
         }
@@ -350,7 +349,7 @@ pub(crate) unsafe extern "system" fn subclass_proc(
         }
         CLOSE_ID => {
           subclass_input.send_event(Event::WindowEvent {
-            window_id: RootWindowId(WindowId(hwnd.0)),
+            window_id: RootWindowId(WindowId(hwnd)),
             event: WindowEvent::CloseRequested,
           });
         }
@@ -361,13 +360,13 @@ pub(crate) unsafe extern "system" fn subclass_proc(
           ShowWindow(hwnd, SW_MINIMIZE);
         }
         _ => {
-          let menu_id = util::get_loword(wparam.0 as u32);
+          let menu_id = util::LOWORD(wparam as u32);
           if MENU_IDS.lock().unwrap().contains(&menu_id) {
             subclass_input.send_menu_event(menu_id);
           }
         }
       }
-      LRESULT(0)
+      0
     }
     _ => DefSubclassProc(hwnd, msg, wparam, lparam),
   }
@@ -393,10 +392,10 @@ fn execute_edit_command(command: EditCommand) {
     inputs[0].Anonymous.ki.wVk = VK_CONTROL as _;
 
     inputs[1].r#type = INPUT_KEYBOARD;
-    inputs[1].Anonymous.ki.wVk = VIRTUAL_KEY::from(key);
+    inputs[1].Anonymous.ki.wVk = key as VIRTUAL_KEY;
 
     inputs[2].r#type = INPUT_KEYBOARD;
-    inputs[2].Anonymous.ki.wVk = VIRTUAL_KEY::from(key);
+    inputs[2].Anonymous.ki.wVk = key as VIRTUAL_KEY;
     inputs[2].Anonymous.ki.dwFlags = KEYEVENTF_KEYUP;
 
     inputs[3].r#type = INPUT_KEYBOARD;
@@ -426,7 +425,7 @@ fn convert_accelerator(id: u16, key: Accelerator) -> Option<ACCEL> {
   }
 
   let raw_key = if let Some(vk_code) = key_to_vk(&key.key) {
-    let mod_code = vk_code.0 >> 8;
+    let mod_code = vk_code >> 8;
     if mod_code & 0x1 != 0 {
       virt_key |= FSHIFT;
     }
@@ -436,7 +435,7 @@ fn convert_accelerator(id: u16, key: Accelerator) -> Option<ACCEL> {
     if mod_code & 0x04 != 0 {
       virt_key |= FALT;
     }
-    vk_code.0 & 0x00ff
+    vk_code & 0x00ff
   } else {
     dbg!("Failed to convert key {:?} into virtual key code", key.key);
     return None;
