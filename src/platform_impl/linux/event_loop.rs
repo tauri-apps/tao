@@ -764,8 +764,8 @@ impl<T: 'static> EventLoop<T> {
   where
     F: FnMut(Event<'_, T>, &RootELW<T>, &mut ControlFlow) + 'static,
   {
-    self.run_return(callback);
-    process::exit(0)
+    let exit_code = self.run_return(callback);
+    process::exit(exit_code)
   }
 
   /// This is the core event loop logic. It basically loops on `gtk_main_iteration` and processes one
@@ -782,7 +782,7 @@ impl<T: 'static> EventLoop<T> {
   /// +----------+  Poll/Wait/WaitUntil   +------------+  Poll/Wait/WaitUntil   +-----------+ |
   /// | NewStart | ---------------------> | EventQueue | ---------------------> | DrawQueue | |
   /// +----------+                        +------------+                        +-----------+ |
-  ///       |Exit                                |Exit                            Exit|   |   |
+  ///       |ExitWithCode                        |ExitWithCode            ExitWithCode|   |   |
   ///       +------------------------------------+------------------------------------+   +---+
   ///                                            |
   ///                                            v
@@ -797,7 +797,7 @@ impl<T: 'static> EventLoop<T> {
   /// current control flow is sent.
   /// - On `EventQueue` to `DrawQueue`, a `MainEventsCleared` event is sent.
   /// - On `DrawQueue` back to `NewStart`, a `RedrawEventsCleared` event is sent.
-  pub(crate) fn run_return<F>(&mut self, mut callback: F)
+  pub(crate) fn run_return<F>(&mut self, mut callback: F) -> i32
   where
     F: FnMut(Event<'_, T>, &RootELW<T>, &mut ControlFlow),
   {
@@ -818,13 +818,13 @@ impl<T: 'static> EventLoop<T> {
     window_target.p.app.activate();
 
     let mut state = EventState::NewStart;
-    loop {
+    let exit_code = loop {
       let mut blocking = false;
       match state {
         EventState::NewStart => match control_flow {
-          ControlFlow::Exit => {
-            callback(Event::LoopDestroyed, &window_target, &mut control_flow);
-            break;
+          ControlFlow::ExitWithCode(code) => {
+            callback(Event::LoopDestroyed, window_target, &mut control_flow);
+            break code;
           }
           ControlFlow::Wait => {
             if !events.is_empty() || !draws.is_empty() {
@@ -833,7 +833,7 @@ impl<T: 'static> EventLoop<T> {
                   start: Instant::now(),
                   requested_resume: None,
                 }),
-                &window_target,
+                window_target,
                 &mut control_flow,
               );
               state = EventState::EventQueue;
@@ -849,7 +849,7 @@ impl<T: 'static> EventLoop<T> {
                   start,
                   requested_resume,
                 }),
-                &window_target,
+                window_target,
                 &mut control_flow,
               );
               state = EventState::EventQueue;
@@ -859,7 +859,7 @@ impl<T: 'static> EventLoop<T> {
                   start,
                   requested_resume: Some(requested_resume),
                 }),
-                &window_target,
+                window_target,
                 &mut control_flow,
               );
               state = EventState::EventQueue;
@@ -870,24 +870,24 @@ impl<T: 'static> EventLoop<T> {
           ControlFlow::Poll => {
             callback(
               Event::NewEvents(StartCause::Poll),
-              &window_target,
+              window_target,
               &mut control_flow,
             );
             state = EventState::EventQueue;
           }
         },
         EventState::EventQueue => match control_flow {
-          ControlFlow::Exit => {
-            callback(Event::LoopDestroyed, &window_target, &mut control_flow);
-            break;
+          ControlFlow::ExitWithCode(code) => {
+            callback(Event::LoopDestroyed, window_target, &mut control_flow);
+            break (code);
           }
           _ => match events.try_recv() {
             Ok(event) => match event {
-              Event::LoopDestroyed => control_flow = ControlFlow::Exit,
-              _ => callback(event, &window_target, &mut control_flow),
+              Event::LoopDestroyed => control_flow = ControlFlow::ExitWithCode(1),
+              _ => callback(event, window_target, &mut control_flow),
             },
             Err(_) => {
-              callback(Event::MainEventsCleared, &window_target, &mut control_flow);
+              callback(Event::MainEventsCleared, window_target, &mut control_flow);
               if draws.is_empty() {
                 state = EventState::NewStart;
               } else {
@@ -897,31 +897,29 @@ impl<T: 'static> EventLoop<T> {
           },
         },
         EventState::DrawQueue => match control_flow {
-          ControlFlow::Exit => {
-            callback(Event::LoopDestroyed, &window_target, &mut control_flow);
-            break;
+          ControlFlow::ExitWithCode(code) => {
+            callback(Event::LoopDestroyed, window_target, &mut control_flow);
+            break code;
           }
           _ => match draws.try_recv() {
             Ok(id) => callback(
               Event::RedrawRequested(RootWindowId(id)),
-              &window_target,
+              window_target,
               &mut control_flow,
             ),
             Err(_) => {
-              callback(
-                Event::RedrawEventsCleared,
-                &window_target,
-                &mut control_flow,
-              );
+              callback(Event::RedrawEventsCleared, window_target, &mut control_flow);
               state = EventState::NewStart;
             }
           },
         },
       }
       gtk::main_iteration_do(blocking);
-    }
+    };
 
     context.pop_thread_default();
+
+    exit_code
   }
 
   #[inline]

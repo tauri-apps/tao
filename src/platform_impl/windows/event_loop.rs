@@ -206,11 +206,11 @@ impl<T: 'static> EventLoop<T> {
   where
     F: 'static + FnMut(Event<'_, T>, &RootELW<T>, &mut ControlFlow),
   {
-    self.run_return(event_handler);
-    ::std::process::exit(0);
+    let exit_code = self.run_return(event_handler);
+    ::std::process::exit(exit_code);
   }
 
-  pub fn run_return<F>(&mut self, mut event_handler: F)
+  pub fn run_return<F>(&mut self, mut event_handler: F) -> i32
   where
     F: FnMut(Event<'_, T>, &RootELW<T>, &mut ControlFlow),
   {
@@ -228,13 +228,13 @@ impl<T: 'static> EventLoop<T> {
 
     let runner = &self.window_target.p.runner_shared;
 
-    unsafe {
+    let exit_code = unsafe {
       let mut msg = MSG::default();
 
       runner.poll();
       'main: loop {
         if !GetMessageW(&mut msg, HWND::default(), 0, 0).as_bool() {
-          break 'main;
+          break 'main 0;
         }
 
         // global accelerator
@@ -259,16 +259,19 @@ impl<T: 'static> EventLoop<T> {
           panic::resume_unwind(payload);
         }
 
-        if runner.control_flow() == ControlFlow::Exit && !runner.handling_events() {
-          break 'main;
+        if let ControlFlow::ExitWithCode(code) = runner.control_flow() {
+            if !runner.handling_events() {
+                break 'main code;
+            }
         }
       }
-    }
+    };
 
     unsafe {
       runner.loop_destroyed();
     }
     runner.reset_runner();
+    exit_code
   }
 
   pub fn create_proxy(&self) -> EventLoopProxy<T> {
@@ -768,7 +771,7 @@ unsafe fn process_control_flow<T: 'static>(runner: &EventLoopRunner<T>) {
         Box::into_raw(WaitUntilInstantBox::new(until)) as LPARAM,
       );
     }
-    ControlFlow::Exit => (),
+    ControlFlow::ExitWithCode(_) => (),
   }
 }
 
