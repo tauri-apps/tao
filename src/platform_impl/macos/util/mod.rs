@@ -48,7 +48,7 @@ impl IdRef {
   #[allow(dead_code)]
   pub fn retain(inner: id) -> IdRef {
     if inner != nil {
-      let _: id = unsafe { msg_send![inner, retain] };
+      let () = unsafe { msg_send![inner, retain] };
     }
     IdRef(inner)
   }
@@ -84,7 +84,10 @@ impl Deref for IdRef {
 
 impl Clone for IdRef {
   fn clone(&self) -> IdRef {
-    IdRef::retain(self.0)
+    if self.0 != nil {
+      let _: id = unsafe { msg_send![self.0, retain] };
+    }
+    IdRef(self.0)
   }
 }
 
@@ -144,8 +147,8 @@ pub unsafe fn app_name() -> Option<id> {
 }
 
 pub unsafe fn superclass<'a>(this: &'a Object) -> &'a Class {
-  let superclass: *const Class = msg_send![this, superclass];
-  &*superclass
+  let superclass: id = msg_send![this, superclass];
+  &*(superclass as *const _)
 }
 
 pub unsafe fn create_input_context(view: id) -> IdRef {

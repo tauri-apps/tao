@@ -112,7 +112,6 @@ pub const kCGCursorWindowLevelKey: NSInteger = 19;
 pub const kCGNumberOfWindowLevelKeys: NSInteger = 20;
 
 #[derive(Debug, Clone, Copy)]
-#[repr(isize)]
 pub enum NSWindowLevel {
   NSNormalWindowLevel = kCGBaseWindowLevelKey as _,
   NSFloatingWindowLevel = kCGFloatingWindowLevelKey as _,

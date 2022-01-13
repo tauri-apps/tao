@@ -14,9 +14,9 @@ use std::{
 };
 
 use cocoa::{
-  appkit::{NSApp, NSEventModifierFlags, NSEventSubtype, NSEventType::NSApplicationDefined},
-  base::{id, nil, BOOL, NO, YES},
-  foundation::{NSAutoreleasePool, NSInteger, NSPoint, NSTimeInterval},
+  appkit::{NSApp, NSEventType::NSApplicationDefined},
+  base::{id, nil, YES},
+  foundation::{NSAutoreleasePool, NSPoint},
 };
 use crossbeam_channel::{self as channel, Receiver, Sender};
 use scopeguard::defer;
@@ -107,8 +107,7 @@ pub struct EventLoop<T: 'static> {
 impl<T> EventLoop<T> {
   pub fn new() -> Self {
     let delegate = unsafe {
-      let is_main_thread: BOOL = msg_send!(class!(NSThread), isMainThread);
-      if is_main_thread == NO {
+      if !msg_send![class!(NSThread), isMainThread] {
         panic!("On macOS, `EventLoop` must be created on the main thread!");
       }
 
@@ -201,13 +200,13 @@ pub unsafe fn post_dummy_event(target: id) {
       event_class,
       otherEventWithType: NSApplicationDefined
       location: NSPoint::new(0.0, 0.0)
-      modifierFlags: NSEventModifierFlags::empty()
-      timestamp: 0 as NSTimeInterval
-      windowNumber: 0 as NSInteger
+      modifierFlags: 0
+      timestamp: 0
+      windowNumber: 0
       context: nil
-      subtype: NSEventSubtype::NSWindowExposedEventType
-      data1: 0 as NSInteger
-      data2: 0 as NSInteger
+      subtype: 0
+      data1: 0
+      data2: 0
   ];
   let () = msg_send![target, postEvent: dummy_event atStart: YES];
 }
