@@ -15,7 +15,7 @@ use dispatch::Queue;
 use menu::Menu;
 use objc::{
   rc::autoreleasepool,
-  runtime::{NO, YES},
+  runtime::{BOOL, NO, YES},
 };
 
 use crate::{
@@ -57,7 +57,8 @@ pub unsafe fn set_style_mask_async(ns_window: id, ns_view: id, mask: NSWindowSty
   });
 }
 pub unsafe fn set_style_mask_sync(ns_window: id, ns_view: id, mask: NSWindowStyleMask) {
-  if msg_send![class!(NSThread), isMainThread] {
+  let is_main_thread: BOOL = msg_send!(class!(NSThread), isMainThread);
+  if is_main_thread != NO {
     set_style_mask(ns_window, ns_view, mask);
   } else {
     let ns_window = MainThreadSafe(ns_window);
