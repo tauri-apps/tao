@@ -86,10 +86,10 @@ pub struct EventLoop<T: 'static> {
 impl<T: 'static> EventLoop<T> {
   pub fn new() -> EventLoop<T> {
     assert_is_main_thread("new_any_thread");
-    EventLoop::new_gtk().expect("Failed to initialize any backend!")
+    EventLoop::new_any_thread().expect("Failed to initialize gtk backend!")
   }
 
-  fn new_gtk() -> Result<EventLoop<T>, Box<dyn Error>> {
+  pub fn new_any_thread() -> Result<EventLoop<T>, Box<dyn Error>> {
     let context = MainContext::default();
     context.push_thread_default();
 
