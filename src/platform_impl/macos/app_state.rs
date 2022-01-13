@@ -110,10 +110,10 @@ impl<T> EventHandler for EventLoopHandler<T> {
     self.with_callback(|this, mut callback| {
       for event in this.window_target.p.receiver.try_iter() {
         if let ControlFlow::ExitWithCode(code) = *control_flow {
-            let dummy = &mut ControlFlow::ExitWithCode(code);
-            (callback)(Event::UserEvent(event), &this.window_target, dummy);
+          let dummy = &mut ControlFlow::ExitWithCode(code);
+          (callback)(Event::UserEvent(event), &this.window_target, dummy);
         } else {
-            (callback)(Event::UserEvent(event), &this.window_target, control_flow);
+          (callback)(Event::UserEvent(event), &this.window_target, control_flow);
         }
       }
     });
@@ -160,8 +160,8 @@ impl Handler {
 
   fn should_exit(&self) -> bool {
     matches!(
-        *self.control_flow.lock().unwrap(),
-        ControlFlow::ExitWithCode(_)
+      *self.control_flow.lock().unwrap(),
+      ControlFlow::ExitWithCode(_)
     )
   }
 
@@ -277,9 +277,9 @@ impl AppState {
     HANDLER.set_in_callback(false);
     HANDLER.callback.lock().unwrap().take();
     if let ControlFlow::ExitWithCode(code) = HANDLER.get_old_and_new_control_flow().1 {
-        code
+      code
     } else {
-        0
+      0
     }
   }
 

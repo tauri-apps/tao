@@ -260,9 +260,9 @@ impl<T: 'static> EventLoop<T> {
         }
 
         if let ControlFlow::ExitWithCode(code) = runner.control_flow() {
-            if !runner.handling_events() {
-                break 'main code;
-            }
+          if !runner.handling_events() {
+            break 'main code;
+          }
         }
       }
     };

@@ -372,12 +372,12 @@ impl<T> EventLoopRunner<T> {
     let start_cause = match (init, self.control_flow()) {
       (true, _) => StartCause::Init,
       (false, ControlFlow::Poll) => StartCause::Poll,
-        (false, ControlFlow::ExitWithCode(_)) | (false, ControlFlow::Wait) => {
-            StartCause::WaitCancelled {
-                requested_resume: None,
-                start: self.last_events_cleared.get(),
-            }
+      (false, ControlFlow::ExitWithCode(_)) | (false, ControlFlow::Wait) => {
+        StartCause::WaitCancelled {
+          requested_resume: None,
+          start: self.last_events_cleared.get(),
         }
+      }
       (false, ControlFlow::WaitUntil(requested_resume)) => {
         if Instant::now() < requested_resume {
           StartCause::WaitCancelled {
