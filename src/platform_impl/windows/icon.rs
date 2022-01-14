@@ -4,7 +4,7 @@
 use std::{fmt, io, iter::once, mem, os::windows::ffi::OsStrExt, path::Path, sync::Arc};
 
 use windows::Win32::{
-  Foundation::{HINSTANCE, HWND, PWSTR, WPARAM},
+  Foundation::{HINSTANCE, HWND, LPARAM, PWSTR, WPARAM},
   System::LibraryLoader::*,
   UI::WindowsAndMessaging::*,
 };
@@ -40,11 +40,11 @@ impl RgbaIcon {
         rgba.as_ptr() as *const u8,
       ) as HICON
     };
-    if handle != 0 {
-      Ok(WinIcon::from_handle(handle))
-    } else {
-      Err(BadIcon::OsError(io::Error::last_os_error()))
-    }
+    Ok(WinIcon::from_handle(
+      handle
+        .ok()
+        .map_err(|_| BadIcon::OsError(io::Error::last_os_error()))?,
+    ))
   }
 }
 
@@ -86,28 +86,30 @@ impl WinIcon {
     // width / height of 0 along with LR_DEFAULTSIZE tells windows to load the default icon size
     let (width, height) = size.map(Into::into).unwrap_or((0, 0));
 
-    let handle = unsafe {
-      LoadImageW(
-        HINSTANCE::default(),
-        PWSTR(wide_path.as_mut_ptr()),
-        IMAGE_ICON,
-        width as i32,
-        height as i32,
-        LR_DEFAULTSIZE | LR_LOADFROMFILE,
-      )
-    }
-    .0;
-    if handle != 0 {
-      Ok(WinIcon::from_handle(handle))
-    } else {
-      Err(BadIcon::OsError(io::Error::last_os_error()))
-    }
+    let handle = HICON(
+      unsafe {
+        LoadImageW(
+          HINSTANCE::default(),
+          PWSTR(wide_path.as_mut_ptr()),
+          IMAGE_ICON,
+          width as i32,
+          height as i32,
+          LR_DEFAULTSIZE | LR_LOADFROMFILE,
+        )
+      }
+      .0,
+    );
+    Ok(WinIcon::from_handle(
+      handle
+        .ok()
+        .map_err(|_| BadIcon::OsError(io::Error::last_os_error()))?,
+    ))
   }
 
   pub fn from_resource(resource_id: u16, size: Option<PhysicalSize<u32>>) -> Result<Self, BadIcon> {
     // width / height of 0 along with LR_DEFAULTSIZE tells windows to load the default icon size
     let (width, height) = size.map(Into::into).unwrap_or((0, 0));
-    let handle = unsafe {
+    let handle = HICON(unsafe {
       LoadImageW(
         GetModuleHandleW(PWSTR::default()),
         PWSTR(resource_id as usize as *mut u16),
@@ -117,12 +119,12 @@ impl WinIcon {
         LR_DEFAULTSIZE,
       )
       .0
-    };
-    if handle != 0 {
-      Ok(WinIcon::from_handle(handle))
-    } else {
-      Err(BadIcon::OsError(io::Error::last_os_error()))
-    }
+    });
+    Ok(WinIcon::from_handle(
+      handle
+        .ok()
+        .map_err(|_| BadIcon::OsError(io::Error::last_os_error()))?,
+    ))
   }
 
   pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
@@ -132,7 +134,12 @@ impl WinIcon {
 
   pub fn set_for_window(&self, hwnd: HWND, icon_type: IconType) {
     unsafe {
-      SendMessageW(hwnd, WM_SETICON, icon_type as WPARAM, self.as_raw_handle());
+      SendMessageW(
+        hwnd,
+        WM_SETICON,
+        WPARAM(icon_type as _),
+        LPARAM(self.as_raw_handle().0),
+      );
     }
   }
 
@@ -157,6 +164,6 @@ impl fmt::Debug for WinIcon {
 
 pub fn unset_for_window(hwnd: HWND, icon_type: IconType) {
   unsafe {
-    SendMessageW(hwnd, WM_SETICON, icon_type as WPARAM, 0);
+    SendMessageW(hwnd, WM_SETICON, WPARAM(icon_type as _), LPARAM::default());
   }
 }

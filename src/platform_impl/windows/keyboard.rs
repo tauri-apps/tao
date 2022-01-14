@@ -4,7 +4,7 @@ use std::{
 };
 
 use windows::Win32::{
-  Foundation::{HWND, LPARAM, WPARAM},
+  Foundation::{HWND, LPARAM, LRESULT, WPARAM},
   UI::{
     Input::KeyboardAndMouse::{self as win32km, *},
     TextServices::HKL,
@@ -91,12 +91,12 @@ impl KeyEventBuilder {
         }
       }
       win32wm::WM_KEYDOWN | win32wm::WM_SYSKEYDOWN => {
-        if msg_kind == WM_SYSKEYDOWN && wparam == usize::from(VK_F4) {
+        if msg_kind == WM_SYSKEYDOWN && wparam == WPARAM(usize::from(VK_F4)) {
           // Don't dispatch Alt+F4 to the application.
           // This is handled in `event_loop.rs`
           return vec![];
         }
-        *result = ProcResult::Value(0);
+        *result = ProcResult::Value(LRESULT::default());
 
         let mut layouts = LAYOUT_CACHE.lock().unwrap();
         let event_info =
@@ -144,7 +144,7 @@ impl KeyEventBuilder {
         }
       }
       win32wm::WM_DEADCHAR | win32wm::WM_SYSDEADCHAR => {
-        *result = ProcResult::Value(0);
+        *result = ProcResult::Value(LRESULT::default());
         // At this point, we know that there isn't going to be any more events related to
         // this key press
         let event_info = self.event_info.take().unwrap();
@@ -160,9 +160,9 @@ impl KeyEventBuilder {
           trace!("Received a CHAR message but no `event_info` was available. The message is probably IME, returning.");
           return vec![];
         }
-        *result = ProcResult::Value(0);
-        let is_high_surrogate = (0xD800..=0xDBFF).contains(&wparam);
-        let is_low_surrogate = (0xDC00..=0xDFFF).contains(&wparam);
+        *result = ProcResult::Value(LRESULT::default());
+        let is_high_surrogate = (0xD800..=0xDBFF).contains(&wparam.0);
+        let is_low_surrogate = (0xDC00..=0xDFFF).contains(&wparam.0);
 
         let is_utf16 = is_high_surrogate || is_low_surrogate;
 
@@ -191,7 +191,7 @@ impl KeyEventBuilder {
 
         if is_utf16 {
           if let Some(ev_info) = self.event_info.as_mut() {
-            ev_info.utf16parts.push(wparam as u16);
+            ev_info.utf16parts.push(wparam.0 as u16);
           }
         } else {
           // In this case, wparam holds a UTF-32 character.
@@ -206,7 +206,7 @@ impl KeyEventBuilder {
           let start_offset = utf16parts.len();
           let new_size = utf16parts.len() + 2;
           utf16parts.resize(new_size, 0);
-          if let Some(ch) = char::from_u32(wparam as u32) {
+          if let Some(ch) = char::from_u32(wparam.0 as u32) {
             let encode_len = ch.encode_utf16(&mut utf16parts[start_offset..]).len();
             let new_size = start_offset + encode_len;
             utf16parts.resize(new_size, 0);
@@ -257,7 +257,7 @@ impl KeyEventBuilder {
         }
       }
       win32wm::WM_KEYUP | win32wm::WM_SYSKEYUP => {
-        *result = ProcResult::Value(0);
+        *result = ProcResult::Value(LRESULT::default());
 
         let mut layouts = LAYOUT_CACHE.lock().unwrap();
         let event_info =
@@ -438,7 +438,7 @@ impl KeyEventBuilder {
     } else {
       WindowsModifiers::empty()
     };
-    let layout = layouts.layouts.get(&locale_id).unwrap();
+    let layout = layouts.layouts.get(&locale_id.0).unwrap();
     let logical_key = layout.get_key(mods, num_lock_on, vk, scancode, code);
     let key_without_modifiers =
       layout.get_key(WindowsModifiers::empty(), false, vk, scancode, code);
@@ -518,7 +518,7 @@ impl PartialKeyEventInfo {
     let (_, layout) = layouts.get_current_layout();
     let lparam_struct = destructure_key_lparam(lparam);
     let scancode;
-    let vkey = wparam as VIRTUAL_KEY;
+    let vkey = wparam.0 as VIRTUAL_KEY;
     if lparam_struct.scancode == 0 {
       // In some cases (often with media keys) the device reports a scancode of 0 but a
       // valid virtual key. In these cases we obtain the scancode from the virtual key.
@@ -669,11 +669,11 @@ struct KeyLParam {
 }
 
 fn destructure_key_lparam(lparam: LPARAM) -> KeyLParam {
-  let previous_state = (lparam >> 30) & 0x01;
-  let transition_state = (lparam >> 31) & 0x01;
+  let previous_state = (lparam.0 >> 30) & 0x01;
+  let transition_state = (lparam.0 >> 31) & 0x01;
   KeyLParam {
-    scancode: ((lparam >> 16) & 0xFF) as u8,
-    extended: ((lparam >> 24) & 0x01) != 0,
+    scancode: ((lparam.0 >> 16) & 0xFF) as u8,
+    extended: ((lparam.0 >> 24) & 0x01) != 0,
     is_repeat: (previous_state ^ transition_state) != 0,
   }
 }

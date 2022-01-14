@@ -218,7 +218,7 @@ impl Menu {
         flags |= MF_DISABLED;
       }
 
-      AppendMenuW(self.hmenu, flags, submenu.hmenu() as usize, title);
+      AppendMenuW(self.hmenu, flags, submenu.hmenu().0 as usize, title);
     }
   }
 
@@ -317,7 +317,7 @@ pub(crate) unsafe extern "system" fn subclass_proc(
 
   match msg {
     win32wm::WM_COMMAND => {
-      match wparam {
+      match wparam.0 {
         CUT_ID => {
           execute_edit_command(EditCommand::Cut);
         }
@@ -335,7 +335,7 @@ pub(crate) unsafe extern "system" fn subclass_proc(
         }
         CLOSE_ID => {
           subclass_input.send_event(Event::WindowEvent {
-            window_id: RootWindowId(WindowId(hwnd)),
+            window_id: RootWindowId(WindowId(hwnd.0)),
             event: WindowEvent::CloseRequested,
           });
         }
@@ -346,13 +346,13 @@ pub(crate) unsafe extern "system" fn subclass_proc(
           ShowWindow(hwnd, SW_MINIMIZE);
         }
         _ => {
-          let menu_id = util::LOWORD(wparam as u32);
+          let menu_id = util::LOWORD(wparam.0 as u32);
           if MENU_IDS.lock().unwrap().contains(&menu_id) {
             subclass_input.send_menu_event(menu_id);
           }
         }
       }
-      0
+      LRESULT::default()
     }
     _ => DefSubclassProc(hwnd, msg, wparam, lparam),
   }
