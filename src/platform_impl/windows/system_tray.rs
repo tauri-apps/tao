@@ -80,7 +80,7 @@ impl SystemTrayBuilder {
         std::ptr::null_mut(),
       );
 
-      if hwnd == 0 {
+      if hwnd.is_invalid() {
         return Err(os_error!(OsError::CreationError(
           "Unable to get valid mutable pointer for CreateWindowEx"
         )));
@@ -179,8 +179,8 @@ impl SystemTray {
       SendMessageW(
         self.hwnd,
         WM_USER_UPDATE_TRAYMENU,
-        tray_menu.hmenu() as WPARAM,
-        0,
+        WPARAM(tray_menu.hmenu().0 as _),
+        LPARAM(0),
       );
     }
   }
@@ -222,12 +222,12 @@ unsafe extern "system" fn tray_subclass_proc(
   }
 
   if msg == WM_USER_UPDATE_TRAYMENU {
-    subclass_input.hmenu = Some(wparam as HMENU);
+    subclass_input.hmenu = Some(HMENU(wparam.0 as _));
   }
 
   if msg == WM_USER_TRAYICON
     && matches!(
-      lparam as u32,
+      lparam.0 as u32,
       WM_LBUTTONUP | WM_RBUTTONUP | WM_LBUTTONDBLCLK
     )
   {
@@ -255,7 +255,7 @@ unsafe extern "system" fn tray_subclass_proc(
       .to_physical(scale_factor),
     };
 
-    match lparam as u32 {
+    match lparam.0 as u32 {
       win32wm::WM_LBUTTONUP => {
         (subclass_input.sender)(Event::TrayEvent {
           event: TrayEvent::LeftClick,

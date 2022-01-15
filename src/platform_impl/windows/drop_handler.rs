@@ -51,7 +51,7 @@ impl FileDropHandler {
     use crate::event::WindowEvent::HoveredFile;
     let hdrop = Self::iterate_filenames(pDataObj, |filename| {
       (self.send_event)(Event::WindowEvent {
-        window_id: SuperWindowId(WindowId(self.window)),
+        window_id: SuperWindowId(WindowId(self.window.0)),
         event: HoveredFile(filename),
       });
     });
@@ -79,7 +79,7 @@ impl FileDropHandler {
     use crate::event::WindowEvent::HoveredFileCancelled;
     if self.hovered_is_valid {
       (self.send_event)(Event::WindowEvent {
-        window_id: SuperWindowId(WindowId(self.window)),
+        window_id: SuperWindowId(WindowId(self.window.0)),
         event: HoveredFileCancelled,
       });
     }
@@ -96,7 +96,7 @@ impl FileDropHandler {
     use crate::event::WindowEvent::DroppedFile;
     let hdrop = Self::iterate_filenames(pDataObj, |filename| {
       (self.send_event)(Event::WindowEvent {
-        window_id: SuperWindowId(WindowId(self.window)),
+        window_id: SuperWindowId(WindowId(self.window.0)),
         event: DroppedFile(filename),
       });
     });
@@ -125,7 +125,7 @@ impl FileDropHandler {
     {
       Ok(medium) => {
         let hglobal = medium.Anonymous.hGlobal;
-        let hdrop = hglobal;
+        let hdrop = HDROP(hglobal);
 
         // The second parameter (0xFFFFFFFF) instructs the function to return the item count
         let item_count = DragQueryFileW(hdrop, 0xFFFFFFFF, PWSTR::default(), 0);

@@ -177,20 +177,20 @@ impl<T> EventLoopRunner<T> {
   }
   pub fn register_window(&self, window: HWND) {
     let mut owned_windows = self.owned_windows.take();
-    owned_windows.insert(window);
+    owned_windows.insert(window.0);
     self.owned_windows.set(owned_windows);
   }
 
   pub fn remove_window(&self, window: HWND) {
     let mut owned_windows = self.owned_windows.take();
-    owned_windows.remove(&window);
+    owned_windows.remove(&window.0);
     self.owned_windows.set(owned_windows);
   }
 
   pub fn owned_windows(&self, mut f: impl FnMut(HWND)) {
     let mut owned_windows = self.owned_windows.take();
     for hwnd in &owned_windows {
-      f(*hwnd);
+      f(HWND(*hwnd));
     }
     let new_owned_windows = self.owned_windows.take();
     owned_windows.extend(&new_owned_windows);
@@ -435,7 +435,7 @@ impl<T> BufferedEvent<T> {
           },
         });
         util::set_inner_size_physical(
-          window_id.0 .0,
+          HWND(window_id.0 .0),
           new_inner_size.width as _,
           new_inner_size.height as _,
         );

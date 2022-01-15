@@ -11,7 +11,7 @@ use crate::{
 use parking_lot::MutexGuard;
 use std::io;
 use windows::Win32::{
-  Foundation::{HWND, RECT},
+  Foundation::{HWND, LPARAM, RECT, WPARAM},
   Graphics::Gdi::{InvalidateRgn, HRGN},
   UI::WindowsAndMessaging::*,
 };
@@ -288,7 +288,12 @@ impl WindowFlags {
       let (style, style_ex) = new.to_window_styles();
 
       unsafe {
-        SendMessageW(window, *event_loop::SET_RETAIN_STATE_ON_SIZE_MSG_ID, 1, 0);
+        SendMessageW(
+          window,
+          *event_loop::SET_RETAIN_STATE_ON_SIZE_MSG_ID,
+          WPARAM(1),
+          LPARAM(0),
+        );
 
         // This condition is necessary to avoid having an unrestorable window
         if !new.contains(WindowFlags::MINIMIZED) {
@@ -309,7 +314,12 @@ impl WindowFlags {
 
         // Refresh the window frame
         SetWindowPos(window, HWND::default(), 0, 0, 0, 0, flags);
-        SendMessageW(window, *event_loop::SET_RETAIN_STATE_ON_SIZE_MSG_ID, 0, 0);
+        SendMessageW(
+          window,
+          *event_loop::SET_RETAIN_STATE_ON_SIZE_MSG_ID,
+          WPARAM(0),
+          LPARAM(0),
+        );
       }
     }
   }

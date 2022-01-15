@@ -290,14 +290,14 @@ impl Window {
 
   #[inline]
   pub fn hinstance(&self) -> HINSTANCE {
-    util::GetWindowLongPtrW(self.hwnd(), GWLP_HINSTANCE)
+    HINSTANCE(util::GetWindowLongPtrW(self.hwnd(), GWLP_HINSTANCE))
   }
 
   #[inline]
   pub fn raw_window_handle(&self) -> RawWindowHandle {
     let mut handle = Win32Handle::empty();
-    handle.hwnd = self.window.0 as *mut _;
-    handle.hinstance = self.hinstance() as *mut _;
+    handle.hwnd = self.window.0 .0 as *mut _;
+    handle.hinstance = self.hinstance().0 as *mut _;
     RawWindowHandle::Win32(handle)
   }
 
@@ -379,7 +379,7 @@ impl Window {
       PostMessageW(
         self.window.0,
         WM_NCLBUTTONDOWN,
-        HTCAPTION as WPARAM,
+        WPARAM(HTCAPTION as _),
         util::MAKELPARAM(pos.x as i16, pos.y as i16),
       );
     }
@@ -389,7 +389,7 @@ impl Window {
 
   #[inline]
   pub fn id(&self) -> WindowId {
-    WindowId(self.window.0)
+    WindowId(self.window.0 .0)
   }
 
   #[inline]
@@ -711,7 +711,7 @@ impl Window {
 
   #[inline]
   pub fn is_menu_visible(&self) -> bool {
-    unsafe { GetMenu(self.hwnd()) != 0 }
+    unsafe { !GetMenu(self.hwnd()).is_invalid() }
   }
 
   #[inline]
@@ -737,7 +737,7 @@ impl Window {
   #[inline]
   pub fn begin_resize_drag(&self, edge: isize, button: u32, x: i32, y: i32) {
     unsafe {
-      let w_param = edge as WPARAM;
+      let w_param = WPARAM(edge as _);
       let l_param = util::MAKELPARAM(x as i16, y as i16);
 
       ReleaseCapture();
@@ -768,7 +768,7 @@ impl Drop for Window {
     unsafe {
       // The window must be destroyed from the same thread that created it, so we send a
       // custom message to be handled by our callback to do the actual work.
-      PostMessageW(self.window.0, *DESTROY_MSG_ID, 0, 0);
+      PostMessageW(self.window.0, *DESTROY_MSG_ID, WPARAM(0), LPARAM(0));
     }
   }
 }
@@ -840,7 +840,7 @@ unsafe fn init<T: 'static>(
       Box::into_raw(Box::new(window_flags)) as _,
     );
 
-    if handle == 0 {
+    if handle.is_invalid() {
       return Err(os_error!(OsError::IoError(io::Error::last_os_error())));
     }
 
@@ -996,17 +996,17 @@ unsafe extern "system" fn window_proc(
     win32wm::WM_NCCALCSIZE => {
       let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
       if userdata != 0 {
-        let window_flags = *(userdata as *mut WindowFlags);
+        let window_flags = WindowFlags::from_bits_unchecked(userdata as _);
         if !window_flags.contains(WindowFlags::DECORATIONS) {
           // adjust the maximized borderless window so it doesn't cover the taskbar
           if util::is_maximized(window) {
             let monitor = monitor::current_monitor(window);
             if let Ok(monitor_info) = monitor::get_monitor_info(monitor.hmonitor()) {
-              let params = &mut *(lparam as *mut NCCALCSIZE_PARAMS);
+              let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
               params.rgrc[0] = monitor_info.monitorInfo.rcWork;
             }
           }
-          return 0; // return 0 here to make the window borderless
+          return LRESULT(0); // return 0 here to make the window borderless
         }
       }
       DefWindowProcW(window, msg, wparam, lparam)
@@ -1014,17 +1014,11 @@ unsafe extern "system" fn window_proc(
     win32wm::WM_NCCREATE => {
       let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
       if userdata == 0 {
-        let createstruct = &*(lparam as *const CREATESTRUCTW);
+        let createstruct = &*(lparam.0 as *const CREATESTRUCTW);
         let userdata = createstruct.lpCreateParams;
-        let userdata = &mut *(userdata as *mut WindowFlags);
-        util::SetWindowLongPtrA(window, GWL_USERDATA, Box::into_raw(Box::new(userdata)) as _);
+        let window_flags = Box::from_raw(userdata as *mut WindowFlags);
+        util::SetWindowLongPtrW(window, GWL_USERDATA, window_flags.bits() as _);
       }
-      DefWindowProcW(window, msg, wparam, lparam)
-    }
-    win32wm::WM_DESTROY => {
-      let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
-      let window_flags = userdata as *mut WindowFlags;
-      Box::from_raw(window_flags);
       DefWindowProcW(window, msg, wparam, lparam)
     }
     _ => DefWindowProcW(window, msg, wparam, lparam),
@@ -1148,7 +1142,7 @@ pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
         | (TOP * (if cy < (top + BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
         | (BOTTOM * (if cy >= (bottom - BORDERLESS_RESIZE_INSET) { 1 } else { 0 }));
 
-      (match result {
+      LRESULT(match result {
         CLIENT => HTCLIENT,
         LEFT => HTLEFT,
         RIGHT => HTRIGHT,
@@ -1159,9 +1153,9 @@ pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
         BOTTOMLEFT => HTBOTTOMLEFT,
         BOTTOMRIGHT => HTBOTTOMRIGHT,
         _ => HTNOWHERE,
-      }) as LRESULT
+      } as _)
     } else {
-      HTNOWHERE as LRESULT
+      LRESULT(HTNOWHERE as _)
     }
   }
 }

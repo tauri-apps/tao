@@ -147,7 +147,7 @@ pub fn adjust_window_rect_with_styles(
     status_map(|r| {
       *r = rect;
 
-      let b_menu: BOOL = (GetMenu(hwnd) != 0).into();
+      let b_menu: BOOL = (!GetMenu(hwnd).is_invalid()).into();
 
       if let (Some(get_dpi_for_window), Some(adjust_window_rect_ex_for_dpi)) =
         (*GET_DPI_FOR_WINDOW, *ADJUST_WINDOW_RECT_EX_FOR_DPI)
@@ -255,16 +255,18 @@ pub fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<H
           0,
           0,
           LR_DEFAULTCOLOR,
-        ) {
+        )
+        .ok()
+        {
           // windows is really tough on icons
           // if a bad icon is provided it'll fail here or in
           // the LookupIconIdFromDirectoryEx if this is a bad format (example png's)
           // with my tests, even some ICO's were failing...
-          0 => {
-            debug!("Unable to CreateIconFromResourceEx");
+          Err(err) => {
+            debug!("Unable to CreateIconFromResourceEx: {:?}", err);
             None
           }
-          hicon => Some(hicon),
+          Ok(hicon) => Some(hicon),
         }
       }
     }
@@ -306,7 +308,7 @@ pub(super) fn get_function_impl(library: &str, function: &str) -> FARPROC {
 
   // Library names we will use are ASCII so we can use the A version to avoid string conversion.
   let module = unsafe { LoadLibraryA(library) };
-  if module == 0 {
+  if module.is_invalid() {
     return None;
   }
 
@@ -369,13 +371,13 @@ pub fn SetWindowLongPtrW(window: HWND, index: WINDOW_LONG_PTR_INDEX, value: isiz
 
 #[allow(non_snake_case)]
 #[cfg(target_pointer_width = "64")]
-pub fn SetWindowLongPtrA(window: HWND, index: WINDOW_LONG_PTR_INDEX, value: isize) -> isize {
+pub fn SetWindowLongPtrW(window: HWND, index: WINDOW_LONG_PTR_INDEX, value: isize) -> isize {
   unsafe { win32wm::SetWindowLongPtrW(window, index, value) }
 }
 
 #[allow(non_snake_case)]
 #[cfg(target_pointer_width = "32")]
-pub fn GetWindowLongPtrA(window: HWND, index: WINDOW_LONG_PTR_INDEX) -> isize {
+pub fn GetWindowLongPtrW(window: HWND, index: WINDOW_LONG_PTR_INDEX) -> isize {
   unsafe { win32wm::GetWindowLongW(window, index) as _ }
 }
 
@@ -403,14 +405,14 @@ pub fn HIWORD(dword: u32) -> u16 {
 #[allow(non_snake_case)]
 #[inline]
 pub fn GET_X_LPARAM(lparam: LPARAM) -> i16 {
-  ((lparam as usize) & 0xFFFF) as u16 as i16
+  ((lparam.0 as usize) & 0xFFFF) as u16 as i16
 }
 
 /// Implementation of the `GET_Y_LPARAM` macro.
 #[allow(non_snake_case)]
 #[inline]
 pub fn GET_Y_LPARAM(lparam: LPARAM) -> i16 {
-  (((lparam as usize) & 0xFFFF_0000) >> 16) as u16 as i16
+  (((lparam.0 as usize) & 0xFFFF_0000) >> 16) as u16 as i16
 }
 
 /// Implementation of the `MAKELPARAM` macro.
@@ -419,28 +421,28 @@ pub fn GET_Y_LPARAM(lparam: LPARAM) -> i16 {
 #[allow(non_snake_case)]
 #[inline]
 pub fn MAKELPARAM(x: i16, y: i16) -> LPARAM {
-  ((x as u16 as u32) | ((y as u16 as u32) << 16)) as usize as LPARAM
+  LPARAM(((x as u16 as u32) | ((y as u16 as u32) << 16)) as usize as _)
 }
 
 /// Implementation of the `GET_WHEEL_DELTA_WPARAM` macro.
 #[allow(non_snake_case)]
 #[inline]
 pub fn GET_WHEEL_DELTA_WPARAM(wparam: WPARAM) -> i16 {
-  ((wparam & 0xFFFF_0000) >> 16) as u16 as i16
+  ((wparam.0 & 0xFFFF_0000) >> 16) as u16 as i16
 }
 
 /// Implementation of the `GET_XBUTTON_WPARAM` macro.
 #[allow(non_snake_case)]
 #[inline]
 pub fn GET_XBUTTON_WPARAM(wparam: WPARAM) -> u16 {
-  ((wparam & 0xFFFF_0000) >> 16) as u16
+  ((wparam.0 & 0xFFFF_0000) >> 16) as u16
 }
 
 /// Implementation of the `PRIMARYLANGID` macro.
 #[allow(non_snake_case)]
 #[inline]
 pub fn PRIMARYLANGID(hkl: HKL) -> u32 {
-  ((hkl as usize) & 0x3FF) as u32
+  ((hkl.0 as usize) & 0x3FF) as u32
 }
 
 pub unsafe extern "system" fn call_default_window_proc(

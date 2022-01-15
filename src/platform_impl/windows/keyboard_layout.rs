@@ -243,7 +243,7 @@ impl LayoutCache {
   /// The current layout is then returned.
   pub fn get_current_layout<'a>(&'a mut self) -> (HKL, &'a Layout) {
     let locale_id = unsafe { GetKeyboardLayout(0) };
-    match self.layouts.entry(locale_id) {
+    match self.layouts.entry(locale_id.0) {
       Entry::Occupied(entry) => (locale_id, entry.into_mut()),
       Entry::Vacant(entry) => {
         let layout = Self::prepare_layout(&mut self.strings, locale_id);

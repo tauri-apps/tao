@@ -90,7 +90,7 @@ unsafe extern "system" fn monitor_enum_proc(
   _place: *mut RECT,
   data: LPARAM,
 ) -> BOOL {
-  let monitors = data as *mut VecDeque<MonitorHandle>;
+  let monitors = data.0 as *mut VecDeque<MonitorHandle>;
   (*monitors).push_back(MonitorHandle::new(hmonitor));
   true.into() // continue enumeration
 }
@@ -102,7 +102,7 @@ pub fn available_monitors() -> VecDeque<MonitorHandle> {
       HDC::default(),
       ptr::null_mut(),
       Some(monitor_enum_proc),
-      &mut monitors as *mut _ as LPARAM,
+      LPARAM(&mut monitors as *mut _ as _),
     );
   }
   monitors
@@ -148,7 +148,7 @@ pub(crate) fn get_monitor_info(hmonitor: HMONITOR) -> Result<MONITORINFOEXW, io:
 
 impl MonitorHandle {
   pub(crate) fn new(hmonitor: HMONITOR) -> Self {
-    MonitorHandle(hmonitor)
+    MonitorHandle(hmonitor.0)
   }
 
   #[inline]
@@ -166,7 +166,7 @@ impl MonitorHandle {
 
   #[inline]
   pub fn hmonitor(&self) -> HMONITOR {
-    self.0
+    HMONITOR(self.0)
   }
 
   #[inline]
