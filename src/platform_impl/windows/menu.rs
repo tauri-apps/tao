@@ -352,7 +352,7 @@ pub(crate) unsafe extern "system" fn subclass_proc(
           }
         }
       }
-      LRESULT::default()
+      LRESULT(0)
     }
     _ => DefSubclassProc(hwnd, msg, wparam, lparam),
   }

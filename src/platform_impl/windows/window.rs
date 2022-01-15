@@ -768,12 +768,7 @@ impl Drop for Window {
     unsafe {
       // The window must be destroyed from the same thread that created it, so we send a
       // custom message to be handled by our callback to do the actual work.
-      PostMessageW(
-        self.window.0,
-        *DESTROY_MSG_ID,
-        WPARAM::default(),
-        LPARAM::default(),
-      );
+      PostMessageW(self.window.0, *DESTROY_MSG_ID, WPARAM(0), LPARAM(0));
     }
   }
 }
@@ -1011,7 +1006,7 @@ unsafe extern "system" fn window_proc(
               params.rgrc[0] = monitor_info.monitorInfo.rcWork;
             }
           }
-          return LRESULT::default(); // return 0 here to make the window borderless
+          return LRESULT(0); // return 0 here to make the window borderless
         }
       }
       DefWindowProcW(window, msg, wparam, lparam)

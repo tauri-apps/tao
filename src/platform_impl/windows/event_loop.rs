@@ -344,7 +344,7 @@ fn wait_thread(parent_thread_id: u32, msg_window_id: HWND) {
     PostThreadMessageW(
       parent_thread_id,
       *SEND_WAIT_THREAD_ID_MSG_ID,
-      WPARAM::default(),
+      WPARAM(0),
       LPARAM(cur_thread_id as _),
     );
 
@@ -390,8 +390,8 @@ fn wait_thread(parent_thread_id: u32, msg_window_id: HWND) {
             PostMessageW(
               msg_window_id,
               *PROCESS_NEW_EVENTS_MSG_ID,
-              WPARAM::default(),
-              LPARAM::default(),
+              WPARAM(0),
+              LPARAM(0),
             );
             wait_until_opt = None;
           }
@@ -399,8 +399,8 @@ fn wait_thread(parent_thread_id: u32, msg_window_id: HWND) {
           PostMessageW(
             msg_window_id,
             *PROCESS_NEW_EVENTS_MSG_ID,
-            WPARAM::default(),
-            LPARAM::default(),
+            WPARAM(0),
+            LPARAM(0),
           );
           wait_until_opt = None;
         }
@@ -493,7 +493,7 @@ impl EventLoopThreadExecutor {
           self.target_window,
           *EXEC_MSG_ID,
           WPARAM(raw as _),
-          LPARAM::default(),
+          LPARAM(0),
         );
         assert!(
           res.as_bool(),
@@ -525,14 +525,7 @@ impl<T: 'static> Clone for EventLoopProxy<T> {
 impl<T: 'static> EventLoopProxy<T> {
   pub fn send_event(&self, event: T) -> Result<(), EventLoopClosed<T>> {
     unsafe {
-      if PostMessageW(
-        self.target_window,
-        *USER_EVENT_MSG_ID,
-        WPARAM::default(),
-        LPARAM::default(),
-      )
-      .as_bool()
-      {
+      if PostMessageW(self.target_window, *USER_EVENT_MSG_ID, WPARAM(0), LPARAM(0)).as_bool() {
         self.event_send.send(event).ok();
         Ok(())
       } else {
@@ -786,8 +779,8 @@ unsafe fn process_control_flow<T: 'static>(runner: &EventLoopRunner<T>) {
       PostMessageW(
         runner.thread_msg_target(),
         *PROCESS_NEW_EVENTS_MSG_ID,
-        WPARAM::default(),
-        LPARAM::default(),
+        WPARAM(0),
+        LPARAM(0),
       );
     }
     ControlFlow::Wait => (),
@@ -795,7 +788,7 @@ unsafe fn process_control_flow<T: 'static>(runner: &EventLoopRunner<T>) {
       PostThreadMessageW(
         runner.wait_thread_id(),
         *WAIT_UNTIL_MSG_ID,
-        WPARAM::default(),
+        WPARAM(0),
         LPARAM(Box::into_raw(WaitUntilInstantBox::new(until)) as _),
       );
     }
@@ -893,7 +886,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
   let mods_changed_callback = || match msg {
     win32wm::WM_KEYDOWN | win32wm::WM_SYSKEYDOWN | win32wm::WM_KEYUP | win32wm::WM_SYSKEYUP => {
       update_modifiers(window, subclass_input);
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
     _ => (),
   };
@@ -965,7 +958,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         .window_state
         .lock()
         .set_window_flags_in_place(|f| f.insert(WindowFlags::MARKER_IN_SIZE_MOVE));
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_EXITSIZEMOVE => {
@@ -973,15 +966,15 @@ unsafe fn public_window_callback_inner<T: 'static>(
         .window_state
         .lock()
         .set_window_flags_in_place(|f| f.remove(WindowFlags::MARKER_IN_SIZE_MOVE));
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_NCCREATE => {
       enable_non_client_dpi_scaling(window);
     }
     win32wm::WM_NCLBUTTONDOWN => {
-      if wparam == WPARAM(HTCAPTION as _) {
-        PostMessageW(window, WM_MOUSEMOVE, WPARAM::default(), lparam);
+      if wparam.0 == HTCAPTION as _ {
+        PostMessageW(window, WM_MOUSEMOVE, WPARAM(0), lparam);
       }
     }
 
@@ -991,7 +984,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         window_id: RootWindowId(WindowId(window.0)),
         event: CloseRequested,
       });
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_DESTROY => {
@@ -1002,13 +995,13 @@ unsafe fn public_window_callback_inner<T: 'static>(
         event: Destroyed,
       });
       subclass_input.event_loop_runner.remove_window(window);
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_NCDESTROY => {
       remove_window_subclass::<T>(window);
       subclass_input.subclass_removed.set(true);
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_PAINT => {
@@ -1070,7 +1063,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         }
       }
 
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     // WM_MOVE supplies client area positions, so we send Moved here instead.
@@ -1102,25 +1095,25 @@ unsafe fn public_window_callback_inner<T: 'static>(
       };
 
       subclass_input.send_event(event);
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     // this is necessary for us to maintain minimize/restore state
     win32wm::WM_SYSCOMMAND => {
-      if wparam == WPARAM(SC_RESTORE as _) {
+      if wparam.0 == SC_RESTORE as _ {
         let mut w = subclass_input.window_state.lock();
         w.set_window_flags_in_place(|f| f.set(WindowFlags::MINIMIZED, false));
       }
-      if wparam == WPARAM(SC_MINIMIZE as _) {
+      if wparam.0 == SC_MINIMIZE as _ {
         let mut w = subclass_input.window_state.lock();
         w.set_window_flags_in_place(|f| f.set(WindowFlags::MINIMIZED, true));
       }
       // Send `WindowEvent::Minimized` here if we decide to implement one
 
-      if wparam == WPARAM(SC_SCREENSAVE as _) {
+      if wparam.0 == SC_SCREENSAVE as _ {
         let window_state = subclass_input.window_state.lock();
         if window_state.fullscreen.is_some() {
-          result = ProcResult::Value(LRESULT::default());
+          result = ProcResult::Value(LRESULT(0));
           return;
         }
       }
@@ -1181,7 +1174,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         });
       }
 
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32c::WM_MOUSELEAVE => {
@@ -1200,7 +1193,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         },
       });
 
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_MOUSEWHEEL => {
@@ -1221,7 +1214,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         },
       });
 
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_MOUSEHWHEEL => {
@@ -1242,7 +1235,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         },
       });
 
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_KEYDOWN | win32wm::WM_SYSKEYDOWN => {
@@ -1267,7 +1260,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           modifiers,
         },
       });
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_LBUTTONUP => {
@@ -1286,7 +1279,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           modifiers,
         },
       });
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_RBUTTONDOWN => {
@@ -1305,7 +1298,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           modifiers,
         },
       });
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_RBUTTONUP => {
@@ -1324,7 +1317,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           modifiers,
         },
       });
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_MBUTTONDOWN => {
@@ -1343,7 +1336,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           modifiers,
         },
       });
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_MBUTTONUP => {
@@ -1362,7 +1355,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           modifiers,
         },
       });
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_XBUTTONDOWN => {
@@ -1382,7 +1375,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           modifiers,
         },
       });
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_XBUTTONUP => {
@@ -1402,7 +1395,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           modifiers,
         },
       });
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_CAPTURECHANGED => {
@@ -1413,7 +1406,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       if lparam.0 != window.0 {
         subclass_input.window_state.lock().mouse.capture_count = 0;
       }
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_TOUCH => {
@@ -1463,7 +1456,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         }
       }
       CloseTouchInputHandle(htouch);
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_POINTERDOWN | win32wm::WM_POINTERUPDATE | win32wm::WM_POINTERUP => {
@@ -1487,7 +1480,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         )
         .as_bool()
         {
-          result = ProcResult::Value(LRESULT::default());
+          result = ProcResult::Value(LRESULT(0));
           return;
         }
 
@@ -1502,7 +1495,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         )
         .as_bool()
         {
-          result = ProcResult::Value(LRESULT::default());
+          result = ProcResult::Value(LRESULT(0));
           return;
         }
 
@@ -1600,7 +1593,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         SkipPointerFrameMessages(pointer_id);
       }
 
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_SETFOCUS => {
@@ -1612,7 +1605,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         event: Focused(true),
       });
 
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_KILLFOCUS => {
@@ -1628,7 +1621,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         window_id: RootWindowId(WindowId(window.0)),
         event: Focused(false),
       });
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_SETCURSOR => {
@@ -1649,7 +1642,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         Some(cursor) => {
           let cursor = LoadCursorW(HINSTANCE::default(), cursor.to_windows_cursor());
           SetCursor(cursor);
-          result = ProcResult::Value(LRESULT::default());
+          result = ProcResult::Value(LRESULT(0));
         }
         None => result = ProcResult::DefWindowProc,
       }
@@ -1679,7 +1672,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         }
       }
 
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     // Only sent on Windows 8.1 or newer. On Windows 7 and older user has to log out to change
@@ -1701,7 +1694,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         window_state.scale_factor = new_scale_factor;
 
         if (new_scale_factor - old_scale_factor).abs() < f64::EPSILON {
-          result = ProcResult::Value(LRESULT::default());
+          result = ProcResult::Value(LRESULT(0));
           return;
         }
 
@@ -1888,7 +1881,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         SWP_NOZORDER | SWP_NOACTIVATE,
       );
 
-      result = ProcResult::Value(LRESULT::default());
+      result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_WININICHANGE => {
@@ -1923,7 +1916,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
             params.rgrc[0] = monitor_info.monitorInfo.rcWork;
           }
         }
-        result = ProcResult::Value(LRESULT::default()); // return 0 here to make the windowo borderless
+        result = ProcResult::Value(LRESULT(0)); // return 0 here to make the windowo borderless
       } else {
         result = ProcResult::DefSubclassProc;
       }
@@ -1951,13 +1944,13 @@ unsafe fn public_window_callback_inner<T: 'static>(
     _ => {
       if msg == *DESTROY_MSG_ID {
         DestroyWindow(window);
-        result = ProcResult::Value(LRESULT::default());
+        result = ProcResult::Value(LRESULT(0));
       } else if msg == *SET_RETAIN_STATE_ON_SIZE_MSG_ID {
         let mut window_state = subclass_input.window_state.lock();
         window_state.set_window_flags_in_place(|f| {
           f.set(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE, wparam.0 != 0)
         });
-        result = ProcResult::Value(LRESULT::default());
+        result = ProcResult::Value(LRESULT(0));
       }
     }
   };
@@ -1997,7 +1990,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
     win32wm::WM_NCDESTROY => {
       remove_event_target_window_subclass::<T>(window);
       subclass_removed = true;
-      LRESULT::default()
+      LRESULT(0)
     }
     // Because WM_PAINT comes after all other messages, we use it during modal loops to detect
     // when the event queue has been emptied. See `process_event` for more details.
@@ -2039,7 +2032,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
         event,
       });
 
-      LRESULT::default()
+      LRESULT(0)
     }
 
     win32wm::WM_INPUT => {
@@ -2054,19 +2047,19 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       if let Ok(event) = subclass_input.user_event_receiver.recv() {
         subclass_input.send_event(Event::UserEvent(event));
       }
-      LRESULT::default()
+      LRESULT(0)
     }
     _ if msg == *EXEC_MSG_ID => {
       let mut function: ThreadExecFn = Box::from_raw(wparam.0 as *mut _);
       function();
-      LRESULT::default()
+      LRESULT(0)
     }
     _ if msg == *PROCESS_NEW_EVENTS_MSG_ID => {
       PostThreadMessageW(
         subclass_input.event_loop_runner.wait_thread_id(),
         *CANCEL_WAIT_UNTIL_MSG_ID,
-        WPARAM::default(),
-        LPARAM::default(),
+        WPARAM(0),
+        LPARAM(0),
       );
 
       // if the control_flow is WaitUntil, make sure the given moment has actually passed
@@ -2093,7 +2086,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
         }
       }
       subclass_input.event_loop_runner.poll();
-      LRESULT::default()
+      LRESULT(0)
     }
     _ => DefSubclassProc(window, msg, wparam, lparam),
   };

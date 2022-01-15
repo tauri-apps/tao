@@ -180,7 +180,7 @@ impl SystemTray {
         self.hwnd,
         WM_USER_UPDATE_TRAYMENU,
         WPARAM(tray_menu.hmenu().0 as _),
-        LPARAM::default(),
+        LPARAM(0),
       );
     }
   }

@@ -91,12 +91,12 @@ impl KeyEventBuilder {
         }
       }
       win32wm::WM_KEYDOWN | win32wm::WM_SYSKEYDOWN => {
-        if msg_kind == WM_SYSKEYDOWN && wparam == WPARAM(usize::from(VK_F4)) {
+        if msg_kind == WM_SYSKEYDOWN && wparam.0 == usize::from(VK_F4) {
           // Don't dispatch Alt+F4 to the application.
           // This is handled in `event_loop.rs`
           return vec![];
         }
-        *result = ProcResult::Value(LRESULT::default());
+        *result = ProcResult::Value(LRESULT(0));
 
         let mut layouts = LAYOUT_CACHE.lock().unwrap();
         let event_info =
@@ -144,7 +144,7 @@ impl KeyEventBuilder {
         }
       }
       win32wm::WM_DEADCHAR | win32wm::WM_SYSDEADCHAR => {
-        *result = ProcResult::Value(LRESULT::default());
+        *result = ProcResult::Value(LRESULT(0));
         // At this point, we know that there isn't going to be any more events related to
         // this key press
         let event_info = self.event_info.take().unwrap();
@@ -160,7 +160,7 @@ impl KeyEventBuilder {
           trace!("Received a CHAR message but no `event_info` was available. The message is probably IME, returning.");
           return vec![];
         }
-        *result = ProcResult::Value(LRESULT::default());
+        *result = ProcResult::Value(LRESULT(0));
         let is_high_surrogate = (0xD800..=0xDBFF).contains(&wparam.0);
         let is_low_surrogate = (0xDC00..=0xDFFF).contains(&wparam.0);
 
@@ -257,7 +257,7 @@ impl KeyEventBuilder {
         }
       }
       win32wm::WM_KEYUP | win32wm::WM_SYSKEYUP => {
-        *result = ProcResult::Value(LRESULT::default());
+        *result = ProcResult::Value(LRESULT(0));
 
         let mut layouts = LAYOUT_CACHE.lock().unwrap();
         let event_info =

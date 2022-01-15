@@ -292,7 +292,7 @@ impl WindowFlags {
           window,
           *event_loop::SET_RETAIN_STATE_ON_SIZE_MSG_ID,
           WPARAM(1),
-          LPARAM::default(),
+          LPARAM(0),
         );
 
         // This condition is necessary to avoid having an unrestorable window
@@ -317,8 +317,8 @@ impl WindowFlags {
         SendMessageW(
           window,
           *event_loop::SET_RETAIN_STATE_ON_SIZE_MSG_ID,
-          WPARAM::default(),
-          LPARAM::default(),
+          WPARAM(0),
+          LPARAM(0),
         );
       }
     }

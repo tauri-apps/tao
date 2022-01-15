@@ -48,7 +48,7 @@ impl MinimalIme {
         self.getting_ime_text = true;
       }
       win32wm::WM_CHAR | win32wm::WM_SYSCHAR => {
-        *result = ProcResult::Value(LRESULT::default());
+        *result = ProcResult::Value(LRESULT(0));
         if self.getting_ime_text {
           self.utf16parts.push(wparam.0 as u16);
 
