@@ -996,7 +996,7 @@ unsafe extern "system" fn window_proc(
     win32wm::WM_NCCALCSIZE => {
       let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
       if userdata != 0 {
-        let window_flags = *(userdata as *mut WindowFlags);
+        let window_flags = WindowFlags::from_bits_unchecked(userdata as _);
         if !window_flags.contains(WindowFlags::DECORATIONS) {
           // adjust the maximized borderless window so it doesn't cover the taskbar
           if util::is_maximized(window) {
@@ -1016,15 +1016,9 @@ unsafe extern "system" fn window_proc(
       if userdata == 0 {
         let createstruct = &*(lparam.0 as *const CREATESTRUCTW);
         let userdata = createstruct.lpCreateParams;
-        let userdata = &mut *(userdata as *mut WindowFlags);
-        util::SetWindowLongPtrA(window, GWL_USERDATA, Box::into_raw(Box::new(userdata)) as _);
+        let window_flags = Box::from_raw(userdata as *mut WindowFlags);
+        util::SetWindowLongPtrA(window, GWL_USERDATA, window_flags.bits() as _);
       }
-      DefWindowProcW(window, msg, wparam, lparam)
-    }
-    win32wm::WM_DESTROY => {
-      let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
-      let window_flags = userdata as *mut WindowFlags;
-      Box::from_raw(window_flags);
       DefWindowProcW(window, msg, wparam, lparam)
     }
     _ => DefWindowProcW(window, msg, wparam, lparam),
