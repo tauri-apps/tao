@@ -371,13 +371,13 @@ pub fn SetWindowLongPtrW(window: HWND, index: WINDOW_LONG_PTR_INDEX, value: isiz
 
 #[allow(non_snake_case)]
 #[cfg(target_pointer_width = "64")]
-pub fn SetWindowLongPtrA(window: HWND, index: WINDOW_LONG_PTR_INDEX, value: isize) -> isize {
+pub fn SetWindowLongPtrW(window: HWND, index: WINDOW_LONG_PTR_INDEX, value: isize) -> isize {
   unsafe { win32wm::SetWindowLongPtrW(window, index, value) }
 }
 
 #[allow(non_snake_case)]
 #[cfg(target_pointer_width = "32")]
-pub fn GetWindowLongPtrA(window: HWND, index: WINDOW_LONG_PTR_INDEX) -> isize {
+pub fn GetWindowLongPtrW(window: HWND, index: WINDOW_LONG_PTR_INDEX) -> isize {
   unsafe { win32wm::GetWindowLongW(window, index) as _ }
 }
 

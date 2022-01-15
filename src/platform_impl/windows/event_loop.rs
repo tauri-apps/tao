@@ -629,7 +629,7 @@ fn create_event_target_window() -> HWND {
       ptr::null_mut(),
     )
   };
-  util::SetWindowLongPtrA(
+  util::SetWindowLongPtrW(
     window,
     GWL_STYLE,
     // The window technically has to be visible to receive WM_PAINT messages (which are used
@@ -846,7 +846,7 @@ unsafe extern "system" fn public_window_callback<T: 'static>(
       .set(subclass_input.recurse_depth.get() + 1);
 
     // Clear userdata
-    util::SetWindowLongPtrA(window, GWL_USERDATA, 0);
+    util::SetWindowLongPtrW(window, GWL_USERDATA, 0);
 
     let result =
       public_window_callback_inner(window, msg, wparam, lparam, uidsubclass, subclass_input);

@@ -1017,7 +1017,7 @@ unsafe extern "system" fn window_proc(
         let createstruct = &*(lparam.0 as *const CREATESTRUCTW);
         let userdata = createstruct.lpCreateParams;
         let window_flags = Box::from_raw(userdata as *mut WindowFlags);
-        util::SetWindowLongPtrA(window, GWL_USERDATA, window_flags.bits() as _);
+        util::SetWindowLongPtrW(window, GWL_USERDATA, window_flags.bits() as _);
       }
       DefWindowProcW(window, msg, wparam, lparam)
     }
