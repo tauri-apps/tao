@@ -183,7 +183,7 @@ mod platform_impl;
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-#[cfg(feature = "tray")]
+#[cfg(any(feature = "tray", feature = "ayatana"))]
 pub mod system_tray;
 pub mod window;
 
