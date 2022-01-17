@@ -16,11 +16,11 @@ mod keyboard;
 mod keycode;
 mod menu;
 mod monitor;
-#[cfg(feature = "tray")]
+#[cfg(any(feature = "tray", feature = "ayatana"))]
 mod system_tray;
 mod window;
 
-#[cfg(feature = "tray")]
+#[cfg(any(feature = "tray", feature = "ayatana"))]
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 pub use self::{
   clipboard::Clipboard,
