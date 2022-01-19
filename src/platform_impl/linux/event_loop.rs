@@ -477,14 +477,10 @@ impl<T: 'static> EventLoop<T> {
             });
 
             let tx_clone = event_tx.clone();
-            window.connect_motion_notify_event(move |window, _| {
-              let display = window.display();
-              if let Some(cursor) = display
-                .default_seat()
-                .and_then(|device_manager| device_manager.pointer())
-              {
+            window.connect_motion_notify_event(move |window, motion| {
+              if let Some(cursor) = motion.device() {
                 let scale_factor = window.scale_factor();
-                let (_, x, y) = cursor.position();
+                let (_, x, y) = cursor.window_at_position();
                 if let Err(e) = tx_clone.send(Event::WindowEvent {
                   window_id: RootWindowId(id),
                   event: WindowEvent::CursorMoved {
