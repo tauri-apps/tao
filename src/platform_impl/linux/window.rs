@@ -10,7 +10,7 @@ use std::{
 
 use gdk::{WindowEdge, WindowState};
 use gdk_pixbuf::{Colorspace, Pixbuf};
-use gtk::{prelude::*, AccelGroup, ApplicationWindow, Orientation};
+use gtk::{prelude::*, AccelGroup, Orientation};
 use raw_window_handle::{RawWindowHandle, XlibHandle};
 
 use crate::{
@@ -144,21 +144,20 @@ impl Window {
       .max_inner_size
       .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
       .unwrap_or_default();
-    window.set_geometry_hints::<ApplicationWindow>(
-      None,
-      Some(&gdk::Geometry {
+    window.window().unwrap().set_geometry_hints(
+      &gdk::Geometry::new(
         min_width,
         min_height,
         max_width,
         max_height,
-        base_width: 0,
-        base_height: 0,
-        width_inc: 0,
-        height_inc: 0,
-        min_aspect: 0f64,
-        max_aspect: 0f64,
-        win_gravity: gdk::Gravity::Center,
-      }),
+        0,
+        0,
+        0,
+        0,
+        0f64,
+        0f64,
+        gdk::Gravity::Center,
+      ),
       geom_mask,
     );
 

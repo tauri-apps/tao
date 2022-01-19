@@ -30,8 +30,8 @@ impl MonitorHandle {
   pub fn size(&self) -> PhysicalSize<u32> {
     let rect = self.monitor.geometry();
     LogicalSize {
-      width: rect.width as u32,
-      height: rect.height as u32,
+      width: rect.width() as u32,
+      height: rect.height() as u32,
     }
     .to_physical(self.scale_factor())
   }
@@ -40,8 +40,8 @@ impl MonitorHandle {
   pub fn position(&self) -> PhysicalPosition<i32> {
     let rect = self.monitor.geometry();
     LogicalPosition {
-      x: rect.x,
-      y: rect.y,
+      x: rect.x(),
+      y: rect.y(),
     }
     .to_physical(self.scale_factor())
   }
