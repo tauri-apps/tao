@@ -144,8 +144,10 @@ impl Window {
       .max_inner_size
       .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
       .unwrap_or_default();
-    window.window().unwrap().set_geometry_hints(
-      &gdk::Geometry::new(
+    let picky_none: Option<&gtk::Window> = None;
+    window.set_geometry_hints(
+      picky_none,
+      Some(&gdk::Geometry::new(
         min_width,
         min_height,
         max_width,
@@ -157,7 +159,7 @@ impl Window {
         0f64,
         0f64,
         gdk::Gravity::Center,
-      ),
+      )),
       geom_mask,
     );
 

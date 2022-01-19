@@ -144,8 +144,10 @@ impl<T: 'static> EventLoop<T> {
           WindowRequest::Position((x, y)) => window.move_(x, y),
           WindowRequest::Size((w, h)) => window.resize(w, h),
           WindowRequest::MinSize((min_width, min_height)) => {
-            window.window().unwrap().set_geometry_hints(
-              &gdk::Geometry::new(
+            let picky_none: Option<&gtk::Window> = None;
+            window.set_geometry_hints(
+              picky_none,
+              Some(&gdk::Geometry::new(
                 min_width,
                 min_height,
                 0,
@@ -157,13 +159,15 @@ impl<T: 'static> EventLoop<T> {
                 0f64,
                 0f64,
                 gdk::Gravity::Center,
-              ),
+              )),
               gdk::WindowHints::MIN_SIZE,
             )
           }
           WindowRequest::MaxSize((max_width, max_height)) => {
-            window.window().unwrap().set_geometry_hints(
-              &gdk::Geometry::new(
+            let picky_none: Option<&gtk::Window> = None;
+            window.set_geometry_hints(
+              picky_none,
+              Some(&gdk::Geometry::new(
                 0,
                 0,
                 max_width,
@@ -175,7 +179,7 @@ impl<T: 'static> EventLoop<T> {
                 0f64,
                 0f64,
                 gdk::Gravity::Center,
-              ),
+              )),
               gdk::WindowHints::MAX_SIZE,
             )
           }
