@@ -147,7 +147,7 @@ pub enum Event<'a, T: 'static> {
   /// from [`WidgetExt`] directly.**
   ///
   /// [`WidgetExt`]: https://gtk-rs.org/gtk3-rs/stable/latest/docs/gtk/prelude/trait.WidgetExt.html
-  RedrawRequested(WindowId),
+  RedrawRequested(WindowId, Option<Vec<u8>>),
 
   /// Emitted after all `RedrawRequested` events have been processed and control flow is about to
   /// be taken away from the program. If there are no `RedrawRequested` events, it is emitted
@@ -179,7 +179,7 @@ impl<T: Clone> Clone for Event<'static, T> {
       },
       NewEvents(cause) => NewEvents(*cause),
       MainEventsCleared => MainEventsCleared,
-      RedrawRequested(wid) => RedrawRequested(*wid),
+      RedrawRequested(wid, textures) => RedrawRequested(*wid, textures.clone()),
       RedrawEventsCleared => RedrawEventsCleared,
       LoopDestroyed => LoopDestroyed,
       Suspended => Suspended,
@@ -216,7 +216,7 @@ impl<'a, T> Event<'a, T> {
       DeviceEvent { device_id, event } => Ok(DeviceEvent { device_id, event }),
       NewEvents(cause) => Ok(NewEvents(cause)),
       MainEventsCleared => Ok(MainEventsCleared),
-      RedrawRequested(wid) => Ok(RedrawRequested(wid)),
+      RedrawRequested(wid, textures) => Ok(RedrawRequested(wid, textures)),
       RedrawEventsCleared => Ok(RedrawEventsCleared),
       LoopDestroyed => Ok(LoopDestroyed),
       Suspended => Ok(Suspended),
@@ -255,7 +255,7 @@ impl<'a, T> Event<'a, T> {
       DeviceEvent { device_id, event } => Some(DeviceEvent { device_id, event }),
       NewEvents(cause) => Some(NewEvents(cause)),
       MainEventsCleared => Some(MainEventsCleared),
-      RedrawRequested(wid) => Some(RedrawRequested(wid)),
+      RedrawRequested(wid, textures) => Some(RedrawRequested(wid, textures)),
       RedrawEventsCleared => Some(RedrawEventsCleared),
       LoopDestroyed => Some(LoopDestroyed),
       Suspended => Some(Suspended),

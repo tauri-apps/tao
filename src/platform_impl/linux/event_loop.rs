@@ -81,6 +81,8 @@ pub struct EventLoop<T: 'static> {
   events: crossbeam_channel::Receiver<Event<'static, T>>,
   /// Draw queue of EventLoop
   draws: crossbeam_channel::Receiver<WindowId>,
+  /// Textures
+  textures: crossbeam_channel::Receiver<Vec<u8>>,
 }
 
 impl<T: 'static> EventLoop<T> {
@@ -101,6 +103,7 @@ impl<T: 'static> EventLoop<T> {
     // Send StartCause::Init event
     let (event_tx, event_rx) = crossbeam_channel::unbounded();
     let (draw_tx, draw_rx) = crossbeam_channel::unbounded();
+    let (buffer_tx, buffer_rx) = crossbeam_channel::unbounded();
     let event_tx_ = event_tx.clone();
     app.connect_activate(move |_| {
       if let Err(e) = event_tx_.send(Event::NewEvents(StartCause::Init)) {
@@ -669,6 +672,20 @@ impl<T: 'static> EventLoop<T> {
               log::warn!("Failed to send redraw event to event channel: {}", e);
             }
 
+            let buffer: gdk_pixbuf::Pixbuf = window.window().unwrap().pixbuf(0, 0, 6, 4).unwrap();
+            let pixbuf_bytes: glib::Bytes = buffer.read_pixel_bytes().unwrap();
+
+            println!(
+              "HAVE BUFFER: w={}, h={}, byte_length={} bits_per_sample={} bytes={:?}",
+              buffer.width(),
+              buffer.height(),
+              buffer.byte_length(),
+              buffer.bits_per_sample(),
+              pixbuf_bytes.as_ref()
+            );
+
+            buffer_tx.send(pixbuf_bytes.to_vec()).unwrap();
+
             window.queue_draw();
           }
           WindowRequest::Menu(m) => match m {
@@ -753,6 +770,7 @@ impl<T: 'static> EventLoop<T> {
       user_event_tx,
       events: event_rx,
       draws: draw_rx,
+      textures: buffer_rx,
     };
 
     context.pop_thread_default();
@@ -814,6 +832,7 @@ impl<T: 'static> EventLoop<T> {
     let window_target = &self.window_target;
     let events = &self.events;
     let draws = &self.draws;
+    let textures = &self.textures;
 
     window_target.p.app.activate();
 
@@ -903,7 +922,7 @@ impl<T: 'static> EventLoop<T> {
           }
           _ => match draws.try_recv() {
             Ok(id) => callback(
-              Event::RedrawRequested(RootWindowId(id)),
+              Event::RedrawRequested(RootWindowId(id), Some(textures.try_recv().unwrap())),
               window_target,
               &mut control_flow,
             ),
