@@ -70,6 +70,7 @@ impl SystemTrayBuilder {
       let tray_target: id = msg_send![make_tray_class(), alloc];
       let tray_target: id = msg_send![tray_target, init];
       (*tray_target).set_ivar("status_bar", status_bar);
+      (*tray_target).set_ivar("menu", nil);
       let _: () = msg_send![button, setAction: sel!(click:)];
       let _: () = msg_send![button, setTarget: tray_target];
       let _: () = msg_send![
@@ -81,10 +82,10 @@ impl SystemTrayBuilder {
 
       // attach menu only if provided
       if let Some(menu) = self.system_tray.tray_menu.clone() {
-        // We set the tray menu to button instead of status bar
+        // We set the tray menu to tray_target instead of status bar
         // Because setting directly to status bar will overwrite the event callback of the button
         // See `make_tray_class` for more information.
-        button.setMenu_(menu.menu);
+        (*tray_target).set_ivar("menu", menu.menu);
         let () = msg_send![menu.menu, setDelegate: tray_target];
       }
     }
@@ -150,7 +151,7 @@ impl SystemTray {
 
 /// Create a `TrayHandler` Class that handle button click event and also menu opening and closing.
 ///
-/// We set the tray menu to button instead of status bar, because setting directly to status bar
+/// We set the tray menu to tray_target instead of status bar, because setting directly to status bar
 /// will overwrite the event callback of the button. When `perform_tray_click` called, it will set
 /// the menu to status bar in the end. And when the menu is closed `menu_did_close` will set it to
 /// nil again.
@@ -162,6 +163,7 @@ fn make_tray_class() -> *const Class {
     let superclass = class!(NSObject);
     let mut decl = ClassDecl::new("TaoTrayHandler", superclass).unwrap();
     decl.add_ivar::<id>("status_bar");
+    decl.add_ivar::<id>("menu");
     decl.add_method(
       sel!(click:),
       perform_tray_click as extern "C" fn(&mut Object, _, id),
@@ -228,10 +230,12 @@ extern "C" fn perform_tray_click(this: &mut Object, _: Sel, button: id) {
 
       AppState::queue_event(EventWrapper::StaticEvent(event));
 
-      let menu = button.menu();
-      let status_bar = this.get_ivar::<id>("status_bar");
-      status_bar.setMenu_(menu);
-      let () = msg_send![button, performClick: nil];
+      let menu = this.get_ivar::<id>("menu");
+      if *menu != nil {
+        let status_bar = this.get_ivar::<id>("status_bar");
+        status_bar.setMenu_(*menu);
+        let () = msg_send![button, performClick: nil];
+      }
     }
   }
 }

@@ -9,9 +9,11 @@
   target_os = "openbsd"
 ))]
 
-use crate::event_loop::EventLoop;
 pub use crate::platform_impl::{hit_test, EventLoop as UnixEventLoop};
-use crate::window::{Window, WindowBuilder};
+use crate::{
+  event_loop::EventLoop,
+  window::{Window, WindowBuilder},
+};
 
 /// Additional methods on `Window` that are specific to Unix.
 pub trait WindowExtUnix {
