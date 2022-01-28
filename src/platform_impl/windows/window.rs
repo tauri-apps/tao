@@ -34,7 +34,7 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
-  menu::MenuType,
+  menu::Menu as RootMenu,
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{
     dark_mode::try_theme,
@@ -68,7 +68,7 @@ pub struct Window {
   thread_executor: event_loop::EventLoopThreadExecutor,
 
   // The menu associated with the window
-  menu: Option<HMenuWrapper>,
+  hmenu: Option<HMenuWrapper>,
 }
 
 impl Window {
@@ -139,7 +139,7 @@ impl Window {
   }
 
   // TODO (lemarier): allow menu update
-  pub fn set_menu(&self, _new_menu: Option<menu::Menu>) {}
+  pub fn set_menu(&self, _new_menu: Option<RootMenu>) {}
 
   #[inline]
   pub fn set_visible(&self, visible: bool) {
@@ -702,7 +702,7 @@ impl Window {
 
   #[inline]
   pub fn show_menu(&self) {
-    if let Some(menu) = &self.menu {
+    if let Some(menu) = &self.hmenu {
       unsafe {
         SetMenu(self.hwnd(), menu.0);
       }
@@ -896,7 +896,7 @@ unsafe fn init<T: 'static>(
     window: real_window,
     window_state,
     thread_executor: event_loop.create_thread_executor(),
-    menu: None,
+    hmenu: None,
   };
 
   win.set_skip_taskbar(pl_attribs.skip_taskbar);
@@ -930,11 +930,10 @@ unsafe fn init<T: 'static>(
           event_loop_runner.send_event(e)
         }
       }),
-      MenuType::MenuBar,
       Some(window_id),
     );
 
-    win.menu = Some(HMenuWrapper(menu::initialize(
+    win.hmenu = Some(HMenuWrapper(menu::set_for_window(
       window_menu,
       win.hwnd(),
       menu_handler,

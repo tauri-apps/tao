@@ -14,7 +14,7 @@ pub use self::{
   global_shortcut::{GlobalShortcut, ShortcutManager},
   icon::WinIcon,
   keycode::{keycode_from_scancode, keycode_to_scancode},
-  menu::{Menu, MenuItemAttributes},
+  menu::{CustomMenuItem, Menu},
   monitor::{MonitorHandle, VideoMode},
   window::{hit_test, Window},
 };
@@ -29,8 +29,8 @@ mod menu;
 
 #[cfg(feature = "tray")]
 mod system_tray;
-#[cfg(feature = "tray")]
-pub use self::system_tray::{SystemTray, SystemTrayBuilder};
+// #[cfg(feature = "tray")]
+// pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 
 #[non_exhaustive]
 #[derive(Clone)]

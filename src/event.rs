@@ -43,7 +43,6 @@ use crate::{
   accelerator::AcceleratorId,
   dpi::{PhysicalPosition, PhysicalSize},
   keyboard::{self, ModifiersState},
-  menu::{MenuId, MenuType},
   platform_impl,
   window::{Theme, WindowId},
 };
@@ -84,8 +83,7 @@ pub enum Event<'a, T: 'static> {
   #[non_exhaustive]
   MenuEvent {
     window_id: Option<WindowId>,
-    menu_id: MenuId,
-    origin: MenuType,
+    menu_id: u16,
   },
 
   /// Emitted when tray has been clicked.
@@ -184,14 +182,9 @@ impl<T: Clone> Clone for Event<'static, T> {
       LoopDestroyed => LoopDestroyed,
       Suspended => Suspended,
       Resumed => Resumed,
-      MenuEvent {
-        window_id,
-        menu_id,
-        origin,
-      } => MenuEvent {
+      MenuEvent { window_id, menu_id } => MenuEvent {
         window_id: *window_id,
         menu_id: *menu_id,
-        origin: *origin,
       },
       TrayEvent {
         bounds,
@@ -221,15 +214,7 @@ impl<'a, T> Event<'a, T> {
       LoopDestroyed => Ok(LoopDestroyed),
       Suspended => Ok(Suspended),
       Resumed => Ok(Resumed),
-      MenuEvent {
-        window_id,
-        menu_id,
-        origin,
-      } => Ok(MenuEvent {
-        window_id,
-        menu_id,
-        origin,
-      }),
+      MenuEvent { window_id, menu_id } => Ok(MenuEvent { window_id, menu_id }),
       TrayEvent {
         bounds,
         event,
@@ -260,15 +245,7 @@ impl<'a, T> Event<'a, T> {
       LoopDestroyed => Some(LoopDestroyed),
       Suspended => Some(Suspended),
       Resumed => Some(Resumed),
-      MenuEvent {
-        window_id,
-        menu_id,
-        origin,
-      } => Some(MenuEvent {
-        window_id,
-        menu_id,
-        origin,
-      }),
+      MenuEvent { window_id, menu_id } => Some(MenuEvent { window_id, menu_id }),
       TrayEvent {
         bounds,
         event,

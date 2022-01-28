@@ -41,6 +41,7 @@ serde = { version = "1", optional = true, features = [ "serde_derive" ] }
 raw-window-handle = "0.4"
 bitflags = "1"
 crossbeam-channel = "0.5"
+uuid = {version = "0.8.2", features = ["v4"]}
 
 [dev-dependencies]
 image = "0.23"

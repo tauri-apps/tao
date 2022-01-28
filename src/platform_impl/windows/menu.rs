@@ -1,7 +1,10 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashMap, fmt, sync::Mutex};
+use std::{
+  collections::HashMap,
+  sync::{Mutex, MutexGuard},
+};
 
 use windows::Win32::{
   Foundation::{HWND, LPARAM, LRESULT, PSTR, PWSTR, WPARAM},
@@ -14,21 +17,15 @@ use windows::Win32::{
 
 use crate::{
   accelerator::Accelerator,
+  error::OsError as RootOsError,
   event::{Event, WindowEvent},
   keyboard::{KeyCode, ModifiersState},
-  menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
+  menu::Menu as RootMenu,
+  menu::MenuId,
   window::WindowId as RootWindowId,
 };
 
-use super::{accelerator::register_accel, keyboard::key_to_vk, util, WindowId};
-
-#[derive(Copy, Clone)]
-struct AccelWrapper(ACCEL);
-impl fmt::Debug for AccelWrapper {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-    f.pad(&format!(""))
-  }
-}
+use super::{accelerator::register_accel, keyboard::key_to_vk, util, OsError, WindowId};
 
 const CUT_ID: usize = 5001;
 const COPY_ID: usize = 5002;
@@ -39,32 +36,26 @@ const CLOSE_ID: usize = 5006;
 const QUIT_ID: usize = 5007;
 const MINIMIZE_ID: usize = 5008;
 
-lazy_static! {
-  static ref MENU_IDS: Mutex<Vec<u16>> = Mutex::new(vec![]);
-}
+const MENU_SUBCLASS_ID: usize = 4568;
 
 pub struct MenuHandler {
   window_id: Option<RootWindowId>,
-  menu_type: MenuType,
   event_sender: Box<dyn Fn(Event<'static, ()>)>,
 }
 
 impl MenuHandler {
   pub fn new(
     event_sender: Box<dyn Fn(Event<'static, ()>)>,
-    menu_type: MenuType,
     window_id: Option<RootWindowId>,
   ) -> MenuHandler {
     MenuHandler {
       window_id,
-      menu_type,
       event_sender,
     }
   }
   pub fn send_menu_event(&self, menu_id: u16) {
     (self.event_sender)(Event::MenuEvent {
-      menu_id: MenuId(menu_id),
-      origin: self.menu_type,
+      menu_id,
       window_id: self.window_id,
     });
   }
@@ -74,230 +65,199 @@ impl MenuHandler {
   }
 }
 
-#[derive(Debug, Clone)]
-pub struct MenuItemAttributes(pub(crate) u16, HMENU);
-
-impl MenuItemAttributes {
-  pub fn id(&self) -> MenuId {
-    MenuId(self.0)
-  }
-  pub fn set_enabled(&mut self, enabled: bool) {
-    unsafe {
-      EnableMenuItem(
-        self.1,
-        self.0 as u32,
-        match enabled {
-          true => MF_ENABLED,
-          false => MF_DISABLED,
-        },
-      );
-    }
-  }
-  pub fn set_title(&mut self, title: &str) {
-    unsafe {
-      let info = MENUITEMINFOA {
-        cbSize: std::mem::size_of::<MENUITEMINFOA>() as _,
-        fMask: MIIM_STRING,
-        dwTypeData: PSTR(String::from(title).as_mut_ptr()),
-        ..Default::default()
-      };
-
-      SetMenuItemInfoA(self.1, self.0 as u32, false, &info);
-    }
-  }
-  pub fn set_selected(&mut self, selected: bool) {
-    unsafe {
-      CheckMenuItem(
-        self.1,
-        self.0 as u32,
-        match selected {
-          true => MF_CHECKED,
-          false => MF_UNCHECKED,
-        },
-      );
-    }
-  }
-
-  // todo: set custom icon to the menu item
-  pub fn set_icon(&mut self, _icon: Vec<u8>) {}
+struct MenusData {
+  menus: HashMap<MenuId, Menu>,
+  custom_menu_items: HashMap<MenuId, CustomMenuItem>,
 }
 
-#[derive(Debug, Clone)]
+lazy_static! {
+  static ref MENUS_DATA: Mutex<MenusData> = Mutex::new(MenusData {
+    menus: HashMap::new(),
+    custom_menu_items: HashMap::new()
+  });
+}
+
+#[derive(Clone, Copy)]
+enum MenuItem {
+  Custom,
+  Submenu,
+  NativeItem,
+}
+
 pub struct Menu {
-  hmenu: HMENU,
-  accels: HashMap<u16, AccelWrapper>,
-}
-
-unsafe impl Send for Menu {}
-unsafe impl Sync for Menu {}
-
-impl Default for Menu {
-  fn default() -> Self {
-    Menu::new()
-  }
+  id: MenuId,
+  title: String,
+  enabled: bool,
+  items: Vec<(MenuItem, MenuId)>,
+  hmenu: Option<HMENU>,
 }
 
 impl Menu {
-  pub fn new() -> Self {
-    unsafe {
-      let hmenu = CreateMenu();
-      Menu {
-        hmenu,
-        accels: HashMap::default(),
-      }
+  pub fn new(title: &str) -> Result<MenuId, RootOsError> {
+    if let Ok(mut menus_data) = MENUS_DATA.lock() {
+      let id = uuid::Uuid::new_v4().to_u128_le() as u16;
+      menus_data.menus.insert(
+        id,
+        Menu {
+          id,
+          enabled: true,
+          title: title.into(),
+          items: Vec::new(),
+          hmenu: None,
+        },
+      );
+      Ok(id)
+    } else {
+      Err(os_error!(
+        OsError::CreationError("Failed to register menu",)
+      ))
     }
   }
 
-  pub fn new_popup_menu() -> Self {
-    unsafe {
-      let hmenu = CreatePopupMenu();
-      Menu {
-        hmenu,
-        accels: HashMap::default(),
-      }
-    }
-  }
-
-  pub fn hmenu(&self) -> HMENU {
-    self.hmenu
-  }
-
-  // Get the accels table
-  pub(crate) fn accels(&self) -> Option<Vec<ACCEL>> {
-    if self.accels.is_empty() {
-      return None;
-    }
-    Some(self.accels.values().cloned().map(|d| d.0).collect())
-  }
-
-  pub fn add_item(
-    &mut self,
-    menu_id: MenuId,
-    title: &str,
-    accelerators: Option<Accelerator>,
-    enabled: bool,
-    selected: bool,
-    _menu_type: MenuType,
-  ) -> CustomMenuItem {
-    unsafe {
-      let mut flags = MF_STRING;
-      if !enabled {
-        flags |= MF_GRAYED;
-      }
-      if selected {
-        flags |= MF_CHECKED;
-      }
-
-      let mut anno_title = title.to_string();
-      // format title
-      if let Some(accelerators) = accelerators.clone() {
-        anno_title.push('\t');
-        format_hotkey(accelerators, &mut anno_title);
-      }
-
-      AppendMenuW(self.hmenu, flags, menu_id.0 as _, anno_title);
-
-      // add our accels
-      if let Some(accelerators) = accelerators {
-        if let Some(accelerators) = convert_accelerator(menu_id.0, accelerators) {
-          self.accels.insert(menu_id.0, AccelWrapper(accelerators));
+  pub fn add_custom_item(menu_id: MenuId, item_id: MenuId) {
+    if let Ok(mut menus_data) = MENUS_DATA.lock() {
+      if let Some(menu) = menus_data.menus.get_mut(&menu_id) {
+        menu.items.push((MenuItem::Custom, item_id));
+        if let Some(hmenu) = menu.hmenu {
+          if let Some(item) = menus_data.custom_menu_items.get(&item_id) {
+            item.add_to_hmenu(hmenu)
+          }
         }
       }
-      MENU_IDS.lock().unwrap().push(menu_id.0 as _);
-      CustomMenuItem(MenuItemAttributes(menu_id.0, self.hmenu))
     }
   }
 
-  pub fn add_submenu(&mut self, title: &str, enabled: bool, mut submenu: Menu) {
+  pub fn add_submenu(pmenu_id: MenuId, submenu_id: MenuId) {
+    if let Ok(mut menus_data) = MENUS_DATA.lock() {
+      if let Some(menu) = menus_data.menus.get_mut(&pmenu_id) {
+        menu.items.push((MenuItem::Submenu, submenu_id));
+        if let Some(hmenu) = menu.hmenu {
+          if let Some(submenu) = menus_data.menus.get(&submenu_id) {
+            let submenu_hmenu = Menu::make_submenu(hmenu, submenu);
+            Menu::add_to_hmenu(submenu_id, submenu_hmenu, &mut menus_data);
+          }
+        }
+      }
+    }
+  }
+
+  fn make_submenu(pmenu: HMENU, submenu: &Menu) -> HMENU {
+    let hmenu = unsafe { CreateMenu() };
+    // let child_accels = std::mem::take(&mut submenu.accels);
+    // self.accels.extend(child_accels);
+
+    let mut flags = MF_POPUP;
+    if !submenu.enabled {
+      flags |= MF_DISABLED;
+    }
     unsafe {
-      let child_accels = std::mem::take(&mut submenu.accels);
-      self.accels.extend(child_accels);
-
-      let mut flags = MF_POPUP;
-      if !enabled {
-        flags |= MF_DISABLED;
-      }
-
-      AppendMenuW(self.hmenu, flags, submenu.hmenu().0 as usize, title);
+      AppendMenuW(pmenu, flags, hmenu.0 as _, submenu.title.clone());
     }
+    hmenu
   }
 
-  pub fn add_native_item(
-    &mut self,
-    item: MenuItem,
-    _menu_type: MenuType,
-  ) -> Option<CustomMenuItem> {
-    match item {
-      MenuItem::Separator => {
-        unsafe {
-          AppendMenuW(self.hmenu, MF_SEPARATOR, 0, PWSTR::default());
-        };
+  fn add_to_hmenu(menu_id: MenuId, hmenu: HMENU, menus_data: &mut MutexGuard<'_, MenusData>) {
+    if let Some(menu) = menus_data.menus.get_mut(&menu_id) {
+      for (mtype, id) in menu.items.clone() {
+        match mtype {
+          MenuItem::Custom => {
+            if let Some(item) = menus_data.custom_menu_items.get_mut(&id) {
+              item.add_to_hmenu(hmenu)
+            }
+          }
+          MenuItem::Submenu => {
+            if let Some(submenu) = menus_data.menus.get_mut(&id) {
+              let submenu_hmenu = Menu::make_submenu(hmenu, &submenu);
+              submenu.hmenu = Some(submenu_hmenu);
+              Menu::add_to_hmenu(id, submenu_hmenu, menus_data);
+            }
+          }
+          MenuItem::NativeItem => todo!(),
+        }
       }
-      MenuItem::Cut => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, CUT_ID, "&Cut\tCtrl+X");
-      },
-      MenuItem::Copy => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, COPY_ID, "&Copy\tCtrl+C");
-      },
-      MenuItem::Paste => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, PASTE_ID, "&Paste\tCtrl+V");
-      },
-      MenuItem::SelectAll => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, SELECT_ALL_ID, "&Select all\tCtrl+A");
-      },
-      MenuItem::Hide => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, HIDE_ID, "&Hide\tCtrl+H");
-      },
-      MenuItem::CloseWindow => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, CLOSE_ID, "&Close\tAlt+F4");
-      },
-      MenuItem::Quit => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, QUIT_ID, "&Quit");
-      },
-      MenuItem::Minimize => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, MINIMIZE_ID, "&Minimize");
-      },
-      // FIXME: create all shortcuts of MenuItem if possible...
-      // like linux?
-      _ => (),
-    };
-
-    None
+    }
   }
 }
 
-/*
-  Disabled as menu's seems to be linked to the app
-  so they are dropped when the app closes.
-  see discussion here;
+pub struct CustomMenuItem {
+  id: u16,
+  title: String,
+  enabled: bool,
+  selected: bool,
+  accel: Option<Accelerator>,
+}
 
-  https://github.com/tauri-apps/tao/pull/106#issuecomment-880034210
+impl CustomMenuItem {
+  pub fn new(
+    title: &str,
+    enabled: bool,
+    selected: bool,
+    accel: Option<Accelerator>,
+  ) -> Result<MenuId, RootOsError> {
+    if let Ok(mut menus_data) = MENUS_DATA.lock() {
+      let id = uuid::Uuid::new_v4().to_u128_le() as u16;
+      menus_data.custom_menu_items.insert(
+        id,
+        Self {
+          id,
+          title: title.into(),
+          enabled,
+          selected,
+          accel,
+        },
+      );
 
-  impl Drop for Menu {
-    fn drop(&mut self) {
-      unsafe {
-        DestroyMenu(self.hmenu);
-      }
+      Ok(id)
+    } else {
+      Err(os_error!(OsError::CreationError(
+        "Failed to register menu item",
+      )))
     }
   }
-*/
 
-const MENU_SUBCLASS_ID: usize = 4568;
+  fn add_to_hmenu(&self, menu: HMENU) {
+    let mut flags = MF_STRING;
+    if !self.enabled {
+      flags |= MF_GRAYED;
+    }
+    if self.selected {
+      flags |= MF_CHECKED;
+    }
+    // format title
+    // if let Some(accelerators) = accelerators.clone() {
+    //   anno_title.push('\t');
+    //   format_hotkey(accelerators, &mut anno_title);
+    // }
+    unsafe {
+      AppendMenuW(menu, flags, self.id as _, self.title.clone());
+    }
+    // add our accels
+    // if let Some(accelerators) = accelerators {
+    //   if let Some(accelerators) = convert_accelerator(menu_id.0, accelerators) {
+    //     self.accels.insert(menu_id.0, AccelWrapper(accelerators));
+    //   }
+    // }
+  }
+}
 
-pub fn initialize(menu_builder: Menu, window: HWND, menu_handler: MenuHandler) -> HMENU {
-  let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
-  let menu = menu_builder.hmenu();
+pub fn set_for_window(menu: RootMenu, window: HWND, menu_handler: MenuHandler) -> HMENU {
+  let sender = Box::into_raw(Box::new(menu_handler));
+  let hmenubar = unsafe { CreateMenu() };
+
+  if let Ok(mut menus_data) = MENUS_DATA.lock() {
+    Menu::add_to_hmenu(menu.id(), hmenubar, &mut menus_data);
+  }
 
   unsafe {
     SetWindowSubclass(window, Some(subclass_proc), MENU_SUBCLASS_ID, sender as _);
-    SetMenu(window, menu);
+    SetMenu(window, hmenubar);
   }
 
-  if let Some(accels) = menu_builder.accels() {
-    register_accel(window, &accels);
-  }
+  // if let Some(accels) = menu.accels() {
+  //   register_accel(window, &accels);
+  // }
 
-  menu
+  HMENU::default()
 }
 
 pub(crate) unsafe extern "system" fn subclass_proc(
@@ -347,7 +307,15 @@ pub(crate) unsafe extern "system" fn subclass_proc(
         }
         _ => {
           let menu_id = util::LOWORD(wparam.0 as u32);
-          if MENU_IDS.lock().unwrap().contains(&menu_id) {
+          let mut is_menu_event = false;
+          {
+            if let Ok(menus_data) = MENUS_DATA.lock() {
+              if menus_data.custom_menu_items.get(&menu_id).is_some() {
+                is_menu_event = true;
+              }
+            }
+          }
+          if is_menu_event {
             subclass_input.send_menu_event(menu_id);
           }
         }
