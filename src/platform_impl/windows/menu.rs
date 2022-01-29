@@ -21,7 +21,7 @@ use crate::{
   event::{Event, WindowEvent},
   keyboard::{KeyCode, ModifiersState},
   menu::Menu as RootMenu,
-  menu::MenuId,
+  menu::{MenuId, NativeMenuItem},
   window::WindowId as RootWindowId,
 };
 
@@ -133,6 +133,22 @@ impl Menu {
     }
   }
 
+  pub fn add_native_item(pmenu_id: MenuId, item: NativeMenuItem) {
+    if let Ok(mut menus_data) = MENUS_DATA.lock() {
+      let mut pmenu_hmenu = None;
+      {
+        if let Some(menu) = menus_data.menus.get_mut(&pmenu_id) {
+          menu.items.push((MenuItem::NativeItem, item.id()));
+          pmenu_hmenu = menu.hmenu;
+        }
+      }
+
+      if let Some(hmenu) = pmenu_hmenu {
+        item.add_to_hmenu(hmenu);
+      }
+    }
+  }
+
   pub fn add_submenu(pmenu_id: MenuId, submenu_id: MenuId) {
     if let Ok(mut menus_data) = MENUS_DATA.lock() {
       if let Some(menu) = menus_data.menus.get_mut(&pmenu_id) {
@@ -164,7 +180,10 @@ impl Menu {
               Menu::add_to_hmenu(id, submenu_hmenu, menus_data);
             }
           }
-          MenuItem::NativeItem => todo!(),
+          MenuItem::NativeItem => {
+            let item = NativeMenuItem::from_id(id);
+            item.add_to_hmenu(hmenu);
+          }
         }
       }
     }
@@ -333,6 +352,41 @@ impl CustomMenuItem {
     //     self.accels.insert(menu_id.0, AccelWrapper(accelerators));
     //   }
     // }
+  }
+}
+
+impl NativeMenuItem {
+  fn add_to_hmenu(&self, hmenu: HMENU) {
+    match self {
+      NativeMenuItem::Separator => unsafe {
+        AppendMenuW(hmenu, MF_SEPARATOR, 0, "");
+      },
+      NativeMenuItem::Copy => unsafe {
+        AppendMenuW(hmenu, MF_STRING, self.id() as _, "&Copy\tCtrl+C");
+      },
+      NativeMenuItem::Cut => unsafe {
+        AppendMenuW(hmenu, MF_STRING, self.id() as _, "&Cut\tCtrl+X");
+      },
+      NativeMenuItem::Paste => unsafe {
+        AppendMenuW(hmenu, MF_STRING, self.id() as _, "&Paste\tCtrl+V");
+      },
+      NativeMenuItem::SelectAll => unsafe {
+        AppendMenuW(hmenu, MF_STRING, self.id() as _, "&Select all\tCtrl+A");
+      },
+      NativeMenuItem::Minimize => unsafe {
+        AppendMenuW(hmenu, MF_STRING, self.id() as _, "&Minimize");
+      },
+      NativeMenuItem::Hide => unsafe {
+        AppendMenuW(hmenu, MF_STRING, self.id() as _, "&Hide\tCtrl+H");
+      },
+      NativeMenuItem::CloseWindow => unsafe {
+        AppendMenuW(hmenu, MF_STRING, self.id() as _, "&Close\tAlt+F4");
+      },
+      NativeMenuItem::Quit => unsafe {
+        AppendMenuW(hmenu, MF_STRING, self.id() as _, "&Quit");
+      },
+      _ => {}
+    }
   }
 }
 
