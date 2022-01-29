@@ -16,42 +16,52 @@ use crate::{accelerator::Accelerator, error::OsError, platform_impl};
 
 pub type MenuId = u16;
 
+/// Represets a Menu that can be used as a menu bar, a context menu, or a submenu.
+///
+/// ## Platform-specific
+///
+/// - **Android / iOS:** Unsupported.
+/// - **Windows / Linux:** If used as a menu bar, it will apear at the top of the window.
+/// - **macOs:** if used as a menu bar, it should be used with [crate::event_loop::EventLoop] and it will apear in the macOS menu bar.
 #[derive(Debug, Clone)]
 pub struct Menu(MenuId);
 impl Menu {
+  /// Creates a new [Menu] without a title, suitable to be used as a menu bar, or a context menu.
   pub fn new() -> Result<Self, OsError> {
     Self::with_title("")
   }
 
+  /// Creates a new [Menu] with a title, suitable to be used as a submenu inside a menu bar, or a contex menu, or inside another submenu.
   pub fn with_title(title: &str) -> Result<Self, OsError> {
     platform_impl::Menu::new(title).map(|i| Self(i))
   }
 
-  #[must_use]
-  pub fn from_id(id: MenuId) -> Self {
-    Self(id)
-  }
-
+  /// Returns a unique identifier to the menu.
   pub fn id(&self) -> MenuId {
     self.0
   }
 
+  /// Adds a custom item to this menu.
   pub fn add_custom_item(&mut self, item: &CustomMenuItem) {
     platform_impl::Menu::add_custom_item(self.id(), item.id())
   }
 
+  /// Adds a native item to this menu.
   pub fn add_native_item(&mut self, item: NativeMenuItem) {
     platform_impl::Menu::add_native_item(self.id(), item)
   }
 
+  /// Adds a submenu to this menu.
   pub fn add_submenu(&mut self, menu: &Menu) {
     platform_impl::Menu::add_submenu(self.id(), menu.id())
   }
 }
 
+/// Represets a custom menu item that can be used in [Menu]s.
 #[derive(Debug, Clone)]
 pub struct CustomMenuItem(MenuId);
 impl CustomMenuItem {
+  // Creates a new [CustomMenuItem]
   pub fn new(
     title: &str,
     enabled: bool,
@@ -61,23 +71,22 @@ impl CustomMenuItem {
     platform_impl::CustomMenuItem::new(title, enabled, selected, accel).map(|i| Self(i))
   }
 
-  #[must_use]
-  pub fn from_id(id: MenuId) -> Self {
-    Self(id)
-  }
-
+  /// Returns a unique identifier to the menu item.
   pub fn id(&self) -> MenuId {
     self.0
   }
 
+  /// Modifies the title (label) of the menu item.
   pub fn set_title(&mut self, title: &str) {
     platform_impl::CustomMenuItem::set_title(self.id(), title)
   }
 
+  /// Enables or disables the menu item.
   pub fn set_enabled(&mut self, enabled: bool) {
     platform_impl::CustomMenuItem::set_enabled(self.id(), enabled)
   }
 
+  /// Modifies the selected state of the menu item.
   pub fn set_selected(&mut self, selected: bool) {
     platform_impl::CustomMenuItem::set_selected(self.id(), selected)
   }
