@@ -27,17 +27,6 @@ use crate::{
 
 use super::{accelerator::register_accel, keyboard::key_to_vk, util, OsError, WindowId};
 
-const CUT_ID: usize = 5001;
-const COPY_ID: usize = 5002;
-const PASTE_ID: usize = 5003;
-const SELECT_ALL_ID: usize = 5004;
-const HIDE_ID: usize = 5005;
-const CLOSE_ID: usize = 5006;
-const QUIT_ID: usize = 5007;
-const MINIMIZE_ID: usize = 5008;
-
-const MENU_SUBCLASS_ID: usize = 4568;
-
 pub struct MenuEventHandler {
   window_id: Option<RootWindowId>,
   event_sender: Box<dyn Fn(Event<'static, ()>)>,
@@ -390,6 +379,7 @@ impl NativeMenuItem {
   }
 }
 
+const MENU_SUBCLASS_ID: usize = 4568;
 pub fn set_for_window(menu: RootMenu, window: HWND, menu_handler: MenuEventHandler) -> HMENU {
   let sender = Box::into_raw(Box::new(menu_handler));
   let hmenubar = unsafe { CreateMenu() };
@@ -427,45 +417,46 @@ pub(crate) unsafe extern "system" fn subclass_proc(
 
   match msg {
     win32wm::WM_COMMAND => {
-      match wparam.0 {
-        CUT_ID => {
-          execute_edit_command(EditCommand::Cut);
-        }
-        COPY_ID => {
+      let menu_id = util::LOWORD(wparam.0 as u32);
+      match menu_id {
+        _ if menu_id == NativeMenuItem::id(&NativeMenuItem::Copy) => {
           execute_edit_command(EditCommand::Copy);
         }
-        PASTE_ID => {
+        _ if menu_id == NativeMenuItem::id(&NativeMenuItem::Cut) => {
+          execute_edit_command(EditCommand::Cut);
+        }
+        _ if menu_id == NativeMenuItem::id(&NativeMenuItem::Paste) => {
           execute_edit_command(EditCommand::Paste);
         }
-        SELECT_ALL_ID => {
+        _ if menu_id == NativeMenuItem::id(&NativeMenuItem::SelectAll) => {
           execute_edit_command(EditCommand::SelectAll);
         }
-        HIDE_ID => {
+        _ if menu_id == NativeMenuItem::id(&NativeMenuItem::Minimize) => {
+          ShowWindow(hwnd, SW_MINIMIZE);
+        }
+        _ if menu_id == NativeMenuItem::id(&NativeMenuItem::Hide) => {
           ShowWindow(hwnd, SW_HIDE);
         }
-        CLOSE_ID => {
+        _ if menu_id == NativeMenuItem::id(&NativeMenuItem::CloseWindow) => {
           subclass_input.send_event(Event::WindowEvent {
             window_id: RootWindowId(WindowId(hwnd.0)),
             event: WindowEvent::CloseRequested,
           });
         }
-        QUIT_ID => {
+        _ if menu_id == NativeMenuItem::id(&NativeMenuItem::Quit) => {
           subclass_input.send_event(Event::LoopDestroyed);
         }
-        MINIMIZE_ID => {
-          ShowWindow(hwnd, SW_MINIMIZE);
-        }
+
         _ => {
-          let menu_id = util::LOWORD(wparam.0 as u32);
-          let mut is_menu_event = false;
+          let mut is_a_menu_event = false;
           {
             if let Ok(menus_data) = MENUS_DATA.lock() {
               if menus_data.custom_menu_items.get(&menu_id).is_some() {
-                is_menu_event = true;
+                is_a_menu_event = true;
               }
             }
           }
-          if is_menu_event {
+          if is_a_menu_event {
             subclass_input.send_menu_event(menu_id);
           }
         }
