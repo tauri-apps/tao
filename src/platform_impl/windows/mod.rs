@@ -22,7 +22,6 @@ pub use self::{
 pub use self::icon::WinIcon as PlatformIcon;
 
 use crate::{event::DeviceId as RootDeviceId, icon::Icon, keyboard::Key, window::Theme};
-mod accelerator;
 mod global_shortcut;
 mod keycode;
 mod menu;

@@ -1,13 +1,10 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{
-  collections::HashMap,
-  sync::{Mutex, MutexGuard},
-};
+use std::sync::{Mutex, MutexGuard};
 
 use windows::Win32::{
-  Foundation::{HWND, LPARAM, LRESULT, PSTR, PWSTR, WPARAM},
+  Foundation::{HWND, LPARAM, LRESULT, PSTR, WPARAM},
   UI::{
     Input::KeyboardAndMouse::*,
     Shell::*,
@@ -25,7 +22,7 @@ use crate::{
   window::WindowId as RootWindowId,
 };
 
-use super::{accelerator::register_accel, keyboard::key_to_vk, util, OsError, WindowId};
+use super::{keyboard::key_to_vk, util, OsError, WindowId};
 
 pub struct MenuEventHandler {
   window_id: Option<RootWindowId>,
@@ -55,7 +52,6 @@ impl MenuEventHandler {
 }
 
 pub struct Menu {
-  id: MenuId,
   title: String,
   enabled: bool,
   items: Vec<(MenuItemType, MenuId)>,
@@ -69,7 +65,6 @@ impl Menu {
       menus_data.menus.insert(
         id,
         Menu {
-          id,
           enabled: true,
           title: title.into(),
           items: Vec::new(),
@@ -168,7 +163,7 @@ pub struct CustomMenuItem {
   title: String,
   enabled: bool,
   selected: bool,
-  accel: Option<Accelerator>,
+  accelerator: Option<Accelerator>,
   parent_menus: Vec<MenuId>,
 }
 
@@ -188,7 +183,7 @@ impl CustomMenuItem {
           title: title.into(),
           enabled,
           selected,
-          accel,
+          accelerator: accel,
           parent_menus: Vec::new(),
         },
       );
@@ -210,11 +205,17 @@ impl CustomMenuItem {
       }
 
       if let Some(item) = menus_data.custom_menu_items.get(&item_id) {
+        let mut title = title.to_string();
+        if let Some(accelerator) = &item.accelerator {
+          title.push('\t');
+          title.push_str(accelerator.to_str().as_str());
+        }
+        // NOTE(amrbashir): The title must be a null-terminated string. Otherwise, it will display some gibberish characters at the end.
+        title.push_str("\0");
         let info = MENUITEMINFOA {
           cbSize: std::mem::size_of::<MENUITEMINFOA>() as _,
           fMask: MIIM_STRING,
-          // NOTE(amrbashir): The title must be a null-terminated string. Otherwise, it will display some gibberish characters at the end.
-          dwTypeData: PSTR(format!("{}\0", title).as_ptr() as _),
+          dwTypeData: PSTR(title.as_ptr() as _),
           ..Default::default()
         };
         for menu_id in &item.parent_menus {
@@ -290,20 +291,20 @@ impl CustomMenuItem {
     if self.selected {
       flags |= MF_CHECKED;
     }
-    // format title
-    // if let Some(accelerators) = accelerators.clone() {
-    //   anno_title.push('\t');
-    //   format_hotkey(accelerators, &mut anno_title);
-    // }
-    unsafe {
-      AppendMenuW(menu, flags, self.id as _, self.title.clone());
+
+    let mut title = self.title.clone();
+    if let Some(accelerator) = &self.accelerator {
+      title.push('\t');
+      title.push_str(accelerator.to_str().as_str());
+      if let Some(accel) = accelerator.to_menu_accel(self.id) {
+        if let Ok(mut accel_table) = MENUS_ACCEL_TABLE.lock() {
+          accel_table.push(accel);
+        }
+      }
     }
-    // add our accels
-    // if let Some(accelerators) = accelerators {
-    //   if let Some(accelerators) = convert_accelerator(menu_id.0, accelerators) {
-    //     self.accels.insert(menu_id.0, AccelWrapper(accelerators));
-    //   }
-    // }
+    unsafe {
+      AppendMenuW(menu, flags, self.id as _, title);
+    }
   }
 }
 
@@ -329,7 +330,7 @@ impl NativeMenuItem {
         AppendMenuW(hmenu, MF_STRING, self.id() as _, "&Minimize");
       },
       NativeMenuItem::Hide => unsafe {
-        AppendMenuW(hmenu, MF_STRING, self.id() as _, "&Hide\tCtrl+H");
+        AppendMenuW(hmenu, MF_STRING, self.id() as _, "&Hide");
       },
       NativeMenuItem::CloseWindow => unsafe {
         AppendMenuW(hmenu, MF_STRING, self.id() as _, "&Close\tAlt+F4");
@@ -357,10 +358,6 @@ pub fn set_for_window(menu: RootMenu, window: HWND, menu_handler: MenuEventHandl
     SetWindowSubclass(window, Some(subclass_proc), MENU_SUBCLASS_ID, sender as _);
     SetMenu(window, hmenubar);
   }
-
-  // if let Some(accels) = menu.accels() {
-  //   register_accel(window, &accels);
-  // }
 
   hmenubar
 }
@@ -470,119 +467,138 @@ fn execute_edit_command(command: EditCommand) {
   }
 }
 
-// Convert a hotkey to an accelerator.
-fn convert_accelerator(id: u16, key: Accelerator) -> Option<ACCEL> {
-  let mut virt_key = FVIRTKEY;
-  let key_mods: ModifiersState = key.mods;
-  if key_mods.control_key() {
-    virt_key |= FCONTROL;
-  }
-  if key_mods.alt_key() {
-    virt_key |= FALT;
-  }
-  if key_mods.shift_key() {
-    virt_key |= FSHIFT;
-  }
-
-  let raw_key = if let Some(vk_code) = key_to_vk(&key.key) {
-    let mod_code = vk_code >> 8;
-    if mod_code & 0x1 != 0 {
-      virt_key |= FSHIFT;
-    }
-    if mod_code & 0x02 != 0 {
-      virt_key |= FCONTROL;
-    }
-    if mod_code & 0x04 != 0 {
-      virt_key |= FALT;
-    }
-    vk_code & 0x00ff
-  } else {
-    dbg!("Failed to convert key {:?} into virtual key code", key.key);
-    return None;
-  };
-
-  Some(ACCEL {
-    fVirt: virt_key as u8,
-    key: raw_key as u16,
-    cmd: id,
-  })
+lazy_static! {
+  static ref MENUS_ACCEL_TABLE: Mutex<Vec<ACCEL>> = Mutex::new(Vec::new());
 }
 
-// Format the hotkey in a Windows-native way.
-fn format_hotkey(key: Accelerator, s: &mut String) {
-  let key_mods: ModifiersState = key.mods;
-  if key_mods.control_key() {
-    s.push_str("Ctrl+");
+pub(super) fn get_haccel() -> Option<HACCEL> {
+  if let Ok(accel_table) = MENUS_ACCEL_TABLE.lock() {
+    Some(unsafe {
+      win32wm::CreateAcceleratorTableW(
+        accel_table.as_slice() as *const _ as *const _,
+        accel_table.len() as _,
+      )
+    })
+  } else {
+    None
   }
-  if key_mods.shift_key() {
-    s.push_str("Shift+");
+}
+impl Accelerator {
+  /// Converts [`Accelerator`] to [`ACCEL`].
+  fn to_menu_accel(&self, id: MenuId) -> Option<ACCEL> {
+    let mut virt_key = FVIRTKEY;
+    let key_mods: ModifiersState = self.mods;
+    if key_mods.control_key() {
+      virt_key |= FCONTROL;
+    }
+    if key_mods.alt_key() {
+      virt_key |= FALT;
+    }
+    if key_mods.shift_key() {
+      virt_key |= FSHIFT;
+    }
+
+    let raw_key = if let Some(vk_code) = key_to_vk(&self.key) {
+      let mod_code = vk_code >> 8;
+      if mod_code & 0x1 != 0 {
+        virt_key |= FSHIFT;
+      }
+      if mod_code & 0x02 != 0 {
+        virt_key |= FCONTROL;
+      }
+      if mod_code & 0x04 != 0 {
+        virt_key |= FALT;
+      }
+      vk_code & 0x00ff
+    } else {
+      dbg!("Failed to convert key {:?} into virtual key code", self.key);
+      return None;
+    };
+
+    Some(ACCEL {
+      fVirt: virt_key as u8,
+      key: raw_key as u16,
+      cmd: id,
+    })
   }
-  if key_mods.alt_key() {
-    s.push_str("Alt+");
-  }
-  if key_mods.super_key() {
-    s.push_str("Windows+");
-  }
-  match &key.key {
-    KeyCode::KeyA => s.push('A'),
-    KeyCode::KeyB => s.push('B'),
-    KeyCode::KeyC => s.push('C'),
-    KeyCode::KeyD => s.push('D'),
-    KeyCode::KeyE => s.push('E'),
-    KeyCode::KeyF => s.push('F'),
-    KeyCode::KeyG => s.push('G'),
-    KeyCode::KeyH => s.push('H'),
-    KeyCode::KeyI => s.push('I'),
-    KeyCode::KeyJ => s.push('J'),
-    KeyCode::KeyK => s.push('K'),
-    KeyCode::KeyL => s.push('L'),
-    KeyCode::KeyM => s.push('M'),
-    KeyCode::KeyN => s.push('N'),
-    KeyCode::KeyO => s.push('O'),
-    KeyCode::KeyP => s.push('P'),
-    KeyCode::KeyQ => s.push('Q'),
-    KeyCode::KeyR => s.push('R'),
-    KeyCode::KeyS => s.push('S'),
-    KeyCode::KeyT => s.push('T'),
-    KeyCode::KeyU => s.push('U'),
-    KeyCode::KeyV => s.push('V'),
-    KeyCode::KeyW => s.push('W'),
-    KeyCode::KeyX => s.push('X'),
-    KeyCode::KeyY => s.push('Y'),
-    KeyCode::KeyZ => s.push('Z'),
-    KeyCode::Digit0 => s.push('0'),
-    KeyCode::Digit1 => s.push('1'),
-    KeyCode::Digit2 => s.push('2'),
-    KeyCode::Digit3 => s.push('3'),
-    KeyCode::Digit4 => s.push('4'),
-    KeyCode::Digit5 => s.push('5'),
-    KeyCode::Digit6 => s.push('6'),
-    KeyCode::Digit7 => s.push('7'),
-    KeyCode::Digit8 => s.push('8'),
-    KeyCode::Digit9 => s.push('9'),
-    KeyCode::Comma => s.push(','),
-    KeyCode::Minus => s.push('-'),
-    KeyCode::Period => s.push('.'),
-    KeyCode::Space => s.push_str("Space"),
-    KeyCode::Equal => s.push('='),
-    KeyCode::Semicolon => s.push(';'),
-    KeyCode::Slash => s.push('/'),
-    KeyCode::Backslash => s.push('\\'),
-    KeyCode::Quote => s.push('\''),
-    KeyCode::Backquote => s.push('`'),
-    KeyCode::BracketLeft => s.push('['),
-    KeyCode::BracketRight => s.push(']'),
-    KeyCode::Tab => s.push_str("Tab"),
-    KeyCode::Escape => s.push_str("Esc"),
-    KeyCode::Delete => s.push_str("Del"),
-    KeyCode::Insert => s.push_str("Ins"),
-    KeyCode::PageUp => s.push_str("PgUp"),
-    KeyCode::PageDown => s.push_str("PgDn"),
-    // These names match LibreOffice.
-    KeyCode::ArrowLeft => s.push_str("Left"),
-    KeyCode::ArrowRight => s.push_str("Right"),
-    KeyCode::ArrowUp => s.push_str("Up"),
-    KeyCode::ArrowDown => s.push_str("Down"),
-    _ => s.push_str(&format!("{:?}", key.key)),
+  /// Formats [`Accelerator`] as a Windows hotkey string.
+  fn to_str(&self) -> String {
+    let mut s = String::new();
+    let key_mods: ModifiersState = self.mods;
+    if key_mods.control_key() {
+      s.push_str("Ctrl+");
+    }
+    if key_mods.shift_key() {
+      s.push_str("Shift+");
+    }
+    if key_mods.alt_key() {
+      s.push_str("Alt+");
+    }
+    if key_mods.super_key() {
+      s.push_str("Windows+");
+    }
+    match &self.key {
+      KeyCode::KeyA => s.push('A'),
+      KeyCode::KeyB => s.push('B'),
+      KeyCode::KeyC => s.push('C'),
+      KeyCode::KeyD => s.push('D'),
+      KeyCode::KeyE => s.push('E'),
+      KeyCode::KeyF => s.push('F'),
+      KeyCode::KeyG => s.push('G'),
+      KeyCode::KeyH => s.push('H'),
+      KeyCode::KeyI => s.push('I'),
+      KeyCode::KeyJ => s.push('J'),
+      KeyCode::KeyK => s.push('K'),
+      KeyCode::KeyL => s.push('L'),
+      KeyCode::KeyM => s.push('M'),
+      KeyCode::KeyN => s.push('N'),
+      KeyCode::KeyO => s.push('O'),
+      KeyCode::KeyP => s.push('P'),
+      KeyCode::KeyQ => s.push('Q'),
+      KeyCode::KeyR => s.push('R'),
+      KeyCode::KeyS => s.push('S'),
+      KeyCode::KeyT => s.push('T'),
+      KeyCode::KeyU => s.push('U'),
+      KeyCode::KeyV => s.push('V'),
+      KeyCode::KeyW => s.push('W'),
+      KeyCode::KeyX => s.push('X'),
+      KeyCode::KeyY => s.push('Y'),
+      KeyCode::KeyZ => s.push('Z'),
+      KeyCode::Digit0 => s.push('0'),
+      KeyCode::Digit1 => s.push('1'),
+      KeyCode::Digit2 => s.push('2'),
+      KeyCode::Digit3 => s.push('3'),
+      KeyCode::Digit4 => s.push('4'),
+      KeyCode::Digit5 => s.push('5'),
+      KeyCode::Digit6 => s.push('6'),
+      KeyCode::Digit7 => s.push('7'),
+      KeyCode::Digit8 => s.push('8'),
+      KeyCode::Digit9 => s.push('9'),
+      KeyCode::Comma => s.push(','),
+      KeyCode::Minus => s.push('-'),
+      KeyCode::Period => s.push('.'),
+      KeyCode::Space => s.push_str("Space"),
+      KeyCode::Equal => s.push('='),
+      KeyCode::Semicolon => s.push(';'),
+      KeyCode::Slash => s.push('/'),
+      KeyCode::Backslash => s.push('\\'),
+      KeyCode::Quote => s.push('\''),
+      KeyCode::Backquote => s.push('`'),
+      KeyCode::BracketLeft => s.push('['),
+      KeyCode::BracketRight => s.push(']'),
+      KeyCode::Tab => s.push_str("Tab"),
+      KeyCode::Escape => s.push_str("Esc"),
+      KeyCode::Delete => s.push_str("Del"),
+      KeyCode::Insert => s.push_str("Ins"),
+      KeyCode::PageUp => s.push_str("PgUp"),
+      KeyCode::PageDown => s.push_str("PgDn"),
+      // These names match LibreOffice.
+      KeyCode::ArrowLeft => s.push_str("Left"),
+      KeyCode::ArrowRight => s.push_str("Right"),
+      KeyCode::ArrowUp => s.push_str("Up"),
+      KeyCode::ArrowDown => s.push_str("Down"),
+      _ => s.push_str(&format!("{:?}", self.key)),
+    };
+    s
   }
 }

@@ -22,7 +22,6 @@ fn main() -> Result<(), OsError> {
 
   menu.add_submenu(&file_menu);
   menu.add_submenu(&edit_menu);
-  menu.add_native_item(NativeMenuItem::Copy);
 
   let open_item = CustomMenuItem::new(
     "Open File...",

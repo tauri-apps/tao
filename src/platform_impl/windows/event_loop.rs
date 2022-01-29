@@ -45,7 +45,6 @@ use crate::{
   keyboard::{KeyCode, ModifiersState},
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{
-    accelerator,
     dark_mode::try_theme,
     dpi::{become_dpi_aware, dpi_to_scale_factor, enable_non_client_dpi_scaling},
     keyboard::is_msg_keyboard_related,
@@ -246,10 +245,7 @@ impl<T: 'static> EventLoop<T> {
         }
 
         // window accelerator
-        let accels = accelerator::find_accels(GetAncestor(msg.hwnd, GA_ROOT));
-        let translated = accels.map_or(false, |it| {
-          TranslateAcceleratorW(msg.hwnd, it.handle(), &msg) != 0
-        });
+        let translated = TranslateAcceleratorW(msg.hwnd, super::menu::get_haccel(), &msg) != 0;
         if !translated {
           TranslateMessage(&msg);
           DispatchMessageW(&msg);
