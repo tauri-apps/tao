@@ -12,6 +12,8 @@
 //! item.set_enabled(false);
 //! ```
 
+use std::{collections::HashMap, sync::Mutex};
+
 use crate::{accelerator::Accelerator, error::OsError, platform_impl};
 
 pub type MenuId = u16;
@@ -22,16 +24,16 @@ pub type MenuId = u16;
 ///
 /// - **Android / iOS:** Unsupported.
 /// - **Windows / Linux:** If used as a menu bar, it will apear at the top of the window.
-/// - **macOs:** if used as a menu bar, it should be used with [crate::event_loop::EventLoop] and it will apear in the macOS menu bar.
+/// - **macOs:** if used as a menu bar, it should be used with [`crate::event_loop::EventLoop`] and it will apear in the macOS menu bar.
 #[derive(Debug, Clone)]
 pub struct Menu(MenuId);
 impl Menu {
-  /// Creates a new [Menu] without a title, suitable to be used as a menu bar, or a context menu.
+  /// Creates a new [`Menu`] without a title, suitable to be used as a menu bar, or a context menu.
   pub fn new() -> Result<Self, OsError> {
     Self::with_title("")
   }
 
-  /// Creates a new [Menu] with a title, suitable to be used as a submenu inside a menu bar, or a contex menu, or inside another submenu.
+  /// Creates a new [`Menu`] with a title, suitable to be used as a submenu inside a menu bar, or a contex menu, or inside another submenu.
   pub fn with_title(title: &str) -> Result<Self, OsError> {
     platform_impl::Menu::new(title).map(|i| Self(i))
   }
@@ -57,11 +59,11 @@ impl Menu {
   }
 }
 
-/// Represets a custom menu item that can be used in [Menu]s.
+/// Represets a custom menu item that can be used in [`Menu`]s.
 #[derive(Debug, Clone)]
 pub struct CustomMenuItem(MenuId);
 impl CustomMenuItem {
-  // Creates a new [CustomMenuItem]
+  /// Creates a new [`CustomMenuItem`]
   pub fn new(
     title: &str,
     enabled: bool,
@@ -264,4 +266,29 @@ impl NativeMenuItem {
       _ => unreachable!(),
     }
   }
+}
+
+/// A struct to hold all menus and menu items data internall.
+///
+/// - A [`platform_impl::Menu`] holds IDs of its children, which can be either a [`NativeMenuItem`], [`platform_impl::CustomMenuItem`], or another [`platform_impl::Menu`]
+/// - A [`platform_impl::CustomMenuItem`] can be added to multiple [`platform_impl::Menu`]s at the same time,
+///   so it holds IDs of its parent menus. This makes it easier for us to update all
+///   instances of the custom item if needed.
+pub(crate) struct MenusData {
+  pub(crate) menus: HashMap<MenuId, platform_impl::Menu>,
+  pub(crate) custom_menu_items: HashMap<MenuId, platform_impl::CustomMenuItem>,
+}
+
+lazy_static! {
+  pub(crate) static ref MENUS_DATA: Mutex<MenusData> = Mutex::new(MenusData {
+    menus: HashMap::new(),
+    custom_menu_items: HashMap::new()
+  });
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum MenuItemType {
+  Custom,
+  Submenu,
+  NativeItem,
 }
