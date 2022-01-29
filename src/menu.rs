@@ -12,13 +12,12 @@
 //! item.set_enabled(false);
 //! ```
 
-use std::{collections::HashMap, sync::Mutex};
-
 use crate::{accelerator::Accelerator, error::OsError, platform_impl};
+use std::{collections::HashMap, sync::Mutex};
 
 pub type MenuId = u16;
 
-/// Represets a Menu that can be used as a menu bar, a context menu, or a submenu.
+/// Represents a Menu that can be used as a menu bar, a context menu, or a submenu.
 ///
 /// ## Platform-specific
 ///
@@ -59,7 +58,7 @@ impl Menu {
   }
 }
 
-/// Represets a custom menu item that can be used in [`Menu`]s.
+/// Represents a custom menu item that can be used in [`Menu`]s.
 #[derive(Debug, Clone)]
 pub struct CustomMenuItem(MenuId);
 impl CustomMenuItem {

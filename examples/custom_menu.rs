@@ -90,7 +90,13 @@ fn main() -> Result<(), OsError> {
         _ if menu_id == custom_copy.id() => println!("Copied(custom) some text!"),
         _ if menu_id == add_new_items.id() => {
           let submenu = Menu::with_title("Submenu").unwrap();
-          let item = CustomMenuItem::new("New Menu Item", true, false, None).unwrap();
+          let item = CustomMenuItem::new(
+            "New Menu Item",
+            true,
+            false,
+            Some(Accelerator::new(SysMods::CmdShift, KeyCode::KeyM)),
+          )
+          .unwrap();
           let item2 = CustomMenuItem::new("New Menu Item2", true, false, None).unwrap();
           submenu.add_custom_item(&item);
           submenu.add_native_item(NativeMenuItem::Separator);

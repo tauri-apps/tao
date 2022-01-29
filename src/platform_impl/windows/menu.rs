@@ -59,7 +59,7 @@ pub struct Menu {
 }
 
 impl Menu {
-  pub fn new(title: &str) -> Result<MenuId, RootOsError> {
+  pub(crate) fn new(title: &str) -> Result<MenuId, RootOsError> {
     if let Ok(mut menus_data) = MENUS_DATA.lock() {
       let id = uuid::Uuid::new_v4().to_u128_le() as u16;
       menus_data.menus.insert(
@@ -79,7 +79,7 @@ impl Menu {
     }
   }
 
-  pub fn add_custom_item(menu_id: MenuId, item_id: MenuId) {
+  pub(crate) fn add_custom_item(menu_id: MenuId, item_id: MenuId) {
     if let Ok(mut menus_data) = MENUS_DATA.lock() {
       let mut menu_hmenu = HMENU::default();
       {
@@ -96,7 +96,7 @@ impl Menu {
     }
   }
 
-  pub fn add_native_item(menu_id: MenuId, item: NativeMenuItem) {
+  pub(crate) fn add_native_item(menu_id: MenuId, item: NativeMenuItem) {
     if let Ok(mut menus_data) = MENUS_DATA.lock() {
       let mut menu_hmenu = HMENU::default();
       {
@@ -110,7 +110,7 @@ impl Menu {
     }
   }
 
-  pub fn add_submenu(menu_id: MenuId, submenu_id: MenuId) {
+  pub(crate) fn add_submenu(menu_id: MenuId, submenu_id: MenuId) {
     if let Ok(mut menus_data) = MENUS_DATA.lock() {
       let mut menu_hmenu = HMENU::default();
       {
@@ -168,7 +168,7 @@ pub struct CustomMenuItem {
 }
 
 impl CustomMenuItem {
-  pub fn new(
+  pub(crate) fn new(
     title: &str,
     enabled: bool,
     selected: bool,
@@ -196,7 +196,7 @@ impl CustomMenuItem {
     }
   }
 
-  pub fn set_title(item_id: MenuId, title: &str) {
+  pub(crate) fn set_title(item_id: MenuId, title: &str) {
     if let Ok(mut menus_data) = MENUS_DATA.lock() {
       {
         if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
@@ -229,7 +229,7 @@ impl CustomMenuItem {
     }
   }
 
-  pub fn set_enabled(item_id: MenuId, enabled: bool) {
+  pub(crate) fn set_enabled(item_id: MenuId, enabled: bool) {
     if let Ok(mut menus_data) = MENUS_DATA.lock() {
       {
         if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
@@ -256,7 +256,7 @@ impl CustomMenuItem {
     }
   }
 
-  pub fn set_selected(item_id: MenuId, selected: bool) {
+  pub(crate) fn set_selected(item_id: MenuId, selected: bool) {
     if let Ok(mut menus_data) = MENUS_DATA.lock() {
       {
         if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
