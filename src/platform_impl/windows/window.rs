@@ -924,7 +924,7 @@ unsafe fn init<T: 'static>(
   if let Some(window_menu) = attributes.window_menu {
     let event_loop_runner = event_loop.runner_shared.clone();
     let window_id = RootWindowId(win.id());
-    let menu_handler = menu::MenuHandler::new(
+    let menu_handler = menu::MenuEventHandler::new(
       Box::new(move |event| {
         if let Ok(e) = event.map_nonuser_event() {
           event_loop_runner.send_event(e)

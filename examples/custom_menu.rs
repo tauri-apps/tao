@@ -1,11 +1,8 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(target_os = "macos")]
-use tao::platform::macos::{CustomMenuItemExtMacOS, NativeImage};
 use tao::{
   accelerator::{Accelerator, SysMods},
-  clipboard::Clipboard,
   error::OsError,
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
@@ -34,12 +31,20 @@ fn main() -> Result<(), OsError> {
   )?;
   let save_item = CustomMenuItem::new(
     "Save",
-    true,
+    false,
     false,
     Some(Accelerator::new(SysMods::Cmd, KeyCode::KeyS)),
   )?;
+  let mut save_item_is_enabled = false;
+  let toggle_save_item = CustomMenuItem::new(
+    "Toggle Save menu item",
+    true,
+    false,
+    Some(Accelerator::new(SysMods::Cmd, KeyCode::KeyD)),
+  )?;
   file_menu.add_custom_item(&open_item);
   file_menu.add_custom_item(&save_item);
+  file_menu.add_custom_item(&toggle_save_item);
 
   let custom_copy = CustomMenuItem::new(
     "Custom Copy",
@@ -50,6 +55,7 @@ fn main() -> Result<(), OsError> {
   let add_new_items = CustomMenuItem::new("Add new menu item", true, false, None)?;
   edit_menu.add_custom_item(&custom_copy);
   edit_menu.add_custom_item(&add_new_items);
+  edit_menu.add_custom_item(&save_item);
 
   let window = WindowBuilder::new()
     .with_title("A fantastic window!")
@@ -70,6 +76,16 @@ fn main() -> Result<(), OsError> {
       Event::MenuEvent { menu_id, .. } => match menu_id {
         _ if menu_id == open_item.id() => println!("Opened a file!"),
         _ if menu_id == save_item.id() => println!("Saved a file!"),
+        _ if menu_id == toggle_save_item.id() => {
+          save_item_is_enabled = !save_item_is_enabled;
+          save_item.set_enabled(save_item_is_enabled);
+          save_item.set_title(if save_item_is_enabled {
+            "Save"
+          } else {
+            "Save (disabled)"
+          });
+          save_item.set_selected(!save_item_is_enabled);
+        }
         _ if menu_id == custom_copy.id() => println!("Copied(custom) some text!"),
         _ if menu_id == add_new_items.id() => {
           let submenu = Menu::with_title("Submenu").unwrap();

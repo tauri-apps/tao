@@ -38,17 +38,17 @@ const MINIMIZE_ID: usize = 5008;
 
 const MENU_SUBCLASS_ID: usize = 4568;
 
-pub struct MenuHandler {
+pub struct MenuEventHandler {
   window_id: Option<RootWindowId>,
   event_sender: Box<dyn Fn(Event<'static, ()>)>,
 }
 
-impl MenuHandler {
+impl MenuEventHandler {
   pub fn new(
     event_sender: Box<dyn Fn(Event<'static, ()>)>,
     window_id: Option<RootWindowId>,
-  ) -> MenuHandler {
-    MenuHandler {
+  ) -> MenuEventHandler {
+    MenuEventHandler {
       window_id,
       event_sender,
     }
@@ -114,14 +114,20 @@ impl Menu {
     }
   }
 
-  pub fn add_custom_item(menu_id: MenuId, item_id: MenuId) {
+  pub fn add_custom_item(pmenu_id: MenuId, item_id: MenuId) {
     if let Ok(mut menus_data) = MENUS_DATA.lock() {
-      if let Some(menu) = menus_data.menus.get_mut(&menu_id) {
-        menu.items.push((MenuItem::Custom, item_id));
-        if let Some(hmenu) = menu.hmenu {
-          if let Some(item) = menus_data.custom_menu_items.get(&item_id) {
-            item.add_to_hmenu(hmenu)
-          }
+      let mut pmenu_hmenu = None;
+      {
+        if let Some(menu) = menus_data.menus.get_mut(&pmenu_id) {
+          menu.items.push((MenuItem::Custom, item_id));
+          pmenu_hmenu = menu.hmenu;
+        }
+      }
+
+      if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
+        item.parent_menus.push(pmenu_id);
+        if let Some(hmenu) = pmenu_hmenu {
+          item.add_to_hmenu(hmenu);
         }
       }
     }
@@ -131,29 +137,15 @@ impl Menu {
     if let Ok(mut menus_data) = MENUS_DATA.lock() {
       if let Some(menu) = menus_data.menus.get_mut(&pmenu_id) {
         menu.items.push((MenuItem::Submenu, submenu_id));
+
         if let Some(hmenu) = menu.hmenu {
           if let Some(submenu) = menus_data.menus.get(&submenu_id) {
-            let submenu_hmenu = Menu::make_submenu(hmenu, submenu);
+            let submenu_hmenu = Menu::make_submenu_hmenu(hmenu, submenu);
             Menu::add_to_hmenu(submenu_id, submenu_hmenu, &mut menus_data);
           }
         }
       }
     }
-  }
-
-  fn make_submenu(pmenu: HMENU, submenu: &Menu) -> HMENU {
-    let hmenu = unsafe { CreateMenu() };
-    // let child_accels = std::mem::take(&mut submenu.accels);
-    // self.accels.extend(child_accels);
-
-    let mut flags = MF_POPUP;
-    if !submenu.enabled {
-      flags |= MF_DISABLED;
-    }
-    unsafe {
-      AppendMenuW(pmenu, flags, hmenu.0 as _, submenu.title.clone());
-    }
-    hmenu
   }
 
   fn add_to_hmenu(menu_id: MenuId, hmenu: HMENU, menus_data: &mut MutexGuard<'_, MenusData>) {
@@ -167,7 +159,7 @@ impl Menu {
           }
           MenuItem::Submenu => {
             if let Some(submenu) = menus_data.menus.get_mut(&id) {
-              let submenu_hmenu = Menu::make_submenu(hmenu, &submenu);
+              let submenu_hmenu = Menu::make_submenu_hmenu(hmenu, &submenu);
               submenu.hmenu = Some(submenu_hmenu);
               Menu::add_to_hmenu(id, submenu_hmenu, menus_data);
             }
@@ -177,6 +169,21 @@ impl Menu {
       }
     }
   }
+
+  fn make_submenu_hmenu(pmenu: HMENU, submenu: &Menu) -> HMENU {
+    let hmenu = unsafe { CreateMenu() };
+    // let child_accels = std::mem::take(&mut submenu.accels);
+    // self.accels.extend(child_accels);
+
+    let mut flags = MF_POPUP;
+    if !submenu.enabled {
+      flags |= MF_DISABLED;
+    }
+    unsafe {
+      AppendMenuW(pmenu, flags, hmenu.0 as _, submenu.title.clone());
+    }
+    hmenu
+  }
 }
 
 pub struct CustomMenuItem {
@@ -185,6 +192,7 @@ pub struct CustomMenuItem {
   enabled: bool,
   selected: bool,
   accel: Option<Accelerator>,
+  parent_menus: Vec<MenuId>,
 }
 
 impl CustomMenuItem {
@@ -204,6 +212,7 @@ impl CustomMenuItem {
           enabled,
           selected,
           accel,
+          parent_menus: Vec::new(),
         },
       );
 
@@ -212,6 +221,93 @@ impl CustomMenuItem {
       Err(os_error!(OsError::CreationError(
         "Failed to register menu item",
       )))
+    }
+  }
+
+  pub fn set_title(item_id: MenuId, title: &str) {
+    if let Ok(mut menus_data) = MENUS_DATA.lock() {
+      {
+        if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
+          item.title = title.into();
+        }
+      }
+
+      if let Some(item) = menus_data.custom_menu_items.get(&item_id) {
+        let info = MENUITEMINFOA {
+          cbSize: std::mem::size_of::<MENUITEMINFOA>() as _,
+          fMask: MIIM_STRING,
+          // NOTE(amrbashir): The title must be a null-terminated string. Otherwise, it will display some gibberish characters at the end.
+          dwTypeData: PSTR(format!("{}\0", title).as_ptr() as _),
+          ..Default::default()
+        };
+        for menu_id in &item.parent_menus {
+          if let Some(menu) = menus_data.menus.get(menu_id) {
+            if let Some(hmenu) = menu.hmenu {
+              unsafe {
+                SetMenuItemInfoA(hmenu, item.id as _, false, &info);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  pub fn set_enabled(item_id: MenuId, enabled: bool) {
+    if let Ok(mut menus_data) = MENUS_DATA.lock() {
+      {
+        if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
+          item.enabled = enabled;
+        }
+      }
+
+      if let Some(item) = menus_data.custom_menu_items.get(&item_id) {
+        for menu_id in &item.parent_menus {
+          if let Some(menu) = menus_data.menus.get(menu_id) {
+            if let Some(hmenu) = menu.hmenu {
+              unsafe {
+                EnableMenuItem(
+                  hmenu,
+                  item.id as _,
+                  match enabled {
+                    true => MF_ENABLED,
+                    false => MF_DISABLED,
+                  },
+                );
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  pub fn set_selected(item_id: MenuId, selected: bool) {
+    if let Ok(mut menus_data) = MENUS_DATA.lock() {
+      {
+        if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
+          item.selected = selected;
+        }
+      }
+
+      if let Some(item) = menus_data.custom_menu_items.get(&item_id) {
+        for menu_id in &item.parent_menus {
+          if let Some(menu) = menus_data.menus.get(menu_id) {
+            if let Some(hmenu) = menu.hmenu {
+              unsafe {
+                CheckMenuItem(
+                  hmenu,
+                  item.id as _,
+                  match selected {
+                    true => MF_CHECKED,
+                    false => MF_UNCHECKED,
+                  },
+                );
+              }
+            }
+          }
+        }
+      }
     }
   }
 
@@ -240,7 +336,7 @@ impl CustomMenuItem {
   }
 }
 
-pub fn set_for_window(menu: RootMenu, window: HWND, menu_handler: MenuHandler) -> HMENU {
+pub fn set_for_window(menu: RootMenu, window: HWND, menu_handler: MenuEventHandler) -> HMENU {
   let sender = Box::into_raw(Box::new(menu_handler));
   let hmenubar = unsafe { CreateMenu() };
 
@@ -268,7 +364,7 @@ pub(crate) unsafe extern "system" fn subclass_proc(
   _id: usize,
   subclass_input_ptr: usize,
 ) -> LRESULT {
-  let subclass_input_ptr = subclass_input_ptr as *mut MenuHandler;
+  let subclass_input_ptr = subclass_input_ptr as *mut MenuEventHandler;
   let subclass_input = &*(subclass_input_ptr);
 
   if msg == WM_DESTROY {

@@ -48,6 +48,18 @@ impl CustomMenuItem {
   pub fn id(&self) -> MenuId {
     self.0
   }
+
+  pub fn set_title(&self, title: &str) {
+    platform_impl::CustomMenuItem::set_title(self.id(), title)
+  }
+
+  pub fn set_enabled(&self, enabled: bool) {
+    platform_impl::CustomMenuItem::set_enabled(self.id(), enabled)
+  }
+
+  pub fn set_selected(&self, selected: bool) {
+    platform_impl::CustomMenuItem::set_selected(self.id(), selected)
+  }
 }
 
 /// A menu item, bound to a pre-defined native action.
