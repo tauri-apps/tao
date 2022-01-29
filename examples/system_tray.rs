@@ -34,12 +34,11 @@ fn main() {
   let open_new_window_element = submenu.add_item(MenuItemAttributes::new("Open new window"));
 
   #[cfg(target_os = "macos")]
-  {
-    let mut is_accessory = false;
-    // Accessory activation policy toggle
-    let mut activation_policy_accessory =
-      submenu.add_item(MenuItemAttributes::new("Accessory Activation Policy").with_selected(false));
-  }
+  let mut is_accessory = false;
+  // Accessory activation policy toggle
+  #[cfg(target_os = "macos")]
+  let mut activation_policy_accessory =
+    submenu.add_item(MenuItemAttributes::new("Accessory Activation Policy").with_selected(false));
 
   // set default icon
   #[cfg(target_os = "macos")]
