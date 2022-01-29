@@ -397,7 +397,7 @@ pub fn set_for_window(menu: RootMenu, window: HWND, menu_handler: MenuEventHandl
   //   register_accel(window, &accels);
   // }
 
-  HMENU::default()
+  hmenubar
 }
 
 pub(crate) unsafe extern "system" fn subclass_proc(

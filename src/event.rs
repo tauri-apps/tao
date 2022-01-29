@@ -43,6 +43,7 @@ use crate::{
   accelerator::AcceleratorId,
   dpi::{PhysicalPosition, PhysicalSize},
   keyboard::{self, ModifiersState},
+  menu::MenuId,
   platform_impl,
   window::{Theme, WindowId},
 };
@@ -83,7 +84,7 @@ pub enum Event<'a, T: 'static> {
   #[non_exhaustive]
   MenuEvent {
     window_id: Option<WindowId>,
-    menu_id: u16,
+    menu_id: MenuId,
   },
 
   /// Emitted when tray has been clicked.
