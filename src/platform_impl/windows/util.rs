@@ -273,6 +273,22 @@ pub fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<H
   }
 }
 
+pub unsafe fn show_context_menu(hwnd: HWND, hmenu: HMENU, x: i32, y: i32) {
+  // bring the window to the foreground so the pop up menu
+  // would automatically hide on click outside
+  SetForegroundWindow(hwnd);
+  TrackPopupMenu(
+    hmenu,
+    // align bottom / right, maybe we could expose this later..
+    TPM_BOTTOMALIGN | TPM_LEFTALIGN,
+    x,
+    y,
+    0,
+    hwnd,
+    std::ptr::null_mut(),
+  );
+}
+
 impl CursorIcon {
   pub(crate) fn to_windows_cursor(self) -> PWSTR {
     match self {

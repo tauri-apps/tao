@@ -26,7 +26,7 @@ pub type MenuId = u16;
 /// - **Windows / Linux:** If used as a menu bar, it will apear at the top of the window.
 /// - **macOs:** if used as a menu bar, it should be used with [`crate::event_loop::EventLoop`] and it will apear in the macOS menu bar.
 #[derive(Debug, Clone)]
-pub struct Menu(MenuId);
+pub struct Menu(pub(crate) MenuId);
 impl Menu {
   /// Creates a new [`Menu`] without a title, suitable to be used as a menu bar, or a context menu.
   pub fn new() -> Result<Self, OsError> {
@@ -44,17 +44,17 @@ impl Menu {
   }
 
   /// Adds a custom item to this menu.
-  pub fn add_custom_item(&mut self, item: &CustomMenuItem) {
+  pub fn add_custom_item(&self, item: &CustomMenuItem) {
     platform_impl::Menu::add_custom_item(self.id(), item.id())
   }
 
   /// Adds a native item to this menu.
-  pub fn add_native_item(&mut self, item: NativeMenuItem) {
+  pub fn add_native_item(&self, item: NativeMenuItem) {
     platform_impl::Menu::add_native_item(self.id(), item)
   }
 
   /// Adds a submenu to this menu.
-  pub fn add_submenu(&mut self, menu: &Menu) {
+  pub fn add_submenu(&self, menu: &Menu) {
     platform_impl::Menu::add_submenu(self.id(), menu.id())
   }
 }
@@ -79,17 +79,17 @@ impl CustomMenuItem {
   }
 
   /// Modifies the title (label) of the menu item.
-  pub fn set_title(&mut self, title: &str) {
+  pub fn set_title(&self, title: &str) {
     platform_impl::CustomMenuItem::set_title(self.id(), title)
   }
 
   /// Enables or disables the menu item.
-  pub fn set_enabled(&mut self, enabled: bool) {
+  pub fn set_enabled(&self, enabled: bool) {
     platform_impl::CustomMenuItem::set_enabled(self.id(), enabled)
   }
 
   /// Modifies the selected state of the menu item.
-  pub fn set_selected(&mut self, selected: bool) {
+  pub fn set_selected(&self, selected: bool) {
     platform_impl::CustomMenuItem::set_selected(self.id(), selected)
   }
 }
@@ -163,7 +163,7 @@ pub enum NativeMenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Android / iOS:** Unsupported
+  /// - ** Windows / Linux /Android / iOS:** Unsupported
   ///
   Quit,
   /// A native macOS "Services" menu item.
@@ -268,7 +268,7 @@ impl NativeMenuItem {
   }
 }
 
-/// A struct to hold all menus and menu items data internall.
+/// A struct to hold all menus and menu items data internally.
 ///
 /// - A [`platform_impl::Menu`] holds IDs of its children, which can be either a [`NativeMenuItem`], [`platform_impl::CustomMenuItem`], or another [`platform_impl::Menu`]
 /// - A [`platform_impl::CustomMenuItem`] can be added to multiple [`platform_impl::Menu`]s at the same time,

@@ -126,7 +126,7 @@ impl Menu {
     }
   }
 
-  fn add_to_hmenu(&self, hmenu: HMENU) {
+  pub(super) fn add_to_hmenu(&self, hmenu: HMENU) {
     let mut flags = MF_POPUP;
     if !self.enabled {
       flags |= MF_DISABLED;
@@ -136,7 +136,7 @@ impl Menu {
     }
   }
 
-  fn add_items_to_hmenu(&self, hmenu: HMENU, menus_data: &MutexGuard<'_, MenusData>) {
+  pub(super) fn add_items_to_hmenu(&self, hmenu: HMENU, menus_data: &MutexGuard<'_, MenusData>) {
     for (mtype, id) in self.items.clone() {
       match mtype {
         MenuItemType::Custom => {
@@ -335,9 +335,6 @@ impl NativeMenuItem {
       NativeMenuItem::CloseWindow => unsafe {
         AppendMenuW(hmenu, MF_STRING, self.id() as _, "&Close\tAlt+F4");
       },
-      NativeMenuItem::Quit => unsafe {
-        AppendMenuW(hmenu, MF_STRING, self.id() as _, "&Quit");
-      },
       _ => {}
     }
   }
@@ -346,20 +343,20 @@ impl NativeMenuItem {
 const MENU_SUBCLASS_ID: usize = 4568;
 pub fn set_for_window(menu: RootMenu, window: HWND, menu_handler: MenuEventHandler) -> HMENU {
   let sender = Box::into_raw(Box::new(menu_handler));
-  let hmenubar = unsafe { CreateMenu() };
+  let menu_bar = unsafe { CreateMenu() };
 
   if let Ok(menus_data) = MENUS_DATA.lock() {
     if let Some(menu) = menus_data.menus.get(&menu.id()) {
-      menu.add_items_to_hmenu(hmenubar, &menus_data);
+      menu.add_items_to_hmenu(menu_bar, &menus_data);
     }
   }
 
   unsafe {
     SetWindowSubclass(window, Some(subclass_proc), MENU_SUBCLASS_ID, sender as _);
-    SetMenu(window, hmenubar);
+    SetMenu(window, menu_bar);
   }
 
-  hmenubar
+  menu_bar
 }
 
 pub(crate) unsafe extern "system" fn subclass_proc(
@@ -405,10 +402,6 @@ pub(crate) unsafe extern "system" fn subclass_proc(
             event: WindowEvent::CloseRequested,
           });
         }
-        _ if menu_id == NativeMenuItem::id(&NativeMenuItem::Quit) => {
-          subclass_input.send_event(Event::LoopDestroyed);
-        }
-
         _ => {
           let mut is_a_menu_event = false;
           {
