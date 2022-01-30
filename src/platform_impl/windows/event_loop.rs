@@ -1094,6 +1094,18 @@ unsafe fn public_window_callback_inner<T: 'static>(
         event: Resized(physical_size),
       };
 
+      {
+        let mut w = subclass_input.window_state.lock();
+        // See WindowFlags::MARKER_RETAIN_STATE_ON_SIZE docs for info on why this `if` check exists.
+        if !w
+          .window_flags()
+          .contains(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE)
+        {
+          let maximized = wparam.0 == win32wm::SIZE_MAXIMIZED as _;
+          w.set_window_flags_in_place(|f| f.set(WindowFlags::MAXIMIZED, maximized));
+        }
+      }
+
       subclass_input.send_event(event);
       result = ProcResult::Value(LRESULT(0));
     }
@@ -1698,7 +1710,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
           return;
         }
 
-        window_state.fullscreen.is_none() && !util::is_maximized(window)
+        window_state.fullscreen.is_none()
+          && !window_state.window_flags().contains(WindowFlags::MAXIMIZED)
       };
 
       let style = GetWindowLongW(window, GWL_STYLE) as WINDOW_STYLE;
@@ -1771,7 +1784,9 @@ unsafe fn public_window_callback_inner<T: 'static>(
           .contains(WindowFlags::MARKER_IN_SIZE_MOVE);
         // Unset maximized if we're changing the window's size.
         if new_physical_inner_size != old_physical_inner_size {
-          util::set_maximized(window, false);
+          WindowState::set_window_flags(window_state, window, |f| {
+            f.set(WindowFlags::MAXIMIZED, false)
+          });
         }
       }
 

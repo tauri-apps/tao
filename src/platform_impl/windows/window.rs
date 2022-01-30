@@ -198,9 +198,12 @@ impl Window {
   pub fn set_outer_position(&self, position: Position) {
     let (x, y): (i32, i32) = position.to_physical::<i32>(self.scale_factor()).into();
 
+    let window_state = Arc::clone(&self.window_state);
     let window = self.window.clone();
     self.thread_executor.execute_in_thread(move || {
-      util::set_maximized(window.0, false);
+      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+        f.set(WindowFlags::MAXIMIZED, false)
+      });
     });
 
     unsafe {
@@ -246,9 +249,12 @@ impl Window {
     let scale_factor = self.scale_factor();
     let (width, height) = size.to_physical::<u32>(scale_factor).into();
 
+    let window_state = Arc::clone(&self.window_state);
     let window = self.window.clone();
     self.thread_executor.execute_in_thread(move || {
-      util::set_maximized(window.0, false);
+      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+        f.set(WindowFlags::MAXIMIZED, false)
+      });
     });
 
     util::set_inner_size_physical(self.window.0, width, height);
@@ -406,12 +412,20 @@ impl Window {
 
   #[inline]
   pub fn set_maximized(&self, maximized: bool) {
-    util::set_maximized(self.window.0, maximized);
+    let window = self.window.clone();
+    let window_state = Arc::clone(&self.window_state);
+
+    self.thread_executor.execute_in_thread(move || {
+      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+        f.set(WindowFlags::MAXIMIZED, maximized)
+      });
+    });
   }
 
   #[inline]
   pub fn is_maximized(&self) -> bool {
-    util::is_maximized(self.window.0)
+    let window_state = self.window_state.lock();
+    window_state.window_flags.contains(WindowFlags::MAXIMIZED)
   }
 
   #[inline]
@@ -996,8 +1010,8 @@ unsafe extern "system" fn window_proc(
     win32wm::WM_NCCALCSIZE => {
       let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
       if userdata != 0 {
-        let window_flags = WindowFlags::from_bits_unchecked(userdata as _);
-        if !window_flags.contains(WindowFlags::DECORATIONS) {
+        let win_flags = WindowFlags::from_bits_unchecked(userdata as _);
+        if !win_flags.contains(WindowFlags::DECORATIONS) {
           // adjust the maximized borderless window so it doesn't cover the taskbar
           if util::is_maximized(window) {
             let monitor = monitor::current_monitor(window);
