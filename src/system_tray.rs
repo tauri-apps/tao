@@ -33,6 +33,9 @@ use crate::{
     SystemTray as SystemTrayPlatform, SystemTrayBuilder as SystemTrayBuilderPlatform,
   },
 };
+
+pub use crate::icon::{BadIcon, Icon};
+
 /// Object that allows you to build SystemTray instance.
 pub struct SystemTrayBuilder(pub(crate) SystemTrayBuilderPlatform);
 
@@ -41,24 +44,7 @@ use std::path::PathBuf;
 
 impl SystemTrayBuilder {
   /// Creates a new SystemTray for platforms where this is appropriate.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **macOS / Windows:**: receive icon as bytes (`Vec<u8>`)
-  /// - **Linux:**: receive icon's path (`PathBuf`)
-  #[cfg(not(target_os = "linux"))]
-  pub fn new(icon: Vec<u8>, menu: Option<Menu>) -> Self {
-    Self(SystemTrayBuilderPlatform::new(icon, menu))
-  }
-
-  /// Creates a new SystemTray for platforms where this is appropriate.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **macOS / Windows:**: receive icon as bytes (`Vec<u8>`)
-  /// - **Linux:**: receive icon's path (`PathBuf`)
-  #[cfg(target_os = "linux")]
-  pub fn new(icon: PathBuf, menu: Option<Menu>) -> Self {
+  pub fn new(icon: Icon, menu: Option<Menu>) -> Self {
     Self(SystemTrayBuilderPlatform::new(icon, menu))
   }
 
@@ -78,24 +64,7 @@ pub struct SystemTray(pub SystemTrayPlatform);
 
 impl SystemTray {
   /// Set new tray icon.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **macOS / Windows:**: receive icon as bytes (`Vec<u8>`)
-  /// - **Linux:**: receive icon's path (`PathBuf`)
-  #[cfg(not(target_os = "linux"))]
-  pub fn set_icon(&mut self, icon: Vec<u8>) {
-    self.0.set_icon(icon)
-  }
-
-  /// Set new tray icon.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **macOS / Windows:**: receive icon as bytes (`Vec<u8>`)
-  /// - **Linux:**: receive icon's path (`PathBuf`)
-  #[cfg(target_os = "linux")]
-  pub fn set_icon(&mut self, icon: PathBuf) {
+  pub fn set_icon(&mut self, icon: Icon) {
     self.0.set_icon(icon)
   }
 

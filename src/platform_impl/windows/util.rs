@@ -235,44 +235,6 @@ pub fn set_maximized(window: HWND, maximized: bool) {
   }
 }
 
-pub fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<HICON> {
-  unsafe {
-    match LookupIconIdFromDirectoryEx(buffer.as_ptr() as _, true, width, height, LR_DEFAULTCOLOR)
-      as isize
-    {
-      0 => {
-        debug!("Unable to LookupIconIdFromDirectoryEx");
-        None
-      }
-      offset => {
-        // once we got the pointer offset for the directory
-        // lets create our resource
-        match CreateIconFromResourceEx(
-          buffer.as_ptr().offset(offset) as _,
-          buffer.len() as _,
-          true,
-          0x00030000,
-          0,
-          0,
-          LR_DEFAULTCOLOR,
-        )
-        .ok()
-        {
-          // windows is really tough on icons
-          // if a bad icon is provided it'll fail here or in
-          // the LookupIconIdFromDirectoryEx if this is a bad format (example png's)
-          // with my tests, even some ICO's were failing...
-          Err(err) => {
-            debug!("Unable to CreateIconFromResourceEx: {:?}", err);
-            None
-          }
-          Ok(hicon) => Some(hicon),
-        }
-      }
-    }
-  }
-}
-
 pub unsafe fn show_context_menu(hwnd: HWND, hmenu: HMENU, x: i32, y: i32) {
   // bring the window to the foreground so the pop up menu
   // would automatically hide on click outside
