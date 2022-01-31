@@ -221,20 +221,6 @@ pub fn is_maximized(window: HWND) -> bool {
   placement.showCmd == SW_MAXIMIZE
 }
 
-pub fn set_maximized(window: HWND, maximized: bool) {
-  unsafe {
-    if IsWindowVisible(window).as_bool() {
-      ShowWindow(
-        window,
-        match maximized {
-          true => SW_MAXIMIZE,
-          false => SW_RESTORE,
-        },
-      );
-    }
-  }
-}
-
 pub fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<HICON> {
   unsafe {
     match LookupIconIdFromDirectoryEx(buffer.as_ptr() as _, true, width, height, LR_DEFAULTCOLOR)

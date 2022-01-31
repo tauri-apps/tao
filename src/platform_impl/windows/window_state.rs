@@ -92,6 +92,7 @@ bitflags! {
         const MINIMIZED = 1 << 12;
 
         const EXCLUSIVE_FULLSCREEN_OR_MASK = WindowFlags::ALWAYS_ON_TOP.bits;
+        const INVISIBLE_AND_MASK = !WindowFlags::MAXIMIZED.bits;
     }
 }
 
@@ -182,6 +183,10 @@ impl WindowFlags {
   fn mask(mut self) -> WindowFlags {
     if self.contains(WindowFlags::MARKER_EXCLUSIVE_FULLSCREEN) {
       self |= WindowFlags::EXCLUSIVE_FULLSCREEN_OR_MASK;
+    }
+
+    if !self.contains(WindowFlags::VISIBLE) {
+      self &= WindowFlags::INVISIBLE_AND_MASK;
     }
 
     self
@@ -278,6 +283,18 @@ impl WindowFlags {
           window,
           match new.contains(WindowFlags::MINIMIZED) {
             true => SW_MINIMIZE,
+            false => SW_RESTORE,
+          },
+        );
+      }
+    }
+
+    if diff.contains(WindowFlags::MAXIMIZED) || new.contains(WindowFlags::MAXIMIZED) {
+      unsafe {
+        ShowWindow(
+          window,
+          match new.contains(WindowFlags::MAXIMIZED) {
+            true => SW_MAXIMIZE,
             false => SW_RESTORE,
           },
         );
