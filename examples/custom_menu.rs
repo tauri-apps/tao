@@ -59,7 +59,7 @@ fn main() -> Result<(), OsError> {
   edit_menu.add_custom_item(&add_new_items);
   edit_menu.add_custom_item(&save_item);
 
-  let window = WindowBuilder::new()
+  let mut window = WindowBuilder::new()
     .with_title("A fantastic window!")
     .with_menu(menu_bar)
     .build(&event_loop)
@@ -76,7 +76,9 @@ fn main() -> Result<(), OsError> {
       } if window_id == window.id() => *control_flow = ControlFlow::Exit,
       Event::MenuEvent { menu_id, .. } => match menu_id {
         _ if menu_id == open_item.id() => println!("Opened a file!"),
+
         _ if menu_id == save_item.id() => println!("Saved a file!"),
+
         _ if menu_id == toggle_save_item.id() => {
           save_item_is_enabled = !save_item_is_enabled;
           save_item.set_enabled(save_item_is_enabled);
@@ -87,7 +89,12 @@ fn main() -> Result<(), OsError> {
           });
           save_item.set_selected(!save_item_is_enabled);
         }
-        _ if menu_id == custom_copy.id() => println!("Copied(custom) some text!"),
+
+        _ if menu_id == custom_copy.id() => {
+          println!("Copied(custom) some text!");
+          window.set_menu(Some(file_menu.clone()))
+        }
+
         _ if menu_id == add_new_items.id() => {
           let submenu = Menu::with_title("Submenu").unwrap();
           let item = CustomMenuItem::new(
@@ -103,6 +110,7 @@ fn main() -> Result<(), OsError> {
           submenu.add_custom_item(&item2);
           edit_menu.add_submenu(&submenu);
         }
+
         _ => println!("{menu_id}"),
       },
       _ => (),

@@ -139,7 +139,7 @@ impl Window {
   }
 
   // TODO (lemarier): allow menu update
-  pub fn set_menu(&self, _new_menu: Option<RootMenu>) {}
+  pub fn set_menu(&self, menu: Option<RootMenu>) {}
 
   #[inline]
   pub fn set_visible(&self, visible: bool) {

@@ -31,7 +31,7 @@ const TRAY_SUBCLASS_ID: usize = 6004;
 const TRAY_MENU_SUBCLASS_ID: usize = 6005;
 
 struct TrayLoopData {
-  tray_menu_hmenu: Option<Menu>,
+  menu: Option<Menu>,
   sender: Box<dyn Fn(Event<'static, ()>)>,
 }
 
@@ -99,12 +99,14 @@ impl SystemTrayBuilder {
         )));
       }
 
-      let mut system_tray = SystemTray { hwnd };
+      let mut system_tray = SystemTray {
+        window_target: hwnd,
+      };
       system_tray.set_icon(self.icon);
 
       let event_loop_runner = window_target.p.runner_shared.clone();
       let traydata = TrayLoopData {
-        tray_menu_hmenu: self.menu,
+        menu: self.menu,
         sender: Box::new(move |event| {
           if let Ok(e) = event.map_nonuser_event() {
             event_loop_runner.send_event(e)
@@ -140,7 +142,7 @@ impl SystemTrayBuilder {
 }
 
 pub struct SystemTray {
-  hwnd: HWND,
+  window_target: HWND,
 }
 
 impl SystemTray {
@@ -148,7 +150,7 @@ impl SystemTray {
     unsafe {
       let mut nid = NOTIFYICONDATAW {
         uFlags: NIF_ICON,
-        hWnd: self.hwnd,
+        hWnd: self.window_target,
         hIcon: icon.inner.as_raw_handle(),
         uID: TRAYICON_UID,
         ..std::mem::zeroed()
@@ -159,13 +161,17 @@ impl SystemTray {
     }
   }
 
-  pub fn set_menu(&mut self, menu: &Menu) {
+  pub fn set_menu(&mut self, menu: Option<Menu>) {
     // send the new menu to the subclass proc where we can update the TrayLoopData
     unsafe {
       SendMessageW(
-        self.hwnd,
+        self.window_target,
         WM_USER_UPDATE_TRAYMENU,
-        WPARAM(menu.0 as _),
+        if let Some(m) = menu {
+          WPARAM(m.0 as _)
+        } else {
+          WPARAM::default()
+        },
         LPARAM::default(),
       );
     }
@@ -178,7 +184,7 @@ impl Drop for SystemTray {
       // remove the icon from system tray
       let mut nid = NOTIFYICONDATAW {
         uFlags: NIF_ICON,
-        hWnd: self.hwnd,
+        hWnd: self.window_target,
         uID: TRAYICON_UID,
         ..std::mem::zeroed()
       };
@@ -187,7 +193,7 @@ impl Drop for SystemTray {
       }
 
       // destroy the hidden window used by the tray
-      DestroyWindow(self.hwnd);
+      DestroyWindow(self.window_target);
     }
   }
 }
@@ -201,14 +207,18 @@ unsafe extern "system" fn tray_subclass_proc(
   subclass_input_ptr: usize,
 ) -> LRESULT {
   let subclass_input_ptr = subclass_input_ptr as *mut TrayLoopData;
-  let mut subclass_input = &mut *(subclass_input_ptr);
+  let mut tray_data = &mut *(subclass_input_ptr);
 
   if msg == WM_DESTROY {
     Box::from_raw(subclass_input_ptr);
   }
 
   if msg == WM_USER_UPDATE_TRAYMENU {
-    subclass_input.tray_menu_hmenu = Some(Menu(wparam.0 as _));
+    tray_data.menu = if !wparam.is_invalid() {
+      Some(Menu(wparam.0 as _))
+    } else {
+      None
+    };
   }
 
   if msg == WM_USER_TRAYICON
@@ -243,7 +253,7 @@ unsafe extern "system" fn tray_subclass_proc(
 
     match lparam.0 as u32 {
       win32wm::WM_LBUTTONUP => {
-        (subclass_input.sender)(Event::TrayEvent {
+        (tray_data.sender)(Event::TrayEvent {
           event: TrayEvent::LeftClick,
           position,
           bounds,
@@ -251,13 +261,13 @@ unsafe extern "system" fn tray_subclass_proc(
       }
 
       win32wm::WM_RBUTTONUP => {
-        (subclass_input.sender)(Event::TrayEvent {
+        (tray_data.sender)(Event::TrayEvent {
           event: TrayEvent::RightClick,
           position,
           bounds,
         });
 
-        if let Some(menu) = subclass_input.tray_menu_hmenu.clone() {
+        if let Some(menu) = tray_data.menu.clone() {
           let context_menu = CreatePopupMenu();
           if let Ok(menus_data) = MENUS_DATA.lock() {
             if let Some(menu) = menus_data.menus.get(&menu.id()) {
@@ -270,7 +280,7 @@ unsafe extern "system" fn tray_subclass_proc(
       }
 
       win32wm::WM_LBUTTONDBLCLK => {
-        (subclass_input.sender)(Event::TrayEvent {
+        (tray_data.sender)(Event::TrayEvent {
           event: TrayEvent::DoubleClick,
           position,
           bounds,

@@ -69,7 +69,7 @@ impl SystemTray {
   }
 
   /// Set new tray menu.
-  pub fn set_menu(&mut self, menu: &Menu) {
+  pub fn set_menu(&mut self, menu: Option<Menu>) {
     self.0.set_menu(menu)
   }
 }
