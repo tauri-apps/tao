@@ -168,11 +168,11 @@ fn main() {
         if menu_id == activation_policy_accessory.clone().id() {
           if is_accessory {
             is_accessory = false;
-            event_loop.set_activation_policy(ActivationPolicy::Regular);
+            event_loop.set_activation_policy_at_runtime(ActivationPolicy::Regular);
             activation_policy_accessory.set_selected(false);
           } else {
             is_accessory = true;
-            event_loop.set_activation_policy(ActivationPolicy::Accessory);
+            event_loop.set_activation_policy_at_runtime(ActivationPolicy::Accessory);
             activation_policy_accessory.set_selected(true);
           }
         }
