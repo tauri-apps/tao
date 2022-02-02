@@ -43,6 +43,7 @@ use crate::{
   event::{DeviceEvent, Event, Force, RawKeyEvent, Touch, TouchPhase, WindowEvent},
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
   keyboard::{KeyCode, ModifiersState},
+  menu::{MenuEventSender, MENUS_EVENT_SENDER},
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{
     dark_mode::try_theme,
@@ -180,6 +181,20 @@ impl<T: 'static> EventLoop<T> {
     let wait_thread_id = get_wait_thread_id();
 
     let runner_shared = Rc::new(EventLoopRunner::new(thread_msg_target, wait_thread_id));
+
+    let runner_shared_clone = runner_shared.clone();
+
+    MENUS_EVENT_SENDER.with(|menus_event_sender| {
+      if menus_event_sender.borrow().is_none() {
+        *menus_event_sender.borrow_mut() = Some(MenuEventSender::new(Box::new(move |event| {
+          if let Ok(e) = event.map_nonuser_event() {
+            unsafe {
+              runner_shared_clone.send_event(e);
+            }
+          }
+        })));
+      }
+    });
 
     let thread_msg_sender = subclass_event_target_window(thread_msg_target, runner_shared.clone());
     raw_input::register_all_mice_and_keyboards_for_raw_input(thread_msg_target);

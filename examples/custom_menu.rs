@@ -90,10 +90,7 @@ fn main() -> Result<(), OsError> {
           save_item.set_selected(!save_item_is_enabled);
         }
 
-        _ if menu_id == custom_copy.id() => {
-          println!("Copied(custom) some text!");
-          window.set_menu(Some(file_menu.clone()))
-        }
+        _ if menu_id == custom_copy.id() => println!("Copied(custom) some text!"),
 
         _ if menu_id == add_new_items.id() => {
           let submenu = Menu::with_title("Submenu").unwrap();

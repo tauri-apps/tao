@@ -3,7 +3,7 @@
 
 use super::{
   dpi::{dpi_to_scale_factor, hwnd_dpi},
-  menu::{subclass_proc as menu_subclass_proc, MenuEventHandler},
+  menu::subclass_proc as menu_subclass_proc,
   util, OsError,
 };
 use crate::{
@@ -120,21 +120,7 @@ impl SystemTrayBuilder {
         Box::into_raw(Box::new(traydata)) as _,
       );
 
-      let event_loop_runner = window_target.p.runner_shared.clone();
-      let menu_handler = MenuEventHandler::new(
-        Box::new(move |event| {
-          if let Ok(e) = event.map_nonuser_event() {
-            event_loop_runner.send_event(e)
-          }
-        }),
-        None,
-      );
-      SetWindowSubclass(
-        hwnd,
-        Some(menu_subclass_proc),
-        TRAY_MENU_SUBCLASS_ID,
-        Box::into_raw(Box::new(menu_handler)) as _,
-      );
+      SetWindowSubclass(hwnd, Some(menu_subclass_proc), TRAY_MENU_SUBCLASS_ID, 0);
 
       Ok(RootSystemTray(system_tray))
     }

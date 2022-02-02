@@ -12,8 +12,10 @@
 //! item.set_enabled(false);
 //! ```
 
-use crate::{accelerator::Accelerator, error::OsError, platform_impl};
-use std::{collections::HashMap, sync::Mutex};
+use crate::{
+  accelerator::Accelerator, error::OsError, event::Event, platform_impl, window::WindowId,
+};
+use std::{cell::RefCell, collections::HashMap, sync::Mutex};
 
 pub type MenuId = u16;
 
@@ -281,7 +283,7 @@ pub(crate) struct MenusData {
 lazy_static! {
   pub(crate) static ref MENUS_DATA: Mutex<MenusData> = Mutex::new(MenusData {
     menus: HashMap::new(),
-    custom_menu_items: HashMap::new()
+    custom_menu_items: HashMap::new(),
   });
 }
 
@@ -290,4 +292,25 @@ pub(crate) enum MenuItemType {
   Custom,
   Submenu,
   NativeItem,
+}
+
+std::thread_local! {
+  pub(crate) static MENUS_EVENT_SENDER: RefCell<Option<MenuEventSender>> = RefCell::new(None);
+}
+
+pub(crate) struct MenuEventSender {
+  sender: Box<dyn Fn(Event<'static, ()>)>,
+}
+
+impl MenuEventSender {
+  pub(crate) fn new(sender: Box<dyn Fn(Event<'static, ()>)>) -> MenuEventSender {
+    MenuEventSender { sender }
+  }
+  pub(crate) fn send_menu_event(&self, menu_id: u16, window_id: Option<WindowId>) {
+    (self.sender)(Event::MenuEvent { menu_id, window_id });
+  }
+
+  pub(crate) fn send_event(&self, event: Event<'static, ()>) {
+    (self.sender)(event);
+  }
 }

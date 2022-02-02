@@ -47,8 +47,7 @@ use crate::{
     OsError, Parent, PlatformSpecificWindowBuilderAttributes, WindowId,
   },
   window::{
-    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
-    BORDERLESS_RESIZE_INSET,
+    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, BORDERLESS_RESIZE_INSET,
   },
 };
 
@@ -68,7 +67,7 @@ pub struct Window {
   thread_executor: event_loop::EventLoopThreadExecutor,
 
   // The menu associated with the window
-  hmenu: Option<HMenuWrapper>,
+  menu: Option<(RootMenu, HMenuWrapper)>,
 }
 
 impl Window {
@@ -138,8 +137,17 @@ impl Window {
     }
   }
 
-  // TODO (lemarier): allow menu update
-  pub fn set_menu(&self, menu: Option<RootMenu>) {}
+  pub fn set_menu(&mut self, menu: Option<RootMenu>) {
+    if let Some(m) = menu {
+      self.menu = Some((
+        m.clone(),
+        HMenuWrapper(menu::set_for_window(m, self.hwnd())),
+      ));
+    } else {
+      self.menu = None;
+      menu::unset_for_window(self.window.0);
+    }
+  }
 
   #[inline]
   pub fn set_visible(&self, visible: bool) {
@@ -702,9 +710,9 @@ impl Window {
 
   #[inline]
   pub fn show_menu(&self) {
-    if let Some(menu) = &self.hmenu {
+    if let Some(menu) = &self.menu {
       unsafe {
-        SetMenu(self.hwnd(), menu.0);
+        SetMenu(self.hwnd(), menu.1 .0);
       }
     }
   }
@@ -896,7 +904,7 @@ unsafe fn init<T: 'static>(
     window: real_window,
     window_state,
     thread_executor: event_loop.create_thread_executor(),
-    hmenu: None,
+    menu: None,
   };
 
   win.set_skip_taskbar(pl_attribs.skip_taskbar);
@@ -922,22 +930,10 @@ unsafe fn init<T: 'static>(
   }
 
   if let Some(window_menu) = attributes.window_menu {
-    let event_loop_runner = event_loop.runner_shared.clone();
-    let window_id = RootWindowId(win.id());
-    let menu_handler = menu::MenuEventHandler::new(
-      Box::new(move |event| {
-        if let Ok(e) = event.map_nonuser_event() {
-          event_loop_runner.send_event(e)
-        }
-      }),
-      Some(window_id),
-    );
-
-    win.hmenu = Some(HMenuWrapper(menu::set_for_window(
-      window_menu,
-      win.hwnd(),
-      menu_handler,
-    )));
+    win.menu = Some((
+      window_menu.clone(),
+      HMenuWrapper(menu::set_for_window(window_menu, win.hwnd())),
+    ));
   }
 
   Ok(win)

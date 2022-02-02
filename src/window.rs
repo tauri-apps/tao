@@ -595,7 +595,7 @@ impl Window {
   /// - **Windows:** Unsupported.
 
   #[inline]
-  pub fn set_menu(&self, menu: Option<Menu>) {
+  pub fn set_menu(&mut self, menu: Option<Menu>) {
     self.window.set_menu(menu);
   }
 

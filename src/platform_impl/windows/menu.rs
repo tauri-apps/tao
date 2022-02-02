@@ -18,38 +18,11 @@ use crate::{
   event::{Event, WindowEvent},
   keyboard::{KeyCode, ModifiersState},
   menu::Menu as RootMenu,
-  menu::{MenuId, MenuItemType, MenusData, NativeMenuItem, MENUS_DATA},
+  menu::{MenuId, MenuItemType, MenusData, NativeMenuItem, MENUS_DATA, MENUS_EVENT_SENDER},
   window::WindowId as RootWindowId,
 };
 
 use super::{keyboard::key_to_vk, util, OsError, WindowId};
-
-pub struct MenuEventHandler {
-  window_id: Option<RootWindowId>,
-  event_sender: Box<dyn Fn(Event<'static, ()>)>,
-}
-
-impl MenuEventHandler {
-  pub fn new(
-    event_sender: Box<dyn Fn(Event<'static, ()>)>,
-    window_id: Option<RootWindowId>,
-  ) -> MenuEventHandler {
-    MenuEventHandler {
-      window_id,
-      event_sender,
-    }
-  }
-  pub fn send_menu_event(&self, menu_id: u16) {
-    (self.event_sender)(Event::MenuEvent {
-      menu_id,
-      window_id: self.window_id,
-    });
-  }
-
-  pub fn send_event(&self, event: Event<'static, ()>) {
-    (self.event_sender)(event);
-  }
-}
 
 pub struct Menu {
   title: String,
@@ -59,7 +32,7 @@ pub struct Menu {
 }
 
 impl Menu {
-  pub(crate) fn new(title: &str) -> Result<MenuId, RootOsError> {
+  pub fn new(title: &str) -> Result<MenuId, RootOsError> {
     if let Ok(mut menus_data) = MENUS_DATA.lock() {
       let id = uuid::Uuid::new_v4().to_u128_le() as u16;
       menus_data.menus.insert(
@@ -79,7 +52,7 @@ impl Menu {
     }
   }
 
-  pub(crate) fn add_custom_item(menu_id: MenuId, item_id: MenuId) {
+  pub fn add_custom_item(menu_id: MenuId, item_id: MenuId) {
     if let Ok(mut menus_data) = MENUS_DATA.lock() {
       let mut menu_hmenu = HMENU::default();
       {
@@ -96,7 +69,7 @@ impl Menu {
     }
   }
 
-  pub(crate) fn add_native_item(menu_id: MenuId, item: NativeMenuItem) {
+  pub fn add_native_item(menu_id: MenuId, item: NativeMenuItem) {
     if let Ok(mut menus_data) = MENUS_DATA.lock() {
       let mut menu_hmenu = HMENU::default();
       {
@@ -110,7 +83,7 @@ impl Menu {
     }
   }
 
-  pub(crate) fn add_submenu(menu_id: MenuId, submenu_id: MenuId) {
+  pub fn add_submenu(menu_id: MenuId, submenu_id: MenuId) {
     if let Ok(mut menus_data) = MENUS_DATA.lock() {
       let mut menu_hmenu = HMENU::default();
       {
@@ -158,6 +131,33 @@ impl Menu {
   }
 }
 
+// FIXME(amrbashir): currently changing `CustomMenuItem` using `set_title`, `set_enabled`, `set_selected`
+// doesn't reflect the change in the root menu bar (the horizontal menu bar on top of the window) but does
+// reflect the change in submenus.
+//
+// If the window has the following menu structured attached:
+//
+// MENUBAR {
+//  File -> SUBMENU {
+//    Perform Action -> CUSTOMMENUITEM
+//  }
+//  Edit -> SUBMENU {
+//    Perform Action -> CUSTOMMENUITEM
+//  }
+//  Perform Action -> CUSTOMMENUITEM
+// }
+//
+// then `set_title` is called on the `Perform Action` custom menu item to change its title to `Action Performed`, the menu will be like this:
+//
+// MENUBAR {
+//  File -> SUBMENU {
+//    Action Performed -> CUSTOMMENUITEM
+//  }
+//  Edit -> SUBMENU {
+//    Action Performed -> CUSTOMMENUITEM
+//  }
+//  Perform Action -> CUSTOMMENUITEM
+// }
 pub struct CustomMenuItem {
   id: u16,
   title: String,
@@ -168,7 +168,7 @@ pub struct CustomMenuItem {
 }
 
 impl CustomMenuItem {
-  pub(crate) fn new(
+  pub fn new(
     title: &str,
     enabled: bool,
     selected: bool,
@@ -196,7 +196,7 @@ impl CustomMenuItem {
     }
   }
 
-  pub(crate) fn set_title(item_id: MenuId, title: &str) {
+  pub fn set_title(item_id: MenuId, title: &str) {
     if let Ok(mut menus_data) = MENUS_DATA.lock() {
       {
         if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
@@ -229,7 +229,7 @@ impl CustomMenuItem {
     }
   }
 
-  pub(crate) fn set_enabled(item_id: MenuId, enabled: bool) {
+  pub fn set_enabled(item_id: MenuId, enabled: bool) {
     if let Ok(mut menus_data) = MENUS_DATA.lock() {
       {
         if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
@@ -256,7 +256,7 @@ impl CustomMenuItem {
     }
   }
 
-  pub(crate) fn set_selected(item_id: MenuId, selected: bool) {
+  pub fn set_selected(item_id: MenuId, selected: bool) {
     if let Ok(mut menus_data) = MENUS_DATA.lock() {
       {
         if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
@@ -341,8 +341,7 @@ impl NativeMenuItem {
 }
 
 const MENU_SUBCLASS_ID: usize = 4568;
-pub fn set_for_window(menu: RootMenu, window: HWND, menu_handler: MenuEventHandler) -> HMENU {
-  let sender = Box::into_raw(Box::new(menu_handler));
+pub fn set_for_window(menu: RootMenu, window: HWND) -> HMENU {
   let menu_bar = unsafe { CreateMenu() };
 
   if let Ok(menus_data) = MENUS_DATA.lock() {
@@ -352,28 +351,28 @@ pub fn set_for_window(menu: RootMenu, window: HWND, menu_handler: MenuEventHandl
   }
 
   unsafe {
-    SetWindowSubclass(window, Some(subclass_proc), MENU_SUBCLASS_ID, sender as _);
+    SetWindowSubclass(window, Some(subclass_proc), MENU_SUBCLASS_ID, 0);
     SetMenu(window, menu_bar);
   }
 
   menu_bar
 }
 
-pub(crate) unsafe extern "system" fn subclass_proc(
+pub fn unset_for_window(window: HWND) {
+  unsafe {
+    RemoveWindowSubclass(window, Some(subclass_proc), MENU_SUBCLASS_ID);
+    SetMenu(window, HMENU::default());
+  }
+}
+
+pub unsafe extern "system" fn subclass_proc(
   hwnd: HWND,
   msg: u32,
   wparam: WPARAM,
   lparam: LPARAM,
   _id: usize,
-  subclass_input_ptr: usize,
+  _subclass_input_ptr: usize,
 ) -> LRESULT {
-  let subclass_input_ptr = subclass_input_ptr as *mut MenuEventHandler;
-  let subclass_input = &*(subclass_input_ptr);
-
-  if msg == WM_DESTROY {
-    Box::from_raw(subclass_input_ptr);
-  }
-
   match msg {
     win32wm::WM_COMMAND => {
       let menu_id = util::LOWORD(wparam.0 as u32);
@@ -397,9 +396,13 @@ pub(crate) unsafe extern "system" fn subclass_proc(
           ShowWindow(hwnd, SW_HIDE);
         }
         _ if menu_id == NativeMenuItem::id(&NativeMenuItem::CloseWindow) => {
-          subclass_input.send_event(Event::WindowEvent {
-            window_id: RootWindowId(WindowId(hwnd.0)),
-            event: WindowEvent::CloseRequested,
+          MENUS_EVENT_SENDER.with(|menus_event_sender| {
+            if let Some(sender) = &*menus_event_sender.borrow() {
+              sender.send_event(Event::WindowEvent {
+                window_id: RootWindowId(WindowId(hwnd.0)),
+                event: WindowEvent::CloseRequested,
+              });
+            }
           });
         }
         _ => {
@@ -412,7 +415,11 @@ pub(crate) unsafe extern "system" fn subclass_proc(
             }
           }
           if is_a_menu_event {
-            subclass_input.send_menu_event(menu_id);
+            MENUS_EVENT_SENDER.with(|menus_event_sender| {
+              if let Some(sender) = &*menus_event_sender.borrow() {
+                sender.send_menu_event(menu_id, Some(RootWindowId(WindowId(hwnd.0))));
+              }
+            });
           }
         }
       }
