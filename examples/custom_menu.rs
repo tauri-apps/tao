@@ -59,7 +59,7 @@ fn main() -> Result<(), OsError> {
   edit_menu.add_custom_item(&add_new_items);
   edit_menu.add_custom_item(&save_item);
 
-  let mut window = WindowBuilder::new()
+  let window = WindowBuilder::new()
     .with_title("A fantastic window!")
     .with_menu(menu_bar)
     .build(&event_loop)

@@ -221,20 +221,6 @@ pub fn is_maximized(window: HWND) -> bool {
   placement.showCmd == SW_MAXIMIZE
 }
 
-pub fn set_maximized(window: HWND, maximized: bool) {
-  unsafe {
-    if IsWindowVisible(window).as_bool() {
-      ShowWindow(
-        window,
-        match maximized {
-          true => SW_MAXIMIZE,
-          false => SW_RESTORE,
-        },
-      );
-    }
-  }
-}
-
 pub unsafe fn show_context_menu(hwnd: HWND, hmenu: HMENU, x: i32, y: i32) {
   // bring the window to the foreground so the pop up menu
   // would automatically hide on click outside

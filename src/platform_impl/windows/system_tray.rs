@@ -1,13 +1,9 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{
-  dpi::{dpi_to_scale_factor, hwnd_dpi},
-  menu::subclass_proc as menu_subclass_proc,
-  util, OsError,
-};
+use super::{menu::subclass_proc as menu_subclass_proc, util, OsError};
 use crate::{
-  dpi::{LogicalPosition, LogicalSize},
+  dpi::{PhysicalPosition, PhysicalSize},
   error::OsError as RootOsError,
   event::{Event, Rectangle, TrayEvent},
   event_loop::EventLoopWindowTarget,
@@ -221,20 +217,16 @@ unsafe extern "system" fn tray_subclass_proc(
     };
     let icon_rect = Shell_NotifyIconGetRect(&nid).unwrap_or_default();
 
-    let dpi = hwnd_dpi(hwnd);
-    let scale_factor = dpi_to_scale_factor(dpi);
-
     let mut cursor = POINT { x: 0, y: 0 };
     GetCursorPos(&mut cursor as _);
 
-    let position = LogicalPosition::new(cursor.x, cursor.y).to_physical(scale_factor);
+    let position = PhysicalPosition::new(cursor.x as f64, cursor.y as f64);
     let bounds = Rectangle {
-      position: LogicalPosition::new(icon_rect.left, icon_rect.top).to_physical(scale_factor),
-      size: LogicalSize::new(
-        icon_rect.right - icon_rect.left,
-        icon_rect.bottom - icon_rect.top,
-      )
-      .to_physical(scale_factor),
+      position: PhysicalPosition::new(icon_rect.left as f64, icon_rect.top as f64),
+      size: PhysicalSize::new(
+        (icon_rect.right - icon_rect.left) as f64,
+        (icon_rect.bottom - icon_rect.top) as f64,
+      ),
     };
 
     match lparam.0 as u32 {
