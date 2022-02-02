@@ -5,13 +5,14 @@
 //!
 //! Use [SystemTrayBuilder][tray_builder] to create your tray instance.
 //!
-//! [ContextMenu][context_menu] is used to created a Window menu on Windows and Linux. On macOS it's used in the menubar.
+//! [Menu][menu] is used to created a Window menu on Windows and Linux. On macOS it's used in the menubar.
 //!
 //! ```rust,ignore
-//! let mut tray_menu = ContextMenu::new();
-//! let icon = include_bytes!("my_icon.png").to_vec();
+//! let mut tray_menu = Menu::new();
+//! let item = CustomMenuItem::new("New Menu Item", true, false, None).unwrap();
+//! tray_menu.add_item(&item);
 //!
-//! tray_menu.add_item(MenuItemAttributes::new("My menu item"));
+//! let icon = include_bytes!("my_icon.png").to_vec();
 //!
 //! let mut system_tray = SystemTrayBuilder::new(icon, Some(tray_menu))
 //!   .build(&event_loop)
@@ -23,7 +24,7 @@
 //!
 //! [tray_builder]: crate::system_tray::SystemTrayBuilder
 //! [menu_bar]: crate::menu::MenuBar
-//! [context_menu]: crate::menu::ContextMenu
+//! [menu]: crate::menu::Menu
 
 use crate::{
   error::OsError,
