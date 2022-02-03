@@ -222,7 +222,11 @@ impl<T: 'static> EventLoop<T> {
         .p
         .runner_shared
         .set_event_handler(move |event, control_flow| {
-          event_handler(event, event_loop_windows_ref, control_flow)
+          let loop_destroyed = matches!(event, Event::LoopDestroyed);
+          event_handler(event, event_loop_windows_ref, control_flow);
+          if loop_destroyed {
+            *control_flow = ControlFlow::Exit;
+          }
         });
     }
 
