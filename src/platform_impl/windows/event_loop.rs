@@ -222,7 +222,7 @@ impl<T: 'static> EventLoop<T> {
         .p
         .runner_shared
         .set_event_handler(move |event, control_flow| {
-          event_handler(event, event_loop_windows_ref, control_flow)
+          event_handler(event, event_loop_windows_ref, control_flow);
         });
     }
 
