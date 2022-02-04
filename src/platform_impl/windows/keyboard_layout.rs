@@ -372,7 +372,7 @@ impl LayoutCache {
             Key::Character(static_str)
           }
           ToUnicodeResult::Dead(dead_char) => {
-            //println!("{:?} - {:?} produced dead {:?}", key_code, mod_state, dead_char);
+            //#[cfg(debug_assertions)] println!("{:?} - {:?} produced dead {:?}", key_code, mod_state, dead_char);
             Key::Dead(dead_char)
           }
           ToUnicodeResult::None => {
