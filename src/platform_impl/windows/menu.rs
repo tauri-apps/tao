@@ -341,6 +341,7 @@ pub(crate) unsafe extern "system" fn subclass_proc(
         }
         QUIT_ID => {
           subclass_input.send_event(Event::LoopDestroyed);
+          PostQuitMessage(0);
         }
         MINIMIZE_ID => {
           ShowWindow(hwnd, SW_MINIMIZE);
