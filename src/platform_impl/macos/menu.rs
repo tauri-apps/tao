@@ -560,6 +560,7 @@ impl Accelerator {
       KeyCode::F23 => "\u{F71A}".into(),
       KeyCode::F24 => "\u{F71B}".into(),
       _ => {
+        #[cfg(debug_assertions)]
         eprintln!("no key equivalent for {:?}", self);
         "".into()
       }
