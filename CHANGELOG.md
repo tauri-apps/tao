@@ -1,6 +1,6 @@
 # Changelog
 
-## \[0.7.0]
+## \[0.6.0]
 
 - Update to gtk 0.15
   - [0dd71973](https://github.com/tauri-apps/tao/commit/0dd7197326fc885150f07ebc3127fd8452a36f00) Merge next back to dev branch ([#305](https://github.com/tauri-apps/tao/pull/305)) on 2022-02-05
@@ -72,9 +72,6 @@
   - [0dd71973](https://github.com/tauri-apps/tao/commit/0dd7197326fc885150f07ebc3127fd8452a36f00) Merge next back to dev branch ([#305](https://github.com/tauri-apps/tao/pull/305)) on 2022-02-05
 - On Windows, send correct position on system tray events.
   - [0dd71973](https://github.com/tauri-apps/tao/commit/0dd7197326fc885150f07ebc3127fd8452a36f00) Merge next back to dev branch ([#305](https://github.com/tauri-apps/tao/pull/305)) on 2022-02-05
-
-## \[0.6.0]
-
 - Add support for more accelerator keys: `,` `-` `.` `=` `;` `/` `\` `'` `` ` `` `[` `]` `Space` `Tab` and `F13`-`F24`
   - [b047ae41](https://github.com/tauri-apps/tao/commit/b047ae41a83b94cb140cb3a3decd1ddb4ea6d405) feat: support accelerator key strings `,` `-` `.` `Space` `Tab` and `F13`-`F24` ([#228](https://github.com/tauri-apps/tao/pull/228)) on 2021-11-15
 - Allow more strings to parse to keycode, for example `,` is now parsed as a comma.
