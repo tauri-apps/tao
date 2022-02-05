@@ -67,6 +67,6 @@ fn wrap_ev<T>(event_loop: UnixEventLoop<T>) -> EventLoop<T> {
 impl<T> EventLoopExtUnix for EventLoop<T> {
   #[inline]
   fn new_any_thread() -> Self {
-    wrap_ev(UnixEventLoop::new_any_thread().expect("Failed to initialize gtk backend!"))
+    wrap_ev(UnixEventLoop::new_any_thread())
   }
 }
