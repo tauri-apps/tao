@@ -7,7 +7,8 @@ use std::{
 };
 
 use lazy_static::lazy_static;
-use winapi::{ctypes::c_int, shared::windef::*, um::winuser::*};
+
+use windows::Win32::{Foundation::HWND, UI::WindowsAndMessaging::*};
 
 // NOTE:
 // https://docs.microsoft.com/en-us/windows/win32/wsw/thread-safety
@@ -15,11 +16,11 @@ use winapi::{ctypes::c_int, shared::windef::*, um::winuser::*};
 // unless the MSDN Library article for the function explicitly mentions it is not.
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-struct WindowHandle(HWND);
+struct WindowHandle(isize);
 unsafe impl Send for WindowHandle {}
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-struct AccelHandle(HACCEL);
+struct AccelHandle(isize);
 unsafe impl Send for AccelHandle {}
 unsafe impl Sync for AccelHandle {}
 
@@ -36,32 +37,31 @@ pub(crate) struct AccelTable {
 
 impl AccelTable {
   fn new(accel: &[ACCEL]) -> AccelTable {
-    let accel =
-      unsafe { CreateAcceleratorTableW(accel as *const _ as *mut _, accel.len() as c_int) };
+    let accel = unsafe { CreateAcceleratorTableW(accel as *const _ as *mut _, accel.len() as i32) };
     AccelTable {
-      accel: AccelHandle(accel),
+      accel: AccelHandle(accel.0),
     }
   }
 
   pub(crate) fn handle(&self) -> HACCEL {
-    self.accel.0
+    HACCEL(self.accel.0)
   }
 }
 
 pub(crate) fn register_accel(hwnd: HWND, accel: &[ACCEL]) {
   let mut table = ACCEL_TABLES.lock().unwrap();
-  table.insert(WindowHandle(hwnd), Arc::new(AccelTable::new(accel)));
+  table.insert(WindowHandle(hwnd.0), Arc::new(AccelTable::new(accel)));
 }
 
 impl Drop for AccelTable {
   fn drop(&mut self) {
     unsafe {
-      DestroyAcceleratorTable(self.accel.0);
+      DestroyAcceleratorTable(self.handle());
     }
   }
 }
 
 pub(crate) fn find_accels(hwnd: HWND) -> Option<Arc<AccelTable>> {
   let table = ACCEL_TABLES.lock().unwrap();
-  table.get(&WindowHandle(hwnd)).cloned()
+  table.get(&WindowHandle(hwnd.0)).cloned()
 }

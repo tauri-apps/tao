@@ -16,11 +16,11 @@ mod keyboard;
 mod keycode;
 mod menu;
 mod monitor;
-#[cfg(feature = "tray")]
+#[cfg(any(feature = "tray", feature = "ayatana"))]
 mod system_tray;
 mod window;
 
-#[cfg(feature = "tray")]
+#[cfg(any(feature = "tray", feature = "ayatana"))]
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 pub use self::{
   clipboard::Clipboard,
@@ -32,7 +32,7 @@ pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
 pub use monitor::{MonitorHandle, VideoMode};
 pub use window::{hit_test, PlatformIcon, Window, WindowId};
 
-use crate::keyboard::Key;
+use crate::{event::DeviceId as RootDeviceId, keyboard::Key};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct KeyEventExtra {
@@ -40,17 +40,9 @@ pub struct KeyEventExtra {
   pub key_without_modifiers: Key<'static>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct PlatformSpecificWindowBuilderAttributes {
   pub skip_taskbar: bool,
-}
-
-impl Default for PlatformSpecificWindowBuilderAttributes {
-  fn default() -> Self {
-    Self {
-      skip_taskbar: false,
-    }
-  }
 }
 
 unsafe impl Send for PlatformSpecificWindowBuilderAttributes {}
@@ -73,3 +65,6 @@ impl DeviceId {
     Self(0)
   }
 }
+
+// FIXME: currently we use a dummy device id, find if we can get device id from gtk
+pub(crate) const DEVICE_ID: RootDeviceId = RootDeviceId(DeviceId(0));

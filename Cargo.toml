@@ -6,7 +6,8 @@ authors = [
   "Tauri Programme within The Commons Conservancy",
   "The winit contributors"
 ]
-edition = "2018"
+edition = "2021"
+rust-version = "1.56"
 keywords = [ "windowing" ]
 license = "Apache-2.0"
 readme = "README.md"
@@ -27,7 +28,7 @@ targets = [
 
 [features]
 default = [ "tray" ]
-tray = [ "tauri-libappindicator" ]
+tray = [ "libappindicator" ]
 ayatana = [ "libayatana-appindicator" ]
 dox = [ "gtk/dox" ]
 
@@ -37,13 +38,13 @@ lazy_static = "1"
 libc = "0.2"
 log = "0.4"
 serde = { version = "1", optional = true, features = [ "serde_derive" ] }
-raw-window-handle = "0.3"
+raw-window-handle = "0.4"
 bitflags = "1"
 crossbeam-channel = "0.5"
 
 [dev-dependencies]
 image = "0.23"
-simple_logger = "1.13"
+env_logger = "0.9"
 
 [target."cfg(target_os = \"android\")".dependencies]
 ndk = "0.4"
@@ -60,8 +61,8 @@ core-graphics = "0.22"
 dispatch = "0.2"
 scopeguard = "1.1"
 
-  [target."cfg(target_os = \"macos\")".dependencies.core-video-sys]
-  version = "0.1"
+  [target."cfg(target_os = \"macos\")".dependencies.tao-core-video-sys]
+  version = "0.2"
   default_features = false
   features = [ "display_link" ]
 
@@ -71,43 +72,49 @@ cc = "1"
 [target."cfg(target_os = \"windows\")".dependencies]
 parking_lot = "0.11"
 unicode-segmentation = "1.8.0"
+windows_macros = "0.30.0"
 
-  [target."cfg(target_os = \"windows\")".dependencies.winapi]
-  version = "0.3"
-  features = [
-  "combaseapi",
-  "commctrl",
-  "dwmapi",
-  "errhandlingapi",
-  "imm",
-  "hidusage",
-  "libloaderapi",
-  "objbase",
-  "ole2",
-  "processthreadsapi",
-  "shellapi",
-  "shellscalingapi",
-  "shobjidl_core",
-  "unknwnbase",
-  "winbase",
-  "windowsx",
-  "winerror",
-  "wingdi",
-  "winnt",
-  "winnls",
-  "winuser",
-  "impl-default"
+[target."cfg(target_os = \"windows\")".dependencies.windows]
+version = "0.30.0"
+features = [
+  "alloc",
+  "Win32_Devices_HumanInterfaceDevice",
+  "Win32_Foundation",
+  "Win32_Globalization",
+  "Win32_Graphics_Dwm",
+  "Win32_Graphics_Gdi",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_DataExchange",
+  "Win32_System_Diagnostics_Debug",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Memory",
+  "Win32_System_Ole",
+  "Win32_System_SystemServices",
+  "Win32_System_Threading",
+  "Win32_System_WindowsProgramming",
+  "Win32_UI_Accessibility",
+  "Win32_UI_Controls",
+  "Win32_UI_HiDpi",
+  "Win32_UI_Input_Ime",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_Input_Pointer",
+  "Win32_UI_Input_Touch",
+  "Win32_UI_Shell",
+  "Win32_UI_TextServices",
+  "Win32_UI_WindowsAndMessaging",
 ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-cairo-rs = "0.14"
-gio = "0.14"
-glib = "0.14"
-glib-sys = "0.14"
-gtk = { version = "0.14", features = [ "v3_22" ] }
-gdk = { version = "0.14", features = [ "v3_22" ] }
-gdk-sys = "0.14"
-gdk-pixbuf = { version = "0.14", features = [ "v2_36_8" ] }
-libayatana-appindicator = { version = "0.1.6", optional = true }
-tauri-libappindicator = { version = "0.1.2", optional = true }
+cairo-rs = "0.15"
+gio = "0.15"
+glib = "0.15"
+glib-sys = "0.15"
+gtk = { version = "0.15", features = [ "v3_22" ] }
+gdk = { version = "0.15", features = [ "v3_22" ] }
+gdk-sys = "0.15"
+gdkx11-sys = "0.15"
+gdk-pixbuf = { version = "0.15", features = [ "v2_36_8" ] }
+libayatana-appindicator = { version = "0.2", optional = true }
+libappindicator = { version = "0.7", optional = true }
 x11-dl = "2.18"

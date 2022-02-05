@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 fn main() {
-  use simple_logger::SimpleLogger;
   use tao::{
     accelerator::{Accelerator, RawMods},
     dpi::LogicalSize,
@@ -12,7 +11,7 @@ fn main() {
     window::WindowBuilder,
   };
 
-  SimpleLogger::new().init().unwrap();
+  env_logger::init();
 
   // create a sample hotkey
   let hotkey = Accelerator::new(RawMods::Shift, KeyCode::Digit1);

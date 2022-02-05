@@ -1,9 +1,6 @@
 //! The Accelerator struct and associated types.
 
-use crate::{
-  error::OsError,
-  keyboard::{KeyCode, ModifiersState, NativeKeyCode},
-};
+use crate::keyboard::{KeyCode, ModifiersState, NativeKeyCode};
 use std::{
   borrow::Borrow,
   collections::hash_map::DefaultHasher,
@@ -62,9 +59,9 @@ impl Accelerator {
 // compatible with tauri and it also open the option
 // to generate accelerator from string
 impl FromStr for Accelerator {
-  type Err = OsError;
+  type Err = AcceleratorParseError;
   fn from_str(accelerator_string: &str) -> Result<Self, Self::Err> {
-    Ok(parse_accelerator(accelerator_string))
+    parse_accelerator(accelerator_string)
   }
 }
 
@@ -256,14 +253,37 @@ impl AcceleratorId {
   }
 }
 
-fn parse_accelerator(accelerator_string: &str) -> Accelerator {
+#[derive(Debug, Clone)]
+pub struct AcceleratorParseError(String);
+
+impl std::fmt::Display for AcceleratorParseError {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "[AcceleratorParseError]: {}", self.0)
+  }
+}
+
+fn parse_accelerator(accelerator_string: &str) -> Result<Accelerator, AcceleratorParseError> {
   let mut mods = ModifiersState::empty();
   let mut key = KeyCode::Unidentified(NativeKeyCode::Unidentified);
 
   for raw in accelerator_string.to_uppercase().split('+') {
     let token = raw.trim().to_string();
     if token.is_empty() {
-      continue;
+      return Err(AcceleratorParseError(
+        "Unexpected empty token while parsing accelerator".into(),
+      ));
+    }
+
+    if key != KeyCode::Unidentified(NativeKeyCode::Unidentified) {
+      // at this point we already parsed the modifiers and found a main key but
+      // the function received more then one main key or it is not in the right order
+      // examples:
+      // 1. "Ctrl+Shift+C+A" => only one main key should be allowd.
+      // 2. "Ctrl+C+Shift" => wrong order
+      return Err(AcceleratorParseError(format!(
+        "Unexpected accelerator string format: \"{}\"",
+        accelerator_string
+      )));
     }
 
     match token.as_str() {
@@ -287,18 +307,26 @@ fn parse_accelerator(accelerator_string: &str) -> Accelerator {
       }
       _ => {
         if let Ok(keycode) = KeyCode::from_str(token.to_uppercase().as_str()) {
-          key = keycode;
+          match keycode {
+            KeyCode::Unidentified(_) => {
+              return Err(AcceleratorParseError(format!(
+                "Couldn't identify \"{}\" as a valid `KeyCode`",
+                token
+              )))
+            }
+            _ => key = keycode,
+          }
         }
       }
     }
   }
 
-  Accelerator {
+  Ok(Accelerator {
     // use the accelerator string as id
     id: Some(AcceleratorId(hash_string_to_u16(accelerator_string))),
     key,
     mods,
-  }
+  })
 }
 
 fn hash_string_to_u16(title: &str) -> u16 {
@@ -319,7 +347,7 @@ fn hash_accelerator_to_u16(hotkey: Accelerator) -> u16 {
 #[test]
 fn test_parse_accelerator() {
   assert_eq!(
-    parse_accelerator("CTRL+X"),
+    parse_accelerator("CTRL+X").unwrap(),
     Accelerator {
       id: Some(AcceleratorId::new("CTRL+X")),
       mods: ModifiersState::CONTROL,
@@ -327,7 +355,7 @@ fn test_parse_accelerator() {
     }
   );
   assert_eq!(
-    parse_accelerator("SHIFT+C"),
+    parse_accelerator("SHIFT+C").unwrap(),
     Accelerator {
       id: Some(AcceleratorId::new("SHIFT+C")),
       mods: ModifiersState::SHIFT,
@@ -335,7 +363,7 @@ fn test_parse_accelerator() {
     }
   );
   assert_eq!(
-    parse_accelerator("CTRL+Z"),
+    parse_accelerator("CTRL+Z").unwrap(),
     Accelerator {
       id: Some(AcceleratorId::new("CTRL+Z")),
       mods: ModifiersState::CONTROL,
@@ -343,7 +371,7 @@ fn test_parse_accelerator() {
     }
   );
   assert_eq!(
-    parse_accelerator("super+ctrl+SHIFT+alt+Up"),
+    parse_accelerator("super+ctrl+SHIFT+alt+Up").unwrap(),
     Accelerator {
       id: Some(AcceleratorId::new("super+ctrl+SHIFT+alt+Up")),
       mods: ModifiersState::SUPER
@@ -354,7 +382,7 @@ fn test_parse_accelerator() {
     }
   );
   assert_eq!(
-    parse_accelerator("5"),
+    parse_accelerator("5").unwrap(),
     Accelerator {
       id: Some(AcceleratorId::new("5")),
       mods: ModifiersState::empty(),
@@ -362,7 +390,7 @@ fn test_parse_accelerator() {
     }
   );
   assert_eq!(
-    parse_accelerator("G"),
+    parse_accelerator("G").unwrap(),
     Accelerator {
       id: Some(AcceleratorId::new("G")),
       mods: ModifiersState::empty(),
@@ -370,7 +398,7 @@ fn test_parse_accelerator() {
     }
   );
   assert_eq!(
-    parse_accelerator("G"),
+    parse_accelerator("G").unwrap(),
     Accelerator {
       // id not with same uppercase should work
       id: Some(AcceleratorId::new("g")),
@@ -378,24 +406,15 @@ fn test_parse_accelerator() {
       key: KeyCode::KeyG,
     }
   );
+
+  let acc = parse_accelerator("+G");
+  assert!(acc.is_err());
+
+  let acc = parse_accelerator("SHGSH+G");
+  assert!(acc.is_err());
+
   assert_eq!(
-    parse_accelerator("+G"),
-    Accelerator {
-      id: Some(AcceleratorId::new("+G")),
-      mods: ModifiersState::empty(),
-      key: KeyCode::KeyG,
-    }
-  );
-  assert_eq!(
-    parse_accelerator("SHGSH+G"),
-    Accelerator {
-      id: Some(AcceleratorId::new("SHGSH+G")),
-      mods: ModifiersState::empty(),
-      key: KeyCode::KeyG,
-    }
-  );
-  assert_eq!(
-    parse_accelerator("SHiFT+F12"),
+    parse_accelerator("SHiFT+F12").unwrap(),
     Accelerator {
       id: Some(AcceleratorId::new("SHIFT+F12")),
       mods: ModifiersState::SHIFT,
@@ -403,7 +422,7 @@ fn test_parse_accelerator() {
     }
   );
   assert_eq!(
-    parse_accelerator("CmdOrCtrl+Space"),
+    parse_accelerator("CmdOrCtrl+Space").unwrap(),
     Accelerator {
       id: Some(AcceleratorId::new("CmdOrCtrl+Space")),
       #[cfg(target_os = "macos")]
@@ -413,12 +432,7 @@ fn test_parse_accelerator() {
       key: KeyCode::Space,
     }
   );
-  assert_eq!(
-    parse_accelerator("CTRL+"),
-    Accelerator {
-      id: Some(AcceleratorId::new("CTRL+")),
-      mods: ModifiersState::CONTROL,
-      key: KeyCode::Unidentified(NativeKeyCode::Unidentified),
-    }
-  );
+
+  let acc = parse_accelerator("CTRL+");
+  assert!(acc.is_err());
 }

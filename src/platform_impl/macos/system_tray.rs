@@ -24,7 +24,7 @@ use cocoa::{
 };
 use objc::{
   declare::ClassDecl,
-  runtime::{Class, Object, Sel},
+  runtime::{Class, Object, Protocol, Sel},
 };
 use std::sync::Once;
 
@@ -34,10 +34,6 @@ pub struct SystemTrayBuilder {
 
 impl SystemTrayBuilder {
   /// Creates a new SystemTray for platforms where this is appropriate.
-  /// ## Platform-specific
-  ///
-  /// - **macOS / Windows:**: receive icon as bytes (`Vec<u8>`)
-  /// - **Linux:**: receive icon's path (`PathBuf`)
   #[inline]
   pub fn new(icon: Vec<u8>, tray_menu: Option<Menu>) -> Self {
     unsafe {
@@ -57,8 +53,6 @@ impl SystemTrayBuilder {
   }
 
   /// Builds the system tray.
-  ///
-  /// Possible causes of error include denied permission, incompatible system, and lack of memory.
   #[inline]
   pub fn build<T: 'static>(
     self,
@@ -71,16 +65,12 @@ impl SystemTrayBuilder {
       // set our icon
       self.system_tray.create_button_with_icon();
 
-      // attach menu only if provided
-      if let Some(menu) = self.system_tray.tray_menu.clone() {
-        // set tray menu
-        status_bar.setMenu_(menu.menu);
-      }
-
       // attach click event to our button
       let button = status_bar.button();
       let tray_target: id = msg_send![make_tray_class(), alloc];
       let tray_target: id = msg_send![tray_target, init];
+      (*tray_target).set_ivar("status_bar", status_bar);
+      (*tray_target).set_ivar("menu", nil);
       let _: () = msg_send![button, setAction: sel!(click:)];
       let _: () = msg_send![button, setTarget: tray_target];
       let _: () = msg_send![
@@ -89,6 +79,15 @@ impl SystemTrayBuilder {
           | NSEventMask::NSRightMouseDownMask
           | NSEventMask::NSKeyDownMask
       ];
+
+      // attach menu only if provided
+      if let Some(menu) = self.system_tray.tray_menu.clone() {
+        // We set the tray menu to tray_target instead of status bar
+        // Because setting directly to status bar will overwrite the event callback of the button
+        // See `make_tray_class` for more information.
+        (*tray_target).set_ivar("menu", menu.menu);
+        let () = msg_send![menu.menu, setDelegate: tray_target];
+      }
     }
 
     Ok(RootSystemTray(self.system_tray))
@@ -96,10 +95,6 @@ impl SystemTrayBuilder {
 }
 
 /// System tray is a status icon that can show popup menu. It is usually displayed on top right or bottom right of the screen.
-///
-/// ## Platform-specific
-///
-/// - **Linux:**: require `menu` feature flag. Otherwise, it's a no-op.
 #[derive(Debug, Clone)]
 pub struct SystemTray {
   pub(crate) icon: Vec<u8>,
@@ -154,6 +149,12 @@ impl SystemTray {
   }
 }
 
+/// Create a `TrayHandler` Class that handle button click event and also menu opening and closing.
+///
+/// We set the tray menu to tray_target instead of status bar, because setting directly to status bar
+/// will overwrite the event callback of the button. When `perform_tray_click` called, it will set
+/// the menu to status bar in the end. And when the menu is closed `menu_did_close` will set it to
+/// nil again.
 fn make_tray_class() -> *const Class {
   static mut TRAY_CLASS: *const Class = 0 as *const Class;
   static INIT: Once = Once::new();
@@ -161,9 +162,18 @@ fn make_tray_class() -> *const Class {
   INIT.call_once(|| unsafe {
     let superclass = class!(NSObject);
     let mut decl = ClassDecl::new("TaoTrayHandler", superclass).unwrap();
+    decl.add_ivar::<id>("status_bar");
+    decl.add_ivar::<id>("menu");
     decl.add_method(
       sel!(click:),
       perform_tray_click as extern "C" fn(&mut Object, _, id),
+    );
+
+    let delegate = Protocol::get("NSMenuDelegate").unwrap();
+    decl.add_protocol(&delegate);
+    decl.add_method(
+      sel!(menuDidClose:),
+      menu_did_close as extern "C" fn(&mut Object, _, id),
     );
 
     TRAY_CLASS = decl.register();
@@ -173,7 +183,7 @@ fn make_tray_class() -> *const Class {
 }
 
 /// This will fire for an NSButton callback.
-extern "C" fn perform_tray_click(_this: &mut Object, _: Sel, _sender: id) {
+extern "C" fn perform_tray_click(this: &mut Object, _: Sel, button: id) {
   unsafe {
     let app: id = msg_send![class!(NSApplication), sharedApplication];
     let current_event: id = msg_send![app, currentEvent];
@@ -219,6 +229,21 @@ extern "C" fn perform_tray_click(_this: &mut Object, _: Sel, _sender: id) {
       };
 
       AppState::queue_event(EventWrapper::StaticEvent(event));
+
+      let menu = this.get_ivar::<id>("menu");
+      if *menu != nil {
+        let status_bar = this.get_ivar::<id>("status_bar");
+        status_bar.setMenu_(*menu);
+        let () = msg_send![button, performClick: nil];
+      }
     }
+  }
+}
+
+// Set the menu of the status bar to nil, so it won't overwrite the button events.
+extern "C" fn menu_did_close(this: &mut Object, _: Sel, _menu: id) {
+  unsafe {
+    let status_bar = this.get_ivar::<id>("status_bar");
+    status_bar.setMenu_(nil);
   }
 }

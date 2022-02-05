@@ -34,8 +34,8 @@
 //! You can retrieve events by calling [`EventLoop::run`][event_loop_run]. This function will
 //! dispatch events for every [`Window`] that was created with that particular [`EventLoop`], and
 //! will run until the `control_flow` argument given to the closure is set to
-//! [`ControlFlow`]`::`[`Exit`], at which point [`Event`]`::`[`LoopDestroyed`] is emitted and the
-//! entire program terminates.
+//! [`ControlFlow`]`::`[`ExitWithCode`] (which [`ControlFlow`]`::`[`Exit`] aliases to), at which
+//! point [`Event`]`::`[`LoopDestroyed`] is emitted and the entire program terminates.
 //!
 //! Tao no longer uses a `EventLoop::poll_events() -> impl Iterator<Event>`-based event loop
 //! model, since that can't be implemented properly on some platforms (e.g web, iOS) and works poorly on
@@ -117,6 +117,7 @@
 //! [event_loop_run]: event_loop::EventLoop::run
 //! [`ControlFlow`]: event_loop::ControlFlow
 //! [`Exit`]: event_loop::ControlFlow::Exit
+//! [`ExitWithCode`]: event_loop::ControlFlow::ExitWithCode
 //! [`Window`]: window::Window
 //! [`WindowId`]: window::WindowId
 //! [`WindowBuilder`]: window::WindowBuilder
@@ -132,16 +133,18 @@
 //! [`platform`]: platform
 //! [`raw_window_handle`]: ./window/struct.Window.html#method.raw_window_handle
 #![allow(
+  clippy::match_str_case_mismatch,
   clippy::upper_case_acronyms,
   clippy::from_over_into,
   clippy::option_map_unit_fn,
   clippy::needless_lifetimes,
   clippy::type_complexity,
   clippy::identity_op,
-  clippy::wrong_self_convention
+  clippy::wrong_self_convention,
+  clippy::non_send_fields_in_send_ty
 )]
 #![deny(rust_2018_idioms)]
-#![deny(broken_intra_doc_links)]
+#![deny(rustdoc::broken_intra_doc_links)]
 
 #[allow(unused_imports)]
 #[macro_use]
@@ -180,7 +183,7 @@ mod platform_impl;
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-#[cfg(feature = "tray")]
+#[cfg(any(feature = "tray", feature = "ayatana"))]
 pub mod system_tray;
 pub mod window;
 

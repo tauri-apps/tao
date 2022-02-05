@@ -10,10 +10,11 @@ use std::{
 
 use gdk::{WindowEdge, WindowState};
 use gdk_pixbuf::{Colorspace, Pixbuf};
-use gtk::{prelude::*, AccelGroup, ApplicationWindow, Orientation};
+use gtk::{prelude::*, AccelGroup, Orientation};
+use raw_window_handle::{RawWindowHandle, XlibHandle};
 
 use crate::{
-  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+  dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::{BadIcon, Icon},
   menu::{MenuId, MenuItem},
@@ -143,27 +144,28 @@ impl Window {
       .max_inner_size
       .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
       .unwrap_or_default();
-    window.set_geometry_hints::<ApplicationWindow>(
-      None,
-      Some(&gdk::Geometry {
+    let picky_none: Option<&gtk::Window> = None;
+    window.set_geometry_hints(
+      picky_none,
+      Some(&gdk::Geometry::new(
         min_width,
         min_height,
         max_width,
         max_height,
-        base_width: 0,
-        base_height: 0,
-        width_inc: 0,
-        height_inc: 0,
-        min_aspect: 0f64,
-        max_aspect: 0f64,
-        win_gravity: gdk::Gravity::Center,
-      }),
+        0,
+        0,
+        0,
+        0,
+        0f64,
+        0f64,
+        gdk::Gravity::Center,
+      )),
       geom_mask,
     );
 
     // Set Position
     if let Some(position) = attributes.position {
-      let (x, y): (i32, i32) = position.to_physical::<i32>(win_scale_factor as f64).into();
+      let (x, y): (i32, i32) = position.to_logical::<i32>(win_scale_factor as f64).into();
       window.move_(x, y);
     }
 
@@ -198,9 +200,10 @@ impl Window {
 
     // Rest attributes
     window.set_title(&attributes.title);
-    // TODO set it with Fullscreen enum
-    if attributes.fullscreen.is_some() {
-      window.fullscreen();
+    if let Some(Fullscreen::Borderless(Some(f))) = &attributes.fullscreen {
+      let number = f.inner.number;
+      let screen = window.display().default_screen();
+      window.fullscreen_on_monitor(&screen, number);
     }
     if attributes.maximized {
       window.maximize();
@@ -245,7 +248,7 @@ impl Window {
     let minimized = Rc::new(AtomicBool::new(false));
     let min_clone = minimized.clone();
 
-    window.connect_window_state_event(move |_window, event| {
+    window.connect_window_state_event(move |_, event| {
       let state = event.new_window_state();
       max_clone.store(state.contains(WindowState::MAXIMIZED), Ordering::Release);
       min_clone.store(state.contains(WindowState::ICONIFIED), Ordering::Release);
@@ -262,7 +265,9 @@ impl Window {
       log::warn!("Fail to send wire up events request: {}", e);
     }
 
-    window.queue_draw();
+    if let Err(e) = window_requests_tx.send((window_id, WindowRequest::Redraw)) {
+      log::warn!("Fail to send redraw request: {}", e);
+    }
 
     let win = Self {
       window_id,
@@ -302,24 +307,24 @@ impl Window {
 
   pub fn inner_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
     let (x, y) = &*self.position;
-    Ok(PhysicalPosition::new(
-      x.load(Ordering::Acquire),
-      y.load(Ordering::Acquire),
-    ))
+    Ok(
+      LogicalPosition::new(x.load(Ordering::Acquire), y.load(Ordering::Acquire))
+        .to_physical(self.scale_factor.load(Ordering::Acquire) as f64),
+    )
   }
 
   pub fn outer_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
     let (x, y) = &*self.position;
-    Ok(PhysicalPosition::new(
-      x.load(Ordering::Acquire),
-      y.load(Ordering::Acquire),
-    ))
+    Ok(
+      LogicalPosition::new(x.load(Ordering::Acquire), y.load(Ordering::Acquire))
+        .to_physical(self.scale_factor.load(Ordering::Acquire) as f64),
+    )
   }
 
   pub fn set_outer_position<P: Into<Position>>(&self, position: P) {
     let (x, y): (i32, i32) = position
       .into()
-      .to_physical::<i32>(self.scale_factor())
+      .to_logical::<i32>(self.scale_factor())
       .into();
 
     if let Err(e) = self
@@ -333,10 +338,11 @@ impl Window {
   pub fn inner_size(&self) -> PhysicalSize<u32> {
     let (width, height) = &*self.size;
 
-    PhysicalSize::new(
+    LogicalSize::new(
       width.load(Ordering::Acquire) as u32,
       height.load(Ordering::Acquire) as u32,
     )
+    .to_physical(self.scale_factor.load(Ordering::Acquire) as f64)
   }
 
   pub fn set_inner_size<S: Into<Size>>(&self, size: S) {
@@ -353,10 +359,11 @@ impl Window {
   pub fn outer_size(&self) -> PhysicalSize<u32> {
     let (width, height) = &*self.size;
 
-    PhysicalSize::new(
+    LogicalSize::new(
       width.load(Ordering::Acquire) as u32,
       height.load(Ordering::Acquire) as u32,
     )
+    .to_physical(self.scale_factor.load(Ordering::Acquire) as f64)
   }
 
   pub fn set_min_inner_size<S: Into<Size>>(&self, min_size: Option<S>) {
@@ -518,7 +525,7 @@ impl Window {
   }
 
   pub fn set_ime_position<P: Into<Position>>(&self, _position: P) {
-    todo!()
+    //TODO
   }
 
   pub fn request_user_attention(&self, request_type: Option<UserAttentionType>) {
@@ -604,8 +611,18 @@ impl Window {
     Some(RootMonitorHandle { inner: handle })
   }
 
-  pub fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    todo!()
+  pub fn raw_window_handle(&self) -> RawWindowHandle {
+    // TODO: add wayland support
+    let mut handle = XlibHandle::empty();
+    unsafe {
+      if let Some(window) = self.window.window() {
+        handle.window = gdk_x11_sys::gdk_x11_window_get_xid(window.as_ptr() as *mut _);
+      }
+      if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
+        handle.display = (xlib.XOpenDisplay)(std::ptr::null()) as _;
+      }
+    }
+    RawWindowHandle::Xlib(handle)
   }
 
   pub(crate) fn set_skip_taskbar(&self, skip: bool) {

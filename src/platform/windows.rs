@@ -3,7 +3,7 @@
 
 #![cfg(target_os = "windows")]
 
-use std::{os::raw::c_void, path::Path};
+use std::path::Path;
 
 pub use crate::platform_impl::hit_test;
 use crate::{
@@ -15,12 +15,9 @@ use crate::{
   window::{BadIcon, Icon, Theme, Window, WindowBuilder},
 };
 use libc;
-use winapi::{
-  shared::{
-    minwindef::{self, WORD},
-    windef::{HMENU, HWND},
-  },
-  um::winuser,
+use windows::Win32::{
+  Foundation::HWND,
+  UI::{Input::KeyboardAndMouse::*, WindowsAndMessaging::*},
 };
 
 /// Additional methods on `EventLoop` that are specific to Windows.
@@ -114,7 +111,7 @@ pub trait WindowExtWindows {
   fn reset_dead_keys(&self);
 
   /// Starts the resizing drag from given edge
-  fn begin_resize_drag(&self, edge: isize);
+  fn begin_resize_drag(&self, edge: isize, button: u32, x: i32, y: i32);
 
   /// Whether to show the window icon in the taskbar or not.
   fn set_skip_taskbar(&self, skip: bool);
@@ -123,18 +120,18 @@ pub trait WindowExtWindows {
 impl WindowExtWindows for Window {
   #[inline]
   fn hinstance(&self) -> *mut libc::c_void {
-    self.window.hinstance() as *mut _
+    self.window.hinstance().0 as _
   }
 
   #[inline]
   fn hwnd(&self) -> *mut libc::c_void {
-    self.window.hwnd() as *mut _
+    self.window.hwnd().0 as _
   }
 
   #[inline]
   fn set_enable(&self, enabled: bool) {
     unsafe {
-      winapi::um::winuser::EnableWindow(self.hwnd() as _, enabled as _);
+      EnableWindow(self.window.hwnd(), enabled);
     }
   }
 
@@ -154,27 +151,13 @@ impl WindowExtWindows for Window {
   }
 
   #[inline]
-  fn begin_resize_drag(&self, edge: isize) {
-    unsafe {
-      let point = {
-        let mut pos = std::mem::zeroed();
-        winuser::GetCursorPos(&mut pos);
-        pos
-      };
-
-      winuser::ReleaseCapture();
-      winuser::PostMessageW(
-        self.hwnd() as _,
-        winuser::WM_NCLBUTTONDOWN,
-        edge as minwindef::WPARAM,
-        &point as *const _ as minwindef::LPARAM,
-      );
-    }
+  fn begin_resize_drag(&self, edge: isize, button: u32, x: i32, y: i32) {
+    self.window.begin_resize_drag(edge, button, x, y)
   }
 
   #[inline]
   fn set_skip_taskbar(&self, skip: bool) {
-    self.window.set_skip_taskbar(skip, true);
+    self.window.set_skip_taskbar(skip);
   }
 }
 
@@ -203,7 +186,8 @@ pub trait WindowBuilderExtWindows {
   ///
   /// Parent and menu are mutually exclusive; a child window cannot have a menu!
   ///
-  /// The menu must have been manually created beforehand with [`winapi::um::winuser::CreateMenu`] or similar.
+  /// The menu must have been manually created beforehand with [`windows::Win32::UI::WindowsAndMessaging::CreateMenu`]
+  /// or similar.
   ///
   /// Note: Dark mode cannot be supported for win32 menus, it's simply not possible to change how the menus look.
   /// If you use this, it is recommended that you combine it with `with_theme(Some(Theme::Light))` to avoid a jarring effect.
@@ -286,7 +270,7 @@ pub trait MonitorHandleExtWindows {
   fn native_id(&self) -> String;
 
   /// Returns the handle of the monitor - `HMONITOR`.
-  fn hmonitor(&self) -> *mut c_void;
+  fn hmonitor(&self) -> *mut libc::c_void;
 }
 
 impl MonitorHandleExtWindows for MonitorHandle {
@@ -296,8 +280,8 @@ impl MonitorHandleExtWindows for MonitorHandle {
   }
 
   #[inline]
-  fn hmonitor(&self) -> *mut c_void {
-    self.inner.hmonitor() as *mut _
+  fn hmonitor(&self) -> *mut libc::c_void {
+    self.inner.hmonitor().0 as _
   }
 }
 
@@ -334,7 +318,7 @@ pub trait IconExtWindows: Sized {
   ///
   /// In cases where the specified size does not exist in the file, Windows may perform scaling
   /// to get an icon of the desired size.
-  fn from_resource(ordinal: WORD, size: Option<PhysicalSize<u32>>) -> Result<Self, BadIcon>;
+  fn from_resource(ordinal: u16, size: Option<PhysicalSize<u32>>) -> Result<Self, BadIcon>;
 }
 
 impl IconExtWindows for Icon {
@@ -343,7 +327,7 @@ impl IconExtWindows for Icon {
     Ok(Icon { inner: win_icon })
   }
 
-  fn from_resource(ordinal: WORD, size: Option<PhysicalSize<u32>>) -> Result<Self, BadIcon> {
+  fn from_resource(ordinal: u16, size: Option<PhysicalSize<u32>>) -> Result<Self, BadIcon> {
     let win_icon = WinIcon::from_resource(ordinal, size)?;
     Ok(Icon { inner: win_icon })
   }

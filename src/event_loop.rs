@@ -41,6 +41,7 @@ pub struct EventLoop<T: 'static> {
 /// your callback. `EventLoop` will coerce into this type (`impl<T> Deref for
 /// EventLoop<T>`), so functions that take this as a parameter can also take
 /// `&EventLoop`.
+#[derive(Clone)]
 pub struct EventLoopWindowTarget<T: 'static> {
   pub(crate) p: platform_impl::EventLoopWindowTarget<T>,
   pub(crate) _marker: ::std::marker::PhantomData<*mut ()>, // Not Send nor Sync
@@ -65,9 +66,9 @@ impl<T> fmt::Debug for EventLoopWindowTarget<T> {
 ///
 /// ## Persistency
 /// Almost every change is persistent between multiple calls to the event loop closure within a
-/// given run loop. The only exception to this is `Exit` which, once set, cannot be unset. Changes
-/// are **not** persistent between multiple calls to `run_return` - issuing a new call will reset
-/// the control flow to `Poll`.
+/// given run loop. The only exception to this is `ExitWithCode` which, once set, cannot be unset.
+/// Changes are **not** persistent between multiple calls to `run_return` - issuing a new call will
+/// reset the control flow to `Poll`.
 ///
 /// [events_cleared]: crate::event::Event::RedrawEventsCleared
 #[non_exhaustive]
@@ -82,9 +83,29 @@ pub enum ControlFlow {
   /// arrives or the given time is reached.
   WaitUntil(Instant),
   /// Send a `LoopDestroyed` event and stop the event loop. This variant is *sticky* - once set,
-  /// `control_flow` cannot be changed from `Exit`, and any future attempts to do so will result
-  /// in the `control_flow` parameter being reset to `Exit`.
-  Exit,
+  /// `control_flow` cannot be changed from `ExitWithCode`, and any future attempts to do so will
+  /// result in the `control_flow` parameter being reset to `ExitWithCode`.
+  ///
+  /// The contained number will be used as exit code. The [`Exit`] constant is a shortcut for this
+  /// with exit code 0.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android / iOS / WASM**: The supplied exit code is unused.
+  /// - **Unix**: On most Unix-like platforms, only the 8 least significant bits will be used,
+  ///   which can cause surprises with negative exit values (`-42` would end up as `214`). See
+  ///   [`std::process::exit`].
+  ///
+  /// [`Exit`]: ControlFlow::Exit
+  ExitWithCode(i32),
+}
+
+impl ControlFlow {
+  /// Alias for [`ExitWithCode`]`(0)`.
+  ///
+  /// [`ExitWithCode`]: ControlFlow::ExitWithCode
+  #[allow(non_upper_case_globals)]
+  pub const Exit: Self = Self::ExitWithCode(0);
 }
 
 impl Default for ControlFlow {
@@ -141,6 +162,11 @@ impl<T> EventLoop<T> {
   /// event loop's behavior.
   ///
   /// Any values not passed to this function will *not* be dropped.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Unix**: The program terminates with exit code 1 if the display server
+  ///   disconnects.
   ///
   /// [`ControlFlow`]: crate::event_loop::ControlFlow
   #[inline]

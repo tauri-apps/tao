@@ -1,12 +1,15 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use raw_window_handle::RawWindowHandle;
-use std::{collections::HashMap, ffi::CString, fmt, sync::Mutex};
+use std::{collections::HashMap, fmt, sync::Mutex};
 
-use winapi::{
-  shared::{basetsd, minwindef, windef},
-  um::{commctrl, winuser},
+use windows::Win32::{
+  Foundation::{HWND, LPARAM, LRESULT, PSTR, PWSTR, WPARAM},
+  UI::{
+    Input::KeyboardAndMouse::*,
+    Shell::*,
+    WindowsAndMessaging::{self as win32wm, *},
+  },
 };
 
 use crate::{
@@ -17,10 +20,10 @@ use crate::{
   window::WindowId as RootWindowId,
 };
 
-use super::{accelerator::register_accel, keyboard::key_to_vk, util::to_wstring, WindowId};
+use super::{accelerator::register_accel, keyboard::key_to_vk, util, WindowId};
 
 #[derive(Copy, Clone)]
-struct AccelWrapper(winuser::ACCEL);
+struct AccelWrapper(ACCEL);
 impl fmt::Debug for AccelWrapper {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
     f.pad(&format!(""))
@@ -72,7 +75,7 @@ impl MenuHandler {
 }
 
 #[derive(Debug, Clone)]
-pub struct MenuItemAttributes(pub(crate) u16, windef::HMENU);
+pub struct MenuItemAttributes(pub(crate) u16, HMENU);
 
 impl MenuItemAttributes {
   pub fn id(&self) -> MenuId {
@@ -80,37 +83,36 @@ impl MenuItemAttributes {
   }
   pub fn set_enabled(&mut self, enabled: bool) {
     unsafe {
-      winuser::EnableMenuItem(
+      EnableMenuItem(
         self.1,
         self.0 as u32,
         match enabled {
-          true => winuser::MF_ENABLED,
-          false => winuser::MF_DISABLED,
+          true => MF_ENABLED,
+          false => MF_DISABLED,
         },
       );
     }
   }
   pub fn set_title(&mut self, title: &str) {
     unsafe {
-      let mut info = winuser::MENUITEMINFOA {
-        cbSize: std::mem::size_of::<winuser::MENUITEMINFOA>() as _,
-        fMask: winuser::MIIM_STRING,
+      let info = MENUITEMINFOA {
+        cbSize: std::mem::size_of::<MENUITEMINFOA>() as _,
+        fMask: MIIM_STRING,
+        dwTypeData: PSTR(String::from(title).as_mut_ptr()),
         ..Default::default()
       };
-      let c_str = CString::new(title).unwrap();
-      info.dwTypeData = c_str.as_ptr() as _;
 
-      winuser::SetMenuItemInfoA(self.1, self.0 as u32, minwindef::FALSE, &info);
+      SetMenuItemInfoA(self.1, self.0 as u32, false, &info);
     }
   }
   pub fn set_selected(&mut self, selected: bool) {
     unsafe {
-      winuser::CheckMenuItem(
+      CheckMenuItem(
         self.1,
         self.0 as u32,
         match selected {
-          true => winuser::MF_CHECKED,
-          false => winuser::MF_UNCHECKED,
+          true => MF_CHECKED,
+          false => MF_UNCHECKED,
         },
       );
     }
@@ -122,7 +124,7 @@ impl MenuItemAttributes {
 
 #[derive(Debug, Clone)]
 pub struct Menu {
-  hmenu: windef::HMENU,
+  hmenu: HMENU,
   accels: HashMap<u16, AccelWrapper>,
 }
 
@@ -138,7 +140,7 @@ impl Default for Menu {
 impl Menu {
   pub fn new() -> Self {
     unsafe {
-      let hmenu = winuser::CreateMenu();
+      let hmenu = CreateMenu();
       Menu {
         hmenu,
         accels: HashMap::default(),
@@ -148,7 +150,7 @@ impl Menu {
 
   pub fn new_popup_menu() -> Self {
     unsafe {
-      let hmenu = winuser::CreatePopupMenu();
+      let hmenu = CreatePopupMenu();
       Menu {
         hmenu,
         accels: HashMap::default(),
@@ -156,12 +158,12 @@ impl Menu {
     }
   }
 
-  pub fn hmenu(&self) -> windef::HMENU {
+  pub fn hmenu(&self) -> HMENU {
     self.hmenu
   }
 
   // Get the accels table
-  pub(crate) fn accels(&self) -> Option<Vec<winuser::ACCEL>> {
+  pub(crate) fn accels(&self) -> Option<Vec<ACCEL>> {
     if self.accels.is_empty() {
       return None;
     }
@@ -178,12 +180,12 @@ impl Menu {
     _menu_type: MenuType,
   ) -> CustomMenuItem {
     unsafe {
-      let mut flags = winuser::MF_STRING;
+      let mut flags = MF_STRING;
       if !enabled {
-        flags |= winuser::MF_GRAYED;
+        flags |= MF_GRAYED;
       }
       if selected {
-        flags |= winuser::MF_CHECKED;
+        flags |= MF_CHECKED;
       }
 
       let mut anno_title = title.to_string();
@@ -193,12 +195,7 @@ impl Menu {
         format_hotkey(accelerators, &mut anno_title);
       }
 
-      winuser::AppendMenuW(
-        self.hmenu,
-        flags,
-        menu_id.0 as _,
-        to_wstring(&anno_title).as_mut_ptr(),
-      );
+      AppendMenuW(self.hmenu, flags, menu_id.0 as _, anno_title);
 
       // add our accels
       if let Some(accelerators) = accelerators {
@@ -216,17 +213,12 @@ impl Menu {
       let child_accels = std::mem::take(&mut submenu.accels);
       self.accels.extend(child_accels);
 
-      let mut flags = winuser::MF_POPUP;
+      let mut flags = MF_POPUP;
       if !enabled {
-        flags |= winuser::MF_DISABLED;
+        flags |= MF_DISABLED;
       }
 
-      winuser::AppendMenuW(
-        self.hmenu,
-        flags,
-        submenu.hmenu() as _,
-        to_wstring(&title).as_mut_ptr(),
-      );
+      AppendMenuW(self.hmenu, flags, submenu.hmenu().0 as usize, title);
     }
   }
 
@@ -238,72 +230,32 @@ impl Menu {
     match item {
       MenuItem::Separator => {
         unsafe {
-          winuser::AppendMenuW(self.hmenu, winuser::MF_SEPARATOR, 0, std::ptr::null());
+          AppendMenuW(self.hmenu, MF_SEPARATOR, 0, PWSTR::default());
         };
       }
       MenuItem::Cut => unsafe {
-        winuser::AppendMenuW(
-          self.hmenu,
-          winuser::MF_STRING,
-          CUT_ID,
-          to_wstring("&Cut\tCtrl+X").as_mut_ptr(),
-        );
+        AppendMenuW(self.hmenu, MF_STRING, CUT_ID, "&Cut\tCtrl+X");
       },
       MenuItem::Copy => unsafe {
-        winuser::AppendMenuW(
-          self.hmenu,
-          winuser::MF_STRING,
-          COPY_ID,
-          to_wstring("&Copy\tCtrl+C").as_mut_ptr(),
-        );
+        AppendMenuW(self.hmenu, MF_STRING, COPY_ID, "&Copy\tCtrl+C");
       },
       MenuItem::Paste => unsafe {
-        winuser::AppendMenuW(
-          self.hmenu,
-          winuser::MF_STRING,
-          PASTE_ID,
-          to_wstring("&Paste\tCtrl+V").as_mut_ptr(),
-        );
+        AppendMenuW(self.hmenu, MF_STRING, PASTE_ID, "&Paste\tCtrl+V");
       },
       MenuItem::SelectAll => unsafe {
-        winuser::AppendMenuW(
-          self.hmenu,
-          winuser::MF_STRING,
-          SELECT_ALL_ID,
-          to_wstring("&Select all\tCtrl+A").as_mut_ptr(),
-        );
+        AppendMenuW(self.hmenu, MF_STRING, SELECT_ALL_ID, "&Select all\tCtrl+A");
       },
       MenuItem::Hide => unsafe {
-        winuser::AppendMenuW(
-          self.hmenu,
-          winuser::MF_STRING,
-          HIDE_ID,
-          to_wstring("&Hide\tCtrl+H").as_mut_ptr(),
-        );
+        AppendMenuW(self.hmenu, MF_STRING, HIDE_ID, "&Hide\tCtrl+H");
       },
       MenuItem::CloseWindow => unsafe {
-        winuser::AppendMenuW(
-          self.hmenu,
-          winuser::MF_STRING,
-          CLOSE_ID,
-          to_wstring("&Close\tAlt+F4").as_mut_ptr(),
-        );
+        AppendMenuW(self.hmenu, MF_STRING, CLOSE_ID, "&Close\tAlt+F4");
       },
       MenuItem::Quit => unsafe {
-        winuser::AppendMenuW(
-          self.hmenu,
-          winuser::MF_STRING,
-          QUIT_ID,
-          to_wstring("&Quit").as_mut_ptr(),
-        );
+        AppendMenuW(self.hmenu, MF_STRING, QUIT_ID, "&Quit");
       },
       MenuItem::Minimize => unsafe {
-        winuser::AppendMenuW(
-          self.hmenu,
-          winuser::MF_STRING,
-          MINIMIZE_ID,
-          to_wstring("&Minimize").as_mut_ptr(),
-        );
+        AppendMenuW(self.hmenu, MF_STRING, MINIMIZE_ID, "&Minimize");
       },
       // FIXME: create all shortcuts of MenuItem if possible...
       // like linux?
@@ -324,7 +276,7 @@ impl Menu {
   impl Drop for Menu {
     fn drop(&mut self) {
       unsafe {
-        winuser::DestroyMenu(self.hmenu);
+        DestroyMenu(self.hmenu);
       }
     }
   }
@@ -332,53 +284,40 @@ impl Menu {
 
 const MENU_SUBCLASS_ID: usize = 4568;
 
-pub fn initialize(
-  menu_builder: Menu,
-  window_handle: RawWindowHandle,
-  menu_handler: MenuHandler,
-) -> Option<windef::HMENU> {
-  if let RawWindowHandle::Windows(handle) = window_handle {
-    let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
-    let menu = menu_builder.clone().hmenu();
+pub fn initialize(menu_builder: Menu, window: HWND, menu_handler: MenuHandler) -> HMENU {
+  let sender: *mut MenuHandler = Box::into_raw(Box::new(menu_handler));
+  let menu = menu_builder.hmenu();
 
-    unsafe {
-      commctrl::SetWindowSubclass(
-        handle.hwnd as _,
-        Some(subclass_proc),
-        MENU_SUBCLASS_ID,
-        sender as _,
-      );
-      winuser::SetMenu(handle.hwnd as _, menu);
-    }
-
-    if let Some(accels) = menu_builder.accels() {
-      register_accel(handle.hwnd as _, &accels);
-    }
-
-    Some(menu)
-  } else {
-    None
+  unsafe {
+    SetWindowSubclass(window, Some(subclass_proc), MENU_SUBCLASS_ID, sender as _);
+    SetMenu(window, menu);
   }
+
+  if let Some(accels) = menu_builder.accels() {
+    register_accel(window, &accels);
+  }
+
+  menu
 }
 
 pub(crate) unsafe extern "system" fn subclass_proc(
-  hwnd: windef::HWND,
-  msg: minwindef::UINT,
-  wparam: minwindef::WPARAM,
-  lparam: minwindef::LPARAM,
-  _id: basetsd::UINT_PTR,
-  subclass_input_ptr: basetsd::DWORD_PTR,
-) -> minwindef::LRESULT {
+  hwnd: HWND,
+  msg: u32,
+  wparam: WPARAM,
+  lparam: LPARAM,
+  _id: usize,
+  subclass_input_ptr: usize,
+) -> LRESULT {
   let subclass_input_ptr = subclass_input_ptr as *mut MenuHandler;
   let subclass_input = &*(subclass_input_ptr);
 
-  if msg == winuser::WM_DESTROY {
+  if msg == WM_DESTROY {
     Box::from_raw(subclass_input_ptr);
   }
 
   match msg {
-    winuser::WM_COMMAND => {
-      match wparam {
+    win32wm::WM_COMMAND => {
+      match wparam.0 {
         CUT_ID => {
           execute_edit_command(EditCommand::Cut);
         }
@@ -392,30 +331,31 @@ pub(crate) unsafe extern "system" fn subclass_proc(
           execute_edit_command(EditCommand::SelectAll);
         }
         HIDE_ID => {
-          winuser::ShowWindow(hwnd, winuser::SW_HIDE);
+          ShowWindow(hwnd, SW_HIDE);
         }
         CLOSE_ID => {
           subclass_input.send_event(Event::WindowEvent {
-            window_id: RootWindowId(WindowId(hwnd)),
+            window_id: RootWindowId(WindowId(hwnd.0)),
             event: WindowEvent::CloseRequested,
           });
         }
         QUIT_ID => {
           subclass_input.send_event(Event::LoopDestroyed);
+          PostQuitMessage(0);
         }
         MINIMIZE_ID => {
-          winuser::ShowWindow(hwnd, winuser::SW_MINIMIZE);
+          ShowWindow(hwnd, SW_MINIMIZE);
         }
         _ => {
-          let menu_id = minwindef::LOWORD(wparam as _);
+          let menu_id = util::LOWORD(wparam.0 as u32);
           if MENU_IDS.lock().unwrap().contains(&menu_id) {
             subclass_input.send_menu_event(menu_id);
           }
         }
       }
-      0
+      LRESULT(0)
     }
-    _ => commctrl::DefSubclassProc(hwnd, msg, wparam, lparam),
+    _ => DefSubclassProc(hwnd, msg, wparam, lparam),
   }
 }
 
@@ -434,53 +374,53 @@ fn execute_edit_command(command: EditCommand) {
   };
 
   unsafe {
-    let mut inputs: [winuser::INPUT; 4] = std::mem::zeroed();
-    inputs[0].type_ = winuser::INPUT_KEYBOARD;
-    inputs[0].u.ki_mut().wVk = winuser::VK_CONTROL as _;
+    let mut inputs: [INPUT; 4] = std::mem::zeroed();
+    inputs[0].r#type = INPUT_KEYBOARD;
+    inputs[0].Anonymous.ki.wVk = VK_CONTROL as _;
 
-    inputs[1].type_ = winuser::INPUT_KEYBOARD;
-    inputs[1].u.ki_mut().wVk = key;
+    inputs[1].r#type = INPUT_KEYBOARD;
+    inputs[1].Anonymous.ki.wVk = key as VIRTUAL_KEY;
 
-    inputs[2].type_ = winuser::INPUT_KEYBOARD;
-    inputs[2].u.ki_mut().wVk = key;
-    inputs[2].u.ki_mut().dwFlags = winuser::KEYEVENTF_KEYUP;
+    inputs[2].r#type = INPUT_KEYBOARD;
+    inputs[2].Anonymous.ki.wVk = key as VIRTUAL_KEY;
+    inputs[2].Anonymous.ki.dwFlags = KEYEVENTF_KEYUP;
 
-    inputs[3].type_ = winuser::INPUT_KEYBOARD;
-    inputs[3].u.ki_mut().wVk = winuser::VK_CONTROL as _;
-    inputs[3].u.ki_mut().dwFlags = winuser::KEYEVENTF_KEYUP;
+    inputs[3].r#type = INPUT_KEYBOARD;
+    inputs[3].Anonymous.ki.wVk = VK_CONTROL as _;
+    inputs[3].Anonymous.ki.dwFlags = KEYEVENTF_KEYUP;
 
-    winuser::SendInput(
+    SendInput(
       inputs.len() as _,
       inputs.as_mut_ptr(),
-      std::mem::size_of::<winuser::INPUT>() as _,
+      std::mem::size_of::<INPUT>() as _,
     );
   }
 }
 
 // Convert a hotkey to an accelerator.
-fn convert_accelerator(id: u16, key: Accelerator) -> Option<winuser::ACCEL> {
-  let mut virt_key = winuser::FVIRTKEY;
+fn convert_accelerator(id: u16, key: Accelerator) -> Option<ACCEL> {
+  let mut virt_key = FVIRTKEY;
   let key_mods: ModifiersState = key.mods;
   if key_mods.control_key() {
-    virt_key |= winuser::FCONTROL;
+    virt_key |= FCONTROL;
   }
   if key_mods.alt_key() {
-    virt_key |= winuser::FALT;
+    virt_key |= FALT;
   }
   if key_mods.shift_key() {
-    virt_key |= winuser::FSHIFT;
+    virt_key |= FSHIFT;
   }
 
   let raw_key = if let Some(vk_code) = key_to_vk(&key.key) {
     let mod_code = vk_code >> 8;
     if mod_code & 0x1 != 0 {
-      virt_key |= winuser::FSHIFT;
+      virt_key |= FSHIFT;
     }
     if mod_code & 0x02 != 0 {
-      virt_key |= winuser::FCONTROL;
+      virt_key |= FCONTROL;
     }
     if mod_code & 0x04 != 0 {
-      virt_key |= winuser::FALT;
+      virt_key |= FALT;
     }
     vk_code & 0x00ff
   } else {
@@ -488,8 +428,8 @@ fn convert_accelerator(id: u16, key: Accelerator) -> Option<winuser::ACCEL> {
     return None;
   };
 
-  Some(winuser::ACCEL {
-    fVirt: virt_key,
+  Some(ACCEL {
+    fVirt: virt_key as u8,
     key: raw_key as u16,
     cmd: id,
   })

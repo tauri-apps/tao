@@ -14,9 +14,9 @@ use std::{
 };
 
 use cocoa::{
-  appkit::{NSApp, NSEventType::NSApplicationDefined},
-  base::{id, nil, YES},
-  foundation::{NSAutoreleasePool, NSPoint},
+  appkit::{NSApp, NSEventModifierFlags, NSEventSubtype, NSEventType::NSApplicationDefined},
+  base::{id, nil, BOOL, NO, YES},
+  foundation::{NSAutoreleasePool, NSInteger, NSPoint, NSTimeInterval},
 };
 use crossbeam_channel::{self as channel, Receiver, Sender};
 use scopeguard::defer;
@@ -63,6 +63,7 @@ impl PanicInfo {
   }
 }
 
+#[derive(Clone)]
 pub struct EventLoopWindowTarget<T: 'static> {
   pub sender: Sender<T>, // this is only here to be cloned elsewhere
   pub receiver: Receiver<T>,
@@ -106,7 +107,8 @@ pub struct EventLoop<T: 'static> {
 impl<T> EventLoop<T> {
   pub fn new() -> Self {
     let delegate = unsafe {
-      if !msg_send![class!(NSThread), isMainThread] {
+      let is_main_thread: BOOL = msg_send!(class!(NSThread), isMainThread);
+      if is_main_thread == NO {
         panic!("On macOS, `EventLoop` must be created on the main thread!");
       }
 
@@ -143,11 +145,11 @@ impl<T> EventLoop<T> {
   where
     F: 'static + FnMut(Event<'_, T>, &RootWindowTarget<T>, &mut ControlFlow),
   {
-    self.run_return(callback);
-    process::exit(0);
+    let exit_code = self.run_return(callback);
+    process::exit(exit_code);
   }
 
-  pub fn run_return<F>(&mut self, callback: F)
+  pub fn run_return<F>(&mut self, callback: F) -> i32
   where
     F: FnMut(Event<'_, T>, &RootWindowTarget<T>, &mut ControlFlow),
   {
@@ -164,7 +166,7 @@ impl<T> EventLoop<T> {
 
     self._callback = Some(Rc::clone(&callback));
 
-    unsafe {
+    let exit_code = unsafe {
       let pool = NSAutoreleasePool::new(nil);
       defer!(pool.drain());
       let app = NSApp();
@@ -182,9 +184,11 @@ impl<T> EventLoop<T> {
         drop(self._callback.take());
         resume_unwind(panic);
       }
-      AppState::exit();
-    }
+      AppState::exit()
+    };
     drop(self._callback.take());
+
+    exit_code
   }
 
   pub fn create_proxy(&self) -> Proxy<T> {
@@ -199,13 +203,13 @@ pub unsafe fn post_dummy_event(target: id) {
       event_class,
       otherEventWithType: NSApplicationDefined
       location: NSPoint::new(0.0, 0.0)
-      modifierFlags: 0
-      timestamp: 0
-      windowNumber: 0
+      modifierFlags: NSEventModifierFlags::empty()
+      timestamp: 0 as NSTimeInterval
+      windowNumber: 0 as NSInteger
       context: nil
-      subtype: 0
-      data1: 0
-      data2: 0
+      subtype: NSEventSubtype::NSWindowExposedEventType
+      data1: 0 as NSInteger
+      data2: 0 as NSInteger
   ];
   let () = msg_send![target, postEvent: dummy_event atStart: YES];
 }

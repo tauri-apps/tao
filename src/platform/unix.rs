@@ -9,8 +9,11 @@
   target_os = "openbsd"
 ))]
 
-pub use crate::platform_impl::hit_test;
-use crate::window::{Window, WindowBuilder};
+pub use crate::platform_impl::{hit_test, EventLoop as UnixEventLoop};
+use crate::{
+  event_loop::EventLoop,
+  window::{Window, WindowBuilder},
+};
 
 /// Additional methods on `Window` that are specific to Unix.
 pub trait WindowExtUnix {
@@ -40,5 +43,30 @@ impl WindowBuilderExtUnix for WindowBuilder {
   fn with_skip_taskbar(mut self, skip: bool) -> WindowBuilder {
     self.platform_specific.skip_taskbar = skip;
     self
+  }
+}
+
+/// Additional methods on `EventLoop` that are specific to Unix.
+pub trait EventLoopExtUnix {
+  /// Builds a new `EventLoop` on any thread.
+  ///
+  /// This method bypasses the cross-platform compatibility requirement
+  /// that `EventLoop` be created on the main thread.
+  fn new_any_thread() -> Self
+  where
+    Self: Sized;
+}
+
+fn wrap_ev<T>(event_loop: UnixEventLoop<T>) -> EventLoop<T> {
+  EventLoop {
+    event_loop,
+    _marker: std::marker::PhantomData,
+  }
+}
+
+impl<T> EventLoopExtUnix for EventLoop<T> {
+  #[inline]
+  fn new_any_thread() -> Self {
+    wrap_ev(UnixEventLoop::new_any_thread())
   }
 }

@@ -3,7 +3,6 @@
 
 // This example is used by developers to test various window functions.
 
-use simple_logger::SimpleLogger;
 use tao::{
   dpi::{LogicalSize, PhysicalSize},
   event::{DeviceEvent, ElementState, Event, KeyEvent, RawKeyEvent, WindowEvent},
@@ -15,7 +14,7 @@ use tao::{
 #[allow(clippy::single_match)]
 #[allow(clippy::collapsible_match)]
 fn main() {
-  SimpleLogger::new().init().unwrap();
+  env_logger::init();
   let event_loop = EventLoop::new();
 
   let window = WindowBuilder::new()

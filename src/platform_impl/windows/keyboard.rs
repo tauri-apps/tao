@@ -1,18 +1,15 @@
 use std::{
-  char,
-  collections::HashSet,
-  ffi::OsString,
-  mem::MaybeUninit,
-  os::{raw::c_int, windows::ffi::OsStringExt},
+  char, collections::HashSet, ffi::OsString, mem::MaybeUninit, os::windows::ffi::OsStringExt,
   sync::MutexGuard,
 };
 
-use winapi::{
-  shared::{
-    minwindef::{HKL, LPARAM, UINT, WPARAM},
-    windef::HWND,
+use windows::Win32::{
+  Foundation::{HWND, LPARAM, LRESULT, WPARAM},
+  UI::{
+    Input::KeyboardAndMouse::{self as win32km, *},
+    TextServices::HKL,
+    WindowsAndMessaging::{self as win32wm, *},
   },
-  um::winuser,
 };
 
 use unicode_segmentation::UnicodeSegmentation;
@@ -28,7 +25,6 @@ use crate::{
 };
 
 pub fn is_msg_keyboard_related(msg: u32) -> bool {
-  use winuser::{WM_KEYFIRST, WM_KEYLAST, WM_KILLFOCUS, WM_SETFOCUS};
   let is_keyboard_msg = WM_KEYFIRST <= msg && msg <= WM_KEYLAST;
 
   is_keyboard_msg || msg == WM_SETFOCUS || msg == WM_KILLFOCUS
@@ -61,13 +57,9 @@ pub struct MessageAsKeyEvent {
 ///
 /// Key release messages are a bit different due to the fact that they don't contribute to
 /// text input. The "sequence" only consists of one WM_KEYUP / WM_SYSKEYUP event.
+#[derive(Default)]
 pub struct KeyEventBuilder {
   event_info: Option<PartialKeyEventInfo>,
-}
-impl Default for KeyEventBuilder {
-  fn default() -> Self {
-    KeyEventBuilder { event_info: None }
-  }
 }
 impl KeyEventBuilder {
   /// Call this function for every window message.
@@ -82,7 +74,7 @@ impl KeyEventBuilder {
     result: &mut ProcResult,
   ) -> Vec<MessageAsKeyEvent> {
     match msg_kind {
-      winuser::WM_SETFOCUS => {
+      win32wm::WM_SETFOCUS => {
         // synthesize keydown events
         let kbd_state = get_async_kbd_state();
         let key_events = self.synthesize_kbd_state(ElementState::Pressed, &kbd_state);
@@ -90,7 +82,7 @@ impl KeyEventBuilder {
           return key_events;
         }
       }
-      winuser::WM_KILLFOCUS => {
+      win32wm::WM_KILLFOCUS => {
         // sythesize keyup events
         let kbd_state = get_kbd_state();
         let key_events = self.synthesize_kbd_state(ElementState::Released, &kbd_state);
@@ -98,13 +90,13 @@ impl KeyEventBuilder {
           return key_events;
         }
       }
-      winuser::WM_KEYDOWN | winuser::WM_SYSKEYDOWN => {
-        if msg_kind == winuser::WM_SYSKEYDOWN && wparam as i32 == winuser::VK_F4 {
+      win32wm::WM_KEYDOWN | win32wm::WM_SYSKEYDOWN => {
+        if msg_kind == WM_SYSKEYDOWN && wparam.0 == usize::from(VK_F4) {
           // Don't dispatch Alt+F4 to the application.
           // This is handled in `event_loop.rs`
           return vec![];
         }
-        *result = ProcResult::Value(0);
+        *result = ProcResult::Value(LRESULT(0));
 
         let mut layouts = LAYOUT_CACHE.lock().unwrap();
         let event_info =
@@ -112,15 +104,15 @@ impl KeyEventBuilder {
 
         let mut next_msg = MaybeUninit::uninit();
         let peek_retval = unsafe {
-          winuser::PeekMessageW(
+          PeekMessageW(
             next_msg.as_mut_ptr(),
             hwnd,
-            winuser::WM_KEYFIRST,
-            winuser::WM_KEYLAST,
-            winuser::PM_NOREMOVE,
+            WM_KEYFIRST,
+            WM_KEYLAST,
+            PM_NOREMOVE,
           )
         };
-        let has_next_key_message = peek_retval != 0;
+        let has_next_key_message = peek_retval.as_bool();
         self.event_info = None;
         let mut finished_event_info = Some(event_info);
         if has_next_key_message {
@@ -128,7 +120,7 @@ impl KeyEventBuilder {
           let next_msg_kind = next_msg.message;
           let next_belongs_to_this = !matches!(
             next_msg_kind,
-            winuser::WM_KEYDOWN | winuser::WM_SYSKEYDOWN | winuser::WM_KEYUP | winuser::WM_SYSKEYUP
+            win32wm::WM_KEYDOWN | win32wm::WM_SYSKEYDOWN | win32wm::WM_KEYUP | win32wm::WM_SYSKEYUP
           );
           if next_belongs_to_this {
             self.event_info = finished_event_info.take();
@@ -151,8 +143,8 @@ impl KeyEventBuilder {
           }];
         }
       }
-      winuser::WM_DEADCHAR | winuser::WM_SYSDEADCHAR => {
-        *result = ProcResult::Value(0);
+      win32wm::WM_DEADCHAR | win32wm::WM_SYSDEADCHAR => {
+        *result = ProcResult::Value(LRESULT(0));
         // At this point, we know that there isn't going to be any more events related to
         // this key press
         let event_info = self.event_info.take().unwrap();
@@ -163,33 +155,33 @@ impl KeyEventBuilder {
           is_synthetic: false,
         }];
       }
-      winuser::WM_CHAR | winuser::WM_SYSCHAR => {
+      win32wm::WM_CHAR | win32wm::WM_SYSCHAR => {
         if self.event_info.is_none() {
           trace!("Received a CHAR message but no `event_info` was available. The message is probably IME, returning.");
           return vec![];
         }
-        *result = ProcResult::Value(0);
-        let is_high_surrogate = 0xD800 <= wparam && wparam <= 0xDBFF;
-        let is_low_surrogate = 0xDC00 <= wparam && wparam <= 0xDFFF;
+        *result = ProcResult::Value(LRESULT(0));
+        let is_high_surrogate = (0xD800..=0xDBFF).contains(&wparam.0);
+        let is_low_surrogate = (0xDC00..=0xDFFF).contains(&wparam.0);
 
         let is_utf16 = is_high_surrogate || is_low_surrogate;
 
         let more_char_coming;
         unsafe {
           let mut next_msg = MaybeUninit::uninit();
-          let has_message = winuser::PeekMessageW(
+          let has_message = PeekMessageW(
             next_msg.as_mut_ptr(),
             hwnd,
-            winuser::WM_KEYFIRST,
-            winuser::WM_KEYLAST,
-            winuser::PM_NOREMOVE,
+            WM_KEYFIRST,
+            WM_KEYLAST,
+            PM_NOREMOVE,
           );
-          let has_message = has_message != 0;
+          let has_message = has_message.as_bool();
           if !has_message {
             more_char_coming = false;
           } else {
             let next_msg = next_msg.assume_init().message;
-            if next_msg == winuser::WM_CHAR || next_msg == winuser::WM_SYSCHAR {
+            if next_msg == WM_CHAR || next_msg == WM_SYSCHAR {
               more_char_coming = true;
             } else {
               more_char_coming = false;
@@ -199,7 +191,7 @@ impl KeyEventBuilder {
 
         if is_utf16 {
           if let Some(ev_info) = self.event_info.as_mut() {
-            ev_info.utf16parts.push(wparam as u16);
+            ev_info.utf16parts.push(wparam.0 as u16);
           }
         } else {
           // In this case, wparam holds a UTF-32 character.
@@ -214,7 +206,7 @@ impl KeyEventBuilder {
           let start_offset = utf16parts.len();
           let new_size = utf16parts.len() + 2;
           utf16parts.resize(new_size, 0);
-          if let Some(ch) = char::from_u32(wparam as u32) {
+          if let Some(ch) = char::from_u32(wparam.0 as u32) {
             let encode_len = ch.encode_utf16(&mut utf16parts[start_offset..]).len();
             let new_size = start_offset + encode_len;
             utf16parts.resize(new_size, 0);
@@ -250,7 +242,7 @@ impl KeyEventBuilder {
             event_info.text = PartialText::System(event_info.utf16parts.clone());
           } else {
             let mod_no_ctrl = mod_state.remove_only_ctrl();
-            let num_lock_on = kbd_state[winuser::VK_NUMLOCK as usize] & 1 != 0;
+            let num_lock_on = kbd_state[usize::from(VK_NUMLOCK)] & 1 != 0;
             let vkey = event_info.vkey;
             let scancode = event_info.scancode;
             let keycode = event_info.code;
@@ -264,30 +256,30 @@ impl KeyEventBuilder {
           }];
         }
       }
-      winuser::WM_KEYUP | winuser::WM_SYSKEYUP => {
-        *result = ProcResult::Value(0);
+      win32wm::WM_KEYUP | win32wm::WM_SYSKEYUP => {
+        *result = ProcResult::Value(LRESULT(0));
 
         let mut layouts = LAYOUT_CACHE.lock().unwrap();
         let event_info =
           PartialKeyEventInfo::from_message(wparam, lparam, ElementState::Released, &mut layouts);
         let mut next_msg = MaybeUninit::uninit();
         let peek_retval = unsafe {
-          winuser::PeekMessageW(
+          PeekMessageW(
             next_msg.as_mut_ptr(),
             hwnd,
-            winuser::WM_KEYFIRST,
-            winuser::WM_KEYLAST,
-            winuser::PM_NOREMOVE,
+            WM_KEYFIRST,
+            WM_KEYLAST,
+            PM_NOREMOVE,
           )
         };
-        let has_next_key_message = peek_retval != 0;
+        let has_next_key_message = peek_retval.as_bool();
         let mut valid_event_info = Some(event_info);
         if has_next_key_message {
           let next_msg = unsafe { next_msg.assume_init() };
           let (_, layout) = layouts.get_current_layout();
           let is_fake = {
             let event_info = valid_event_info.as_ref().unwrap();
-            is_current_fake(&event_info, next_msg, layout)
+            is_current_fake(event_info, next_msg, layout)
           };
           if is_fake {
             valid_event_info = None;
@@ -317,16 +309,12 @@ impl KeyEventBuilder {
     let mut layouts = LAYOUT_CACHE.lock().unwrap();
     let (locale_id, _) = layouts.get_current_layout();
 
-    macro_rules! is_key_pressed {
-      ($vk:expr) => {
-        kbd_state[$vk as usize] & 0x80 != 0
-      };
-    }
+    let is_key_pressed = |vk: VIRTUAL_KEY| &kbd_state[usize::from(vk)] & 0x80 != 0;
 
     // Is caps-lock active? Note that this is different from caps-lock
     // being held down.
-    let caps_lock_on = kbd_state[winuser::VK_CAPITAL as usize] & 1 != 0;
-    let num_lock_on = kbd_state[winuser::VK_NUMLOCK as usize] & 1 != 0;
+    let caps_lock_on = kbd_state[usize::from(VK_CAPITAL)] & 1 != 0;
+    let num_lock_on = kbd_state[usize::from(VK_NUMLOCK)] & 1 != 0;
 
     // We are synthesizing the press event for caps-lock first for the following reasons:
     // 1. If caps-lock is *not* held down but *is* active, then we have to
@@ -339,13 +327,13 @@ impl KeyEventBuilder {
     // For the sake of simplicity we are choosing to always sythesize
     // caps-lock first, and always use the current caps-lock state
     // to determine the produced text
-    if is_key_pressed!(winuser::VK_CAPITAL) {
+    if is_key_pressed(VK_CAPITAL) {
       let event = self.create_synthetic(
-        winuser::VK_CAPITAL,
+        VK_CAPITAL,
         key_state,
         caps_lock_on,
         num_lock_on,
-        locale_id as HKL,
+        locale_id,
         &mut layouts,
       );
       if let Some(event) = event {
@@ -354,20 +342,24 @@ impl KeyEventBuilder {
     }
     let do_non_modifier = |key_events: &mut Vec<_>, layouts: &mut _| {
       for vk in 0..256 {
+        let vk = vk as VIRTUAL_KEY;
         match vk {
-          winuser::VK_CONTROL
-          | winuser::VK_LCONTROL
-          | winuser::VK_RCONTROL
-          | winuser::VK_SHIFT
-          | winuser::VK_LSHIFT
-          | winuser::VK_RSHIFT
-          | winuser::VK_MENU
-          | winuser::VK_LMENU
-          | winuser::VK_RMENU
-          | winuser::VK_CAPITAL => continue,
+          _ if vk == VK_CONTROL
+            || vk == VK_LCONTROL
+            || vk == VK_RCONTROL
+            || vk == VK_SHIFT
+            || vk == VK_LSHIFT
+            || vk == VK_RSHIFT
+            || vk == VK_MENU
+            || vk == VK_LMENU
+            || vk == VK_RMENU
+            || vk == VK_CAPITAL =>
+          {
+            continue
+          }
           _ => (),
         }
-        if !is_key_pressed!(vk) {
+        if !is_key_pressed(vk) {
           continue;
         }
         let event = self.create_synthetic(
@@ -384,16 +376,16 @@ impl KeyEventBuilder {
       }
     };
     let do_modifier = |key_events: &mut Vec<_>, layouts: &mut _| {
-      const CLEAR_MODIFIER_VKS: [i32; 6] = [
-        winuser::VK_LCONTROL,
-        winuser::VK_LSHIFT,
-        winuser::VK_LMENU,
-        winuser::VK_RCONTROL,
-        winuser::VK_RSHIFT,
-        winuser::VK_RMENU,
+      const CLEAR_MODIFIER_VKS: [VIRTUAL_KEY; 6] = [
+        VK_LCONTROL,
+        VK_LSHIFT,
+        VK_LMENU,
+        VK_RCONTROL,
+        VK_RSHIFT,
+        VK_RMENU,
       ];
       for vk in CLEAR_MODIFIER_VKS.iter() {
-        if is_key_pressed!(*vk) {
+        if is_key_pressed(*vk) {
           let event = self.create_synthetic(
             *vk,
             key_state,
@@ -428,15 +420,14 @@ impl KeyEventBuilder {
 
   fn create_synthetic(
     &self,
-    vk: i32,
+    vk: VIRTUAL_KEY,
     key_state: ElementState,
     caps_lock_on: bool,
     num_lock_on: bool,
     locale_id: HKL,
     layouts: &mut MutexGuard<'_, LayoutCache>,
   ) -> Option<MessageAsKeyEvent> {
-    let scancode =
-      unsafe { winuser::MapVirtualKeyExW(vk as UINT, winuser::MAPVK_VK_TO_VSC_EX, locale_id) };
+    let scancode = unsafe { MapVirtualKeyExW(u32::from(vk), MAPVK_VK_TO_VSC_EX, locale_id) };
     if scancode == 0 {
       return None;
     }
@@ -447,7 +438,7 @@ impl KeyEventBuilder {
     } else {
       WindowsModifiers::empty()
     };
-    let layout = layouts.layouts.get(&(locale_id as u64)).unwrap();
+    let layout = layouts.layouts.get(&locale_id.0).unwrap();
     let logical_key = layout.get_key(mods, num_lock_on, vk, scancode, code);
     let key_without_modifiers =
       layout.get_key(WindowsModifiers::empty(), false, vk, scancode, code);
@@ -498,7 +489,7 @@ enum PartialLogicalKey {
 }
 
 struct PartialKeyEventInfo {
-  vkey: c_int,
+  vkey: VIRTUAL_KEY,
   scancode: ExScancode,
   key_state: ElementState,
   is_repeat: bool,
@@ -527,24 +518,22 @@ impl PartialKeyEventInfo {
     let (_, layout) = layouts.get_current_layout();
     let lparam_struct = destructure_key_lparam(lparam);
     let scancode;
-    let vkey = wparam as c_int;
+    let vkey = wparam.0 as VIRTUAL_KEY;
     if lparam_struct.scancode == 0 {
       // In some cases (often with media keys) the device reports a scancode of 0 but a
       // valid virtual key. In these cases we obtain the scancode from the virtual key.
-      scancode = unsafe {
-        winuser::MapVirtualKeyExW(vkey as u32, winuser::MAPVK_VK_TO_VSC_EX, layout.hkl as HKL)
-          as u16
-      };
+      scancode =
+        unsafe { MapVirtualKeyExW(u32::from(vkey), MAPVK_VK_TO_VSC_EX, layout.hkl) as u16 };
     } else {
       scancode = new_ex_scancode(lparam_struct.scancode, lparam_struct.extended);
     }
     let code = KeyCode::from_scancode(scancode as u32);
-    let location = get_location(scancode, layout.hkl as HKL);
+    let location = get_location(scancode, layout.hkl);
 
     let kbd_state = get_kbd_state();
     let mods = WindowsModifiers::active_modifiers(&kbd_state);
     let mods_without_ctrl = mods.remove_only_ctrl();
-    let num_lock_on = kbd_state[winuser::VK_NUMLOCK as usize] & 1 != 0;
+    let num_lock_on = kbd_state[VK_NUMLOCK as usize] & 1 != 0;
 
     // On Windows Ctrl+NumLock = Pause (and apparently Ctrl+Pause -> NumLock). In these cases
     // the KeyCode still stores the real key, so in the name of consistency across platforms, we
@@ -680,11 +669,11 @@ struct KeyLParam {
 }
 
 fn destructure_key_lparam(lparam: LPARAM) -> KeyLParam {
-  let previous_state = (lparam >> 30) & 0x01;
-  let transition_state = (lparam >> 31) & 0x01;
+  let previous_state = (lparam.0 >> 30) & 0x01;
+  let transition_state = (lparam.0 >> 31) & 0x01;
   KeyLParam {
-    scancode: ((lparam >> 16) & 0xFF) as u8,
-    extended: ((lparam >> 24) & 0x01) != 0,
+    scancode: ((lparam.0 >> 16) & 0xFF) as u8,
+    extended: ((lparam.0 >> 24) & 0x01) != 0,
     is_repeat: (previous_state ^ transition_state) != 0,
   }
 }
@@ -705,7 +694,7 @@ fn ex_scancode_from_lparam(lparam: LPARAM) -> ExScancode {
 fn get_kbd_state() -> [u8; 256] {
   unsafe {
     let mut kbd_state: MaybeUninit<[u8; 256]> = MaybeUninit::uninit();
-    winuser::GetKeyboardState(kbd_state.as_mut_ptr() as *mut u8);
+    GetKeyboardState(kbd_state.as_mut_ptr() as *mut u8);
     kbd_state.assume_init()
   }
 }
@@ -714,19 +703,21 @@ fn get_kbd_state() -> [u8; 256] {
 /// been removed from the event queue. See also: get_kbd_state
 fn get_async_kbd_state() -> [u8; 256] {
   unsafe {
-    let mut kbd_state: [u8; 256] = MaybeUninit::uninit().assume_init();
+    let mut kbd_state: [u8; 256] = [0; 256];
     for (vk, state) in kbd_state.iter_mut().enumerate() {
-      let vk = vk as c_int;
-      let async_state = winuser::GetAsyncKeyState(vk as c_int);
+      let vk = vk as VIRTUAL_KEY;
+      let async_state = GetAsyncKeyState(i32::from(vk));
       let is_down = (async_state & (1 << 15)) != 0;
-      *state = if is_down { 0x80 } else { 0 };
+      if is_down {
+        *state = 0x80;
+      }
 
       if matches!(
         vk,
-        winuser::VK_CAPITAL | winuser::VK_NUMLOCK | winuser::VK_SCROLL
+        win32km::VK_CAPITAL | win32km::VK_NUMLOCK | win32km::VK_SCROLL
       ) {
         // Toggle states aren't reported by `GetAsyncKeyState`
-        let toggle_state = winuser::GetKeyState(vk);
+        let toggle_state = GetKeyState(i32::from(vk));
         let is_active = (toggle_state & 1) != 0;
         *state |= if is_active { 1 } else { 0 };
       }
@@ -741,11 +732,7 @@ fn get_async_kbd_state() -> [u8; 256] {
 /// every AltGr key-press (and key-release). We check if the current event is a Ctrl event and if
 /// the next event is a right Alt (AltGr) event. If this is the case, the current event must be the
 /// fake Ctrl event.
-fn is_current_fake(
-  curr_info: &PartialKeyEventInfo,
-  next_msg: winuser::MSG,
-  layout: &Layout,
-) -> bool {
+fn is_current_fake(curr_info: &PartialKeyEventInfo, next_msg: MSG, layout: &Layout) -> bool {
   let curr_is_ctrl = matches!(curr_info.logical_key, PartialLogicalKey::This(Key::Control));
   if layout.has_alt_graph {
     let next_code = ex_scancode_from_lparam(next_msg.lParam);
@@ -758,150 +745,174 @@ fn is_current_fake(
 }
 
 fn get_location(scancode: ExScancode, hkl: HKL) -> KeyLocation {
-  use winuser::*;
-  const VK_ABNT_C2: c_int = 0xc2;
+  const VK_ABNT_C2: VIRTUAL_KEY = win32km::VK_ABNT_C2 as VIRTUAL_KEY;
 
   let extension = 0xE000;
   let extended = (scancode & extension) == extension;
-  let vkey =
-    unsafe { winuser::MapVirtualKeyExW(scancode as u32, winuser::MAPVK_VSC_TO_VK_EX, hkl) as i32 };
+  let vkey = unsafe { MapVirtualKeyExW(scancode as u32, MAPVK_VSC_TO_VK_EX, hkl) as u16 };
 
   // Use the native VKEY and the extended flag to cover most cases
   // This is taken from the `druid` GUI library, specifically
   // druid-shell/src/platform/windows/keyboard.rs
   match vkey {
-    VK_LSHIFT | VK_LCONTROL | VK_LMENU | VK_LWIN => KeyLocation::Left,
-    VK_RSHIFT | VK_RCONTROL | VK_RMENU | VK_RWIN => KeyLocation::Right,
-    VK_RETURN if extended => KeyLocation::Numpad,
-    VK_INSERT | VK_DELETE | VK_END | VK_DOWN | VK_NEXT | VK_LEFT | VK_CLEAR | VK_RIGHT
-    | VK_HOME | VK_UP | VK_PRIOR => {
+    win32km::VK_LSHIFT | win32km::VK_LCONTROL | win32km::VK_LMENU | win32km::VK_LWIN => {
+      KeyLocation::Left
+    }
+    win32km::VK_RSHIFT | win32km::VK_RCONTROL | win32km::VK_RMENU | win32km::VK_RWIN => {
+      KeyLocation::Right
+    }
+    win32km::VK_RETURN if extended => KeyLocation::Numpad,
+    win32km::VK_INSERT
+    | win32km::VK_DELETE
+    | win32km::VK_END
+    | win32km::VK_DOWN
+    | win32km::VK_NEXT
+    | win32km::VK_LEFT
+    | win32km::VK_CLEAR
+    | win32km::VK_RIGHT
+    | win32km::VK_HOME
+    | win32km::VK_UP
+    | win32km::VK_PRIOR => {
       if extended {
         KeyLocation::Standard
       } else {
         KeyLocation::Numpad
       }
     }
-    VK_NUMPAD0 | VK_NUMPAD1 | VK_NUMPAD2 | VK_NUMPAD3 | VK_NUMPAD4 | VK_NUMPAD5 | VK_NUMPAD6
-    | VK_NUMPAD7 | VK_NUMPAD8 | VK_NUMPAD9 | VK_DECIMAL | VK_DIVIDE | VK_MULTIPLY | VK_SUBTRACT
-    | VK_ADD | VK_ABNT_C2 => KeyLocation::Numpad,
+    win32km::VK_NUMPAD0
+    | win32km::VK_NUMPAD1
+    | win32km::VK_NUMPAD2
+    | win32km::VK_NUMPAD3
+    | win32km::VK_NUMPAD4
+    | win32km::VK_NUMPAD5
+    | win32km::VK_NUMPAD6
+    | win32km::VK_NUMPAD7
+    | win32km::VK_NUMPAD8
+    | win32km::VK_NUMPAD9
+    | win32km::VK_DECIMAL
+    | win32km::VK_DIVIDE
+    | win32km::VK_MULTIPLY
+    | win32km::VK_SUBTRACT
+    | win32km::VK_ADD
+    | VK_ABNT_C2 => KeyLocation::Numpad,
     _ => KeyLocation::Standard,
   }
 }
 
 // used to build accelerators table from Key
-pub(crate) fn key_to_vk(key: &KeyCode) -> Option<i32> {
+pub(crate) fn key_to_vk(key: &KeyCode) -> Option<VIRTUAL_KEY> {
   Some(match key {
-    KeyCode::KeyA => unsafe { winuser::VkKeyScanW('a' as u16) as i32 },
-    KeyCode::KeyB => unsafe { winuser::VkKeyScanW('b' as u16) as i32 },
-    KeyCode::KeyC => unsafe { winuser::VkKeyScanW('c' as u16) as i32 },
-    KeyCode::KeyD => unsafe { winuser::VkKeyScanW('d' as u16) as i32 },
-    KeyCode::KeyE => unsafe { winuser::VkKeyScanW('e' as u16) as i32 },
-    KeyCode::KeyF => unsafe { winuser::VkKeyScanW('f' as u16) as i32 },
-    KeyCode::KeyG => unsafe { winuser::VkKeyScanW('g' as u16) as i32 },
-    KeyCode::KeyH => unsafe { winuser::VkKeyScanW('h' as u16) as i32 },
-    KeyCode::KeyI => unsafe { winuser::VkKeyScanW('i' as u16) as i32 },
-    KeyCode::KeyJ => unsafe { winuser::VkKeyScanW('j' as u16) as i32 },
-    KeyCode::KeyK => unsafe { winuser::VkKeyScanW('k' as u16) as i32 },
-    KeyCode::KeyL => unsafe { winuser::VkKeyScanW('l' as u16) as i32 },
-    KeyCode::KeyM => unsafe { winuser::VkKeyScanW('m' as u16) as i32 },
-    KeyCode::KeyN => unsafe { winuser::VkKeyScanW('n' as u16) as i32 },
-    KeyCode::KeyO => unsafe { winuser::VkKeyScanW('o' as u16) as i32 },
-    KeyCode::KeyP => unsafe { winuser::VkKeyScanW('p' as u16) as i32 },
-    KeyCode::KeyQ => unsafe { winuser::VkKeyScanW('q' as u16) as i32 },
-    KeyCode::KeyR => unsafe { winuser::VkKeyScanW('r' as u16) as i32 },
-    KeyCode::KeyS => unsafe { winuser::VkKeyScanW('s' as u16) as i32 },
-    KeyCode::KeyT => unsafe { winuser::VkKeyScanW('t' as u16) as i32 },
-    KeyCode::KeyU => unsafe { winuser::VkKeyScanW('u' as u16) as i32 },
-    KeyCode::KeyV => unsafe { winuser::VkKeyScanW('v' as u16) as i32 },
-    KeyCode::KeyW => unsafe { winuser::VkKeyScanW('w' as u16) as i32 },
-    KeyCode::KeyX => unsafe { winuser::VkKeyScanW('x' as u16) as i32 },
-    KeyCode::KeyY => unsafe { winuser::VkKeyScanW('y' as u16) as i32 },
-    KeyCode::KeyZ => unsafe { winuser::VkKeyScanW('z' as u16) as i32 },
-    KeyCode::Digit0 => unsafe { winuser::VkKeyScanW('0' as u16) as i32 },
-    KeyCode::Digit1 => unsafe { winuser::VkKeyScanW('1' as u16) as i32 },
-    KeyCode::Digit2 => unsafe { winuser::VkKeyScanW('2' as u16) as i32 },
-    KeyCode::Digit3 => unsafe { winuser::VkKeyScanW('3' as u16) as i32 },
-    KeyCode::Digit4 => unsafe { winuser::VkKeyScanW('4' as u16) as i32 },
-    KeyCode::Digit5 => unsafe { winuser::VkKeyScanW('5' as u16) as i32 },
-    KeyCode::Digit6 => unsafe { winuser::VkKeyScanW('6' as u16) as i32 },
-    KeyCode::Digit7 => unsafe { winuser::VkKeyScanW('7' as u16) as i32 },
-    KeyCode::Digit8 => unsafe { winuser::VkKeyScanW('8' as u16) as i32 },
-    KeyCode::Digit9 => unsafe { winuser::VkKeyScanW('9' as u16) as i32 },
-    KeyCode::Comma => winuser::VK_OEM_COMMA,
-    KeyCode::Minus => winuser::VK_OEM_MINUS,
-    KeyCode::Period => winuser::VK_OEM_PERIOD,
-    KeyCode::Space => winuser::VK_SPACE,
-    KeyCode::Equal => unsafe { winuser::VkKeyScanW('=' as u16) as i32 },
-    KeyCode::Semicolon => unsafe { winuser::VkKeyScanW(';' as u16) as i32 },
-    KeyCode::Slash => unsafe { winuser::VkKeyScanW('/' as u16) as i32 },
-    KeyCode::Backslash => unsafe { winuser::VkKeyScanW('\\' as u16) as i32 },
-    KeyCode::Quote => unsafe { winuser::VkKeyScanW('\'' as u16) as i32 },
-    KeyCode::Backquote => unsafe { winuser::VkKeyScanW('`' as u16) as i32 },
-    KeyCode::BracketLeft => unsafe { winuser::VkKeyScanW('[' as u16) as i32 },
-    KeyCode::BracketRight => unsafe { winuser::VkKeyScanW(']' as u16) as i32 },
-    KeyCode::Tab => winuser::VK_TAB,
-    KeyCode::Escape => winuser::VK_ESCAPE,
-    KeyCode::Backspace => winuser::VK_BACK,
-    KeyCode::Enter => winuser::VK_RETURN,
-    KeyCode::Pause => winuser::VK_PAUSE,
-    KeyCode::CapsLock => winuser::VK_CAPITAL,
-    KeyCode::KanaMode => winuser::VK_KANA,
-    KeyCode::NonConvert => winuser::VK_NONCONVERT,
-    KeyCode::PageUp => winuser::VK_PRIOR,
-    KeyCode::PageDown => winuser::VK_NEXT,
-    KeyCode::End => winuser::VK_END,
-    KeyCode::Home => winuser::VK_HOME,
-    KeyCode::ArrowLeft => winuser::VK_LEFT,
-    KeyCode::ArrowUp => winuser::VK_UP,
-    KeyCode::ArrowRight => winuser::VK_RIGHT,
-    KeyCode::ArrowDown => winuser::VK_DOWN,
-    KeyCode::PrintScreen => winuser::VK_SNAPSHOT,
-    KeyCode::Insert => winuser::VK_INSERT,
-    KeyCode::Delete => winuser::VK_DELETE,
-    KeyCode::Help => winuser::VK_HELP,
-    KeyCode::ContextMenu => winuser::VK_APPS,
-    KeyCode::F1 => winuser::VK_F1,
-    KeyCode::F2 => winuser::VK_F2,
-    KeyCode::F3 => winuser::VK_F3,
-    KeyCode::F4 => winuser::VK_F4,
-    KeyCode::F5 => winuser::VK_F5,
-    KeyCode::F6 => winuser::VK_F6,
-    KeyCode::F7 => winuser::VK_F7,
-    KeyCode::F8 => winuser::VK_F8,
-    KeyCode::F9 => winuser::VK_F9,
-    KeyCode::F10 => winuser::VK_F10,
-    KeyCode::F11 => winuser::VK_F11,
-    KeyCode::F12 => winuser::VK_F12,
-    KeyCode::F13 => winuser::VK_F13,
-    KeyCode::F14 => winuser::VK_F14,
-    KeyCode::F15 => winuser::VK_F15,
-    KeyCode::F16 => winuser::VK_F16,
-    KeyCode::F17 => winuser::VK_F17,
-    KeyCode::F18 => winuser::VK_F18,
-    KeyCode::F19 => winuser::VK_F19,
-    KeyCode::F20 => winuser::VK_F20,
-    KeyCode::F21 => winuser::VK_F21,
-    KeyCode::F22 => winuser::VK_F22,
-    KeyCode::F23 => winuser::VK_F23,
-    KeyCode::F24 => winuser::VK_F24,
-    KeyCode::NumLock => winuser::VK_NUMLOCK,
-    KeyCode::ScrollLock => winuser::VK_SCROLL,
-    KeyCode::BrowserBack => winuser::VK_BROWSER_BACK,
-    KeyCode::BrowserForward => winuser::VK_BROWSER_FORWARD,
-    KeyCode::BrowserRefresh => winuser::VK_BROWSER_REFRESH,
-    KeyCode::BrowserStop => winuser::VK_BROWSER_STOP,
-    KeyCode::BrowserSearch => winuser::VK_BROWSER_SEARCH,
-    KeyCode::BrowserFavorites => winuser::VK_BROWSER_FAVORITES,
-    KeyCode::BrowserHome => winuser::VK_BROWSER_HOME,
-    KeyCode::AudioVolumeMute => winuser::VK_VOLUME_MUTE,
-    KeyCode::AudioVolumeDown => winuser::VK_VOLUME_DOWN,
-    KeyCode::AudioVolumeUp => winuser::VK_VOLUME_UP,
-    KeyCode::MediaTrackNext => winuser::VK_MEDIA_NEXT_TRACK,
-    KeyCode::MediaTrackPrevious => winuser::VK_MEDIA_PREV_TRACK,
-    KeyCode::MediaStop => winuser::VK_MEDIA_STOP,
-    KeyCode::MediaPlayPause => winuser::VK_MEDIA_PLAY_PAUSE,
-    KeyCode::LaunchMail => winuser::VK_LAUNCH_MAIL,
-    KeyCode::Convert => winuser::VK_CONVERT,
+    KeyCode::KeyA => unsafe { VkKeyScanW('a' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyB => unsafe { VkKeyScanW('b' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyC => unsafe { VkKeyScanW('c' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyD => unsafe { VkKeyScanW('d' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyE => unsafe { VkKeyScanW('e' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyF => unsafe { VkKeyScanW('f' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyG => unsafe { VkKeyScanW('g' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyH => unsafe { VkKeyScanW('h' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyI => unsafe { VkKeyScanW('i' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyJ => unsafe { VkKeyScanW('j' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyK => unsafe { VkKeyScanW('k' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyL => unsafe { VkKeyScanW('l' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyM => unsafe { VkKeyScanW('m' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyN => unsafe { VkKeyScanW('n' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyO => unsafe { VkKeyScanW('o' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyP => unsafe { VkKeyScanW('p' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyQ => unsafe { VkKeyScanW('q' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyR => unsafe { VkKeyScanW('r' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyS => unsafe { VkKeyScanW('s' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyT => unsafe { VkKeyScanW('t' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyU => unsafe { VkKeyScanW('u' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyV => unsafe { VkKeyScanW('v' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyW => unsafe { VkKeyScanW('w' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyX => unsafe { VkKeyScanW('x' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyY => unsafe { VkKeyScanW('y' as u16) as VIRTUAL_KEY },
+    KeyCode::KeyZ => unsafe { VkKeyScanW('z' as u16) as VIRTUAL_KEY },
+    KeyCode::Digit0 => unsafe { VkKeyScanW('0' as u16) as VIRTUAL_KEY },
+    KeyCode::Digit1 => unsafe { VkKeyScanW('1' as u16) as VIRTUAL_KEY },
+    KeyCode::Digit2 => unsafe { VkKeyScanW('2' as u16) as VIRTUAL_KEY },
+    KeyCode::Digit3 => unsafe { VkKeyScanW('3' as u16) as VIRTUAL_KEY },
+    KeyCode::Digit4 => unsafe { VkKeyScanW('4' as u16) as VIRTUAL_KEY },
+    KeyCode::Digit5 => unsafe { VkKeyScanW('5' as u16) as VIRTUAL_KEY },
+    KeyCode::Digit6 => unsafe { VkKeyScanW('6' as u16) as VIRTUAL_KEY },
+    KeyCode::Digit7 => unsafe { VkKeyScanW('7' as u16) as VIRTUAL_KEY },
+    KeyCode::Digit8 => unsafe { VkKeyScanW('8' as u16) as VIRTUAL_KEY },
+    KeyCode::Digit9 => unsafe { VkKeyScanW('9' as u16) as VIRTUAL_KEY },
+    KeyCode::Comma => VK_OEM_COMMA,
+    KeyCode::Minus => VK_OEM_MINUS,
+    KeyCode::Period => VK_OEM_PERIOD,
+    KeyCode::Equal => unsafe { VkKeyScanW('=' as u16) as VIRTUAL_KEY },
+    KeyCode::Semicolon => unsafe { VkKeyScanW(';' as u16) as VIRTUAL_KEY },
+    KeyCode::Slash => unsafe { VkKeyScanW('/' as u16) as VIRTUAL_KEY },
+    KeyCode::Backslash => unsafe { VkKeyScanW('\\' as u16) as VIRTUAL_KEY },
+    KeyCode::Quote => unsafe { VkKeyScanW('\'' as u16) as VIRTUAL_KEY },
+    KeyCode::Backquote => unsafe { VkKeyScanW('`' as u16) as VIRTUAL_KEY },
+    KeyCode::BracketLeft => unsafe { VkKeyScanW('[' as u16) as VIRTUAL_KEY },
+    KeyCode::BracketRight => unsafe { VkKeyScanW(']' as u16) as VIRTUAL_KEY },
+    KeyCode::Backspace => VK_BACK,
+    KeyCode::Tab => VK_TAB,
+    KeyCode::Space => VK_SPACE,
+    KeyCode::Enter => VK_RETURN,
+    KeyCode::Pause => VK_PAUSE,
+    KeyCode::CapsLock => VK_CAPITAL,
+    KeyCode::KanaMode => VK_KANA,
+    KeyCode::Escape => VK_ESCAPE,
+    KeyCode::NonConvert => VK_NONCONVERT,
+    KeyCode::PageUp => VK_PRIOR,
+    KeyCode::PageDown => VK_NEXT,
+    KeyCode::End => VK_END,
+    KeyCode::Home => VK_HOME,
+    KeyCode::ArrowLeft => VK_LEFT,
+    KeyCode::ArrowUp => VK_UP,
+    KeyCode::ArrowRight => VK_RIGHT,
+    KeyCode::ArrowDown => VK_DOWN,
+    KeyCode::PrintScreen => VK_SNAPSHOT,
+    KeyCode::Insert => VK_INSERT,
+    KeyCode::Delete => VK_DELETE,
+    KeyCode::Help => VK_HELP,
+    KeyCode::ContextMenu => VK_APPS,
+    KeyCode::F1 => VK_F1,
+    KeyCode::F2 => VK_F2,
+    KeyCode::F3 => VK_F3,
+    KeyCode::F4 => VK_F4,
+    KeyCode::F5 => VK_F5,
+    KeyCode::F6 => VK_F6,
+    KeyCode::F7 => VK_F7,
+    KeyCode::F8 => VK_F8,
+    KeyCode::F9 => VK_F9,
+    KeyCode::F10 => VK_F10,
+    KeyCode::F11 => VK_F11,
+    KeyCode::F12 => VK_F12,
+    KeyCode::F13 => VK_F13,
+    KeyCode::F14 => VK_F14,
+    KeyCode::F15 => VK_F15,
+    KeyCode::F16 => VK_F16,
+    KeyCode::F17 => VK_F17,
+    KeyCode::F18 => VK_F18,
+    KeyCode::F19 => VK_F19,
+    KeyCode::F20 => VK_F20,
+    KeyCode::F21 => VK_F21,
+    KeyCode::F22 => VK_F22,
+    KeyCode::F23 => VK_F23,
+    KeyCode::F24 => VK_F24,
+    KeyCode::NumLock => VK_NUMLOCK,
+    KeyCode::ScrollLock => VK_SCROLL,
+    KeyCode::BrowserBack => VK_BROWSER_BACK,
+    KeyCode::BrowserForward => VK_BROWSER_FORWARD,
+    KeyCode::BrowserRefresh => VK_BROWSER_REFRESH,
+    KeyCode::BrowserStop => VK_BROWSER_STOP,
+    KeyCode::BrowserSearch => VK_BROWSER_SEARCH,
+    KeyCode::BrowserFavorites => VK_BROWSER_FAVORITES,
+    KeyCode::BrowserHome => VK_BROWSER_HOME,
+    KeyCode::AudioVolumeMute => VK_VOLUME_MUTE,
+    KeyCode::AudioVolumeDown => VK_VOLUME_DOWN,
+    KeyCode::AudioVolumeUp => VK_VOLUME_UP,
+    KeyCode::MediaTrackNext => VK_MEDIA_NEXT_TRACK,
+    KeyCode::MediaTrackPrevious => VK_MEDIA_PREV_TRACK,
+    KeyCode::MediaStop => VK_MEDIA_STOP,
+    KeyCode::MediaPlayPause => VK_MEDIA_PLAY_PAUSE,
+    KeyCode::LaunchMail => VK_LAUNCH_MAIL,
+    KeyCode::Convert => VK_CONVERT,
     _ => return None,
   })
 }
