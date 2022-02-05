@@ -2,23 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::clipboard::{ClipboardFormat, FormatId};
-use std::{
-  ffi::{CString, OsStr},
-  os::windows::ffi::OsStrExt,
-  ptr,
-};
-use winapi::{
-  shared::{
-    minwindef::{FALSE, UINT},
-    ntdef::{CHAR, HANDLE, LPWSTR, WCHAR},
-  },
-  um::{
-    errhandlingapi::GetLastError,
-    winbase::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE},
-    winuser::{
+use std::{ffi::OsStr, os::windows::ffi::OsStrExt, ptr};
+use windows::Win32::{
+  Foundation::{HANDLE, HWND, PSTR, PWSTR},
+  System::{
+    DataExchange::{
       CloseClipboard, EmptyClipboard, GetClipboardData, OpenClipboard, RegisterClipboardFormatA,
-      SetClipboardData, CF_UNICODETEXT,
+      SetClipboardData,
     },
+    Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE},
+    SystemServices::CF_UNICODETEXT,
   },
 };
 
@@ -35,18 +28,18 @@ impl Clipboard {
   pub(crate) fn read_text(&self) -> Option<String> {
     with_clipboard(|| unsafe {
       let handle = GetClipboardData(CF_UNICODETEXT);
-      if handle.is_null() {
+      if handle.0 == 0 {
         None
       } else {
-        let unic_str = GlobalLock(handle) as LPWSTR;
+        let unic_str = PWSTR(GlobalLock(handle.0) as *mut _);
         let mut len = 0;
-        while *unic_str.offset(len) != 0 {
+        while *unic_str.0.offset(len) != 0 {
           len += 1;
         }
-        let utf16_slice = std::slice::from_raw_parts(unic_str, len as usize);
+        let utf16_slice = std::slice::from_raw_parts(unic_str.0, len as usize);
         let result = String::from_utf16(utf16_slice);
         if let Ok(result) = result {
-          GlobalUnlock(handle);
+          GlobalUnlock(handle.0);
           return Some(result);
         }
 
@@ -61,20 +54,22 @@ impl Clipboard {
       EmptyClipboard();
 
       for format in formats {
-        let handle = make_handle(&format);
-        let format_id = match get_format_id(&format.identifier) {
+        let handle = make_handle(format);
+        let format_id = match get_format_id(format.identifier) {
           Some(id) => id,
           None => {
+            #[cfg(debug_assertions)]
             println!("failed to register clipboard format {}", &format.identifier);
             continue;
           }
         };
         let result = SetClipboardData(format_id, handle);
-        if result.is_null() {
+        if result.0 == 0 {
+          #[cfg(debug_assertions)]
           println!(
             "failed to set clipboard for fmt {}, error: {}",
             &format.identifier,
-            GetLastError()
+            windows::core::Error::from_win32().code().0
           );
         }
       }
@@ -82,7 +77,7 @@ impl Clipboard {
   }
 }
 
-fn get_format_id(format: FormatId) -> Option<UINT> {
+fn get_format_id(format: FormatId) -> Option<u32> {
   if let Some((id, _)) = STANDARD_FORMATS.iter().find(|(_, s)| s == &format) {
     return Some(*id);
   }
@@ -92,22 +87,15 @@ fn get_format_id(format: FormatId) -> Option<UINT> {
   }
 }
 
-fn register_identifier(ident: &str) -> Option<UINT> {
-  let cstr = match CString::new(ident) {
-    Ok(s) => s,
-    Err(_) => {
-      // granted this should happen _never_, but unwrap feels bad
-      println!("Null byte in clipboard identifier '{}'", ident);
-      return None;
-    }
-  };
+fn register_identifier(ident: &str) -> Option<u32> {
   unsafe {
-    let pb_format = RegisterClipboardFormatA(cstr.as_ptr());
+    let pb_format = RegisterClipboardFormatA(ident);
     if pb_format == 0 {
-      let err = GetLastError();
+      #[cfg(debug_assertions)]
       println!(
         "failed to register clipboard format '{}'; error {}.",
-        ident, err
+        ident,
+        windows::core::Error::from_win32().code().0
       );
       return None;
     }
@@ -116,29 +104,26 @@ fn register_identifier(ident: &str) -> Option<UINT> {
 }
 
 unsafe fn make_handle(format: &ClipboardFormat) -> HANDLE {
-  if format.identifier == ClipboardFormat::TEXT {
+  HANDLE(if format.identifier == ClipboardFormat::TEXT {
     let s: &OsStr = std::str::from_utf8_unchecked(&format.data).as_ref();
     let wstr: Vec<u16> = s.encode_wide().chain(Some(0)).collect();
-    let handle = GlobalAlloc(GMEM_MOVEABLE, wstr.len() * std::mem::size_of::<WCHAR>());
-    let locked = GlobalLock(handle) as LPWSTR;
-    ptr::copy_nonoverlapping(wstr.as_ptr(), locked, wstr.len());
+    let handle = GlobalAlloc(GMEM_MOVEABLE, wstr.len() * std::mem::size_of::<u16>());
+    let locked = PWSTR(GlobalLock(handle) as *mut _);
+    ptr::copy_nonoverlapping(wstr.as_ptr(), locked.0, wstr.len());
     GlobalUnlock(handle);
     handle
   } else {
-    let handle = GlobalAlloc(
-      GMEM_MOVEABLE,
-      format.data.len() * std::mem::size_of::<CHAR>(),
-    );
-    let locked = GlobalLock(handle) as *mut u8;
-    ptr::copy_nonoverlapping(format.data.as_ptr(), locked, format.data.len());
+    let handle = GlobalAlloc(GMEM_MOVEABLE, format.data.len() * std::mem::size_of::<u8>());
+    let locked = PSTR(GlobalLock(handle) as *mut _);
+    ptr::copy_nonoverlapping(format.data.as_ptr(), locked.0, format.data.len());
     GlobalUnlock(handle);
     handle
-  }
+  })
 }
 
 fn with_clipboard<V>(f: impl FnOnce() -> V) -> Option<V> {
   unsafe {
-    if OpenClipboard(ptr::null_mut()) == FALSE {
+    if !OpenClipboard(HWND::default()).as_bool() {
       return None;
     }
 
@@ -151,7 +136,7 @@ fn with_clipboard<V>(f: impl FnOnce() -> V) -> Option<V> {
 }
 
 // https://docs.microsoft.com/en-ca/windows/win32/dataxchg/standard-clipboard-formats
-static STANDARD_FORMATS: &[(UINT, &str)] = &[
+static STANDARD_FORMATS: &[(u32, &str)] = &[
   (1, "CF_TEXT"),
   (2, "CF_BITMAP"),
   (3, "CF_METAFILEPICT"),

@@ -112,6 +112,7 @@ pub const kCGCursorWindowLevelKey: NSInteger = 19;
 pub const kCGNumberOfWindowLevelKeys: NSInteger = 20;
 
 #[derive(Debug, Clone, Copy)]
+#[repr(isize)]
 pub enum NSWindowLevel {
   NSNormalWindowLevel = kCGBaseWindowLevelKey as _,
   NSFloatingWindowLevel = kCGFloatingWindowLevelKey as _,
@@ -168,9 +169,18 @@ pub const IO8BitOverlayPixels: &str = "O8";
 pub type CGWindowLevel = i32;
 pub type CGDisplayModeRef = *mut libc::c_void;
 
+// `CGDisplayCreateUUIDFromDisplayID` comes from the `ColorSync` framework.
+// However, that framework was only introduced "publicly" in macOS 10.13.
+//
+// Since we want to support older versions, we can't link to `ColorSync`
+// directly. Fortunately, it has always been available as a subframework of
+// `ApplicationServices`, see:
+// https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/OSX_Technology_Overview/SystemFrameworks/SystemFrameworks.html#//apple_ref/doc/uid/TP40001067-CH210-BBCFFIEG
+//
+// TODO: Remove the WINIT_LINK_COLORSYNC hack, it is probably not needed.
 #[cfg_attr(
   not(use_colorsync_cgdisplaycreateuuidfromdisplayid),
-  link(name = "CoreGraphics", kind = "framework")
+  link(name = "ApplicationServices", kind = "framework")
 )]
 #[cfg_attr(
   use_colorsync_cgdisplaycreateuuidfromdisplayid,

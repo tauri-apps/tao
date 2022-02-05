@@ -5,7 +5,7 @@ use std::{
   boxed::Box,
   collections::{HashSet, VecDeque},
   os::raw::*,
-  slice, str,
+  ptr, slice, str,
   sync::{Arc, Mutex, Weak},
 };
 
@@ -349,7 +349,7 @@ extern "C" fn view_did_move_to_window(this: &Object, _sel: Sel) {
     let tracking_rect: NSInteger = msg_send![this,
         addTrackingRect:rect
         owner:this
-        userData:nil
+        userData:ptr::null_mut::<c_void>()
         assumeInside:NO
     ];
     state.tracking_rect = Some(tracking_rect);
@@ -370,7 +370,7 @@ extern "C" fn frame_did_change(this: &Object, _sel: Sel, _event: id) {
     let tracking_rect: NSInteger = msg_send![this,
         addTrackingRect:rect
         owner:this
-        userData:nil
+        userData:ptr::null_mut::<c_void>()
         assumeInside:NO
     ];
 
@@ -462,8 +462,8 @@ extern "C" fn set_marked_text(
   trace!("Triggered `setMarkedText`");
   unsafe {
     let marked_text_ref = clear_marked_text(this);
-    let has_attr = msg_send![string, isKindOfClass: class!(NSAttributedString)];
-    if has_attr {
+    let has_attr: BOOL = msg_send![string, isKindOfClass: class!(NSAttributedString)];
+    if has_attr != NO {
       marked_text_ref.initWithAttributedString(string);
     } else {
       marked_text_ref.initWithString(string);
@@ -538,8 +538,8 @@ extern "C" fn insert_text(this: &Object, _sel: Sel, string: id, _replacement_ran
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
-    let has_attr = msg_send![string, isKindOfClass: class!(NSAttributedString)];
-    let characters = if has_attr {
+    let has_attr: BOOL = msg_send![string, isKindOfClass: class!(NSAttributedString)];
+    let characters = if has_attr != NO {
       // This is a *mut NSAttributedString
       msg_send![string, string]
     } else {
@@ -557,13 +557,11 @@ extern "C" fn insert_text(this: &Object, _sel: Sel, string: id, _replacement_ran
     // We don't need this now, but it's here if that changes.
     //let event: id = msg_send![NSApp(), currentEvent];
 
-    // We only send the IME text input here. The text coming from the
-    // keyboard is handled by `key_down`
+    AppState::queue_event(EventWrapper::StaticEvent(Event::WindowEvent {
+      window_id: WindowId(get_window_id(state.ns_window)),
+      event: WindowEvent::ReceivedImeText(string),
+    }));
     if state.in_ime_preedit {
-      AppState::queue_event(EventWrapper::StaticEvent(Event::WindowEvent {
-        window_id: WindowId(get_window_id(state.ns_window)),
-        event: WindowEvent::ReceivedImeText(string),
-      }));
       state.in_ime_preedit = false;
       state.key_triggered_ime = true;
     }
@@ -1008,7 +1006,7 @@ fn mouse_motion(this: &Object, event: id) {
       || view_point.x > view_rect.size.width
       || view_point.y > view_rect.size.height
     {
-      let mouse_buttons_down: NSInteger = msg_send![class!(NSEvent), pressedMouseButtons];
+      let mouse_buttons_down: NSUInteger = msg_send![class!(NSEvent), pressedMouseButtons];
       if mouse_buttons_down == 0 {
         // Point is outside of the client area (view) and no buttons are pressed
         return;

@@ -49,6 +49,7 @@ pub enum EventProxy {
   },
 }
 
+#[derive(Clone)]
 pub struct EventLoopWindowTarget<T: 'static> {
   receiver: Receiver<T>,
   sender_to_clone: Sender<T>,

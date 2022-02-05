@@ -4,7 +4,6 @@
 use instant::Instant;
 use std::time::Duration;
 
-use simple_logger::SimpleLogger;
 use tao::{
   event::{Event, StartCause, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
@@ -13,7 +12,7 @@ use tao::{
 
 #[allow(clippy::single_match)]
 fn main() {
-  SimpleLogger::new().init().unwrap();
+  env_logger::init();
   let event_loop = EventLoop::new();
 
   let _window = WindowBuilder::new()

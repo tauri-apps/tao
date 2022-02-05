@@ -94,11 +94,13 @@ impl ShortcutManager {
                     ),
                   )))
                 {
+                  #[cfg(debug_assertions)]
                   eprintln!("hotkey: thread_sender.send error {}", err);
                 }
               } else if let Err(err) = thread_sender.send(HotkeyMessage::RegisterHotkeyResult(Ok(
                 (keycode, modifiers),
               ))) {
+                #[cfg(debug_assertions)]
                 eprintln!("hotkey: thread_sender.send error {}", err);
               }
             }
@@ -113,8 +115,14 @@ impl ShortcutManager {
                     ),
                   )))
                 {
+                  #[cfg(debug_assertions)]
                   eprintln!("hotkey: thread_sender.send error {}", err);
                 }
+              } else if let Err(err) =
+                thread_sender.send(HotkeyMessage::UnregisterHotkeyResult(Ok(())))
+              {
+                #[cfg(debug_assertions)]
+                eprintln!("hotkey: thread_sender.send error {}", err);
               }
             }
             Ok(HotkeyMessage::DropThread) => {
@@ -123,6 +131,7 @@ impl ShortcutManager {
             }
             Err(err) => {
               if let TryRecvError::Disconnected = err {
+                #[cfg(debug_assertions)]
                 eprintln!("hotkey: try_recv error {}", err);
               }
             }
@@ -245,6 +254,7 @@ impl ShortcutManager {
 impl Drop for ShortcutManager {
   fn drop(&mut self) {
     if let Err(err) = self.method_sender.send(HotkeyMessage::DropThread) {
+      #[cfg(debug_assertions)]
       eprintln!("cant send close thread message {}", err);
     }
   }

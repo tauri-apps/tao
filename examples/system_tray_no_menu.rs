@@ -6,7 +6,6 @@
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 #[cfg(feature = "tray")]
 fn main() {
-  use simple_logger::SimpleLogger;
   use std::collections::HashMap;
   #[cfg(target_os = "linux")]
   use std::path::Path;
@@ -27,7 +26,7 @@ fn main() {
     window::WindowBuilder,
   };
 
-  SimpleLogger::new().init().unwrap();
+  env_logger::init();
   #[cfg(target_os = "macos")]
   let mut event_loop = EventLoop::new();
 

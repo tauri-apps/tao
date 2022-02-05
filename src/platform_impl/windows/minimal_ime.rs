@@ -1,26 +1,23 @@
 use std::mem::MaybeUninit;
 
-use winapi::{
-  shared::{
-    minwindef::{LPARAM, WPARAM},
-    windef::HWND,
-  },
-  um::winuser,
+use windows::Win32::{
+  Foundation::{HWND, LPARAM, LRESULT, WPARAM},
+  UI::WindowsAndMessaging::{self as win32wm, *},
 };
 
 use crate::platform_impl::platform::event_loop::ProcResult;
 
 pub fn is_msg_ime_related(msg_kind: u32) -> bool {
-  match msg_kind {
-    winuser::WM_IME_COMPOSITION
-    | winuser::WM_IME_COMPOSITIONFULL
-    | winuser::WM_IME_STARTCOMPOSITION
-    | winuser::WM_IME_ENDCOMPOSITION
-    | winuser::WM_IME_CHAR
-    | winuser::WM_CHAR
-    | winuser::WM_SYSCHAR => true,
-    _ => false,
-  }
+  matches!(
+    msg_kind,
+    win32wm::WM_IME_COMPOSITION
+      | win32wm::WM_IME_COMPOSITIONFULL
+      | win32wm::WM_IME_STARTCOMPOSITION
+      | win32wm::WM_IME_ENDCOMPOSITION
+      | win32wm::WM_IME_CHAR
+      | win32wm::WM_CHAR
+      | win32wm::WM_SYSCHAR
+  )
 }
 
 pub struct MinimalIme {
@@ -47,30 +44,30 @@ impl MinimalIme {
     result: &mut ProcResult,
   ) -> Option<String> {
     match msg_kind {
-      winuser::WM_IME_ENDCOMPOSITION => {
+      win32wm::WM_IME_ENDCOMPOSITION => {
         self.getting_ime_text = true;
       }
-      winuser::WM_CHAR | winuser::WM_SYSCHAR => {
+      win32wm::WM_CHAR | win32wm::WM_SYSCHAR => {
+        *result = ProcResult::Value(LRESULT(0));
         if self.getting_ime_text {
-          *result = ProcResult::Value(0);
-          self.utf16parts.push(wparam as u16);
+          self.utf16parts.push(wparam.0 as u16);
 
           let more_char_coming;
           unsafe {
             let mut next_msg = MaybeUninit::uninit();
-            let has_message = winuser::PeekMessageW(
+            let has_message = PeekMessageW(
               next_msg.as_mut_ptr(),
               hwnd,
-              winuser::WM_KEYFIRST,
-              winuser::WM_KEYLAST,
-              winuser::PM_NOREMOVE,
+              WM_KEYFIRST,
+              WM_KEYLAST,
+              PM_NOREMOVE,
             );
-            let has_message = has_message != 0;
+            let has_message = has_message.as_bool();
             if !has_message {
               more_char_coming = false;
             } else {
               let next_msg = next_msg.assume_init().message;
-              if next_msg == winuser::WM_CHAR || next_msg == winuser::WM_SYSCHAR {
+              if next_msg == WM_CHAR || next_msg == WM_SYSCHAR {
                 more_char_coming = true;
               } else {
                 more_char_coming = false;
@@ -83,6 +80,8 @@ impl MinimalIme {
             self.getting_ime_text = false;
             return result;
           }
+        } else {
+          return String::from_utf16(&[wparam.0 as u16]).ok();
         }
       }
       _ => (),

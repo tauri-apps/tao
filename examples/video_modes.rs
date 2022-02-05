@@ -1,12 +1,11 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use simple_logger::SimpleLogger;
 use tao::event_loop::EventLoop;
 
 #[allow(clippy::single_match)]
 fn main() {
-  SimpleLogger::new().init().unwrap();
+  env_logger::init();
   let event_loop = EventLoop::new();
   let monitor = match event_loop.primary_monitor() {
     Some(monitor) => monitor,

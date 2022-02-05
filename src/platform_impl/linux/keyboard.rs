@@ -220,6 +220,7 @@ pub(crate) fn make_key_event(
       },
     });
   } else {
+    #[cfg(debug_assertions)]
     eprintln!("Couldn't get key from code: {:?}", physical_key);
   }
   None
@@ -299,6 +300,18 @@ pub fn key_to_raw_key(src: &KeyCode) -> Option<RawKey> {
     KeyCode::F10 => F10,
     KeyCode::F11 => F11,
     KeyCode::F12 => F12,
+    KeyCode::F13 => F13,
+    KeyCode::F14 => F14,
+    KeyCode::F15 => F15,
+    KeyCode::F16 => F16,
+    KeyCode::F17 => F17,
+    KeyCode::F18 => F18,
+    KeyCode::F19 => F19,
+    KeyCode::F20 => F20,
+    KeyCode::F21 => F21,
+    KeyCode::F22 => F22,
+    KeyCode::F23 => F23,
+    KeyCode::F24 => F24,
 
     KeyCode::PrintScreen => Print,
     KeyCode::ScrollLock => Scroll_Lock,

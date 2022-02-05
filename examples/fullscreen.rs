@@ -3,7 +3,6 @@
 
 use std::io::{stdin, stdout, Write};
 
-use simple_logger::SimpleLogger;
 use tao::{
   event::{ElementState, Event, KeyEvent, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
@@ -14,7 +13,7 @@ use tao::{
 #[allow(clippy::single_match)]
 #[allow(clippy::ok_expect)]
 fn main() {
-  SimpleLogger::new().init().unwrap();
+  env_logger::init();
   let event_loop = EventLoop::new();
 
   print!("Please choose the fullscreen mode: (1) exclusive, (2) borderless: ");

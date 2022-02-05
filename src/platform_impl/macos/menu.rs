@@ -469,8 +469,6 @@ impl Accelerator {
   /// Returns the empty string if no key equivalent is known.
   fn key_equivalent(self) -> String {
     match self.key {
-      KeyCode::Minus => "-".into(),
-      KeyCode::Equal => "=".into(),
       KeyCode::KeyA => "a".into(),
       KeyCode::KeyB => "b".into(),
       KeyCode::KeyC => "c".into(),
@@ -507,8 +505,20 @@ impl Accelerator {
       KeyCode::Digit7 => "7".into(),
       KeyCode::Digit8 => "8".into(),
       KeyCode::Digit9 => "9".into(),
-      KeyCode::Escape => "\u{1b}".into(),
+      KeyCode::Comma => ",".into(),
+      KeyCode::Minus => "-".into(),
+      KeyCode::Period => ".".into(),
       KeyCode::Space => "\u{0020}".into(),
+      KeyCode::Equal => "=".into(),
+      KeyCode::Semicolon => ";".into(),
+      KeyCode::Slash => "/".into(),
+      KeyCode::Backslash => "\\".into(),
+      KeyCode::Quote => "\'".into(),
+      KeyCode::Backquote => "`".into(),
+      KeyCode::BracketLeft => "[".into(),
+      KeyCode::BracketRight => "]".into(),
+      KeyCode::Tab => "⇥".into(),
+      KeyCode::Escape => "\u{001b}".into(),
       // from NSText.h
       KeyCode::Enter => "\u{0003}".into(),
       KeyCode::Backspace => "\u{0008}".into(),
@@ -537,7 +547,20 @@ impl Accelerator {
       KeyCode::F10 => "\u{F70D}".into(),
       KeyCode::F11 => "\u{F70E}".into(),
       KeyCode::F12 => "\u{F70F}".into(),
+      KeyCode::F13 => "\u{F710}".into(),
+      KeyCode::F14 => "\u{F711}".into(),
+      KeyCode::F15 => "\u{F712}".into(),
+      KeyCode::F16 => "\u{F713}".into(),
+      KeyCode::F17 => "\u{F714}".into(),
+      KeyCode::F18 => "\u{F715}".into(),
+      KeyCode::F19 => "\u{F716}".into(),
+      KeyCode::F20 => "\u{F717}".into(),
+      KeyCode::F21 => "\u{F718}".into(),
+      KeyCode::F22 => "\u{F719}".into(),
+      KeyCode::F23 => "\u{F71A}".into(),
+      KeyCode::F24 => "\u{F71B}".into(),
       _ => {
+        #[cfg(debug_assertions)]
         eprintln!("no key equivalent for {:?}", self);
         "".into()
       }

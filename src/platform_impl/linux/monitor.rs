@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-  dpi::{PhysicalPosition, PhysicalSize},
+  dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize},
   monitor::{MonitorHandle as RootMonitorHandle, VideoMode as RootVideoMode},
 };
 
@@ -12,7 +12,7 @@ pub struct MonitorHandle {
   // We have to store the monitor number in GdkScreen despite
   // it's deprecated. Otherwise, there's no way to set it in
   // GtkWindow in Gtk3.
-  number: i32,
+  pub(crate) number: i32,
 }
 
 impl MonitorHandle {
@@ -29,19 +29,21 @@ impl MonitorHandle {
   #[inline]
   pub fn size(&self) -> PhysicalSize<u32> {
     let rect = self.monitor.geometry();
-    PhysicalSize {
-      width: rect.width as u32,
-      height: rect.height as u32,
+    LogicalSize {
+      width: rect.width() as u32,
+      height: rect.height() as u32,
     }
+    .to_physical(self.scale_factor())
   }
 
   #[inline]
   pub fn position(&self) -> PhysicalPosition<i32> {
     let rect = self.monitor.geometry();
-    PhysicalPosition {
-      x: rect.x,
-      y: rect.y,
+    LogicalPosition {
+      x: rect.x(),
+      y: rect.y(),
     }
+    .to_physical(self.scale_factor())
   }
 
   #[inline]
@@ -51,7 +53,7 @@ impl MonitorHandle {
 
   #[inline]
   pub fn video_modes(&self) -> Box<dyn Iterator<Item = RootVideoMode>> {
-    todo!()
+    Box::new(Vec::new().into_iter())
   }
 }
 
@@ -64,21 +66,21 @@ pub struct VideoMode;
 impl VideoMode {
   #[inline]
   pub fn size(&self) -> PhysicalSize<u32> {
-    todo!()
+    panic!("VideoMode is unsupported on Linux.")
   }
 
   #[inline]
   pub fn bit_depth(&self) -> u16 {
-    todo!()
+    panic!("VideoMode is unsupported on Linux.")
   }
 
   #[inline]
   pub fn refresh_rate(&self) -> u16 {
-    todo!()
+    panic!("VideoMode is unsupported on Linux.")
   }
 
   #[inline]
   pub fn monitor(&self) -> RootMonitorHandle {
-    todo!()
+    panic!("VideoMode is unsupported on Linux.")
   }
 }

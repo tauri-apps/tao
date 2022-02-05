@@ -18,6 +18,7 @@ use ndk::{
 };
 use ndk_glue::{Event, Rect};
 use ndk_sys::AKeyEvent_getKeyCode;
+use raw_window_handle::{AndroidNdkHandle, RawWindowHandle};
 use std::{
   collections::VecDeque,
   convert::TryInto,
@@ -116,10 +117,10 @@ pub struct EventLoop<T: 'static> {
 
 macro_rules! call_event_handler {
   ( $event_handler:expr, $window_target:expr, $cf:expr, $event:expr ) => {{
-    if $cf != ControlFlow::Exit {
-      $event_handler($event, $window_target, &mut $cf);
+    if let ControlFlow::ExitWithCode(code) = $cf {
+      $event_handler($event, $window_target, &mut ControlFlow::ExitWithCode(code));
     } else {
-      $event_handler($event, $window_target, &mut ControlFlow::Exit);
+      $event_handler($event, $window_target, &mut $cf);
     }
   }};
 }
@@ -146,11 +147,11 @@ impl<T: 'static> EventLoop<T> {
     F:
       'static + FnMut(event::Event<'_, T>, &event_loop::EventLoopWindowTarget<T>, &mut ControlFlow),
   {
-    self.run_return(event_handler);
-    ::std::process::exit(0);
+    let exit_code = self.run_return(event_handler);
+    ::std::process::exit(exit_code);
   }
 
-  pub fn run_return<F>(&mut self, mut event_handler: F)
+  pub fn run_return<F>(&mut self, mut event_handler: F) -> i32
   where
     F: FnMut(event::Event<'_, T>, &event_loop::EventLoopWindowTarget<T>, &mut ControlFlow),
   {
@@ -376,7 +377,7 @@ impl<T: 'static> EventLoop<T> {
       );
 
       match control_flow {
-        ControlFlow::Exit => {
+        ControlFlow::ExitWithCode(code) => {
           self.first_event = poll(
             self
               .looper
@@ -387,7 +388,7 @@ impl<T: 'static> EventLoop<T> {
             start: Instant::now(),
             requested_resume: None,
           };
-          break 'event_loop;
+          break 'event_loop code;
         }
         ControlFlow::Poll => {
           self.first_event = poll(
@@ -463,6 +464,7 @@ impl<T> Clone for EventLoopProxy<T> {
   }
 }
 
+#[derive(Clone)]
 pub struct EventLoopWindowTarget<T: 'static> {
   _marker: std::marker::PhantomData<T>,
 }
@@ -657,15 +659,14 @@ impl Window {
     ))
   }
 
-  pub fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    let a_native_window = if let Some(native_window) = ndk_glue::native_window().as_ref() {
-      unsafe { native_window.ptr().as_mut() as *mut _ as *mut _ }
+  pub fn raw_window_handle(&self) -> RawWindowHandle {
+    let mut handle = AndroidNdkHandle::empty();
+    if let Some(native_window) = ndk_glue::native_window().as_ref() {
+      handle.a_native_window = unsafe { native_window.ptr().as_mut() as *mut _ as *mut _ }
     } else {
       panic!("Cannot get the native window, it's null and will always be null before Event::Resumed and after Event::Suspended. Make sure you only call this function between those events.");
     };
-    let mut handle = raw_window_handle::android::AndroidHandle::empty();
-    handle.a_native_window = a_native_window;
-    raw_window_handle::RawWindowHandle::Android(handle)
+    RawWindowHandle::AndroidNdk(handle)
   }
 
   pub fn config(&self) -> Configuration {

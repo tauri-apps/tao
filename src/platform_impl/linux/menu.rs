@@ -18,10 +18,15 @@ use crate::{
 };
 
 macro_rules! menuitem {
-  ( $description:expr, $key:expr, $accel_group:ident ) => {{
+  ( $description:expr, $key:expr, $accel_group:ident, $window_id:expr, $native_menu_item:expr, $tx:ident ) => {{
     let item = GtkMenuItem::with_label($description);
     let (key, mods) = gtk::accelerator_parse($key);
     item.add_accelerator("activate", $accel_group, key, mods, AccelFlags::VISIBLE);
+    item.connect_activate(move |_| {
+      if let Err(e) = $tx.send(($window_id, WindowRequest::Menu(($native_menu_item, None)))) {
+        log::warn!("Fail to send native menu request: {}", e);
+      }
+    });
     Some(item)
   }};
 }
@@ -57,6 +62,7 @@ unsafe impl Send for Menu {}
 unsafe impl Sync for Menu {}
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct MenuItemAttributes {
   id: MenuId,
   key: Option<Accelerator>,
@@ -113,7 +119,7 @@ impl Menu {
     menu_type: MenuType,
   ) -> CustomMenuItem {
     let gtk_item = if selected {
-      let item = CheckMenuItem::with_label(&title);
+      let item = CheckMenuItem::with_label(title);
       item.set_active(true);
       item.upcast::<GtkMenuItem>()
     } else {
@@ -245,17 +251,47 @@ impl Menu {
           menu_type: GtkMenuType::Native,
           menu_item: Some(MenuItem::Hide),
           ..
-        } => menuitem!("Hide", "<Ctrl>H", accel_group),
+        } => {
+          let tx_clone = tx.clone();
+          menuitem!(
+            "Hide",
+            "<Ctrl>H",
+            accel_group,
+            window_id,
+            Some(MenuItem::Hide),
+            tx_clone
+          )
+        }
         GtkMenuInfo {
           menu_type: GtkMenuType::Native,
           menu_item: Some(MenuItem::CloseWindow),
           ..
-        } => menuitem!("Close Window", "<Ctrl>W", accel_group),
+        } => {
+          let tx_clone = tx.clone();
+          menuitem!(
+            "Close Window",
+            "<Ctrl>W",
+            accel_group,
+            window_id,
+            Some(MenuItem::CloseWindow),
+            tx_clone
+          )
+        }
         GtkMenuInfo {
           menu_type: GtkMenuType::Native,
           menu_item: Some(MenuItem::Quit),
           ..
-        } => menuitem!("Quit", "Q", accel_group),
+        } => {
+          let tx_clone = tx.clone();
+          menuitem!(
+            "Quit",
+            "<Ctrl>Q",
+            accel_group,
+            window_id,
+            Some(MenuItem::Quit),
+            tx_clone
+          )
+        }
         // TODO add others
         _ => None,
       };
@@ -305,6 +341,18 @@ fn register_accelerator(item: &GtkMenuItem, accel_group: &AccelGroup, menu_key: 
     KeyCode::Digit7 => '7' as u32,
     KeyCode::Digit8 => '8' as u32,
     KeyCode::Digit9 => '9' as u32,
+    KeyCode::Comma => ',' as u32,
+    KeyCode::Minus => '-' as u32,
+    KeyCode::Period => '.' as u32,
+    KeyCode::Space => ' ' as u32,
+    KeyCode::Equal => '=' as u32,
+    KeyCode::Semicolon => ';' as u32,
+    KeyCode::Slash => '/' as u32,
+    KeyCode::Backslash => '\\' as u32,
+    KeyCode::Quote => '\'' as u32,
+    KeyCode::Backquote => '`' as u32,
+    KeyCode::BracketLeft => '[' as u32,
+    KeyCode::BracketRight => ']' as u32,
     k => {
       if let Some(gdk_key) = key_to_raw_key(k) {
         *gdk_key
