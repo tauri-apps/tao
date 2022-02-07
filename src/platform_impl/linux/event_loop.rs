@@ -44,6 +44,8 @@ pub struct EventLoopWindowTarget<T> {
   pub(crate) windows: Rc<RefCell<HashSet<WindowId>>>,
   /// Window requests sender
   pub(crate) window_requests_tx: glib::Sender<(WindowId, WindowRequest)>,
+  /// Global shortcut requests sender
+  pub(crate) shortcut_requests_tx: glib::Sender<AcceleratorId>,
   _marker: std::marker::PhantomData<T>,
 }
 
@@ -116,6 +118,9 @@ impl<T: 'static> EventLoop<T> {
     // Create event loop window target.
     let (window_requests_tx, window_requests_rx) = glib::MainContext::channel(Priority::default());
     let window_requests_tx_ = window_requests_tx.clone();
+    let (shortcut_requests_tx, shortcut_requests_rx) =
+      glib::MainContext::channel(Priority::default());
+    let shortcut_requests_tx_ = shortcut_requests_tx.clone();
     let display = gdk::Display::default()
       .expect("GdkDisplay not found. This usually means `gkt_init` hasn't called yet.");
     let window_target = EventLoopWindowTarget {
@@ -123,6 +128,7 @@ impl<T: 'static> EventLoop<T> {
       app,
       windows: Rc::new(RefCell::new(HashSet::new())),
       window_requests_tx,
+      shortcut_requests_tx,
       _marker: std::marker::PhantomData,
     };
 
@@ -133,6 +139,19 @@ impl<T: 'static> EventLoop<T> {
       if let Err(e) = event_tx_.send(Event::UserEvent(event)) {
         log::warn!("Failed to send user event to event channel: {}", e);
       }
+      Continue(true)
+    });
+
+    // Global Shortcut Request
+    let event_tx_ = event_tx.clone();
+    shortcut_requests_rx.attach(Some(&context), move |id| {
+      if let Err(e) = event_tx_.send(Event::GlobalShortcutEvent(id)) {
+        log::warn!(
+          "Failed to send global shortcut event to event channel: {}",
+          e
+        );
+      }
+
       Continue(true)
     });
 
@@ -723,25 +742,16 @@ impl<T: 'static> EventLoop<T> {
               menubar.show_all();
             }
           }
-          WindowRequest::GlobalHotKey(_hotkey_id) => {}
         }
       } else if id == WindowId::dummy() {
-        match request {
-          WindowRequest::GlobalHotKey(hotkey_id) => {
-            if let Err(e) = event_tx.send(Event::GlobalShortcutEvent(AcceleratorId(hotkey_id))) {
-              log::warn!("Failed to send global hotkey event to event channel: {}", e);
-            }
+        if let WindowRequest::Menu((None, Some(menu_id))) = request {
+          if let Err(e) = event_tx.send(Event::MenuEvent {
+            window_id: None,
+            menu_id,
+            origin: MenuType::ContextMenu,
+          }) {
+            log::warn!("Failed to send status bar event to event channel: {}", e);
           }
-          WindowRequest::Menu((None, Some(menu_id))) => {
-            if let Err(e) = event_tx.send(Event::MenuEvent {
-              window_id: None,
-              menu_id,
-              origin: MenuType::ContextMenu,
-            }) {
-              log::warn!("Failed to send status bar event to event channel: {}", e);
-            }
-          }
-          _ => {}
         }
       }
       Continue(true)
