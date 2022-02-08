@@ -394,7 +394,7 @@ pub trait EventLoopExtMacOS {
   /// `NSApplicationActivationPolicyRegular` by default.
   ///
   /// This function only takes effect if it's called before calling [`run`](crate::event_loop::EventLoop::run) or
-  /// [`run_return`](crate::platform::run_return::EventLoopExtRunReturn::run_return)
+  /// [`run_return`](crate::platform::run_return::EventLoopExtRunReturn::run_return). To set the activation policy after that, use [`EventLoopWindowTargetExtMacOS::set_activation_policy_at_runtime`](crate::platform::macos::EventLoopWindowTargetExtMacOS::set_activation_policy_at_runtime).
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
   /// Used to prevent a default menubar menu from getting created
@@ -449,6 +449,11 @@ pub trait EventLoopWindowTargetExtMacOS {
   fn show_application(&self);
   /// Hide the other applications. In most applications this is typically triggered with Command+Option-H.
   fn hide_other_applications(&self);
+  /// Sets the activation policy for the application. It is set to
+  /// `NSApplicationActivationPolicyRegular` by default.
+  ///
+  /// To set the activation policy before the app starts running, see [`EventLoopExtMacOS::set_activation_policy`](crate::platform::macos::EventLoopExtMacOS::set_activation_policy).
+  fn set_activation_policy_at_runtime(&self, activation_policy: ActivationPolicy);
 }
 
 impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
@@ -468,6 +473,12 @@ impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
     let cls = objc::runtime::Class::get("NSApplication").unwrap();
     let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
     unsafe { msg_send![app, hideOtherApplications: 0] }
+  }
+
+  fn set_activation_policy_at_runtime(&self, activation_policy: ActivationPolicy) {
+    let cls = objc::runtime::Class::get("NSApplication").unwrap();
+    let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
+    unsafe { msg_send![app, setActivationPolicy: activation_policy] }
   }
 }
 
