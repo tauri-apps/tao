@@ -10,10 +10,7 @@ fn main() {
   #[cfg(target_os = "linux")]
   use std::path::Path;
   #[cfg(target_os = "macos")]
-  use tao::platform::macos::{
-    ActivationPolicy, CustomMenuItemExtMacOS, EventLoopWindowTargetExtMacOS, NativeImage,
-    SystemTrayBuilderExtMacOS,
-  };
+  use tao::platform::macos::{CustomMenuItemExtMacOS, NativeImage, SystemTrayBuilderExtMacOS};
   use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -32,13 +29,6 @@ fn main() {
 
   // open new window menu item
   let open_new_window_element = submenu.add_item(MenuItemAttributes::new("Open new window"));
-
-  #[cfg(target_os = "macos")]
-  let mut is_accessory = false;
-  // Accessory activation policy toggle
-  #[cfg(target_os = "macos")]
-  let mut activation_policy_accessory =
-    submenu.add_item(MenuItemAttributes::new("Accessory Activation Policy").with_selected(false));
 
   // set default icon
   #[cfg(target_os = "macos")]
@@ -163,18 +153,6 @@ fn main() {
           || menu_id == focus_all_window.clone().id()
         {
           create_window_or_focus();
-        }
-        #[cfg(target_os = "macos")]
-        if menu_id == activation_policy_accessory.clone().id() {
-          if is_accessory {
-            is_accessory = false;
-            event_loop.set_activation_policy_at_runtime(ActivationPolicy::Regular);
-            activation_policy_accessory.set_selected(false);
-          } else {
-            is_accessory = true;
-            event_loop.set_activation_policy_at_runtime(ActivationPolicy::Accessory);
-            activation_policy_accessory.set_selected(true);
-          }
         }
         // click on `quit` item
         if menu_id == quit_element.clone().id() {
