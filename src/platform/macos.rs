@@ -390,7 +390,7 @@ impl WindowBuilderExtMacOS for WindowBuilder {
 }
 
 pub trait EventLoopExtMacOS {
-  /// Sets the initial activation policy for the application. It is set to
+  /// Sets the activation policy for the application. It is set to
   /// `NSApplicationActivationPolicyRegular` by default.
   ///
   /// This function only takes effect if it's called before calling [`run`](crate::event_loop::EventLoop::run) or
