@@ -6,7 +6,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct ShortcutManager {
-  tx: glib::Sender<ShortcutEvent>,
+  tx: glib::Sender<GlobalShortcutEvent>,
 }
 
 impl ShortcutManager {
@@ -22,7 +22,7 @@ impl ShortcutManager {
   ) -> Result<RootGlobalShortcut, ShortcutManagerError> {
     if let Some(key) = get_gtk_key(&accelerator) {
       let id = accelerator.clone().id();
-      if let Err(e) = self.tx.send(ShortcutEvent::Register((id, key))) {
+      if let Err(e) = self.tx.send(GlobalShortcutEvent::Register((id, key))) {
         log::warn!(
           "Failed to send global shortcut event to event loop channel: {}",
           e
@@ -31,13 +31,13 @@ impl ShortcutManager {
       Ok(RootGlobalShortcut(GlobalShortcut { accelerator }))
     } else {
       Err(ShortcutManagerError::InvalidAccelerator(
-        "Unable to register global shortcut".into(),
+        "Failed to convert KeyCode to gdk::Key".into(),
       ))
     }
   }
 
   pub(crate) fn unregister_all(&mut self) -> Result<(), ShortcutManagerError> {
-    if let Err(e) = self.tx.send(ShortcutEvent::UnRegisterAll) {
+    if let Err(e) = self.tx.send(GlobalShortcutEvent::UnRegisterAll) {
       log::warn!(
         "Failed to send global shortcut event to event loop channel: {}",
         e
@@ -52,7 +52,7 @@ impl ShortcutManager {
   ) -> Result<(), ShortcutManagerError> {
     if let Err(e) = self
       .tx
-      .send(ShortcutEvent::UnRegister(shortcut.0.accelerator.id()))
+      .send(GlobalShortcutEvent::UnRegister(shortcut.0.accelerator.id()))
     {
       log::warn!(
         "Failed to send global shortcut event to event loop channel: {}",
@@ -74,7 +74,7 @@ impl GlobalShortcut {
   }
 }
 
-pub enum ShortcutEvent {
+pub enum GlobalShortcutEvent {
   Register((AcceleratorId, String)),
   UnRegister(AcceleratorId),
   UnRegisterAll,

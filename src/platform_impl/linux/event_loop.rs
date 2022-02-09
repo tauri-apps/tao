@@ -28,7 +28,7 @@ use crate::{
 };
 
 use super::{
-  global_shortcut::ShortcutEvent,
+  global_shortcut::GlobalShortcutEvent,
   keyboard,
   monitor::MonitorHandle,
   window::{WindowId, WindowRequest},
@@ -45,7 +45,7 @@ pub struct EventLoopWindowTarget<T> {
   /// Window requests sender
   pub(crate) window_requests_tx: glib::Sender<(WindowId, WindowRequest)>,
   /// Global shortcut requests sender
-  pub(crate) shortcut_requests_tx: glib::Sender<ShortcutEvent>,
+  pub(crate) shortcut_requests_tx: glib::Sender<GlobalShortcutEvent>,
   _marker: std::marker::PhantomData<T>,
 }
 
@@ -146,7 +146,7 @@ impl<T: 'static> EventLoop<T> {
     let event_tx_ = event_tx.clone();
     shortcut_requests_rx.attach(Some(&context), move |event| {
       match event {
-        ShortcutEvent::Register((id, key)) => {
+        GlobalShortcutEvent::Register((id, key)) => {
           let name = format!("{}", id.0);
           let action = gio::SimpleAction::new(&name, None);
           let event_tx = event_tx_.clone();
@@ -161,10 +161,10 @@ impl<T: 'static> EventLoop<T> {
           app.add_action(&action);
           app.set_accels_for_action(&format!("app.{}", name), &[&key]);
         }
-        ShortcutEvent::UnRegister(id) => {
+        GlobalShortcutEvent::UnRegister(id) => {
           app.remove_action(&format!("{}", id.0));
         }
-        ShortcutEvent::UnRegisterAll => {
+        GlobalShortcutEvent::UnRegisterAll => {
           for action in app.list_actions() {
             app.remove_action(&action);
           }
