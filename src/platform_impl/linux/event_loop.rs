@@ -3,7 +3,7 @@
 
 use std::{
   cell::RefCell,
-  collections::{HashMap, HashSet, VecDeque},
+  collections::{HashSet, VecDeque},
   error::Error,
   process,
   rc::Rc,
@@ -120,7 +120,6 @@ impl<T: 'static> EventLoop<T> {
     let window_requests_tx_ = window_requests_tx.clone();
     let (shortcut_requests_tx, shortcut_requests_rx) =
       glib::MainContext::channel(Priority::default());
-    let shortcuts = Rc::new(RefCell::new(HashMap::new()));
     let display = gdk::Display::default()
       .expect("GdkDisplay not found. This usually means `gkt_init` hasn't called yet.");
     let window_target = EventLoopWindowTarget {
@@ -143,18 +142,32 @@ impl<T: 'static> EventLoop<T> {
     });
 
     // Global Shortcut Event Request
-    let shortcuts_ = shortcuts.clone();
+    let app = app_.clone();
+    let event_tx_ = event_tx.clone();
     shortcut_requests_rx.attach(Some(&context), move |event| {
-      let mut shortcuts = shortcuts_.borrow_mut();
       match event {
-        ShortcutEvent::Register(accelerator) => {
-          shortcuts.insert(accelerator.clone().id(), accelerator);
+        ShortcutEvent::Register((id, key)) => {
+          let name = format!("{}", id.0);
+          let action = gio::SimpleAction::new(&name, None);
+          let event_tx = event_tx_.clone();
+          action.connect_activate(move |_, _| {
+            if let Err(e) = event_tx.send(Event::GlobalShortcutEvent(id)) {
+              log::warn!(
+                "Failed to send global shortcut event to event channel: {}",
+                e
+              );
+            }
+          });
+          app.add_action(&action);
+          app.set_accels_for_action(&format!("app.{}", name), &[&key]);
         }
-        ShortcutEvent::UnRegister(accelerator) => {
-          shortcuts.remove(&accelerator.id());
+        ShortcutEvent::UnRegister(id) => {
+          app.remove_action(&format!("{}", id.0));
         }
         ShortcutEvent::UnRegisterAll => {
-          shortcuts.clear();
+          for action in app.list_actions() {
+            app.remove_action(&action);
+          }
         }
       }
 
@@ -587,7 +600,6 @@ impl<T: 'static> EventLoop<T> {
             });
 
             let tx_clone = event_tx.clone();
-            let shortcuts_ = shortcuts.clone();
             let keyboard_handler = Rc::new(move |event_key: EventKey, element_state| {
               let mut mods = keyboard::get_modifiers(event_key.clone());
               // if we have a modifier lets send it
@@ -616,8 +628,6 @@ impl<T: 'static> EventLoop<T> {
               let event = keyboard::make_key_event(&event_key, false, None, element_state);
 
               if let Some(event) = event {
-                let key = event.physical_key;
-
                 if let Err(e) = tx_clone.send(Event::WindowEvent {
                   window_id: RootWindowId(id),
                   event: WindowEvent::KeyboardInput {
@@ -627,21 +637,6 @@ impl<T: 'static> EventLoop<T> {
                   },
                 }) {
                   log::warn!("Failed to send keyboard event to event channel: {}", e);
-                }
-
-                if let Ok(shortcuts) = shortcuts_.try_borrow() {
-                  for accelerator in (*shortcuts).values() {
-                    if accelerator.mods.contains(mods) && accelerator.key == key {
-                      if let Err(e) =
-                        tx_clone.send(Event::GlobalShortcutEvent(accelerator.clone().id()))
-                      {
-                        log::warn!(
-                          "Failed to send global shortcut event to event channel: {}",
-                          e
-                        );
-                      }
-                    }
-                  }
                 }
               }
               Continue(true)

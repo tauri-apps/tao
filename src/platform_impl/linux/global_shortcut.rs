@@ -20,13 +20,20 @@ impl ShortcutManager {
     &mut self,
     accelerator: Accelerator,
   ) -> Result<RootGlobalShortcut, ShortcutManagerError> {
-    if let Err(e) = self.tx.send(ShortcutEvent::Register(accelerator.clone())) {
-      log::warn!(
-        "Failed to send global shortcut event to event loop channel: {}",
-        e
-      );
+    if let Some(key) = get_gtk_key(&accelerator) {
+      let id = accelerator.clone().id();
+      if let Err(e) = self.tx.send(ShortcutEvent::Register((id, key))) {
+        log::warn!(
+          "Failed to send global shortcut event to event loop channel: {}",
+          e
+        );
+      }
+      Ok(RootGlobalShortcut(GlobalShortcut { accelerator }))
+    } else {
+      Err(ShortcutManagerError::InvalidAccelerator(
+        "Unable to register global shortcut".into(),
+      ))
     }
-    Ok(RootGlobalShortcut(GlobalShortcut { accelerator }))
   }
 
   pub(crate) fn unregister_all(&mut self) -> Result<(), ShortcutManagerError> {
@@ -45,7 +52,7 @@ impl ShortcutManager {
   ) -> Result<(), ShortcutManagerError> {
     if let Err(e) = self
       .tx
-      .send(ShortcutEvent::UnRegister(shortcut.0.accelerator))
+      .send(ShortcutEvent::UnRegister(shortcut.0.accelerator.id()))
     {
       log::warn!(
         "Failed to send global shortcut event to event loop channel: {}",
@@ -68,7 +75,36 @@ impl GlobalShortcut {
 }
 
 pub enum ShortcutEvent {
-  Register(Accelerator),
-  UnRegister(Accelerator),
+  Register((AcceleratorId, String)),
+  UnRegister(AcceleratorId),
   UnRegisterAll,
+}
+
+fn get_gtk_key(key: &Accelerator) -> Option<String> {
+  let mut result = String::new();
+
+  let mods = key.mods;
+  if mods.shift_key() {
+    result += "<Shift>";
+  }
+  if mods.control_key() {
+    result += "<Ctrl>";
+  }
+  if mods.alt_key() {
+    result += "<Alt>";
+  }
+  if mods.super_key() {
+    result += "<Super>";
+  }
+
+  if let Some(k) = super::keyboard::key_to_raw_key(&key.key) {
+    if let Some(name) = k.name() {
+      result += &name;
+      Some(result)
+    } else {
+      None
+    }
+  } else {
+    None
+  }
 }
