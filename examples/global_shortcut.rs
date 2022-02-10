@@ -23,7 +23,7 @@ fn main() {
   let shortcut_1 = Accelerator::new(SysMods::Shift, KeyCode::ArrowUp);
   let shortcut_2 = Accelerator::new(RawMods::AltCtrlMeta, KeyCode::KeyB);
   // use string parser to generate accelerator (require `std::str::FromStr`)
-  let shortcut_3 = Accelerator::from_str("COMMANDORCONTROL+SHIFT+3").unwrap();
+  let shortcut_3 = Accelerator::from_str("COMMANDORCONTROL+3").unwrap();
   let shortcut_4 = Accelerator::from_str("COMMANDORCONTROL+shIfT+DOWN").unwrap();
 
   // save a reference to unregister it later
@@ -64,7 +64,7 @@ fn main() {
       // by example `shortcut_1` will NOT match AcceleratorId::new("SHIFT+UP") as it's
       // been created with a struct and the ID is generated automatically
       Event::GlobalShortcutEvent(hotkey_id)
-        if hotkey_id == AcceleratorId::new("COMMANDORCONTROL+SHIFT+3") =>
+        if hotkey_id == AcceleratorId::new("COMMANDORCONTROL+3") =>
       {
         println!("Pressed on `shortcut_3`");
       }
