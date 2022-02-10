@@ -386,7 +386,7 @@ fn wait_thread(parent_thread_id: u32, msg_window_id: HWND) {
             QS_ALLEVENTS,
             MWMO_INPUTAVAILABLE,
           );
-          if resume_reason == WAIT_TIMEOUT {
+          if resume_reason == WAIT_TIMEOUT.0 {
             PostMessageW(
               msg_window_id,
               *PROCESS_NEW_EVENTS_MSG_ID,
@@ -593,7 +593,7 @@ lazy_static! {
 
         let class = WNDCLASSEXW {
             cbSize: mem::size_of::<WNDCLASSEXW>() as u32,
-            style: 0,
+            style: Default::default(),
             lpfnWndProc: Some(util::call_default_window_proc),
             cbClsExtra: 0,
             cbWndExtra: 0,
@@ -618,7 +618,7 @@ fn create_event_target_window() -> HWND {
       WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_LAYERED,
       PWSTR(THREAD_EVENT_TARGET_WINDOW_CLASS.clone().as_mut_ptr()),
       PWSTR::default(),
-      0,
+      Default::default(),
       0,
       0,
       0,
@@ -635,7 +635,7 @@ fn create_event_target_window() -> HWND {
     // The window technically has to be visible to receive WM_PAINT messages (which are used
     // for delivering events during resizes), but it isn't displayed to the user because of
     // the LAYERED style.
-    (WS_VISIBLE | WS_POPUP) as isize,
+    (WS_VISIBLE | WS_POPUP).0 as isize,
   );
   window
 }
@@ -1251,7 +1251,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     win32wm::WM_KEYDOWN | win32wm::WM_SYSKEYDOWN => {
-      if msg == WM_SYSKEYDOWN && wparam.0 as VIRTUAL_KEY == VK_F4 {
+      if msg == WM_SYSKEYDOWN && wparam.0 == usize::from(VK_F4.0) {
         result = ProcResult::DefSubclassProc;
       }
     }
@@ -1450,11 +1450,11 @@ unsafe fn public_window_callback_inner<T: 'static>(
           subclass_input.send_event(Event::WindowEvent {
             window_id: RootWindowId(WindowId(window.0)),
             event: WindowEvent::Touch(Touch {
-              phase: if (input.dwFlags & TOUCHEVENTF_DOWN) != 0 {
+              phase: if (input.dwFlags & TOUCHEVENTF_DOWN) != Default::default() {
                 TouchPhase::Started
-              } else if (input.dwFlags & TOUCHEVENTF_UP) != 0 {
+              } else if (input.dwFlags & TOUCHEVENTF_UP) != Default::default() {
                 TouchPhase::Ended
-              } else if (input.dwFlags & TOUCHEVENTF_MOVE) != 0 {
+              } else if (input.dwFlags & TOUCHEVENTF_MOVE) != Default::default() {
                 TouchPhase::Moved
               } else {
                 continue;
@@ -1585,11 +1585,11 @@ unsafe fn public_window_callback_inner<T: 'static>(
           subclass_input.send_event(Event::WindowEvent {
             window_id: RootWindowId(WindowId(window.0)),
             event: WindowEvent::Touch(Touch {
-              phase: if (pointer_info.pointerFlags & POINTER_FLAG_DOWN) != 0 {
+              phase: if (pointer_info.pointerFlags & POINTER_FLAG_DOWN) != Default::default() {
                 TouchPhase::Started
-              } else if (pointer_info.pointerFlags & POINTER_FLAG_UP) != 0 {
+              } else if (pointer_info.pointerFlags & POINTER_FLAG_UP) != Default::default() {
                 TouchPhase::Ended
-              } else if (pointer_info.pointerFlags & POINTER_FLAG_UPDATE) != 0 {
+              } else if (pointer_info.pointerFlags & POINTER_FLAG_UPDATE) != Default::default() {
                 TouchPhase::Moved
               } else {
                 continue;
@@ -1714,8 +1714,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
           && !window_state.window_flags().contains(WindowFlags::MAXIMIZED)
       };
 
-      let style = GetWindowLongW(window, GWL_STYLE) as WINDOW_STYLE;
-      let style_ex = GetWindowLongW(window, GWL_EXSTYLE) as WINDOW_EX_STYLE;
+      let style = WINDOW_STYLE(GetWindowLongW(window, GWL_STYLE) as u32);
+      let style_ex = WINDOW_EX_STYLE(GetWindowLongW(window, GWL_EXSTYLE) as u32);
 
       // New size as suggested by Windows.
       let suggested_rect = *(lparam.0 as *const RECT);
@@ -2130,7 +2130,7 @@ unsafe fn handle_raw_input<T: 'static>(
 
   let device_id = wrap_device_id(data.header.hDevice.0 as _);
 
-  if data.header.dwType == RIM_TYPEMOUSE {
+  if data.header.dwType == RIM_TYPEMOUSE.0 {
     let mouse = data.data.mouse;
 
     if util::has_flag(mouse.usFlags, MOUSE_MOVE_RELATIVE as u16) {
@@ -2188,7 +2188,7 @@ unsafe fn handle_raw_input<T: 'static>(
         });
       }
     }
-  } else if data.header.dwType == RIM_TYPEKEYBOARD {
+  } else if data.header.dwType == RIM_TYPEKEYBOARD.0 {
     let keyboard = data.data.keyboard;
 
     let pressed = keyboard.Message == WM_KEYDOWN || keyboard.Message == WM_SYSKEYDOWN;
@@ -2240,7 +2240,7 @@ unsafe fn handle_raw_input<T: 'static>(
       return;
     }
     let code;
-    if keyboard.VKey == VK_NUMLOCK {
+    if VIRTUAL_KEY(keyboard.VKey) == VK_NUMLOCK {
       // Historically, the NumLock and the Pause key were one and the same physical key.
       // The user could trigger Pause by pressing Ctrl+NumLock.
       // Now these are often physically separate and the two keys can be differentiated by
@@ -2257,7 +2257,7 @@ unsafe fn handle_raw_input<T: 'static>(
     } else {
       code = KeyCode::from_scancode(scancode as u32);
     }
-    if keyboard.VKey == VK_SHIFT {
+    if VIRTUAL_KEY(keyboard.VKey) == VK_SHIFT {
       match code {
         KeyCode::NumpadDecimal
         | KeyCode::Numpad0

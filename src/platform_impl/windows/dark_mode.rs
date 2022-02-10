@@ -182,7 +182,7 @@ const HCF_HIGHCONTRASTON: u32 = 1;
 fn is_high_contrast() -> bool {
   let mut hc = HIGHCONTRASTA {
     cbSize: 0,
-    dwFlags: 0,
+    dwFlags: Default::default(),
     lpszDefaultScheme: PSTR::default(),
   };
 
@@ -191,9 +191,9 @@ fn is_high_contrast() -> bool {
       SPI_GETHIGHCONTRAST,
       std::mem::size_of_val(&hc) as _,
       &mut hc as *mut _ as _,
-      0,
+      Default::default(),
     )
   };
 
-  ok.as_bool() && (HCF_HIGHCONTRASTON & hc.dwFlags) != 0
+  ok.as_bool() && (HCF_HIGHCONTRASTON & hc.dwFlags.0) != 0
 }

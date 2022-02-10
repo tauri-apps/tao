@@ -3,26 +3,23 @@
 
 use std::{ffi::OsString, os::windows::ffi::OsStringExt, path::PathBuf, ptr};
 
-use windows::{
-  self as Windows,
-  Win32::{
-    Foundation::{self as win32f, HWND, POINTL, PWSTR},
-    System::{
-      Com::{IDataObject, DVASPECT_CONTENT, FORMATETC, TYMED_HGLOBAL},
-      Ole::{DROPEFFECT_COPY, DROPEFFECT_NONE},
-      SystemServices::CF_HDROP,
-    },
-    UI::Shell::{DragFinish, DragQueryFileW, HDROP},
+use windows::Win32::{
+  Foundation::{self as win32f, HWND, POINTL, PWSTR},
+  System::{
+    Com::{IDataObject, DVASPECT_CONTENT, FORMATETC, TYMED_HGLOBAL},
+    Ole::{IDropTarget, IDropTarget_Impl, DROPEFFECT_COPY, DROPEFFECT_NONE},
+    SystemServices::CF_HDROP,
   },
+  UI::Shell::{DragFinish, DragQueryFileW, HDROP},
 };
 
-use windows_macros::implement;
+use windows_implement::implement;
 
 use crate::platform_impl::platform::WindowId;
 
 use crate::{event::Event, window::WindowId as SuperWindowId};
 
-#[implement(Windows::Win32::System::Ole::IDropTarget)]
+#[implement(IDropTarget)]
 pub struct FileDropHandler {
   window: HWND,
   send_event: Box<dyn Fn(Event<'static, ()>)>,
@@ -30,7 +27,6 @@ pub struct FileDropHandler {
   hovered_is_valid: bool, /* If the currently hovered item is not valid there must not be any `HoveredFileCancelled` emitted */
 }
 
-#[allow(non_snake_case)]
 impl FileDropHandler {
   pub fn new(window: HWND, send_event: Box<dyn Fn(Event<'static, ()>)>) -> FileDropHandler {
     Self {
@@ -41,81 +37,16 @@ impl FileDropHandler {
     }
   }
 
-  unsafe fn DragEnter(
-    &mut self,
-    pDataObj: &Option<IDataObject>,
-    _grfKeyState: u32,
-    _pt: POINTL,
-    pdwEffect: *mut u32,
-  ) -> windows::core::Result<()> {
-    use crate::event::WindowEvent::HoveredFile;
-    let hdrop = Self::iterate_filenames(pDataObj, |filename| {
-      (self.send_event)(Event::WindowEvent {
-        window_id: SuperWindowId(WindowId(self.window.0)),
-        event: HoveredFile(filename),
-      });
-    });
-    self.hovered_is_valid = hdrop.is_some();
-    self.cursor_effect = if self.hovered_is_valid {
-      DROPEFFECT_COPY
-    } else {
-      DROPEFFECT_NONE
-    };
-    *pdwEffect = self.cursor_effect;
-    Ok(())
-  }
-
-  unsafe fn DragOver(
-    &self,
-    _grfKeyState: u32,
-    _pt: POINTL,
-    pdwEffect: *mut u32,
-  ) -> windows::core::Result<()> {
-    *pdwEffect = self.cursor_effect;
-    Ok(())
-  }
-
-  unsafe fn DragLeave(&self) -> windows::core::Result<()> {
-    use crate::event::WindowEvent::HoveredFileCancelled;
-    if self.hovered_is_valid {
-      (self.send_event)(Event::WindowEvent {
-        window_id: SuperWindowId(WindowId(self.window.0)),
-        event: HoveredFileCancelled,
-      });
-    }
-    Ok(())
-  }
-
-  unsafe fn Drop(
-    &self,
-    pDataObj: &Option<IDataObject>,
-    _grfKeyState: u32,
-    _pt: POINTL,
-    _pdwEffect: *mut u32,
-  ) -> windows::core::Result<()> {
-    use crate::event::WindowEvent::DroppedFile;
-    let hdrop = Self::iterate_filenames(pDataObj, |filename| {
-      (self.send_event)(Event::WindowEvent {
-        window_id: SuperWindowId(WindowId(self.window.0)),
-        event: DroppedFile(filename),
-      });
-    });
-    if let Some(hdrop) = hdrop {
-      DragFinish(hdrop);
-    }
-    Ok(())
-  }
-
   unsafe fn iterate_filenames<F>(data_obj: &Option<IDataObject>, callback: F) -> Option<HDROP>
   where
     F: Fn(PathBuf),
   {
     let drop_format = FORMATETC {
-      cfFormat: CF_HDROP as u16,
+      cfFormat: CF_HDROP.0 as u16,
       ptd: ptr::null_mut(),
-      dwAspect: DVASPECT_CONTENT as u32,
+      dwAspect: DVASPECT_CONTENT.0 as u32,
       lindex: -1,
-      tymed: TYMED_HGLOBAL as u32,
+      tymed: TYMED_HGLOBAL.0 as u32,
     };
 
     match data_obj
@@ -162,5 +93,77 @@ impl FileDropHandler {
         None
       }
     }
+  }
+}
+
+#[allow(non_snake_case)]
+impl IDropTarget_Impl for FileDropHandler {
+  fn DragEnter(
+    &mut self,
+    pDataObj: &Option<IDataObject>,
+    _grfKeyState: u32,
+    _pt: &POINTL,
+    pdwEffect: *mut u32,
+  ) -> windows::core::Result<()> {
+    use crate::event::WindowEvent::HoveredFile;
+    unsafe {
+      let hdrop = Self::iterate_filenames(pDataObj, |filename| {
+        (self.send_event)(Event::WindowEvent {
+          window_id: SuperWindowId(WindowId(self.window.0)),
+          event: HoveredFile(filename),
+        });
+      });
+      self.hovered_is_valid = hdrop.is_some();
+      self.cursor_effect = if self.hovered_is_valid {
+        DROPEFFECT_COPY
+      } else {
+        DROPEFFECT_NONE
+      };
+      *pdwEffect = self.cursor_effect;
+    }
+    Ok(())
+  }
+
+  fn DragOver(
+    &mut self,
+    _grfKeyState: u32,
+    _pt: &POINTL,
+    pdwEffect: *mut u32,
+  ) -> windows::core::Result<()> {
+    unsafe { *pdwEffect = self.cursor_effect };
+    Ok(())
+  }
+
+  fn DragLeave(&mut self) -> windows::core::Result<()> {
+    use crate::event::WindowEvent::HoveredFileCancelled;
+    if self.hovered_is_valid {
+      (self.send_event)(Event::WindowEvent {
+        window_id: SuperWindowId(WindowId(self.window.0)),
+        event: HoveredFileCancelled,
+      });
+    }
+    Ok(())
+  }
+
+  fn Drop(
+    &mut self,
+    pDataObj: &Option<IDataObject>,
+    _grfKeyState: u32,
+    _pt: &POINTL,
+    _pdwEffect: *mut u32,
+  ) -> windows::core::Result<()> {
+    use crate::event::WindowEvent::DroppedFile;
+    unsafe {
+      let hdrop = Self::iterate_filenames(pDataObj, |filename| {
+        (self.send_event)(Event::WindowEvent {
+          window_id: SuperWindowId(WindowId(self.window.0)),
+          event: DroppedFile(filename),
+        });
+      });
+      if let Some(hdrop) = hdrop {
+        DragFinish(hdrop);
+      }
+    }
+    Ok(())
   }
 }

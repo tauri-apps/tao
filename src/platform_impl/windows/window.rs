@@ -733,7 +733,7 @@ impl Window {
     // `ToUnicode` consumes the dead-key by default, so we are constructing a fake (but valid)
     // key input which we can call `ToUnicode` with.
     unsafe {
-      let vk = u32::from(VK_SPACE);
+      let vk = u32::from(VK_SPACE.0);
       let scancode = MapVirtualKeyW(vk, MAPVK_VK_TO_VSC);
       let kbd_state = [0; 256];
       let mut char_buff = [MaybeUninit::uninit(); 8];
@@ -1106,7 +1106,7 @@ unsafe fn force_window_active(handle: HWND) {
   // This is a little hack which can "steal" the foreground window permission
   // We only call this function in the window creation, so it should be fine.
   // See : https://stackoverflow.com/questions/10740346/setforegroundwindow-only-working-while-visual-studio-is-open
-  let alt_sc = MapVirtualKeyW(u32::from(VK_MENU), MAPVK_VK_TO_VSC);
+  let alt_sc = MapVirtualKeyW(u32::from(VK_MENU.0), MAPVK_VK_TO_VSC);
 
   let mut inputs: [INPUT; 2] = mem::zeroed();
   inputs[0].r#type = INPUT_KEYBOARD;

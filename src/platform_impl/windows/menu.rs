@@ -111,8 +111,8 @@ impl MenuItemAttributes {
         self.1,
         self.0 as u32,
         match selected {
-          true => MF_CHECKED,
-          false => MF_UNCHECKED,
+          true => MF_CHECKED.0,
+          false => MF_UNCHECKED.0,
         },
       );
     }
@@ -366,27 +366,29 @@ enum EditCommand {
   SelectAll,
 }
 fn execute_edit_command(command: EditCommand) {
-  let key = match command {
+  let key = VIRTUAL_KEY(match command {
     EditCommand::Copy => 0x43,      // c
     EditCommand::Cut => 0x58,       // x
     EditCommand::Paste => 0x56,     // v
     EditCommand::SelectAll => 0x41, // a
-  };
+  });
 
   unsafe {
     let mut inputs: [INPUT; 4] = std::mem::zeroed();
     inputs[0].r#type = INPUT_KEYBOARD;
-    inputs[0].Anonymous.ki.wVk = VK_CONTROL as _;
+    inputs[0].Anonymous.ki.wVk = VK_CONTROL;
+    inputs[2].Anonymous.ki.dwFlags = Default::default();
 
     inputs[1].r#type = INPUT_KEYBOARD;
-    inputs[1].Anonymous.ki.wVk = key as VIRTUAL_KEY;
+    inputs[1].Anonymous.ki.wVk = key;
+    inputs[2].Anonymous.ki.dwFlags = Default::default();
 
     inputs[2].r#type = INPUT_KEYBOARD;
-    inputs[2].Anonymous.ki.wVk = key as VIRTUAL_KEY;
+    inputs[2].Anonymous.ki.wVk = key;
     inputs[2].Anonymous.ki.dwFlags = KEYEVENTF_KEYUP;
 
     inputs[3].r#type = INPUT_KEYBOARD;
-    inputs[3].Anonymous.ki.wVk = VK_CONTROL as _;
+    inputs[3].Anonymous.ki.wVk = VK_CONTROL;
     inputs[3].Anonymous.ki.dwFlags = KEYEVENTF_KEYUP;
 
     SendInput(
@@ -412,7 +414,7 @@ fn convert_accelerator(id: u16, key: Accelerator) -> Option<ACCEL> {
   }
 
   let raw_key = if let Some(vk_code) = key_to_vk(&key.key) {
-    let mod_code = vk_code >> 8;
+    let mod_code = vk_code.0 >> 8;
     if mod_code & 0x1 != 0 {
       virt_key |= FSHIFT;
     }
@@ -422,7 +424,7 @@ fn convert_accelerator(id: u16, key: Accelerator) -> Option<ACCEL> {
     if mod_code & 0x04 != 0 {
       virt_key |= FALT;
     }
-    vk_code & 0x00ff
+    vk_code.0 & 0x00ff
   } else {
     dbg!("Failed to convert key {:?} into virtual key code", key.key);
     return None;

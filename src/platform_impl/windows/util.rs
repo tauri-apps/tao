@@ -131,8 +131,8 @@ pub(crate) fn set_inner_size_physical(window: HWND, x: u32, y: u32) {
 
 pub fn adjust_window_rect(hwnd: HWND, rect: RECT) -> Option<RECT> {
   unsafe {
-    let style = GetWindowLongW(hwnd, GWL_STYLE) as WINDOW_STYLE;
-    let style_ex = GetWindowLongW(hwnd, GWL_EXSTYLE) as WINDOW_EX_STYLE;
+    let style = WINDOW_STYLE(GetWindowLongW(hwnd, GWL_STYLE) as u32);
+    let style_ex = WINDOW_EX_STYLE(GetWindowLongW(hwnd, GWL_EXSTYLE) as u32);
     adjust_window_rect_with_styles(hwnd, style, style_ex, rect)
   }
 }

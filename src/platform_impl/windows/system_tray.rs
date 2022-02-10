@@ -65,7 +65,7 @@ impl SystemTrayBuilder {
       RegisterClassW(&wnd_class);
 
       let hwnd = CreateWindowExW(
-        0,
+        Default::default(),
         PWSTR(class_name.as_mut_ptr()),
         "tao_system_tray_window",
         WS_OVERLAPPEDWINDOW,
