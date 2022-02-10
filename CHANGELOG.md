@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.6.1]
+
+- Fix global shortcut support on Linux (both x11 and wayland).
+  - [9c2841f7](https://github.com/tauri-apps/tao/commit/9c2841f7f5382e92efaa8b7bb137d8d30f3e0338) Implement global shortcut on Linux, close [#307](https://github.com/tauri-apps/tao/pull/307) ([#308](https://github.com/tauri-apps/tao/pull/308)) on 2022-02-10
+
 ## \[0.6.0]
 
 - Update to gtk 0.15
