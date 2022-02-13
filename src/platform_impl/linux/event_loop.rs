@@ -259,10 +259,14 @@ impl<T: 'static> EventLoop<T> {
           }
           WindowRequest::Fullscreen(fullscreen) => match fullscreen {
             Some(f) => {
-              if let Fullscreen::Borderless(Some(monitor)) = f {
-                let number = monitor.inner.number;
-                let screen = window.display().default_screen();
-                window.fullscreen_on_monitor(&screen, number);
+              if let Fullscreen::Borderless(m) = f {
+                if let Some(monitor) = m {
+                  let number = monitor.inner.number;
+                  let screen = window.display().default_screen();
+                  window.fullscreen_on_monitor(&screen, number);
+                } else {
+                  window.fullscreen();
+                }
               }
             }
             None => window.unfullscreen(),
