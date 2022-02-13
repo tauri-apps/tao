@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.6.2]
+
+- Fixes the `set_fullscreen` implementation on Linux when the `Fullscreen::Borderless` value is set to `None`.
+  - [456147de](https://github.com/tauri-apps/tao/commit/456147de99e1135b145447a9c8ebb397d3ecd1e1) fix(linux): fullscreen on current monitor ([#320](https://github.com/tauri-apps/tao/pull/320)) on 2022-02-13
+
 ## \[0.6.1]
 
 - Fix global shortcut support on Linux (both x11 and wayland).
