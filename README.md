@@ -74,4 +74,4 @@ while compiling to enable linking via ColorSync.
 
 We would like to thank the authors and contributors to [winit](https://crates.io/crates/winit)
 for their groundbreaking work upon which this crate is not only based, but
-also leans heavily upon. Thankyou!!!
+also leans heavily upon. Thank you!!!
