@@ -72,6 +72,6 @@ while compiling to enable linking via ColorSync.
 
 ### Acknowledgement
 
-We would like to thank the authors and contributors to [winit](https://crates.io/crates/winit)
-for their groundbreaking work upon which this crate is not only based, but
-also leans heavily upon. Thank you!!!
+This is a fork of [winit](https://crates.io/crates/winit) which replaces Linux's port to Gtk.
+We need it not only because webkit2gtk, but also a lot Desktop Environment features like menu bar, system tray, global shortcuts etc.
+In the future, we want to make these features more modular as separate crates. So we could switch back to winit and also benefit whole community.
