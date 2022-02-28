@@ -8,6 +8,7 @@ use crate::{
 };
 
 use glib::Sender;
+use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 
@@ -28,13 +29,13 @@ pub struct SystemTrayBuilder {
 impl SystemTrayBuilder {
   #[inline]
   pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
-    let mut tempfile =
-      tempfile::NamedTempFile::new().expect("Failed to create a temp file for icon");
+    let mut tempfile = temp_png_file().expect("Failed to create a temp file for icon");
     tempfile
+      .0
       .write(icon.inner.raw.as_slice())
       .expect("Failed to write image to disk");
 
-    let path = tempfile.path().to_path_buf();
+    let path = tempfile.1.to_path_buf();
     let parent = path.parent().expect("Failed to get parent of tempfile");
     let app_indicator = AppIndicator::with_path(
       "tao application",
@@ -81,17 +82,17 @@ pub struct SystemTray {
 
 impl SystemTray {
   pub fn set_icon(&mut self, icon: Icon) {
-    let mut tempfile =
-      tempfile::NamedTempFile::new().expect("Failed to create a temp file for icon");
+    let mut tempfile = temp_png_file().expect("Failed to create a temp file for icon");
     tempfile
+      .0
       .write(icon.inner.raw.as_slice())
       .expect("Failed to write image to disk");
 
-    let path = tempfile.path().to_path_buf();
+    let path = tempfile.1.to_path_buf();
     let parent = path.parent().expect("Failed to get parent of tempfile");
     self
       .app_indicator
-      .set_icon(&path.to_str().expect("Failed to convert PathBuf to str"));
+      .set_icon_theme_path(&parent.to_str().expect("Failed to convert PathBuf to str"));
     self
       .app_indicator
       .set_icon(&path.to_str().expect("Failed to convert PathBuf to str"));
@@ -113,4 +114,11 @@ impl Drop for SystemTray {
   fn drop(&mut self) {
     let _ = std::fs::remove_file(self.path.clone());
   }
+}
+
+fn temp_png_file() -> std::io::Result<(File, PathBuf)> {
+  let mut path = std::env::temp_dir();
+  path.push("tao");
+  path.push(format!("tray-icon-{}.png", uuid::Uuid::new_v4()));
+  Ok((File::create(path.clone())?, path))
 }

@@ -118,4 +118,4 @@ gdk-pixbuf = { version = "0.15", features = [ "v2_36_8" ] }
 libayatana-appindicator = { version = "0.2", optional = true }
 libappindicator = { version = "0.7", optional = true }
 x11-dl = "2.18"
-tempfile = "3.3"
+uuid = { version = "0.8", features = [ "v4" ] }
