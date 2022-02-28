@@ -1,4 +1,6 @@
-pub(super) struct Icon {
+use crate::icon::BadIcon;
+
+pub struct Icon {
   pub(crate) rgba: Vec<u8>,
   pub(crate) width: i32,
   pub(crate) height: i32,
