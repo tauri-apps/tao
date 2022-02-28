@@ -218,23 +218,25 @@ extern "C" fn perform_tray_click(this: &mut Object, _: Sel, button: id) {
       _ => None,
     };
 
-    if let Some(event) = click_type {
+    if let Some(click_event) = click_type {
       let event = Event::TrayEvent {
         bounds: Rectangle { position, size },
         position: PhysicalPosition::new(
           mouse_location.x,
           bottom_left_to_top_left_for_cursor(mouse_location),
         ),
-        event,
+        event: click_event,
       };
 
       AppState::queue_event(EventWrapper::StaticEvent(event));
 
       let menu = this.get_ivar::<id>("menu");
       if *menu != nil {
-        let status_bar = this.get_ivar::<id>("status_bar");
-        status_bar.setMenu_(*menu);
-        let () = msg_send![button, performClick: nil];
+        if click_event == TrayEvent::RightClick {
+          let status_bar = this.get_ivar::<id>("status_bar");
+          status_bar.setMenu_(*menu);
+          let () = msg_send![button, performClick: nil];
+        }
       }
     }
   }
