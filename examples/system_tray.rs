@@ -4,11 +4,9 @@
 // System tray is supported and availabled only if `tray` feature is enabled.
 // Platform: Windows, Linux and macOS.
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-#[cfg(feature = "tray")]
+#[cfg(any(feature = "tray", all(target_os = "linux", feature = "ayatana")))]
 fn main() {
   use std::collections::HashMap;
-  #[cfg(target_os = "linux")]
-  use std::path::Path;
   #[cfg(target_os = "macos")]
   use tao::platform::macos::{CustomMenuItemExtMacOS, NativeImage, SystemTrayBuilderExtMacOS};
   use tao::{
@@ -151,8 +149,7 @@ fn main() {
 }
 
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-#[cfg(feature = "tray")]
-
+#[cfg(any(feature = "tray", all(target_os = "linux", feature = "ayatana")))]
 fn load_icon_from_slice(slice: &[u8]) -> tao::system_tray::Icon {
   let (icon_rgba, icon_width, icon_height) = {
     let image = image::load_from_memory(slice)

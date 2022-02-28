@@ -39,9 +39,6 @@ pub use crate::icon::{BadIcon, Icon};
 /// Object that allows you to build SystemTray instance.
 pub struct SystemTrayBuilder(pub(crate) SystemTrayBuilderPlatform);
 
-#[cfg(target_os = "linux")]
-use std::path::PathBuf;
-
 impl SystemTrayBuilder {
   /// Creates a new SystemTray for platforms where this is appropriate.
   pub fn new(icon: Icon, tray_menu: Option<ContextMenu>) -> Self {

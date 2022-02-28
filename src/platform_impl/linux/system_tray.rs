@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-  error::OsError, event_loop::EventLoopWindowTarget, system_tray::SystemTray as RootSystemTray,
+  error::OsError,
+  event_loop::EventLoopWindowTarget,
+  system_tray::{Icon, SystemTray as RootSystemTray},
 };
 
 use glib::Sender;
+use std::io::Write;
 use std::path::PathBuf;
 
 use gtk::{prelude::WidgetExt, AccelGroup};
@@ -19,21 +22,28 @@ use super::{menu::Menu, window::WindowRequest, WindowId};
 pub struct SystemTrayBuilder {
   tray_menu: Option<Menu>,
   app_indicator: AppIndicator,
+  path: PathBuf,
 }
 
 impl SystemTrayBuilder {
   #[inline]
-  pub fn new(icon: PathBuf, tray_menu: Option<Menu>) -> Self {
-    let path = icon.parent().expect("Invalid icon");
-    let app_indicator = AppIndicator::with_path(
+  pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
+    let mut tempfile =
+      tempfile::NamedTempFile::new().expect("Failed to create a temp file for icon");
+    tempfile
+      .write(icon.inner.raw.as_slice())
+      .expect("Failed to write image to disk");
+
+    let path = tempfile.path().to_path_buf();
+    let app_indicator = AppIndicator::new(
       "tao application",
-      &icon.to_string_lossy(),
-      &path.to_string_lossy(),
+      &path.to_str().expect("Failed to convert PathBuf to str"),
     );
 
     Self {
       tray_menu,
       app_indicator,
+      path,
     }
   }
 
@@ -56,6 +66,7 @@ impl SystemTrayBuilder {
     Ok(RootSystemTray(SystemTray {
       app_indicator: self.app_indicator,
       sender,
+      path: self.path,
     }))
   }
 }
@@ -63,15 +74,22 @@ impl SystemTrayBuilder {
 pub struct SystemTray {
   app_indicator: AppIndicator,
   sender: Sender<(WindowId, WindowRequest)>,
+  path: PathBuf,
 }
 
 impl SystemTray {
-  pub fn set_icon(&mut self, icon: PathBuf) {
-    let path = icon.parent().expect("Invalid icon");
+  pub fn set_icon(&mut self, icon: Icon) {
+    let mut tempfile =
+      tempfile::NamedTempFile::new().expect("Failed to create a temp file for icon");
+    tempfile
+      .write(icon.inner.raw.as_slice())
+      .expect("Failed to write image to disk");
+
+    let path = tempfile.path().to_path_buf();
     self
       .app_indicator
-      .set_icon_theme_path(&path.to_string_lossy());
-    self.app_indicator.set_icon(&icon.to_string_lossy())
+      .set_icon(&path.to_str().expect("Failed to convert PathBuf to str"));
+    self.path = path;
   }
 
   pub fn set_menu(&mut self, tray_menu: &Menu) {
@@ -82,5 +100,11 @@ impl SystemTray {
 
     self.app_indicator.set_menu(&mut menu);
     menu.show_all();
+  }
+}
+
+impl Drop for SystemTray {
+  fn drop(&mut self) {
+    let _ = std::fs::remove_file(self.path.clone());
   }
 }
