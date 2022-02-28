@@ -24,7 +24,6 @@ fn main() {
   let mut windows: HashMap<WindowId, Window> = HashMap::new();
 
   let mut tray_menu = Menu::new();
-
   let mut submenu = Menu::new();
 
   // open new window menu item
@@ -48,34 +47,12 @@ fn main() {
   // add quit button
   let quit_element = tray_menu.add_item(MenuItemAttributes::new("Quit"));
 
-  // Windows require Vec<u8> ICO file
-  #[cfg(target_os = "windows")]
-  let icon = include_bytes!("icon.ico").to_vec();
-  // macOS require Vec<u8> PNG file
-  #[cfg(target_os = "macos")]
-  let icon = include_bytes!("icon.png").to_vec();
-  // Linux require Pathbuf to PNG file
-  #[cfg(target_os = "linux")]
-  let icon = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/icon.png");
-
-  // Windows require Vec<u8> ICO file
-  #[cfg(target_os = "windows")]
-  let new_icon = include_bytes!("icon_blue.ico").to_vec();
-  // macOS require Vec<u8> PNG file
-  #[cfg(target_os = "macos")]
-  let new_icon = include_bytes!("icon_dark.png").to_vec();
-  // Linux require Pathbuf to PNG file
-  #[cfg(target_os = "linux")]
-  let new_icon = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/icon_dark.png");
+  let icon_slice = include_bytes!("icon.png");
+  let icon = load_icon_from_slice(icon_slice);
+  let new_icon_slice = include_bytes!("icon_blue.png");
+  let new_icon = load_icon_from_slice(new_icon_slice);
 
   // Menu is shown with left click on macOS and right click on Windows.
-  #[cfg(target_os = "macos")]
-  let mut system_tray = SystemTrayBuilder::new(icon.clone(), Some(tray_menu))
-    .with_icon_as_template(true)
-    .build(&event_loop)
-    .unwrap();
-
-  #[cfg(not(target_os = "macos"))]
   let mut system_tray = SystemTrayBuilder::new(icon.clone(), Some(tray_menu))
     .build(&event_loop)
     .unwrap();
@@ -171,6 +148,22 @@ fn main() {
       _ => (),
     }
   });
+}
+
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+#[cfg(feature = "tray")]
+
+fn load_icon_from_slice(slice: &[u8]) -> tao::system_tray::Icon {
+  let (icon_rgba, icon_width, icon_height) = {
+    let image = image::load_from_memory(slice)
+      .expect("Failed to parse icon slice")
+      .into_rgba8();
+    let (width, height) = image.dimensions();
+    let rgba = image.into_raw();
+    (rgba, width, height)
+  };
+  tao::system_tray::Icon::from_rgba(icon_rgba, icon_width, icon_height)
+    .expect("Failed to open icon")
 }
 
 // System tray isn't supported on other's platforms.
