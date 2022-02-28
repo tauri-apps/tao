@@ -28,16 +28,18 @@ pub struct SystemTrayBuilder {
 impl SystemTrayBuilder {
   #[inline]
   pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
-    let mut tempfile =
-      tempfile::NamedTempFile::new().expect("Failed to create a temp file for icon");
+    let mut tempfile = tempfile::NamedTempFile::new_in(std::env::temp_dir().push("tao"))
+      .expect("Failed to create a temp file for icon");
     tempfile
       .write(icon.inner.raw.as_slice())
       .expect("Failed to write image to disk");
 
     let path = tempfile.path().to_path_buf();
-    let app_indicator = AppIndicator::new(
+    let parent = path.parent().expect("Failed to get parent of tempfile");
+    let app_indicator = AppIndicator::with_parent(
       "tao application",
       &path.to_str().expect("Failed to convert PathBuf to str"),
+      &parent.to_str().expect("Failed to convert PathBuf to str"),
     );
 
     Self {
@@ -79,13 +81,17 @@ pub struct SystemTray {
 
 impl SystemTray {
   pub fn set_icon(&mut self, icon: Icon) {
-    let mut tempfile =
-      tempfile::NamedTempFile::new().expect("Failed to create a temp file for icon");
+    let mut tempfile = tempfile::NamedTempFile::new_in(std::env::temp_dir().push("tao"))
+      .expect("Failed to create a temp file for icon");
     tempfile
       .write(icon.inner.raw.as_slice())
       .expect("Failed to write image to disk");
 
     let path = tempfile.path().to_path_buf();
+    let parent = path.parent.expect("Failed to get parent of tempfile");
+    self
+      .app_indicator
+      .set_icon(&path.to_str().expect("Failed to convert PathBuf to str"));
     self
       .app_indicator
       .set_icon(&path.to_str().expect("Failed to convert PathBuf to str"));
