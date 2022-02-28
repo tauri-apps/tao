@@ -3,7 +3,7 @@ use crate::{
   event::{ElementState, KeyEvent},
   keyboard::{Key, KeyCode, KeyLocation, ModifiersState, NativeKeyCode},
 };
-use gdk::{keys::constants::*, EventKey, ModifierType};
+use gdk::{keys::constants::*, EventKey};
 use std::{
   collections::HashSet,
   ffi::c_void,
@@ -117,11 +117,11 @@ pub(crate) fn raw_key_to_location(raw: RawKey) -> KeyLocation {
   }
 }
 
-const MODIFIER_MAP: &[(ModifierType, ModifiersState)] = &[
-  (ModifierType::SHIFT_MASK, ModifiersState::SHIFT),
-  (ModifierType::MOD1_MASK, ModifiersState::ALT),
-  (ModifierType::CONTROL_MASK, ModifiersState::CONTROL),
-  (ModifierType::SUPER_MASK, ModifiersState::SUPER),
+const MODIFIER_MAP: &[(Key<'static>, ModifiersState)] = &[
+  (Key::Shift, ModifiersState::SHIFT),
+  (Key::Alt, ModifiersState::ALT),
+  (Key::Control, ModifiersState::CONTROL),
+  (Key::Super, ModifiersState::SUPER),
 ];
 
 // we use the EventKey to extract the modifier mainly because
@@ -129,12 +129,29 @@ const MODIFIER_MAP: &[(ModifierType, ModifiersState)] = &[
 // other os' logic -- this way we can emit the new `ModifiersState` before
 // we receive the next key, if needed the developer can update his local state.
 pub(crate) fn get_modifiers(key: EventKey) -> ModifiersState {
-  let state = key.state();
+  // a keycode (scancode in Windows) is a code that refers to a physical keyboard key.
+  let scancode = key.hardware_keycode();
+  // a keyval (keysym in X) is a "logical" key name, such as GDK_Enter, GDK_a, GDK_space, etc.
+  let keyval = key.keyval();
+  // unicode value
+  let unicode = keyval.to_unicode();
+  // translate to tao::keyboard::Key
+  let key_from_code = raw_key_to_key(keyval).unwrap_or_else(|| {
+    if let Some(key) = unicode {
+      if key >= ' ' && key != '\x7f' {
+        Key::Character(insert_or_get_key_str(key.to_string()))
+      } else {
+        Key::Unidentified(NativeKeyCode::Gtk(scancode))
+      }
+    } else {
+      Key::Unidentified(NativeKeyCode::Gtk(scancode))
+    }
+  });
   // start with empty state
   let mut result = ModifiersState::empty();
   // loop trough our modifier map
   for (gdk_mod, modifier) in MODIFIER_MAP {
-    if state.contains(*gdk_mod) {
+    if key_from_code == *gdk_mod {
       result |= *modifier;
     }
   }
@@ -317,66 +334,6 @@ pub fn key_to_raw_key(src: &KeyCode) -> Option<RawKey> {
 
     KeyCode::ContextMenu => Menu,
     KeyCode::WakeUp => WakeUp,
-
-    KeyCode::Backslash => backslash,
-    KeyCode::BracketLeft => braceleft,
-    KeyCode::BracketRight => braceright,
-    KeyCode::Comma => comma,
-    KeyCode::Digit0 => _0,
-    KeyCode::Digit1 => _1,
-    KeyCode::Digit2 => _2,
-    KeyCode::Digit3 => _3,
-    KeyCode::Digit4 => _4,
-    KeyCode::Digit5 => _5,
-    KeyCode::Digit6 => _6,
-    KeyCode::Digit7 => _7,
-    KeyCode::Digit8 => _8,
-    KeyCode::Digit9 => _9,
-    KeyCode::Equal => equal,
-    KeyCode::KeyA => A,
-    KeyCode::KeyB => B,
-    KeyCode::KeyC => C,
-    KeyCode::KeyD => D,
-    KeyCode::KeyE => E,
-    KeyCode::KeyF => F,
-    KeyCode::KeyG => G,
-    KeyCode::KeyH => H,
-    KeyCode::KeyI => I,
-    KeyCode::KeyJ => J,
-    KeyCode::KeyK => K,
-    KeyCode::KeyL => L,
-    KeyCode::KeyM => M,
-    KeyCode::KeyN => N,
-    KeyCode::KeyO => O,
-    KeyCode::KeyP => P,
-    KeyCode::KeyQ => Q,
-    KeyCode::KeyR => R,
-    KeyCode::KeyS => S,
-    KeyCode::KeyT => T,
-    KeyCode::KeyU => U,
-    KeyCode::KeyV => V,
-    KeyCode::KeyW => W,
-    KeyCode::KeyX => X,
-    KeyCode::KeyY => Y,
-    KeyCode::KeyZ => Z,
-    KeyCode::Minus => minus,
-    KeyCode::Period => period,
-    KeyCode::Quote => leftsinglequotemark,
-    KeyCode::Semicolon => semicolon,
-    KeyCode::Slash => slash,
-    KeyCode::Space => space,
-    KeyCode::Numpad0 => KP_0,
-    KeyCode::Numpad1 => KP_1,
-    KeyCode::Numpad2 => KP_2,
-    KeyCode::Numpad3 => KP_3,
-    KeyCode::Numpad4 => KP_4,
-    KeyCode::Numpad5 => KP_5,
-    KeyCode::Numpad6 => KP_6,
-    KeyCode::Numpad7 => KP_7,
-    KeyCode::Numpad8 => KP_8,
-    KeyCode::Numpad9 => KP_9,
-    KeyCode::NumpadAdd => KP_Add,
-    // TODO add more RawKey(gdk::key)
     _ => return None,
   })
 }
