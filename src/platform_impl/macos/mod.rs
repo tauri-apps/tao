@@ -43,7 +43,7 @@ use crate::{
   error::OsError as RootOsError, event::DeviceId as RootDeviceId, window::WindowAttributes,
 };
 
-pub(crate) use icon::Icon as PlatformIcon;
+pub(crate) use icon::PlatformIcon;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DeviceId;
