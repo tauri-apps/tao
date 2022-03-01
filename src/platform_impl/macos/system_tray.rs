@@ -133,7 +133,7 @@ impl SystemTray {
       );
 
       let nsimage = NSImage::initWithData_(NSImage::alloc(nil), nsdata);
-      let new_size = NSSize::new(self.icon.inner.width, self.icon.inner.height);
+      let new_size = NSSize::new(self.icon.inner.width as _, self.icon.inner.height as _);
 
       button.setImage_(nsimage);
       let _: () = msg_send![nsimage, setSize: new_size];
