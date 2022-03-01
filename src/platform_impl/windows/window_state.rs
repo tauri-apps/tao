@@ -201,7 +201,6 @@ impl WindowFlags {
       style |= WS_THICKFRAME | WS_MAXIMIZEBOX;
     }
     if self.contains(WindowFlags::DECORATIONS) {
-      style |= WS_BORDER;
       style_ex |= WS_EX_WINDOWEDGE;
     }
     if self.contains(WindowFlags::VISIBLE) {
@@ -276,6 +275,18 @@ impl WindowFlags {
       }
     }
 
+    if diff.contains(WindowFlags::MAXIMIZED) || new.contains(WindowFlags::MAXIMIZED) {
+      unsafe {
+        ShowWindow(
+          window,
+          match new.contains(WindowFlags::MAXIMIZED) {
+            true => SW_MAXIMIZE,
+            false => SW_RESTORE,
+          },
+        );
+      }
+    }
+
     // Minimize operations should execute after maximize for proper window animations
     if diff.contains(WindowFlags::MINIMIZED) {
       unsafe {
@@ -283,18 +294,6 @@ impl WindowFlags {
           window,
           match new.contains(WindowFlags::MINIMIZED) {
             true => SW_MINIMIZE,
-            false => SW_RESTORE,
-          },
-        );
-      }
-    }
-
-    if diff.contains(WindowFlags::MAXIMIZED) || new.contains(WindowFlags::MAXIMIZED) {
-      unsafe {
-        ShowWindow(
-          window,
-          match new.contains(WindowFlags::MAXIMIZED) {
-            true => SW_MAXIMIZE,
             false => SW_RESTORE,
           },
         );
