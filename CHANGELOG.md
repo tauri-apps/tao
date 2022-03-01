@@ -3,7 +3,7 @@
 ## \[0.6.3]
 
 - Revert Global Shortcut fix on Linux. See [#331](https://github.com/tauri-apps/tao/issues/331) for more information.
-  - [5ff5e0a4](https://github.com/tauri-apps/tao/commit/5ff5e0a44a248a6d0f112e5c3d4849982c7258f4) Add missing change file ([#332](https://github.com/tauri-apps/tao/pull/332)) on 2022-03-01
+  - [f5e19e0f](https://github.com/tauri-apps/tao/commit/f5e19e0ff83a65410e18ee7e47cac984f87236c9) Revert "Implement global shortcut on Linux, close #307 (#308)" ([#330](https://github.com/tauri-apps/tao/pull/330)) on 2022-03-01
 
 ## \[0.6.2]
 
