@@ -128,12 +128,12 @@ impl SystemTray {
       // build our icon
       let nsdata = NSData::dataWithBytes_length_(
         nil,
-        self.icon.rgba.as_ptr() as *const std::os::raw::c_void,
-        self.icon.rgba.len() as u64,
+        self.icon.inner.rgba.as_ptr() as *const std::os::raw::c_void,
+        self.icon.inner.rgba.len() as u64,
       );
 
       let nsimage = NSImage::initWithData_(NSImage::alloc(nil), nsdata);
-      let new_size = NSSize::new(self.icon.width, self.icon.height);
+      let new_size = NSSize::new(self.icon.inner.width, self.icon.inner.height);
 
       button.setImage_(nsimage);
       let _: () = msg_send![nsimage, setSize: new_size];

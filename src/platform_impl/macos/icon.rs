@@ -2,8 +2,8 @@ use crate::icon::BadIcon;
 
 pub struct Icon {
   pub(crate) rgba: Vec<u8>,
-  pub(crate) width: i32,
-  pub(crate) height: i32,
+  pub(crate) width: u32,
+  pub(crate) height: u32,
 }
 
 impl Icon {
