@@ -9,7 +9,6 @@ use crate::{
 
 use glib::Sender;
 use std::fs::File;
-use std::io::Write;
 use std::path::PathBuf;
 
 use gtk::{prelude::WidgetExt, AccelGroup};
@@ -29,24 +28,32 @@ pub struct SystemTrayBuilder {
 impl SystemTrayBuilder {
   #[inline]
   pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
-    let mut tempfile = temp_png_file().expect("Failed to create a temp file for icon");
-    tempfile
-      .0
-      .write(icon.inner.raw.as_slice())
-      .expect("Failed to write image to disk");
+    let tempfile_path = temp_png_file().expect("Failed to create a temp file for icon");
+    image::save_buffer(
+      &tempfile_path,
+      &icon.inner.raw,
+      icon.inner.width as _,
+      icon.inner.height as _,
+      image::ColorType::Rgba8,
+    )
+    .expect("Failed to save buffer to disk");
 
-    let path = tempfile.1.to_path_buf();
-    let parent = path.parent().expect("Failed to get parent of tempfile");
-    let app_indicator = AppIndicator::with_path(
-      "tao application",
-      &path.to_str().expect("Failed to convert PathBuf to str"),
-      &parent.to_str().expect("Failed to convert PathBuf to str"),
+    let parent = tempfile_path
+      .parent()
+      .expect("Failed to get parent of tempfile");
+    let mut app_indicator = AppIndicator::new("tao application", "");
+    app_indicator.set_icon_theme_path(&parent.to_str().expect("Failed to convert PathBuf to str"));
+    app_indicator.set_icon_full(
+      &tempfile_path
+        .to_str()
+        .expect("Failed to convert PathBuf to str"),
+      "icon",
     );
 
     Self {
       tray_menu,
       app_indicator,
-      path,
+      path: tempfile_path,
     }
   }
 
@@ -82,21 +89,28 @@ pub struct SystemTray {
 
 impl SystemTray {
   pub fn set_icon(&mut self, icon: Icon) {
-    let mut tempfile = temp_png_file().expect("Failed to create a temp file for icon");
-    tempfile
-      .0
-      .write(icon.inner.raw.as_slice())
-      .expect("Failed to write image to disk");
+    let tempfile_path = temp_png_file().expect("Failed to create a temp file for icon");
+    image::save_buffer(
+      &tempfile_path,
+      &icon.inner.raw,
+      icon.inner.width as _,
+      icon.inner.height as _,
+      image::ColorType::Rgba8,
+    )
+    .expect("Failed to save buffer to disk");
 
-    let path = tempfile.1.to_path_buf();
-    let parent = path.parent().expect("Failed to get parent of tempfile");
-    self
-      .app_indicator
-      .set_icon_theme_path(&parent.to_str().expect("Failed to convert PathBuf to str"));
-    self
-      .app_indicator
-      .set_icon(&path.to_str().expect("Failed to convert PathBuf to str"));
-    self.path = path;
+    let parent = tempfile_path
+      .parent()
+      .expect("Failed to get parent of tempfile");
+    let mut app_indicator = AppIndicator::new("tao application", "");
+    app_indicator.set_icon_theme_path(&parent.to_str().expect("Failed to convert PathBuf to str"));
+    app_indicator.set_icon_full(
+      &tempfile_path
+        .to_str()
+        .expect("Failed to convert PathBuf to str"),
+      "icon",
+    );
+    self.path = tempfile_path;
   }
 
   pub fn set_menu(&mut self, tray_menu: &Menu) {
@@ -116,9 +130,11 @@ impl Drop for SystemTray {
   }
 }
 
-fn temp_png_file() -> std::io::Result<(File, PathBuf)> {
+fn temp_png_file() -> std::io::Result<PathBuf> {
   let mut path = std::env::temp_dir();
   path.push("tao");
+  std::fs::create_dir_all(&path)?;
   path.push(format!("tray-icon-{}.png", uuid::Uuid::new_v4()));
-  Ok((File::create(path.clone())?, path))
+  File::create(path.clone())?;
+  Ok(path)
 }

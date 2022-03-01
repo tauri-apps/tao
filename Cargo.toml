@@ -119,3 +119,4 @@ libayatana-appindicator = { version = "0.2", optional = true }
 libappindicator = { version = "0.7", optional = true }
 x11-dl = "2.18"
 uuid = { version = "0.8", features = [ "v4" ] }
+image = "0.24"
