@@ -17,7 +17,12 @@ use crate::{
 #[cfg(feature = "tray")]
 use crate::system_tray::{SystemTray, SystemTrayBuilder};
 
-use cocoa::{appkit, base::id};
+use cocoa::{appkit::{
+  self, NSApplicationActivationPolicy,
+  NSApplicationActivationPolicyRegular,
+  NSApplicationActivationPolicyAccessory,
+  NSApplicationActivationPolicyProhibited,
+}, base::id};
 
 /// Additional methods on `Window` that are specific to MacOS.
 pub trait WindowExtMacOS {
@@ -97,6 +102,16 @@ pub enum ActivationPolicy {
 impl Default for ActivationPolicy {
   fn default() -> Self {
     ActivationPolicy::Regular
+  }
+}
+
+impl From<ActivationPolicy> for NSApplicationActivationPolicy {
+  fn from(act_pol: ActivationPolicy) -> Self {
+    match act_pol {
+      ActivationPolicy::Regular => NSApplicationActivationPolicyRegular,
+      ActivationPolicy::Accessory => NSApplicationActivationPolicyAccessory,
+      ActivationPolicy::Prohibited => NSApplicationActivationPolicyProhibited,
+    }
   }
 }
 
@@ -449,6 +464,8 @@ pub trait EventLoopWindowTargetExtMacOS {
   fn show_application(&self);
   /// Hide the other applications. In most applications this is typically triggered with Command+Option-H.
   fn hide_other_applications(&self);
+  /// Set activation policy at runtime.
+  fn set_activation_policy(&self, activation_policy: ActivationPolicy);
 }
 
 impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
@@ -468,6 +485,13 @@ impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
     let cls = objc::runtime::Class::get("NSApplication").unwrap();
     let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
     unsafe { msg_send![app, hideOtherApplications: 0] }
+  }
+
+  fn set_activation_policy(&self, activation_policy: ActivationPolicy) {
+    let cls = objc::runtime::Class::get("NSApplication").unwrap();
+    let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
+    let ns_activation_policy: NSApplicationActivationPolicy = activation_policy.into();
+    unsafe { msg_send![app, setActivationPolicy: ns_activation_policy] }
   }
 }
 
