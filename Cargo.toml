@@ -1,6 +1,6 @@
 [package]
 name = "tao"
-version = "0.5.2"
+version = "0.6.3"
 description = "Cross-platform window manager library."
 authors = [
   "Tauri Programme within The Commons Conservancy",
@@ -41,10 +41,10 @@ serde = { version = "1", optional = true, features = [ "serde_derive" ] }
 raw-window-handle = "0.4"
 bitflags = "1"
 crossbeam-channel = "0.5"
-uuid = {version = "0.8.2", features = ["v4"]}
+uuid = { version = "0.8.2", features = [ "v4" ] }
 
 [dev-dependencies]
-image = "0.23"
+image = "0.24"
 env_logger = "0.9"
 
 [target."cfg(target_os = \"android\")".dependencies]
@@ -62,10 +62,10 @@ core-graphics = "0.22"
 dispatch = "0.2"
 scopeguard = "1.1"
 
-  [target."cfg(target_os = \"macos\")".dependencies.tao-core-video-sys]
-  version = "0.2"
-  default_features = false
-  features = [ "display_link" ]
+[target."cfg(target_os = \"macos\")".dependencies.tao-core-video-sys]
+version = "0.2"
+default_features = false
+features = [ "display_link" ]
 
 [target."cfg(target_os = \"macos\")".build-dependencies]
 cc = "1"
@@ -103,7 +103,7 @@ features = [
   "Win32_UI_Input_Touch",
   "Win32_UI_Shell",
   "Win32_UI_TextServices",
-  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_WindowsAndMessaging"
 ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]

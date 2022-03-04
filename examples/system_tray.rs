@@ -5,7 +5,7 @@
 // Platform: Windows, Linux and macOS.
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 #[cfg(feature = "tray")]
-fn main() -> Result<(), tao::error::OsError> {
+fn main() {
   use std::collections::HashMap;
   use std::path::Path;
   use tao::{
