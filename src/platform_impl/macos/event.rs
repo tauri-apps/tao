@@ -163,7 +163,7 @@ pub fn create_key_event(
     logical_key = key_from_code.clone();
     key_without_modifiers = key_from_code;
   } else {
-    //println!("Couldn't get key from code: {:?}", physical_key);
+    //#[cfg(debug_assertions)] println!("Couldn't get key from code: {:?}", physical_key);
     key_without_modifiers = get_modifierless_char(scancode);
 
     let modifiers = unsafe { NSEvent::modifierFlags(ns_event) };

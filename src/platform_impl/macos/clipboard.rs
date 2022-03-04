@@ -20,6 +20,7 @@ impl Clipboard {
       let _: NSInteger = msg_send![pasteboard, clearContents];
       let result: BOOL = msg_send![pasteboard, setString: nsstring forType: NSPasteboardTypeString];
       if result != YES {
+        #[cfg(debug_assertions)]
         println!("failed to set clipboard");
       }
     }

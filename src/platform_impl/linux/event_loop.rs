@@ -14,7 +14,7 @@ use std::{
 use gdk::{Cursor, CursorType, EventKey, EventMask, WindowEdge, WindowState};
 use gio::{prelude::*, Cancellable};
 use glib::{source::Priority, Continue, MainContext};
-use gtk::{prelude::*, AboutDialog, ApplicationWindow, Inhibit};
+use gtk::{prelude::*, AboutDialog, Inhibit};
 
 use crate::{
   accelerator::AcceleratorId,
@@ -86,13 +86,18 @@ pub struct EventLoop<T: 'static> {
 impl<T: 'static> EventLoop<T> {
   pub fn new() -> EventLoop<T> {
     assert_is_main_thread("new_any_thread");
-    EventLoop::new_any_thread().expect("Failed to initialize gtk backend!")
+    EventLoop::new_any_thread()
   }
 
-  pub fn new_any_thread() -> Result<EventLoop<T>, Box<dyn Error>> {
+  pub fn new_any_thread() -> EventLoop<T> {
     let context = MainContext::default();
-    context.push_thread_default();
+    context
+      .with_thread_default(|| EventLoop::new_gtk().expect("Failed to initialize gtk backend!"))
+      .expect("Failed to initialize gtk backend!")
+  }
 
+  fn new_gtk() -> Result<EventLoop<T>, Box<dyn Error>> {
+    let context = MainContext::default();
     let app = gtk::Application::new(None, gio::ApplicationFlags::empty());
     let app_ = app.clone();
     let cancellable: Option<&Cancellable> = None;
@@ -138,42 +143,46 @@ impl<T: 'static> EventLoop<T> {
           WindowRequest::Title(title) => window.set_title(&title),
           WindowRequest::Position((x, y)) => window.move_(x, y),
           WindowRequest::Size((w, h)) => window.resize(w, h),
-          WindowRequest::MinSize((min_width, min_height)) => window
-            .set_geometry_hints::<ApplicationWindow>(
-              None,
-              Some(&gdk::Geometry {
+          WindowRequest::MinSize((min_width, min_height)) => {
+            let picky_none: Option<&gtk::Window> = None;
+            window.set_geometry_hints(
+              picky_none,
+              Some(&gdk::Geometry::new(
                 min_width,
                 min_height,
-                max_width: 0,
-                max_height: 0,
-                base_width: 0,
-                base_height: 0,
-                width_inc: 0,
-                height_inc: 0,
-                min_aspect: 0f64,
-                max_aspect: 0f64,
-                win_gravity: gdk::Gravity::Center,
-              }),
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0f64,
+                0f64,
+                gdk::Gravity::Center,
+              )),
               gdk::WindowHints::MIN_SIZE,
-            ),
-          WindowRequest::MaxSize((max_width, max_height)) => window
-            .set_geometry_hints::<ApplicationWindow>(
-              None,
-              Some(&gdk::Geometry {
-                min_width: 0,
-                min_height: 0,
+            )
+          }
+          WindowRequest::MaxSize((max_width, max_height)) => {
+            let picky_none: Option<&gtk::Window> = None;
+            window.set_geometry_hints(
+              picky_none,
+              Some(&gdk::Geometry::new(
+                0,
+                0,
                 max_width,
                 max_height,
-                base_width: 0,
-                base_height: 0,
-                width_inc: 0,
-                height_inc: 0,
-                min_aspect: 0f64,
-                max_aspect: 0f64,
-                win_gravity: gdk::Gravity::Center,
-              }),
+                0,
+                0,
+                0,
+                0,
+                0f64,
+                0f64,
+                gdk::Gravity::Center,
+              )),
               gdk::WindowHints::MAX_SIZE,
-            ),
+            )
+          }
           WindowRequest::Visible(visible) => {
             if visible {
               window.show_all();
@@ -281,10 +290,8 @@ impl<T: 'static> EventLoop<T> {
                   )
                   .as_ref(),
                 ),
-                None => gdk_window.set_cursor(Some(&Cursor::for_display(
-                  &display,
-                  CursorType::BlankCursor,
-                ))),
+                None => gdk_window
+                  .set_cursor(Cursor::for_display(&display, CursorType::BlankCursor).as_ref()),
               }
             };
           }
@@ -470,14 +477,10 @@ impl<T: 'static> EventLoop<T> {
             });
 
             let tx_clone = event_tx.clone();
-            window.connect_motion_notify_event(move |window, _| {
-              let display = window.display();
-              if let Some(cursor) = display
-                .default_seat()
-                .and_then(|device_manager| device_manager.pointer())
-              {
+            window.connect_motion_notify_event(move |window, motion| {
+              if let Some(cursor) = motion.device() {
                 let scale_factor = window.scale_factor();
-                let (_, x, y) = cursor.position();
+                let (_, x, y) = cursor.window_at_position();
                 if let Err(e) = tx_clone.send(Event::WindowEvent {
                   window_id: RootWindowId(id),
                   event: WindowEvent::CursorMoved {
@@ -755,7 +758,6 @@ impl<T: 'static> EventLoop<T> {
       draws: draw_rx,
     };
 
-    context.pop_thread_default();
     Ok(event_loop)
   }
 
@@ -808,118 +810,117 @@ impl<T: 'static> EventLoop<T> {
     }
 
     let context = MainContext::default();
-    context.push_thread_default();
+    context
+      .with_thread_default(|| {
+        let mut control_flow = ControlFlow::default();
+        let window_target = &self.window_target;
+        let events = &self.events;
+        let draws = &self.draws;
 
-    let mut control_flow = ControlFlow::default();
-    let window_target = &self.window_target;
-    let events = &self.events;
-    let draws = &self.draws;
+        window_target.p.app.activate();
 
-    window_target.p.app.activate();
-
-    let mut state = EventState::NewStart;
-    let exit_code = loop {
-      let mut blocking = false;
-      match state {
-        EventState::NewStart => match control_flow {
-          ControlFlow::ExitWithCode(code) => {
-            callback(Event::LoopDestroyed, window_target, &mut control_flow);
-            break code;
-          }
-          ControlFlow::Wait => {
-            if !events.is_empty() || !draws.is_empty() {
-              callback(
-                Event::NewEvents(StartCause::WaitCancelled {
-                  start: Instant::now(),
-                  requested_resume: None,
-                }),
-                window_target,
-                &mut control_flow,
-              );
-              state = EventState::EventQueue;
-            } else {
-              blocking = true;
-            }
-          }
-          ControlFlow::WaitUntil(requested_resume) => {
-            let start = Instant::now();
-            if start >= requested_resume {
-              callback(
-                Event::NewEvents(StartCause::ResumeTimeReached {
-                  start,
-                  requested_resume,
-                }),
-                window_target,
-                &mut control_flow,
-              );
-              state = EventState::EventQueue;
-            } else if !events.is_empty() {
-              callback(
-                Event::NewEvents(StartCause::WaitCancelled {
-                  start,
-                  requested_resume: Some(requested_resume),
-                }),
-                window_target,
-                &mut control_flow,
-              );
-              state = EventState::EventQueue;
-            } else {
-              blocking = true;
-            }
-          }
-          ControlFlow::Poll => {
-            callback(
-              Event::NewEvents(StartCause::Poll),
-              window_target,
-              &mut control_flow,
-            );
-            state = EventState::EventQueue;
-          }
-        },
-        EventState::EventQueue => match control_flow {
-          ControlFlow::ExitWithCode(code) => {
-            callback(Event::LoopDestroyed, window_target, &mut control_flow);
-            break (code);
-          }
-          _ => match events.try_recv() {
-            Ok(event) => match event {
-              Event::LoopDestroyed => control_flow = ControlFlow::ExitWithCode(1),
-              _ => callback(event, window_target, &mut control_flow),
-            },
-            Err(_) => {
-              callback(Event::MainEventsCleared, window_target, &mut control_flow);
-              if draws.is_empty() {
-                state = EventState::NewStart;
-              } else {
-                state = EventState::DrawQueue;
+        let mut state = EventState::NewStart;
+        let exit_code = loop {
+          let mut blocking = false;
+          match state {
+            EventState::NewStart => match control_flow {
+              ControlFlow::ExitWithCode(code) => {
+                callback(Event::LoopDestroyed, window_target, &mut control_flow);
+                break code;
               }
-            }
-          },
-        },
-        EventState::DrawQueue => match control_flow {
-          ControlFlow::ExitWithCode(code) => {
-            callback(Event::LoopDestroyed, window_target, &mut control_flow);
-            break code;
+              ControlFlow::Wait => {
+                if !events.is_empty() || !draws.is_empty() {
+                  callback(
+                    Event::NewEvents(StartCause::WaitCancelled {
+                      start: Instant::now(),
+                      requested_resume: None,
+                    }),
+                    window_target,
+                    &mut control_flow,
+                  );
+                  state = EventState::EventQueue;
+                } else {
+                  blocking = true;
+                }
+              }
+              ControlFlow::WaitUntil(requested_resume) => {
+                let start = Instant::now();
+                if start >= requested_resume {
+                  callback(
+                    Event::NewEvents(StartCause::ResumeTimeReached {
+                      start,
+                      requested_resume,
+                    }),
+                    window_target,
+                    &mut control_flow,
+                  );
+                  state = EventState::EventQueue;
+                } else if !events.is_empty() {
+                  callback(
+                    Event::NewEvents(StartCause::WaitCancelled {
+                      start,
+                      requested_resume: Some(requested_resume),
+                    }),
+                    window_target,
+                    &mut control_flow,
+                  );
+                  state = EventState::EventQueue;
+                } else {
+                  blocking = true;
+                }
+              }
+              ControlFlow::Poll => {
+                callback(
+                  Event::NewEvents(StartCause::Poll),
+                  window_target,
+                  &mut control_flow,
+                );
+                state = EventState::EventQueue;
+              }
+            },
+            EventState::EventQueue => match control_flow {
+              ControlFlow::ExitWithCode(code) => {
+                callback(Event::LoopDestroyed, window_target, &mut control_flow);
+                break (code);
+              }
+              _ => match events.try_recv() {
+                Ok(event) => match event {
+                  Event::LoopDestroyed => control_flow = ControlFlow::ExitWithCode(1),
+                  _ => callback(event, window_target, &mut control_flow),
+                },
+                Err(_) => {
+                  callback(Event::MainEventsCleared, window_target, &mut control_flow);
+                  if draws.is_empty() {
+                    state = EventState::NewStart;
+                  } else {
+                    state = EventState::DrawQueue;
+                  }
+                }
+              },
+            },
+            EventState::DrawQueue => match control_flow {
+              ControlFlow::ExitWithCode(code) => {
+                callback(Event::LoopDestroyed, window_target, &mut control_flow);
+                break code;
+              }
+              _ => match draws.try_recv() {
+                Ok(id) => callback(
+                  Event::RedrawRequested(RootWindowId(id)),
+                  window_target,
+                  &mut control_flow,
+                ),
+                Err(_) => {
+                  callback(Event::RedrawEventsCleared, window_target, &mut control_flow);
+                  state = EventState::NewStart;
+                }
+              },
+            },
           }
-          _ => match draws.try_recv() {
-            Ok(id) => callback(
-              Event::RedrawRequested(RootWindowId(id)),
-              window_target,
-              &mut control_flow,
-            ),
-            Err(_) => {
-              callback(Event::RedrawEventsCleared, window_target, &mut control_flow);
-              state = EventState::NewStart;
-            }
-          },
-        },
-      }
-      gtk::main_iteration_do(blocking);
-    };
-
-    context.pop_thread_default();
-
-    exit_code
+          gtk::main_iteration_do(blocking);
+        };
+        exit_code
+      })
+      .unwrap_or(1)
   }
 
   #[inline]
