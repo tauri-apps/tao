@@ -394,7 +394,7 @@ pub trait EventLoopExtMacOS {
   /// `NSApplicationActivationPolicyRegular` by default.
   ///
   /// This function only takes effect if it's called before calling [`run`](crate::event_loop::EventLoop::run) or
-  /// [`run_return`](crate::platform::run_return::EventLoopExtRunReturn::run_return).
+  /// [`run_return`](crate::platform::run_return::EventLoopExtRunReturn::run_return)
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
   /// Used to prevent a default menubar menu from getting created
