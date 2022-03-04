@@ -390,6 +390,14 @@ pub unsafe extern "system" fn subclass_proc(
             }
           });
         }
+        _ if menu_id == NativeMenuItem::id(&NativeMenuItem::Quit) => {
+          MENUS_EVENT_SENDER.with(|menus_event_sender| {
+            if let Some(sender) = &*menus_event_sender.borrow() {
+              sender.send_event(Event::LoopDestroyed);
+            }
+          });
+          PostQuitMessage(0);
+        }
         _ => {
           let mut is_a_menu_event = false;
 
