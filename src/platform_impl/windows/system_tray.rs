@@ -247,10 +247,10 @@ unsafe extern "system" fn tray_subclass_proc(
 
         if let Some(menu) = tray_data.menu.clone() {
           let context_menu = CreatePopupMenu();
-          if let Ok(menus_data) = MENUS_DATA.lock() {
-            if let Some(menu) = menus_data.menus.get(&menu.id()) {
-              menu.add_items_to_hmenu(context_menu, &menus_data);
-            }
+          let menus_data = MENUS_DATA.lock();
+
+          if let Some(menu) = menus_data.menus.get(&menu.id()) {
+            menu.add_items_to_hmenu(context_menu, &menus_data);
           }
           util::show_context_menu(hwnd, context_menu, cursor.x, cursor.y);
           DestroyMenu(context_menu);

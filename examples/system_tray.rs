@@ -20,11 +20,11 @@ fn main() -> Result<(), tao::error::OsError> {
   let event_loop = EventLoop::new();
   let mut windows: HashMap<WindowId, Window> = HashMap::new();
 
-  let tray_menu = Menu::new()?;
+  let tray_menu = Menu::new();
 
-  let open_new_window_item = CustomMenuItem::new("Open new window", true, false, None)?;
-  let focus_window_item = CustomMenuItem::new("Focus window", false, false, None)?;
-  let quit_item = CustomMenuItem::new("Quit", true, false, None)?;
+  let open_new_window_item = CustomMenuItem::new("Open new window", true, false, None);
+  let focus_window_item = CustomMenuItem::new("Focus window", false, false, None);
+  let quit_item = CustomMenuItem::new("Quit", true, false, None);
   tray_menu.add_custom_item(&open_new_window_item);
   tray_menu.add_custom_item(&focus_window_item);
   tray_menu.add_custom_item(&quit_item);

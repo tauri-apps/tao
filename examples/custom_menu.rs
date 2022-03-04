@@ -3,7 +3,6 @@
 
 use tao::{
   accelerator::{Accelerator, SysMods},
-  error::OsError,
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   keyboard::KeyCode,
@@ -11,14 +10,14 @@ use tao::{
   window::WindowBuilder,
 };
 
-fn main() -> Result<(), OsError> {
+fn main() {
   env_logger::init();
   let event_loop = EventLoop::new();
 
-  let menu_bar = Menu::new()?;
+  let menu_bar = Menu::new();
 
-  let file_menu = Menu::with_title("File")?;
-  let edit_menu = Menu::with_title("Edit")?;
+  let file_menu = Menu::with_title("File");
+  let edit_menu = Menu::with_title("Edit");
 
   menu_bar.add_submenu(&file_menu);
   menu_bar.add_submenu(&edit_menu);
@@ -28,20 +27,20 @@ fn main() -> Result<(), OsError> {
     true,
     false,
     Some(Accelerator::new(SysMods::Cmd, KeyCode::KeyO)),
-  )?;
+  );
   let save_item = CustomMenuItem::new(
     "Save",
     false,
     false,
     Some(Accelerator::new(SysMods::Cmd, KeyCode::KeyS)),
-  )?;
+  );
   let mut save_item_is_enabled = false;
   let toggle_save_item = CustomMenuItem::new(
     "Toggle Save menu item",
     true,
     false,
     Some(Accelerator::new(SysMods::Cmd, KeyCode::KeyD)),
-  )?;
+  );
   file_menu.add_custom_item(&open_item);
   file_menu.add_custom_item(&save_item);
   file_menu.add_native_item(NativeMenuItem::Separator);
@@ -52,8 +51,8 @@ fn main() -> Result<(), OsError> {
     true,
     false,
     Some(Accelerator::new(SysMods::Cmd, KeyCode::KeyP)),
-  )?;
-  let add_new_items = CustomMenuItem::new("Add new menu item", true, false, None)?;
+  );
+  let add_new_items = CustomMenuItem::new("Add new menu item", true, false, None);
   edit_menu.add_native_item(NativeMenuItem::Copy);
   edit_menu.add_custom_item(&custom_copy);
   edit_menu.add_custom_item(&add_new_items);
@@ -93,15 +92,14 @@ fn main() -> Result<(), OsError> {
         _ if menu_id == custom_copy.id() => println!("Copied(custom) some text!"),
 
         _ if menu_id == add_new_items.id() => {
-          let submenu = Menu::with_title("Submenu").unwrap();
+          let submenu = Menu::with_title("Submenu");
           let item = CustomMenuItem::new(
             "New Menu Item",
             true,
             false,
             Some(Accelerator::new(SysMods::CmdShift, KeyCode::KeyM)),
-          )
-          .unwrap();
-          let item2 = CustomMenuItem::new("New Menu Item2", true, false, None).unwrap();
+          );
+          let item2 = CustomMenuItem::new("New Menu Item2", true, false, None);
           submenu.add_custom_item(&item);
           submenu.add_native_item(NativeMenuItem::Separator);
           submenu.add_custom_item(&item2);

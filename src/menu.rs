@@ -12,10 +12,9 @@
 //! item.set_enabled(false);
 //! ```
 
-use crate::{
-  accelerator::Accelerator, error::OsError, event::Event, platform_impl, window::WindowId,
-};
-use std::{cell::RefCell, collections::HashMap, sync::Mutex};
+use crate::{accelerator::Accelerator, event::Event, platform_impl, window::WindowId};
+use parking_lot::Mutex;
+use std::{cell::RefCell, collections::HashMap};
 
 pub type MenuId = u16;
 
@@ -30,13 +29,13 @@ pub type MenuId = u16;
 pub struct Menu(pub(crate) MenuId);
 impl Menu {
   /// Creates a new [`Menu`] without a title, suitable to be used as a menu bar, or a context menu.
-  pub fn new() -> Result<Self, OsError> {
+  pub fn new() -> Self {
     Self::with_title("")
   }
 
   /// Creates a new [`Menu`] with a title, suitable to be used as a submenu inside a menu bar, or a contex menu, or inside another submenu.
-  pub fn with_title(title: &str) -> Result<Self, OsError> {
-    platform_impl::Menu::new(title).map(|i| Self(i))
+  pub fn with_title(title: &str) -> Self {
+    Self(platform_impl::Menu::new(title))
   }
 
   /// Returns a unique identifier to the menu.
@@ -65,13 +64,10 @@ impl Menu {
 pub struct CustomMenuItem(MenuId);
 impl CustomMenuItem {
   /// Creates a new [`CustomMenuItem`]
-  pub fn new(
-    title: &str,
-    enabled: bool,
-    selected: bool,
-    accel: Option<Accelerator>,
-  ) -> Result<Self, OsError> {
-    platform_impl::CustomMenuItem::new(title, enabled, selected, accel).map(|i| Self(i))
+  pub fn new(title: &str, enabled: bool, selected: bool, accel: Option<Accelerator>) -> Self {
+    Self(platform_impl::CustomMenuItem::new(
+      title, enabled, selected, accel,
+    ))
   }
 
   /// Returns a unique identifier to the menu item.

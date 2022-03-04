@@ -1,8 +1,7 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::sync::{Mutex, MutexGuard};
-
+use parking_lot::{Mutex, MutexGuard};
 use windows::Win32::{
   Foundation::{HWND, LPARAM, LRESULT, PSTR, WPARAM},
   UI::{
@@ -14,7 +13,6 @@ use windows::Win32::{
 
 use crate::{
   accelerator::Accelerator,
-  error::OsError as RootOsError,
   event::{Event, WindowEvent},
   keyboard::{KeyCode, ModifiersState},
   menu::Menu as RootMenu,
@@ -22,7 +20,7 @@ use crate::{
   window::WindowId as RootWindowId,
 };
 
-use super::{keyboard::key_to_vk, util, OsError, WindowId};
+use super::{keyboard::key_to_vk, util, WindowId};
 
 pub struct Menu {
   title: String,
@@ -32,70 +30,65 @@ pub struct Menu {
 }
 
 impl Menu {
-  pub fn new(title: &str) -> Result<MenuId, RootOsError> {
-    if let Ok(mut menus_data) = MENUS_DATA.lock() {
-      let id = uuid::Uuid::new_v4().to_u128_le() as u16;
-      menus_data.menus.insert(
-        id,
-        Menu {
-          enabled: true,
-          title: title.into(),
-          items: Vec::new(),
-          hmenu: unsafe { CreateMenu() },
-        },
-      );
-      Ok(id)
-    } else {
-      Err(os_error!(
-        OsError::CreationError("Failed to register menu",)
-      ))
-    }
+  pub fn new(title: &str) -> MenuId {
+    let mut menus_data = MENUS_DATA.lock();
+    let id = uuid::Uuid::new_v4().to_u128_le() as u16;
+    menus_data.menus.insert(
+      id,
+      Menu {
+        enabled: true,
+        title: title.into(),
+        items: Vec::new(),
+        hmenu: unsafe { CreateMenu() },
+      },
+    );
+    id
   }
 
   pub fn add_custom_item(menu_id: MenuId, item_id: MenuId) {
-    if let Ok(mut menus_data) = MENUS_DATA.lock() {
-      let mut menu_hmenu = HMENU::default();
-      {
-        if let Some(menu) = menus_data.menus.get_mut(&menu_id) {
-          menu.items.push((MenuItemType::Custom, item_id));
-          menu_hmenu = menu.hmenu;
-        }
-      }
+    let mut menus_data = MENUS_DATA.lock();
 
-      if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
-        item.parent_menus.push(menu_id);
-        item.add_to_hmenu(menu_hmenu);
+    let mut menu_hmenu = HMENU::default();
+    {
+      if let Some(menu) = menus_data.menus.get_mut(&menu_id) {
+        menu.items.push((MenuItemType::Custom, item_id));
+        menu_hmenu = menu.hmenu;
       }
     }
-  }
 
-  pub fn add_native_item(menu_id: MenuId, item: NativeMenuItem) {
-    if let Ok(mut menus_data) = MENUS_DATA.lock() {
-      let mut menu_hmenu = HMENU::default();
-      {
-        if let Some(menu) = menus_data.menus.get_mut(&menu_id) {
-          menu.items.push((MenuItemType::NativeItem, item.id()));
-          menu_hmenu = menu.hmenu;
-        }
-      }
-
+    if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
+      item.parent_menus.push(menu_id);
       item.add_to_hmenu(menu_hmenu);
     }
   }
 
-  pub fn add_submenu(menu_id: MenuId, submenu_id: MenuId) {
-    if let Ok(mut menus_data) = MENUS_DATA.lock() {
-      let mut menu_hmenu = HMENU::default();
-      {
-        if let Some(menu) = menus_data.menus.get_mut(&menu_id) {
-          menu.items.push((MenuItemType::Submenu, submenu_id));
-          menu_hmenu = menu.hmenu;
-        }
-      }
+  pub fn add_native_item(menu_id: MenuId, item: NativeMenuItem) {
+    let mut menus_data = MENUS_DATA.lock();
 
-      if let Some(submenu) = menus_data.menus.get(&submenu_id) {
-        submenu.add_to_hmenu(menu_hmenu);
+    let mut menu_hmenu = HMENU::default();
+    {
+      if let Some(menu) = menus_data.menus.get_mut(&menu_id) {
+        menu.items.push((MenuItemType::NativeItem, item.id()));
+        menu_hmenu = menu.hmenu;
       }
+    }
+
+    item.add_to_hmenu(menu_hmenu);
+  }
+
+  pub fn add_submenu(menu_id: MenuId, submenu_id: MenuId) {
+    let mut menus_data = MENUS_DATA.lock();
+
+    let mut menu_hmenu = HMENU::default();
+    {
+      if let Some(menu) = menus_data.menus.get_mut(&menu_id) {
+        menu.items.push((MenuItemType::Submenu, submenu_id));
+        menu_hmenu = menu.hmenu;
+      }
+    }
+
+    if let Some(submenu) = menus_data.menus.get(&submenu_id) {
+      submenu.add_to_hmenu(menu_hmenu);
     }
   }
 
@@ -168,61 +161,52 @@ pub struct CustomMenuItem {
 }
 
 impl CustomMenuItem {
-  pub fn new(
-    title: &str,
-    enabled: bool,
-    selected: bool,
-    accel: Option<Accelerator>,
-  ) -> Result<MenuId, RootOsError> {
-    if let Ok(mut menus_data) = MENUS_DATA.lock() {
-      let id = uuid::Uuid::new_v4().to_u128_le() as u16;
-      menus_data.custom_menu_items.insert(
-        id,
-        Self {
-          id,
-          title: title.into(),
-          enabled,
-          selected,
-          accelerator: accel,
-          parent_menus: Vec::new(),
-        },
-      );
+  pub fn new(title: &str, enabled: bool, selected: bool, accel: Option<Accelerator>) -> MenuId {
+    let mut menus_data = MENUS_DATA.lock();
 
-      Ok(id)
-    } else {
-      Err(os_error!(OsError::CreationError(
-        "Failed to register menu item",
-      )))
-    }
+    let id = uuid::Uuid::new_v4().to_u128_le() as u16;
+    menus_data.custom_menu_items.insert(
+      id,
+      Self {
+        id,
+        title: title.into(),
+        enabled,
+        selected,
+        accelerator: accel,
+        parent_menus: Vec::new(),
+      },
+    );
+
+    id
   }
 
   pub fn set_title(item_id: MenuId, title: &str) {
-    if let Ok(mut menus_data) = MENUS_DATA.lock() {
-      {
-        if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
-          item.title = title.into();
-        }
-      }
+    let mut menus_data = MENUS_DATA.lock();
 
-      if let Some(item) = menus_data.custom_menu_items.get(&item_id) {
-        let mut title = title.to_string();
-        if let Some(accelerator) = &item.accelerator {
-          title.push('\t');
-          title.push_str(accelerator.to_str().as_str());
-        }
-        // NOTE(amrbashir): The title must be a null-terminated string. Otherwise, it will display some gibberish characters at the end.
-        title.push_str("\0");
-        let info = MENUITEMINFOA {
-          cbSize: std::mem::size_of::<MENUITEMINFOA>() as _,
-          fMask: MIIM_STRING,
-          dwTypeData: PSTR(title.as_ptr() as _),
-          ..Default::default()
-        };
-        for menu_id in &item.parent_menus {
-          if let Some(menu) = menus_data.menus.get(menu_id) {
-            unsafe {
-              SetMenuItemInfoA(menu.hmenu, item.id as _, false, &info);
-            }
+    {
+      if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
+        item.title = title.into();
+      }
+    }
+
+    if let Some(item) = menus_data.custom_menu_items.get(&item_id) {
+      let mut title = title.to_string();
+      if let Some(accelerator) = &item.accelerator {
+        title.push('\t');
+        title.push_str(accelerator.to_str().as_str());
+      }
+      // NOTE(amrbashir): The title must be a null-terminated string. Otherwise, it will display some gibberish characters at the end.
+      title.push_str("\0");
+      let info = MENUITEMINFOA {
+        cbSize: std::mem::size_of::<MENUITEMINFOA>() as _,
+        fMask: MIIM_STRING,
+        dwTypeData: PSTR(title.as_ptr() as _),
+        ..Default::default()
+      };
+      for menu_id in &item.parent_menus {
+        if let Some(menu) = menus_data.menus.get(menu_id) {
+          unsafe {
+            SetMenuItemInfoA(menu.hmenu, item.id as _, false, &info);
           }
         }
       }
@@ -230,26 +214,26 @@ impl CustomMenuItem {
   }
 
   pub fn set_enabled(item_id: MenuId, enabled: bool) {
-    if let Ok(mut menus_data) = MENUS_DATA.lock() {
-      {
-        if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
-          item.enabled = enabled;
-        }
-      }
+    let mut menus_data = MENUS_DATA.lock();
 
-      if let Some(item) = menus_data.custom_menu_items.get(&item_id) {
-        for menu_id in &item.parent_menus {
-          if let Some(menu) = menus_data.menus.get(menu_id) {
-            unsafe {
-              EnableMenuItem(
-                menu.hmenu,
-                item.id as _,
-                match enabled {
-                  true => MF_ENABLED,
-                  false => MF_DISABLED,
-                },
-              );
-            }
+    {
+      if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
+        item.enabled = enabled;
+      }
+    }
+
+    if let Some(item) = menus_data.custom_menu_items.get(&item_id) {
+      for menu_id in &item.parent_menus {
+        if let Some(menu) = menus_data.menus.get(menu_id) {
+          unsafe {
+            EnableMenuItem(
+              menu.hmenu,
+              item.id as _,
+              match enabled {
+                true => MF_ENABLED,
+                false => MF_DISABLED,
+              },
+            );
           }
         }
       }
@@ -257,26 +241,26 @@ impl CustomMenuItem {
   }
 
   pub fn set_selected(item_id: MenuId, selected: bool) {
-    if let Ok(mut menus_data) = MENUS_DATA.lock() {
-      {
-        if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
-          item.selected = selected;
-        }
-      }
+    let mut menus_data = MENUS_DATA.lock();
 
-      if let Some(item) = menus_data.custom_menu_items.get(&item_id) {
-        for menu_id in &item.parent_menus {
-          if let Some(menu) = menus_data.menus.get(menu_id) {
-            unsafe {
-              CheckMenuItem(
-                menu.hmenu,
-                item.id as _,
-                match selected {
-                  true => MF_CHECKED,
-                  false => MF_UNCHECKED,
-                },
-              );
-            }
+    {
+      if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
+        item.selected = selected;
+      }
+    }
+
+    if let Some(item) = menus_data.custom_menu_items.get(&item_id) {
+      for menu_id in &item.parent_menus {
+        if let Some(menu) = menus_data.menus.get(menu_id) {
+          unsafe {
+            CheckMenuItem(
+              menu.hmenu,
+              item.id as _,
+              match selected {
+                true => MF_CHECKED,
+                false => MF_UNCHECKED,
+              },
+            );
           }
         }
       }
@@ -297,9 +281,8 @@ impl CustomMenuItem {
       title.push('\t');
       title.push_str(accelerator.to_str().as_str());
       if let Some(accel) = accelerator.to_menu_accel(self.id) {
-        if let Ok(mut accel_table) = MENUS_ACCEL_TABLE.lock() {
-          accel_table.push(accel);
-        }
+        let mut accel_table = MENUS_ACCEL_TABLE.lock();
+        accel_table.push(accel);
       }
     }
     unsafe {
@@ -344,10 +327,10 @@ const MENU_SUBCLASS_ID: usize = 4568;
 pub fn set_for_window(menu: RootMenu, window: HWND) -> HMENU {
   let menu_bar = unsafe { CreateMenu() };
 
-  if let Ok(menus_data) = MENUS_DATA.lock() {
-    if let Some(menu) = menus_data.menus.get(&menu.id()) {
-      menu.add_items_to_hmenu(menu_bar, &menus_data);
-    }
+  let menus_data = MENUS_DATA.lock();
+
+  if let Some(menu) = menus_data.menus.get(&menu.id()) {
+    menu.add_items_to_hmenu(menu_bar, &menus_data);
   }
 
   unsafe {
@@ -408,10 +391,10 @@ pub unsafe extern "system" fn subclass_proc(
         _ => {
           let mut is_a_menu_event = false;
           {
-            if let Ok(menus_data) = MENUS_DATA.lock() {
-              if menus_data.custom_menu_items.get(&menu_id).is_some() {
-                is_a_menu_event = true;
-              }
+            let menus_data = MENUS_DATA.lock();
+
+            if menus_data.custom_menu_items.get(&menu_id).is_some() {
+              is_a_menu_event = true;
             }
           }
           if is_a_menu_event {
@@ -471,16 +454,14 @@ lazy_static! {
   static ref MENUS_ACCEL_TABLE: Mutex<Vec<ACCEL>> = Mutex::new(Vec::new());
 }
 
-pub(super) fn get_haccel() -> Option<HACCEL> {
-  if let Ok(accel_table) = MENUS_ACCEL_TABLE.lock() {
-    Some(unsafe {
-      win32wm::CreateAcceleratorTableW(
-        accel_table.as_slice() as *const _ as *const _,
-        accel_table.len() as _,
-      )
-    })
-  } else {
-    None
+pub(super) fn get_haccel() -> HACCEL {
+  let accel_table = MENUS_ACCEL_TABLE.lock();
+
+  unsafe {
+    win32wm::CreateAcceleratorTableW(
+      accel_table.as_slice() as *const _ as *const _,
+      accel_table.len() as _,
+    )
   }
 }
 impl Accelerator {
