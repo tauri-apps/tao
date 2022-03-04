@@ -47,13 +47,11 @@ impl Menu {
 
   pub fn add_custom_item(menu_id: MenuId, item_id: MenuId) {
     let mut menus_data = MENUS_DATA.lock();
-
     let mut menu_hmenu = HMENU::default();
-    {
-      if let Some(menu) = menus_data.menus.get_mut(&menu_id) {
-        menu.items.push((MenuItemType::Custom, item_id));
-        menu_hmenu = menu.hmenu;
-      }
+
+    if let Some(menu) = menus_data.menus.get_mut(&menu_id) {
+      menu.items.push((MenuItemType::Custom, item_id));
+      menu_hmenu = menu.hmenu;
     }
 
     if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
@@ -64,13 +62,11 @@ impl Menu {
 
   pub fn add_native_item(menu_id: MenuId, item: NativeMenuItem) {
     let mut menus_data = MENUS_DATA.lock();
-
     let mut menu_hmenu = HMENU::default();
-    {
-      if let Some(menu) = menus_data.menus.get_mut(&menu_id) {
-        menu.items.push((MenuItemType::NativeItem, item.id()));
-        menu_hmenu = menu.hmenu;
-      }
+
+    if let Some(menu) = menus_data.menus.get_mut(&menu_id) {
+      menu.items.push((MenuItemType::NativeItem, item.id()));
+      menu_hmenu = menu.hmenu;
     }
 
     item.add_to_hmenu(menu_hmenu);
@@ -78,13 +74,11 @@ impl Menu {
 
   pub fn add_submenu(menu_id: MenuId, submenu_id: MenuId) {
     let mut menus_data = MENUS_DATA.lock();
-
     let mut menu_hmenu = HMENU::default();
-    {
-      if let Some(menu) = menus_data.menus.get_mut(&menu_id) {
-        menu.items.push((MenuItemType::Submenu, submenu_id));
-        menu_hmenu = menu.hmenu;
-      }
+
+    if let Some(menu) = menus_data.menus.get_mut(&menu_id) {
+      menu.items.push((MenuItemType::Submenu, submenu_id));
+      menu_hmenu = menu.hmenu;
     }
 
     if let Some(submenu) = menus_data.menus.get(&submenu_id) {
@@ -93,6 +87,10 @@ impl Menu {
   }
 
   pub(super) fn add_to_hmenu(&self, hmenu: HMENU) {
+    if hmenu.is_invalid() {
+      return;
+    }
+
     let mut flags = MF_POPUP;
     if !self.enabled {
       flags |= MF_DISABLED;
@@ -103,6 +101,10 @@ impl Menu {
   }
 
   pub(super) fn add_items_to_hmenu(&self, hmenu: HMENU, menus_data: &MutexGuard<'_, MenusData>) {
+    if hmenu.is_invalid() {
+      return;
+    }
+
     for (mtype, id) in self.items.clone() {
       match mtype {
         MenuItemType::Custom => {
@@ -183,10 +185,8 @@ impl CustomMenuItem {
   pub fn set_title(item_id: MenuId, title: &str) {
     let mut menus_data = MENUS_DATA.lock();
 
-    {
-      if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
-        item.title = title.into();
-      }
+    if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
+      item.title = title.into();
     }
 
     if let Some(item) = menus_data.custom_menu_items.get(&item_id) {
@@ -216,10 +216,8 @@ impl CustomMenuItem {
   pub fn set_enabled(item_id: MenuId, enabled: bool) {
     let mut menus_data = MENUS_DATA.lock();
 
-    {
-      if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
-        item.enabled = enabled;
-      }
+    if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
+      item.enabled = enabled;
     }
 
     if let Some(item) = menus_data.custom_menu_items.get(&item_id) {
@@ -243,10 +241,8 @@ impl CustomMenuItem {
   pub fn set_selected(item_id: MenuId, selected: bool) {
     let mut menus_data = MENUS_DATA.lock();
 
-    {
-      if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
-        item.selected = selected;
-      }
+    if let Some(item) = menus_data.custom_menu_items.get_mut(&item_id) {
+      item.selected = selected;
     }
 
     if let Some(item) = menus_data.custom_menu_items.get(&item_id) {
@@ -267,7 +263,11 @@ impl CustomMenuItem {
     }
   }
 
-  fn add_to_hmenu(&self, menu: HMENU) {
+  fn add_to_hmenu(&self, hmenu: HMENU) {
+    if hmenu.is_invalid() {
+      return;
+    }
+
     let mut flags = MF_STRING;
     if !self.enabled {
       flags |= MF_GRAYED;
@@ -286,7 +286,7 @@ impl CustomMenuItem {
       }
     }
     unsafe {
-      AppendMenuW(menu, flags, self.id as _, title);
+      AppendMenuW(hmenu, flags, self.id as _, title);
     }
   }
 }
@@ -325,9 +325,8 @@ impl NativeMenuItem {
 
 const MENU_SUBCLASS_ID: usize = 4568;
 pub fn set_for_window(menu: RootMenu, window: HWND) -> HMENU {
-  let menu_bar = unsafe { CreateMenu() };
-
   let menus_data = MENUS_DATA.lock();
+  let menu_bar = unsafe { CreateMenu() };
 
   if let Some(menu) = menus_data.menus.get(&menu.id()) {
     menu.add_items_to_hmenu(menu_bar, &menus_data);
@@ -390,13 +389,16 @@ pub unsafe extern "system" fn subclass_proc(
         }
         _ => {
           let mut is_a_menu_event = false;
+
+          // NOTE(amrbashir): We need to drop the lock ASAP, otherwise it, we endup in a dead lock if
+          // the triggered event had logic that uses `MENUS_DATA`
           {
             let menus_data = MENUS_DATA.lock();
-
             if menus_data.custom_menu_items.get(&menu_id).is_some() {
               is_a_menu_event = true;
             }
           }
+
           if is_a_menu_event {
             MENUS_EVENT_SENDER.with(|menus_event_sender| {
               if let Some(sender) = &*menus_event_sender.borrow() {
