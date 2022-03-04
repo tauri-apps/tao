@@ -196,7 +196,10 @@ impl CustomMenuItem {
         title.push_str(accelerator.to_str().as_str());
       }
       // NOTE(amrbashir): The title must be a null-terminated string. Otherwise, it will display some gibberish characters at the end.
-      title.push_str("\0");
+      if !title.ends_with("\0") {
+        title.push_str("\0");
+      }
+
       let info = MENUITEMINFOA {
         cbSize: std::mem::size_of::<MENUITEMINFOA>() as _,
         fMask: MIIM_STRING,
