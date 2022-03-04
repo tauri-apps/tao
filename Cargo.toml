@@ -42,6 +42,7 @@ raw-window-handle = "0.4"
 bitflags = "1"
 crossbeam-channel = "0.5"
 uuid = { version = "0.8.2", features = [ "v4" ] }
+parking_lot = "0.11"
 
 [dev-dependencies]
 image = "0.24"
@@ -71,7 +72,6 @@ features = [ "display_link" ]
 cc = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]
-parking_lot = "0.11"
 unicode-segmentation = "1.8.0"
 windows_macros = "0.30.0"
 
