@@ -399,18 +399,9 @@ pub unsafe extern "system" fn subclass_proc(
           PostQuitMessage(0);
         }
         _ => {
-          let mut is_a_menu_event = false;
-
-          // NOTE(amrbashir): We need to drop the lock ASAP, otherwise it, we endup in a dead lock if
-          // the triggered event had logic that uses `MENUS_DATA`
-          {
-            let menus_data = MENUS_DATA.lock();
-            if menus_data.custom_menu_items.get(&menu_id).is_some() {
-              is_a_menu_event = true;
-            }
-          }
-
-          if is_a_menu_event {
+          let menus_data = MENUS_DATA.lock();
+          if menus_data.custom_menu_items.get(&menu_id).is_some() {
+            drop(menus_data);
             MENUS_EVENT_SENDER.with(|menus_event_sender| {
               if let Some(sender) = &*menus_event_sender.borrow() {
                 sender.send_menu_event(menu_id, Some(RootWindowId(WindowId(hwnd.0))));
