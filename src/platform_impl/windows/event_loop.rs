@@ -801,11 +801,7 @@ unsafe fn process_control_flow<T: 'static>(runner: &EventLoopRunner<T>) {
 fn update_modifiers<T>(window: HWND, subclass_input: &SubclassInput<T>) -> ModifiersState {
   use crate::event::WindowEvent::ModifiersChanged;
 
-  let modifiers = {
-    let mut layouts = LAYOUT_CACHE.lock().unwrap();
-    layouts.get_agnostic_mods()
-  };
-
+  let modifiers = LAYOUT_CACHE.lock().get_agnostic_mods();
   let mut window_state = subclass_input.window_state.lock();
   if window_state.modifiers_state != modifiers {
     window_state.modifiers_state = modifiers;
@@ -904,10 +900,13 @@ unsafe fn public_window_callback_inner<T: 'static>(
       return;
     }
     let events = {
-      let mut window_state = subclass_input.window_state.lock();
-      window_state
-        .key_event_builder
-        .process_message(window, msg, wparam, lparam, &mut result)
+      let mut key_event_builders =
+        crate::platform_impl::platform::keyboard::KEY_EVENT_BUILDERS.lock();
+      if let Some(key_event_builder) = key_event_builders.get_mut(&WindowId(window.0)) {
+        key_event_builder.process_message(window, msg, wparam, lparam, &mut result)
+      } else {
+        Vec::new()
+      }
     };
     for event in events {
       subclass_input.send_event(Event::WindowEvent {
