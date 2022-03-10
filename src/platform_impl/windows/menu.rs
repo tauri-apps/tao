@@ -194,6 +194,10 @@ impl Menu {
         anno_title.push('\t');
         format_hotkey(accelerators, &mut anno_title);
       }
+      // NOTE(amrbashir): The title must be a null-terminated string. Otherwise, it will display some gibberish characters at the end.
+      if !anno_title.ends_with("\0") {
+        anno_title.push_str("\0");
+      }
 
       AppendMenuW(self.hmenu, flags, menu_id.0 as _, anno_title);
 

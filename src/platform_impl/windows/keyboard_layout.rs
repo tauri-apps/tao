@@ -1,8 +1,8 @@
+use parking_lot::Mutex;
 use std::{
   collections::{hash_map::Entry, HashMap, HashSet},
   ffi::OsString,
   os::windows::ffi::OsStringExt,
-  sync::Mutex,
 };
 
 use lazy_static::lazy_static;

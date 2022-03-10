@@ -1,5 +1,22 @@
 # Changelog
 
+## \[0.6.4]
+
+- Fix a deadlock on Windows when using `Window::set_visible(true)` in the `EventLoop::run` closure.
+  - [475e64d2](https://github.com/tauri-apps/tao/commit/475e64d2873c233e60cb74e52e91282d18e13780) fix(Windows): fix a deadlock in `WindowState` ([#338](https://github.com/tauri-apps/tao/pull/338)) on 2022-03-06
+- On Windows, apply maximize state before minimize. Fixes `Window::set_minimized` not working when the window is maximized.
+  - [11dac102](https://github.com/tauri-apps/tao/commit/11dac10241330c30aae660a2621d43ee5eb3775d) fix(windows): apply maximize state before minimize ([#334](https://github.com/tauri-apps/tao/pull/334)) on 2022-03-01
+
+## \[0.6.3]
+
+- Revert Global Shortcut fix on Linux. See [#331](https://github.com/tauri-apps/tao/issues/331) for more information.
+  - [f5e19e0f](https://github.com/tauri-apps/tao/commit/f5e19e0ff83a65410e18ee7e47cac984f87236c9) Revert "Implement global shortcut on Linux, close #307 (#308)" ([#330](https://github.com/tauri-apps/tao/pull/330)) on 2022-03-01
+
+## \[0.6.2]
+
+- Fixes the `set_fullscreen` implementation on Linux when the `Fullscreen::Borderless` value is set to `None`.
+  - [456147de](https://github.com/tauri-apps/tao/commit/456147de99e1135b145447a9c8ebb397d3ecd1e1) fix(linux): fullscreen on current monitor ([#320](https://github.com/tauri-apps/tao/pull/320)) on 2022-02-13
+
 ## \[0.6.1]
 
 - Fix global shortcut support on Linux (both x11 and wayland).

@@ -10,6 +10,10 @@
 
 //! **UNSTABLE** -- The `GlobalShortcut` struct and associated types.
 //!
+//! ## Platform-specific
+//!
+//! - **Linux**: Only works on x11. See [#331](https://github.com/tauri-apps/tao/issues/331) for more information.
+//!
 //! ```rust,ignore
 //! let mut hotkey_manager = ShortcutManager::new(&event_loop);
 //! let accelerator = Accelerator::new(SysMods::Shift, KeyCode::ArrowUp);

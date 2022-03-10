@@ -16,7 +16,7 @@ fn main() {
   env_logger::init();
   let event_loop = EventLoop::new();
 
-  print!("Please choose the fullscreen mode: (1) exclusive, (2) borderless: ");
+  print!("Please choose the fullscreen mode: (1) exclusive, (2) borderless, (3) borderless on current monitor: ");
   stdout().flush().unwrap();
 
   let mut num = String::new();
@@ -26,6 +26,7 @@ fn main() {
   let fullscreen = Some(match num {
     1 => Fullscreen::Exclusive(prompt_for_video_mode(&prompt_for_monitor(&event_loop))),
     2 => Fullscreen::Borderless(Some(prompt_for_monitor(&event_loop))),
+    3 => Fullscreen::Borderless(None),
     _ => panic!("Please enter a valid number"),
   });
 
