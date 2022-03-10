@@ -13,12 +13,15 @@ use crate::{
   menu::MenuType,
   system_tray::SystemTray as RootSystemTray,
 };
-use windows::Win32::{
-  Foundation::{HWND, LPARAM, LRESULT, POINT, PSTR, PWSTR, WPARAM},
-  System::LibraryLoader::*,
-  UI::{
-    Shell::*,
-    WindowsAndMessaging::{self as win32wm, *},
+use windows::{
+  core::{PCSTR, PCWSTR},
+  Win32::{
+    Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM},
+    System::LibraryLoader::*,
+    UI::{
+      Shell::*,
+      WindowsAndMessaging::{self as win32wm, *},
+    },
   },
 };
 
@@ -51,13 +54,13 @@ impl SystemTrayBuilder {
   ) -> Result<RootSystemTray, RootOsError> {
     let hmenu: Option<HMENU> = self.tray_menu.map(|m| m.hmenu());
 
-    let mut class_name = util::to_wstring("tao_system_tray_app");
+    let class_name = util::to_wstring("tao_system_tray_app");
     unsafe {
-      let hinstance = GetModuleHandleA(PSTR::default());
+      let hinstance = GetModuleHandleA(PCSTR::default());
 
       let wnd_class = WNDCLASSW {
         lpfnWndProc: Some(util::call_default_window_proc),
-        lpszClassName: PWSTR(class_name.as_mut_ptr()),
+        lpszClassName: PCWSTR(class_name.as_ptr()),
         hInstance: hinstance,
         ..Default::default()
       };
@@ -66,7 +69,7 @@ impl SystemTrayBuilder {
 
       let hwnd = CreateWindowExW(
         Default::default(),
-        PWSTR(class_name.as_mut_ptr()),
+        PCWSTR(class_name.as_ptr()),
         "tao_system_tray_window",
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,

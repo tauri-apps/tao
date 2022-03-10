@@ -1,16 +1,19 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{ffi::OsString, os::windows::ffi::OsStringExt, path::PathBuf, ptr};
+use std::{cell::Cell, ffi::OsString, os::windows::ffi::OsStringExt, path::PathBuf, ptr};
 
-use windows::Win32::{
-  Foundation::{self as win32f, HWND, POINTL, PWSTR},
-  System::{
-    Com::{IDataObject, DVASPECT_CONTENT, FORMATETC, TYMED_HGLOBAL},
-    Ole::{IDropTarget, IDropTarget_Impl, DROPEFFECT_COPY, DROPEFFECT_NONE},
-    SystemServices::CF_HDROP,
+use windows::{
+  core::PWSTR,
+  Win32::{
+    Foundation::{self as win32f, HWND, POINTL},
+    System::{
+      Com::{IDataObject, DVASPECT_CONTENT, FORMATETC, TYMED_HGLOBAL},
+      Ole::{IDropTarget, IDropTarget_Impl, DROPEFFECT_COPY, DROPEFFECT_NONE},
+      SystemServices::CF_HDROP,
+    },
+    UI::Shell::{DragFinish, DragQueryFileW, HDROP},
   },
-  UI::Shell::{DragFinish, DragQueryFileW, HDROP},
 };
 
 use windows_implement::implement;
@@ -23,8 +26,8 @@ use crate::{event::Event, window::WindowId as SuperWindowId};
 pub struct FileDropHandler {
   window: HWND,
   send_event: Box<dyn Fn(Event<'static, ()>)>,
-  cursor_effect: u32,
-  hovered_is_valid: bool, /* If the currently hovered item is not valid there must not be any `HoveredFileCancelled` emitted */
+  cursor_effect: Cell<u32>,
+  hovered_is_valid: Cell<bool>, /* If the currently hovered item is not valid there must not be any `HoveredFileCancelled` emitted */
 }
 
 impl FileDropHandler {
@@ -32,8 +35,8 @@ impl FileDropHandler {
     Self {
       window,
       send_event,
-      cursor_effect: DROPEFFECT_NONE,
-      hovered_is_valid: false,
+      cursor_effect: DROPEFFECT_NONE.into(),
+      hovered_is_valid: false.into(),
     }
   }
 
@@ -99,7 +102,7 @@ impl FileDropHandler {
 #[allow(non_snake_case)]
 impl IDropTarget_Impl for FileDropHandler {
   fn DragEnter(
-    &mut self,
+    &self,
     pDataObj: &Option<IDataObject>,
     _grfKeyState: u32,
     _pt: &POINTL,
@@ -113,30 +116,32 @@ impl IDropTarget_Impl for FileDropHandler {
           event: HoveredFile(filename),
         });
       });
-      self.hovered_is_valid = hdrop.is_some();
-      self.cursor_effect = if self.hovered_is_valid {
+      let hovered_is_valid = hdrop.is_some();
+      let cursor_effect = if hovered_is_valid {
         DROPEFFECT_COPY
       } else {
         DROPEFFECT_NONE
       };
-      *pdwEffect = self.cursor_effect;
+      *pdwEffect = cursor_effect;
+      self.hovered_is_valid.set(hovered_is_valid);
+      self.cursor_effect.set(cursor_effect);
     }
     Ok(())
   }
 
   fn DragOver(
-    &mut self,
+    &self,
     _grfKeyState: u32,
     _pt: &POINTL,
     pdwEffect: *mut u32,
   ) -> windows::core::Result<()> {
-    unsafe { *pdwEffect = self.cursor_effect };
+    unsafe { *pdwEffect = self.cursor_effect.get() };
     Ok(())
   }
 
-  fn DragLeave(&mut self) -> windows::core::Result<()> {
+  fn DragLeave(&self) -> windows::core::Result<()> {
     use crate::event::WindowEvent::HoveredFileCancelled;
-    if self.hovered_is_valid {
+    if self.hovered_is_valid.get() {
       (self.send_event)(Event::WindowEvent {
         window_id: SuperWindowId(WindowId(self.window.0)),
         event: HoveredFileCancelled,
@@ -146,7 +151,7 @@ impl IDropTarget_Impl for FileDropHandler {
   }
 
   fn Drop(
-    &mut self,
+    &self,
     pDataObj: &Option<IDataObject>,
     _grfKeyState: u32,
     _pt: &POINTL,

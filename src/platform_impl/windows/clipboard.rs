@@ -3,15 +3,18 @@
 
 use crate::clipboard::{ClipboardFormat, FormatId};
 use std::{ffi::OsStr, os::windows::ffi::OsStrExt, ptr};
-use windows::Win32::{
-  Foundation::{HANDLE, HWND, PWSTR},
-  System::{
-    DataExchange::{
-      CloseClipboard, EmptyClipboard, GetClipboardData, OpenClipboard, RegisterClipboardFormatA,
-      SetClipboardData,
+use windows::{
+  core::PWSTR,
+  Win32::{
+    Foundation::{HANDLE, HWND},
+    System::{
+      DataExchange::{
+        CloseClipboard, EmptyClipboard, GetClipboardData, OpenClipboard, RegisterClipboardFormatA,
+        SetClipboardData,
+      },
+      Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE},
+      SystemServices::CF_UNICODETEXT,
     },
-    Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE},
-    SystemServices::CF_UNICODETEXT,
   },
 };
 

@@ -12,9 +12,9 @@ use std::{
 use crate::{dpi::PhysicalSize, window::CursorIcon};
 
 use windows::{
-  core::HRESULT,
+  core::{HRESULT, PCWSTR},
   Win32::{
-    Foundation::{BOOL, FARPROC, HWND, LPARAM, LRESULT, POINT, PWSTR, RECT, WPARAM},
+    Foundation::{BOOL, FARPROC, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
     Globalization::lstrlenW,
     Graphics::Gdi::{ClientToScreen, InvalidateRgn, HMONITOR, HRGN},
     System::LibraryLoader::*,
@@ -38,7 +38,7 @@ pub fn wchar_to_string(wchar: &[u16]) -> String {
   String::from_utf16_lossy(wchar)
 }
 
-pub fn wchar_ptr_to_string(wchar: PWSTR) -> String {
+pub fn wchar_ptr_to_string(wchar: PCWSTR) -> String {
   let len = unsafe { lstrlenW(wchar) } as usize;
   let wchar_slice = unsafe { slice::from_raw_parts(wchar.0, len) };
   wchar_to_string(wchar_slice)
@@ -260,7 +260,7 @@ pub fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<H
 }
 
 impl CursorIcon {
-  pub(crate) fn to_windows_cursor(self) -> PWSTR {
+  pub(crate) fn to_windows_cursor(self) -> PCWSTR {
     match self {
       CursorIcon::Arrow | CursorIcon::Default => IDC_ARROW,
       CursorIcon::Hand => IDC_HAND,

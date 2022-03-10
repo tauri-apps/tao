@@ -7,13 +7,15 @@ use std::{
 
 use lazy_static::lazy_static;
 
-use windows::Win32::{
-  Foundation::PWSTR,
-  System::SystemServices::{LANG_JAPANESE, LANG_KOREAN},
-  UI::{
-    Input::KeyboardAndMouse::{self as win32km, *},
-    TextServices::HKL,
-    WindowsAndMessaging::*,
+use windows::{
+  core::PWSTR,
+  Win32::{
+    System::SystemServices::{LANG_JAPANESE, LANG_KOREAN},
+    UI::{
+      Input::KeyboardAndMouse::{self as win32km, *},
+      TextServices::HKL,
+      WindowsAndMessaging::*,
+    },
   },
 };
 

@@ -3,12 +3,15 @@
 
 use std::{collections::HashMap, fmt, sync::Mutex};
 
-use windows::Win32::{
-  Foundation::{HWND, LPARAM, LRESULT, PSTR, PWSTR, WPARAM},
-  UI::{
-    Input::KeyboardAndMouse::*,
-    Shell::*,
-    WindowsAndMessaging::{self as win32wm, *},
+use windows::{
+  core::{PCWSTR, PSTR},
+  Win32::{
+    Foundation::{HWND, LPARAM, LRESULT, WPARAM},
+    UI::{
+      Input::KeyboardAndMouse::*,
+      Shell::*,
+      WindowsAndMessaging::{self as win32wm, *},
+    },
   },
 };
 
@@ -26,7 +29,7 @@ use super::{accelerator::register_accel, keyboard::key_to_vk, util, WindowId};
 struct AccelWrapper(ACCEL);
 impl fmt::Debug for AccelWrapper {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-    f.pad(&format!(""))
+    f.pad("")
   }
 }
 
@@ -195,8 +198,8 @@ impl Menu {
         format_hotkey(accelerators, &mut anno_title);
       }
       // NOTE(amrbashir): The title must be a null-terminated string. Otherwise, it will display some gibberish characters at the end.
-      if !anno_title.ends_with("\0") {
-        anno_title.push_str("\0");
+      if !anno_title.ends_with('\0') {
+        anno_title.push('\0');
       }
 
       AppendMenuW(self.hmenu, flags, menu_id.0 as _, anno_title);
@@ -234,7 +237,7 @@ impl Menu {
     match item {
       MenuItem::Separator => {
         unsafe {
-          AppendMenuW(self.hmenu, MF_SEPARATOR, 0, PWSTR::default());
+          AppendMenuW(self.hmenu, MF_SEPARATOR, 0, PCWSTR::default());
         };
       }
       MenuItem::Cut => unsafe {

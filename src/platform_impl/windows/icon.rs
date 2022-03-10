@@ -3,10 +3,13 @@
 
 use std::{fmt, io, iter::once, mem, os::windows::ffi::OsStrExt, path::Path, sync::Arc};
 
-use windows::Win32::{
-  Foundation::{HINSTANCE, HWND, LPARAM, PWSTR, WPARAM},
-  System::LibraryLoader::*,
-  UI::WindowsAndMessaging::*,
+use windows::{
+  core::PCWSTR,
+  Win32::{
+    Foundation::{HINSTANCE, HWND, LPARAM, WPARAM},
+    System::LibraryLoader::*,
+    UI::WindowsAndMessaging::*,
+  },
 };
 
 use crate::{dpi::PhysicalSize, icon::*};
@@ -76,7 +79,7 @@ impl WinIcon {
     path: P,
     size: Option<PhysicalSize<u32>>,
   ) -> Result<Self, BadIcon> {
-    let mut wide_path: Vec<u16> = path
+    let wide_path: Vec<u16> = path
       .as_ref()
       .as_os_str()
       .encode_wide()
@@ -90,7 +93,7 @@ impl WinIcon {
       unsafe {
         LoadImageW(
           HINSTANCE::default(),
-          PWSTR(wide_path.as_mut_ptr()),
+          PCWSTR(wide_path.as_ptr()),
           IMAGE_ICON,
           width as i32,
           height as i32,
@@ -111,8 +114,8 @@ impl WinIcon {
     let (width, height) = size.map(Into::into).unwrap_or((0, 0));
     let handle = HICON(unsafe {
       LoadImageW(
-        GetModuleHandleW(PWSTR::default()),
-        PWSTR(resource_id as usize as *mut u16),
+        GetModuleHandleW(PCWSTR::default()),
+        PCWSTR(resource_id as usize as *const u16),
         IMAGE_ICON,
         width as i32,
         height as i32,
