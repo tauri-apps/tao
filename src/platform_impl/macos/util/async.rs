@@ -12,7 +12,6 @@ use cocoa::{
   foundation::{NSPoint, NSSize, NSString},
 };
 use dispatch::Queue;
-use menu::Menu;
 use objc::{
   rc::autoreleasepool,
   runtime::{BOOL, NO, YES},
@@ -210,17 +209,6 @@ pub unsafe fn set_title_async(ns_window: id, title: String) {
     let title = IdRef::new(NSString::alloc(nil).init_str(&title));
     ns_window.setTitle_(*title);
   });
-}
-
-// `setMenu:` isn't thread-safe.
-pub unsafe fn set_menu_async(_ns_window: id, menu: Option<Menu>) {
-  // TODO if None we should set an empty menu
-  // On windows we can remove it, in macOS we can't
-  if let Some(menu) = menu {
-    Queue::main().exec_async(move || {
-      menu::initialize(menu);
-    });
-  }
 }
 
 // `setFocus:` isn't thread-safe.
