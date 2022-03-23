@@ -78,6 +78,7 @@ impl ShortcutManager {
               if let xlib::KeyRelease = event.get_type() {
                 let keycode = event.key.keycode;
                 let modifiers = event.key.state;
+                dbg!(&keycode, &modifiers);
                 if let Some(hotkey_id) =
                   hotkey_map.lock().unwrap().get(&(keycode as i32, modifiers))
                 {
