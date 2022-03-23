@@ -8,6 +8,7 @@ use crate::{
 use crossbeam_channel::{self as channel, Receiver, Sender, TryRecvError};
 use std::{
   collections::HashMap,
+  os::raw::{c_char, c_int},
   ptr,
   sync::{Arc, Mutex},
 };
@@ -46,6 +47,20 @@ impl ShortcutManager {
       unsafe {
         let display = (xlib.XOpenDisplay)(ptr::null());
         let root = (xlib.XDefaultRootWindow)(display);
+        // This function is used to poll and remove a single event
+        // from the Xlib event queue in a non-blocking, atomic way.
+        // XCheckIfEvent is non-blocking and removes events from queue.
+        // XNextEvent can't be used because it blocks while holding the
+        // global Xlib mutex.
+        // XPeekEvent does not remove events from the queue.
+        unsafe extern "C" fn predicate(
+          _display: *mut xlib::Display,
+          _event: *mut xlib::XEvent,
+          _arg: *mut c_char,
+        ) -> c_int {
+          // This predicate always returns "true" (1) to accept all events
+          1
+        }
 
         // Only trigger key release at end of repeated keys
         #[allow(clippy::uninit_assumed_init)]
@@ -59,15 +74,17 @@ impl ShortcutManager {
         loop {
           let event_loop_channel = event_loop_channel.clone();
           if (xlib.XPending)(display) > 0 {
-            (xlib.XNextEvent)(display, &mut event);
-            if let xlib::KeyRelease = event.get_type() {
-              let keycode = event.key.keycode;
-              let modifiers = event.key.state;
-              if let Some(hotkey_id) = hotkey_map.lock().unwrap().get(&(keycode as i32, modifiers))
-              {
-                event_loop_channel
-                  .send((window_id, WindowRequest::GlobalHotKey(*hotkey_id as u16)))
-                  .unwrap();
+            if (xlib.XCheckIfEvent)(display, &mut event, Some(predicate), ptr::null_mut()) != 0 {
+              if let xlib::KeyRelease = event.get_type() {
+                let keycode = event.key.keycode;
+                let modifiers = event.key.state;
+                if let Some(hotkey_id) =
+                  hotkey_map.lock().unwrap().get(&(keycode as i32, modifiers))
+                {
+                  event_loop_channel
+                    .send((window_id, WindowRequest::GlobalHotKey(*hotkey_id as u16)))
+                    .unwrap();
+                }
               }
             }
           }
