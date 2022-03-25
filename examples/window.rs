@@ -26,7 +26,7 @@ fn main() {
     match event {
       Event::WindowEvent {
         event: WindowEvent::CloseRequested,
-        window_id,
+        window_id: _,
         ..
       } => {
         // drop the window to fire the `Destroyed` event
