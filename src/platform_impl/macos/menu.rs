@@ -150,8 +150,8 @@ impl Menu {
         }
         None
       }
-      MenuItem::About(app_name) => {
-        let title = format!("About {}", app_name);
+      MenuItem::About(app) => {
+        let title = format!("About {}", app.name);
         Some((
           None,
           make_menu_item(
