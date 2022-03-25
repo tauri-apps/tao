@@ -327,7 +327,10 @@ pub enum WindowEvent<'a> {
 
   /// The window has been destroyed.
   ///
-  /// This event is only fired if the [`crate::window::Window`] is dropped.
+  /// ## Platform-specific
+  ///
+  /// - **Windows / Linux:** Only fired if the [`crate::window::Window`] is dropped.
+  /// - **macOS:** Fired if the [`crate::window::Window`] is dropped or the dock `Quit` item is clicked.
   Destroyed,
 
   /// A file has been dropped into the window.
