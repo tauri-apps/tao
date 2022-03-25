@@ -246,16 +246,16 @@ impl Menu {
         }
         GtkMenuInfo {
           menu_type: GtkMenuType::Native,
-          menu_item: Some(MenuItem::About(app)),
+          menu_item: Some(MenuItem::About(name, app)),
           ..
         } => {
           let tx_clone = tx.clone();
           menuitem!(
-            &format!("About {}", app.name),
+            &format!("About {}", name),
             "",
             accel_group,
             window_id,
-            Some(MenuItem::About(app.clone())),
+            Some(MenuItem::About(name.clone(), app.clone())),
             tx_clone
           )
         }

@@ -9,7 +9,7 @@ use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   keyboard::KeyCode,
-  menu::{AboutApplicationData, MenuBar as Menu, MenuItem, MenuItemAttributes, MenuType},
+  menu::{AboutMetadata, MenuBar as Menu, MenuItem, MenuItemAttributes, MenuType},
   window::WindowBuilder,
 };
 
@@ -42,7 +42,7 @@ fn main() {
   first_menu.add_native_item(MenuItem::Copy);
   first_menu.add_native_item(MenuItem::About(
     "tao".into(),
-    AboutApplicationData {
+    AboutMetadata {
       version: Some("1.0.0".into()),
       ..Default::default()
     },
