@@ -9,14 +9,15 @@ use tao::{
 
 #[allow(clippy::single_match)]
 fn main() {
-  env_logger::init();
   let event_loop = EventLoop::new();
 
-  let window = WindowBuilder::new()
-    .with_title("A fantastic window!")
-    .with_inner_size(tao::dpi::LogicalSize::new(128.0, 128.0))
-    .build(&event_loop)
-    .unwrap();
+  let mut window = Some(
+    WindowBuilder::new()
+      .with_title("A fantastic window!")
+      .with_inner_size(tao::dpi::LogicalSize::new(128.0, 128.0))
+      .build(&event_loop)
+      .unwrap(),
+  );
 
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Wait;
@@ -27,9 +28,21 @@ fn main() {
         event: WindowEvent::CloseRequested,
         window_id,
         ..
-      } if window_id == window.id() => *control_flow = ControlFlow::Exit,
+      } => {
+        // drop the window to fire the `Destroyed` event
+        window = None;
+      }
+      Event::WindowEvent {
+        event: WindowEvent::Destroyed,
+        window_id: _,
+        ..
+      } => {
+        *control_flow = ControlFlow::Exit;
+      }
       Event::MainEventsCleared => {
-        window.request_redraw();
+        if let Some(w) = &window {
+          w.request_redraw();
+        }
       }
       _ => (),
     }

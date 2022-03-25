@@ -326,6 +326,8 @@ pub enum WindowEvent<'a> {
   CloseRequested,
 
   /// The window has been destroyed.
+  ///
+  /// This event is only fired if the [`crate::window::Window`] is dropped.
   Destroyed,
 
   /// A file has been dropped into the window.
