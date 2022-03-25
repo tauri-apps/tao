@@ -19,7 +19,7 @@ use objc::{
 
 use crate::{
   dpi::LogicalSize,
-  platform_impl::platform::{ffi, menu, util::IdRef, window::SharedState},
+  platform_impl::platform::{ffi, util::IdRef, window::SharedState},
 };
 
 // Unsafe wrapper type that allows us to dispatch things that aren't Send.

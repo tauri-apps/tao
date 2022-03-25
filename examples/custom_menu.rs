@@ -40,11 +40,13 @@ fn main() {
   // in macOS native item are required to get keyboard shortcut
   // to works correctly
   first_menu.add_native_item(MenuItem::Copy);
-  first_menu.add_native_item(MenuItem::About(AboutApplicationData {
-    name: "TAO".into(),
-    version: Some("1.0.0".into()),
-    ..Default::default()
-  }));
+  first_menu.add_native_item(MenuItem::About(
+    "tao".into(),
+    AboutApplicationData {
+      version: Some("1.0.0".into()),
+      ..Default::default()
+    },
+  ));
 
   // Create custom Copy menu with our clipboard object
   let custom_insert_clipboard = first_menu.add_item(MenuItemAttributes::new("Insert clipboard"));

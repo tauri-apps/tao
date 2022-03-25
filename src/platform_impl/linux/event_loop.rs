@@ -688,9 +688,9 @@ impl<T: 'static> EventLoop<T> {
                 log::warn!("Failed to send menu event to event channel: {}", e);
               }
             }
-            (Some(MenuItem::About(app)), None) => {
+            (Some(MenuItem::About(name, app)), None) => {
               let mut builder = AboutDialogBuilder::new()
-                .program_name(&app.name)
+                .program_name(&name)
                 .modal(true)
                 .resizable(false);
               if let Some(version) = &app.version {

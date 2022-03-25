@@ -188,10 +188,8 @@ impl Default for MenuBar {
 }
 
 /// Application metadata for the [`MenuItem::About`] action.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AboutApplicationData {
-  /// The application name.
-  pub name: String,
   /// The application name. Currently only used on Linux.
   pub version: Option<String>,
   /// The authors of the application. Currently only used on Linux.
@@ -208,21 +206,6 @@ pub struct AboutApplicationData {
   pub website_label: Option<String>,
 }
 
-impl Default for AboutApplicationData {
-  fn default() -> Self {
-    Self {
-      name: "Empty App Name".into(),
-      version: None,
-      authors: None,
-      comments: None,
-      copyright: None,
-      license: None,
-      website: None,
-      website_label: None,
-    }
-  }
-}
-
 /// A menu item, bound to a pre-defined native action.
 ///
 /// Note some platforms might not support some of the variants.
@@ -231,13 +214,15 @@ impl Default for AboutApplicationData {
 #[non_exhaustive]
 #[derive(Debug, Clone)]
 pub enum MenuItem {
-  /// Shows a standard "About" item
+  /// Shows a standard "About" item.
+  ///
+  /// The first value is the application name, and the second is its metadata.
   ///
   /// ## Platform-specific
   ///
   /// - **Windows / Android / iOS:** Unsupported
   ///
-  About(AboutApplicationData),
+  About(String, AboutApplicationData),
 
   /// A standard "hide the app" menu item.
   ///
