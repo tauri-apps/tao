@@ -19,7 +19,15 @@ use objc::{
 
 use crate::{
   dpi::LogicalSize,
-  platform_impl::platform::{ffi, util::IdRef, window::SharedState},
+  event::{Event, WindowEvent},
+  platform_impl::platform::{
+    app_state::AppState,
+    event::EventWrapper,
+    ffi,
+    util::IdRef,
+    window::{get_window_id, SharedState},
+  },
+  window::WindowId,
 };
 
 // Unsafe wrapper type that allows us to dispatch things that aren't Send.
@@ -231,6 +239,11 @@ pub unsafe fn close_async(ns_window: IdRef) {
   Queue::main().exec_async(move || {
     autoreleasepool(move || {
       ns_window.close();
+      let event = Event::WindowEvent {
+        window_id: WindowId(get_window_id(*ns_window.0)),
+        event: WindowEvent::Destroyed,
+      };
+      AppState::queue_event(EventWrapper::StaticEvent(event));
     });
   });
 }
