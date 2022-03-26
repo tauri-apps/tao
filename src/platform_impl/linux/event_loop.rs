@@ -451,7 +451,7 @@ impl<T: 'static> EventLoop<T> {
             });
 
             let tx_clone = event_tx.clone();
-            window.connect_destroy_event(move |_, _| {
+            window.connect_destroy(move |_| {
               if let Err(e) = tx_clone.send(Event::WindowEvent {
                 window_id: RootWindowId(id),
                 event: WindowEvent::Destroyed,
@@ -461,7 +461,6 @@ impl<T: 'static> EventLoop<T> {
                   e
                 );
               }
-              Inhibit(false)
             });
 
             let tx_clone = event_tx.clone();
