@@ -975,6 +975,12 @@ unsafe fn public_window_callback_inner<T: 'static>(
       if wparam.0 == HTCAPTION as _ {
         PostMessageW(window, WM_MOUSEMOVE, WPARAM(0), lparam);
       }
+
+      use crate::event::WindowEvent::DecorationsClick;
+      subclass_input.send_event(Event::WindowEvent {
+        window_id: RootWindowId(WindowId(window.0)),
+        event: DecorationsClick,
+      });
     }
 
     win32wm::WM_CLOSE => {
