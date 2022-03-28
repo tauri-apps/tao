@@ -467,6 +467,13 @@ pub enum WindowEvent<'a> {
   ///
   /// At the moment this is only supported on Windows.
   ThemeChanged(Theme),
+
+  /// The window decorations has been clicked.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / macOS / Android / iOS:** Unsupported
+  DecorationsClick,
 }
 
 impl Clone for WindowEvent<'static> {
@@ -556,6 +563,7 @@ impl Clone for WindowEvent<'static> {
       ScaleFactorChanged { .. } => {
         unreachable!("Static event can't be about scale factor changing")
       }
+      DecorationsClick => DecorationsClick,
     };
   }
 }
@@ -640,6 +648,7 @@ impl<'a> WindowEvent<'a> {
       Touch(touch) => Some(Touch(touch)),
       ThemeChanged(theme) => Some(ThemeChanged(theme)),
       ScaleFactorChanged { .. } => None,
+      DecorationsClick => Some(DecorationsClick),
     }
   }
 }
