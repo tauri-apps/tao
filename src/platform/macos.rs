@@ -465,7 +465,7 @@ pub trait EventLoopWindowTargetExtMacOS {
   /// Hide the other applications. In most applications this is typically triggered with Command+Option-H.
   fn hide_other_applications(&self);
   /// Set activation policy at runtime.
-  fn set_activation_policy(&self, activation_policy: ActivationPolicy);
+  fn set_activation_policy_at_runtime(&self, activation_policy: ActivationPolicy);
 }
 
 impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
@@ -487,7 +487,7 @@ impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
     unsafe { msg_send![app, hideOtherApplications: 0] }
   }
 
-  fn set_activation_policy(&self, activation_policy: ActivationPolicy) {
+  fn set_activation_policy_at_runtime(&self, activation_policy: ActivationPolicy) {
     let cls = objc::runtime::Class::get("NSApplication").unwrap();
     let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
     let ns_activation_policy: NSApplicationActivationPolicy = activation_policy.into();

@@ -2,4 +2,4 @@
 "tao": minor
 ---
 
-Add `set_activation_policy` as a runtime API.
+Add `set_activation_policy_at_runtime`.
