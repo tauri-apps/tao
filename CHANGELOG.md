@@ -1,5 +1,27 @@
 # Changelog
 
+## \[0.7.0]
+
+- Fire `Event::LoopDestroyed` when the macOS dock `Quit` menu item is clicked.
+  - [34257a75](https://github.com/tauri-apps/tao/commit/34257a75c71e40433a57942cc61ce9976b80c152) feat(macos): fire `LoopDestroyed` when the dock's `Quit` item is clicked ([#351](https://github.com/tauri-apps/tao/pull/351)) on 2022-03-27
+- Added `Event::DecorationsClick` (Windows only).
+  - [411af5b1](https://github.com/tauri-apps/tao/commit/411af5b16d71eec90be47210fc6242526ab43c6c) feat(windows): add `Event::DecorationsClick` ([#352](https://github.com/tauri-apps/tao/pull/352)) on 2022-03-27
+- Enhance the `MenuItem::About` menu on Linux.
+  **Breaking change:** The About variant now uses an struct instead of a string.
+  - [84c677fd](https://github.com/tauri-apps/tao/commit/84c677fd13234c81bbbe63b25d7dc563825c7829) refactor: fix and enhance the about menu on Linux ([#347](https://github.com/tauri-apps/tao/pull/347)) on 2022-03-25
+- Fixes the About menu on Linux not being shown.
+  - [84c677fd](https://github.com/tauri-apps/tao/commit/84c677fd13234c81bbbe63b25d7dc563825c7829) refactor: fix and enhance the about menu on Linux ([#347](https://github.com/tauri-apps/tao/pull/347)) on 2022-03-25
+- Properly fire `WindowEvent::Destroyed` on Linux when the `Window` is dropped.
+  - [cdd4ac32](https://github.com/tauri-apps/tao/commit/cdd4ac3281ad9c2cf15561e8cf3110ed34ae93f0) fix(events): properly fire `WindowEvent::Destroyed` on Linux ([#349](https://github.com/tauri-apps/tao/pull/349)) on 2022-03-25
+- Properly change the window to fullscreen state if the builder instructs it to use `Fullscreen::Borderless(None)`.
+  - [5ecbac19](https://github.com/tauri-apps/tao/commit/5ecbac1958518eaacd263eaaee440f89b2edf122) fix(window): fullscreen on Linux when builder is set to Borderless(None) ([#348](https://github.com/tauri-apps/tao/pull/348)) on 2022-03-25
+- Fixes system tray item titles on Windows by forcing the string to be null-terminated.
+  - [7f900a16](https://github.com/tauri-apps/tao/commit/7f900a167e0077c354fb26ab6d34ae06591a67c5) fix(tray): force item title string to be null-terminated ([#340](https://github.com/tauri-apps/tao/pull/340)) on 2022-03-09
+- Properly fire `WindowEvent::Destroyed` on macOS when the `Window` is dropped.
+  - [efd3eecc](https://github.com/tauri-apps/tao/commit/efd3eecc76c45619e36aa8b253316192eefec0d1) fix(window): properly fire `WindowEvent::Destroyed` on macOS ([#350](https://github.com/tauri-apps/tao/pull/350)) on 2022-03-25
+- Fix inconsist behaviour when setting menu on mac.
+  - [5abdbd1f](https://github.com/tauri-apps/tao/commit/5abdbd1ff7e46f94a686052a65d528725c5647be) Fix inconsist behaviour when setting menu on mac ([#345](https://github.com/tauri-apps/tao/pull/345)) on 2022-03-17
+
 ## \[0.6.4]
 
 - Fix a deadlock on Windows when using `Window::set_visible(true)` in the `EventLoop::run` closure.
