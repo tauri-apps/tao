@@ -1671,9 +1671,13 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let window_state = subclass_input.window_state.lock();
 
       if window_state.min_size.is_some() || window_state.max_size.is_some() {
+        let is_decorated = window_state
+          .window_flags()
+          .contains(WindowFlags::DECORATIONS);
         if let Some(min_size) = window_state.min_size {
           let min_size = min_size.to_physical(window_state.scale_factor);
-          let (width, height): (u32, u32) = util::adjust_size(window, min_size).into();
+          let (width, height): (u32, u32) =
+            util::adjust_size(window, min_size, is_decorated).into();
           (*mmi).ptMinTrackSize = POINT {
             x: width as i32,
             y: height as i32,
@@ -1681,7 +1685,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
         }
         if let Some(max_size) = window_state.max_size {
           let max_size = max_size.to_physical(window_state.scale_factor);
-          let (width, height): (u32, u32) = util::adjust_size(window, max_size).into();
+          let (width, height): (u32, u32) =
+            util::adjust_size(window, max_size, is_decorated).into();
           (*mmi).ptMaxTrackSize = POINT {
             x: width as i32,
             y: height as i32,
