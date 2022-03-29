@@ -781,6 +781,7 @@ impl Window {
 impl Drop for Window {
   #[inline]
   fn drop(&mut self) {
+    KEY_EVENT_BUILDERS.lock().remove(&self.id());
     unsafe {
       // The window must be destroyed from the same thread that created it, so we send a
       // custom message to be handled by our callback to do the actual work.
