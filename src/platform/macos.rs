@@ -17,12 +17,13 @@ use crate::{
 #[cfg(feature = "tray")]
 use crate::system_tray::{SystemTray, SystemTrayBuilder};
 
-use cocoa::{appkit::{
-  self, NSApplicationActivationPolicy,
-  NSApplicationActivationPolicyRegular,
-  NSApplicationActivationPolicyAccessory,
-  NSApplicationActivationPolicyProhibited,
-}, base::id};
+use cocoa::{
+  appkit::{
+    self, NSApplicationActivationPolicy, NSApplicationActivationPolicyAccessory,
+    NSApplicationActivationPolicyProhibited, NSApplicationActivationPolicyRegular,
+  },
+  base::id,
+};
 
 /// Additional methods on `Window` that are specific to MacOS.
 pub trait WindowExtMacOS {
