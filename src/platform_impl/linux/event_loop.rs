@@ -309,9 +309,9 @@ impl<T: 'static> EventLoop<T> {
                 | EventMask::FOCUS_CHANGE_MASK,
             );
 
-            // Resizing `decorations: false` aka borderless
+            // Allow resizing unmaximized borderless window
             window.connect_motion_notify_event(|window, event| {
-              if !window.is_decorated() && window.is_resizable() {
+              if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
                 if let Some(window) = window.window() {
                   let (cx, cy) = event.root();
                   let edge = hit_test(&window, cx, cy);
