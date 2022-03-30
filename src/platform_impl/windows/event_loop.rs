@@ -589,7 +589,7 @@ lazy_static! {
         RegisterWindowMessageA("Tao::SetRetainMaximized")
     };
     static ref THREAD_EVENT_TARGET_WINDOW_CLASS: Vec<u16> = unsafe {
-        let mut class_name= util::to_wstring("Tao Thread Event Target");
+        let mut class_name= util::encode_wide("Tao Thread Event Target");
 
         let class = WNDCLASSEXW {
             cbSize: mem::size_of::<WNDCLASSEXW>() as u32,
