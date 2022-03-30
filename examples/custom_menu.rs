@@ -52,7 +52,6 @@ fn main() {
   );
   file_menu.add_custom_item(&open_item);
   file_menu.add_custom_item(&save_item);
-  file_menu.add_custom_item(&save_item);
   file_menu.add_native_item(NativeMenuItem::Separator);
   file_menu.add_native_item(about_item);
   file_menu.add_custom_item(&toggle_save_item);
