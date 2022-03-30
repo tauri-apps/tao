@@ -323,7 +323,7 @@ pub enum WindowEvent<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux**: Wayland, do not support a global coordinate system, and thus this event will always be (0, 0)
+  /// - **Linux(Wayland)**: will always be (0, 0) since Wayland doesn't support a global cordinate system.
   Moved(PhysicalPosition<i32>),
 
   /// The window has been requested to close.
