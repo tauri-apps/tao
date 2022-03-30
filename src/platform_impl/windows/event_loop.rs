@@ -1936,28 +1936,30 @@ unsafe fn public_window_callback_inner<T: 'static>(
             params.rgrc[0] = monitor_info.monitorInfo.rcWork;
           }
         }
-        result = ProcResult::Value(LRESULT(0)); // return 0 here to make the windowo borderless
+        result = ProcResult::Value(LRESULT(0)); // return 0 here to make the window borderless
       } else {
         result = ProcResult::DefSubclassProc;
       }
     }
 
     win32wm::WM_NCHITTEST => {
-      if let Some(state) = subclass_input.window_state.try_lock() {
-        let win_flags = state.window_flags();
+      // Allow resizing unmaximized borderless window
+      if !util::is_maximized(window)
+        && !subclass_input
+          .window_state
+          .lock()
+          .window_flags()
+          .contains(WindowFlags::DECORATIONS)
+      {
+        // cursor location
+        let (cx, cy) = (
+          i32::from(util::GET_X_LPARAM(lparam)),
+          i32::from(util::GET_Y_LPARAM(lparam)),
+        );
 
-        // Only apply this hit test for borderless windows that wants to be resizable
-        if !win_flags.contains(WindowFlags::DECORATIONS) {
-          // cursor location
-          let (cx, cy) = (
-            i32::from(util::GET_X_LPARAM(lparam)),
-            i32::from(util::GET_Y_LPARAM(lparam)),
-          );
-
-          result = ProcResult::Value(crate::platform_impl::hit_test(window, cx, cy));
-        } else {
-          result = ProcResult::DefSubclassProc;
-        }
+        result = ProcResult::Value(crate::platform_impl::hit_test(window, cx, cy));
+      } else {
+        result = ProcResult::DefSubclassProc;
       }
     }
 
