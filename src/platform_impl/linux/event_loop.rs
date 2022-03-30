@@ -14,7 +14,7 @@ use std::{
 use gdk::{Cursor, CursorType, EventKey, EventMask, WindowEdge, WindowState};
 use gio::{prelude::*, Cancellable};
 use glib::{source::Priority, Continue, MainContext};
-use gtk::{prelude::*, AboutDialog, Inhibit};
+use gtk::{builders::AboutDialogBuilder, prelude::*, Inhibit};
 
 use crate::{
   accelerator::AcceleratorId,
@@ -451,7 +451,7 @@ impl<T: 'static> EventLoop<T> {
             });
 
             let tx_clone = event_tx.clone();
-            window.connect_destroy_event(move |_, _| {
+            window.connect_destroy(move |_| {
               if let Err(e) = tx_clone.send(Event::WindowEvent {
                 window_id: RootWindowId(id),
                 event: WindowEvent::Destroyed,
@@ -461,7 +461,6 @@ impl<T: 'static> EventLoop<T> {
                   e
                 );
               }
-              Inhibit(false)
             });
 
             let tx_clone = event_tx.clone();
@@ -688,10 +687,37 @@ impl<T: 'static> EventLoop<T> {
                 log::warn!("Failed to send menu event to event channel: {}", e);
               }
             }
-            (Some(MenuItem::About(_)), None) => {
-              let about = AboutDialog::new();
-              about.show_all();
-              app_.add_window(&about);
+            (Some(MenuItem::About(name, app)), None) => {
+              let mut builder = AboutDialogBuilder::new()
+                .program_name(&name)
+                .modal(true)
+                .resizable(false);
+              if let Some(version) = &app.version {
+                builder = builder.version(version);
+              }
+              if let Some(authors) = app.authors {
+                builder = builder.authors(authors);
+              }
+              if let Some(comments) = &app.comments {
+                builder = builder.comments(comments);
+              }
+              if let Some(copyright) = &app.copyright {
+                builder = builder.copyright(copyright);
+              }
+              if let Some(license) = &app.license {
+                builder = builder.license(license);
+              }
+              if let Some(website) = &app.website {
+                builder = builder.website(website);
+              }
+              if let Some(website_label) = &app.website_label {
+                builder = builder.website_label(website_label);
+              }
+              let about = builder.build();
+              about.run();
+              unsafe {
+                about.destroy();
+              }
             }
             (Some(MenuItem::Hide), None) => window.hide(),
             (Some(MenuItem::CloseWindow), None) => window.close(),

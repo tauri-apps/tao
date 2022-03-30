@@ -6,7 +6,7 @@ use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   keyboard::KeyCode,
-  menu::{CustomMenuItem, Menu, NativeMenuItem},
+  menu::{AboutMetadata, CustomMenuItem, Menu, NativeMenuItem},
   window::WindowBuilder,
 };
 
@@ -34,6 +34,15 @@ fn main() {
     false,
     Some(Accelerator::new(SysMods::Cmd, KeyCode::KeyS)),
   );
+
+  let about_item = NativeMenuItem::About(
+    "tao".into(),
+    AboutMetadata {
+      version: Some("1.0.0".into()),
+      ..Default::default()
+    },
+  );
+
   let mut save_item_is_enabled = false;
   let toggle_save_item = CustomMenuItem::new(
     "Toggle Save menu item",
@@ -43,7 +52,9 @@ fn main() {
   );
   file_menu.add_custom_item(&open_item);
   file_menu.add_custom_item(&save_item);
+  file_menu.add_custom_item(&save_item);
   file_menu.add_native_item(NativeMenuItem::Separator);
+  file_menu.add_native_item(about_item);
   file_menu.add_custom_item(&toggle_save_item);
 
   let custom_copy = CustomMenuItem::new(

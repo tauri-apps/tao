@@ -51,6 +51,8 @@ use crate::{
   },
 };
 
+use super::keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS};
+
 struct HMenuWrapper(HMENU);
 unsafe impl Send for HMenuWrapper {}
 unsafe impl Sync for HMenuWrapper {}
@@ -920,6 +922,10 @@ unsafe fn init<T: 'static>(
     thread_executor: event_loop.create_thread_executor(),
     menu: None,
   };
+
+  KEY_EVENT_BUILDERS
+    .lock()
+    .insert(win.id(), KeyEventBuilder::default());
 
   win.set_skip_taskbar(pl_attribs.skip_taskbar);
 
