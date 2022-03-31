@@ -191,8 +191,7 @@ impl<T: 'static> EventLoop<T> {
             }
           }
           WindowRequest::Focus => {
-            // FIXME: replace with present_with_timestamp
-            window.present();
+            window.present_with_time(gdk_sys::GDK_CURRENT_TIME as _);
           }
           WindowRequest::Resizable(resizable) => window.set_resizable(resizable),
           WindowRequest::Minimized(minimized) => {
