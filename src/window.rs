@@ -493,6 +493,7 @@ impl Window {
   /// - **iOS:** Can only be called on the main thread. Returns the top left coordinates of the
   ///   window in the screen space coordinate system.
   /// - **Android:** Always returns [`NotSupportedError`].
+  /// - **Linux(Wayland)**: Has no effect, since Wayland doesn't support a global cordinate system
   #[inline]
   pub fn outer_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
     self.window.outer_position()
