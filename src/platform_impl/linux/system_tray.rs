@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-  error::OsError,
-  event_loop::EventLoopWindowTarget,
-  system_tray::{Icon, SystemTray as RootSystemTray},
+  error::OsError, event_loop::EventLoopWindowTarget, system_tray::SystemTray as RootSystemTray,
 };
 
 use glib::Sender;
@@ -27,16 +25,12 @@ pub struct SystemTrayBuilder {
 
 impl SystemTrayBuilder {
   #[inline]
-  pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
+  pub fn new(icon: Vec<u8>, tray_menu: Option<Menu>) -> Self {
     let tempfile_path = temp_png_file().expect("Failed to create a temp file for icon");
-    image::save_buffer(
-      &tempfile_path,
-      &icon.inner.raw,
-      icon.inner.width as _,
-      icon.inner.height as _,
-      image::ColorType::Rgba8,
-    )
-    .expect("Failed to save buffer to disk");
+    if let Ok(mut file) = std::fs::File::create(tempfile_path) {
+      use std::io::Write;
+      let _ = file.write_all(icon.as_slice());
+    }
 
     let parent = tempfile_path
       .parent()
@@ -88,16 +82,13 @@ pub struct SystemTray {
 }
 
 impl SystemTray {
-  pub fn set_icon(&mut self, icon: Icon) {
+  pub fn set_icon(&mut self, icon: Vec<u8>) {
     let tempfile_path = temp_png_file().expect("Failed to create a temp file for icon");
-    image::save_buffer(
-      &tempfile_path,
-      &icon.inner.raw,
-      icon.inner.width as _,
-      icon.inner.height as _,
-      image::ColorType::Rgba8,
-    )
-    .expect("Failed to save buffer to disk");
+
+    if let Ok(mut file) = std::fs::File::create(tempfile_path) {
+      use std::io::Write;
+      let _ = file.write_all(icon.as_slice());
+    }
 
     let parent = tempfile_path
       .parent()

@@ -39,9 +39,9 @@ impl WindowId {
 /// An icon used for the window titlebar, taskbar, etc.
 #[derive(Debug, Clone)]
 pub struct PlatformIcon {
-  pub(crate) raw: Vec<u8>,
-  pub(crate) width: i32,
-  pub(crate) height: i32,
+  raw: Vec<u8>,
+  width: i32,
+  height: i32,
   row_stride: i32,
 }
 

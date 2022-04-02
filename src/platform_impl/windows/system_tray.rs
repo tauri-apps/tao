@@ -11,7 +11,8 @@ use crate::{
   event::{Event, Rectangle, TrayEvent},
   event_loop::EventLoopWindowTarget,
   menu::MenuType,
-  system_tray::{Icon, SystemTray as RootSystemTray},
+  system_tray::SystemTray as RootSystemTray,
+  window::Icon,
 };
 use windows::Win32::{
   Foundation::{HWND, LPARAM, LRESULT, POINT, PSTR, PWSTR, WPARAM},
@@ -34,13 +35,13 @@ struct TrayLoopData {
 }
 
 pub struct SystemTrayBuilder {
-  pub(crate) icon: Icon,
+  pub(crate) icon: Vec<u8>,
   pub(crate) tray_menu: Option<Menu>,
 }
 
 impl SystemTrayBuilder {
   #[inline]
-  pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
+  pub fn new(icon: Vec<u8>, tray_menu: Option<Menu>) -> Self {
     Self { icon, tray_menu }
   }
 
@@ -147,7 +148,8 @@ pub struct SystemTray {
 }
 
 impl SystemTray {
-  pub fn set_icon(&mut self, icon: Icon) {
+  pub fn set_icon(&mut self, icon: Vec<u8>) {
+    let icon = load_icon_from_slice(&icon);
     let hicon = icon.inner.as_raw_handle();
     self.set_hicon(hicon);
   }
@@ -296,4 +298,16 @@ unsafe fn show_tray_menu(hwnd: HWND, menu: HMENU, x: i32, y: i32) {
     hwnd,
     std::ptr::null_mut(),
   );
+}
+
+fn load_icon_from_slice(slice: &[u8]) -> Icon {
+  let (icon_rgba, icon_width, icon_height) = {
+    let image = image::load_from_memory(slice)
+      .expect("Failed to parse icon slice")
+      .into_rgba8();
+    let (width, height) = image.dimensions();
+    let rgba = image.into_raw();
+    (rgba, width, height)
+  };
+  Icon::from_rgba(icon_rgba, icon_width, icon_height).expect("Failed to open icon")
 }

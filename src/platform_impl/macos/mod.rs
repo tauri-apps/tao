@@ -11,7 +11,6 @@ mod event;
 mod event_loop;
 mod ffi;
 mod global_shortcut;
-mod icon;
 mod keycode;
 mod menu;
 mod monitor;

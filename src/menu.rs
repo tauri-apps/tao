@@ -367,7 +367,7 @@ impl CustomMenuItem {
   }
 
   // todo: Add set_icon
-  // pub fn set_icon(&mut self, icon: Icon) {
+  // pub fn set_icon(&mut self, icon: Vec<u8>, with: u32, height: u32) {
   //   self.0.set_icon(icon)
   // }
 }

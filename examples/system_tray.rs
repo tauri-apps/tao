@@ -45,13 +45,11 @@ fn main() {
   // add quit button
   let quit_element = tray_menu.add_item(MenuItemAttributes::new("Quit"));
 
-  let icon_slice = include_bytes!("icon.png");
-  let icon = load_icon_from_slice(icon_slice);
-  let new_icon_slice = include_bytes!("icon_blue.png");
-  let new_icon = load_icon_from_slice(new_icon_slice);
+  let icon = include_bytes!("icon.png");
+  let new_icon = include_bytes!("icon_blue.png");
 
   // Menu is shown with left click on macOS and right click on Windows.
-  let mut system_tray = SystemTrayBuilder::new(icon.clone(), Some(tray_menu))
+  let mut system_tray = SystemTrayBuilder::new(icon.to_vec(), Some(tray_menu))
     .build(&event_loop)
     .unwrap();
 
@@ -82,7 +80,7 @@ fn main() {
       // enable focus window
       focus_all_window.set_enabled(true);
       // update tray icon
-      system_tray.set_icon(new_icon.clone());
+      system_tray.set_icon(new_icon.to_vec());
       // add macOS Native red dot
       #[cfg(target_os = "macos")]
       open_new_window_element.set_native_image(NativeImage::StatusUnavailable);
@@ -104,7 +102,7 @@ fn main() {
           // Set selected
           open_new_window_element.set_selected(false);
           // Change tray icon
-          system_tray.set_icon(icon.clone());
+          system_tray.set_icon(icon.to_vec());
           // macOS have native image available that we can use in our menu-items
           #[cfg(target_os = "macos")]
           open_new_window_element.set_native_image(NativeImage::StatusAvailable);
@@ -146,21 +144,6 @@ fn main() {
       _ => (),
     }
   });
-}
-
-#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-#[cfg(any(feature = "tray", all(target_os = "linux", feature = "ayatana")))]
-fn load_icon_from_slice(slice: &[u8]) -> tao::system_tray::Icon {
-  let (icon_rgba, icon_width, icon_height) = {
-    let image = image::load_from_memory(slice)
-      .expect("Failed to parse icon slice")
-      .into_rgba8();
-    let (width, height) = image.dimensions();
-    let rgba = image.into_raw();
-    (rgba, width, height)
-  };
-  tao::system_tray::Icon::from_rgba(icon_rgba, icon_width, icon_height)
-    .expect("Failed to open icon")
 }
 
 // System tray isn't supported on other's platforms.
