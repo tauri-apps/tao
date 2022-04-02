@@ -41,10 +41,16 @@ impl SystemTrayBuilder {
         .statusItemWithLength_(NSSquareStatusItemLength)
         .autorelease();
 
+      let image = image::load_from_memory(icon.as_slice())
+        .expect("Failed to parse icon slice")
+        .into_rgba8();
+      let (width, height) = image.dimensions();
       Self {
         system_tray: SystemTray {
           icon_is_template: false,
           icon,
+          width,
+          height,
           tray_menu,
           ns_status_bar,
         },
