@@ -49,8 +49,8 @@ impl SystemTrayBuilder {
         system_tray: SystemTray {
           icon_is_template: false,
           icon,
-          width,
-          height,
+          icon_width: width,
+          icon_height: height,
           tray_menu,
           ns_status_bar,
         },
