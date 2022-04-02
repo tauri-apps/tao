@@ -27,7 +27,7 @@ impl SystemTrayBuilder {
   #[inline]
   pub fn new(icon: Vec<u8>, tray_menu: Option<Menu>) -> Self {
     let tempfile_path = temp_png_file().expect("Failed to create a temp file for icon");
-    if let Ok(mut file) = std::fs::File::create(tempfile_path) {
+    if let Ok(mut file) = std::fs::File::create(&tempfile_path) {
       use std::io::Write;
       let _ = file.write_all(icon.as_slice());
     }
@@ -85,7 +85,7 @@ impl SystemTray {
   pub fn set_icon(&mut self, icon: Vec<u8>) {
     let tempfile_path = temp_png_file().expect("Failed to create a temp file for icon");
 
-    if let Ok(mut file) = std::fs::File::create(tempfile_path) {
+    if let Ok(mut file) = std::fs::File::create(&tempfile_path) {
       use std::io::Write;
       let _ = file.write_all(icon.as_slice());
     }
