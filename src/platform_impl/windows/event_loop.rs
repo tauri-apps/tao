@@ -1710,7 +1710,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let new_scale_factor = dpi_to_scale_factor(new_dpi_x);
       let old_scale_factor: f64;
 
-      let allow_resize = {
+      let (allow_resize, is_decorated) = {
         let mut window_state = subclass_input.window_state.lock();
         old_scale_factor = window_state.scale_factor;
         window_state.scale_factor = new_scale_factor;
@@ -1720,11 +1720,21 @@ unsafe fn public_window_callback_inner<T: 'static>(
           return;
         }
 
-        window_state.fullscreen.is_none()
-          && !window_state.window_flags().contains(WindowFlags::MAXIMIZED)
+        let window_flags = window_state.window_flags();
+        (
+          window_state.fullscreen.is_none() && !window_flags.contains(WindowFlags::MAXIMIZED),
+          window_flags.contains(WindowFlags::DECORATIONS),
+        )
       };
 
-      let style = GetWindowLongW(window, GWL_STYLE) as WINDOW_STYLE;
+      let mut style = GetWindowLongW(window, GWL_STYLE) as WINDOW_STYLE;
+      // if the window isn't decorated, remove `WS_SIZEBOX` and `WS_CAPTION` so
+      // `AdjustWindowRect*` functions doesn't account for the hidden caption and borders and
+      // calculates a correct size for the client area.
+      if !is_decorated {
+        style &= !WS_CAPTION;
+        style &= !WS_SIZEBOX;
+      }
       let style_ex = GetWindowLongW(window, GWL_EXSTYLE) as WINDOW_EX_STYLE;
 
       // New size as suggested by Windows.
