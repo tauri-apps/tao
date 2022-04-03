@@ -88,7 +88,7 @@ pub fn get_client_rect(hwnd: HWND) -> Result<RECT, io::Error> {
   Ok(rect)
 }
 
-pub fn adjust_size(hwnd: HWND, size: PhysicalSize<u32>) -> PhysicalSize<u32> {
+pub fn adjust_size(hwnd: HWND, size: PhysicalSize<u32>, is_decorated: bool) -> PhysicalSize<u32> {
   let (width, height): (u32, u32) = size.into();
   let rect = RECT {
     left: 0,
@@ -96,11 +96,11 @@ pub fn adjust_size(hwnd: HWND, size: PhysicalSize<u32>) -> PhysicalSize<u32> {
     top: 0,
     bottom: height as i32,
   };
-  let rect = adjust_window_rect(hwnd, rect).unwrap_or(rect);
+  let rect = adjust_window_rect(hwnd, rect, is_decorated).unwrap_or(rect);
   PhysicalSize::new((rect.right - rect.left) as _, (rect.bottom - rect.top) as _)
 }
 
-pub(crate) fn set_inner_size_physical(window: HWND, x: u32, y: u32) {
+pub(crate) fn set_inner_size_physical(window: HWND, x: u32, y: u32, is_decorated: bool) {
   unsafe {
     let rect = adjust_window_rect(
       window,
@@ -110,6 +110,7 @@ pub(crate) fn set_inner_size_physical(window: HWND, x: u32, y: u32) {
         bottom: y as i32,
         right: x as i32,
       },
+      is_decorated,
     )
     .expect("adjust_window_rect failed");
 
@@ -128,9 +129,16 @@ pub(crate) fn set_inner_size_physical(window: HWND, x: u32, y: u32) {
   }
 }
 
-pub fn adjust_window_rect(hwnd: HWND, rect: RECT) -> Option<RECT> {
+pub fn adjust_window_rect(hwnd: HWND, rect: RECT, is_decorated: bool) -> Option<RECT> {
   unsafe {
-    let style = GetWindowLongW(hwnd, GWL_STYLE) as WINDOW_STYLE;
+    let mut style = GetWindowLongW(hwnd, GWL_STYLE) as WINDOW_STYLE;
+    // if the window isn't decorated, remove `WS_SIZEBOX` and `WS_CAPTION` so
+    // `AdjustWindowRect*` functions doesn't account for the hidden caption and borders and
+    // calculates a correct size for the client area.
+    if !is_decorated {
+      style &= !WS_CAPTION;
+      style &= !WS_SIZEBOX;
+    }
     let style_ex = GetWindowLongW(hwnd, GWL_EXSTYLE) as WINDOW_EX_STYLE;
     adjust_window_rect_with_styles(hwnd, style, style_ex, rect)
   }
