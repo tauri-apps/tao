@@ -183,7 +183,11 @@ mod platform_impl;
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-#[cfg(any(feature = "tray", feature = "ayatana"))]
+#[cfg(all(
+  feature = "tray",
+  any(feature = "gtk-appindicator", feature = "ayatana-appindicator"),
+  not(all(feature = "gtk-appindicator", feature = "ayatana-appindicator"))
+))]
 pub mod system_tray;
 pub mod window;
 

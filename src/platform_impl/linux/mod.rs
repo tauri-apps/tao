@@ -9,6 +9,22 @@
   target_os = "openbsd"
 ))]
 
+#[cfg(all(
+  feature = "tray",
+  feature = "gtk-appindicator",
+  feature = "ayatana-appindicator"
+))]
+compile_error!(
+  "`gtk-appindicator` and `ayatana-appindicator` Cargo features cannot be enabled at the same time"
+);
+#[cfg(all(
+  feature = "tray",
+  not(any(feature = "gtk-appindicator", feature = "ayatana-appindicator"))
+))]
+compile_error!(
+  "You must enable one of `gtk-appindicator` or `ayatana-appindicator` Cargo features"
+);
+
 mod clipboard;
 mod event_loop;
 mod global_shortcut;
@@ -16,11 +32,19 @@ mod keyboard;
 mod keycode;
 mod menu;
 mod monitor;
-#[cfg(any(feature = "tray", feature = "ayatana"))]
+#[cfg(all(
+  feature = "tray",
+  any(feature = "gtk-appindicator", feature = "ayatana-appindicator"),
+  not(all(feature = "gtk-appindicator", feature = "ayatana-appindicator"))
+))]
 mod system_tray;
 mod window;
 
-#[cfg(any(feature = "tray", feature = "ayatana"))]
+#[cfg(all(
+  feature = "tray",
+  any(feature = "gtk-appindicator", feature = "ayatana-appindicator"),
+  not(all(feature = "gtk-appindicator", feature = "ayatana-appindicator"))
+))]
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 pub use self::{
   clipboard::Clipboard,
