@@ -53,7 +53,7 @@ jobs:
       - name: Install ayatana-libappindicator (ubuntu[default/tray] only)
         if: matrix.platform.id == 'ubuntu'
         run: |
-          sudo apt-get install -y libayatana-appindicator3-1
+          sudo apt-get install -y libayatana-appindicator-dev
 
       - name: Install GCC Multilib
         if: (matrix.platform.os == 'ubuntu-latest') && contains(matrix.platform.target, 'i686')
