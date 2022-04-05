@@ -1,5 +1,18 @@
 # Changelog
 
+## \[0.8.0]
+
+- Add `EventLoopWindowTargetExtMacOS::set_activation_policy_at_runtime`.
+  - [ef06c508](https://github.com/tauri-apps/tao/commit/ef06c508f1d29e62834eba63b604bf7566b1fef6) Set activation policy at runtime ([#353](https://github.com/tauri-apps/tao/pull/353)) on 2022-03-30
+- On Windows and Linux, disable resizing maximized borderless windows.
+  - [13c5c996](https://github.com/tauri-apps/tao/commit/13c5c996d15cee9ed829f6e67e786721d8d2eda8) fix(win,linux): disable resizing maximized borderless windows ([#356](https://github.com/tauri-apps/tao/pull/356)) on 2022-03-30
+- **Breaking change:** Renamed the `ayatana` Cargo feature to `ayatana-tray`, now the default feature for tray on Linux, and added the `gtk-tray` feature.
+  - [40ec796d](https://github.com/tauri-apps/tao/commit/40ec796de4da91640872161ae372124d14777d7f) refactor(tray): split gtk and ayatana appindicator features ([#362](https://github.com/tauri-apps/tao/pull/362)) on 2022-04-05
+- - On Windows, Fix random characters when changing menu items title through `CustomMenunItem::set_title`.
+  - [e4725bf5](https://github.com/tauri-apps/tao/commit/e4725bf50fb46e830fa5265d765ee596b80e3085) fix(Windows): fix random chars when changing menu item title ([#361](https://github.com/tauri-apps/tao/pull/361)) on 2022-03-31
+- On Windows, Fix `Window::set_inner_size` setting a bigger size than requested.
+  - [089f3878](https://github.com/tauri-apps/tao/commit/089f3878c5b0ce221d3f405c1215c895ee9fb1ce) fix(Windows): fix `set_inner_size` setting a bigger size, closes [#194](https://github.com/tauri-apps/tao/pull/194) ([#354](https://github.com/tauri-apps/tao/pull/354)) on 2022-04-03
+
 ## \[0.7.0]
 
 - Fire `Event::LoopDestroyed` when the macOS dock `Quit` menu item is clicked.
