@@ -4,7 +4,7 @@
 // System tray is supported and availabled only if `tray` feature is enabled.
 // Platform: Windows, Linux and macOS.
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-#[cfg(feature = "tray")]
+#[cfg(tray)]
 fn main() {
   use std::collections::HashMap;
   #[cfg(target_os = "linux")]
@@ -181,7 +181,7 @@ fn main() {
 
 // Tray feature flag disabled but can be available.
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-#[cfg(not(feature = "tray"))]
+#[cfg(not(tray))]
 fn main() {
   println!("This platform doesn't have the `tray` feature enabled.");
 }
