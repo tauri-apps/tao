@@ -20,21 +20,4 @@ fn main() {
         .compile("carbon_hotkey_binding.a");
     }
   }
-
-  // on Linux, users must enable one of `gtk-tray` and `ayatana-tray` features
-  #[cfg(target_os = "linux")]
-  cfg_aliases::cfg_aliases! {
-    tray: {
-      all(
-        feature = "tray",
-        any(feature = "gtk-tray", feature = "ayatana-tray"),
-        not(all(feature = "gtk-tray", feature = "ayatana-tray"))
-      )
-    }
-  }
-
-  #[cfg(not(target_os = "linux"))]
-  cfg_aliases::cfg_aliases! {
-    tray: { feature = "tray" }
-  }
 }

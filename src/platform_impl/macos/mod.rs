@@ -15,7 +15,7 @@ mod keycode;
 mod menu;
 mod monitor;
 mod observer;
-#[cfg(tray)]
+#[cfg(feature = "tray")]
 mod system_tray;
 mod util;
 mod view;
@@ -24,7 +24,7 @@ mod window_delegate;
 
 use std::{fmt, ops::Deref, sync::Arc};
 
-#[cfg(tray)]
+#[cfg(feature = "tray")]
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 
 pub use self::{

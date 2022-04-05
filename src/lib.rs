@@ -174,17 +174,24 @@ pub mod keyboard;
 pub mod menu;
 pub mod monitor;
 mod platform_impl;
-#[cfg(any(
-  target_os = "windows",
-  target_os = "macos",
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
-))]
-#[cfg(tray)]
+
+#[cfg(any(target_os = "windows", target_os = "macos",))]
+#[cfg(feature = "tray")]
 pub mod system_tray;
+#[cfg(all(
+  any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ),
+  feature = "tray",
+  any(feature = "gtk-tray", feature = "ayatana-tray"),
+  not(all(feature = "gtk-tray", feature = "ayatana-tray"))
+))]
+pub mod system_tray;
+
 pub mod window;
 
 pub mod platform;

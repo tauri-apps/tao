@@ -4,7 +4,7 @@
 // System tray is supported and availabled only if `tray` feature is enabled.
 // Platform: Windows, Linux and macOS.
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-#[cfg(tray)]
+#[cfg(feature = "tray")]
 fn main() {
   use std::collections::HashMap;
   #[cfg(target_os = "linux")]

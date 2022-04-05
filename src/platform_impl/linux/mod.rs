@@ -24,11 +24,19 @@ mod keyboard;
 mod keycode;
 mod menu;
 mod monitor;
-#[cfg(tray)]
+#[cfg(all(
+  feature = "tray",
+  any(feature = "gtk-tray", feature = "ayatana-tray"),
+  not(all(feature = "gtk-tray", feature = "ayatana-tray"))
+))]
 mod system_tray;
 mod window;
 
-#[cfg(tray)]
+#[cfg(all(
+  feature = "tray",
+  any(feature = "gtk-tray", feature = "ayatana-tray"),
+  not(all(feature = "gtk-tray", feature = "ayatana-tray"))
+))]
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 pub use self::{
   clipboard::Clipboard,
