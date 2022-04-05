@@ -9,21 +9,13 @@
   target_os = "openbsd"
 ))]
 
+#[cfg(all(feature = "tray", feature = "gtk-tray", feature = "ayatana-tray"))]
+compile_error!("`gtk-tray` and `ayatana-tray` Cargo features cannot be enabled at the same time");
 #[cfg(all(
   feature = "tray",
-  feature = "gtk-appindicator",
-  feature = "ayatana-appindicator"
+  not(any(feature = "gtk-tray", feature = "ayatana-tray"))
 ))]
-compile_error!(
-  "`gtk-appindicator` and `ayatana-appindicator` Cargo features cannot be enabled at the same time"
-);
-#[cfg(all(
-  feature = "tray",
-  not(any(feature = "gtk-appindicator", feature = "ayatana-appindicator"))
-))]
-compile_error!(
-  "You must enable one of `gtk-appindicator` or `ayatana-appindicator` Cargo features"
-);
+compile_error!("You must enable one of `gtk-tray` or `ayatana-tray` Cargo features");
 
 mod clipboard;
 mod event_loop;
@@ -34,16 +26,16 @@ mod menu;
 mod monitor;
 #[cfg(all(
   feature = "tray",
-  any(feature = "gtk-appindicator", feature = "ayatana-appindicator"),
-  not(all(feature = "gtk-appindicator", feature = "ayatana-appindicator"))
+  any(feature = "gtk-tray", feature = "ayatana-tray"),
+  not(all(feature = "gtk-tray", feature = "ayatana-tray"))
 ))]
 mod system_tray;
 mod window;
 
 #[cfg(all(
   feature = "tray",
-  any(feature = "gtk-appindicator", feature = "ayatana-appindicator"),
-  not(all(feature = "gtk-appindicator", feature = "ayatana-appindicator"))
+  any(feature = "gtk-tray", feature = "ayatana-tray"),
+  not(all(feature = "gtk-tray", feature = "ayatana-tray"))
 ))]
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 pub use self::{

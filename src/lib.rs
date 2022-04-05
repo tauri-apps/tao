@@ -185,8 +185,8 @@ mod platform_impl;
 ))]
 #[cfg(all(
   feature = "tray",
-  any(feature = "gtk-appindicator", feature = "ayatana-appindicator"),
-  not(all(feature = "gtk-appindicator", feature = "ayatana-appindicator"))
+  any(feature = "gtk-tray", feature = "ayatana-tray"),
+  not(all(feature = "gtk-tray", feature = "ayatana-tray"))
 ))]
 pub mod system_tray;
 pub mod window;
