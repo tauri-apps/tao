@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.8.1]
+
+- Fixes compilation when only the `tray` feature is enabled.
+  - [da938957](https://github.com/tauri-apps/tao/commit/da9389573daa04217baa8465709328e9c6e35f27) fix(tao): compilation when only the tray feature is enabled ([#363](https://github.com/tauri-apps/tao/pull/363)) on 2022-04-05
+
 ## \[0.8.0]
 
 - Add `EventLoopWindowTargetExtMacOS::set_activation_policy_at_runtime`.
