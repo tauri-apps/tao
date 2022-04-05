@@ -164,7 +164,7 @@ fn main() {
 
 // Tray feature flag disabled but can be available.
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
-#[cfg(not(tray))]
+#[cfg(not(feature = "tray"))]
 fn main() {
   println!("This platform doesn't have the `tray` feature enabled.");
 }
