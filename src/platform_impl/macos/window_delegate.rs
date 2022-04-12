@@ -49,6 +49,10 @@ pub struct WindowDelegateState {
 
   // Used to prevent redundant events.
   previous_scale_factor: f64,
+
+  // Used to prevent resized events from being fired
+  // when we are using our workaround in the `is_zoomed` function.
+  is_checking_zoomed_in: bool,
 }
 
 impl WindowDelegateState {
@@ -61,6 +65,7 @@ impl WindowDelegateState {
       initial_fullscreen,
       previous_position: None,
       previous_scale_factor: scale_factor,
+      is_checking_zoomed_in: false,
     };
     if (scale_factor - 1.0).abs() > f64::EPSILON {
       delegate_state.emit_static_scale_factor_changed_event();
@@ -153,6 +158,14 @@ lazy_static! {
     decl.add_method(
       sel!(initWithTao:),
       init_with_tao as extern "C" fn(&Object, Sel, *mut c_void) -> id,
+    );
+    decl.add_method(
+      sel!(markIsCheckingZoomedIn),
+      mark_is_checking_zoomed_in as extern "C" fn(&Object, Sel),
+    );
+    decl.add_method(
+      sel!(clearIsCheckingZoomedIn),
+      clear_is_checking_zoomed_in as extern "C" fn(&Object, Sel),
     );
 
     decl.add_method(
@@ -265,6 +278,18 @@ extern "C" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void) -> id 
   }
 }
 
+extern "C" fn mark_is_checking_zoomed_in(this: &Object, _sel: Sel) {
+  with_state(&*this, |state| {
+    state.is_checking_zoomed_in = true;
+  });
+}
+
+extern "C" fn clear_is_checking_zoomed_in(this: &Object, _sel: Sel) {
+  with_state(&*this, |state| {
+    state.is_checking_zoomed_in = false;
+  });
+}
+
 extern "C" fn window_should_close(this: &Object, _: Sel, _: id) -> BOOL {
   trace!("Triggered `windowShouldClose:`");
   with_state(this, |state| state.emit_event(WindowEvent::CloseRequested));
@@ -289,8 +314,10 @@ extern "C" fn window_will_close(this: &Object, _: Sel, _: id) {
 extern "C" fn window_did_resize(this: &Object, _: Sel, _: id) {
   trace!("Triggered `windowDidResize:`");
   with_state(this, |state| {
-    state.emit_resize_event();
-    state.emit_move_event();
+    if !state.is_checking_zoomed_in {
+      state.emit_resize_event();
+      state.emit_move_event();
+    }
   });
   trace!("Completed `windowDidResize:`");
 }
