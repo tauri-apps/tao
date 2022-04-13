@@ -59,7 +59,7 @@ pub(crate) const DEVICE_ID: RootDeviceId = RootDeviceId(DeviceId);
 pub struct Window {
   window: Arc<UnownedWindow>,
   // We keep this around so that it doesn't get dropped until the window does.
-  _delegate: util::IdRef,
+  delegate: util::IdRef,
 }
 
 #[non_exhaustive]
@@ -86,8 +86,16 @@ impl Window {
     attributes: WindowAttributes,
     pl_attribs: PlatformSpecificWindowBuilderAttributes,
   ) -> Result<Self, RootOsError> {
-    let (window, _delegate) = UnownedWindow::new(attributes, pl_attribs)?;
-    Ok(Window { window, _delegate })
+    let (window, delegate) = UnownedWindow::new(attributes, pl_attribs)?;
+    Ok(Window { window, delegate })
+  }
+
+  #[inline]
+  pub fn is_maximized(&self) -> bool {
+    let () = unsafe { msg_send![*self.delegate, markIsCheckingZoomedIn] };
+    let f = self.window.is_zoomed();
+    let () = unsafe { msg_send![*self.delegate, clearIsCheckingZoomedIn] };
+    f
   }
 }
 
