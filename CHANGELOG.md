@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.8.2]
+
+- Do not fire `WindowEvent::Moved` when `is_maximized` is called on macOS.
+  - [25890b94](https://github.com/tauri-apps/tao/commit/25890b943f3566cb8b2fc6d5abaff15921caed93) fix(macos): do not fire Event::Moved when checking is_maximized ([#366](https://github.com/tauri-apps/tao/pull/366)) on 2022-04-13
+
 ## \[0.8.1]
 
 - Fixes compilation when only the `tray` feature is enabled.
