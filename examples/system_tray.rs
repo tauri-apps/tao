@@ -102,6 +102,10 @@ fn main() {
       open_new_window_element.set_enabled(false);
       // change title (text)
       open_new_window_element.set_title("Window already open");
+      println!(
+        "Changed the menu item title: {}",
+        open_new_window_element.title()
+      );
       // set checked
       open_new_window_element.set_selected(true);
       // enable focus window
@@ -126,6 +130,10 @@ fn main() {
           focus_all_window.set_enabled(false);
           // Reset text
           open_new_window_element.set_title("Open new window");
+          println!(
+            "Reset the menu item title: {}",
+            open_new_window_element.title()
+          );
           // Set selected
           open_new_window_element.set_selected(false);
           // Change tray icon

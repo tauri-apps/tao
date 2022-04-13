@@ -373,6 +373,11 @@ impl CustomMenuItem {
     self.0.id()
   }
 
+  /// Returns the title(label) of the menu item.
+  pub fn title(&self) -> String {
+    self.0.title()
+  }
+
   /// Modifies the status of the menu item.
   pub fn set_enabled(&mut self, is_enabled: bool) {
     self.0.set_enabled(is_enabled)
