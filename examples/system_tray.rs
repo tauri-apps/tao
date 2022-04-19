@@ -45,6 +45,15 @@ fn main() {
   // inject submenu into tray_menu
   tray_menu.add_submenu("Sub menu", true, submenu);
 
+  // tray macos text submenus
+  let mut text_submenu = Menu::new();
+  let only_text_element = text_submenu.add_item(MenuItemAttributes::new("Only text"));
+  let only_icon_element = text_submenu.add_item(MenuItemAttributes::new("Only icon"));
+  let icon_and_text_element = text_submenu.add_item(MenuItemAttributes::new("Icon and text"));
+
+  #[cfg(target_os = "macos")]
+  tray_menu.add_submenu("Icon/Text options", true, text_submenu);
+
   // add quit button
   let quit_element = tray_menu.add_item(MenuItemAttributes::new("Quit"));
 
@@ -156,8 +165,21 @@ fn main() {
         origin: MenuType::ContextMenu,
         ..
       } => {
+        if menu_id == only_icon_element.clone().id() {
+          #[cfg(target_os = "macos")]
+          system_tray.set_title("");
+          system_tray.set_icon(icon.clone());
+        } else if menu_id == only_text_element.clone().id() {
+          #[cfg(target_os = "macos")]
+          system_tray.set_title("Tao Menu Title");
+          system_tray.set_icon(vec![]);
+        } else if menu_id == icon_and_text_element.clone().id() {
+          #[cfg(target_os = "macos")]
+          system_tray.set_title("Tao Menu Title");
+          system_tray.set_icon(icon.clone());
+        }
         // Click on Open new window or focus item
-        if menu_id == open_new_window_element.clone().id()
+        else if menu_id == open_new_window_element.clone().id()
           || menu_id == focus_all_window.clone().id()
         {
           create_window_or_focus();

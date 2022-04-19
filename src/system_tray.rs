@@ -105,6 +105,16 @@ impl SystemTray {
     self.0.set_icon(icon)
   }
 
+  /// Set new tray menu title.
+  ///
+  /// ## Platform-specific
+  ///
+  /// Only works on **macOS:**
+  #[cfg(target_os = "macos")]
+  pub fn set_title(&mut self, title: &str) {
+    self.0.set_title(title)
+  }
+
   /// Set new tray menu.
   pub fn set_menu(&mut self, tray_menu: &ContextMenu) {
     self.0.set_menu(&tray_menu.0.menu_platform)
