@@ -109,7 +109,7 @@ impl SystemTray {
   ///
   /// ## Platform-specific
   ///
-  /// Only works on **macOS:**
+  /// Only works on **macOS**
   #[cfg(target_os = "macos")]
   pub fn set_title(&mut self, title: &str) {
     self.0.set_title(title)
