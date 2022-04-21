@@ -20,6 +20,8 @@ use windows::Win32::{
 pub struct WindowState {
   pub mouse: MouseProperties,
 
+  pub transparent : bool,
+
   /// Used by `WM_GETMINMAXINFO`.
   pub min_size: Option<Size>,
   pub max_size: Option<Size>,
@@ -110,6 +112,8 @@ impl WindowState {
         cursor_flags: CursorFlags::empty(),
         last_position: None,
       },
+
+      transparent : attributes.transparent,
 
       min_size: attributes.min_inner_size,
       max_size: attributes.max_inner_size,
