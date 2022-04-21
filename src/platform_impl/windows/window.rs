@@ -19,12 +19,11 @@ use crossbeam_channel as channel;
 use windows::Win32::{
   Foundation::{self as win32f, HINSTANCE, HWND, LPARAM, LRESULT, POINT, PWSTR, RECT, WPARAM},
   Graphics::{
-    Dwm::{DwmEnableBlurBehindWindow, DwmExtendFrameIntoClientArea, DWM_BB_BLURREGION, DWM_BB_ENABLE, DWM_BLURBEHIND},
+    Dwm::{DwmEnableBlurBehindWindow, DWM_BB_BLURREGION, DWM_BB_ENABLE, DWM_BLURBEHIND},
     Gdi::*,
   },
   System::{Com::*, LibraryLoader::*, Ole::*},
   UI::{
-    Controls::MARGINS,
     Input::{Ime::*, KeyboardAndMouse::*, Touch::*},
     Shell::*,
     WindowsAndMessaging::{self as win32wm, *},
@@ -617,21 +616,6 @@ impl Window {
       WindowState::set_window_flags(window_state.lock(), window.0, |f| {
         f.set(WindowFlags::DECORATIONS, decorations)
       });
-      unsafe {
-        // Adding shadows when the window is not decorated and not transparent.
-        // Remove them if the windows is transparent and not decorated.
-        let window_state = window_state.lock();
-        if !window_state.transparent {
-          let margin = if !decorations { 1 } else { 0 };
-          let margins = MARGINS {
-            cxLeftWidth: margin,
-            cxRightWidth: margin,
-            cyTopHeight: margin,
-            cyBottomHeight: margin,
-          };
-          let _ = DwmExtendFrameIntoClientArea(window.0, &margins);
-        }
-      }
     });
   }
 
@@ -897,7 +881,7 @@ unsafe fn init<T: 'static>(
   let dpi = hwnd_dpi(real_window.0);
   let scale_factor = dpi_to_scale_factor(dpi);
 
-  // Making the window transparent
+  // making the window transparent
   if attributes.transparent && !pl_attribs.no_redirection_bitmap {
     // Empty region for the blur effect, so the window is fully transparent
     let region = CreateRectRgn(0, 0, -1, -1);
@@ -911,17 +895,6 @@ unsafe fn init<T: 'static>(
 
     let _ = DwmEnableBlurBehindWindow(real_window.0, &bb);
     DeleteObject(region);
-  }
-
-  // Adding shadows when the window is not decorated and not transparent
-  if !attributes.decorations && !attributes.transparent {
-    let margins = MARGINS {
-      cxLeftWidth: 1,
-      cxRightWidth: 1,
-      cyTopHeight: 1,
-      cyBottomHeight: 1,
-    };
-    let _ = DwmExtendFrameIntoClientArea(real_window.0, &margins);
   }
 
   // If the system theme is dark, we need to set the window theme now
