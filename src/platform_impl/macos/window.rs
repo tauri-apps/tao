@@ -78,6 +78,7 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub titlebar_transparent: bool,
   pub title_hidden: bool,
   pub titlebar_hidden: bool,
+  pub titlebar_style_hidden: bool,
   pub titlebar_buttons_hidden: bool,
   pub fullsize_content_view: bool,
   pub resize_increments: Option<LogicalSize<f64>>,
@@ -94,6 +95,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       titlebar_transparent: false,
       title_hidden: false,
       titlebar_hidden: false,
+      titlebar_style_hidden: false,
       titlebar_buttons_hidden: false,
       fullsize_content_view: false,
       resize_increments: None,
@@ -247,6 +249,29 @@ fn create_window(
       if !pl_attrs.has_shadow {
         ns_window.setHasShadow_(NO);
       }
+
+      // titlebar_style_hidden
+      {
+        use cocoa::appkit::NSWindowTitleVisibility;
+        let mut style_mask = ns_window.styleMask();
+        style_mask.set(
+          NSWindowStyleMask::NSFullSizeContentViewWindowMask,
+          pl_attrs.titlebar_style_hidden,
+        );
+        ns_window.setStyleMask_(style_mask);
+
+        ns_window.setTitleVisibility_(if pl_attrs.titlebar_style_hidden {
+          NSWindowTitleVisibility::NSWindowTitleHidden
+        } else {
+          NSWindowTitleVisibility::NSWindowTitleVisible
+        });
+        ns_window.setTitlebarAppearsTransparent_(if pl_attrs.titlebar_style_hidden {
+          cocoa::base::YES
+        } else {
+          cocoa::base::NO
+        });
+      }
+
       if attrs.position.is_none() {
         ns_window.center();
       }
@@ -1231,6 +1256,31 @@ impl WindowExtMacOS for UnownedWindow {
       self
         .ns_window
         .setHasShadow_(if has_shadow { YES } else { NO })
+    }
+  }
+
+  #[inline]
+  fn set_titlebar_style_hidden(&self, transparent: bool) {
+    unsafe {
+      use cocoa::appkit::NSWindowTitleVisibility;
+      let id = self.ns_window() as cocoa::base::id;
+      let mut style_mask = id.styleMask();
+      style_mask.set(
+        NSWindowStyleMask::NSFullSizeContentViewWindowMask,
+        transparent,
+      );
+      self.ns_window.setStyleMask_(style_mask);
+
+      id.setTitleVisibility_(if transparent {
+        NSWindowTitleVisibility::NSWindowTitleHidden
+      } else {
+        NSWindowTitleVisibility::NSWindowTitleVisible
+      });
+      id.setTitlebarAppearsTransparent_(if transparent {
+        cocoa::base::YES
+      } else {
+        cocoa::base::NO
+      });
     }
   }
 }
