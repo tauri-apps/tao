@@ -562,8 +562,20 @@ impl Window {
     }
   }
 
-  pub fn set_cursor_position<P: Into<Position>>(&self, _position: P) -> Result<(), ExternalError> {
-    todo!()
+  pub fn set_cursor_position<P: Into<Position>>(&self, position: P) -> Result<(), ExternalError> {
+    let (x, y): (i32, i32) = position
+      .into()
+      .to_logical::<i32>(self.scale_factor())
+      .into();
+
+    if let Err(e) = self
+      .window_requests_tx
+      .send((self.window_id, WindowRequest::CursorPosition((x, y))))
+    {
+      log::warn!("Fail to send cursor position request: {}", e);
+    }
+
+    Ok(())
   }
 
   pub fn set_cursor_grab(&self, _grab: bool) -> Result<(), ExternalError> {
@@ -664,6 +676,7 @@ pub enum WindowRequest {
   UserAttention(Option<UserAttentionType>),
   SetSkipTaskbar(bool),
   CursorIcon(Option<CursorIcon>),
+  CursorPosition((i32, i32)),
   WireUpEvents,
   Redraw,
   Menu((Option<MenuItem>, Option<MenuId>)),
