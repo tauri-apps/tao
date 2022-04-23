@@ -575,7 +575,7 @@ impl Window {
       self.window_id,
       WindowRequest::CursorPosition((
         x + inner_pos.x,
-        y + inner_pos.y + outer_size.height as i32 - inner_size.height as i32,
+        y + inner_pos.y,
       )),
     )) {
       log::warn!("Fail to send cursor position request: {}", e);
