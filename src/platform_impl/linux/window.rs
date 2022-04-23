@@ -578,7 +578,9 @@ impl Window {
     Ok(())
   }
 
-  pub fn set_cursor_grab(&self, _grab: bool) -> Result<(), ExternalError> {}
+  pub fn set_cursor_grab(&self, _grab: bool) -> Result<(), ExternalError> {
+    Ok(())
+  }
 
   pub fn set_cursor_visible(&self, visible: bool) {
     let cursor = if visible {
