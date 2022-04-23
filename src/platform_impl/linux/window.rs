@@ -563,15 +563,21 @@ impl Window {
   }
 
   pub fn set_cursor_position<P: Into<Position>>(&self, position: P) -> Result<(), ExternalError> {
+    let inner_pos = self.inner_position().unwrap_or_default();
+    let inner_size = self.inner_size();
+    let outer_size = self.outer_size();
     let (x, y): (i32, i32) = position
       .into()
       .to_logical::<i32>(self.scale_factor())
       .into();
 
-    if let Err(e) = self
-      .window_requests_tx
-      .send((self.window_id, WindowRequest::CursorPosition((x, y))))
-    {
+    if let Err(e) = self.window_requests_tx.send((
+      self.window_id,
+      WindowRequest::CursorPosition((
+        x + inner_pos.x,
+        y + inner_pos.y + outer_size.height as i32 - inner_size.height as i32,
+      )),
+    )) {
       log::warn!("Fail to send cursor position request: {}", e);
     }
 
