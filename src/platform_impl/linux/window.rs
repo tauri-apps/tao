@@ -574,6 +574,8 @@ impl Window {
     {
       log::warn!("Fail to send cursor position request: {}", e);
     }
+
+    Ok(())
   }
 
   pub fn set_cursor_grab(&self, _grab: bool) -> Result<(), ExternalError> {
