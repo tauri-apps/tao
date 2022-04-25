@@ -1,6 +1,7 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
+use tao::platform::macos::{WindowBuilderExtMacOS, WindowExtMacOS};
 use tao::{
   dpi::LogicalSize,
   event::{ElementState, Event, KeyEvent, WindowEvent},
@@ -19,6 +20,8 @@ fn main() {
   let window = WindowBuilder::new()
     .with_title("Hit space to toggle resizability.")
     .with_inner_size(LogicalSize::new(400.0, 200.0))
+    // .with_titlebar_hidden(true)
+    .with_titlebar_transparent(true)
     .with_resizable(resizable)
     .build(&event_loop)
     .unwrap();
@@ -40,6 +43,7 @@ fn main() {
         } => {
           resizable = !resizable;
           println!("Resizable: {}", resizable);
+          window.set_titlebar_transparent(resizable);
           window.set_resizable(resizable);
         }
         _ => (),
