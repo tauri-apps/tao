@@ -55,8 +55,8 @@ pub trait WindowExtMacOS {
   /// Sets whether or not the window has shadow.
   fn set_has_shadow(&self, has_shadow: bool);
 
-  /// Hides the window titlebar, but not the traffic light buttons.
-  fn set_titlebar_style_hidden(&self, transparent: bool);
+  /// Makes the titlebar transparent and allows the content to appear behind it.
+  fn set_titlebar_transparent(&self, transparent: bool);
 }
 
 impl WindowExtMacOS for Window {
@@ -91,8 +91,8 @@ impl WindowExtMacOS for Window {
   }
 
   #[inline]
-  fn set_titlebar_style_hidden(&self, transparent: bool) {
-    self.window.set_titlebar_style_hidden(transparent)
+  fn set_titlebar_transparent(&self, transparent: bool) {
+    self.window.set_titlebar_transparent(transparent)
   }
 }
 

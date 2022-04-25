@@ -212,7 +212,6 @@ fn create_window(
         );
         ns_window.setStyleMask_(style_mask);
 
-        ns_window.setTitleVisibility_(NSWindowTitleVisibility::NSWindowTitleHidden);
         ns_window.setTitlebarAppearsTransparent_(YES);
       }
       if pl_attrs.title_hidden {
@@ -1244,7 +1243,7 @@ impl WindowExtMacOS for UnownedWindow {
   }
 
   #[inline]
-  fn set_titlebar_style_hidden(&self, transparent: bool) {
+  fn set_titlebar_transparent(&self, transparent: bool) {
     unsafe {
       let id = self.ns_window() as cocoa::base::id;
       let mut style_mask = id.styleMask();
@@ -1254,11 +1253,6 @@ impl WindowExtMacOS for UnownedWindow {
       );
       self.ns_window.setStyleMask_(style_mask);
 
-      id.setTitleVisibility_(if transparent {
-        NSWindowTitleVisibility::NSWindowTitleHidden
-      } else {
-        NSWindowTitleVisibility::NSWindowTitleVisible
-      });
       id.setTitlebarAppearsTransparent_(if transparent { YES } else { NO });
     }
   }
