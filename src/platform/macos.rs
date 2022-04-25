@@ -49,14 +49,14 @@ pub trait WindowExtMacOS {
   /// space or taking control over the entire monitor.
   fn set_simple_fullscreen(&self, fullscreen: bool) -> bool;
 
+  /// Makes the titlebar transparent and allows the content to appear behind it.
+  fn set_titlebar_transparent(&self, transparent: bool);
+
   /// Returns whether or not the window has shadow.
   fn has_shadow(&self) -> bool;
 
   /// Sets whether or not the window has shadow.
   fn set_has_shadow(&self, has_shadow: bool);
-
-  /// Makes the titlebar transparent and allows the content to appear behind it.
-  fn set_titlebar_transparent(&self, transparent: bool);
 }
 
 impl WindowExtMacOS for Window {
@@ -81,6 +81,11 @@ impl WindowExtMacOS for Window {
   }
 
   #[inline]
+  fn set_titlebar_transparent(&self, transparent: bool) {
+    self.window.set_titlebar_transparent(transparent)
+  }
+
+  #[inline]
   fn has_shadow(&self) -> bool {
     self.window.has_shadow()
   }
@@ -88,11 +93,6 @@ impl WindowExtMacOS for Window {
   #[inline]
   fn set_has_shadow(&self, has_shadow: bool) {
     self.window.set_has_shadow(has_shadow)
-  }
-
-  #[inline]
-  fn set_titlebar_transparent(&self, transparent: bool) {
-    self.window.set_titlebar_transparent(transparent)
   }
 }
 

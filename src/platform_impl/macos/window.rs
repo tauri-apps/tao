@@ -36,7 +36,7 @@ use cocoa::{
   appkit::{
     self, CGFloat, NSApp, NSApplication, NSApplicationPresentationOptions, NSColor,
     NSRequestUserAttentionType, NSScreen, NSView, NSWindow, NSWindowButton, NSWindowOrderingMode,
-    NSWindowStyleMask, NSWindowTitleVisibility,
+    NSWindowStyleMask,
   },
   base::{id, nil},
   foundation::{NSAutoreleasePool, NSDictionary, NSPoint, NSRect, NSSize, NSUInteger},
@@ -254,7 +254,6 @@ fn create_window(
       if !pl_attrs.has_shadow {
         ns_window.setHasShadow_(NO);
       }
-
       if attrs.position.is_none() {
         ns_window.center();
       }
