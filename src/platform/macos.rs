@@ -338,8 +338,6 @@ pub trait WindowBuilderExtMacOS {
   fn with_title_hidden(self, title_hidden: bool) -> WindowBuilder;
   /// Hides the window titlebar.
   fn with_titlebar_hidden(self, titlebar_hidden: bool) -> WindowBuilder;
-  /// Hides the window titlebar, but not the traffic light buttons.
-  fn with_titlebar_style_hidden(self, titlebar_hidden: bool) -> WindowBuilder;
   /// Hides the window titlebar buttons.
   fn with_titlebar_buttons_hidden(self, titlebar_buttons_hidden: bool) -> WindowBuilder;
   /// Makes the window content appear behind the titlebar.
@@ -375,12 +373,6 @@ impl WindowBuilderExtMacOS for WindowBuilder {
   #[inline]
   fn with_titlebar_hidden(mut self, titlebar_hidden: bool) -> WindowBuilder {
     self.platform_specific.titlebar_hidden = titlebar_hidden;
-    self
-  }
-
-  #[inline]
-  fn with_titlebar_style_hidden(mut self, titlebar_hidden: bool) -> WindowBuilder {
-    self.platform_specific.titlebar_style_hidden = titlebar_hidden;
     self
   }
 
