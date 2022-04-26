@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.8.3]
+
+- Implement `Window::set_cursor_position` for Linux.
+  - [afffaeae](https://github.com/tauri-apps/tao/commit/afffaeae665e06804ec1f2a7056afb27431baf10) feat(linux): implement `Window::set_cursor_position` ([#373](https://github.com/tauri-apps/tao/pull/373)) on 2022-04-23
+
 ## \[0.8.2]
 
 - Do not fire `WindowEvent::Moved` when `is_maximized` is called on macOS.
