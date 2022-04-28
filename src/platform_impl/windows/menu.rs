@@ -86,7 +86,6 @@ impl MenuItemAttributes {
       let mut mif = MENUITEMINFOW {
         cbSize: std::mem::size_of::<MENUITEMINFOW>() as _,
         fMask: MIIM_STRING,
-        fType: MFT_STRING,
         dwTypeData: PWSTR(0 as *mut u16),
         ..Default::default()
       };
@@ -95,6 +94,10 @@ impl MenuItemAttributes {
       mif.dwTypeData = PWSTR(Vec::with_capacity(mif.cch as usize).as_mut_ptr());
       GetMenuItemInfoW(self.1, self.0 as u32, false, &mut mif);
       util::wchar_ptr_to_string(mif.dwTypeData)
+        .split("\t")
+        .next()
+        .unwrap_or_default()
+        .to_string()
     }
   }
   pub fn set_enabled(&mut self, enabled: bool) {
