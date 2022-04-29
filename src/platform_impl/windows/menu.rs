@@ -4,7 +4,7 @@
 use std::{collections::HashMap, fmt, sync::Mutex};
 
 use windows::Win32::{
-  Foundation::{HWND, LPARAM, LRESULT, PSTR, PWSTR, WPARAM},
+  Foundation::{HWND, LPARAM, LRESULT, PWSTR, WPARAM},
   UI::{
     Input::KeyboardAndMouse::*,
     Shell::*,
@@ -75,11 +75,30 @@ impl MenuHandler {
 }
 
 #[derive(Debug, Clone)]
-pub struct MenuItemAttributes(pub(crate) u16, HMENU);
+pub struct MenuItemAttributes(pub(crate) u16, HMENU, Option<Accelerator>);
 
 impl MenuItemAttributes {
   pub fn id(&self) -> MenuId {
     MenuId(self.0)
+  }
+  pub fn title(&self) -> String {
+    unsafe {
+      let mut mif = MENUITEMINFOW {
+        cbSize: std::mem::size_of::<MENUITEMINFOW>() as _,
+        fMask: MIIM_STRING,
+        dwTypeData: PWSTR(0 as *mut u16),
+        ..Default::default()
+      };
+      GetMenuItemInfoW(self.1, self.0 as u32, false, &mut mif);
+      mif.cch += 1;
+      mif.dwTypeData = PWSTR(Vec::with_capacity(mif.cch as usize).as_mut_ptr());
+      GetMenuItemInfoW(self.1, self.0 as u32, false, &mut mif);
+      util::wchar_ptr_to_string(mif.dwTypeData)
+        .split("\t")
+        .next()
+        .unwrap_or_default()
+        .to_string()
+    }
   }
   pub fn set_enabled(&mut self, enabled: bool) {
     unsafe {
@@ -94,15 +113,20 @@ impl MenuItemAttributes {
     }
   }
   pub fn set_title(&mut self, title: &str) {
+    let mut title = title.to_string();
+    if let Some(accelerator) = &self.2 {
+      title.push('\t');
+      title.push_str(accelerator.to_string().as_str());
+    }
     unsafe {
-      let info = MENUITEMINFOA {
-        cbSize: std::mem::size_of::<MENUITEMINFOA>() as _,
+      let info = MENUITEMINFOW {
+        cbSize: std::mem::size_of::<MENUITEMINFOW>() as _,
         fMask: MIIM_STRING,
-        dwTypeData: PSTR(String::from(title).as_mut_ptr()),
+        dwTypeData: PWSTR(util::encode_wide(title).as_mut_ptr()),
         ..Default::default()
       };
 
-      SetMenuItemInfoA(self.1, self.0 as u32, false, &info);
+      SetMenuItemInfoW(self.1, self.0 as u32, false, &info);
     }
   }
   pub fn set_selected(&mut self, selected: bool) {
@@ -174,7 +198,7 @@ impl Menu {
     &mut self,
     menu_id: MenuId,
     title: &str,
-    accelerators: Option<Accelerator>,
+    accelerator: Option<Accelerator>,
     enabled: bool,
     selected: bool,
     _menu_type: MenuType,
@@ -188,23 +212,31 @@ impl Menu {
         flags |= MF_CHECKED;
       }
 
-      let mut anno_title = title.to_string();
-      // format title
-      if let Some(accelerators) = accelerators.clone() {
-        anno_title.push('\t');
-        format_hotkey(accelerators, &mut anno_title);
+      let mut title = title.to_string();
+      if let Some(accelerator) = &accelerator {
+        title.push('\t');
+        title.push_str(accelerator.to_string().as_str());
       }
 
-      AppendMenuW(self.hmenu, flags, menu_id.0 as _, anno_title);
+      AppendMenuW(
+        self.hmenu,
+        flags,
+        menu_id.0 as _,
+        PWSTR(util::encode_wide(title).as_mut_ptr()),
+      );
 
       // add our accels
-      if let Some(accelerators) = accelerators {
-        if let Some(accelerators) = convert_accelerator(menu_id.0, accelerators) {
+      if let Some(accelerators) = &accelerator {
+        if let Some(accelerators) = accelerators.to_accel(menu_id.0) {
           self.accels.insert(menu_id.0, AccelWrapper(accelerators));
         }
       }
       MENU_IDS.lock().unwrap().push(menu_id.0 as _);
-      CustomMenuItem(MenuItemAttributes(menu_id.0, self.hmenu))
+      CustomMenuItem(MenuItemAttributes(
+        menu_id.0,
+        self.hmenu,
+        accelerator.clone(),
+      ))
     }
   }
 
@@ -265,22 +297,6 @@ impl Menu {
     None
   }
 }
-
-/*
-  Disabled as menu's seems to be linked to the app
-  so they are dropped when the app closes.
-  see discussion here;
-
-  https://github.com/tauri-apps/tao/pull/106#issuecomment-880034210
-
-  impl Drop for Menu {
-    fn drop(&mut self) {
-      unsafe {
-        DestroyMenu(self.hmenu);
-      }
-    }
-  }
-*/
 
 const MENU_SUBCLASS_ID: usize = 4568;
 
@@ -397,119 +413,122 @@ fn execute_edit_command(command: EditCommand) {
   }
 }
 
-// Convert a hotkey to an accelerator.
-fn convert_accelerator(id: u16, key: Accelerator) -> Option<ACCEL> {
-  let mut virt_key = FVIRTKEY;
-  let key_mods: ModifiersState = key.mods;
-  if key_mods.control_key() {
-    virt_key |= FCONTROL;
-  }
-  if key_mods.alt_key() {
-    virt_key |= FALT;
-  }
-  if key_mods.shift_key() {
-    virt_key |= FSHIFT;
-  }
-
-  let raw_key = if let Some(vk_code) = key_to_vk(&key.key) {
-    let mod_code = vk_code >> 8;
-    if mod_code & 0x1 != 0 {
-      virt_key |= FSHIFT;
-    }
-    if mod_code & 0x02 != 0 {
+impl Accelerator {
+  // Convert a hotkey to an accelerator.
+  fn to_accel(&self, menu_id: u16) -> Option<ACCEL> {
+    let mut virt_key = FVIRTKEY;
+    let key_mods: ModifiersState = self.mods;
+    if key_mods.control_key() {
       virt_key |= FCONTROL;
     }
-    if mod_code & 0x04 != 0 {
+    if key_mods.alt_key() {
       virt_key |= FALT;
     }
-    vk_code & 0x00ff
-  } else {
-    dbg!("Failed to convert key {:?} into virtual key code", key.key);
-    return None;
-  };
+    if key_mods.shift_key() {
+      virt_key |= FSHIFT;
+    }
 
-  Some(ACCEL {
-    fVirt: virt_key as u8,
-    key: raw_key as u16,
-    cmd: id,
-  })
-}
+    let raw_key = if let Some(vk_code) = key_to_vk(&self.key) {
+      let mod_code = vk_code >> 8;
+      if mod_code & 0x1 != 0 {
+        virt_key |= FSHIFT;
+      }
+      if mod_code & 0x02 != 0 {
+        virt_key |= FCONTROL;
+      }
+      if mod_code & 0x04 != 0 {
+        virt_key |= FALT;
+      }
+      vk_code & 0x00ff
+    } else {
+      dbg!("Failed to convert key {:?} into virtual key code", self.key);
+      return None;
+    };
 
-// Format the hotkey in a Windows-native way.
-fn format_hotkey(key: Accelerator, s: &mut String) {
-  let key_mods: ModifiersState = key.mods;
-  if key_mods.control_key() {
-    s.push_str("Ctrl+");
+    Some(ACCEL {
+      fVirt: virt_key as u8,
+      key: raw_key as u16,
+      cmd: menu_id,
+    })
   }
-  if key_mods.shift_key() {
-    s.push_str("Shift+");
-  }
-  if key_mods.alt_key() {
-    s.push_str("Alt+");
-  }
-  if key_mods.super_key() {
-    s.push_str("Windows+");
-  }
-  match &key.key {
-    KeyCode::KeyA => s.push('A'),
-    KeyCode::KeyB => s.push('B'),
-    KeyCode::KeyC => s.push('C'),
-    KeyCode::KeyD => s.push('D'),
-    KeyCode::KeyE => s.push('E'),
-    KeyCode::KeyF => s.push('F'),
-    KeyCode::KeyG => s.push('G'),
-    KeyCode::KeyH => s.push('H'),
-    KeyCode::KeyI => s.push('I'),
-    KeyCode::KeyJ => s.push('J'),
-    KeyCode::KeyK => s.push('K'),
-    KeyCode::KeyL => s.push('L'),
-    KeyCode::KeyM => s.push('M'),
-    KeyCode::KeyN => s.push('N'),
-    KeyCode::KeyO => s.push('O'),
-    KeyCode::KeyP => s.push('P'),
-    KeyCode::KeyQ => s.push('Q'),
-    KeyCode::KeyR => s.push('R'),
-    KeyCode::KeyS => s.push('S'),
-    KeyCode::KeyT => s.push('T'),
-    KeyCode::KeyU => s.push('U'),
-    KeyCode::KeyV => s.push('V'),
-    KeyCode::KeyW => s.push('W'),
-    KeyCode::KeyX => s.push('X'),
-    KeyCode::KeyY => s.push('Y'),
-    KeyCode::KeyZ => s.push('Z'),
-    KeyCode::Digit0 => s.push('0'),
-    KeyCode::Digit1 => s.push('1'),
-    KeyCode::Digit2 => s.push('2'),
-    KeyCode::Digit3 => s.push('3'),
-    KeyCode::Digit4 => s.push('4'),
-    KeyCode::Digit5 => s.push('5'),
-    KeyCode::Digit6 => s.push('6'),
-    KeyCode::Digit7 => s.push('7'),
-    KeyCode::Digit8 => s.push('8'),
-    KeyCode::Digit9 => s.push('9'),
-    KeyCode::Comma => s.push(','),
-    KeyCode::Minus => s.push('-'),
-    KeyCode::Period => s.push('.'),
-    KeyCode::Space => s.push_str("Space"),
-    KeyCode::Equal => s.push('='),
-    KeyCode::Semicolon => s.push(';'),
-    KeyCode::Slash => s.push('/'),
-    KeyCode::Backslash => s.push('\\'),
-    KeyCode::Quote => s.push('\''),
-    KeyCode::Backquote => s.push('`'),
-    KeyCode::BracketLeft => s.push('['),
-    KeyCode::BracketRight => s.push(']'),
-    KeyCode::Tab => s.push_str("Tab"),
-    KeyCode::Escape => s.push_str("Esc"),
-    KeyCode::Delete => s.push_str("Del"),
-    KeyCode::Insert => s.push_str("Ins"),
-    KeyCode::PageUp => s.push_str("PgUp"),
-    KeyCode::PageDown => s.push_str("PgDn"),
-    // These names match LibreOffice.
-    KeyCode::ArrowLeft => s.push_str("Left"),
-    KeyCode::ArrowRight => s.push_str("Right"),
-    KeyCode::ArrowUp => s.push_str("Up"),
-    KeyCode::ArrowDown => s.push_str("Down"),
-    _ => s.push_str(&format!("{:?}", key.key)),
+
+  fn to_string(&self) -> String {
+    let mut s = String::new();
+    let key_mods: ModifiersState = self.mods;
+    if key_mods.control_key() {
+      s.push_str("Ctrl+");
+    }
+    if key_mods.shift_key() {
+      s.push_str("Shift+");
+    }
+    if key_mods.alt_key() {
+      s.push_str("Alt+");
+    }
+    if key_mods.super_key() {
+      s.push_str("Windows+");
+    }
+    match &self.key {
+      KeyCode::KeyA => s.push('A'),
+      KeyCode::KeyB => s.push('B'),
+      KeyCode::KeyC => s.push('C'),
+      KeyCode::KeyD => s.push('D'),
+      KeyCode::KeyE => s.push('E'),
+      KeyCode::KeyF => s.push('F'),
+      KeyCode::KeyG => s.push('G'),
+      KeyCode::KeyH => s.push('H'),
+      KeyCode::KeyI => s.push('I'),
+      KeyCode::KeyJ => s.push('J'),
+      KeyCode::KeyK => s.push('K'),
+      KeyCode::KeyL => s.push('L'),
+      KeyCode::KeyM => s.push('M'),
+      KeyCode::KeyN => s.push('N'),
+      KeyCode::KeyO => s.push('O'),
+      KeyCode::KeyP => s.push('P'),
+      KeyCode::KeyQ => s.push('Q'),
+      KeyCode::KeyR => s.push('R'),
+      KeyCode::KeyS => s.push('S'),
+      KeyCode::KeyT => s.push('T'),
+      KeyCode::KeyU => s.push('U'),
+      KeyCode::KeyV => s.push('V'),
+      KeyCode::KeyW => s.push('W'),
+      KeyCode::KeyX => s.push('X'),
+      KeyCode::KeyY => s.push('Y'),
+      KeyCode::KeyZ => s.push('Z'),
+      KeyCode::Digit0 => s.push('0'),
+      KeyCode::Digit1 => s.push('1'),
+      KeyCode::Digit2 => s.push('2'),
+      KeyCode::Digit3 => s.push('3'),
+      KeyCode::Digit4 => s.push('4'),
+      KeyCode::Digit5 => s.push('5'),
+      KeyCode::Digit6 => s.push('6'),
+      KeyCode::Digit7 => s.push('7'),
+      KeyCode::Digit8 => s.push('8'),
+      KeyCode::Digit9 => s.push('9'),
+      KeyCode::Comma => s.push(','),
+      KeyCode::Minus => s.push('-'),
+      KeyCode::Period => s.push('.'),
+      KeyCode::Space => s.push_str("Space"),
+      KeyCode::Equal => s.push('='),
+      KeyCode::Semicolon => s.push(';'),
+      KeyCode::Slash => s.push('/'),
+      KeyCode::Backslash => s.push('\\'),
+      KeyCode::Quote => s.push('\''),
+      KeyCode::Backquote => s.push('`'),
+      KeyCode::BracketLeft => s.push('['),
+      KeyCode::BracketRight => s.push(']'),
+      KeyCode::Tab => s.push_str("Tab"),
+      KeyCode::Escape => s.push_str("Esc"),
+      KeyCode::Delete => s.push_str("Del"),
+      KeyCode::Insert => s.push_str("Ins"),
+      KeyCode::PageUp => s.push_str("PgUp"),
+      KeyCode::PageDown => s.push_str("PgDn"),
+      // These names match LibreOffice.
+      KeyCode::ArrowLeft => s.push_str("Left"),
+      KeyCode::ArrowRight => s.push_str("Right"),
+      KeyCode::ArrowUp => s.push_str("Up"),
+      KeyCode::ArrowDown => s.push_str("Down"),
+      _ => s.push_str(&format!("{:?}", self.key)),
+    }
+    s
   }
 }

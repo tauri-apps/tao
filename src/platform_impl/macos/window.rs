@@ -464,8 +464,10 @@ impl UnownedWindow {
   }
 
   pub fn set_menu(&self, menu: Option<Menu>) {
-    unsafe {
-      util::set_menu_async(*self.ns_window, menu);
+    // TODO if None we should set an empty menu
+    // On windows we can remove it, in macOS we can't
+    if let Some(menu) = menu {
+      menu::initialize(menu);
     }
   }
 
@@ -672,7 +674,7 @@ impl UnownedWindow {
 
     // Roll back temp styles
     if needs_temp_mask {
-      self.set_style_mask_async(curr_mask);
+      self.set_style_mask_sync(curr_mask);
     }
 
     is_zoomed != NO
@@ -748,11 +750,6 @@ impl UnownedWindow {
   pub fn fullscreen(&self) -> Option<Fullscreen> {
     let shared_state_lock = self.shared_state.lock().unwrap();
     shared_state_lock.fullscreen.clone()
-  }
-
-  #[inline]
-  pub fn is_maximized(&self) -> bool {
-    self.is_zoomed()
   }
 
   #[inline]

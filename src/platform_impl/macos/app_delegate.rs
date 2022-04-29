@@ -40,6 +40,10 @@ lazy_static! {
       sel!(applicationDidFinishLaunching:),
       did_finish_launching as extern "C" fn(&Object, Sel, id),
     );
+    decl.add_method(
+      sel!(applicationWillTerminate:),
+      application_will_terminate as extern "C" fn(&Object, Sel, id),
+    );
     decl.add_ivar::<*mut c_void>(AUX_DELEGATE_STATE_NAME);
 
     AppDelegateClass(decl.register())
@@ -81,4 +85,10 @@ extern "C" fn did_finish_launching(this: &Object, _: Sel, _: id) {
   trace!("Triggered `applicationDidFinishLaunching`");
   AppState::launched(this);
   trace!("Completed `applicationDidFinishLaunching`");
+}
+
+extern "C" fn application_will_terminate(_: &Object, _: Sel, _: id) {
+  trace!("Triggered `applicationWillTerminate`");
+  AppState::exit();
+  trace!("Completed `applicationWillTerminate`");
 }

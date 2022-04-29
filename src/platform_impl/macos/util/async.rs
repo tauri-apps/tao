@@ -12,7 +12,6 @@ use cocoa::{
   foundation::{NSPoint, NSSize, NSString},
 };
 use dispatch::Queue;
-use menu::Menu;
 use objc::{
   rc::autoreleasepool,
   runtime::{BOOL, NO, YES},
@@ -20,7 +19,15 @@ use objc::{
 
 use crate::{
   dpi::LogicalSize,
-  platform_impl::platform::{ffi, menu, util::IdRef, window::SharedState},
+  event::{Event, WindowEvent},
+  platform_impl::platform::{
+    app_state::AppState,
+    event::EventWrapper,
+    ffi,
+    util::IdRef,
+    window::{get_window_id, SharedState},
+  },
+  window::WindowId,
 };
 
 // Unsafe wrapper type that allows us to dispatch things that aren't Send.
@@ -212,17 +219,6 @@ pub unsafe fn set_title_async(ns_window: id, title: String) {
   });
 }
 
-// `setMenu:` isn't thread-safe.
-pub unsafe fn set_menu_async(_ns_window: id, menu: Option<Menu>) {
-  // TODO if None we should set an empty menu
-  // On windows we can remove it, in macOS we can't
-  if let Some(menu) = menu {
-    Queue::main().exec_async(move || {
-      menu::initialize(menu);
-    });
-  }
-}
-
 // `setFocus:` isn't thread-safe.
 pub unsafe fn set_focus(ns_window: id) {
   let ns_window = MainThreadSafe(ns_window);
@@ -243,6 +239,11 @@ pub unsafe fn close_async(ns_window: IdRef) {
   Queue::main().exec_async(move || {
     autoreleasepool(move || {
       ns_window.close();
+      let event = Event::WindowEvent {
+        window_id: WindowId(get_window_id(*ns_window.0)),
+        event: WindowEvent::Destroyed,
+      };
+      AppState::queue_event(EventWrapper::StaticEvent(event));
     });
   });
 }

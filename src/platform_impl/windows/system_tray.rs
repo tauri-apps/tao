@@ -52,7 +52,7 @@ impl SystemTrayBuilder {
   ) -> Result<RootSystemTray, RootOsError> {
     let hmenu: Option<HMENU> = self.tray_menu.map(|m| m.hmenu());
 
-    let mut class_name = util::to_wstring("tao_system_tray_app");
+    let mut class_name = util::encode_wide("tao_system_tray_app");
     unsafe {
       let hinstance = GetModuleHandleA(PSTR::default());
 

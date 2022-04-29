@@ -9,7 +9,7 @@ use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   keyboard::KeyCode,
-  menu::{MenuBar as Menu, MenuItem, MenuItemAttributes, MenuType},
+  menu::{AboutMetadata, MenuBar as Menu, MenuItem, MenuItemAttributes, MenuType},
   window::WindowBuilder,
 };
 
@@ -40,6 +40,13 @@ fn main() {
   // in macOS native item are required to get keyboard shortcut
   // to works correctly
   first_menu.add_native_item(MenuItem::Copy);
+  first_menu.add_native_item(MenuItem::About(
+    "tao".into(),
+    AboutMetadata {
+      version: Some("1.0.0".into()),
+      ..Default::default()
+    },
+  ));
 
   // Create custom Copy menu with our clipboard object
   let custom_insert_clipboard = first_menu.add_item(MenuItemAttributes::new("Insert clipboard"));

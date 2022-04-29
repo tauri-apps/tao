@@ -10,9 +10,9 @@ use std::fs::File;
 use std::path::PathBuf;
 
 use gtk::{prelude::WidgetExt, AccelGroup};
-#[cfg(not(feature = "ayatana"))]
+#[cfg(feature = "gtk-tray")]
 use libappindicator::{AppIndicator, AppIndicatorStatus};
-#[cfg(feature = "ayatana")]
+#[cfg(feature = "ayatana-tray")]
 use libayatana_appindicator::{AppIndicator, AppIndicatorStatus};
 
 use super::{menu::Menu, window::WindowRequest, WindowId};

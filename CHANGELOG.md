@@ -1,5 +1,67 @@
 # Changelog
 
+## \[0.8.3]
+
+- Implement `Window::set_cursor_position` for Linux.
+  - [afffaeae](https://github.com/tauri-apps/tao/commit/afffaeae665e06804ec1f2a7056afb27431baf10) feat(linux): implement `Window::set_cursor_position` ([#373](https://github.com/tauri-apps/tao/pull/373)) on 2022-04-23
+
+## \[0.8.2]
+
+- Do not fire `WindowEvent::Moved` when `is_maximized` is called on macOS.
+  - [25890b94](https://github.com/tauri-apps/tao/commit/25890b943f3566cb8b2fc6d5abaff15921caed93) fix(macos): do not fire Event::Moved when checking is_maximized ([#366](https://github.com/tauri-apps/tao/pull/366)) on 2022-04-13
+
+## \[0.8.1]
+
+- Fixes compilation when only the `tray` feature is enabled.
+  - [da938957](https://github.com/tauri-apps/tao/commit/da9389573daa04217baa8465709328e9c6e35f27) fix(tao): compilation when only the tray feature is enabled ([#363](https://github.com/tauri-apps/tao/pull/363)) on 2022-04-05
+
+## \[0.8.0]
+
+- Add `EventLoopWindowTargetExtMacOS::set_activation_policy_at_runtime`.
+  - [ef06c508](https://github.com/tauri-apps/tao/commit/ef06c508f1d29e62834eba63b604bf7566b1fef6) Set activation policy at runtime ([#353](https://github.com/tauri-apps/tao/pull/353)) on 2022-03-30
+- On Windows and Linux, disable resizing maximized borderless windows.
+  - [13c5c996](https://github.com/tauri-apps/tao/commit/13c5c996d15cee9ed829f6e67e786721d8d2eda8) fix(win,linux): disable resizing maximized borderless windows ([#356](https://github.com/tauri-apps/tao/pull/356)) on 2022-03-30
+- **Breaking change:** Renamed the `ayatana` Cargo feature to `ayatana-tray`, now the default feature for tray on Linux, and added the `gtk-tray` feature.
+  - [40ec796d](https://github.com/tauri-apps/tao/commit/40ec796de4da91640872161ae372124d14777d7f) refactor(tray): split gtk and ayatana appindicator features ([#362](https://github.com/tauri-apps/tao/pull/362)) on 2022-04-05
+- - On Windows, Fix random characters when changing menu items title through `CustomMenunItem::set_title`.
+  - [e4725bf5](https://github.com/tauri-apps/tao/commit/e4725bf50fb46e830fa5265d765ee596b80e3085) fix(Windows): fix random chars when changing menu item title ([#361](https://github.com/tauri-apps/tao/pull/361)) on 2022-03-31
+- On Windows, Fix `Window::set_inner_size` setting a bigger size than requested.
+  - [089f3878](https://github.com/tauri-apps/tao/commit/089f3878c5b0ce221d3f405c1215c895ee9fb1ce) fix(Windows): fix `set_inner_size` setting a bigger size, closes [#194](https://github.com/tauri-apps/tao/pull/194) ([#354](https://github.com/tauri-apps/tao/pull/354)) on 2022-04-03
+
+## \[0.7.0]
+
+- Fire `Event::LoopDestroyed` when the macOS dock `Quit` menu item is clicked.
+  - [34257a75](https://github.com/tauri-apps/tao/commit/34257a75c71e40433a57942cc61ce9976b80c152) feat(macos): fire `LoopDestroyed` when the dock's `Quit` item is clicked ([#351](https://github.com/tauri-apps/tao/pull/351)) on 2022-03-27
+- Added `Event::DecorationsClick` (Windows only).
+  - [411af5b1](https://github.com/tauri-apps/tao/commit/411af5b16d71eec90be47210fc6242526ab43c6c) feat(windows): add `Event::DecorationsClick` ([#352](https://github.com/tauri-apps/tao/pull/352)) on 2022-03-27
+- Enhance the `MenuItem::About` menu on Linux.
+  **Breaking change:** The About variant now uses an struct instead of a string.
+  - [84c677fd](https://github.com/tauri-apps/tao/commit/84c677fd13234c81bbbe63b25d7dc563825c7829) refactor: fix and enhance the about menu on Linux ([#347](https://github.com/tauri-apps/tao/pull/347)) on 2022-03-25
+- Fixes the About menu on Linux not being shown.
+  - [84c677fd](https://github.com/tauri-apps/tao/commit/84c677fd13234c81bbbe63b25d7dc563825c7829) refactor: fix and enhance the about menu on Linux ([#347](https://github.com/tauri-apps/tao/pull/347)) on 2022-03-25
+- Properly fire `WindowEvent::Destroyed` on Linux when the `Window` is dropped.
+  - [cdd4ac32](https://github.com/tauri-apps/tao/commit/cdd4ac3281ad9c2cf15561e8cf3110ed34ae93f0) fix(events): properly fire `WindowEvent::Destroyed` on Linux ([#349](https://github.com/tauri-apps/tao/pull/349)) on 2022-03-25
+- Properly change the window to fullscreen state if the builder instructs it to use `Fullscreen::Borderless(None)`.
+  - [5ecbac19](https://github.com/tauri-apps/tao/commit/5ecbac1958518eaacd263eaaee440f89b2edf122) fix(window): fullscreen on Linux when builder is set to Borderless(None) ([#348](https://github.com/tauri-apps/tao/pull/348)) on 2022-03-25
+- Fixes system tray item titles on Windows by forcing the string to be null-terminated.
+  - [7f900a16](https://github.com/tauri-apps/tao/commit/7f900a167e0077c354fb26ab6d34ae06591a67c5) fix(tray): force item title string to be null-terminated ([#340](https://github.com/tauri-apps/tao/pull/340)) on 2022-03-09
+- Properly fire `WindowEvent::Destroyed` on macOS when the `Window` is dropped.
+  - [efd3eecc](https://github.com/tauri-apps/tao/commit/efd3eecc76c45619e36aa8b253316192eefec0d1) fix(window): properly fire `WindowEvent::Destroyed` on macOS ([#350](https://github.com/tauri-apps/tao/pull/350)) on 2022-03-25
+- Fix inconsist behaviour when setting menu on mac.
+  - [5abdbd1f](https://github.com/tauri-apps/tao/commit/5abdbd1ff7e46f94a686052a65d528725c5647be) Fix inconsist behaviour when setting menu on mac ([#345](https://github.com/tauri-apps/tao/pull/345)) on 2022-03-17
+
+## \[0.6.4]
+
+- Fix a deadlock on Windows when using `Window::set_visible(true)` in the `EventLoop::run` closure.
+  - [475e64d2](https://github.com/tauri-apps/tao/commit/475e64d2873c233e60cb74e52e91282d18e13780) fix(Windows): fix a deadlock in `WindowState` ([#338](https://github.com/tauri-apps/tao/pull/338)) on 2022-03-06
+- On Windows, apply maximize state before minimize. Fixes `Window::set_minimized` not working when the window is maximized.
+  - [11dac102](https://github.com/tauri-apps/tao/commit/11dac10241330c30aae660a2621d43ee5eb3775d) fix(windows): apply maximize state before minimize ([#334](https://github.com/tauri-apps/tao/pull/334)) on 2022-03-01
+
+## \[0.6.3]
+
+- Revert Global Shortcut fix on Linux. See [#331](https://github.com/tauri-apps/tao/issues/331) for more information.
+  - [f5e19e0f](https://github.com/tauri-apps/tao/commit/f5e19e0ff83a65410e18ee7e47cac984f87236c9) Revert "Implement global shortcut on Linux, close #307 (#308)" ([#330](https://github.com/tauri-apps/tao/pull/330)) on 2022-03-01
+
 ## \[0.6.2]
 
 - Fixes the `set_fullscreen` implementation on Linux when the `Fullscreen::Borderless` value is set to `None`.

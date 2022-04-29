@@ -200,10 +200,14 @@ impl Window {
 
     // Rest attributes
     window.set_title(&attributes.title);
-    if let Some(Fullscreen::Borderless(Some(f))) = &attributes.fullscreen {
-      let number = f.inner.number;
-      let screen = window.display().default_screen();
-      window.fullscreen_on_monitor(&screen, number);
+    if let Some(Fullscreen::Borderless(m)) = &attributes.fullscreen {
+      if let Some(monitor) = m {
+        let number = monitor.inner.number;
+        let screen = window.display().default_screen();
+        window.fullscreen_on_monitor(&screen, number);
+      } else {
+        window.fullscreen();
+      }
     }
     if attributes.maximized {
       window.maximize();
@@ -558,12 +562,25 @@ impl Window {
     }
   }
 
-  pub fn set_cursor_position<P: Into<Position>>(&self, _position: P) -> Result<(), ExternalError> {
-    todo!()
+  pub fn set_cursor_position<P: Into<Position>>(&self, position: P) -> Result<(), ExternalError> {
+    let inner_pos = self.inner_position().unwrap_or_default();
+    let (x, y): (i32, i32) = position
+      .into()
+      .to_logical::<i32>(self.scale_factor())
+      .into();
+
+    if let Err(e) = self.window_requests_tx.send((
+      self.window_id,
+      WindowRequest::CursorPosition((x + inner_pos.x, y + inner_pos.y)),
+    )) {
+      log::warn!("Fail to send cursor position request: {}", e);
+    }
+
+    Ok(())
   }
 
   pub fn set_cursor_grab(&self, _grab: bool) -> Result<(), ExternalError> {
-    todo!()
+    Ok(())
   }
 
   pub fn set_cursor_visible(&self, visible: bool) {
@@ -660,10 +677,12 @@ pub enum WindowRequest {
   UserAttention(Option<UserAttentionType>),
   SetSkipTaskbar(bool),
   CursorIcon(Option<CursorIcon>),
+  CursorPosition((i32, i32)),
   WireUpEvents,
   Redraw,
   Menu((Option<MenuItem>, Option<MenuId>)),
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
+  GlobalHotKey(u16),
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {

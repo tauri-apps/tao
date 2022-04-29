@@ -5,7 +5,7 @@ use crate::{
   dpi::{PhysicalPosition, Size},
   icon::Icon,
   keyboard::ModifiersState,
-  platform_impl::platform::{event_loop, keyboard::KeyEventBuilder, minimal_ime::MinimalIme, util},
+  platform_impl::platform::{event_loop, minimal_ime::MinimalIme, util},
   window::{CursorIcon, Fullscreen, Theme, WindowAttributes},
 };
 use parking_lot::MutexGuard;
@@ -36,7 +36,6 @@ pub struct WindowState {
   pub preferred_theme: Option<Theme>,
   pub high_surrogate: Option<u16>,
 
-  pub key_event_builder: KeyEventBuilder,
   pub ime_handler: MinimalIme,
 
   pub window_flags: WindowFlags,
@@ -126,7 +125,6 @@ impl WindowState {
       current_theme,
       preferred_theme,
       high_surrogate: None,
-      key_event_builder: KeyEventBuilder::default(),
       ime_handler: MinimalIme::default(),
       window_flags: WindowFlags::empty(),
     }
@@ -198,10 +196,9 @@ impl WindowFlags {
     style_ex |= WS_EX_ACCEPTFILES;
 
     if self.contains(WindowFlags::RESIZABLE) {
-      style |= WS_THICKFRAME | WS_MAXIMIZEBOX;
+      style |= WS_SIZEBOX | WS_MAXIMIZEBOX;
     }
     if self.contains(WindowFlags::DECORATIONS) {
-      style |= WS_BORDER;
       style_ex |= WS_EX_WINDOWEDGE;
     }
     if self.contains(WindowFlags::VISIBLE) {
@@ -276,6 +273,18 @@ impl WindowFlags {
       }
     }
 
+    if diff.contains(WindowFlags::MAXIMIZED) || new.contains(WindowFlags::MAXIMIZED) {
+      unsafe {
+        ShowWindow(
+          window,
+          match new.contains(WindowFlags::MAXIMIZED) {
+            true => SW_MAXIMIZE,
+            false => SW_RESTORE,
+          },
+        );
+      }
+    }
+
     // Minimize operations should execute after maximize for proper window animations
     if diff.contains(WindowFlags::MINIMIZED) {
       unsafe {
@@ -283,18 +292,6 @@ impl WindowFlags {
           window,
           match new.contains(WindowFlags::MINIMIZED) {
             true => SW_MINIMIZE,
-            false => SW_RESTORE,
-          },
-        );
-      }
-    }
-
-    if diff.contains(WindowFlags::MAXIMIZED) || new.contains(WindowFlags::MAXIMIZED) {
-      unsafe {
-        ShowWindow(
-          window,
-          match new.contains(WindowFlags::MAXIMIZED) {
-            true => SW_MAXIMIZE,
             false => SW_RESTORE,
           },
         );

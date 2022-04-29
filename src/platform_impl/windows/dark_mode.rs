@@ -65,8 +65,8 @@ lazy_static! {
         }
     };
 
-    static ref DARK_THEME_NAME: Vec<u16> = util::to_wstring("DarkMode_Explorer");
-    static ref LIGHT_THEME_NAME: Vec<u16> = util::to_wstring("");
+    static ref DARK_THEME_NAME: Vec<u16> = util::encode_wide("DarkMode_Explorer");
+    static ref LIGHT_THEME_NAME: Vec<u16> = util::encode_wide("");
 }
 
 /// Attempt to set a theme on a window, if necessary.

@@ -320,12 +320,21 @@ pub enum WindowEvent<'a> {
   Resized(PhysicalSize<u32>),
 
   /// The position of the window has changed. Contains the window's new position.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux(Wayland)**: will always be (0, 0) since Wayland doesn't support a global cordinate system.
   Moved(PhysicalPosition<i32>),
 
   /// The window has been requested to close.
   CloseRequested,
 
   /// The window has been destroyed.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows / Linux:** Only fired if the [`crate::window::Window`] is dropped.
+  /// - **macOS:** Fired if the [`crate::window::Window`] is dropped or the dock `Quit` item is clicked.
   Destroyed,
 
   /// A file has been dropped into the window.
@@ -462,6 +471,13 @@ pub enum WindowEvent<'a> {
   ///
   /// At the moment this is only supported on Windows.
   ThemeChanged(Theme),
+
+  /// The window decorations has been clicked.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / macOS / Android / iOS:** Unsupported
+  DecorationsClick,
 }
 
 impl Clone for WindowEvent<'static> {
@@ -551,6 +567,7 @@ impl Clone for WindowEvent<'static> {
       ScaleFactorChanged { .. } => {
         unreachable!("Static event can't be about scale factor changing")
       }
+      DecorationsClick => DecorationsClick,
     };
   }
 }
@@ -635,6 +652,7 @@ impl<'a> WindowEvent<'a> {
       Touch(touch) => Some(Touch(touch)),
       ThemeChanged(theme) => Some(ThemeChanged(theme)),
       ScaleFactorChanged { .. } => None,
+      DecorationsClick => Some(DecorationsClick),
     }
   }
 }

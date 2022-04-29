@@ -14,9 +14,10 @@ use std::{
 use gdk::{Cursor, CursorType, EventKey, EventMask, WindowEdge, WindowState};
 use gio::{prelude::*, Cancellable};
 use glib::{source::Priority, Continue, MainContext};
-use gtk::{prelude::*, AboutDialog, Inhibit};
+use gtk::{builders::AboutDialogBuilder, prelude::*, Inhibit};
 
 use crate::{
+  accelerator::AcceleratorId,
   dpi::{LogicalPosition, LogicalSize},
   event::{ElementState, Event, MouseButton, StartCause, WindowEvent},
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
@@ -28,7 +29,6 @@ use crate::{
 };
 
 use super::{
-  global_shortcut::GlobalShortcutEvent,
   keyboard,
   monitor::MonitorHandle,
   window::{WindowId, WindowRequest},
@@ -44,8 +44,6 @@ pub struct EventLoopWindowTarget<T> {
   pub(crate) windows: Rc<RefCell<HashSet<WindowId>>>,
   /// Window requests sender
   pub(crate) window_requests_tx: glib::Sender<(WindowId, WindowRequest)>,
-  /// Global shortcut requests sender
-  pub(crate) shortcut_requests_tx: glib::Sender<GlobalShortcutEvent>,
   _marker: std::marker::PhantomData<T>,
 }
 
@@ -118,8 +116,6 @@ impl<T: 'static> EventLoop<T> {
     // Create event loop window target.
     let (window_requests_tx, window_requests_rx) = glib::MainContext::channel(Priority::default());
     let window_requests_tx_ = window_requests_tx.clone();
-    let (shortcut_requests_tx, shortcut_requests_rx) =
-      glib::MainContext::channel(Priority::default());
     let display = gdk::Display::default()
       .expect("GdkDisplay not found. This usually means `gkt_init` hasn't called yet.");
     let window_target = EventLoopWindowTarget {
@@ -127,7 +123,6 @@ impl<T: 'static> EventLoop<T> {
       app,
       windows: Rc::new(RefCell::new(HashSet::new())),
       window_requests_tx,
-      shortcut_requests_tx,
       _marker: std::marker::PhantomData,
     };
 
@@ -138,39 +133,6 @@ impl<T: 'static> EventLoop<T> {
       if let Err(e) = event_tx_.send(Event::UserEvent(event)) {
         log::warn!("Failed to send user event to event channel: {}", e);
       }
-      Continue(true)
-    });
-
-    // Global Shortcut Event Request
-    let app = app_.clone();
-    let event_tx_ = event_tx.clone();
-    shortcut_requests_rx.attach(Some(&context), move |event| {
-      match event {
-        GlobalShortcutEvent::Register((id, key)) => {
-          let name = format!("{}", id.0);
-          let action = gio::SimpleAction::new(&name, None);
-          let event_tx = event_tx_.clone();
-          action.connect_activate(move |_, _| {
-            if let Err(e) = event_tx.send(Event::GlobalShortcutEvent(id)) {
-              log::warn!(
-                "Failed to send global shortcut event to event channel: {}",
-                e
-              );
-            }
-          });
-          app.add_action(&action);
-          app.set_accels_for_action(&format!("app.{}", name), &[&key]);
-        }
-        GlobalShortcutEvent::UnRegister(id) => {
-          app.remove_action(&format!("{}", id.0));
-        }
-        GlobalShortcutEvent::UnRegisterAll => {
-          for action in app.list_actions() {
-            app.remove_action(&action);
-          }
-        }
-      }
-
       Continue(true)
     });
 
@@ -229,8 +191,7 @@ impl<T: 'static> EventLoop<T> {
             }
           }
           WindowRequest::Focus => {
-            // FIXME: replace with present_with_timestamp
-            window.present();
+            window.present_with_time(gdk_sys::GDK_CURRENT_TIME as _);
           }
           WindowRequest::Resizable(resizable) => window.set_resizable(resizable),
           WindowRequest::Minimized(minimized) => {
@@ -248,10 +209,10 @@ impl<T: 'static> EventLoop<T> {
             }
           }
           WindowRequest::DragWindow => {
-            let display = window.display();
-            if let Some(cursor) = display
+            if let Some(cursor) = window
+              .display()
               .default_seat()
-              .and_then(|device_manager| device_manager.pointer())
+              .and_then(|seat| seat.pointer())
             {
               let (_, x, y) = cursor.position();
               window.begin_move_drag(1, x, y, 0);
@@ -337,6 +298,17 @@ impl<T: 'static> EventLoop<T> {
               }
             };
           }
+          WindowRequest::CursorPosition((x, y)) => {
+            if let Some(cursor) = window
+              .display()
+              .default_seat()
+              .and_then(|seat| seat.pointer())
+            {
+              if let Some(screen) = window.screen() {
+                cursor.warp(&screen, x, y);
+              }
+            }
+          }
           WindowRequest::WireUpEvents => {
             window.add_events(
               EventMask::POINTER_MOTION_MASK
@@ -347,9 +319,9 @@ impl<T: 'static> EventLoop<T> {
                 | EventMask::FOCUS_CHANGE_MASK,
             );
 
-            // Resizing `decorations: false` aka borderless
+            // Allow resizing unmaximized borderless window
             window.connect_motion_notify_event(|window, event| {
-              if !window.is_decorated() && window.is_resizable() {
+              if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
                 if let Some(window) = window.window() {
                   let (cx, cy) = event.root();
                   let edge = hit_test(&window, cx, cy);
@@ -489,7 +461,7 @@ impl<T: 'static> EventLoop<T> {
             });
 
             let tx_clone = event_tx.clone();
-            window.connect_destroy_event(move |_, _| {
+            window.connect_destroy(move |_| {
               if let Err(e) = tx_clone.send(Event::WindowEvent {
                 window_id: RootWindowId(id),
                 event: WindowEvent::Destroyed,
@@ -499,7 +471,6 @@ impl<T: 'static> EventLoop<T> {
                   e
                 );
               }
-              Inhibit(false)
             });
 
             let tx_clone = event_tx.clone();
@@ -605,9 +576,9 @@ impl<T: 'static> EventLoop<T> {
 
             let tx_clone = event_tx.clone();
             let keyboard_handler = Rc::new(move |event_key: EventKey, element_state| {
-              let mut mods = keyboard::get_modifiers(event_key.clone());
               // if we have a modifier lets send it
-              if event_key.is_modifier() {
+              let mut mods = keyboard::get_modifiers(event_key.clone());
+              if !mods.is_empty() {
                 // if we release the modifier tell the world
                 if ElementState::Released == element_state {
                   mods = ModifiersState::empty();
@@ -726,10 +697,37 @@ impl<T: 'static> EventLoop<T> {
                 log::warn!("Failed to send menu event to event channel: {}", e);
               }
             }
-            (Some(MenuItem::About(_)), None) => {
-              let about = AboutDialog::new();
-              about.show_all();
-              app_.add_window(&about);
+            (Some(MenuItem::About(name, app)), None) => {
+              let mut builder = AboutDialogBuilder::new()
+                .program_name(&name)
+                .modal(true)
+                .resizable(false);
+              if let Some(version) = &app.version {
+                builder = builder.version(version);
+              }
+              if let Some(authors) = app.authors {
+                builder = builder.authors(authors);
+              }
+              if let Some(comments) = &app.comments {
+                builder = builder.comments(comments);
+              }
+              if let Some(copyright) = &app.copyright {
+                builder = builder.copyright(copyright);
+              }
+              if let Some(license) = &app.license {
+                builder = builder.license(license);
+              }
+              if let Some(website) = &app.website {
+                builder = builder.website(website);
+              }
+              if let Some(website_label) = &app.website_label {
+                builder = builder.website_label(website_label);
+              }
+              let about = builder.build();
+              about.run();
+              unsafe {
+                about.destroy();
+              }
             }
             (Some(MenuItem::Hide), None) => window.hide(),
             (Some(MenuItem::CloseWindow), None) => window.close(),
@@ -765,16 +763,25 @@ impl<T: 'static> EventLoop<T> {
               menubar.show_all();
             }
           }
+          WindowRequest::GlobalHotKey(_hotkey_id) => {}
         }
       } else if id == WindowId::dummy() {
-        if let WindowRequest::Menu((None, Some(menu_id))) = request {
-          if let Err(e) = event_tx.send(Event::MenuEvent {
-            window_id: None,
-            menu_id,
-            origin: MenuType::ContextMenu,
-          }) {
-            log::warn!("Failed to send status bar event to event channel: {}", e);
+        match request {
+          WindowRequest::GlobalHotKey(hotkey_id) => {
+            if let Err(e) = event_tx.send(Event::GlobalShortcutEvent(AcceleratorId(hotkey_id))) {
+              log::warn!("Failed to send global hotkey event to event channel: {}", e);
+            }
           }
+          WindowRequest::Menu((None, Some(menu_id))) => {
+            if let Err(e) = event_tx.send(Event::MenuEvent {
+              window_id: None,
+              menu_id,
+              origin: MenuType::ContextMenu,
+            }) {
+              log::warn!("Failed to send status bar event to event channel: {}", e);
+            }
+          }
+          _ => {}
         }
       }
       Continue(true)

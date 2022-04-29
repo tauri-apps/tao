@@ -52,6 +52,8 @@ use crate::{
   },
 };
 
+use super::keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS};
+
 struct HMenuWrapper(HMENU);
 unsafe impl Send for HMenuWrapper {}
 unsafe impl Sync for HMenuWrapper {}
@@ -250,6 +252,12 @@ impl Window {
     let (width, height) = size.to_physical::<u32>(scale_factor).into();
 
     let window_state = Arc::clone(&self.window_state);
+
+    let is_decorated = window_state
+      .lock()
+      .window_flags
+      .contains(WindowFlags::DECORATIONS);
+
     let window = self.window.clone();
     self.thread_executor.execute_in_thread(move || {
       WindowState::set_window_flags(window_state.lock(), window.0, |f| {
@@ -257,7 +265,7 @@ impl Window {
       });
     });
 
-    util::set_inner_size_physical(self.window.0, width, height);
+    util::set_inner_size_physical(self.window.0, width, height, is_decorated);
   }
 
   #[inline]
@@ -779,6 +787,7 @@ impl Window {
 impl Drop for Window {
   #[inline]
   fn drop(&mut self) {
+    KEY_EVENT_BUILDERS.lock().remove(&self.id());
     unsafe {
       // The window must be destroyed from the same thread that created it, so we send a
       // custom message to be handled by our callback to do the actual work.
@@ -913,6 +922,10 @@ unsafe fn init<T: 'static>(
     menu: None,
   };
 
+  KEY_EVENT_BUILDERS
+    .lock()
+    .insert(win.id(), KeyEventBuilder::default());
+
   win.set_skip_taskbar(pl_attribs.skip_taskbar);
 
   let dimensions = attributes
@@ -962,7 +975,7 @@ unsafe fn register_window_class(
   window_icon: &Option<Icon>,
   taskbar_icon: &Option<Icon>,
 ) -> Vec<u16> {
-  let mut class_name = util::to_wstring("Window Class");
+  let mut class_name = util::encode_wide("Window Class");
 
   let h_icon = taskbar_icon
     .as_ref()

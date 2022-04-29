@@ -589,7 +589,7 @@ lazy_static! {
         RegisterWindowMessageA("Tao::SetRetainMaximized")
     };
     static ref THREAD_EVENT_TARGET_WINDOW_CLASS: Vec<u16> = unsafe {
-        let mut class_name= util::to_wstring("Tao Thread Event Target");
+        let mut class_name= util::encode_wide("Tao Thread Event Target");
 
         let class = WNDCLASSEXW {
             cbSize: mem::size_of::<WNDCLASSEXW>() as u32,
@@ -801,11 +801,7 @@ unsafe fn process_control_flow<T: 'static>(runner: &EventLoopRunner<T>) {
 fn update_modifiers<T>(window: HWND, subclass_input: &SubclassInput<T>) -> ModifiersState {
   use crate::event::WindowEvent::ModifiersChanged;
 
-  let modifiers = {
-    let mut layouts = LAYOUT_CACHE.lock().unwrap();
-    layouts.get_agnostic_mods()
-  };
-
+  let modifiers = LAYOUT_CACHE.lock().get_agnostic_mods();
   let mut window_state = subclass_input.window_state.lock();
   if window_state.modifiers_state != modifiers {
     window_state.modifiers_state = modifiers;
@@ -904,10 +900,13 @@ unsafe fn public_window_callback_inner<T: 'static>(
       return;
     }
     let events = {
-      let mut window_state = subclass_input.window_state.lock();
-      window_state
-        .key_event_builder
-        .process_message(window, msg, wparam, lparam, &mut result)
+      let mut key_event_builders =
+        crate::platform_impl::platform::keyboard::KEY_EVENT_BUILDERS.lock();
+      if let Some(key_event_builder) = key_event_builders.get_mut(&WindowId(window.0)) {
+        key_event_builder.process_message(window, msg, wparam, lparam, &mut result)
+      } else {
+        Vec::new()
+      }
     };
     for event in events {
       subclass_input.send_event(Event::WindowEvent {
@@ -976,6 +975,12 @@ unsafe fn public_window_callback_inner<T: 'static>(
       if wparam.0 == HTCAPTION as _ {
         PostMessageW(window, WM_MOUSEMOVE, WPARAM(0), lparam);
       }
+
+      use crate::event::WindowEvent::DecorationsClick;
+      subclass_input.send_event(Event::WindowEvent {
+        window_id: RootWindowId(WindowId(window.0)),
+        event: DecorationsClick,
+      });
     }
 
     win32wm::WM_CLOSE => {
@@ -1666,9 +1671,13 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let window_state = subclass_input.window_state.lock();
 
       if window_state.min_size.is_some() || window_state.max_size.is_some() {
+        let is_decorated = window_state
+          .window_flags()
+          .contains(WindowFlags::DECORATIONS);
         if let Some(min_size) = window_state.min_size {
           let min_size = min_size.to_physical(window_state.scale_factor);
-          let (width, height): (u32, u32) = util::adjust_size(window, min_size).into();
+          let (width, height): (u32, u32) =
+            util::adjust_size(window, min_size, is_decorated).into();
           (*mmi).ptMinTrackSize = POINT {
             x: width as i32,
             y: height as i32,
@@ -1676,7 +1685,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
         }
         if let Some(max_size) = window_state.max_size {
           let max_size = max_size.to_physical(window_state.scale_factor);
-          let (width, height): (u32, u32) = util::adjust_size(window, max_size).into();
+          let (width, height): (u32, u32) =
+            util::adjust_size(window, max_size, is_decorated).into();
           (*mmi).ptMaxTrackSize = POINT {
             x: width as i32,
             y: height as i32,
@@ -1700,7 +1710,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let new_scale_factor = dpi_to_scale_factor(new_dpi_x);
       let old_scale_factor: f64;
 
-      let allow_resize = {
+      let (allow_resize, is_decorated) = {
         let mut window_state = subclass_input.window_state.lock();
         old_scale_factor = window_state.scale_factor;
         window_state.scale_factor = new_scale_factor;
@@ -1710,11 +1720,21 @@ unsafe fn public_window_callback_inner<T: 'static>(
           return;
         }
 
-        window_state.fullscreen.is_none()
-          && !window_state.window_flags().contains(WindowFlags::MAXIMIZED)
+        let window_flags = window_state.window_flags();
+        (
+          window_state.fullscreen.is_none() && !window_flags.contains(WindowFlags::MAXIMIZED),
+          window_flags.contains(WindowFlags::DECORATIONS),
+        )
       };
 
-      let style = GetWindowLongW(window, GWL_STYLE) as WINDOW_STYLE;
+      let mut style = GetWindowLongW(window, GWL_STYLE) as WINDOW_STYLE;
+      // if the window isn't decorated, remove `WS_SIZEBOX` and `WS_CAPTION` so
+      // `AdjustWindowRect*` functions doesn't account for the hidden caption and borders and
+      // calculates a correct size for the client area.
+      if !is_decorated {
+        style &= !WS_CAPTION;
+        style &= !WS_SIZEBOX;
+      }
       let style_ex = GetWindowLongW(window, GWL_EXSTYLE) as WINDOW_EX_STYLE;
 
       // New size as suggested by Windows.
@@ -1931,28 +1951,30 @@ unsafe fn public_window_callback_inner<T: 'static>(
             params.rgrc[0] = monitor_info.monitorInfo.rcWork;
           }
         }
-        result = ProcResult::Value(LRESULT(0)); // return 0 here to make the windowo borderless
+        result = ProcResult::Value(LRESULT(0)); // return 0 here to make the window borderless
       } else {
         result = ProcResult::DefSubclassProc;
       }
     }
 
     win32wm::WM_NCHITTEST => {
-      if let Some(state) = subclass_input.window_state.try_lock() {
-        let win_flags = state.window_flags();
+      // Allow resizing unmaximized borderless window
+      if !util::is_maximized(window)
+        && !subclass_input
+          .window_state
+          .lock()
+          .window_flags()
+          .contains(WindowFlags::DECORATIONS)
+      {
+        // cursor location
+        let (cx, cy) = (
+          i32::from(util::GET_X_LPARAM(lparam)),
+          i32::from(util::GET_Y_LPARAM(lparam)),
+        );
 
-        // Only apply this hit test for borderless windows that wants to be resizable
-        if !win_flags.contains(WindowFlags::DECORATIONS) {
-          // cursor location
-          let (cx, cy) = (
-            i32::from(util::GET_X_LPARAM(lparam)),
-            i32::from(util::GET_Y_LPARAM(lparam)),
-          );
-
-          result = ProcResult::Value(crate::platform_impl::hit_test(window, cx, cy));
-        } else {
-          result = ProcResult::DefSubclassProc;
-        }
+        result = ProcResult::Value(crate::platform_impl::hit_test(window, cx, cy));
+      } else {
+        result = ProcResult::DefSubclassProc;
       }
     }
 

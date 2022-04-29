@@ -1,6 +1,6 @@
 [package]
 name = "tao"
-version = "0.6.2"
+version = "0.8.3"
 description = "Cross-platform window manager library."
 authors = [
   "Tauri Programme within The Commons Conservancy",
@@ -27,9 +27,10 @@ targets = [
 ]
 
 [features]
-default = [ "tray" ]
-tray = [ "libappindicator" ]
-ayatana = [ "libayatana-appindicator" ]
+default = [ "tray", "ayatana-tray" ]
+tray = [ ]
+gtk-tray = [ "tray", "libappindicator" ]
+ayatana-tray = [ "tray", "libayatana-appindicator" ]
 dox = [ "gtk/dox" ]
 
 [dependencies]
