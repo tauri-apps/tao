@@ -700,11 +700,13 @@ pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
   const BOTTOMLEFT: i32 = BOTTOM | LEFT;
   const BOTTOMRIGHT: i32 = BOTTOM | RIGHT;
 
+  let inset = BORDERLESS_RESIZE_INSET * window.scale_factor();
   #[rustfmt::skip]
-  let result = (LEFT * (if cx < (left + BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
-    | (RIGHT * (if cx >= (right - BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
-    | (TOP * (if cy < (top + BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
-    | (BOTTOM * (if cy >= (bottom - BORDERLESS_RESIZE_INSET) { 1 } else { 0 }));
+  let result =
+      (LEFT * (if cx < (left + inset) { 1 } else { 0 }))
+    | (RIGHT * (if cx >= (right - inset) { 1 } else { 0 }))
+    | (TOP * (if cy < (top + inset) { 1 } else { 0 }))
+    | (BOTTOM * (if cy >= (bottom - inset) { 1 } else { 0 }));
 
   match result {
     LEFT => WindowEdge::West,
