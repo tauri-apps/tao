@@ -1,5 +1,12 @@
 # Changelog
 
+## \[0.8.4]
+
+- On Windows, remove the accelerator from `CustomMenuItem::title` returnd string.
+  - [634116fe](https://github.com/tauri-apps/tao/commit/634116feb3fe983070fbea79e780caea6d4e7581) fix(Windows): remove accel str from `CustomMenuItem::title` returned string ([#377](https://github.com/tauri-apps/tao/pull/377)) on 2022-04-28
+- On Windows and Linux, increase the resizing area for borderless windows based on scale factor.
+  - [8701f64a](https://github.com/tauri-apps/tao/commit/8701f64aaec862dc15510ee725498d954521f123) fix: scale borderless resizing inset based on scale_factor, closes [#376](https://github.com/tauri-apps/tao/pull/376) ([#379](https://github.com/tauri-apps/tao/pull/379)) on 2022-05-01
+
 ## \[0.8.3]
 
 - Implement `Window::set_cursor_position` for Linux.
