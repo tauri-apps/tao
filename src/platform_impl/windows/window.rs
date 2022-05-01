@@ -1163,11 +1163,16 @@ pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
         top,
       } = window_rect;
 
+      let dpi = hwnd_dpi(hwnd);
+      let scale_factor = dpi_to_scale_factor(dpi);
+      let inset = (BORDERLESS_RESIZE_INSET as f64 * scale_factor) as i32;
+
       #[rustfmt::skip]
-      let result = (LEFT * (if cx < (left + BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
-        | (RIGHT * (if cx >= (right - BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
-        | (TOP * (if cy < (top + BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
-        | (BOTTOM * (if cy >= (bottom - BORDERLESS_RESIZE_INSET) { 1 } else { 0 }));
+      let result =
+          (LEFT * (if cx < (left + inset) { 1 } else { 0 }))
+        | (RIGHT * (if cx >= (right - inset) { 1 } else { 0 }))
+        | (TOP * (if cy < (top + inset) { 1 } else { 0 }))
+        | (BOTTOM * (if cy >= (bottom - inset) { 1 } else { 0 }));
 
       LRESULT(match result {
         CLIENT => HTCLIENT,
