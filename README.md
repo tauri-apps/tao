@@ -63,6 +63,12 @@ sudo pacman -S gtk3 libappindicator-gtk3
 sudo apt install libgtk-3-dev libappindicator3-dev
 ```
 
+#### Fedora:
+
+```bash
+sudo dnf install webkit2gtk3-devel libappindicator-gtk3
+```
+
 #### MacOS
 
 To ensure compatibility with older MacOS systems, tao links to
