@@ -194,6 +194,7 @@ impl<T: 'static> EventLoop<T> {
           Event::Pause => self.running = false,
           Event::Resume => self.running = true,
           Event::ConfigChanged => {
+            #[allow(deprecated)] // TODO: use ndk-context instead
             let am = ndk_glue::native_activity().asset_manager();
             let config = Configuration::from_asset_manager(&am);
             let old_scale_factor = MonitorHandle.scale_factor();
