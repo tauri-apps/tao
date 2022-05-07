@@ -275,13 +275,11 @@ impl WindowFlags {
 
     if diff.contains(WindowFlags::MAXIMIZED) || new.contains(WindowFlags::MAXIMIZED) {
       unsafe {
-        ShowWindow(
-          window,
-          match new.contains(WindowFlags::MAXIMIZED) {
-            true => SW_MAXIMIZE,
-            false => SW_RESTORE,
-          },
-        );
+        if new.contains(WindowFlags::MAXIMIZED) {
+          ShowWindow(window, SW_MAXIMIZE);
+        } else if new.contains(WindowFlags::VISIBLE) {
+          ShowWindow(window, SW_RESTORE);
+        }
       }
     }
 
