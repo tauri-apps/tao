@@ -56,7 +56,7 @@ impl SystemTrayBuilder {
 
     let class_name = util::encode_wide("tao_system_tray_app");
     unsafe {
-      let hinstance = GetModuleHandleA(PCSTR::default());
+      let hinstance = GetModuleHandleA(PCSTR::default()).unwrap_or_default();
 
       let wnd_class = WNDCLASSW {
         lpfnWndProc: Some(util::call_default_window_proc),
@@ -82,7 +82,7 @@ impl SystemTrayBuilder {
         std::ptr::null_mut(),
       );
 
-      if hwnd.is_invalid() {
+      if !IsWindow(hwnd).as_bool() {
         return Err(os_error!(OsError::CreationError(
           "Unable to get valid mutable pointer for CreateWindowEx"
         )));

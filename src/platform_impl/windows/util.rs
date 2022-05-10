@@ -248,9 +248,7 @@ pub fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<H
           0,
           0,
           LR_DEFAULTCOLOR,
-        )
-        .ok()
-        {
+        ) {
           // windows is really tough on icons
           // if a bad icon is provided it'll fail here or in
           // the LookupIconIdFromDirectoryEx if this is a bad format (example png's)
@@ -300,7 +298,7 @@ pub(super) fn get_function_impl(library: &str, function: &str) -> FARPROC {
   assert_eq!(function.chars().last(), Some('\0'));
 
   // Library names we will use are ASCII so we can use the A version to avoid string conversion.
-  let module = unsafe { LoadLibraryA(library) };
+  let module = unsafe { LoadLibraryA(library) }.unwrap_or_default();
   if module.is_invalid() {
     return None;
   }

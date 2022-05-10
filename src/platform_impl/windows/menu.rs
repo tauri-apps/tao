@@ -167,7 +167,7 @@ impl Default for Menu {
 impl Menu {
   pub fn new() -> Self {
     unsafe {
-      let hmenu = CreateMenu();
+      let hmenu = CreateMenu().unwrap_or_default();
       Menu {
         hmenu,
         accels: HashMap::default(),
@@ -177,7 +177,7 @@ impl Menu {
 
   pub fn new_popup_menu() -> Self {
     unsafe {
-      let hmenu = CreatePopupMenu();
+      let hmenu = CreatePopupMenu().unwrap_or_default();
       Menu {
         hmenu,
         accels: HashMap::default(),
@@ -410,11 +410,7 @@ fn execute_edit_command(command: EditCommand) {
     inputs[3].Anonymous.ki.wVk = VK_CONTROL;
     inputs[3].Anonymous.ki.dwFlags = KEYEVENTF_KEYUP;
 
-    SendInput(
-      inputs.len() as _,
-      inputs.as_mut_ptr(),
-      std::mem::size_of::<INPUT>() as _,
-    );
+    SendInput(&inputs, std::mem::size_of::<INPUT>() as _);
   }
 }
 

@@ -41,12 +41,10 @@ impl RgbaIcon {
         (PIXEL_SIZE * 8) as u8,
         and_mask.as_ptr() as *const u8,
         rgba.as_ptr() as *const u8,
-      ) as HICON
+      )
     };
     Ok(WinIcon::from_handle(
-      handle
-        .ok()
-        .map_err(|_| BadIcon::OsError(io::Error::last_os_error()))?,
+      handle.map_err(|_| BadIcon::OsError(io::Error::last_os_error()))?,
     ))
   }
 }
@@ -89,44 +87,38 @@ impl WinIcon {
     // width / height of 0 along with LR_DEFAULTSIZE tells windows to load the default icon size
     let (width, height) = size.map(Into::into).unwrap_or((0, 0));
 
-    let handle = HICON(
-      unsafe {
-        LoadImageW(
-          HINSTANCE::default(),
-          PCWSTR(wide_path.as_ptr()),
-          IMAGE_ICON,
-          width as i32,
-          height as i32,
-          LR_DEFAULTSIZE | LR_LOADFROMFILE,
-        )
-      }
-      .0,
-    );
+    let handle = unsafe {
+      LoadImageW(
+        HINSTANCE::default(),
+        PCWSTR(wide_path.as_ptr()),
+        IMAGE_ICON,
+        width as i32,
+        height as i32,
+        LR_DEFAULTSIZE | LR_LOADFROMFILE,
+      )
+    }
+    .map(|handle| HICON(handle.0));
     Ok(WinIcon::from_handle(
-      handle
-        .ok()
-        .map_err(|_| BadIcon::OsError(io::Error::last_os_error()))?,
+      handle.map_err(|_| BadIcon::OsError(io::Error::last_os_error()))?,
     ))
   }
 
   pub fn from_resource(resource_id: u16, size: Option<PhysicalSize<u32>>) -> Result<Self, BadIcon> {
     // width / height of 0 along with LR_DEFAULTSIZE tells windows to load the default icon size
     let (width, height) = size.map(Into::into).unwrap_or((0, 0));
-    let handle = HICON(unsafe {
+    let handle = unsafe {
       LoadImageW(
-        GetModuleHandleW(PCWSTR::default()),
+        GetModuleHandleW(PCWSTR::default()).unwrap_or_default(),
         PCWSTR(resource_id as usize as *const u16),
         IMAGE_ICON,
         width as i32,
         height as i32,
         LR_DEFAULTSIZE,
       )
-      .0
-    });
+    }
+    .map(|handle| HICON(handle.0));
     Ok(WinIcon::from_handle(
-      handle
-        .ok()
-        .map_err(|_| BadIcon::OsError(io::Error::last_os_error()))?,
+      handle.map_err(|_| BadIcon::OsError(io::Error::last_os_error()))?,
     ))
   }
 

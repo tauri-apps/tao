@@ -383,8 +383,7 @@ fn wait_thread(parent_thread_id: u32, msg_window_id: HWND) {
           // 1 millisecond from the requested time and spinlock for the remainder to
           // compensate for that.
           let resume_reason = MsgWaitForMultipleObjectsEx(
-            0,
-            ptr::null(),
+            &[],
             dur2timeout(wait_until - now).saturating_sub(1),
             QS_ALLEVENTS,
             MWMO_INPUTAVAILABLE,
@@ -600,7 +599,7 @@ lazy_static! {
             lpfnWndProc: Some(util::call_default_window_proc),
             cbClsExtra: 0,
             cbWndExtra: 0,
-            hInstance: GetModuleHandleW(PCWSTR::default()),
+            hInstance: GetModuleHandleW(PCWSTR::default()).unwrap_or_default(),
             hIcon: HICON::default(),
             hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
             hbrBackground: HBRUSH::default(),
@@ -628,7 +627,7 @@ fn create_event_target_window() -> HWND {
       0,
       HWND::default(),
       HMENU::default(),
-      GetModuleHandleW(PCWSTR::default()),
+      GetModuleHandleW(PCWSTR::default()).unwrap_or_default(),
       ptr::null_mut(),
     )
   };
@@ -1436,8 +1435,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let htouch = HTOUCHINPUT(lparam.0);
       if GetTouchInputInfo(
         htouch,
-        pcount as u32,
-        uninit_inputs.as_mut_ptr() as *mut TOUCHINPUT,
+        mem::transmute(uninit_inputs),
         mem::size_of::<TOUCHINPUT>() as i32,
       )
       .as_bool()
@@ -1662,8 +1660,9 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
       match set_cursor_to {
         Some(cursor) => {
-          let cursor = LoadCursorW(HINSTANCE::default(), cursor.to_windows_cursor());
-          SetCursor(cursor);
+          if let Ok(cursor) = LoadCursorW(HINSTANCE::default(), cursor.to_windows_cursor()) {
+            SetCursor(cursor);
+          }
           result = ProcResult::Value(LRESULT(0));
         }
         None => result = ProcResult::DefWindowProc,

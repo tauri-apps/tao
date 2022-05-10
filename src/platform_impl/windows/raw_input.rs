@@ -125,8 +125,7 @@ pub fn get_raw_input_device_name(handle: HANDLE) -> Option<String> {
 pub fn register_raw_input_devices(devices: &[RAWINPUTDEVICE]) -> bool {
   let device_size = size_of::<RAWINPUTDEVICE>() as u32;
 
-  let success =
-    unsafe { RegisterRawInputDevices(devices.as_ptr() as _, devices.len() as _, device_size) };
+  let success = unsafe { RegisterRawInputDevices(&devices, device_size) };
 
   success.as_bool()
 }

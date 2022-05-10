@@ -159,7 +159,7 @@ fn should_apps_use_dark_mode() -> bool {
       unsafe {
         const UXTHEME_SHOULDAPPSUSEDARKMODE_ORDINAL: u16 = 132;
 
-        let module = LoadLibraryA("uxtheme.dll");
+        let module = LoadLibraryA("uxtheme.dll").unwrap_or_default();
 
         if module.is_invalid() {
           return None;

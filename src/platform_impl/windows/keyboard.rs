@@ -699,7 +699,7 @@ fn ex_scancode_from_lparam(lparam: LPARAM) -> ExScancode {
 fn get_kbd_state() -> [u8; 256] {
   unsafe {
     let mut kbd_state: MaybeUninit<[u8; 256]> = MaybeUninit::uninit();
-    GetKeyboardState(kbd_state.as_mut_ptr() as *mut u8);
+    GetKeyboardState(&mut *kbd_state.as_mut_ptr());
     kbd_state.assume_init()
   }
 }

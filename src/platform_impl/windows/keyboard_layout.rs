@@ -7,15 +7,12 @@ use std::{
 
 use lazy_static::lazy_static;
 
-use windows::{
-  core::PWSTR,
-  Win32::{
-    System::SystemServices::{LANG_JAPANESE, LANG_KOREAN},
-    UI::{
-      Input::KeyboardAndMouse::{self as win32km, *},
-      TextServices::HKL,
-      WindowsAndMessaging::*,
-    },
+use windows::Win32::{
+  System::SystemServices::{LANG_JAPANESE, LANG_KOREAN},
+  UI::{
+    Input::KeyboardAndMouse::{self as win32km, *},
+    TextServices::HKL,
+    WindowsAndMessaging::*,
   },
 };
 
@@ -441,9 +438,8 @@ impl LayoutCache {
       let mut wide_len = ToUnicodeEx(
         u32::from(vkey.0),
         scancode,
-        (&key_state[0]) as *const _,
-        PWSTR((&mut label_wide[0]) as *mut _),
-        label_wide.len() as i32,
+        &key_state,
+        &mut label_wide,
         0,
         locale_id,
       );
@@ -452,9 +448,8 @@ impl LayoutCache {
         wide_len = ToUnicodeEx(
           u32::from(vkey.0),
           scancode,
-          (&key_state[0]) as *const _,
-          PWSTR((&mut label_wide[0]) as *mut _),
-          label_wide.len() as i32,
+          &key_state,
+          &mut label_wide,
           0,
           locale_id,
         );

@@ -17,7 +17,7 @@ use std::{
 
 use crossbeam_channel as channel;
 use windows::{
-  core::{PCWSTR, PWSTR},
+  core::PCWSTR,
   Win32::{
     Foundation::{self as win32f, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
     Graphics::{
@@ -322,7 +322,8 @@ impl Window {
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
     self.window_state.lock().mouse.cursor = cursor;
     self.thread_executor.execute_in_thread(move || unsafe {
-      let cursor = LoadCursorW(HINSTANCE::default(), cursor.to_windows_cursor());
+      let cursor =
+        LoadCursorW(HINSTANCE::default(), cursor.to_windows_cursor()).unwrap_or_default();
       SetCursor(cursor);
     });
   }
@@ -747,13 +748,12 @@ impl Window {
       let vk = u32::from(VK_SPACE.0);
       let scancode = MapVirtualKeyW(vk, MAPVK_VK_TO_VSC);
       let kbd_state = [0; 256];
-      let mut char_buff = [MaybeUninit::uninit(); 8];
+      let mut char_buff: [MaybeUninit<u16>; 8] = [MaybeUninit::uninit(); 8];
       ToUnicode(
         vk,
         scancode,
-        kbd_state.as_ptr(),
-        PWSTR(char_buff[0].as_mut_ptr()),
-        char_buff.len() as i32,
+        &kbd_state,
+        mem::transmute(char_buff.as_mut()),
         0,
       );
     }
@@ -862,11 +862,11 @@ unsafe fn init<T: 'static>(
       CW_USEDEFAULT,
       parent.unwrap_or_default(),
       pl_attribs.menu.unwrap_or_default(),
-      GetModuleHandleW(PCWSTR::default()),
+      GetModuleHandleW(PCWSTR::default()).unwrap_or_default(),
       Box::into_raw(Box::new(window_flags)) as _,
     );
 
-    if handle.is_invalid() {
+    if !IsWindow(handle).as_bool() {
       return Err(os_error!(OsError::IoError(io::Error::last_os_error())));
     }
 
@@ -995,7 +995,7 @@ unsafe fn register_window_class(
     lpfnWndProc: Some(window_proc),
     cbClsExtra: 0,
     cbWndExtra: 0,
-    hInstance: GetModuleHandleW(PCWSTR::default()),
+    hInstance: GetModuleHandleW(PCWSTR::default()).unwrap_or_default(),
     hIcon: h_icon,
     hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
     hbrBackground: HBRUSH::default(),
@@ -1136,11 +1136,7 @@ unsafe fn force_window_active(handle: HWND) {
   inputs[1].Anonymous.ki.dwFlags = KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP;
 
   // Simulate a key press and release
-  SendInput(
-    inputs.len() as _,
-    inputs.as_mut_ptr(),
-    mem::size_of::<INPUT>() as _,
-  );
+  SendInput(&inputs, mem::size_of::<INPUT>() as _);
 
   SetForegroundWindow(handle);
 }

@@ -1,19 +1,16 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{cell::Cell, ffi::OsString, os::windows::ffi::OsStringExt, path::PathBuf, ptr};
+use std::{cell::UnsafeCell, ffi::OsString, os::windows::ffi::OsStringExt, path::PathBuf, ptr};
 
-use windows::{
-  core::PWSTR,
-  Win32::{
-    Foundation::{self as win32f, HWND, POINTL},
-    System::{
-      Com::{IDataObject, DVASPECT_CONTENT, FORMATETC, TYMED_HGLOBAL},
-      Ole::{IDropTarget, IDropTarget_Impl, DROPEFFECT_COPY, DROPEFFECT_NONE},
-      SystemServices::CF_HDROP,
-    },
-    UI::Shell::{DragFinish, DragQueryFileW, HDROP},
+use windows::Win32::{
+  Foundation::{self as win32f, HWND, POINTL},
+  System::{
+    Com::{IDataObject, DVASPECT_CONTENT, FORMATETC, TYMED_HGLOBAL},
+    Ole::{IDropTarget, IDropTarget_Impl, DROPEFFECT_COPY, DROPEFFECT_NONE},
+    SystemServices::CF_HDROP,
   },
+  UI::Shell::{DragFinish, DragQueryFileW, HDROP},
 };
 
 use windows_implement::implement;
@@ -26,8 +23,8 @@ use crate::{event::Event, window::WindowId as SuperWindowId};
 pub struct FileDropHandler {
   window: HWND,
   send_event: Box<dyn Fn(Event<'static, ()>)>,
-  cursor_effect: Cell<u32>,
-  hovered_is_valid: Cell<bool>, /* If the currently hovered item is not valid there must not be any `HoveredFileCancelled` emitted */
+  cursor_effect: UnsafeCell<u32>,
+  hovered_is_valid: UnsafeCell<bool>, /* If the currently hovered item is not valid there must not be any `HoveredFileCancelled` emitted */
 }
 
 impl FileDropHandler {
@@ -62,18 +59,19 @@ impl FileDropHandler {
         let hdrop = HDROP(hglobal);
 
         // The second parameter (0xFFFFFFFF) instructs the function to return the item count
-        let item_count = DragQueryFileW(hdrop, 0xFFFFFFFF, PWSTR::default(), 0);
+        let mut lpsz_file = [];
+        let item_count = DragQueryFileW(hdrop, 0xFFFFFFFF, &mut lpsz_file);
 
         for i in 0..item_count {
           // Get the length of the path string NOT including the terminating null character.
           // Previously, this was using a fixed size array of MAX_PATH length, but the
           // Windows API allows longer paths under certain circumstances.
-          let character_count = DragQueryFileW(hdrop, i, PWSTR::default(), 0) as usize;
+          let character_count = DragQueryFileW(hdrop, i, &mut lpsz_file) as usize;
           let str_len = character_count + 1;
 
           // Fill path_buf with the null-terminated file name
           let mut path_buf = Vec::with_capacity(str_len);
-          DragQueryFileW(hdrop, i, PWSTR(path_buf.as_mut_ptr()), str_len as u32);
+          DragQueryFileW(hdrop, i, &mut path_buf);
           path_buf.set_len(str_len);
 
           callback(OsString::from_wide(&path_buf[0..character_count]).into());
@@ -122,9 +120,9 @@ impl IDropTarget_Impl for FileDropHandler {
       } else {
         DROPEFFECT_NONE
       };
+      *self.hovered_is_valid.get() = hovered_is_valid;
+      *self.cursor_effect.get() = cursor_effect;
       *pdwEffect = cursor_effect;
-      self.hovered_is_valid.set(hovered_is_valid);
-      self.cursor_effect.set(cursor_effect);
     }
     Ok(())
   }
@@ -135,13 +133,15 @@ impl IDropTarget_Impl for FileDropHandler {
     _pt: &POINTL,
     pdwEffect: *mut u32,
   ) -> windows::core::Result<()> {
-    unsafe { *pdwEffect = self.cursor_effect.get() };
+    unsafe {
+      *pdwEffect = *self.cursor_effect.get();
+    }
     Ok(())
   }
 
   fn DragLeave(&self) -> windows::core::Result<()> {
     use crate::event::WindowEvent::HoveredFileCancelled;
-    if self.hovered_is_valid.get() {
+    if unsafe { *self.hovered_is_valid.get() } {
       (self.send_event)(Event::WindowEvent {
         window_id: SuperWindowId(WindowId(self.window.0)),
         event: HoveredFileCancelled,

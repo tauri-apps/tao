@@ -30,8 +30,8 @@ impl Clipboard {
 
   pub(crate) fn read_text(&self) -> Option<String> {
     with_clipboard(|| unsafe {
-      let handle = GetClipboardData(CF_UNICODETEXT.0);
-      if handle.0 == 0 {
+      let handle = GetClipboardData(CF_UNICODETEXT.0).unwrap_or_default();
+      if handle.is_invalid() {
         None
       } else {
         let unic_str = PWSTR(GlobalLock(handle.0) as *mut _);
@@ -66,13 +66,11 @@ impl Clipboard {
             continue;
           }
         };
-        let result = SetClipboardData(format_id, handle);
-        if result.0 == 0 {
+        if let Err(err) = SetClipboardData(format_id, handle) {
           #[cfg(debug_assertions)]
           println!(
             "failed to set clipboard for fmt {}, error: {}",
-            &format.identifier,
-            windows::core::Error::from_win32().code().0
+            &format.identifier, err
           );
         }
       }
