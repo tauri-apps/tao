@@ -3,10 +3,13 @@
 
 /// This is a simple implementation of support for Windows Dark Mode,
 /// which is inspired by the solution in https://github.com/ysc3839/win32-darkmode
-use windows::Win32::{
-  Foundation::{BOOL, HWND, PSTR, PWSTR},
-  System::LibraryLoader::*,
-  UI::{Accessibility::*, Controls::*, WindowsAndMessaging::*},
+use windows::{
+  core::{PCSTR, PCWSTR},
+  Win32::{
+    Foundation::{BOOL, HWND},
+    System::LibraryLoader::*,
+    UI::{Accessibility::*, Controls::*, WindowsAndMessaging::*},
+  },
 };
 
 use std::ffi::c_void;
@@ -83,15 +86,15 @@ pub fn try_theme(hwnd: HWND, preferred_theme: Option<Theme>) -> Theme {
     } else {
       Theme::Light
     };
-    let theme_name = PWSTR(
+    let theme_name = PCWSTR(
       match theme {
         Theme::Dark => DARK_THEME_NAME.clone(),
         Theme::Light => LIGHT_THEME_NAME.clone(),
       }
-      .as_mut_ptr(),
+      .as_ptr(),
     );
 
-    let status = unsafe { SetWindowTheme(hwnd, theme_name, PWSTR::default()) };
+    let status = unsafe { SetWindowTheme(hwnd, theme_name, PCWSTR::default()) };
 
     if status.is_ok() && set_dark_mode_for_window(hwnd, is_dark_mode) {
       return theme;
@@ -164,7 +167,7 @@ fn should_apps_use_dark_mode() -> bool {
 
         let handle = GetProcAddress(
           module,
-          PSTR(UXTHEME_SHOULDAPPSUSEDARKMODE_ORDINAL as usize as *mut _),
+          PCSTR(UXTHEME_SHOULDAPPSUSEDARKMODE_ORDINAL as usize as *mut _),
         );
 
         handle.map(|handle| std::mem::transmute(handle))
@@ -182,8 +185,8 @@ const HCF_HIGHCONTRASTON: u32 = 1;
 fn is_high_contrast() -> bool {
   let mut hc = HIGHCONTRASTA {
     cbSize: 0,
-    dwFlags: 0,
-    lpszDefaultScheme: PSTR::default(),
+    dwFlags: Default::default(),
+    lpszDefaultScheme: Default::default(),
   };
 
   let ok = unsafe {
@@ -191,9 +194,9 @@ fn is_high_contrast() -> bool {
       SPI_GETHIGHCONTRAST,
       std::mem::size_of_val(&hc) as _,
       &mut hc as *mut _ as _,
-      0,
+      Default::default(),
     )
   };
 
-  ok.as_bool() && (HCF_HIGHCONTRASTON & hc.dwFlags) != 0
+  ok.as_bool() && (HCF_HIGHCONTRASTON & hc.dwFlags.0) != 0
 }

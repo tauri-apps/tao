@@ -16,17 +16,20 @@ use std::{
 };
 
 use crossbeam_channel as channel;
-use windows::Win32::{
-  Foundation::{self as win32f, HINSTANCE, HWND, LPARAM, LRESULT, POINT, PWSTR, RECT, WPARAM},
-  Graphics::{
-    Dwm::{DwmEnableBlurBehindWindow, DWM_BB_BLURREGION, DWM_BB_ENABLE, DWM_BLURBEHIND},
-    Gdi::*,
-  },
-  System::{Com::*, LibraryLoader::*, Ole::*},
-  UI::{
-    Input::{Ime::*, KeyboardAndMouse::*, Touch::*},
-    Shell::*,
-    WindowsAndMessaging::{self as win32wm, *},
+use windows::{
+  core::{PCWSTR, PWSTR},
+  Win32::{
+    Foundation::{self as win32f, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
+    Graphics::{
+      Dwm::{DwmEnableBlurBehindWindow, DWM_BB_BLURREGION, DWM_BB_ENABLE, DWM_BLURBEHIND},
+      Gdi::*,
+    },
+    System::{Com::*, LibraryLoader::*, Ole::*},
+    UI::{
+      Input::{Ime::*, KeyboardAndMouse::*, Touch::*},
+      Shell::*,
+      WindowsAndMessaging::{self as win32wm, *},
+    },
   },
 };
 
@@ -493,7 +496,7 @@ impl Window {
 
           let res = unsafe {
             ChangeDisplaySettingsExW(
-              PWSTR(display_name.as_mut_ptr()),
+              PCWSTR(display_name.as_ptr()),
               &native_video_mode,
               HWND::default(),
               CDS_FULLSCREEN,
@@ -511,7 +514,7 @@ impl Window {
         | (&Some(Fullscreen::Exclusive(_)), &Some(Fullscreen::Borderless(_))) => {
           let res = unsafe {
             ChangeDisplaySettingsExW(
-              PWSTR::default(),
+              PCWSTR::default(),
               std::ptr::null_mut(),
               HWND::default(),
               CDS_FULLSCREEN,
@@ -741,7 +744,7 @@ impl Window {
     // `ToUnicode` consumes the dead-key by default, so we are constructing a fake (but valid)
     // key input which we can call `ToUnicode` with.
     unsafe {
-      let vk = u32::from(VK_SPACE);
+      let vk = u32::from(VK_SPACE.0);
       let scancode = MapVirtualKeyW(vk, MAPVK_VK_TO_VSC);
       let kbd_state = [0; 256];
       let mut char_buff = [MaybeUninit::uninit(); 8];
@@ -814,7 +817,7 @@ unsafe fn init<T: 'static>(
   event_loop: &EventLoopWindowTarget<T>,
 ) -> Result<Window, RootOsError> {
   // registering the window class
-  let mut class_name = register_window_class(&attributes.window_icon, &pl_attribs.taskbar_icon);
+  let class_name = register_window_class(&attributes.window_icon, &pl_attribs.taskbar_icon);
 
   let mut window_flags = WindowFlags::empty();
   window_flags.set(WindowFlags::DECORATIONS, attributes.decorations);
@@ -850,7 +853,7 @@ unsafe fn init<T: 'static>(
     let (style, ex_style) = window_flags.to_window_styles();
     let handle = CreateWindowExW(
       ex_style,
-      PWSTR(class_name.as_mut_ptr()),
+      PCWSTR(class_name.as_ptr()),
       attributes.title.as_str(),
       style,
       CW_USEDEFAULT,
@@ -859,7 +862,7 @@ unsafe fn init<T: 'static>(
       CW_USEDEFAULT,
       parent.unwrap_or_default(),
       pl_attribs.menu.unwrap_or_default(),
-      GetModuleHandleW(PWSTR::default()),
+      GetModuleHandleW(PCWSTR::default()),
       Box::into_raw(Box::new(window_flags)) as _,
     );
 
@@ -975,7 +978,7 @@ unsafe fn register_window_class(
   window_icon: &Option<Icon>,
   taskbar_icon: &Option<Icon>,
 ) -> Vec<u16> {
-  let mut class_name = util::encode_wide("Window Class");
+  let class_name = util::encode_wide("Window Class");
 
   let h_icon = taskbar_icon
     .as_ref()
@@ -992,12 +995,12 @@ unsafe fn register_window_class(
     lpfnWndProc: Some(window_proc),
     cbClsExtra: 0,
     cbWndExtra: 0,
-    hInstance: GetModuleHandleW(PWSTR::default()),
+    hInstance: GetModuleHandleW(PCWSTR::default()),
     hIcon: h_icon,
     hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
     hbrBackground: HBRUSH::default(),
-    lpszMenuName: PWSTR::default(),
-    lpszClassName: PWSTR(class_name.as_mut_ptr()),
+    lpszMenuName: PCWSTR::default(),
+    lpszClassName: PCWSTR(class_name.as_ptr()),
     hIconSm: h_icon_small,
   };
 
@@ -1119,7 +1122,7 @@ unsafe fn force_window_active(handle: HWND) {
   // This is a little hack which can "steal" the foreground window permission
   // We only call this function in the window creation, so it should be fine.
   // See : https://stackoverflow.com/questions/10740346/setforegroundwindow-only-working-while-visual-studio-is-open
-  let alt_sc = MapVirtualKeyW(u32::from(VK_MENU), MAPVK_VK_TO_VSC);
+  let alt_sc = MapVirtualKeyW(u32::from(VK_MENU.0), MAPVK_VK_TO_VSC);
 
   let mut inputs: [INPUT; 2] = mem::zeroed();
   inputs[0].r#type = INPUT_KEYBOARD;

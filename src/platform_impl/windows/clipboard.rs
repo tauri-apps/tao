@@ -3,15 +3,18 @@
 
 use crate::clipboard::{ClipboardFormat, FormatId};
 use std::{ffi::OsStr, os::windows::ffi::OsStrExt, ptr};
-use windows::Win32::{
-  Foundation::{HANDLE, HWND, PSTR, PWSTR},
-  System::{
-    DataExchange::{
-      CloseClipboard, EmptyClipboard, GetClipboardData, OpenClipboard, RegisterClipboardFormatA,
-      SetClipboardData,
+use windows::{
+  core::PWSTR,
+  Win32::{
+    Foundation::{HANDLE, HWND},
+    System::{
+      DataExchange::{
+        CloseClipboard, EmptyClipboard, GetClipboardData, OpenClipboard, RegisterClipboardFormatA,
+        SetClipboardData,
+      },
+      Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE},
+      SystemServices::CF_UNICODETEXT,
     },
-    Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE},
-    SystemServices::CF_UNICODETEXT,
   },
 };
 
@@ -27,7 +30,7 @@ impl Clipboard {
 
   pub(crate) fn read_text(&self) -> Option<String> {
     with_clipboard(|| unsafe {
-      let handle = GetClipboardData(CF_UNICODETEXT);
+      let handle = GetClipboardData(CF_UNICODETEXT.0);
       if handle.0 == 0 {
         None
       } else {
@@ -82,7 +85,7 @@ fn get_format_id(format: FormatId) -> Option<u32> {
     return Some(*id);
   }
   match format {
-    ClipboardFormat::TEXT => Some(CF_UNICODETEXT),
+    ClipboardFormat::TEXT => Some(CF_UNICODETEXT.0),
     other => register_identifier(other),
   }
 }
@@ -108,14 +111,14 @@ unsafe fn make_handle(format: &ClipboardFormat) -> HANDLE {
     let s: &OsStr = std::str::from_utf8_unchecked(&format.data).as_ref();
     let wstr: Vec<u16> = s.encode_wide().chain(Some(0)).collect();
     let handle = GlobalAlloc(GMEM_MOVEABLE, wstr.len() * std::mem::size_of::<u16>());
-    let locked = PWSTR(GlobalLock(handle) as *mut _);
-    ptr::copy_nonoverlapping(wstr.as_ptr(), locked.0, wstr.len());
+    let locked = GlobalLock(handle) as *mut _;
+    ptr::copy_nonoverlapping(wstr.as_ptr(), locked, wstr.len());
     GlobalUnlock(handle);
     handle
   } else {
     let handle = GlobalAlloc(GMEM_MOVEABLE, format.data.len() * std::mem::size_of::<u8>());
-    let locked = PSTR(GlobalLock(handle) as *mut _);
-    ptr::copy_nonoverlapping(format.data.as_ptr(), locked.0, format.data.len());
+    let locked = GlobalLock(handle) as *mut _;
+    ptr::copy_nonoverlapping(format.data.as_ptr(), locked, format.data.len());
     GlobalUnlock(handle);
     handle
   })

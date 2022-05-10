@@ -3,12 +3,15 @@
 
 use std::{collections::HashMap, fmt, sync::Mutex};
 
-use windows::Win32::{
-  Foundation::{HWND, LPARAM, LRESULT, PWSTR, WPARAM},
-  UI::{
-    Input::KeyboardAndMouse::*,
-    Shell::*,
-    WindowsAndMessaging::{self as win32wm, *},
+use windows::{
+  core::{PCWSTR, PWSTR},
+  Win32::{
+    Foundation::{HWND, LPARAM, LRESULT, WPARAM},
+    UI::{
+      Input::KeyboardAndMouse::*,
+      Shell::*,
+      WindowsAndMessaging::{self as win32wm, *},
+    },
   },
 };
 
@@ -26,7 +29,7 @@ use super::{accelerator::register_accel, keyboard::key_to_vk, util, WindowId};
 struct AccelWrapper(ACCEL);
 impl fmt::Debug for AccelWrapper {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-    f.pad(&format!(""))
+    f.pad("")
   }
 }
 
@@ -93,7 +96,7 @@ impl MenuItemAttributes {
       mif.cch += 1;
       mif.dwTypeData = PWSTR(Vec::with_capacity(mif.cch as usize).as_mut_ptr());
       GetMenuItemInfoW(self.1, self.0 as u32, false, &mut mif);
-      util::wchar_ptr_to_string(mif.dwTypeData)
+      util::wchar_ptr_to_string(PCWSTR(mif.dwTypeData.0))
         .split("\t")
         .next()
         .unwrap_or_default()
@@ -135,8 +138,8 @@ impl MenuItemAttributes {
         self.1,
         self.0 as u32,
         match selected {
-          true => MF_CHECKED,
-          false => MF_UNCHECKED,
+          true => MF_CHECKED.0,
+          false => MF_UNCHECKED.0,
         },
       );
     }
@@ -222,7 +225,7 @@ impl Menu {
         self.hmenu,
         flags,
         menu_id.0 as _,
-        PWSTR(util::encode_wide(title).as_mut_ptr()),
+        PCWSTR(util::encode_wide(title).as_ptr()),
       );
 
       // add our accels
@@ -262,7 +265,7 @@ impl Menu {
     match item {
       MenuItem::Separator => {
         unsafe {
-          AppendMenuW(self.hmenu, MF_SEPARATOR, 0, PWSTR::default());
+          AppendMenuW(self.hmenu, MF_SEPARATOR, 0, PCWSTR::default());
         };
       }
       MenuItem::Cut => unsafe {
@@ -382,27 +385,29 @@ enum EditCommand {
   SelectAll,
 }
 fn execute_edit_command(command: EditCommand) {
-  let key = match command {
+  let key = VIRTUAL_KEY(match command {
     EditCommand::Copy => 0x43,      // c
     EditCommand::Cut => 0x58,       // x
     EditCommand::Paste => 0x56,     // v
     EditCommand::SelectAll => 0x41, // a
-  };
+  });
 
   unsafe {
     let mut inputs: [INPUT; 4] = std::mem::zeroed();
     inputs[0].r#type = INPUT_KEYBOARD;
-    inputs[0].Anonymous.ki.wVk = VK_CONTROL as _;
+    inputs[0].Anonymous.ki.wVk = VK_CONTROL;
+    inputs[2].Anonymous.ki.dwFlags = Default::default();
 
     inputs[1].r#type = INPUT_KEYBOARD;
-    inputs[1].Anonymous.ki.wVk = key as VIRTUAL_KEY;
+    inputs[1].Anonymous.ki.wVk = key;
+    inputs[2].Anonymous.ki.dwFlags = Default::default();
 
     inputs[2].r#type = INPUT_KEYBOARD;
-    inputs[2].Anonymous.ki.wVk = key as VIRTUAL_KEY;
+    inputs[2].Anonymous.ki.wVk = key;
     inputs[2].Anonymous.ki.dwFlags = KEYEVENTF_KEYUP;
 
     inputs[3].r#type = INPUT_KEYBOARD;
-    inputs[3].Anonymous.ki.wVk = VK_CONTROL as _;
+    inputs[3].Anonymous.ki.wVk = VK_CONTROL;
     inputs[3].Anonymous.ki.dwFlags = KEYEVENTF_KEYUP;
 
     SendInput(
@@ -429,7 +434,7 @@ impl Accelerator {
     }
 
     let raw_key = if let Some(vk_code) = key_to_vk(&self.key) {
-      let mod_code = vk_code >> 8;
+      let mod_code = vk_code.0 >> 8;
       if mod_code & 0x1 != 0 {
         virt_key |= FSHIFT;
       }
@@ -439,7 +444,7 @@ impl Accelerator {
       if mod_code & 0x04 != 0 {
         virt_key |= FALT;
       }
-      vk_code & 0x00ff
+      vk_code.0 & 0x00ff
     } else {
       dbg!("Failed to convert key {:?} into virtual key code", self.key);
       return None;
