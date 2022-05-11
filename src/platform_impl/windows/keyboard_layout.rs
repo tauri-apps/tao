@@ -438,7 +438,7 @@ impl LayoutCache {
       let mut wide_len = ToUnicodeEx(
         u32::from(vkey.0),
         scancode,
-        &key_state,
+        key_state,
         &mut label_wide,
         0,
         locale_id,
@@ -448,7 +448,7 @@ impl LayoutCache {
         wide_len = ToUnicodeEx(
           u32::from(vkey.0),
           scancode,
-          &key_state,
+          key_state,
           &mut label_wide,
           0,
           locale_id,
