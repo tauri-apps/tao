@@ -3,6 +3,7 @@
 
 #![cfg(any(target_os = "android"))]
 
+pub use crate::platform_impl::ndk_glue;
 use crate::{
   event_loop::{EventLoop, EventLoopWindowTarget},
   window::{Window, WindowBuilder},

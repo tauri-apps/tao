@@ -16,7 +16,6 @@ use ndk::{
   event::{InputEvent, KeyAction, MotionAction},
   looper::{ForeignLooper, Poll, ThreadLooper},
 };
-use ndk_glue::{Event, Rect};
 use ndk_sys::AKeyEvent_getKeyCode;
 use raw_window_handle::{AndroidNdkHandle, RawWindowHandle};
 use std::{
@@ -28,6 +27,8 @@ use std::{
 
 mod clipboard;
 pub use clipboard::Clipboard;
+pub mod ndk_glue;
+use ndk_glue::{Event, Rect};
 
 lazy_static! {
   static ref CONFIG: RwLock<Configuration> = RwLock::new(Configuration::new());
@@ -194,23 +195,23 @@ impl<T: 'static> EventLoop<T> {
           Event::Pause => self.running = false,
           Event::Resume => self.running = true,
           Event::ConfigChanged => {
-            #[allow(deprecated)] // TODO: use ndk-context instead
-            let am = ndk_glue::native_activity().asset_manager();
-            let config = Configuration::from_asset_manager(&am);
-            let old_scale_factor = MonitorHandle.scale_factor();
-            *CONFIG.write().unwrap() = config;
-            let scale_factor = MonitorHandle.scale_factor();
-            if (scale_factor - old_scale_factor).abs() < f64::EPSILON {
-              let mut size = MonitorHandle.size();
-              let event = event::Event::WindowEvent {
-                window_id: window::WindowId(WindowId),
-                event: event::WindowEvent::ScaleFactorChanged {
-                  new_inner_size: &mut size,
-                  scale_factor,
-                },
-              };
-              call_event_handler!(event_handler, self.window_target(), control_flow, event);
-            }
+            // #[allow(deprecated)] // TODO: use ndk-context instead
+            // let am = ndk_glue::native_activity().asset_manager();
+            // let config = Configuration::from_asset_manager(&am);
+            // let old_scale_factor = MonitorHandle.scale_factor();
+            // *CONFIG.write().unwrap() = config;
+            // let scale_factor = MonitorHandle.scale_factor();
+            // if (scale_factor - old_scale_factor).abs() < f64::EPSILON {
+            //   let mut size = MonitorHandle.size();
+            //   let event = event::Event::WindowEvent {
+            //     window_id: window::WindowId(WindowId),
+            //     event: event::WindowEvent::ScaleFactorChanged {
+            //       new_inner_size: &mut size,
+            //       scale_factor,
+            //     },
+            //   };
+            //   call_event_handler!(event_handler, self.window_target(), control_flow, event);
+            // }
           }
           Event::WindowHasFocus => {
             call_event_handler!(
