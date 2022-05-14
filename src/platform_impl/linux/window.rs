@@ -198,6 +198,7 @@ impl Window {
     let theme = r#"
         menubar {
           background-color: transparent;
+          box-shadow: none;
         }
       "#;
     css_provider.load_from_data(theme.as_bytes());
