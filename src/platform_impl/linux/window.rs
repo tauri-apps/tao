@@ -193,6 +193,20 @@ impl Window {
     window.add(&window_box);
 
     let mut menu_bar = gtk::MenuBar::new();
+
+    unsafe {
+      gtk_sys::gtk_widget_override_background_color(
+        menu_bar.as_ptr(),
+        0,
+        gdk_sys::GdkRGBA {
+          red: 0,
+          green: 0,
+          blue: 0,
+          alpha: 0,
+        } as *const _,
+      );
+    }
+
     window_box.pack_start(&menu_bar, false, false, 0);
     if let Some(window_menu) = attributes.window_menu {
       window_menu.generate_menu(&mut menu_bar, &window_requests_tx, &accel_group, window_id);
