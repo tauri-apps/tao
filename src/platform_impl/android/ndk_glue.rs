@@ -1,7 +1,7 @@
 use crate::window::Window;
 use crossbeam_channel::*;
 use jni::{
-  objects::{JClass, JObject, JString},
+  objects::{GlobalRef, JClass, JObject, JString, JValue},
   sys::jobjectArray,
   JNIEnv,
 };
@@ -24,18 +24,127 @@ use std::{
   thread,
 };
 
-pub static IPC: OnceCell<UnsafeIpc> = OnceCell::new();
-pub static CHANNEL: Lazy<(Sender<WebViewMessage>, Receiver<WebViewMessage>)> =
-  Lazy::new(|| bounded(8));
+static CHANNEL: Lazy<(Sender<WebViewMessage>, Receiver<WebViewMessage>)> = Lazy::new(|| bounded(8));
+static MAIN_PIPE: Lazy<[RawFd; 2]> = Lazy::new(|| {
+  let mut pipe: [RawFd; 2] = Default::default();
+  unsafe { libc::pipe(pipe.as_mut_ptr()) };
+  pipe
+});
+
+pub struct MainPipe<'a> {
+  env: JNIEnv<'a>,
+  activity: GlobalRef,
+  scripts: Vec<String>,
+  webview: Option<GlobalRef>,
+}
+
+impl MainPipe<'_> {
+  pub fn send(message: WebViewMessage) {
+    let size = std::mem::size_of::<bool>();
+    if let Ok(()) = CHANNEL.0.send(message) {
+      unsafe { libc::write(MAIN_PIPE[1], &true as *const _ as *const _, size) };
+    }
+  }
+
+  fn recv(&mut self) -> Result<(), jni::errors::Error> {
+    let env = self.env;
+    let activity = self.activity.as_obj();
+    if let Ok(message) = CHANNEL.1.recv() {
+      match message {
+        WebViewMessage::CreateWebView(url, mut scripts, devtools) => {
+          // Create webview
+          let class = env.find_class("android/webkit/WebView")?;
+          let webview =
+            env.new_object(class, "(Landroid/content/Context;)V", &[activity.into()])?;
+
+          // Enable Javascript
+          let settings = env
+            .call_method(
+              webview,
+              "getSettings",
+              "()Landroid/webkit/WebSettings;",
+              &[],
+            )?
+            .l()?;
+          env.call_method(settings, "setJavaScriptEnabled", "(Z)V", &[true.into()])?;
+
+          // Load URL
+          if let Ok(url) = env.new_string(url) {
+            env.call_method(webview, "loadUrl", "(Ljava/lang/String;)V", &[url.into()])?;
+          }
+
+          // Enable devtools
+          env.call_static_method(
+            class,
+            "setWebContentsDebuggingEnabled",
+            "(Z)V",
+            &[devtools.into()],
+          )?;
+
+          // Initialize scripts
+          self.scripts.append(&mut scripts);
+
+          // Set webview client
+          let client = env.call_method(
+            activity,
+            "getClient",
+            "()Landroid/webkit/WebViewClient;",
+            &[],
+          )?;
+          env.call_method(
+            webview,
+            "setWebViewClient",
+            "(Landroid/webkit/WebViewClient;)V",
+            &[client.into()],
+          )?;
+
+          // Add javascript interface (IPC)
+          let handler =
+            env.call_method(activity, "getIpc", "()Lcom/example/hh/IpcHandler;", &[])?;
+          let ipc = env.new_string("ipc")?;
+          env.call_method(
+            webview,
+            "addJavascriptInterface",
+            "(Ljava/lang/Object;Ljava/lang/String;)V",
+            &[handler.into(), ipc.into()],
+          )?;
+
+          env.call_method(
+            activity,
+            "setContentView",
+            "(Landroid/view/View;)V",
+            &[webview.into()],
+          )?;
+          let webview = env.new_global_ref(webview)?;
+          self.webview = Some(webview);
+        }
+        WebViewMessage::Eval => {
+          if let Some(webview) = &self.webview {
+            for s in self.scripts.drain(..).into_iter() {
+              let s = env.new_string(s)?;
+              env.call_method(
+                webview.as_obj(),
+                "evaluateJavascript",
+                "(Ljava/lang/String;Landroid/webkit/ValueCallback;)V",
+                &[s.into(), JObject::null().into()],
+              )?;
+            }
+          }
+        }
+        _ => (),
+      }
+    }
+    Ok(())
+  }
+}
 
 #[derive(Debug)]
 pub enum WebViewMessage {
-  LoadUrl(String),
-  Scripts(Vec<String>),
-  Devtools,
-  Done,
+  CreateWebView(String, Vec<String>, bool),
+  Eval,
 }
 
+pub static IPC: OnceCell<UnsafeIpc> = OnceCell::new();
 pub struct UnsafeIpc(*mut c_void, Rc<Window>);
 impl UnsafeIpc {
   pub fn new(f: *mut c_void, w: Rc<Window>) -> Self {
@@ -105,7 +214,7 @@ pub fn poll_events() -> Option<Event> {
   }
 }
 
-unsafe fn wake(_activity: *mut ANativeActivity, event: Event) {
+unsafe fn wake(event: Event) {
   log::trace!("{:?}", event);
   let size = std::mem::size_of::<Event>();
   let res = libc::write(PIPE[1], &event as *const _ as *const _, size);
@@ -150,7 +259,39 @@ pub enum Event {
   ContentRectChanged,
 }
 
-pub unsafe fn on_create(env: JNIEnv, jclass: JClass, jobject: JObject, main: fn()) -> jobjectArray {
+pub unsafe fn on_create(env: JNIEnv, jclass: JClass, jobject: JObject, main: fn()) {
+  //-> jobjectArray {
+  // Initialize global context
+  let activity = env.new_global_ref(jobject).unwrap();
+  let vm = env.get_java_vm().unwrap();
+  let env = vm.attach_current_thread_as_daemon().unwrap();
+  ndk_context::initialize_android_context(
+    vm.get_java_vm_pointer() as *mut _,
+    activity.as_obj().into_inner() as *mut _,
+  );
+
+  let mut main_pipe = MainPipe {
+    env,
+    activity,
+    scripts: vec![],
+    webview: None,
+  };
+  let looper = ThreadLooper::for_thread().unwrap().into_foreign();
+  looper
+    .add_fd_with_callback(MAIN_PIPE[0], FdEvent::INPUT, move |_| {
+      let size = std::mem::size_of::<bool>();
+      let mut wake = false;
+      if libc::read(MAIN_PIPE[0], &mut wake as *mut _ as *mut _, size) == size as libc::ssize_t {
+        match main_pipe.recv() {
+          Ok(_) => true,
+          Err(_) => false,
+        }
+      } else {
+        false
+      }
+    })
+    .unwrap();
+
   let mut logpipe: [RawFd; 2] = Default::default();
   libc::pipe(logpipe.as_mut_ptr());
   libc::dup2(logpipe[1], libc::STDOUT_FILENO);
@@ -204,46 +345,15 @@ pub unsafe fn on_create(env: JNIEnv, jclass: JClass, jobject: JObject, main: fn(
   let _mutex_guard = looper_ready
     .wait_while(locked_looper, |looper| looper.is_none())
     .unwrap();
-
-  create_webview(env, jclass, jobject).unwrap()
 }
 
-fn create_webview(
-  env: JNIEnv,
-  jclass: JClass,
-  jobject: JObject,
-) -> Result<jobjectArray, jni::errors::Error> {
-  let mut scripts = vec![String::new()];
-  while let Ok(msg) = CHANNEL.1.recv() {
-    match msg {
-      WebViewMessage::LoadUrl(url) => {
-        let url = env.new_string(url)?;
-        env.call_method(jobject, "loadUrl", "(Ljava/lang/String;)V", &[url.into()])?;
-      }
-      WebViewMessage::Scripts(s) => {
-        scripts = s;
-      }
-      WebViewMessage::Devtools => {
-        let class = env.find_class("android/webkit/WebView")?;
-        env.call_static_method(
-          class,
-          "setWebContentsDebuggingEnabled",
-          "(Z)V",
-          &[true.into()],
-        )?;
-      }
-      WebViewMessage::Done => break,
-    }
-  }
-
-  let len = scripts.len();
-  let string_class = env.find_class("java/lang/String")?;
-  let jscripts = env.new_object_array(len as i32, string_class, env.new_string("")?)?;
-  for (idx, s) in scripts.into_iter().enumerate() {
-    env.set_object_array_element(jscripts, idx as i32, env.new_string(s)?)?;
-  }
-
-  Ok(jscripts)
+#[no_mangle]
+pub unsafe extern "C" fn Java_com_example_hh_WryClient_eval(
+  _env: JNIEnv,
+  _jclass: JClass,
+  _jobject: JString,
+) {
+  MainPipe::send(WebViewMessage::Eval);
 }
 
 #[no_mangle]
@@ -267,55 +377,87 @@ pub unsafe extern "C" fn Java_com_example_hh_IpcHandler_ipc(
   }
 }
 
-/*
-unsafe extern "C" fn on_start(activity: *mut ANativeActivity) {
-  wake(activity, Event::Start);
+#[no_mangle]
+pub unsafe extern "C" fn Java_com_example_hh_MainActivity_resume(
+  _env: JNIEnv,
+  _jclass: JClass,
+  _jobject: JObject,
+) {
+  wake(Event::Resume);
 }
 
-unsafe extern "C" fn on_resume(activity: *mut ANativeActivity) {
-  wake(activity, Event::Resume);
+#[no_mangle]
+pub unsafe extern "C" fn Java_com_example_hh_MainActivity_pause(
+  _env: JNIEnv,
+  _jclass: JClass,
+  _jobject: JObject,
+) {
+  wake(Event::Pause);
 }
 
-unsafe extern "C" fn on_save_instance_state(
-  activity: *mut ANativeActivity,
-  _out_size: *mut ndk_sys::size_t,
-) -> *mut raw::c_void {
-  // TODO
-  wake(activity, Event::SaveInstanceState);
-  std::ptr::null_mut()
-}
-
-unsafe extern "C" fn on_pause(activity: *mut ANativeActivity) {
-  wake(activity, Event::Pause);
-}
-
-unsafe extern "C" fn on_stop(activity: *mut ANativeActivity) {
-  wake(activity, Event::Stop);
-}
-
-unsafe extern "C" fn on_destroy(activity: *mut ANativeActivity) {
-  wake(activity, Event::Destroy);
-  ndk_context::release_android_context();
-}
-
-unsafe extern "C" fn on_configuration_changed(activity: *mut ANativeActivity) {
-  wake(activity, Event::ConfigChanged);
-}
-
-unsafe extern "C" fn on_low_memory(activity: *mut ANativeActivity) {
-  wake(activity, Event::LowMemory);
-}
-
-unsafe extern "C" fn on_window_focus_changed(
-  activity: *mut ANativeActivity,
-  has_focus: raw::c_int,
+#[no_mangle]
+pub unsafe extern "C" fn Java_com_example_hh_MainActivity_focus(
+  _env: JNIEnv,
+  _jclass: JClass,
+  has_focus: libc::c_int,
 ) {
   let event = if has_focus == 0 {
     Event::WindowLostFocus
   } else {
     Event::WindowHasFocus
   };
-  wake(activity, event);
+  wake(event);
+}
+
+// Events below are not used by event loop yet.
+#[no_mangle]
+pub unsafe extern "C" fn Java_com_example_hh_MainActivity_start(
+  _env: JNIEnv,
+  _jclass: JClass,
+  _jobject: JObject,
+) {
+  wake(Event::Start);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Java_com_example_hh_MainActivity_stop(
+  _env: JNIEnv,
+  _jclass: JClass,
+  _jobject: JObject,
+) {
+  wake(Event::Stop);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Java_com_example_hh_MainActivity_save(
+  _env: JNIEnv,
+  _jclass: JClass,
+  _jobject: JObject,
+) {
+  wake(Event::SaveInstanceState);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Java_com_example_hh_MainActivity_destroy(
+  _env: JNIEnv,
+  _jclass: JClass,
+  _jobject: JObject,
+) {
+  wake(Event::Destroy);
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Java_com_example_hh_MainActivity_memory(
+  _env: JNIEnv,
+  _jclass: JClass,
+  _jobject: JObject,
+) {
+  wake(Event::LowMemory);
+}
+
+/*
+unsafe extern "C" fn on_configuration_changed(activity: *mut ANativeActivity) {
+  wake(activity, Event::ConfigChanged);
 }
 
 unsafe extern "C" fn on_window_created(activity: *mut ANativeActivity, window: *mut ANativeWindow) {
