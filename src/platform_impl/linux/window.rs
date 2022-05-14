@@ -193,19 +193,15 @@ impl Window {
     window.add(&window_box);
 
     let mut menu_bar = gtk::MenuBar::new();
-
-    unsafe {
-      gtk_sys::gtk_widget_override_background_color(
-        menu_bar.as_ptr() as _,
-        0,
-        &gdk_sys::GdkRGBA {
-          red: 0.,
-          green: 0.,
-          blue: 0.,
-          alpha: 0.,
-        } as *const _,
-      );
-    }
+    let style_context = menu_bar.style_context();
+    let css_provider = gtk::CssProvider::new();
+    let theme = r#"
+        menubar {
+          background-color: transparent;
+        }
+      "#;
+    css_provider.load_from_data(theme.as_bytes());
+    style_context.add_provider(&css_provider, 600);
 
     window_box.pack_start(&menu_bar, false, false, 0);
     if let Some(window_menu) = attributes.window_menu {
