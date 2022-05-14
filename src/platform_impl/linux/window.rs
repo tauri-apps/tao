@@ -196,13 +196,13 @@ impl Window {
 
     unsafe {
       gtk_sys::gtk_widget_override_background_color(
-        menu_bar.as_ptr(),
+        menu_bar.as_ptr() as _,
         0,
-        gdk_sys::GdkRGBA {
-          red: 0,
-          green: 0,
-          blue: 0,
-          alpha: 0,
+        &gdk_sys::GdkRGBA {
+          red: 0.,
+          green: 0.,
+          blue: 0.,
+          alpha: 0.,
         } as *const _,
       );
     }
