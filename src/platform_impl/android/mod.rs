@@ -174,7 +174,7 @@ impl<T: 'static> EventLoop<T> {
 
       match self.first_event.take() {
         Some(EventSource::Callback) => match ndk_glue::poll_events().unwrap() {
-          Event::WindowCreated => {
+          Event::Resume => {
             call_event_handler!(
               event_handler,
               self.window_target(),
@@ -184,7 +184,7 @@ impl<T: 'static> EventLoop<T> {
           }
           Event::WindowResized => resized = true,
           Event::WindowRedrawNeeded => redraw = true,
-          Event::WindowDestroyed => {
+          Event::Pause => {
             call_event_handler!(
               event_handler,
               self.window_target(),
@@ -192,8 +192,8 @@ impl<T: 'static> EventLoop<T> {
               event::Event::Suspended
             );
           }
-          Event::Pause => self.running = false,
-          Event::Resume => self.running = true,
+          Event::Stop => self.running = false,
+          Event::Start => self.running = true,
           Event::ConfigChanged => {
             // #[allow(deprecated)] // TODO: use ndk-context instead
             // let am = ndk_glue::native_activity().asset_manager();
@@ -665,9 +665,10 @@ impl Window {
   }
 
   pub fn raw_window_handle(&self) -> RawWindowHandle {
+    // TODO: Use main activity instead?
     let mut handle = AndroidNdkHandle::empty();
-    if let Some(native_window) = ndk_glue::native_window().as_ref() {
-      handle.a_native_window = unsafe { native_window.ptr().as_mut() as *mut _ as *mut _ }
+    if let Some(w) = ndk_glue::window_manager() {
+      handle.a_native_window = w.as_obj().into_inner() as *mut _;
     } else {
       panic!("Cannot get the native window, it's null and will always be null before Event::Resumed and after Event::Suspended. Make sure you only call this function between those events.");
     };
@@ -704,10 +705,38 @@ impl MonitorHandle {
   }
 
   pub fn size(&self) -> PhysicalSize<u32> {
-    if let Some(native_window) = ndk_glue::native_window().as_ref() {
-      let width = native_window.width() as _;
-      let height = native_window.height() as _;
-      PhysicalSize::new(width, height)
+    // TODO decide how to get JNIENV
+    if let Some(w) = ndk_glue::window_manager() {
+      let ctx = ndk_context::android_context();
+      let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.unwrap();
+      let env = vm.attach_current_thread().unwrap();
+      let window_manager = w.as_obj();
+      let metrics = env
+        .call_method(
+          window_manager,
+          "getCurrentWindowMetrics",
+          "()Landroid/view/WindowMetrics;",
+          &[],
+        )
+        .unwrap()
+        .l()
+        .unwrap();
+      let rect = env
+        .call_method(metrics, "getBounds", "()Landroid/graphics/Rect;", &[])
+        .unwrap()
+        .l()
+        .unwrap();
+      let width = env
+        .call_method(rect, "width", "()I", &[])
+        .unwrap()
+        .i()
+        .unwrap();
+      let height = env
+        .call_method(rect, "height", "()I", &[])
+        .unwrap()
+        .i()
+        .unwrap();
+      PhysicalSize::new(width as u32, height as u32)
     } else {
       PhysicalSize::new(0, 0)
     }

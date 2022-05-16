@@ -1,8 +1,7 @@
 use crate::window::Window;
 use crossbeam_channel::*;
-use jni::{
-  objects::{GlobalRef, JClass, JObject, JString, JValue},
-  sys::jobjectArray,
+pub use jni::{
+  objects::{GlobalRef, JClass, JObject, JString},
   JNIEnv,
 };
 use libc::c_void;
@@ -10,9 +9,7 @@ use log::Level;
 use ndk::{
   input_queue::InputQueue,
   looper::{FdEvent, ForeignLooper, ThreadLooper},
-  native_window::NativeWindow,
 };
-use ndk_sys::{AInputQueue, ANativeActivity, ANativeWindow, ARect};
 use once_cell::sync::{Lazy, OnceCell};
 use std::{
   ffi::{CStr, CString},
@@ -23,6 +20,48 @@ use std::{
   sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard},
   thread,
 };
+
+#[macro_export]
+macro_rules! android_fn {
+  ($domain:ident, $package:ident) => {
+    paste::paste! {
+        #[no_mangle]
+        unsafe extern "C" fn [< Java_ $domain _ $package _ MainActivity_create >](
+          env: JNIEnv,
+          class: JClass,
+          object: JObject,
+        ) {
+            create(env, class, object, _start_app)
+        }
+
+        android_fn!($domain, $package, MainActivity, start);
+        android_fn!($domain, $package, MainActivity, stop);
+        android_fn!($domain, $package, MainActivity, resume);
+        android_fn!($domain, $package, MainActivity, pause);
+        android_fn!($domain, $package, MainActivity, save);
+        android_fn!($domain, $package, MainActivity, destroy);
+        android_fn!($domain, $package, MainActivity, memory);
+        android_fn!($domain, $package, MainActivity, focus, i32);
+        android_fn!($domain, $package, RustClient, eval);
+        android_fn!($domain, $package, IpcInterface, ipc, JString);
+    }
+  };
+  ($domain:ident, $package:ident, $class:ident, $function:ident) => {
+    android_fn!($domain, $package, $class, $function, JObject)
+  };
+  ($domain:ident, $package:ident, $class:ident, $function:ident, $arg:ty) => {
+    paste::paste! {
+        #[no_mangle]
+        unsafe extern "C" fn [< Java_ $domain _ $package _ $class _ $function >](
+          env: JNIEnv,
+          class: JClass,
+          object: $arg,
+        ) {
+            $function(env, class, object)
+        }
+    }
+  };
+}
 
 static CHANNEL: Lazy<(Sender<WebViewMessage>, Receiver<WebViewMessage>)> = Lazy::new(|| bounded(8));
 static MAIN_PIPE: Lazy<[RawFd; 2]> = Lazy::new(|| {
@@ -100,7 +139,7 @@ impl MainPipe<'_> {
 
           // Add javascript interface (IPC)
           let handler =
-            env.call_method(activity, "getIpc", "()Lcom/example/hh/IpcHandler;", &[])?;
+            env.call_method(activity, "getIpc", "()Lcom/example/hh/IpcInterface;", &[])?;
           let ipc = env.new_string("ipc")?;
           env.call_method(
             webview,
@@ -109,6 +148,7 @@ impl MainPipe<'_> {
             &[handler.into(), ipc.into()],
           )?;
 
+          // Set content view
           env.call_method(
             activity,
             "setContentView",
@@ -131,7 +171,6 @@ impl MainPipe<'_> {
             }
           }
         }
-        _ => (),
       }
     }
     Ok(())
@@ -179,13 +218,13 @@ pub fn android_log(level: Level, tag: &CStr, msg: &CStr) {
   }
 }
 
-static NATIVE_WINDOW: Lazy<RwLock<Option<NativeWindow>>> = Lazy::new(|| Default::default());
+static WINDOW_MANGER: OnceCell<GlobalRef> = OnceCell::new();
 static INPUT_QUEUE: Lazy<RwLock<Option<InputQueue>>> = Lazy::new(|| Default::default());
 static CONTENT_RECT: Lazy<RwLock<Rect>> = Lazy::new(|| Default::default());
 static LOOPER: Lazy<Mutex<Option<ForeignLooper>>> = Lazy::new(|| Default::default());
 
-pub fn native_window() -> RwLockReadGuard<'static, Option<NativeWindow>> {
-  NATIVE_WINDOW.read().unwrap()
+pub fn window_manager() -> Option<&'static GlobalRef> {
+  WINDOW_MANGER.get()
 }
 
 pub fn input_queue() -> RwLockReadGuard<'static, Option<InputQueue>> {
@@ -259,9 +298,21 @@ pub enum Event {
   ContentRectChanged,
 }
 
-pub unsafe fn on_create(env: JNIEnv, jclass: JClass, jobject: JObject, main: fn()) {
+pub unsafe fn create(env: JNIEnv, _jclass: JClass, jobject: JObject, main: fn()) {
   //-> jobjectArray {
   // Initialize global context
+  let window_manager = env
+    .call_method(
+      jobject,
+      "getWindowManager",
+      "()Landroid/view/WindowManager;",
+      &[],
+    )
+    .unwrap()
+    .l()
+    .unwrap();
+  let window_manager = env.new_global_ref(window_manager).unwrap();
+  WINDOW_MANGER.get_or_init(move || window_manager);
   let activity = env.new_global_ref(jobject).unwrap();
   let vm = env.get_java_vm().unwrap();
   let env = vm.attach_current_thread_as_daemon().unwrap();
@@ -347,22 +398,12 @@ pub unsafe fn on_create(env: JNIEnv, jclass: JClass, jobject: JObject, main: fn(
     .unwrap();
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn Java_com_example_hh_WryClient_eval(
-  _env: JNIEnv,
-  _jclass: JClass,
-  _jobject: JString,
-) {
+pub unsafe fn eval(_: JNIEnv, _: JClass, _: JObject) {
   MainPipe::send(WebViewMessage::Eval);
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn Java_com_example_hh_IpcHandler_ipc(
-  env: JNIEnv,
-  _jclass: JClass,
-  jobject: JString,
-) {
-  match env.get_string(jobject) {
+pub unsafe fn ipc(env: JNIEnv, _: JClass, arg: JString) {
+  match env.get_string(arg) {
     Ok(arg) => {
       let arg = arg.to_string_lossy().to_string();
       if let Some(w) = IPC.get() {
@@ -377,30 +418,15 @@ pub unsafe extern "C" fn Java_com_example_hh_IpcHandler_ipc(
   }
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn Java_com_example_hh_MainActivity_resume(
-  _env: JNIEnv,
-  _jclass: JClass,
-  _jobject: JObject,
-) {
+pub unsafe fn resume(_: JNIEnv, _: JClass, _: JObject) {
   wake(Event::Resume);
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn Java_com_example_hh_MainActivity_pause(
-  _env: JNIEnv,
-  _jclass: JClass,
-  _jobject: JObject,
-) {
+pub unsafe fn pause(_: JNIEnv, _: JClass, _: JObject) {
   wake(Event::Pause);
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn Java_com_example_hh_MainActivity_focus(
-  _env: JNIEnv,
-  _jclass: JClass,
-  has_focus: libc::c_int,
-) {
+pub unsafe fn focus(_: JNIEnv, _: JClass, has_focus: libc::c_int) {
   let event = if has_focus == 0 {
     Event::WindowLostFocus
   } else {
@@ -409,49 +435,27 @@ pub unsafe extern "C" fn Java_com_example_hh_MainActivity_focus(
   wake(event);
 }
 
-// Events below are not used by event loop yet.
-#[no_mangle]
-pub unsafe extern "C" fn Java_com_example_hh_MainActivity_start(
-  _env: JNIEnv,
-  _jclass: JClass,
-  _jobject: JObject,
-) {
+pub unsafe fn start(_: JNIEnv, _: JClass, _: JObject) {
   wake(Event::Start);
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn Java_com_example_hh_MainActivity_stop(
-  _env: JNIEnv,
-  _jclass: JClass,
-  _jobject: JObject,
-) {
+pub unsafe fn stop(_: JNIEnv, _: JClass, _: JObject) {
   wake(Event::Stop);
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn Java_com_example_hh_MainActivity_save(
-  _env: JNIEnv,
-  _jclass: JClass,
-  _jobject: JObject,
-) {
+///////////////////////////////////////////////
+// Events below are not used by event loop yet.
+///////////////////////////////////////////////
+
+pub unsafe fn save(_: JNIEnv, _: JClass, _: JObject) {
   wake(Event::SaveInstanceState);
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn Java_com_example_hh_MainActivity_destroy(
-  _env: JNIEnv,
-  _jclass: JClass,
-  _jobject: JObject,
-) {
+pub unsafe fn destroy(_: JNIEnv, _: JClass, _: JObject) {
   wake(Event::Destroy);
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn Java_com_example_hh_MainActivity_memory(
-  _env: JNIEnv,
-  _jclass: JClass,
-  _jobject: JObject,
-) {
+pub unsafe fn memory(_: JNIEnv, _: JClass, _: JObject) {
   wake(Event::LowMemory);
 }
 
@@ -460,33 +464,11 @@ unsafe extern "C" fn on_configuration_changed(activity: *mut ANativeActivity) {
   wake(activity, Event::ConfigChanged);
 }
 
-unsafe extern "C" fn on_window_created(activity: *mut ANativeActivity, window: *mut ANativeWindow) {
-  *NATIVE_WINDOW.write().unwrap() = Some(NativeWindow::from_ptr(NonNull::new(window).unwrap()));
-  wake(activity, Event::WindowCreated);
-}
-
 unsafe extern "C" fn on_window_resized(
   activity: *mut ANativeActivity,
   _window: *mut ANativeWindow,
 ) {
   wake(activity, Event::WindowResized);
-}
-
-unsafe extern "C" fn on_window_redraw_needed(
-  activity: *mut ANativeActivity,
-  _window: *mut ANativeWindow,
-) {
-  wake(activity, Event::WindowRedrawNeeded);
-}
-
-unsafe extern "C" fn on_window_destroyed(
-  activity: *mut ANativeActivity,
-  window: *mut ANativeWindow,
-) {
-  wake(activity, Event::WindowDestroyed);
-  let mut native_window_guard = NATIVE_WINDOW.write().unwrap();
-  assert_eq!(native_window_guard.as_ref().unwrap().ptr().as_ptr(), window);
-  *native_window_guard = None;
 }
 
 unsafe extern "C" fn on_input_queue_created(
