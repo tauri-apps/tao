@@ -31,6 +31,9 @@ macro_rules! android_fn {
           class: JClass,
           object: JObject,
         ) {
+            let domain = stringify!($domain).replace("_", "/");
+            let package = format!("{}/{}", domain, stringify!($package));
+            PACKAGE.get_or_init(move || package);
             create(env, class, object, _start_app)
         }
 
@@ -63,6 +66,7 @@ macro_rules! android_fn {
   };
 }
 
+pub static PACKAGE: OnceCell<String> = OnceCell::new();
 static CHANNEL: Lazy<(Sender<WebViewMessage>, Receiver<WebViewMessage>)> = Lazy::new(|| bounded(8));
 static MAIN_PIPE: Lazy<[RawFd; 2]> = Lazy::new(|| {
   let mut pipe: [RawFd; 2] = Default::default();
@@ -138,8 +142,9 @@ impl MainPipe<'_> {
           )?;
 
           // Add javascript interface (IPC)
+          let sig = format!("()L{}/IpcInterface;", PACKAGE.get().unwrap());
           let handler =
-            env.call_method(activity, "getIpc", "()Lcom/example/hh/IpcInterface;", &[])?;
+            env.call_method(activity, "getIpc", sig, &[])?;
           let ipc = env.new_string("ipc")?;
           env.call_method(
             webview,
