@@ -1,5 +1,14 @@
 # Changelog
 
+## \[0.8.5]
+
+- The `current_monitor` function now fallbacks to the primary monitor when the window is invisible.
+  - [6cdb99fd](https://github.com/tauri-apps/tao/commit/6cdb99fd271acc6bc2f1132c799c202c444ec7f2) fix(linux): fallback to primary monitor on `current_monitor` impl ([#395](https://github.com/tauri-apps/tao/pull/395)) on 2022-05-18
+- Change menubar background color to transparent on Linux when the window is transparent.
+  - [a0d9408b](https://github.com/tauri-apps/tao/commit/a0d9408bb89f8dd60687885c2344f7d1069e73d0) fix(linux): make menubar background transparent ([#389](https://github.com/tauri-apps/tao/pull/389)) on 2022-05-14
+- Rename full screen menu label to "Toggle Full Screen".
+  - [8945f544](https://github.com/tauri-apps/tao/commit/8945f544e77d5cd22a1f3e2ad492c4a2dc986268) fix: rename full screen menu label, closes [#391](https://github.com/tauri-apps/tao/pull/391) ([#393](https://github.com/tauri-apps/tao/pull/393)) on 2022-05-17
+
 ## \[0.8.4]
 
 - On Windows, remove the accelerator from `CustomMenuItem::title` returnd string.
