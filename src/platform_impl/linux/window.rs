@@ -612,9 +612,19 @@ impl Window {
 
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
     let screen = self.window.display().default_screen();
-    let window = self.window.window().unwrap();
-    #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
-    let number = screen.monitor_at_window(&window);
+    // `.window()` returns `None` if the window is invisible;
+    // we fallback to the primary monitor
+    let number = self
+      .window
+      .window()
+      .map(|window| {
+        #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
+        screen.monitor_at_window(&window)
+      })
+      .unwrap_or_else(|| {
+        #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
+        screen.primary_monitor()
+      });
     let handle = MonitorHandle::new(&self.window.display(), number);
     Some(RootMonitorHandle { inner: handle })
   }
