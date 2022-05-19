@@ -143,8 +143,7 @@ impl MainPipe<'_> {
 
           // Add javascript interface (IPC)
           let sig = format!("()L{}/IpcInterface;", PACKAGE.get().unwrap());
-          let handler =
-            env.call_method(activity, "getIpc", sig, &[])?;
+          let handler = env.call_method(activity, "getIpc", sig, &[])?;
           let ipc = env.new_string("ipc")?;
           env.call_method(
             webview,
@@ -289,16 +288,8 @@ pub enum Event {
   WindowCreated,
   WindowResized,
   WindowRedrawNeeded,
-  /// If the window is in use by ie. a graphics API, make sure the lock from
-  /// [`native_window()`] is held on to until after freeing those resources.
-  ///
-  /// After receiving this [`Event`] `ndk_glue` will block until that read-lock
-  /// is released before returning to Android and allowing it to free up the window.
   WindowDestroyed,
   InputQueueCreated,
-  /// After receiving this [`Event`] `ndk_glue` will block until the read-lock from
-  /// [`input_queue()`] is released before returning to Android and allowing it to
-  /// free up the input queue.
   InputQueueDestroyed,
   ContentRectChanged,
 }

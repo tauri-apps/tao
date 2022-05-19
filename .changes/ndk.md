@@ -2,4 +2,4 @@
 "tao": patch
 ---
 
-Update ndk to 0.6.
+Add standalone webview ndk port.
