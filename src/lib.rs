@@ -143,7 +143,6 @@
   clippy::wrong_self_convention,
   clippy::non_send_fields_in_send_ty
 )]
-#![deny(rust_2018_idioms)]
 #![deny(rustdoc::broken_intra_doc_links)]
 
 #[allow(unused_imports)]
