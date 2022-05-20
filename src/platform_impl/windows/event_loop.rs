@@ -1976,7 +1976,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           i32::from(util::GET_Y_LPARAM(lparam)),
         );
 
-        result = ProcResult::Value(crate::platform_impl::hit_test(window, cx, cy));
+        result = ProcResult::Value(crate::platform_impl::hit_test(window.0 as _, cx, cy));
       } else {
         result = ProcResult::DefSubclassProc;
       }

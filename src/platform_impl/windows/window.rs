@@ -1141,7 +1141,8 @@ unsafe fn force_window_active(handle: HWND) {
   SetForegroundWindow(handle);
 }
 
-pub fn hit_test(hwnd: HWND, cx: i32, cy: i32) -> LRESULT {
+pub fn hit_test(hwnd: *mut libc::c_void, cx: i32, cy: i32) -> LRESULT {
+  let hwnd = HWND(hwnd as _);
   let mut window_rect = RECT::default();
   unsafe {
     if GetWindowRect(hwnd, <*mut _>::cast(&mut window_rect)).as_bool() {
