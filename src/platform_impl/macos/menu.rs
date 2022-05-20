@@ -219,7 +219,7 @@ impl Menu {
       MenuItem::EnterFullScreen => Some((
         None,
         make_menu_item(
-          "Enter Full Screen",
+          "Toggle Full Screen",
           Some(selector("toggleFullScreen:")),
           Some(Accelerator::new(RawMods::CtrlMeta, KeyCode::KeyF)),
           menu_type,
