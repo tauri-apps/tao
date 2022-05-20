@@ -76,10 +76,10 @@ cc = "1"
 [target."cfg(target_os = \"windows\")".dependencies]
 parking_lot = "0.11"
 unicode-segmentation = "1.8.0"
-windows-implement = "0.36.1"
+windows-implement = "0.37.0"
 
   [target."cfg(target_os = \"windows\")".dependencies.windows]
-  version = "0.36.1"
+  version = "0.37.0"
   features = [
   "alloc",
   "implement",
