@@ -76,7 +76,7 @@ cc = "1"
 [target."cfg(target_os = \"windows\")".dependencies]
 parking_lot = "0.11"
 unicode-segmentation = "1.8.0"
-windows_macros = "0.30.0"
+windows_macros = "0.31.0"
 
   [target."cfg(target_os = \"windows\")".dependencies.windows]
   version = "0.30.0"
