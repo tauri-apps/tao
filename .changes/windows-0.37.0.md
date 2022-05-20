@@ -2,6 +2,4 @@
 "tao": patch
 ---
 
-Update the `windows` crate to the latest 0.37.0 release.
-
-The `#[implement]` macro in `windows-implement` depends on `const` generic features which were just stabilized in `rustc` version 1.61, so this change also raises the MSRV from 1.56 to 1.61.
+Update the windows-rs crate to the latest 0.37.0 release. This depends on rustc version 1.61 for some `const` generic support which was just stabilized, so on Windows the MSRV is effectively 1.61 now.

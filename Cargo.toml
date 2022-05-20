@@ -7,7 +7,7 @@ authors = [
   "The winit contributors"
 ]
 edition = "2021"
-rust-version = "1.61"
+rust-version = "1.56"
 keywords = [ "windowing" ]
 license = "Apache-2.0"
 readme = "README.md"
