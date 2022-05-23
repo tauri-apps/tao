@@ -37,7 +37,7 @@ pub(crate) struct AccelTable {
 
 impl AccelTable {
   fn new(accel: &[ACCEL]) -> AccelTable {
-    let accel = unsafe { CreateAcceleratorTableW(accel as *const _ as *mut _, accel.len() as i32) };
+    let accel = unsafe { CreateAcceleratorTableW(accel) }.unwrap_or_default();
     AccelTable {
       accel: AccelHandle(accel.0),
     }
