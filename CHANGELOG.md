@@ -1,5 +1,17 @@
 # Changelog
 
+## \[0.8.6]
+
+- Add standalone webview ndk port.
+  - [68c9f07e](https://github.com/tauri-apps/tao/commit/68c9f07e8e24690ddf449ebc545ebd90cd29e118) Implement standalone webview ndk ([#385](https://github.com/tauri-apps/tao/pull/385)) on 2022-05-19
+- Update the `windows` crate to the latest 0.37.0 release.
+
+The `#[implement]` macro in `windows-implement` and the `implement` feature in `windows` depend on some `const` generic features which stabilized in `rustc` 1.61. The MSRV on Windows targets is effectively 1.61, but other targets do not require these features.
+
+Since developers on non-Windows platforms are not always able to upgrade their toolchain with `rustup`, the package remains at 1.56. Windows developers may get less friendly compiler errors about using unstable language features until they upgrade their toolchain if they build `tao` without `wry`, which has some Windows-specific dependencies that transitively raise the MSRV for `wry` to 1.61.
+
+- [93c256f9](https://github.com/tauri-apps/tao/commit/93c256f9835b2da853129f2a1d77287aa714934e) Update the windows-rs crate to 0.37.0 ([#400](https://github.com/tauri-apps/tao/pull/400)) on 2022-05-23
+
 ## \[0.8.5]
 
 - The `current_monitor` function now fallbacks to the primary monitor when the window is invisible.
