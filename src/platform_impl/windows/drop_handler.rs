@@ -71,7 +71,7 @@ impl FileDropHandler {
 
           // Fill path_buf with the null-terminated file name
           let mut path_buf = Vec::with_capacity(str_len);
-          DragQueryFileW(hdrop, i, &mut path_buf);
+          DragQueryFileW(hdrop, i, std::mem::transmute(path_buf.spare_capacity_mut()));
           path_buf.set_len(str_len);
 
           callback(OsString::from_wide(&path_buf[0..character_count]).into());
