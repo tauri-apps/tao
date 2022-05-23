@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.9.1]
+
+- Fix the size of the slice passed to `DragQueryFileW` by passing `std::mem::transmute(path_buf.spare_capacity_mut())` instead of `&mut path_buf`.
+  - [d0dbfa1a](https://github.com/tauri-apps/tao/commit/d0dbfa1a1274f16348701a63b213e9e92776cd74) Fix drag drop on Windows ([#401](https://github.com/tauri-apps/tao/pull/401)) on 2022-05-23
+
 ## \[0.9.0]
 
 - Add standalone webview ndk port.
