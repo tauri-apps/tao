@@ -185,9 +185,7 @@ pub mod system_tray;
     target_os = "netbsd",
     target_os = "openbsd"
   ),
-  feature = "tray",
-  any(feature = "gtk-tray", feature = "ayatana-tray"),
-  not(all(feature = "gtk-tray", feature = "ayatana-tray"))
+  feature = "tray"
 ))]
 pub mod system_tray;
 

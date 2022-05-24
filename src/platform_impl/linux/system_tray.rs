@@ -9,27 +9,142 @@ use glib::Sender;
 use std::path::PathBuf;
 
 use gtk::{prelude::WidgetExt, AccelGroup};
-#[cfg(feature = "gtk-tray")]
-use libappindicator::{AppIndicator, AppIndicatorStatus};
-#[cfg(feature = "ayatana-tray")]
-use libayatana_appindicator::{AppIndicator, AppIndicatorStatus};
+
+use libappindicator::{
+  AppIndicator as GtkAppIndicator, AppIndicatorStatus as GtkAppIndicatorStatus,
+};
+use libayatana_appindicator::{
+  AppIndicator as AyatanaAppIndicator, AppIndicatorStatus as AyatanaAppIndicatorStatus,
+};
 
 use super::{menu::Menu, window::WindowRequest, WindowId};
 
+enum AppIndicatorStatus {
+  Passive,
+  Active,
+  Attention,
+}
+
+impl From<AppIndicatorStatus> for GtkAppIndicatorStatus {
+  fn from(s: AppIndicatorStatus) -> Self {
+    match s {
+      AppIndicatorStatus::Passive => GtkAppIndicatorStatus::Passive,
+      AppIndicatorStatus::Active => GtkAppIndicatorStatus::Active,
+      AppIndicatorStatus::Attention => GtkAppIndicatorStatus::Attention,
+    }
+  }
+}
+impl From<AppIndicatorStatus> for AyatanaAppIndicatorStatus {
+  fn from(s: AppIndicatorStatus) -> Self {
+    match s {
+      AppIndicatorStatus::Passive => AyatanaAppIndicatorStatus::Passive,
+      AppIndicatorStatus::Active => AyatanaAppIndicatorStatus::Active,
+      AppIndicatorStatus::Attention => AyatanaAppIndicatorStatus::Attention,
+    }
+  }
+}
+
+trait AppIndicator {
+  fn with_path(title: &str, icon: &str, theme_path: &str) -> Self
+  where
+    Self: Sized;
+  fn set_icon(&mut self, name: &str);
+  fn set_icon_theme_path(&mut self, path: &str);
+  fn set_menu(&mut self, menu: &mut gtk::Menu);
+  fn set_status(&mut self, status: AppIndicatorStatus);
+}
+
+impl AppIndicator for GtkAppIndicator {
+  fn with_path(title: &str, icon: &str, theme_path: &str) -> Self
+  where
+    Self: Sized,
+  {
+    Self::with_path(title, icon, theme_path)
+  }
+
+  fn set_icon(&mut self, name: &str) {
+    self.set_icon(name)
+  }
+
+  fn set_icon_theme_path(&mut self, path: &str) {
+    self.set_icon_theme_path(path)
+  }
+
+  fn set_menu(&mut self, menu: &mut gtk::Menu) {
+    self.set_menu(menu)
+  }
+
+  fn set_status(&mut self, status: AppIndicatorStatus) {
+    self.set_status(status.into())
+  }
+}
+
+impl AppIndicator for AyatanaAppIndicator {
+  fn with_path(title: &str, icon: &str, theme_path: &str) -> Self
+  where
+    Self: Sized,
+  {
+    Self::with_path(title, icon, theme_path)
+  }
+
+  fn set_icon(&mut self, name: &str) {
+    self.set_icon(name)
+  }
+
+  fn set_icon_theme_path(&mut self, path: &str) {
+    self.set_icon_theme_path(path)
+  }
+
+  fn set_menu(&mut self, menu: &mut gtk::Menu) {
+    self.set_menu(menu)
+  }
+
+  fn set_status(&mut self, status: AppIndicatorStatus) {
+    self.set_status(status.into())
+  }
+}
+
 pub struct SystemTrayBuilder {
   tray_menu: Option<Menu>,
-  app_indicator: AppIndicator,
+  app_indicator: Box<dyn AppIndicator>,
+}
+
+fn probe_libayatana() -> bool {
+  if let Err(_) = pkg_config::probe_library("ayatana-appindicator3-0.1") {
+    return false;
+  }
+  return true;
+}
+
+fn probe_libindicator() -> bool {
+  if let Err(_) = pkg_config::probe_library("appindicator3") {
+    if let Err(_) = pkg_config::probe_library("appindicator3-0.1") {
+      return false;
+    }
+  }
+  return true;
 }
 
 impl SystemTrayBuilder {
   #[inline]
   pub fn new(icon: PathBuf, tray_menu: Option<Menu>) -> Self {
     let path = icon.parent().expect("Invalid icon");
-    let app_indicator = AppIndicator::with_path(
-      "tao application",
-      &icon.to_string_lossy(),
-      &path.to_string_lossy(),
-    );
+
+    let app_indicator: Box<dyn AppIndicator> = if probe_libindicator() {
+      Box::new(GtkAppIndicator::with_path(
+        "tao application",
+        &icon.to_string_lossy(),
+        &path.to_string_lossy(),
+      ))
+    } else if probe_libayatana() {
+      Box::new(AyatanaAppIndicator::with_path(
+        "tao application",
+        &icon.to_string_lossy(),
+        &path.to_string_lossy(),
+      ))
+    } else {
+      panic!("libappindicator or libayatana-appindicator is required");
+    };
 
     Self {
       tray_menu,
@@ -61,7 +176,7 @@ impl SystemTrayBuilder {
 }
 
 pub struct SystemTray {
-  app_indicator: AppIndicator,
+  app_indicator: Box<dyn AppIndicator>,
   sender: Sender<(WindowId, WindowRequest)>,
 }
 
