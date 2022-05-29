@@ -20,7 +20,7 @@ use cocoa::{
     NSStatusBar, NSStatusItem, NSWindow,
   },
   base::{id, nil, NO, YES},
-  foundation::{NSAutoreleasePool, NSData, NSPoint, NSSize},
+  foundation::{NSAutoreleasePool, NSData, NSPoint, NSSize, NSString},
 };
 use objc::{
   declare::ClassDecl,
@@ -48,6 +48,7 @@ impl SystemTrayBuilder {
           menu_on_left_click: true,
           tray_menu,
           ns_status_bar,
+          tool_tip: None
         },
       }
     }
@@ -90,6 +91,11 @@ impl SystemTrayBuilder {
         (*tray_target).set_ivar("menu", menu.menu);
         let () = msg_send![menu.menu, setDelegate: tray_target];
       }
+
+      // attach tool_tip if provided
+      if let Some(tool_tip) = self.system_tray.tool_tip.clone() {
+        self.system_tray.create_tool_tip(&tool_tip);
+      }
     }
 
     Ok(RootSystemTray(self.system_tray))
@@ -104,6 +110,7 @@ pub struct SystemTray {
   pub(crate) menu_on_left_click: bool,
   pub(crate) tray_menu: Option<Menu>,
   pub(crate) ns_status_bar: id,
+  pub(crate) tool_tip: Option<String>
 }
 
 impl SystemTray {
@@ -121,6 +128,11 @@ impl SystemTray {
     unsafe {
       self.ns_status_bar.setMenu_(tray_menu.menu);
     }
+  }
+
+  pub fn set_tool_tip(&mut self, tool_tip: &str) {
+    self.tool_tip = Some(tool_tip.to_string());
+    self.create_tool_tip(tool_tip);
   }
 
   fn create_button_with_icon(&self) {
@@ -150,6 +162,13 @@ impl SystemTray {
         false => NO,
       };
       let _: () = msg_send![nsimage, setTemplate: is_template];
+    }
+  }
+
+  fn create_tool_tip(&self, tool_tip: &str) {
+    unsafe {
+      let tool_tip = NSString::alloc(nil).init_str(tool_tip);
+      let _: () = msg_send![self.ns_status_bar.button(), setToolTip: tool_tip];
     }
   }
 }

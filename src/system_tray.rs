@@ -82,4 +82,9 @@ impl SystemTray {
   pub fn set_menu(&mut self, tray_menu: &ContextMenu) {
     self.0.set_menu(&tray_menu.0.menu_platform)
   }
+
+  /// Sets the hover text for this tray icon.
+  pub fn set_tool_tip(&mut self, tool_tip: &str) {
+    self.0.set_tool_tip(tool_tip);
+  }
 }
