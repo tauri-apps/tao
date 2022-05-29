@@ -84,6 +84,9 @@ impl SystemTray {
   }
 
   /// Sets the hover text for this tray icon.
+  /// 
+  /// TODO: Will add support for other platforms in this PR
+  #[cfg(target_os = "macos")]
   pub fn set_tool_tip(&mut self, tool_tip: &str) {
     self.0.set_tool_tip(tool_tip);
   }
