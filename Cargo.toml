@@ -27,7 +27,7 @@ targets = [
 ]
 
 [features]
-default = [ "tray" ]
+default = [ ]
 tray = [ "libappindicator" ]
 dox = [ "gtk/dox" ]
 
