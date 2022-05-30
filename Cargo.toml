@@ -27,10 +27,8 @@ targets = [
 ]
 
 [features]
-default = [ "tray", "ayatana-tray" ]
-tray = [ ]
-gtk-tray = [ "tray", "libappindicator" ]
-ayatana-tray = [ "tray", "libayatana-appindicator" ]
+default = [ ]
+tray = [ "libappindicator" ]
 dox = [ "gtk/dox" ]
 
 [dependencies]
@@ -120,6 +118,5 @@ gdk = { version = "0.15", features = [ "v3_22" ] }
 gdk-sys = "0.15"
 gdkx11-sys = "0.15"
 gdk-pixbuf = { version = "0.15", features = [ "v2_36_8" ] }
-libayatana-appindicator = { version = "0.2", optional = true }
 libappindicator = { version = "0.7", optional = true }
 x11-dl = "2.18"
