@@ -17,11 +17,8 @@ Windows, macOS, Linux, iOS and Android. Built for you, maintained for Tauri.
 Tao provides the following features, which can be enabled in your `Cargo.toml` file:
 * `serde`: Enables serialization/deserialization of certain types with [Serde](https://crates.io/crates/serde).
 * `tray`: Enables system tray and more menu item variants on **Linux**. This flag is enabled by default.
+  This feature requires either `libayatana-appindicator` or `libappindicator` package installed.
   You can still create those types if you disable it. They just don't create the actual objects. We set this flag because some implementations require more installed packages.
-* `ayatana-tray`: Enable this if you wish to use more update `libayatana-appindicator` since `libappindicator` is no longer maintained.
-  This flag is enabled by default. Disable this if you don't want to install the `libayatana-appindicator` package.
-* `gtk-tray`: Enable this if you wish ot use `libappindicator` for tray on **Linux**. The package is supported on more Linux distributions, but it is not maintained anymore.
-  Note that `ayatana-tray` and `gtk-tray` cannot be enabled at the same time, so `default-features` must be set to `false`.
 
 ## Platform-specific notes
 
@@ -54,13 +51,29 @@ Gtk and its related libraries are used to build the support of Linux. Be sure to
 #### Arch Linux / Manjaro:
 
 ```bash
-sudo pacman -S gtk3 libappindicator-gtk3
+sudo pacman -S gtk3
+```
+
+For `tray` feature:
+
+```bash
+sudo pacman -S libappindicator-gtk3
 ```
 
 #### Debian / Ubuntu:
 
 ```bash
-sudo apt install libgtk-3-dev libappindicator3-dev
+sudo apt install libgtk-3-dev
+```
+
+For `tray` feature, choose one of following pachages:
+
+```bash
+sudo apt install libappindicator3-dev
+```
+
+```bash
+sudo apt install libayatana-appindicator3-dev
 ```
 
 #### MacOS
