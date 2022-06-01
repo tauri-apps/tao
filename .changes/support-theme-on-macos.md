@@ -1,5 +1,5 @@
 ---
-"tao": minor
+"tao": patch
 ---
 
 Support theme on macOS.
