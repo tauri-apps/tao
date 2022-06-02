@@ -16,11 +16,11 @@ use crate::{
 };
 use cocoa::{
   appkit::{
-    NSButton, NSEventMask, NSEventModifierFlags, NSEventType, NSImage, NSSquareStatusItemLength,
-    NSStatusBar, NSStatusItem, NSWindow,
+    NSButton, NSEventMask, NSEventModifierFlags, NSEventType, NSImage, NSStatusBar, NSStatusItem,
+    NSVariableStatusItemLength, NSWindow,
   },
   base::{id, nil, NO, YES},
-  foundation::{NSAutoreleasePool, NSData, NSPoint, NSSize},
+  foundation::{NSAutoreleasePool, NSData, NSPoint, NSSize, NSString},
 };
 use objc::{
   declare::ClassDecl,
@@ -38,7 +38,7 @@ impl SystemTrayBuilder {
   pub fn new(icon: Vec<u8>, tray_menu: Option<Menu>) -> Self {
     unsafe {
       let ns_status_bar = NSStatusBar::systemStatusBar(nil)
-        .statusItemWithLength_(NSSquareStatusItemLength)
+        .statusItemWithLength_(NSVariableStatusItemLength)
         .autorelease();
 
       Self {
@@ -120,6 +120,15 @@ impl SystemTray {
     }
   }
 
+  pub fn set_title(&mut self, title: &str) {
+    unsafe {
+      NSButton::setTitle_(
+        self.ns_status_bar.button(),
+        NSString::alloc(nil).init_str(title),
+      );
+    }
+  }
+
   fn create_button_with_icon(&self) {
     const ICON_WIDTH: f64 = 18.0;
     const ICON_HEIGHT: f64 = 18.0;
@@ -140,6 +149,7 @@ impl SystemTray {
 
       button.setImage_(nsimage);
       let _: () = msg_send![nsimage, setSize: new_size];
+      let _: () = msg_send![button, setImagePosition: 2]; // https://developer.apple.com/documentation/appkit/nscellimageposition/nsimageleft
       let is_template = match self.icon_is_template {
         true => YES,
         false => NO,
