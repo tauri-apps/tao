@@ -1,4 +1,45 @@
-//! The Accelerator struct and associated types.
+//! Accelerators describe keyboard shortcuts defined by the application.
+//! 
+//! [`Accelerator`s](crate::accelerator::Accelerator) are used to define a keyboard shortcut consisting
+//! of an optional combination of modifier keys (provided by [`SysMods`](crate::accelerator::SysMods), 
+//! [`RawMods`](crate::accelerator::RawMods) or [`ModifiersState`](crate::keyboard::ModifiersState)) and 
+//! one key ([`KeyCode`](crate::keyboard::KeyCode)).
+//! 
+//! # Examples
+//! They can be created directly
+//! ```
+//! # use tao::accelerator::{Accelerator, AcceleratorId, SysMods, RawMods};
+//! # use tao::keyboard::{ModifiersState, KeyCode};
+//! #
+//! let accelerator = Accelerator::new(SysMods::AltCmd, KeyCode::KeyQ);
+//! let accelerator_with_raw_mods = Accelerator::new(RawMods::AltCtrl, KeyCode::KeyQ);
+//! let accelerator_without_mods = Accelerator::new(None, KeyCode::KeyQ);
+//! # assert_eq!(accelerator, accelerator_with_raw_mods);
+//! # assert_eq!(
+//! #     accelerator.with_id(AcceleratorId::new("ctrl+alt+q")), 
+//! #     "ctrl+alt+q".parse().unwrap()
+//! # );
+//! ```
+//! or from `&str`, note that all modifiers 
+//! have to be listed before the non-modifier key, `ctrl+alt+q` is legal, 
+//! whereas `ctrl+q+alt` is not.
+//! ```
+//! # use tao::accelerator::{Accelerator, AcceleratorId, SysMods};
+//! # use tao::keyboard::{ModifiersState, KeyCode};
+//! #
+//! let accelerator: Accelerator = "ctrl+alt+q".parse().unwrap();
+//! # assert_eq!(
+//! #     accelerator, 
+//! #     Accelerator::new(SysMods::AltCmd, KeyCode::KeyQ)
+//! #         .with_id(AcceleratorId::new("ctrl+alt+q"))
+//! # );
+//! #
+//! # // This assert exists to ensure a test breaks once the
+//! # // statement above about ordering is no longer valid.
+//! # assert!("ctrl+q+alt".parse::<Accelerator>().is_err());
+//! ```
+//! 
+
 
 use crate::keyboard::{KeyCode, ModifiersState, NativeKeyCode};
 use std::{
