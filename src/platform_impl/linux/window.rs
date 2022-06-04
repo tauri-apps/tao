@@ -23,7 +23,7 @@ use crate::{
 };
 
 use super::{
-  event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle,
+  event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle, Parent,
   PlatformSpecificWindowBuilderAttributes,
 };
 
@@ -237,6 +237,10 @@ impl Window {
       window.show_all();
     } else {
       window.hide();
+    }
+
+    if let Parent::ChildOf(parent) = pl_attribs.parent {
+      window.set_transient_for(Some(&parent));
     }
 
     let w_pos = window.position();

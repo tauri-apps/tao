@@ -1,11 +1,13 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(any(target_os = "windows", target_os = "macos"))]
+#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
 fn main() {
   use std::collections::HashMap;
   #[cfg(target_os = "macos")]
   use tao::platform::macos::{WindowBuilderExtMacOS, WindowExtMacOS};
+  #[cfg(target_os = "linux")]
+  use tao::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
   #[cfg(target_os = "windows")]
   use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
   use tao::{
@@ -25,9 +27,11 @@ fn main() {
   let parent_window = main_window.ns_window();
   #[cfg(target_os = "windows")]
   let parent_window = HWND(main_window.hwnd() as _);
+  #[cfg(target_os = "linux")]
+  let parent_window = main_window.gtk_window();
 
   let child_window = WindowBuilder::new()
-    .with_parent_window(parent_window)
+    .with_parent_window(parent_window.clone())
     .with_inner_size(LogicalSize::new(200, 200))
     .build(&event_loop)
     .unwrap();
@@ -55,7 +59,7 @@ fn main() {
   })
 }
 
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+#[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
 fn main() {
   println!("This platform doesn't have the parent window support.");
 }
