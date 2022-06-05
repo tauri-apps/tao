@@ -99,6 +99,7 @@ impl SystemTrayBuilder {
 pub struct SystemTray {
   pub(crate) icon: Vec<u8>,
   pub(crate) icon_is_template: bool,
+  pub(crate) menu_on_left_click: bool,
   pub(crate) tray_menu: Option<Menu>,
   pub(crate) ns_status_bar: id,
 }
@@ -232,6 +233,7 @@ extern "C" fn perform_tray_click(this: &mut Object, _: Sel, button: id) {
 
       let menu = this.get_ivar::<id>("menu");
       if *menu != nil {
+        // TODO: get [`SystemTray::menu_on_left_click`] value here
         if click_event == TrayEvent::RightClick {
           let status_bar = this.get_ivar::<id>("status_bar");
           status_bar.setMenu_(*menu);
