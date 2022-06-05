@@ -14,12 +14,15 @@ use crate::{
   system_tray::SystemTray as RootSystemTray,
   window::Icon,
 };
-use windows::Win32::{
-  Foundation::{HWND, LPARAM, LRESULT, POINT, PSTR, PWSTR, WPARAM},
-  System::LibraryLoader::*,
-  UI::{
-    Shell::*,
-    WindowsAndMessaging::{self as win32wm, *},
+use windows::{
+  core::{PCSTR, PCWSTR},
+  Win32::{
+    Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM},
+    System::LibraryLoader::*,
+    UI::{
+      Shell::*,
+      WindowsAndMessaging::{self as win32wm, *},
+    },
   },
 };
 
@@ -52,13 +55,13 @@ impl SystemTrayBuilder {
   ) -> Result<RootSystemTray, RootOsError> {
     let hmenu: Option<HMENU> = self.tray_menu.map(|m| m.hmenu());
 
-    let mut class_name = util::encode_wide("tao_system_tray_app");
+    let class_name = util::encode_wide("tao_system_tray_app");
     unsafe {
-      let hinstance = GetModuleHandleA(PSTR::default());
+      let hinstance = GetModuleHandleA(PCSTR::default()).unwrap_or_default();
 
       let wnd_class = WNDCLASSW {
         lpfnWndProc: Some(util::call_default_window_proc),
-        lpszClassName: PWSTR(class_name.as_mut_ptr()),
+        lpszClassName: PCWSTR(class_name.as_ptr()),
         hInstance: hinstance,
         ..Default::default()
       };
@@ -66,8 +69,8 @@ impl SystemTrayBuilder {
       RegisterClassW(&wnd_class);
 
       let hwnd = CreateWindowExW(
-        0,
-        PWSTR(class_name.as_mut_ptr()),
+        Default::default(),
+        PCWSTR(class_name.as_ptr()),
         "tao_system_tray_window",
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
@@ -80,7 +83,7 @@ impl SystemTrayBuilder {
         std::ptr::null_mut(),
       );
 
-      if hwnd.is_invalid() {
+      if !IsWindow(hwnd).as_bool() {
         return Err(os_error!(OsError::CreationError(
           "Unable to get valid mutable pointer for CreateWindowEx"
         )));

@@ -193,6 +193,19 @@ impl Window {
     window.add(&window_box);
 
     let mut menu_bar = gtk::MenuBar::new();
+
+    if attributes.transparent {
+      let style_context = menu_bar.style_context();
+      let css_provider = gtk::CssProvider::new();
+      let theme = r#"
+          menubar {
+            background-color: transparent;
+            box-shadow: none;
+          }
+        "#;
+      css_provider.load_from_data(theme.as_bytes());
+      style_context.add_provider(&css_provider, 600);
+    }
     window_box.pack_start(&menu_bar, false, false, 0);
     if let Some(window_menu) = attributes.window_menu {
       window_menu.generate_menu(&mut menu_bar, &window_requests_tx, &accel_group, window_id);
@@ -599,9 +612,19 @@ impl Window {
 
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
     let screen = self.window.display().default_screen();
-    let window = self.window.window().unwrap();
-    #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
-    let number = screen.monitor_at_window(&window);
+    // `.window()` returns `None` if the window is invisible;
+    // we fallback to the primary monitor
+    let number = self
+      .window
+      .window()
+      .map(|window| {
+        #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
+        screen.monitor_at_window(&window)
+      })
+      .unwrap_or_else(|| {
+        #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
+        screen.primary_monitor()
+      });
     let handle = MonitorHandle::new(&self.window.display(), number);
     Some(RootMonitorHandle { inner: handle })
   }
@@ -700,11 +723,13 @@ pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
   const BOTTOMLEFT: i32 = BOTTOM | LEFT;
   const BOTTOMRIGHT: i32 = BOTTOM | RIGHT;
 
+  let inset = BORDERLESS_RESIZE_INSET * window.scale_factor();
   #[rustfmt::skip]
-  let result = (LEFT * (if cx < (left + BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
-    | (RIGHT * (if cx >= (right - BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
-    | (TOP * (if cy < (top + BORDERLESS_RESIZE_INSET) { 1 } else { 0 }))
-    | (BOTTOM * (if cy >= (bottom - BORDERLESS_RESIZE_INSET) { 1 } else { 0 }));
+  let result =
+      (LEFT * (if cx < (left + inset) { 1 } else { 0 }))
+    | (RIGHT * (if cx >= (right - inset) { 1 } else { 0 }))
+    | (TOP * (if cy < (top + inset) { 1 } else { 0 }))
+    | (BOTTOM * (if cy >= (bottom - inset) { 1 } else { 0 }));
 
   match result {
     LEFT => WindowEdge::West,

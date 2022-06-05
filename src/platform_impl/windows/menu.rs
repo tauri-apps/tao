@@ -1,14 +1,17 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashMap, fmt, sync::Mutex};
+use std::{collections::HashMap, fmt, ptr, sync::Mutex};
 
-use windows::Win32::{
-  Foundation::{HWND, LPARAM, LRESULT, PWSTR, WPARAM},
-  UI::{
-    Input::KeyboardAndMouse::*,
-    Shell::*,
-    WindowsAndMessaging::{self as win32wm, *},
+use windows::{
+  core::{PCWSTR, PWSTR},
+  Win32::{
+    Foundation::{HWND, LPARAM, LRESULT, WPARAM},
+    UI::{
+      Input::KeyboardAndMouse::*,
+      Shell::*,
+      WindowsAndMessaging::{self as win32wm, *},
+    },
   },
 };
 
@@ -26,7 +29,7 @@ use super::{accelerator::register_accel, keyboard::key_to_vk, util, WindowId};
 struct AccelWrapper(ACCEL);
 impl fmt::Debug for AccelWrapper {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-    f.pad(&format!(""))
+    f.pad("")
   }
 }
 
@@ -86,15 +89,15 @@ impl MenuItemAttributes {
       let mut mif = MENUITEMINFOW {
         cbSize: std::mem::size_of::<MENUITEMINFOW>() as _,
         fMask: MIIM_STRING,
-        dwTypeData: PWSTR(0 as *mut u16),
+        dwTypeData: PWSTR(ptr::null_mut()),
         ..Default::default()
       };
       GetMenuItemInfoW(self.1, self.0 as u32, false, &mut mif);
       mif.cch += 1;
       mif.dwTypeData = PWSTR(Vec::with_capacity(mif.cch as usize).as_mut_ptr());
       GetMenuItemInfoW(self.1, self.0 as u32, false, &mut mif);
-      util::wchar_ptr_to_string(mif.dwTypeData)
-        .split("\t")
+      util::wchar_ptr_to_string(PCWSTR(mif.dwTypeData.0))
+        .split('\t')
         .next()
         .unwrap_or_default()
         .to_string()
@@ -135,8 +138,8 @@ impl MenuItemAttributes {
         self.1,
         self.0 as u32,
         match selected {
-          true => MF_CHECKED,
-          false => MF_UNCHECKED,
+          true => MF_CHECKED.0,
+          false => MF_UNCHECKED.0,
         },
       );
     }
@@ -164,7 +167,7 @@ impl Default for Menu {
 impl Menu {
   pub fn new() -> Self {
     unsafe {
-      let hmenu = CreateMenu();
+      let hmenu = CreateMenu().unwrap_or_default();
       Menu {
         hmenu,
         accels: HashMap::default(),
@@ -174,7 +177,7 @@ impl Menu {
 
   pub fn new_popup_menu() -> Self {
     unsafe {
-      let hmenu = CreatePopupMenu();
+      let hmenu = CreatePopupMenu().unwrap_or_default();
       Menu {
         hmenu,
         accels: HashMap::default(),
@@ -222,7 +225,7 @@ impl Menu {
         self.hmenu,
         flags,
         menu_id.0 as _,
-        PWSTR(util::encode_wide(title).as_mut_ptr()),
+        PCWSTR(util::encode_wide(title).as_ptr()),
       );
 
       // add our accels
@@ -232,11 +235,7 @@ impl Menu {
         }
       }
       MENU_IDS.lock().unwrap().push(menu_id.0 as _);
-      CustomMenuItem(MenuItemAttributes(
-        menu_id.0,
-        self.hmenu,
-        accelerator.clone(),
-      ))
+      CustomMenuItem(MenuItemAttributes(menu_id.0, self.hmenu, accelerator))
     }
   }
 
@@ -262,7 +261,7 @@ impl Menu {
     match item {
       MenuItem::Separator => {
         unsafe {
-          AppendMenuW(self.hmenu, MF_SEPARATOR, 0, PWSTR::default());
+          AppendMenuW(self.hmenu, MF_SEPARATOR, 0, PCWSTR::default());
         };
       }
       MenuItem::Cut => unsafe {
@@ -382,34 +381,32 @@ enum EditCommand {
   SelectAll,
 }
 fn execute_edit_command(command: EditCommand) {
-  let key = match command {
+  let key = VIRTUAL_KEY(match command {
     EditCommand::Copy => 0x43,      // c
     EditCommand::Cut => 0x58,       // x
     EditCommand::Paste => 0x56,     // v
     EditCommand::SelectAll => 0x41, // a
-  };
+  });
 
   unsafe {
     let mut inputs: [INPUT; 4] = std::mem::zeroed();
     inputs[0].r#type = INPUT_KEYBOARD;
-    inputs[0].Anonymous.ki.wVk = VK_CONTROL as _;
+    inputs[0].Anonymous.ki.wVk = VK_CONTROL;
+    inputs[2].Anonymous.ki.dwFlags = Default::default();
 
     inputs[1].r#type = INPUT_KEYBOARD;
-    inputs[1].Anonymous.ki.wVk = key as VIRTUAL_KEY;
+    inputs[1].Anonymous.ki.wVk = key;
+    inputs[2].Anonymous.ki.dwFlags = Default::default();
 
     inputs[2].r#type = INPUT_KEYBOARD;
-    inputs[2].Anonymous.ki.wVk = key as VIRTUAL_KEY;
+    inputs[2].Anonymous.ki.wVk = key;
     inputs[2].Anonymous.ki.dwFlags = KEYEVENTF_KEYUP;
 
     inputs[3].r#type = INPUT_KEYBOARD;
-    inputs[3].Anonymous.ki.wVk = VK_CONTROL as _;
+    inputs[3].Anonymous.ki.wVk = VK_CONTROL;
     inputs[3].Anonymous.ki.dwFlags = KEYEVENTF_KEYUP;
 
-    SendInput(
-      inputs.len() as _,
-      inputs.as_mut_ptr(),
-      std::mem::size_of::<INPUT>() as _,
-    );
+    SendInput(&inputs, std::mem::size_of::<INPUT>() as _);
   }
 }
 
@@ -429,7 +426,7 @@ impl Accelerator {
     }
 
     let raw_key = if let Some(vk_code) = key_to_vk(&self.key) {
-      let mod_code = vk_code >> 8;
+      let mod_code = vk_code.0 >> 8;
       if mod_code & 0x1 != 0 {
         virt_key |= FSHIFT;
       }
@@ -439,7 +436,7 @@ impl Accelerator {
       if mod_code & 0x04 != 0 {
         virt_key |= FALT;
       }
-      vk_code & 0x00ff
+      vk_code.0 & 0x00ff
     } else {
       dbg!("Failed to convert key {:?} into virtual key code", self.key);
       return None;
@@ -451,84 +448,84 @@ impl Accelerator {
       cmd: menu_id,
     })
   }
+}
 
-  fn to_string(&self) -> String {
-    let mut s = String::new();
+impl fmt::Display for Accelerator {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let key_mods: ModifiersState = self.mods;
     if key_mods.control_key() {
-      s.push_str("Ctrl+");
+      write!(f, "Ctrl+")?;
     }
     if key_mods.shift_key() {
-      s.push_str("Shift+");
+      write!(f, "Shift+")?;
     }
     if key_mods.alt_key() {
-      s.push_str("Alt+");
+      write!(f, "Alt+")?;
     }
     if key_mods.super_key() {
-      s.push_str("Windows+");
+      write!(f, "Windows+")?;
     }
     match &self.key {
-      KeyCode::KeyA => s.push('A'),
-      KeyCode::KeyB => s.push('B'),
-      KeyCode::KeyC => s.push('C'),
-      KeyCode::KeyD => s.push('D'),
-      KeyCode::KeyE => s.push('E'),
-      KeyCode::KeyF => s.push('F'),
-      KeyCode::KeyG => s.push('G'),
-      KeyCode::KeyH => s.push('H'),
-      KeyCode::KeyI => s.push('I'),
-      KeyCode::KeyJ => s.push('J'),
-      KeyCode::KeyK => s.push('K'),
-      KeyCode::KeyL => s.push('L'),
-      KeyCode::KeyM => s.push('M'),
-      KeyCode::KeyN => s.push('N'),
-      KeyCode::KeyO => s.push('O'),
-      KeyCode::KeyP => s.push('P'),
-      KeyCode::KeyQ => s.push('Q'),
-      KeyCode::KeyR => s.push('R'),
-      KeyCode::KeyS => s.push('S'),
-      KeyCode::KeyT => s.push('T'),
-      KeyCode::KeyU => s.push('U'),
-      KeyCode::KeyV => s.push('V'),
-      KeyCode::KeyW => s.push('W'),
-      KeyCode::KeyX => s.push('X'),
-      KeyCode::KeyY => s.push('Y'),
-      KeyCode::KeyZ => s.push('Z'),
-      KeyCode::Digit0 => s.push('0'),
-      KeyCode::Digit1 => s.push('1'),
-      KeyCode::Digit2 => s.push('2'),
-      KeyCode::Digit3 => s.push('3'),
-      KeyCode::Digit4 => s.push('4'),
-      KeyCode::Digit5 => s.push('5'),
-      KeyCode::Digit6 => s.push('6'),
-      KeyCode::Digit7 => s.push('7'),
-      KeyCode::Digit8 => s.push('8'),
-      KeyCode::Digit9 => s.push('9'),
-      KeyCode::Comma => s.push(','),
-      KeyCode::Minus => s.push('-'),
-      KeyCode::Period => s.push('.'),
-      KeyCode::Space => s.push_str("Space"),
-      KeyCode::Equal => s.push('='),
-      KeyCode::Semicolon => s.push(';'),
-      KeyCode::Slash => s.push('/'),
-      KeyCode::Backslash => s.push('\\'),
-      KeyCode::Quote => s.push('\''),
-      KeyCode::Backquote => s.push('`'),
-      KeyCode::BracketLeft => s.push('['),
-      KeyCode::BracketRight => s.push(']'),
-      KeyCode::Tab => s.push_str("Tab"),
-      KeyCode::Escape => s.push_str("Esc"),
-      KeyCode::Delete => s.push_str("Del"),
-      KeyCode::Insert => s.push_str("Ins"),
-      KeyCode::PageUp => s.push_str("PgUp"),
-      KeyCode::PageDown => s.push_str("PgDn"),
+      KeyCode::KeyA => write!(f, "A"),
+      KeyCode::KeyB => write!(f, "B"),
+      KeyCode::KeyC => write!(f, "C"),
+      KeyCode::KeyD => write!(f, "D"),
+      KeyCode::KeyE => write!(f, "E"),
+      KeyCode::KeyF => write!(f, "F"),
+      KeyCode::KeyG => write!(f, "G"),
+      KeyCode::KeyH => write!(f, "H"),
+      KeyCode::KeyI => write!(f, "I"),
+      KeyCode::KeyJ => write!(f, "J"),
+      KeyCode::KeyK => write!(f, "K"),
+      KeyCode::KeyL => write!(f, "L"),
+      KeyCode::KeyM => write!(f, "M"),
+      KeyCode::KeyN => write!(f, "N"),
+      KeyCode::KeyO => write!(f, "O"),
+      KeyCode::KeyP => write!(f, "P"),
+      KeyCode::KeyQ => write!(f, "Q"),
+      KeyCode::KeyR => write!(f, "R"),
+      KeyCode::KeyS => write!(f, "S"),
+      KeyCode::KeyT => write!(f, "T"),
+      KeyCode::KeyU => write!(f, "U"),
+      KeyCode::KeyV => write!(f, "V"),
+      KeyCode::KeyW => write!(f, "W"),
+      KeyCode::KeyX => write!(f, "X"),
+      KeyCode::KeyY => write!(f, "Y"),
+      KeyCode::KeyZ => write!(f, "Z"),
+      KeyCode::Digit0 => write!(f, "0"),
+      KeyCode::Digit1 => write!(f, "1"),
+      KeyCode::Digit2 => write!(f, "2"),
+      KeyCode::Digit3 => write!(f, "3"),
+      KeyCode::Digit4 => write!(f, "4"),
+      KeyCode::Digit5 => write!(f, "5"),
+      KeyCode::Digit6 => write!(f, "6"),
+      KeyCode::Digit7 => write!(f, "7"),
+      KeyCode::Digit8 => write!(f, "8"),
+      KeyCode::Digit9 => write!(f, "9"),
+      KeyCode::Comma => write!(f, ","),
+      KeyCode::Minus => write!(f, "-"),
+      KeyCode::Period => write!(f, "."),
+      KeyCode::Space => write!(f, "Space"),
+      KeyCode::Equal => write!(f, "="),
+      KeyCode::Semicolon => write!(f, ";"),
+      KeyCode::Slash => write!(f, "/"),
+      KeyCode::Backslash => write!(f, "\\"),
+      KeyCode::Quote => write!(f, "\'"),
+      KeyCode::Backquote => write!(f, "`"),
+      KeyCode::BracketLeft => write!(f, "["),
+      KeyCode::BracketRight => write!(f, "]"),
+      KeyCode::Tab => write!(f, "Tab"),
+      KeyCode::Escape => write!(f, "Esc"),
+      KeyCode::Delete => write!(f, "Del"),
+      KeyCode::Insert => write!(f, "Ins"),
+      KeyCode::PageUp => write!(f, "PgUp"),
+      KeyCode::PageDown => write!(f, "PgDn"),
       // These names match LibreOffice.
-      KeyCode::ArrowLeft => s.push_str("Left"),
-      KeyCode::ArrowRight => s.push_str("Right"),
-      KeyCode::ArrowUp => s.push_str("Up"),
-      KeyCode::ArrowDown => s.push_str("Down"),
-      _ => s.push_str(&format!("{:?}", self.key)),
+      KeyCode::ArrowLeft => write!(f, "Left"),
+      KeyCode::ArrowRight => write!(f, "Right"),
+      KeyCode::ArrowUp => write!(f, "Up"),
+      KeyCode::ArrowDown => write!(f, "Down"),
+      _ => write!(f, "{:?}", self.key),
     }
-    s
   }
 }

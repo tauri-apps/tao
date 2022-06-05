@@ -30,16 +30,20 @@ use crate::{
     window_delegate::new_delegate,
     OsError,
   },
-  window::{CursorIcon, Fullscreen, UserAttentionType, WindowAttributes, WindowId as RootWindowId},
+  window::{
+    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
+  },
 };
 use cocoa::{
   appkit::{
-    self, CGFloat, NSApp, NSApplication, NSApplicationPresentationOptions, NSColor,
+    self, CGFloat, NSApp, NSApplication, NSApplicationPresentationOptions, NSColor, NSEvent,
     NSRequestUserAttentionType, NSScreen, NSView, NSWindow, NSWindowButton, NSWindowOrderingMode,
     NSWindowStyleMask,
   },
   base::{id, nil},
-  foundation::{NSAutoreleasePool, NSDictionary, NSPoint, NSRect, NSSize, NSUInteger},
+  foundation::{
+    NSArray, NSAutoreleasePool, NSDictionary, NSPoint, NSRect, NSSize, NSString, NSUInteger,
+  },
 };
 use core_graphics::display::{CGDisplay, CGDisplayMode};
 use objc::{
@@ -47,7 +51,7 @@ use objc::{
   runtime::{Class, Object, Sel, BOOL, NO, YES},
 };
 
-use super::Menu;
+use super::{util::ns_string_to_rust, Menu};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Id(pub usize);
@@ -83,6 +87,7 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub resize_increments: Option<LogicalSize<f64>>,
   pub disallow_hidpi: bool,
   pub has_shadow: bool,
+  pub preferred_theme: Option<Theme>,
 }
 
 impl Default for PlatformSpecificWindowBuilderAttributes {
@@ -99,6 +104,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       resize_increments: None,
       disallow_hidpi: false,
       has_shadow: true,
+      preferred_theme: None,
     }
   }
 }
@@ -253,10 +259,45 @@ fn create_window(
       if let Some(window_menu) = attrs.window_menu.clone() {
         menu::initialize(window_menu);
       }
+
       ns_window
     });
     pool.drain();
     res
+  }
+}
+
+pub(super) fn get_ns_theme() -> Theme {
+  unsafe {
+    let mut appearances: Vec<id> = Vec::new();
+    appearances.push(NSString::alloc(nil).init_str("NSAppearanceNameAqua"));
+    appearances.push(NSString::alloc(nil).init_str("NSAppearanceNameDarkAqua"));
+    let app_class = class!(NSApplication);
+    let app: id = msg_send![app_class, sharedApplication];
+    let appearance: id = msg_send![app, effectiveAppearance];
+    let name: id = msg_send![
+      appearance,
+      bestMatchFromAppearancesWithNames: NSArray::arrayWithObjects(nil, &appearances)
+    ];
+    let name = ns_string_to_rust(name);
+    match &name[..] {
+      "NSAppearanceNameDarkAqua" => Theme::Dark,
+      _ => Theme::Light,
+    }
+  }
+}
+
+pub(super) fn set_ns_theme(theme: Theme) {
+  let name = match theme {
+    Theme::Dark => "NSAppearanceNameDarkAqua",
+    Theme::Light => "NSAppearanceNameAqua",
+  };
+  unsafe {
+    let name = NSString::alloc(nil).init_str(name);
+    let appearance: id = msg_send![class!(NSAppearance), appearanceNamed: name];
+    let app_class = class!(NSApplication);
+    let app: id = msg_send![app_class, sharedApplication];
+    let _: () = msg_send![app, setAppearance: appearance];
   }
 }
 
@@ -276,8 +317,31 @@ lazy_static! {
       sel!(canBecomeKeyWindow),
       util::yes as extern "C" fn(&Object, Sel) -> BOOL,
     );
+    decl.add_method(
+      sel!(sendEvent:),
+      send_event as extern "C" fn(&Object, Sel, id),
+    );
     WindowClass(decl.register())
   };
+}
+
+extern "C" fn send_event(this: &Object, _sel: Sel, event: id) {
+  unsafe {
+    let event_type = event.eventType();
+    match event_type {
+      appkit::NSLeftMouseDown => {
+        // When wkwebview is set on NSWindow, `WindowBuilder::with_movable_by_window_background` is not working.
+        // Because of this, we need to invoke `[NSWindow performWindowDragWithEvent]` in NSLeftMouseDown event.
+        let is_movable_window: BOOL = msg_send![this, isMovableByWindowBackground];
+        if is_movable_window == YES {
+          let _: () = msg_send![this, performWindowDragWithEvent: event];
+        }
+      }
+      _ => (),
+    }
+    let superclass = util::superclass(this);
+    let _: () = msg_send![super(this, superclass), sendEvent: event];
+  }
 }
 
 #[derive(Default)]
@@ -302,6 +366,7 @@ pub struct SharedState {
   /// transitioning back to borderless fullscreen.
   save_presentation_opts: Option<NSApplicationPresentationOptions>,
   pub saved_desktop_display_mode: Option<(CGDisplay, CGDisplayMode)>,
+  current_theme: Theme,
 }
 
 impl SharedState {
@@ -392,7 +457,6 @@ impl UnownedWindow {
         set_max_inner_size(*ns_window, logical_dim)
       });
 
-      use cocoa::foundation::NSArray;
       // register for drag and drop operations.
       let () = msg_send![
         *ns_window,
@@ -422,6 +486,18 @@ impl UnownedWindow {
       cursor_state,
       inner_rect,
     });
+
+    match pl_attribs.preferred_theme {
+      Some(theme) => {
+        set_ns_theme(theme);
+        let mut state = window.shared_state.lock().unwrap();
+        state.current_theme = theme;
+      }
+      None => {
+        let mut state = window.shared_state.lock().unwrap();
+        state.current_theme = get_ns_theme();
+      }
+    }
 
     let delegate = new_delegate(&window, fullscreen.is_some());
 
@@ -1232,6 +1308,12 @@ impl WindowExtMacOS for UnownedWindow {
         .ns_window
         .setHasShadow_(if has_shadow { YES } else { NO })
     }
+  }
+
+  #[inline]
+  fn theme(&self) -> Theme {
+    let state = self.shared_state.lock().unwrap();
+    state.current_theme
   }
 }
 

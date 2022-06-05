@@ -1026,6 +1026,7 @@ impl Default for CursorIcon {
 
 /// Fullscreen modes.
 #[non_exhaustive]
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Fullscreen {
   Exclusive(VideoMode),
@@ -1039,6 +1040,12 @@ pub enum Fullscreen {
 pub enum Theme {
   Light,
   Dark,
+}
+
+impl Default for Theme {
+  fn default() -> Self {
+    Theme::Light
+  }
 }
 
 #[non_exhaustive]
@@ -1061,4 +1068,5 @@ impl Default for UserAttentionType {
 }
 
 /// A constant used to determine how much inside the window, the resize handler should appear (only used in Linux(gtk) and Windows).
+/// You probably need to scale it by the scale_factor of the window.
 pub const BORDERLESS_RESIZE_INSET: i32 = 5;

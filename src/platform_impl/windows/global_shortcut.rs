@@ -24,7 +24,7 @@ impl ShortcutManager {
     accelerator: Accelerator,
   ) -> Result<RootGlobalShortcut, ShortcutManagerError> {
     unsafe {
-      let mut converted_modifiers = 0;
+      let mut converted_modifiers = Default::default();
       let modifiers: ModifiersState = accelerator.mods;
       if modifiers.shift_key() {
         converted_modifiers |= MOD_SHIFT;
@@ -46,7 +46,7 @@ impl ShortcutManager {
             HWND::default(),
             accelerator.clone().id().0 as i32,
             converted_modifiers,
-            u32::from(vk_code),
+            u32::from(vk_code.0),
           );
           if !result.as_bool() {
             return Err(ShortcutManagerError::InvalidAccelerator(
