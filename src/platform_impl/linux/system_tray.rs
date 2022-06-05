@@ -23,7 +23,7 @@ pub struct SystemTrayBuilder {
 impl SystemTrayBuilder {
   #[inline]
   pub fn new(icon: Vec<u8>, tray_menu: Option<Menu>) -> Self {
-    let tempfile_path = temp_png_file().expect("Failed to create a temp file for icon");
+    let tempfile_path = templ_png_path().expect("Failed to create a temp file for icon");
     if let Ok(mut file) = std::fs::File::create(&tempfile_path) {
       use std::io::Write;
       let _ = file.write_all(icon.as_slice());
@@ -80,7 +80,7 @@ pub struct SystemTray {
 
 impl SystemTray {
   pub fn set_icon(&mut self, icon: Vec<u8>) {
-    let tempfile_path = temp_png_file().expect("Failed to create a temp file for icon");
+    let tempfile_path = templ_png_path().expect("Failed to create a temp file for icon");
 
     if let Ok(mut file) = std::fs::File::create(&tempfile_path) {
       use std::io::Write;
@@ -118,7 +118,7 @@ impl Drop for SystemTray {
   }
 }
 
-fn temp_png_file() -> std::io::Result<PathBuf> {
+fn templ_png_path() -> std::io::Result<PathBuf> {
   let mut path = std::env::temp_dir();
   path.push("tao");
   std::fs::create_dir_all(&path)?;
