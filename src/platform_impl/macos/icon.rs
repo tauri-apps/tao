@@ -1,30 +1,24 @@
+use crate::icon::RgbaIcon;
 use std::io::BufWriter;
 
 #[derive(Debug, Clone)]
-pub struct Icon {
-  rgba: Vec<u8>,
-  width: i32,
-  height: i32,
-}
+pub struct PlatformIcon(RgbaIcon);
 
-impl Icon {
-  pub(crate) fn from_rgba(rgba: Vec<u8>, width: i32, height: i32) -> Icon {
-    Icon {
-      rgba,
-      width,
-      height,
-    }
+impl PlatformIcon {
+  pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
+    RgbaIcon::from_rgba(rgba, width, height)
   }
-  pub(crate) fn to_png(&self) -> Vec<u8> {
+
+  pub fn to_png(&self) -> Vec<u8> {
     let png = Vec::new();
     let ref mut w = BufWriter::new(png);
 
-    let mut encoder = png::Encoder::new(w, self.width as _, self.height as _);
+    let mut encoder = png::Encoder::new(w, self.0.width as _, self.0.height as _);
     encoder.set_color(png::ColorType::Rgba);
     encoder.set_depth(png::BitDepth::Eight);
 
     let mut writer = encoder.write_header().unwrap();
-    writer.write_image_data(&self.rgba).unwrap();
+    writer.write_image_data(&self.0.rgba).unwrap();
 
     png
   }
