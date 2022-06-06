@@ -1,5 +1,9 @@
 use std::{fs::File, io::BufWriter, path::Path};
 
+use gdk_pixbuf::{Pixbuf, Colorspace};
+
+use crate::window::BadIcon;
+
 /// An icon used for the window titlebar, taskbar, etc.
 #[derive(Debug, Clone)]
 pub struct PlatformIcon {
@@ -39,15 +43,15 @@ impl PlatformIcon {
     })
   }
 
-  pub fn write_to_png(&self, path: impl AsRf<Path>) {
-    let mut png = File::create(path).unwrap();
-    let ref mut w = BufWriter::new(file);
+  pub fn write_to_png(&self, path: impl AsRef<Path>) {
+    let png = File::create(path).unwrap();
+    let ref mut w = BufWriter::new(png);
 
-    let mut encoder = png::Encoder::new(w, self.0.width as _, self.0.height as _);
+    let mut encoder = png::Encoder::new(w, self.width as _, self.height as _);
     encoder.set_color(png::ColorType::Rgba);
     encoder.set_depth(png::BitDepth::Eight);
 
     let mut writer = encoder.write_header().unwrap();
-    writer.write_image_data(&self.0.rgba).unwrap();
+    writer.write_image_data(&self.raw).unwrap();
   }
 }

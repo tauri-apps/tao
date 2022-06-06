@@ -8,7 +8,6 @@ use crate::{
 };
 
 use glib::Sender;
-use std::fs::File;
 use std::path::PathBuf;
 
 use gtk::{prelude::WidgetExt, AccelGroup};
@@ -27,7 +26,7 @@ impl SystemTrayBuilder {
   pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
     let (parent_path, icon_path) =
       temp_icon_path().expect("Failed to create a temp folder for icon");
-    icon.write_to_png(&icon_path);
+    icon.inner.write_to_png(&icon_path);
 
     let mut app_indicator = AppIndicator::new("tao application", "");
     app_indicator.set_icon_theme_path(&parent_path.to_string_lossy());
@@ -74,7 +73,7 @@ impl SystemTray {
   pub fn set_icon(&mut self, icon: Icon) {
     let (parent_path, icon_path) =
       temp_icon_path().expect("Failed to create a temp folder for icon");
-    icon.write_to_png(&icon_path);
+    icon.inner.write_to_png(&icon_path);
 
     self
       .app_indicator
@@ -108,5 +107,5 @@ fn temp_icon_path() -> std::io::Result<(PathBuf, PathBuf)> {
   std::fs::create_dir_all(&parent_path)?;
   let mut icon_path = parent_path.clone();
   icon_path.push(format!("tray-icon-{}.png", uuid::Uuid::new_v4()));
-  Ok(parent_path, icon_path)
+  Ok((parent_path, icon_path))
 }

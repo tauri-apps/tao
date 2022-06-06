@@ -9,21 +9,20 @@ use std::{
 };
 
 use gdk::{WindowEdge, WindowState};
-use gdk_pixbuf::{Colorspace, Pixbuf};
 use gtk::{prelude::*, AccelGroup, Orientation};
 use raw_window_handle::{RawWindowHandle, XlibHandle};
 
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
-  icon::{BadIcon, Icon},
+  icon::Icon,
   menu::{MenuId, MenuItem},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{CursorIcon, Fullscreen, UserAttentionType, WindowAttributes, BORDERLESS_RESIZE_INSET},
 };
 
 use super::{
-  event_loop::EventLoopWindowTarget, icon::PlatformIcon, menu, monitor::MonitorHandle,
+  event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle,
   PlatformSpecificWindowBuilderAttributes,
 };
 
@@ -163,7 +162,7 @@ impl Window {
             box-shadow: none;
           }
         "#;
-      css_provider.load_from_data(theme.as_bytes());
+      let _ = css_provider.load_from_data(theme.as_bytes());
       style_context.add_provider(&css_provider, 600);
     }
     window_box.pack_start(&menu_bar, false, false, 0);
