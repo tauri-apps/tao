@@ -1,6 +1,6 @@
 use std::{fs::File, io::BufWriter, path::Path};
 
-use gdk_pixbuf::{Pixbuf, Colorspace};
+use gdk_pixbuf::{Colorspace, Pixbuf};
 
 use crate::window::BadIcon;
 
