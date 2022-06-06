@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-  error::OsError, event_loop::EventLoopWindowTarget, system_tray::SystemTray as RootSystemTray,
+  error::OsError,
+  event_loop::EventLoopWindowTarget,
+  system_tray::{Icon, SystemTray as RootSystemTray},
 };
 
 use glib::Sender;
@@ -22,29 +24,19 @@ pub struct SystemTrayBuilder {
 
 impl SystemTrayBuilder {
   #[inline]
-  pub fn new(icon: Vec<u8>, tray_menu: Option<Menu>) -> Self {
-    let tempfile_path = temp_png_path().expect("Failed to create a temp file for icon");
-    if let Ok(mut file) = std::fs::File::create(&tempfile_path) {
-      use std::io::Write;
-      let _ = file.write_all(icon.as_slice());
-    }
+  pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
+    let (parent_path, icon_path) =
+      temp_icon_path().expect("Failed to create a temp folder for icon");
+    icon.write_to_png(&icon_path);
 
-    let parent = tempfile_path
-      .parent()
-      .expect("Failed to get parent of tempfile");
     let mut app_indicator = AppIndicator::new("tao application", "");
-    app_indicator.set_icon_theme_path(&parent.to_str().expect("Failed to convert PathBuf to str"));
-    app_indicator.set_icon_full(
-      &tempfile_path
-        .to_str()
-        .expect("Failed to convert PathBuf to str"),
-      "icon",
-    );
+    app_indicator.set_icon_theme_path(&parent_path.to_string_lossy());
+    app_indicator.set_icon_full(&icon_path.to_string_lossy(), "icon");
 
     Self {
       tray_menu,
       app_indicator,
-      path: tempfile_path,
+      path: icon_path,
     }
   }
 
@@ -79,26 +71,18 @@ pub struct SystemTray {
 }
 
 impl SystemTray {
-  pub fn set_icon(&mut self, icon: Vec<u8>) {
-    let tempfile_path = temp_png_path().expect("Failed to create a temp file for icon");
+  pub fn set_icon(&mut self, icon: Icon) {
+    let (parent_path, icon_path) =
+      temp_icon_path().expect("Failed to create a temp folder for icon");
+    icon.write_to_png(&icon_path);
 
-    if let Ok(mut file) = std::fs::File::create(&tempfile_path) {
-      use std::io::Write;
-      let _ = file.write_all(icon.as_slice());
-    }
-
-    let parent = tempfile_path
-      .parent()
-      .expect("Failed to get parent of tempfile");
-    let mut app_indicator = AppIndicator::new("tao application", "");
-    app_indicator.set_icon_theme_path(&parent.to_str().expect("Failed to convert PathBuf to str"));
-    app_indicator.set_icon_full(
-      &tempfile_path
-        .to_str()
-        .expect("Failed to convert PathBuf to str"),
-      "icon",
-    );
-    self.path = tempfile_path;
+    self
+      .app_indicator
+      .set_icon_theme_path(&parent_path.to_string_lossy());
+    self
+      .app_indicator
+      .set_icon_full(&icon_path.to_string_lossy(), "icon");
+    self.path = icon_path;
   }
 
   pub fn set_menu(&mut self, tray_menu: &Menu) {
@@ -118,11 +102,11 @@ impl Drop for SystemTray {
   }
 }
 
-fn temp_png_path() -> std::io::Result<PathBuf> {
-  let mut path = std::env::temp_dir();
-  path.push("tao");
-  std::fs::create_dir_all(&path)?;
-  path.push(format!("tray-icon-{}.png", uuid::Uuid::new_v4()));
-  File::create(path.clone())?;
-  Ok(path)
+fn temp_icon_path() -> std::io::Result<(PathBuf, PathBuf)> {
+  let mut parent_path = std::env::temp_dir();
+  parent_path.push("tao");
+  std::fs::create_dir_all(&parent_path)?;
+  let mut icon_path = parent_path.clone();
+  icon_path.push(format!("tray-icon-{}.png", uuid::Uuid::new_v4()));
+  Ok(parent_path, icon_path)
 }

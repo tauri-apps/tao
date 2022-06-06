@@ -30,7 +30,8 @@ pub use self::{
 };
 pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
 pub use monitor::{MonitorHandle, VideoMode};
-pub use window::{hit_test, PlatformIcon, Window, WindowId};
+pub use icon::PlatformIcon;
+pub use window::{hit_test, Window, WindowId};
 
 use crate::{event::DeviceId as RootDeviceId, keyboard::Key};
 
