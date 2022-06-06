@@ -1,4 +1,4 @@
-use crate::icon::RgbaIcon;
+use crate::icon::{BadIcon, RgbaIcon};
 use std::io::BufWriter;
 
 #[derive(Debug, Clone)]
@@ -6,7 +6,7 @@ pub struct PlatformIcon(RgbaIcon);
 
 impl PlatformIcon {
   pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
-    RgbaIcon::from_rgba(rgba, width, height)
+    Ok(PlatformIcon(RgbaIcon::from_rgba(rgba, width, height)?))
   }
 
   pub fn to_png(&self) -> Vec<u8> {
