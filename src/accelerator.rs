@@ -48,7 +48,7 @@ impl Accelerator {
   pub fn matches(&self, modifiers: impl Borrow<ModifiersState>, key: impl Borrow<KeyCode>) -> bool {
     // Should be a const but const bit_or doesn't work here.
     let base_mods =
-      ModifiersState::SHIFT | ModifiersState::CONTROL | ModifiersState::ALT | ModifiersState::SUPER;
+      ModifiersState::SHIFT | ModifiersState::CONTROL | ModifiersState::ALT | ModifiersState::LOGO;
     let modifiers = modifiers.borrow();
     let key = key.borrow();
     self.mods == *modifiers & base_mods && self.key == *key
@@ -145,7 +145,7 @@ impl From<RawMods> for ModifiersState {
     let mut mods = ModifiersState::empty();
     mods.set(ModifiersState::ALT, alt);
     mods.set(ModifiersState::CONTROL, ctrl);
-    mods.set(ModifiersState::SUPER, meta);
+    mods.set(ModifiersState::LOGO, meta);
     mods.set(ModifiersState::SHIFT, shift);
     mods
   }
@@ -180,7 +180,7 @@ impl From<SysMods> for ModifiersState {
     let mut mods = ModifiersState::empty();
     mods.set(ModifiersState::ALT, alt);
     mods.set(ModifiersState::CONTROL, ctrl);
-    mods.set(ModifiersState::SUPER, meta);
+    mods.set(ModifiersState::LOGO, meta);
     mods.set(ModifiersState::SHIFT, shift);
     mods
   }
@@ -294,14 +294,14 @@ fn parse_accelerator(accelerator_string: &str) -> Result<Accelerator, Accelerato
         mods.set(ModifiersState::CONTROL, true);
       }
       "COMMAND" | "CMD" | "SUPER" => {
-        mods.set(ModifiersState::SUPER, true);
+        mods.set(ModifiersState::LOGO, true);
       }
       "SHIFT" => {
         mods.set(ModifiersState::SHIFT, true);
       }
       "COMMANDORCONTROL" | "COMMANDORCTRL" | "CMDORCTRL" | "CMDORCONTROL" => {
         #[cfg(target_os = "macos")]
-        mods.set(ModifiersState::SUPER, true);
+        mods.set(ModifiersState::LOGO, true);
         #[cfg(not(target_os = "macos"))]
         mods.set(ModifiersState::CONTROL, true);
       }
@@ -374,7 +374,7 @@ fn test_parse_accelerator() {
     parse_accelerator("super+ctrl+SHIFT+alt+Up").unwrap(),
     Accelerator {
       id: Some(AcceleratorId::new("super+ctrl+SHIFT+alt+Up")),
-      mods: ModifiersState::SUPER
+      mods: ModifiersState::LOGO
         | ModifiersState::CONTROL
         | ModifiersState::SHIFT
         | ModifiersState::ALT,
@@ -426,7 +426,7 @@ fn test_parse_accelerator() {
     Accelerator {
       id: Some(AcceleratorId::new("CmdOrCtrl+Space")),
       #[cfg(target_os = "macos")]
-      mods: ModifiersState::SUPER,
+      mods: ModifiersState::LOGO,
       #[cfg(not(target_os = "macos"))]
       mods: ModifiersState::CONTROL,
       key: KeyCode::Space,

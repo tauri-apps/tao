@@ -5,7 +5,7 @@
 
 use tao::{
   dpi::{LogicalSize, PhysicalSize},
-  event::{DeviceEvent, ElementState, Event, KeyEvent, RawKeyEvent, WindowEvent},
+  event::{DeviceEvent, ElementState, Event, KeyboardInput, RawKeyEvent, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   keyboard::{Key, KeyCode},
   window::{Fullscreen, WindowBuilder},
@@ -67,9 +67,9 @@ fn main() {
       Event::WindowEvent {
         event:
           WindowEvent::KeyboardInput {
-            event:
-              KeyEvent {
-                logical_key: Key::Character(key_str),
+            input:
+              KeyboardInput {
+                virtual_keycode: Key::Character(key_str),
                 state: ElementState::Released,
                 ..
               },

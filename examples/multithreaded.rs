@@ -8,7 +8,7 @@ fn main() {
 
   use tao::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-    event::{ElementState, Event, KeyEvent, WindowEvent},
+    event::{ElementState, Event, KeyboardInput, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     keyboard::{Key, ModifiersState},
     window::{CursorIcon, Fullscreen, WindowBuilder},
@@ -58,10 +58,10 @@ fn main() {
             modifiers = mod_state;
           }
           WindowEvent::KeyboardInput {
-            event:
-              KeyEvent {
+            input:
+              KeyboardInput {
                 state: ElementState::Released,
-                logical_key: key,
+                virtual_keycode: key,
                 ..
               },
             ..
@@ -162,10 +162,10 @@ fn main() {
         WindowEvent::CloseRequested
         | WindowEvent::Destroyed
         | WindowEvent::KeyboardInput {
-          event:
-            KeyEvent {
+          input:
+            KeyboardInput {
               state: ElementState::Released,
-              logical_key: Key::Escape,
+              virtual_keycode: Key::Escape,
               ..
             },
           ..

@@ -4,7 +4,7 @@
 use std::{thread, time};
 
 use tao::{
-  event::{ElementState, Event, KeyEvent, WindowEvent},
+  event::{ElementState, Event, KeyboardInput, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   keyboard::Key,
   window::WindowBuilder,
@@ -56,9 +56,9 @@ fn main() {
           close_requested = true;
         }
         WindowEvent::KeyboardInput {
-          event:
-            KeyEvent {
-              logical_key,
+          input:
+            KeyboardInput {
+              virtual_keycode: logical_key,
               state: ElementState::Pressed,
               ..
             },

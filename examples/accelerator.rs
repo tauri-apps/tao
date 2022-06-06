@@ -36,11 +36,11 @@ fn main() {
           modifiers = new_state;
         }
         // catch only pressed event
-        WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
-          if hotkey.matches(&modifiers, &event.physical_key) {
+        WindowEvent::KeyboardInput { input: event, .. } if event.state == ElementState::Pressed => {
+          if hotkey.matches(&modifiers, &event.scancode) {
             println!(
               "KeyEvent:  `Shift` + `1` | logical_key: {:?}",
-              &event.logical_key
+              &event.virtual_keycode
             );
             // we can match manually without `Accelerator`
           } else if event.key_without_modifiers() == Key::Character("1") && modifiers.is_empty() {

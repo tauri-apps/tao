@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use tao::{
-  event::{ElementState, Event, KeyEvent, WindowEvent},
+  event::{ElementState, Event, KeyboardInput, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   window::{CursorIcon, WindowBuilder},
 };
@@ -23,8 +23,8 @@ fn main() {
       Event::WindowEvent {
         event:
           WindowEvent::KeyboardInput {
-            event:
-              KeyEvent {
+            input:
+              KeyboardInput {
                 state: ElementState::Pressed,
                 ..
               },

@@ -6,7 +6,6 @@ extern crate tao;
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
-  keyboard::Key,
   window::WindowBuilder,
 };
 
@@ -31,10 +30,10 @@ fn main() {
 
       // Keyboard input event to handle minimize via a hotkey
       Event::WindowEvent {
-        event: WindowEvent::KeyboardInput { event, .. },
+        event: WindowEvent::KeyboardInput { input: event, .. },
         window_id,
         ..
-      } if window_id == window.id() && Key::Character("m") == event.logical_key => {
+      } if window_id == window.id() && Key::Character("m") == event.virtual_keycode => {
         // Pressing the 'm' key will minimize the window
         // WARNING: Consider using `key_without_modifers()` if available on your platform.
         // See the `key_binding` example

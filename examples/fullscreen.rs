@@ -4,7 +4,7 @@
 use std::io::{stdin, stdout, Write};
 
 use tao::{
-  event::{ElementState, Event, KeyEvent, WindowEvent},
+  event::{ElementState, Event, KeyboardInput, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   keyboard::Key,
   monitor::{MonitorHandle, VideoMode},
@@ -45,9 +45,9 @@ fn main() {
       Event::WindowEvent { event, .. } => match event {
         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
         WindowEvent::KeyboardInput {
-          event:
-            KeyEvent {
-              logical_key,
+          input:
+            KeyboardInput {
+              virtual_keycode: logical_key,
               state: ElementState::Pressed,
               ..
             },

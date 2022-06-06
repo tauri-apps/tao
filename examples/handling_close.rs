@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use tao::{
-  event::{ElementState, Event, KeyEvent, WindowEvent},
+  event::{ElementState, Event, KeyboardInput, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
-  keyboard::Key,
   window::WindowBuilder,
 };
 
@@ -44,9 +43,9 @@ fn main() {
             // the Y key.
           }
           WindowEvent::KeyboardInput {
-            event:
-              KeyEvent {
-                logical_key: Key::Character(char),
+            input:
+              KeyboardInput {
+                virtual_keycode: Key::Character(char),
                 state: ElementState::Released,
                 ..
               },

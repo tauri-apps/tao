@@ -42,7 +42,7 @@ use std::path::PathBuf;
 use crate::{
   accelerator::AcceleratorId,
   dpi::{PhysicalPosition, PhysicalSize},
-  keyboard::{self, ModifiersState},
+  keyboard::{ModifiersState, VirtualKeyCode},
   menu::{MenuId, MenuType},
   platform_impl,
   window::{Theme, WindowId},
@@ -372,7 +372,7 @@ pub enum WindowEvent<'a> {
   #[non_exhaustive]
   KeyboardInput {
     device_id: DeviceId,
-    event: KeyEvent,
+    input: KeyboardInput,
 
     /// If `true`, the event was generated synthetically by tao
     /// in one of the following circumstances:
@@ -495,11 +495,11 @@ impl Clone for WindowEvent<'static> {
       Focused(f) => Focused(*f),
       KeyboardInput {
         device_id,
-        event,
+        input: event,
         is_synthetic,
       } => KeyboardInput {
         device_id: *device_id,
-        event: event.clone(),
+        input: event.clone(),
         is_synthetic: *is_synthetic,
       },
 
@@ -587,11 +587,11 @@ impl<'a> WindowEvent<'a> {
       Focused(focused) => Some(Focused(focused)),
       KeyboardInput {
         device_id,
-        event,
+        input: event,
         is_synthetic,
       } => Some(KeyboardInput {
         device_id,
-        event,
+        input: event,
         is_synthetic,
       }),
       ModifiersChanged(modifiers) => Some(ModifiersChanged(modifiers)),
@@ -723,7 +723,7 @@ pub enum DeviceEvent {
     state: ElementState,
   },
 
-  Key(RawKeyEvent),
+  Key(KeyboardInput),
 
   #[non_exhaustive]
   Text {
@@ -731,111 +731,34 @@ pub enum DeviceEvent {
   },
 }
 
-/// Describes a keyboard input as a raw device event.
-///
-/// Note that holding down a key may produce repeated `RawKeyEvent`s. The
-/// operating system doesn't provide information whether such an event is a
-/// repeat or the initial keypress. An application may emulate this by, for
-/// example keeping a Map/Set of pressed keys and determining whether a keypress
-/// corresponds to an already pressed key.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+/// Hardware-dependent keyboard scan code.
+pub type ScanCode = u32;
+
+/// Describes a keyboard input event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct RawKeyEvent {
-  pub physical_key: keyboard::KeyCode,
+pub struct KeyboardInput {
+  /// Identifies the physical key pressed
+  ///
+  /// This should not change if the user adjusts the host's keyboard map. Use when the physical location of the
+  /// key is more important than the key's host GUI semantics, such as for movement controls in a first-person
+  /// game.
+  pub scancode: ScanCode,
+
   pub state: ElementState,
-}
 
-/// Describes a keyboard input targeting a window.
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct KeyEvent {
-  /// Represents the position of a key independent of the currently active layout.
+  /// Identifies the semantic meaning of the key
   ///
-  /// It also uniquely identifies the physical key (i.e. it's mostly synonymous with a scancode).
-  /// The most prevalent use case for this is games. For example the default keys for the player
-  /// to move around might be the W, A, S, and D keys on a US layout. The position of these keys
-  /// is more important than their label, so they should map to Z, Q, S, and D on an "AZERTY"
-  /// layout. (This value is `KeyCode::KeyW` for the Z key on an AZERTY layout.)
-  ///
-  /// Note that `Fn` and `FnLock` key events are not guaranteed to be emitted by `tao`. These
-  /// keys are usually handled at the hardware or OS level.
-  pub physical_key: keyboard::KeyCode,
+  /// Use when the semantics of the key are more important than the physical location of the key, such as when
+  /// implementing appropriate behavior for "page up."
+  pub virtual_keycode: Option<VirtualKeyCode>,
 
-  /// This value is affected by all modifiers except <kbd>Ctrl</kbd>.
+  /// Modifier keys active at the time of this input.
   ///
-  /// This has two use cases:
-  /// - Allows querying whether the current input is a Dead key.
-  /// - Allows handling key-bindings on platforms which don't
-  /// support `key_without_modifiers`.
-  ///
-  /// ## Platform-specific
-  /// - **Web:** Dead keys might be reported as the real key instead
-  /// of `Dead` depending on the browser/OS.
-  ///
-  pub logical_key: keyboard::Key<'static>,
-
-  /// Contains the text produced by this keypress.
-  ///
-  /// In most cases this is identical to the content
-  /// of the `Character` variant of `logical_key`.
-  /// However, on Windows when a dead key was pressed earlier
-  /// but cannot be combined with the character from this
-  /// keypress, the produced text will consist of two characters:
-  /// the dead-key-character followed by the character resulting
-  /// from this keypress.
-  ///
-  /// An additional difference from `logical_key` is that
-  /// this field stores the text representation of any key
-  /// that has such a representation. For example when
-  /// `logical_key` is `Key::Enter`, this field is `Some("\r")`.
-  ///
-  /// This is `None` if the current keypress cannot
-  /// be interpreted as text.
-  ///
-  /// See also: `text_with_all_modifiers()`
-  pub text: Option<&'static str>,
-
-  pub location: keyboard::KeyLocation,
-  pub state: ElementState,
-  pub repeat: bool,
-
-  pub(crate) platform_specific: platform_impl::KeyEventExtra,
-}
-
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
-impl KeyEvent {
-  /// Identical to `KeyEvent::text` but this is affected by <kbd>Ctrl</kbd>.
-  ///
-  /// For example, pressing <kbd>Ctrl</kbd>+<kbd>a</kbd> produces `Some("\x01")`.
-  pub fn text_with_all_modifiers(&self) -> Option<&str> {
-    self.platform_specific.text_with_all_modifiers
-  }
-
-  /// This value ignores all modifiers including,
-  /// but not limited to <kbd>Shift</kbd>, <kbd>Caps Lock</kbd>,
-  /// and <kbd>Ctrl</kbd>. In most cases this means that the
-  /// unicode character in the resulting string is lowercase.
-  ///
-  /// This is useful for key-bindings / shortcut key combinations.
-  ///
-  /// In case `logical_key` reports `Dead`, this will still report the
-  /// key as `Character` according to the current keyboard layout. This value
-  /// cannot be `Dead`.
-  pub fn key_without_modifiers(&self) -> keyboard::Key<'static> {
-    self.platform_specific.key_without_modifiers.clone()
-  }
-}
-
-#[cfg(any(target_os = "android", target_os = "ios"))]
-impl KeyEvent {
-  /// Identical to `KeyEvent::text`.
-  pub fn text_with_all_modifiers(&self) -> Option<&str> {
-    self.text.clone()
-  }
-
-  /// Identical to `KeyEvent::logical_key`.
-  pub fn key_without_modifiers(&self) -> keyboard::Key<'static> {
-    self.logical_key.clone()
-  }
+  /// This is tracked internally to avoid tracking errors arising from modifier key state changes when events from
+  /// this device are not being delivered to the application, e.g. due to keyboard focus being elsewhere.
+  #[deprecated = "Deprecated in favor of WindowEvent::ModifiersChanged"]
+  pub modifiers: ModifiersState,
 }
 
 /// Describes touch-screen input state.

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use tao::{
-  event::{DeviceEvent, ElementState, Event, KeyEvent, WindowEvent},
+  event::{DeviceEvent, ElementState, Event, KeyboardInput, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   keyboard::{Key, ModifiersState},
   window::WindowBuilder,
@@ -27,9 +27,9 @@ fn main() {
       Event::WindowEvent { event, .. } => match event {
         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
         WindowEvent::KeyboardInput {
-          event:
-            KeyEvent {
-              logical_key: key,
+          input:
+            KeyboardInput {
+              virtual_keycode: key,
               state: ElementState::Released,
               ..
             },

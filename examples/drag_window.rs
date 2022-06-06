@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use tao::{
-  event::{ElementState, Event, KeyEvent, MouseButton, StartCause, WindowEvent},
+  event::{ElementState, Event, KeyboardInput, MouseButton, StartCause, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   keyboard::Key,
   window::{Window, WindowBuilder, WindowId},
@@ -47,10 +47,10 @@ fn main() {
         name_windows(entered_id, switched, &window_1, &window_2)
       }
       WindowEvent::KeyboardInput {
-        event:
-          KeyEvent {
+        input:
+          KeyboardInput {
             state: ElementState::Released,
-            logical_key,
+            virtual_keycode: logical_key,
             ..
           },
         ..

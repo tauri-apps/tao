@@ -158,16 +158,16 @@ impl ShortcutManager {
 
     if let Some(keycode) = keycode {
       let mut converted_modifiers: u32 = 0;
-      if accelerator.mods.shift_key() {
+      if accelerator.mods.shift() {
         converted_modifiers |= xlib::ShiftMask;
       }
-      if accelerator.mods.super_key() {
+      if accelerator.mods.logo() {
         converted_modifiers |= xlib::Mod4Mask;
       }
-      if accelerator.mods.alt_key() {
+      if accelerator.mods.alt() {
         converted_modifiers |= xlib::Mod1Mask;
       }
-      if accelerator.mods.control_key() {
+      if accelerator.mods.ctrl() {
         converted_modifiers |= xlib::ControlMask;
       }
 

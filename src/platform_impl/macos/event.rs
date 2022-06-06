@@ -323,7 +323,7 @@ pub fn event_mods(event: id) -> ModifiersState {
     flags.contains(NSEventModifierFlags::NSAlternateKeyMask),
   );
   m.set(
-    ModifiersState::SUPER,
+    ModifiersState::LOGO,
     flags.contains(NSEventModifierFlags::NSCommandKeyMask),
   );
   m

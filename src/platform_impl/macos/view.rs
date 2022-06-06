@@ -861,12 +861,12 @@ extern "C" fn flags_changed(this: &Object, _sel: Sel, ns_event: id) {
       AltRight
     );
     process_event!(
-      ModifiersState::SUPER,
+      ModifiersState::LOGO,
       NSEventModifierFlags::NSCommandKeyMask,
       SuperLeft
     );
     process_event!(
-      ModifiersState::SUPER,
+      ModifiersState::LOGO,
       NSEventModifierFlags::NSCommandKeyMask,
       SuperRight
     );

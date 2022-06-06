@@ -577,7 +577,7 @@ impl<T: 'static> EventLoop<T> {
             let tx_clone = event_tx.clone();
             let keyboard_handler = Rc::new(move |event_key: EventKey, element_state| {
               // if we have a modifier lets send it
-              let mut mods = keyboard::get_modifiers(event_key.clone());
+              let mut mods = keyboard::get_modifiers(&event_key);
               if !mods.is_empty() {
                 // if we release the modifier tell the world
                 if ElementState::Released == element_state {
@@ -599,20 +599,17 @@ impl<T: 'static> EventLoop<T> {
                 }
               }
 
-              // todo: implement repeat?
-              let event = keyboard::make_key_event(&event_key, false, None, element_state);
+              let event = keyboard::make_key_event(&event_key, element_state);
 
-              if let Some(event) = event {
-                if let Err(e) = tx_clone.send(Event::WindowEvent {
-                  window_id: RootWindowId(id),
-                  event: WindowEvent::KeyboardInput {
-                    device_id: DEVICE_ID,
-                    event,
-                    is_synthetic: false,
-                  },
-                }) {
-                  log::warn!("Failed to send keyboard event to event channel: {}", e);
-                }
+              if let Err(e) = tx_clone.send(Event::WindowEvent {
+                window_id: RootWindowId(id),
+                event: WindowEvent::KeyboardInput {
+                  device_id: DEVICE_ID,
+                  input: event,
+                  is_synthetic: false,
+                },
+              }) {
+                log::warn!("Failed to send keyboard event to event channel: {}", e);
               }
               Continue(true)
             });

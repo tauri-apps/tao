@@ -394,10 +394,10 @@ fn register_accelerator(item: &GtkMenuItem, accel_group: &AccelGroup, menu_key: 
 fn modifiers_to_gdk_modifier_type(modifiers: ModifiersState) -> gdk::ModifierType {
   let mut result = gdk::ModifierType::empty();
 
-  result.set(gdk::ModifierType::MOD1_MASK, modifiers.alt_key());
-  result.set(gdk::ModifierType::CONTROL_MASK, modifiers.control_key());
-  result.set(gdk::ModifierType::SHIFT_MASK, modifiers.shift_key());
-  result.set(gdk::ModifierType::META_MASK, modifiers.super_key());
+  result.set(gdk::ModifierType::MOD1_MASK, modifiers.alt());
+  result.set(gdk::ModifierType::CONTROL_MASK, modifiers.ctrl());
+  result.set(gdk::ModifierType::SHIFT_MASK, modifiers.shift());
+  result.set(gdk::ModifierType::META_MASK, modifiers.logo());
 
   result
 }

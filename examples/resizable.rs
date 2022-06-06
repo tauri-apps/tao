@@ -3,7 +3,7 @@
 
 use tao::{
   dpi::LogicalSize,
-  event::{ElementState, Event, KeyEvent, WindowEvent},
+  event::{ElementState, Event, KeyboardInput, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   keyboard::KeyCode,
   window::WindowBuilder,
@@ -30,9 +30,9 @@ fn main() {
       Event::WindowEvent { event, .. } => match event {
         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
         WindowEvent::KeyboardInput {
-          event:
-            KeyEvent {
-              physical_key: KeyCode::Space,
+          input:
+            KeyboardInput {
+              scancode: KeyCode::Space,
               state: ElementState::Released,
               ..
             },

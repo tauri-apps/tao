@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 
 use tao::{
-  event::{ElementState, Event, KeyEvent, WindowEvent},
+  event::{ElementState, Event, KeyboardInput, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   window::Window,
 };
@@ -38,10 +38,11 @@ fn main() {
           }
         }
         WindowEvent::KeyboardInput {
-          event: KeyEvent {
-            state: ElementState::Pressed,
-            ..
-          },
+          input:
+            KeyboardInput {
+              state: ElementState::Pressed,
+              ..
+            },
           ..
         } => {
           let window = Window::new(event_loop).unwrap();
