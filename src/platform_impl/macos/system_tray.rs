@@ -12,7 +12,7 @@ use crate::{
   error::OsError,
   event::{Event, Rectangle, TrayEvent},
   event_loop::EventLoopWindowTarget,
-  system_tray::SystemTray as RootSystemTray,
+  system_tray::{Icon, SystemTray as RootSystemTray},
 };
 use cocoa::{
   appkit::{
@@ -35,7 +35,7 @@ pub struct SystemTrayBuilder {
 impl SystemTrayBuilder {
   /// Creates a new SystemTray for platforms where this is appropriate.
   #[inline]
-  pub fn new(icon: Vec<u8>, tray_menu: Option<Menu>) -> Self {
+  pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
     unsafe {
       let ns_status_bar = NSStatusBar::systemStatusBar(nil)
         .statusItemWithLength_(NSSquareStatusItemLength)
@@ -97,14 +97,14 @@ impl SystemTrayBuilder {
 /// System tray is a status icon that can show popup menu. It is usually displayed on top right or bottom right of the screen.
 #[derive(Debug, Clone)]
 pub struct SystemTray {
-  pub(crate) icon: Vec<u8>,
+  pub(crate) icon: Icon,
   pub(crate) icon_is_template: bool,
   pub(crate) tray_menu: Option<Menu>,
   pub(crate) ns_status_bar: id,
 }
 
 impl SystemTray {
-  pub fn set_icon(&mut self, icon: Vec<u8>) {
+  pub fn set_icon(&mut self, icon: Icon) {
     // update our icon
     self.icon = icon;
     self.create_button_with_icon();
@@ -124,6 +124,8 @@ impl SystemTray {
     const ICON_WIDTH: f64 = 18.0;
     const ICON_HEIGHT: f64 = 18.0;
 
+    let icon = self.icon.inner.to_png();
+
     unsafe {
       let status_item = self.ns_status_bar;
       let button = status_item.button();
@@ -131,8 +133,8 @@ impl SystemTray {
       // build our icon
       let nsdata = NSData::dataWithBytes_length_(
         nil,
-        self.icon.as_ptr() as *const std::os::raw::c_void,
-        self.icon.len() as u64,
+        icon.as_ptr() as *const std::os::raw::c_void,
+        icon.len() as u64,
       );
 
       let nsimage = NSImage::initWithData_(NSImage::alloc(nil), nsdata);
