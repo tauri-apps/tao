@@ -38,6 +38,12 @@ pub struct SystemTrayBuilder(pub(crate) SystemTrayBuilderPlatform);
 
 impl SystemTrayBuilder {
   /// Creates a new SystemTray for platforms where this is appropriate.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS**: icon size should be 18x18
+  /// - **Linux**: icon size should be 16x16
+  /// - **Windows**: icon should be `.ico` and its size should be 16x16
   pub fn new(icon: Vec<u8>, tray_menu: Option<ContextMenu>) -> Self {
     Self(SystemTrayBuilderPlatform::new(
       icon,
@@ -61,6 +67,12 @@ pub struct SystemTray(pub SystemTrayPlatform);
 
 impl SystemTray {
   /// Set new tray icon.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS**: icon size should be 18x18
+  /// - **Linux**: icon size should be 16x16
+  /// - **Windows**: icon should be `.ico` and its size should be 16x16
   pub fn set_icon(&mut self, icon: Vec<u8>) {
     self.0.set_icon(icon)
   }
