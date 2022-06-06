@@ -228,42 +228,6 @@ pub fn is_maximized(window: HWND) -> bool {
   placement.showCmd == SW_MAXIMIZE
 }
 
-pub fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<HICON> {
-  unsafe {
-    match LookupIconIdFromDirectoryEx(buffer.as_ptr() as _, true, width, height, LR_DEFAULTCOLOR)
-      as isize
-    {
-      0 => {
-        debug!("Unable to LookupIconIdFromDirectoryEx");
-        None
-      }
-      offset => {
-        // once we got the pointer offset for the directory
-        // lets create our resource
-        match CreateIconFromResourceEx(
-          buffer.as_ptr().offset(offset) as _,
-          buffer.len() as _,
-          true,
-          0x00030000,
-          0,
-          0,
-          LR_DEFAULTCOLOR,
-        ) {
-          // windows is really tough on icons
-          // if a bad icon is provided it'll fail here or in
-          // the LookupIconIdFromDirectoryEx if this is a bad format (example png's)
-          // with my tests, even some ICO's were failing...
-          Err(err) => {
-            debug!("Unable to CreateIconFromResourceEx: {:?}", err);
-            None
-          }
-          Ok(hicon) => Some(hicon),
-        }
-      }
-    }
-  }
-}
-
 impl CursorIcon {
   pub(crate) fn to_windows_cursor(self) -> PCWSTR {
     match self {

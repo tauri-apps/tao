@@ -12,6 +12,7 @@
 mod clipboard;
 mod event_loop;
 mod global_shortcut;
+mod icon;
 mod keyboard;
 mod keycode;
 mod menu;
@@ -29,8 +30,9 @@ pub use self::{
   menu::{Menu, MenuItemAttributes},
 };
 pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
+pub use icon::PlatformIcon;
 pub use monitor::{MonitorHandle, VideoMode};
-pub use window::{hit_test, PlatformIcon, Window, WindowId};
+pub use window::{hit_test, Window, WindowId};
 
 use crate::{event::DeviceId as RootDeviceId, keyboard::Key};
 

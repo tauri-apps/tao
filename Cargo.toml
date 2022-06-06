@@ -62,11 +62,12 @@ core-foundation = "0.9"
 core-graphics = "0.22"
 dispatch = "0.2"
 scopeguard = "1.1"
+png = "0.17"
 
-  [target."cfg(target_os = \"macos\")".dependencies.tao-core-video-sys]
-  version = "0.2"
-  default_features = false
-  features = [ "display_link" ]
+[target."cfg(target_os = \"macos\")".dependencies.tao-core-video-sys]
+version = "0.2"
+default_features = false
+features = [ "display_link" ]
 
 [target."cfg(target_os = \"macos\")".build-dependencies]
 cc = "1"
@@ -74,11 +75,12 @@ cc = "1"
 [target."cfg(target_os = \"windows\")".dependencies]
 parking_lot = "0.11"
 unicode-segmentation = "1.8.0"
+image = { version = "0.24", default-features = false }
 windows-implement = "0.37.0"
 
-  [target."cfg(target_os = \"windows\")".dependencies.windows]
-  version = "0.37.0"
-  features = [
+[target."cfg(target_os = \"windows\")".dependencies.windows]
+version = "0.37.0"
+features = [
   "alloc",
   "implement",
   "Win32_Devices_HumanInterfaceDevice",
@@ -120,3 +122,5 @@ gdkx11-sys = "0.15"
 gdk-pixbuf = { version = "0.15", features = [ "v2_36_8" ] }
 libappindicator = { version = "0.7", optional = true }
 x11-dl = "2.18"
+uuid = { version = "0.8", features = [ "v4" ] }
+png = "0.17"

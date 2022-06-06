@@ -11,7 +11,7 @@ use crate::{
   event::{Event, Rectangle, TrayEvent},
   event_loop::EventLoopWindowTarget,
   menu::MenuType,
-  system_tray::SystemTray as RootSystemTray,
+  system_tray::{Icon, SystemTray as RootSystemTray},
 };
 use windows::{
   core::{PCSTR, PCWSTR},
@@ -37,13 +37,13 @@ struct TrayLoopData {
 }
 
 pub struct SystemTrayBuilder {
-  pub(crate) icon: Vec<u8>,
+  pub(crate) icon: Icon,
   pub(crate) tray_menu: Option<Menu>,
 }
 
 impl SystemTrayBuilder {
   #[inline]
-  pub fn new(icon: Vec<u8>, tray_menu: Option<Menu>) -> Self {
+  pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
     Self { icon, tray_menu }
   }
 
@@ -102,8 +102,8 @@ impl SystemTrayBuilder {
         )));
       }
 
-      let system_tray = SystemTray { hwnd };
-      system_tray.set_icon_from_buffer(&self.icon, 32, 32);
+      let mut system_tray = SystemTray { hwnd };
+      system_tray.set_icon(self.icon);
 
       // system_tray event handler
       let event_loop_runner = window_target.p.runner_shared.clone();
@@ -150,22 +150,12 @@ pub struct SystemTray {
 }
 
 impl SystemTray {
-  pub fn set_icon(&mut self, icon: Vec<u8>) {
-    self.set_icon_from_buffer(&icon, 32, 32);
-  }
-
-  fn set_icon_from_buffer(&self, buffer: &[u8], width: u32, height: u32) {
-    if let Some(hicon) = util::get_hicon_from_buffer(buffer, width as _, height as _) {
-      self.set_hicon(hicon);
-    }
-  }
-
-  fn set_hicon(&self, icon: HICON) {
+  pub fn set_icon(&mut self, icon: Icon) {
     unsafe {
       let mut nid = NOTIFYICONDATAW {
         uFlags: NIF_ICON,
         hWnd: self.hwnd,
-        hIcon: icon,
+        hIcon: icon.inner.as_raw_handle(),
         uID: TRAYICON_UID,
         ..std::mem::zeroed()
       };
