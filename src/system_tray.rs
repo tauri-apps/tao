@@ -8,7 +8,7 @@
 //! [ContextMenu][context_menu] is used to created a Window menu on Windows and Linux. On macOS it's used in the menubar.
 //!
 //! ```rust,ignore
-//! # let icon_rgba = &[];
+//! # let icon_rgba = Vec::<u8>::new();
 //! # let icon_width = 0;
 //! # let icon_height = 0;
 //! let mut tray_menu = ContextMenu::new();
