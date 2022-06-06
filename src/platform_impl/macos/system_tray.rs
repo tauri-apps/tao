@@ -41,16 +41,10 @@ impl SystemTrayBuilder {
         .statusItemWithLength_(NSSquareStatusItemLength)
         .autorelease();
 
-      let image = image::load_from_memory(icon.as_slice())
-        .expect("Failed to parse icon slice")
-        .into_rgba8();
-      let (width, height) = image.dimensions();
       Self {
         system_tray: SystemTray {
           icon_is_template: false,
           icon,
-          icon_width: width,
-          icon_height: height,
           tray_menu,
           ns_status_bar,
         },
@@ -104,8 +98,6 @@ impl SystemTrayBuilder {
 #[derive(Debug, Clone)]
 pub struct SystemTray {
   pub(crate) icon: Vec<u8>,
-  pub(crate) icon_width: u32,
-  pub(crate) icon_height: u32,
   pub(crate) icon_is_template: bool,
   pub(crate) tray_menu: Option<Menu>,
   pub(crate) ns_status_bar: id,
@@ -113,13 +105,8 @@ pub struct SystemTray {
 
 impl SystemTray {
   pub fn set_icon(&mut self, icon: Vec<u8>) {
-    let image = image::load_from_memory(icon.as_slice())
-      .expect("Failed to parse icon slice")
-      .into_rgba8();
-    let (width, height) = image.dimensions();
+    // update our icon
     self.icon = icon;
-    self.icon_width = width;
-    self.icon_height = height;
     self.create_button_with_icon();
   }
 
@@ -134,6 +121,9 @@ impl SystemTray {
   }
 
   fn create_button_with_icon(&self) {
+    const ICON_WIDTH: f64 = 18.0;
+    const ICON_HEIGHT: f64 = 18.0;
+
     unsafe {
       let status_item = self.ns_status_bar;
       let button = status_item.button();
@@ -146,7 +136,7 @@ impl SystemTray {
       );
 
       let nsimage = NSImage::initWithData_(NSImage::alloc(nil), nsdata);
-      let new_size = NSSize::new(self.icon_width as _, self.icon_height as _);
+      let new_size = NSSize::new(ICON_WIDTH, ICON_HEIGHT);
 
       button.setImage_(nsimage);
       let _: () = msg_send![nsimage, setSize: new_size];
