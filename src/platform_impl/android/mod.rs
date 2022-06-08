@@ -60,6 +60,18 @@ pub struct MenuItemAttributes;
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct KeyEventExtra {}
 
+#[non_exhaustive]
+#[derive(Clone, Debug)]
+pub enum Parent {
+  None,
+}
+
+impl Parent {
+  pub fn child_of_from(window: &Window) -> Self {
+    Self::None
+  }
+}
+
 #[derive(Debug, Clone)]
 pub struct Menu;
 

@@ -51,7 +51,7 @@ use objc::{
   runtime::{Class, Object, Sel, BOOL, NO, YES},
 };
 
-use super::{util::ns_string_to_rust, Menu};
+use super::{util::ns_string_to_rust, Menu, Window};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Id(pub usize);
@@ -69,15 +69,20 @@ pub fn get_window_id(window_cocoa_id: id) -> Id {
 }
 
 #[non_exhaustive]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Parent {
   None,
   ChildOf(*mut c_void),
 }
 
+impl Parent {
+  pub fn child_of_from(window: &Window) -> Self {
+    Self::ChildOf(window.ns_window())
+  }
+}
+
 #[derive(Clone)]
 pub struct PlatformSpecificWindowBuilderAttributes {
-  pub parent: Parent,
   pub movable_by_window_background: bool,
   pub titlebar_transparent: bool,
   pub title_hidden: bool,
@@ -94,7 +99,6 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
   #[inline]
   fn default() -> Self {
     Self {
-      parent: Parent::None,
       movable_by_window_background: false,
       titlebar_transparent: false,
       title_hidden: false,
@@ -246,7 +250,7 @@ fn create_window(
         }
       }
 
-      if let Parent::ChildOf(parent) = pl_attrs.parent {
+      if let Parent::ChildOf(parent) = attrs.parent {
         let _: () = msg_send![parent as id, addChildWindow: *ns_window ordered: NSWindowOrderingMode::NSWindowAbove];
       }
 

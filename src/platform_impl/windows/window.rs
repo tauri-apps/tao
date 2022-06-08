@@ -830,7 +830,7 @@ unsafe fn init<T: 'static>(
   // WindowFlags::VISIBLE and MAXIMIZED are set down below after the window has been configured.
   window_flags.set(WindowFlags::RESIZABLE, attributes.resizable);
 
-  let parent = match pl_attribs.parent {
+  let parent = match attributes.parent {
     Parent::ChildOf(parent) => {
       window_flags.set(WindowFlags::CHILD, true);
       if pl_attribs.menu.is_some() {

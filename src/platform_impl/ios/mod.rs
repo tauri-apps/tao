@@ -113,6 +113,18 @@ impl Default for Menu {
   }
 }
 
+#[non_exhaustive]
+#[derive(Clone, Debug)]
+pub enum Parent {
+  None,
+}
+
+impl Parent {
+  pub fn child_of_from(window: &Window) -> Self {
+    Self::None
+  }
+}
+
 impl Menu {
   pub fn new() -> Self {
     Menu {}

@@ -10,7 +10,7 @@ use crate::{
   event_loop::{EventLoop, EventLoopWindowTarget},
   menu::CustomMenuItem,
   monitor::MonitorHandle,
-  platform_impl::{get_aux_state_mut, Parent},
+  platform_impl::get_aux_state_mut,
   window::{Theme, Window, WindowBuilder},
 };
 
@@ -328,8 +328,6 @@ impl NativeImage {
 ///  - `with_titlebar_buttons_hidden`
 ///  - `with_fullsize_content_view`
 pub trait WindowBuilderExtMacOS {
-  /// Sets a parent to the window to be created.
-  fn with_parent_window(self, parent: *mut c_void) -> WindowBuilder;
   /// Enables click-and-drag behavior for the entire window, not just the titlebar.
   fn with_movable_by_window_background(self, movable_by_window_background: bool) -> WindowBuilder;
   /// Makes the titlebar transparent and allows the content to appear behind it.
@@ -351,12 +349,6 @@ pub trait WindowBuilderExtMacOS {
 }
 
 impl WindowBuilderExtMacOS for WindowBuilder {
-  #[inline]
-  fn with_parent_window(mut self, parent: *mut c_void) -> WindowBuilder {
-    self.platform_specific.parent = Parent::ChildOf(parent);
-    self
-  }
-
   #[inline]
   fn with_movable_by_window_background(
     mut self,

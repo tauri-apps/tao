@@ -41,21 +41,20 @@ pub struct KeyEventExtra {
 }
 
 #[non_exhaustive]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Parent {
   None,
   ChildOf(gtk::ApplicationWindow),
 }
 
-impl Default for Parent {
-  fn default() -> Self {
-    Parent::None
+impl Parent {
+  pub fn child_of_from(window: &Window) -> Self {
+    Self::ChildOf(window.window.clone())
   }
 }
 
 #[derive(Clone, Default)]
 pub struct PlatformSpecificWindowBuilderAttributes {
-  pub parent: Parent,
   pub skip_taskbar: bool,
 }
 
