@@ -11,11 +11,12 @@ use std::{
   time::Instant,
 };
 
-use gdk::{Cursor, CursorType, EventKey, EventMask, WindowEdge, WindowState};
+use gdk::{Cursor, CursorType, EventKey, EventMask, ScrollDirection, WindowEdge, WindowState};
 use gio::{prelude::*, Cancellable};
 use glib::{source::Priority, Continue, MainContext};
 use gtk::{builders::AboutDialogBuilder, prelude::*, Inhibit};
 
+use crate::event::{MouseScrollDelta, TouchPhase};
 use crate::{
   accelerator::AcceleratorId,
   dpi::{LogicalPosition, LogicalSize},
@@ -316,7 +317,8 @@ impl<T: 'static> EventLoop<T> {
                 | EventMask::BUTTON_PRESS_MASK
                 | EventMask::TOUCH_MASK
                 | EventMask::STRUCTURE_MASK
-                | EventMask::FOCUS_CHANGE_MASK,
+                | EventMask::FOCUS_CHANGE_MASK
+                | EventMask::SCROLL_MASK,
             );
 
             // Allow resizing unmaximized borderless window
@@ -570,6 +572,26 @@ impl<T: 'static> EventLoop<T> {
                   "Failed to send mouse input released event to event channel: {}",
                   e
                 );
+              }
+              Inhibit(false)
+            });
+
+            let tx_clone = event_tx.clone();
+            window.connect_scroll_event(move |_, event| {
+              let (x, y) = event.delta();
+              if let Err(e) = tx_clone.send(Event::WindowEvent {
+                window_id: RootWindowId(id),
+                event: WindowEvent::MouseWheel {
+                  device_id: DEVICE_ID,
+                  delta: MouseScrollDelta::LineDelta(x as f32, y as f32),
+                  phase: match event.direction() {
+                    ScrollDirection::Smooth => TouchPhase::Moved,
+                    _ => TouchPhase::Ended,
+                  },
+                  modifiers: ModifiersState::empty(),
+                },
+              }) {
+                log::warn!("Failed to send scroll event to event channel: {}", e);
               }
               Inhibit(false)
             });
