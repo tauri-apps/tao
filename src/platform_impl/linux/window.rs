@@ -149,7 +149,7 @@ impl Window {
     // We always create a box and allocate menubar, so if they set_menu after creation
     // we can inject the menubar without re-redendering the whole window
     let window_box = gtk::Box::new(Orientation::Vertical, 0);
-    window.add(&window_box);
+    // window.add(&window_box);
 
     let mut menu_bar = gtk::MenuBar::new();
 
