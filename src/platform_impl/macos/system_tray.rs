@@ -45,6 +45,7 @@ impl SystemTrayBuilder {
         system_tray: SystemTray {
           icon_is_template: false,
           icon,
+          menu_on_left_click: true,
           tray_menu,
           ns_status_bar,
         },
@@ -71,6 +72,7 @@ impl SystemTrayBuilder {
       let tray_target: id = msg_send![tray_target, init];
       (*tray_target).set_ivar("status_bar", status_bar);
       (*tray_target).set_ivar("menu", nil);
+      (*tray_target).set_ivar("menu_on_left_click", self.system_tray.menu_on_left_click);
       let _: () = msg_send![button, setAction: sel!(click:)];
       let _: () = msg_send![button, setTarget: tray_target];
       let _: () = msg_send![
@@ -99,6 +101,7 @@ impl SystemTrayBuilder {
 pub struct SystemTray {
   pub(crate) icon: Icon,
   pub(crate) icon_is_template: bool,
+  pub(crate) menu_on_left_click: bool,
   pub(crate) tray_menu: Option<Menu>,
   pub(crate) ns_status_bar: id,
 }
@@ -220,23 +223,28 @@ extern "C" fn perform_tray_click(this: &mut Object, _: Sel, button: id) {
       _ => None,
     };
 
-    if let Some(event) = click_type {
+    if let Some(click_event) = click_type {
       let event = Event::TrayEvent {
         bounds: Rectangle { position, size },
         position: PhysicalPosition::new(
           mouse_location.x,
           bottom_left_to_top_left_for_cursor(mouse_location),
         ),
-        event,
+        event: click_event,
       };
 
       AppState::queue_event(EventWrapper::StaticEvent(event));
 
       let menu = this.get_ivar::<id>("menu");
       if *menu != nil {
-        let status_bar = this.get_ivar::<id>("status_bar");
-        status_bar.setMenu_(*menu);
-        let () = msg_send![button, performClick: nil];
+        let menu_on_left_click = this.get_ivar::<bool>("menu_on_left_click");
+        if click_event == TrayEvent::RightClick
+          || (menu_on_left_click && click_event == TrayEvent::LeftClick)
+        {
+          let status_bar = this.get_ivar::<id>("status_bar");
+          status_bar.setMenu_(*menu);
+          let () = msg_send![button, performClick: nil];
+        }
       }
     }
   }
