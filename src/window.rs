@@ -10,7 +10,7 @@ use crate::{
   event_loop::EventLoopWindowTarget,
   menu::MenuBar,
   monitor::{MonitorHandle, VideoMode},
-  platform_impl::{self, Parent},
+  platform_impl,
 };
 
 pub use crate::icon::{BadIcon, Icon};
@@ -197,20 +197,6 @@ pub struct WindowAttributes {
   ///
   /// The default is `None`.
   pub window_menu: Option<platform_impl::Menu>,
-
-  /// The parent window that should be related to the window.
-  ///
-  /// The default is `None`.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **macOS / Linux**: Sets a parent to the window to be created.
-  /// - **Windows**: A child window has the WS_CHILD style and is confined to the client area of its parent window.
-  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#child-windows>
-  /// position.
-  /// - **Others**: Ignored.
-  ///
-  pub parent: platform_impl::Parent,
 }
 
 impl Default for WindowAttributes {
@@ -231,7 +217,6 @@ impl Default for WindowAttributes {
       always_on_top: false,
       window_icon: None,
       window_menu: None,
-      parent: Parent::None,
     }
   }
 }
@@ -390,17 +375,6 @@ impl WindowBuilder {
   #[inline]
   pub fn with_window_icon(mut self, window_icon: Option<Icon>) -> Self {
     self.window.window_icon = window_icon;
-    self
-  }
-
-  /// Sets a parent to the window to be created.
-  ///
-  /// See [`WindowAttributes::parent`] for details.
-  ///
-  /// [`WindowAttributes::parent`]: crate::window::WindowAttributes::parent
-  #[inline]
-  pub fn with_parent_window(mut self, window: &Window) -> Self {
-    self.window.parent = Parent::child_of_from(&window.window);
     self
   }
 

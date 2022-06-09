@@ -21,10 +21,7 @@ pub use self::{
 
 pub use self::icon::WinIcon as PlatformIcon;
 
-use crate::{
-  event::DeviceId as RootDeviceId, icon::Icon, keyboard::Key, platform::windows::WindowExtWindows,
-  window::Theme,
-};
+use crate::{event::DeviceId as RootDeviceId, icon::Icon, keyboard::Key, window::Theme};
 mod accelerator;
 mod global_shortcut;
 mod keycode;
@@ -36,21 +33,16 @@ mod system_tray;
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 
 #[non_exhaustive]
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum Parent {
   None,
   ChildOf(HWND),
   OwnedBy(HWND),
 }
 
-impl Parent {
-  pub fn child_of_from(window: &Window) -> Self {
-    Self::ChildOf(window.hwnd())
-  }
-}
-
 #[derive(Clone)]
 pub struct PlatformSpecificWindowBuilderAttributes {
+  pub parent: Parent,
   pub menu: Option<HMENU>,
   pub taskbar_icon: Option<Icon>,
   pub skip_taskbar: bool,
@@ -62,6 +54,7 @@ pub struct PlatformSpecificWindowBuilderAttributes {
 impl Default for PlatformSpecificWindowBuilderAttributes {
   fn default() -> Self {
     Self {
+      parent: Parent::None,
       menu: None,
       taskbar_icon: None,
       no_redirection_bitmap: false,

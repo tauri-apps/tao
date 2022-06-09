@@ -239,7 +239,7 @@ impl Window {
       window.hide();
     }
 
-    if let Parent::ChildOf(parent) = attributes.parent {
+    if let Parent::ChildOf(parent) = pl_attribs.parent {
       window.set_transient_for(Some(&parent));
     }
 
