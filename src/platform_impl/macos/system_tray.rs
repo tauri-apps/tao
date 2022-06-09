@@ -71,6 +71,7 @@ impl SystemTrayBuilder {
       let tray_target: id = msg_send![tray_target, init];
       (*tray_target).set_ivar("status_bar", status_bar);
       (*tray_target).set_ivar("menu", nil);
+      (*tray_target).set_ivar("menu_on_left_click", self.system_tray.menu_on_left_click);
       let _: () = msg_send![button, setAction: sel!(click:)];
       let _: () = msg_send![button, setTarget: tray_target];
       let _: () = msg_send![
@@ -233,8 +234,10 @@ extern "C" fn perform_tray_click(this: &mut Object, _: Sel, button: id) {
 
       let menu = this.get_ivar::<id>("menu");
       if *menu != nil {
-        // TODO: get [`SystemTray::menu_on_left_click`] value here
-        if click_event == TrayEvent::RightClick {
+        let menu_on_left_click = this.get_ivar::<bool>("menu_on_left_click");
+        if click_event == TrayEvent::RightClick
+          || (menu_on_left_click && click_event == TrayEvent::RightClick)
+        {
           let status_bar = this.get_ivar::<id>("status_bar");
           status_bar.setMenu_(*menu);
           let () = msg_send![button, performClick: nil];
