@@ -39,7 +39,7 @@ pub trait WindowBuilderExtUnix {
   /// Whether to create the window icon with the taskbar icon or not.
   fn with_skip_taskbar(self, skip: bool) -> WindowBuilder;
   /// Set this window as a transient dialog for `parent`
-  /// <https://gtk-rs.org/gtk3-rs/stable/latest/docs/gdk/struct.Window.html#method.set_transient_for> 
+  /// <https://gtk-rs.org/gtk3-rs/stable/latest/docs/gdk/struct.Window.html#method.set_transient_for>
   fn with_transient_for(self, parent: gtk::ApplicationWindow) -> WindowBuilder;
 }
 
