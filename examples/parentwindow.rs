@@ -30,11 +30,15 @@ fn main() {
   #[cfg(target_os = "linux")]
   let parent_window = main_window.gtk_window();
 
-  let child_window = WindowBuilder::new()
-    .with_parent_window(parent_window.clone())
-    .with_inner_size(LogicalSize::new(200, 200))
-    .build(&event_loop)
-    .unwrap();
+  let child_window_builder = WindowBuilder::new().with_inner_size(LogicalSize::new(200, 200));
+
+  #[cfg(any(target_os = "windows", target_os = "macos"))]
+  let child_window_builder = child_window_builder.with_parent_window(parent_window.clone());
+
+  #[cfg(target_os = "linux")]
+  let child_window_builder = child_window_builder.with_transient_for(parent_window.clone());
+
+  let child_window = child_window_builder.build(&event_loop).unwrap();
 
   windows.insert(child_window.id(), child_window);
   windows.insert(main_window.id(), main_window);

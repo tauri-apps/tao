@@ -49,7 +49,7 @@ impl WindowBuilderExtUnix for WindowBuilder {
     self
   }
 
-  fn with_parent_window(mut self, parent: gtk::ApplicationWindow) -> WindowBuilder {
+  fn with_transient_for(mut self, parent: gtk::ApplicationWindow) -> WindowBuilder {
     self.platform_specific.parent = Parent::ChildOf(parent);
     self
   }
