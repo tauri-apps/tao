@@ -7,6 +7,7 @@ use std::{
   fmt::{self, Debug},
   hint::unreachable_unchecked,
   mem,
+  path::PathBuf,
   rc::{Rc, Weak},
   sync::{
     atomic::{AtomicBool, Ordering},
@@ -295,6 +296,10 @@ impl AppState {
       StartCause::Init,
     )));
     HANDLER.set_in_callback(false);
+  }
+
+  pub fn open_file(path: PathBuf) {
+    HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::OpenFile(path)));
   }
 
   pub fn wakeup(panic_info: Weak<PanicInfo>) {

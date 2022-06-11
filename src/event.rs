@@ -100,6 +100,11 @@ pub enum Event<'a, T: 'static> {
     position: PhysicalPosition<f64>,
   },
 
+  /// Emitted when open an external file with the app
+  /// ## Platform-specific
+  /// - **Windows / Android / Linux:** Unsupported.
+  OpenFile(PathBuf),
+
   /// Emitted when a global shortcut is triggered.
   ///
   /// ## Platform-specific
@@ -203,6 +208,7 @@ impl<T: Clone> Clone for Event<'static, T> {
         position: *position,
       },
       GlobalShortcutEvent(accelerator_id) => GlobalShortcutEvent(*accelerator_id),
+      OpenFile(file_path) => OpenFile(file_path.clone()),
     }
   }
 }
@@ -240,6 +246,7 @@ impl<'a, T> Event<'a, T> {
         position,
       }),
       GlobalShortcutEvent(accelerator_id) => Ok(GlobalShortcutEvent(accelerator_id)),
+      OpenFile(file_path) => Ok(OpenFile(file_path)),
     }
   }
 
@@ -279,6 +286,7 @@ impl<'a, T> Event<'a, T> {
         position,
       }),
       GlobalShortcutEvent(accelerator_id) => Some(GlobalShortcutEvent(accelerator_id)),
+      OpenFile(file_path) => Some(OpenFile(file_path)),
     }
   }
 }
