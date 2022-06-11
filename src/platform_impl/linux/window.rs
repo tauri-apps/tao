@@ -555,6 +555,17 @@ impl Window {
     Ok(())
   }
 
+  pub fn set_ignore_cursor_events(&self, ignore: bool) -> Result<(), ExternalError> {
+    if let Err(e) = self
+      .window_requests_tx
+      .send((self.window_id, WindowRequest::CursorIgnoreEvents(ignore)))
+    {
+      log::warn!("Fail to send cursor position request: {}", e);
+    }
+
+    Ok(())
+  }
+
   pub fn set_cursor_visible(&self, visible: bool) {
     let cursor = if visible {
       Some(CursorIcon::Default)
@@ -660,6 +671,7 @@ pub enum WindowRequest {
   SetSkipTaskbar(bool),
   CursorIcon(Option<CursorIcon>),
   CursorPosition((i32, i32)),
+  CursorIgnoreEvents(bool),
   WireUpEvents,
   Redraw,
   Menu((Option<MenuItem>, Option<MenuId>)),

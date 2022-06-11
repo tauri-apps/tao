@@ -310,6 +310,9 @@ impl<T: 'static> EventLoop<T> {
               }
             }
           }
+          WindowRequest::CursorIgnoreEvents => {
+            // TODO
+          }
           WindowRequest::WireUpEvents => {
             window.add_events(
               EventMask::POINTER_MOTION_MASK

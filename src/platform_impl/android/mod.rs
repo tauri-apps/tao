@@ -664,6 +664,12 @@ impl Window {
     ))
   }
 
+  pub fn set_ignore_cursor_events(&self, _ignore: bool) -> Result<(), error::ExternalError> {
+    Err(error::ExternalError::NotSupported(
+      error::NotSupportedError::new(),
+    ))
+  }
+
   pub fn raw_window_handle(&self) -> RawWindowHandle {
     // TODO: Use main activity instead?
     let mut handle = AndroidNdkHandle::empty();

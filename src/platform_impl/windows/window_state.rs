@@ -90,6 +90,8 @@ bitflags! {
 
         const MINIMIZED = 1 << 12;
 
+        const IGNORE_CURSOR_EVENT = 1 << 15;
+
         const EXCLUSIVE_FULLSCREEN_OR_MASK = WindowFlags::ALWAYS_ON_TOP.bits;
         const INVISIBLE_AND_MASK = !WindowFlags::MAXIMIZED.bits;
     }
@@ -224,6 +226,9 @@ impl WindowFlags {
     }
     if self.contains(WindowFlags::MAXIMIZED) {
       style |= WS_MAXIMIZE;
+    }
+    if self.contains(WindowFlags::IGNORE_CURSOR_EVENT) {
+      style_ex |= WS_EX_TRANSPARENT | WS_EX_LAYERED;
     }
     if self.intersects(
       WindowFlags::MARKER_EXCLUSIVE_FULLSCREEN | WindowFlags::MARKER_BORDERLESS_FULLSCREEN,
