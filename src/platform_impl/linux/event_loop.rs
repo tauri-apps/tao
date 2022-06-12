@@ -311,18 +311,21 @@ impl<T: 'static> EventLoop<T> {
               }
             }
           }
-          WindowRequest::CursorIgnoreEvents(_ignore) => {
-            // if ignore {
-            //   let empty_region = Region::create_rectangle(&RectangleInt {
-            //     x: 0,
-            //     y: 0,
-            //     width: 0,
-            //     height: 0,
-            //   });
-            //   window.input_shape_combine_region(Some(&empty_region));
-            // } else {
-            //   window.input_shape_combine_region(None)
-            // };
+          WindowRequest::CursorIgnoreEvents(ignore) => {
+            if ignore {
+              let empty_region = Region::create_rectangle(&RectangleInt {
+                x: 0,
+                y: 0,
+                width: 1,
+                height: 1,
+              });
+              window
+                .window()
+                .unwrap()
+                .input_shape_combine_region(&empty_region, 0, 0);
+            } else {
+              window.input_shape_combine_region(None)
+            };
           }
           WindowRequest::WireUpEvents => {
             window.add_events(

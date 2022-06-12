@@ -906,7 +906,7 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **iOS / Android / Web:** Always returns an [`ExternalError::NotSupported`]
+  /// - **iOS / Android:** Always returns an [`ExternalError::NotSupported`]
   #[inline]
   pub fn set_ignore_cursor_events(&self, ignore: bool) -> Result<(), ExternalError> {
     self.window.set_ignore_cursor_events(ignore)
