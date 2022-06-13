@@ -11,6 +11,7 @@ use std::{
   time::Instant,
 };
 
+use cairo::{RectangleInt, Region};
 use gdk::{Cursor, CursorType, EventKey, EventMask, ScrollDirection, WindowEdge, WindowState};
 use gio::{prelude::*, Cancellable};
 use glib::{source::Priority, Continue, MainContext};
@@ -309,6 +310,22 @@ impl<T: 'static> EventLoop<T> {
                 cursor.warp(&screen, x, y);
               }
             }
+          }
+          WindowRequest::CursorIgnoreEvents(ignore) => {
+            if ignore {
+              let empty_region = Region::create_rectangle(&RectangleInt {
+                x: 0,
+                y: 0,
+                width: 1,
+                height: 1,
+              });
+              window
+                .window()
+                .unwrap()
+                .input_shape_combine_region(&empty_region, 0, 0);
+            } else {
+              window.input_shape_combine_region(None)
+            };
           }
           WindowRequest::WireUpEvents => {
             window.add_events(

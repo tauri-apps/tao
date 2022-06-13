@@ -247,3 +247,11 @@ pub unsafe fn close_async(ns_window: IdRef) {
     });
   });
 }
+
+// `setIgnoresMouseEvents_:` isn't thread-safe, and fails silently.
+pub unsafe fn set_ignore_mouse_events(ns_window: id, ignore: bool) {
+  let ns_window = MainThreadSafe(ns_window);
+  Queue::main().exec_async(move || {
+    ns_window.setIgnoresMouseEvents_(if ignore { YES } else { NO });
+  });
+}
