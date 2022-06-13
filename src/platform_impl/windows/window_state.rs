@@ -241,7 +241,7 @@ impl WindowFlags {
 
     let mut diff = self ^ new;
 
-    // when hiding a maximized window, `diff` contains `WindowFlags::MAXIMIZED`
+    // when hiding a maximized window, `self` contains `WindowFlags::MAXIMIZED`
     // but `new` won't have it as it is removed in `new.mask()` call by applying `WindowFlags::INVISIBLE_AND_MASK`
     // so `diff` will contain `WindowFlags::MAXIMIZED` and that will cause the window to unmaximize, but
     // since we are trying to hide the window, we need to apply `WindowFlags::INVISIBLE_AND_MASK` on `diff` too.
