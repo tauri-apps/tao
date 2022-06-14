@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.11.2]
+
+- Fixes the `Ivar menu_on_left_click not found on class TaoTrayHandler` panic on macOS.
+  - [2cc163d2](https://github.com/tauri-apps/tao/commit/2cc163d2debba48457a63f4a839f1371b572e121) fix(macos): crash on tray class usage on 2022-06-14
+
 ## \[0.11.1]
 
 - Fix macOS `SystemTrayExtMacOS` implementation.
