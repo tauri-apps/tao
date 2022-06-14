@@ -11,6 +11,7 @@ mod event;
 mod event_loop;
 mod ffi;
 mod global_shortcut;
+mod icon;
 mod keycode;
 mod menu;
 mod monitor;
@@ -42,7 +43,7 @@ use crate::{
   error::OsError as RootOsError, event::DeviceId as RootDeviceId, window::WindowAttributes,
 };
 
-pub(crate) use crate::icon::NoIcon as PlatformIcon;
+pub(crate) use icon::PlatformIcon;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DeviceId;

@@ -143,7 +143,6 @@
   clippy::wrong_self_convention,
   clippy::non_send_fields_in_send_ty
 )]
-#![deny(rust_2018_idioms)]
 #![deny(rustdoc::broken_intra_doc_links)]
 
 #[allow(unused_imports)]
@@ -178,18 +177,14 @@ mod platform_impl;
 #[cfg(any(target_os = "windows", target_os = "macos",))]
 #[cfg(feature = "tray")]
 pub mod system_tray;
-#[cfg(all(
-  any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ),
-  feature = "tray",
-  any(feature = "gtk-tray", feature = "ayatana-tray"),
-  not(all(feature = "gtk-tray", feature = "ayatana-tray"))
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
 ))]
+#[cfg(feature = "tray")]
 pub mod system_tray;
 
 pub mod window;

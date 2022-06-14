@@ -17,23 +17,26 @@ use std::{
   thread,
   time::{Duration, Instant},
 };
-use windows::Win32::{
-  Devices::HumanInterfaceDevice::*,
-  Foundation::{
-    BOOL, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, POINT, PWSTR, RECT, WAIT_TIMEOUT, WPARAM,
-  },
-  Graphics::Gdi::*,
-  System::{
-    LibraryLoader::GetModuleHandleW,
-    Ole::{IDropTarget, RevokeDragDrop},
-    Threading::GetCurrentThreadId,
-    WindowsProgramming::INFINITE,
-  },
-  UI::{
-    Controls::{self as win32c, HOVER_DEFAULT},
-    Input::{KeyboardAndMouse::*, Pointer::*, Touch::*, *},
-    Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
-    WindowsAndMessaging::{self as win32wm, *},
+use windows::{
+  core::PCWSTR,
+  Win32::{
+    Devices::HumanInterfaceDevice::*,
+    Foundation::{
+      BOOL, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_TIMEOUT, WPARAM,
+    },
+    Graphics::Gdi::*,
+    System::{
+      LibraryLoader::GetModuleHandleW,
+      Ole::{IDropTarget, RevokeDragDrop},
+      Threading::GetCurrentThreadId,
+      WindowsProgramming::INFINITE,
+    },
+    UI::{
+      Controls::{self as win32c, HOVER_DEFAULT},
+      Input::{KeyboardAndMouse::*, Pointer::*, Touch::*, *},
+      Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
+      WindowsAndMessaging::{self as win32wm, *},
+    },
   },
 };
 
@@ -380,13 +383,12 @@ fn wait_thread(parent_thread_id: u32, msg_window_id: HWND) {
           // 1 millisecond from the requested time and spinlock for the remainder to
           // compensate for that.
           let resume_reason = MsgWaitForMultipleObjectsEx(
-            0,
-            ptr::null(),
+            &[],
             dur2timeout(wait_until - now).saturating_sub(1),
             QS_ALLEVENTS,
             MWMO_INPUTAVAILABLE,
           );
-          if resume_reason == WAIT_TIMEOUT {
+          if resume_reason == WAIT_TIMEOUT.0 {
             PostMessageW(
               msg_window_id,
               *PROCESS_NEW_EVENTS_MSG_ID,
@@ -589,20 +591,20 @@ lazy_static! {
         RegisterWindowMessageA("Tao::SetRetainMaximized")
     };
     static ref THREAD_EVENT_TARGET_WINDOW_CLASS: Vec<u16> = unsafe {
-        let mut class_name= util::encode_wide("Tao Thread Event Target");
+        let class_name= util::encode_wide("Tao Thread Event Target");
 
         let class = WNDCLASSEXW {
             cbSize: mem::size_of::<WNDCLASSEXW>() as u32,
-            style: 0,
+            style: Default::default(),
             lpfnWndProc: Some(util::call_default_window_proc),
             cbClsExtra: 0,
             cbWndExtra: 0,
-            hInstance: GetModuleHandleW(PWSTR::default()),
+            hInstance: GetModuleHandleW(PCWSTR::default()).unwrap_or_default(),
             hIcon: HICON::default(),
             hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
             hbrBackground: HBRUSH::default(),
-            lpszMenuName: PWSTR::default(),
-            lpszClassName: PWSTR(class_name.as_mut_ptr()),
+            lpszMenuName: Default::default(),
+            lpszClassName: PCWSTR(class_name.as_ptr()),
             hIconSm: HICON::default(),
         };
 
@@ -616,16 +618,16 @@ fn create_event_target_window() -> HWND {
   let window = unsafe {
     CreateWindowExW(
       WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_LAYERED,
-      PWSTR(THREAD_EVENT_TARGET_WINDOW_CLASS.clone().as_mut_ptr()),
-      PWSTR::default(),
-      0,
+      PCWSTR(THREAD_EVENT_TARGET_WINDOW_CLASS.clone().as_ptr()),
+      PCWSTR::default(),
+      Default::default(),
       0,
       0,
       0,
       0,
       HWND::default(),
       HMENU::default(),
-      GetModuleHandleW(PWSTR::default()),
+      GetModuleHandleW(PCWSTR::default()).unwrap_or_default(),
       ptr::null_mut(),
     )
   };
@@ -635,7 +637,7 @@ fn create_event_target_window() -> HWND {
     // The window technically has to be visible to receive WM_PAINT messages (which are used
     // for delivering events during resizes), but it isn't displayed to the user because of
     // the LAYERED style.
-    (WS_VISIBLE | WS_POPUP) as isize,
+    (WS_VISIBLE | WS_POPUP).0 as isize,
   );
   window
 }
@@ -1256,7 +1258,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     win32wm::WM_KEYDOWN | win32wm::WM_SYSKEYDOWN => {
-      if msg == WM_SYSKEYDOWN && wparam.0 as VIRTUAL_KEY == VK_F4 {
+      if msg == WM_SYSKEYDOWN && wparam.0 == usize::from(VK_F4.0) {
         result = ProcResult::DefSubclassProc;
       }
     }
@@ -1428,17 +1430,17 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
     win32wm::WM_TOUCH => {
       let pcount = usize::from(util::LOWORD(wparam.0 as u32));
-      let mut inputs = Vec::with_capacity(pcount);
-      inputs.set_len(pcount);
+      let mut inputs: Vec<TOUCHINPUT> = Vec::with_capacity(pcount);
+      let uninit_inputs = inputs.spare_capacity_mut();
       let htouch = HTOUCHINPUT(lparam.0);
       if GetTouchInputInfo(
         htouch,
-        pcount as u32,
-        inputs.as_mut_ptr(),
+        mem::transmute(uninit_inputs),
         mem::size_of::<TOUCHINPUT>() as i32,
       )
       .as_bool()
       {
+        inputs.set_len(pcount);
         for input in &inputs {
           let mut location = POINT {
             x: input.x / 100,
@@ -1455,11 +1457,11 @@ unsafe fn public_window_callback_inner<T: 'static>(
           subclass_input.send_event(Event::WindowEvent {
             window_id: RootWindowId(WindowId(window.0)),
             event: WindowEvent::Touch(Touch {
-              phase: if (input.dwFlags & TOUCHEVENTF_DOWN) != 0 {
+              phase: if (input.dwFlags & TOUCHEVENTF_DOWN) != Default::default() {
                 TouchPhase::Started
-              } else if (input.dwFlags & TOUCHEVENTF_UP) != 0 {
+              } else if (input.dwFlags & TOUCHEVENTF_UP) != Default::default() {
                 TouchPhase::Ended
-              } else if (input.dwFlags & TOUCHEVENTF_MOVE) != 0 {
+              } else if (input.dwFlags & TOUCHEVENTF_MOVE) != Default::default() {
                 TouchPhase::Moved
               } else {
                 continue;
@@ -1502,19 +1504,20 @@ unsafe fn public_window_callback_inner<T: 'static>(
         }
 
         let pointer_info_count = (entries_count * pointers_count) as usize;
-        let mut pointer_infos = Vec::with_capacity(pointer_info_count);
-        pointer_infos.set_len(pointer_info_count);
+        let mut pointer_infos: Vec<POINTER_INFO> = Vec::with_capacity(pointer_info_count);
+        let uninit_pointer_infos = pointer_infos.spare_capacity_mut();
         if !GetPointerFrameInfoHistory(
           pointer_id,
           &mut entries_count as *mut _,
           &mut pointers_count as *mut _,
-          pointer_infos.as_mut_ptr(),
+          uninit_pointer_infos.as_mut_ptr() as *mut _,
         )
         .as_bool()
         {
           result = ProcResult::Value(LRESULT(0));
           return;
         }
+        pointer_infos.set_len(pointer_info_count);
 
         // https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-getpointerframeinfohistory
         // The information retrieved appears in reverse chronological order, with the most recent entry in the first
@@ -1590,11 +1593,11 @@ unsafe fn public_window_callback_inner<T: 'static>(
           subclass_input.send_event(Event::WindowEvent {
             window_id: RootWindowId(WindowId(window.0)),
             event: WindowEvent::Touch(Touch {
-              phase: if (pointer_info.pointerFlags & POINTER_FLAG_DOWN) != 0 {
+              phase: if (pointer_info.pointerFlags & POINTER_FLAG_DOWN) != Default::default() {
                 TouchPhase::Started
-              } else if (pointer_info.pointerFlags & POINTER_FLAG_UP) != 0 {
+              } else if (pointer_info.pointerFlags & POINTER_FLAG_UP) != Default::default() {
                 TouchPhase::Ended
-              } else if (pointer_info.pointerFlags & POINTER_FLAG_UPDATE) != 0 {
+              } else if (pointer_info.pointerFlags & POINTER_FLAG_UPDATE) != Default::default() {
                 TouchPhase::Moved
               } else {
                 continue;
@@ -1657,8 +1660,9 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
       match set_cursor_to {
         Some(cursor) => {
-          let cursor = LoadCursorW(HINSTANCE::default(), cursor.to_windows_cursor());
-          SetCursor(cursor);
+          if let Ok(cursor) = LoadCursorW(HINSTANCE::default(), cursor.to_windows_cursor()) {
+            SetCursor(cursor);
+          }
           result = ProcResult::Value(LRESULT(0));
         }
         None => result = ProcResult::DefWindowProc,
@@ -1727,7 +1731,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         )
       };
 
-      let mut style = GetWindowLongW(window, GWL_STYLE) as WINDOW_STYLE;
+      let mut style = WINDOW_STYLE(GetWindowLongW(window, GWL_STYLE) as u32);
       // if the window isn't decorated, remove `WS_SIZEBOX` and `WS_CAPTION` so
       // `AdjustWindowRect*` functions doesn't account for the hidden caption and borders and
       // calculates a correct size for the client area.
@@ -1735,7 +1739,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         style &= !WS_CAPTION;
         style &= !WS_SIZEBOX;
       }
-      let style_ex = GetWindowLongW(window, GWL_EXSTYLE) as WINDOW_EX_STYLE;
+      let style_ex = WINDOW_EX_STYLE(GetWindowLongW(window, GWL_EXSTYLE) as u32);
 
       // New size as suggested by Windows.
       let suggested_rect = *(lparam.0 as *const RECT);
@@ -1972,7 +1976,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           i32::from(util::GET_Y_LPARAM(lparam)),
         );
 
-        result = ProcResult::Value(crate::platform_impl::hit_test(window, cx, cy));
+        result = ProcResult::Value(crate::platform_impl::hit_test(window.0 as _, cx, cy));
       } else {
         result = ProcResult::DefSubclassProc;
       }
@@ -2152,7 +2156,7 @@ unsafe fn handle_raw_input<T: 'static>(
 
   let device_id = wrap_device_id(data.header.hDevice.0 as _);
 
-  if data.header.dwType == RIM_TYPEMOUSE {
+  if data.header.dwType == RIM_TYPEMOUSE.0 {
     let mouse = data.data.mouse;
 
     if util::has_flag(mouse.usFlags, MOUSE_MOVE_RELATIVE as u16) {
@@ -2210,7 +2214,7 @@ unsafe fn handle_raw_input<T: 'static>(
         });
       }
     }
-  } else if data.header.dwType == RIM_TYPEKEYBOARD {
+  } else if data.header.dwType == RIM_TYPEKEYBOARD.0 {
     let keyboard = data.data.keyboard;
 
     let pressed = keyboard.Message == WM_KEYDOWN || keyboard.Message == WM_SYSKEYDOWN;
@@ -2230,14 +2234,13 @@ unsafe fn handle_raw_input<T: 'static>(
         0x0000
       }
     };
-    let scancode;
-    if keyboard.MakeCode == 0 {
+    let scancode = if keyboard.MakeCode == 0 {
       // In some cases (often with media keys) the device reports a scancode of 0 but a
       // valid virtual key. In these cases we obtain the scancode from the virtual key.
-      scancode = MapVirtualKeyW(keyboard.VKey as u32, MAPVK_VK_TO_VSC_EX) as u16;
+      MapVirtualKeyW(keyboard.VKey as u32, MAPVK_VK_TO_VSC_EX) as u16
     } else {
-      scancode = keyboard.MakeCode | extension;
-    }
+      keyboard.MakeCode | extension
+    };
     if scancode == 0xE11D || scancode == 0xE02A {
       // At the hardware (or driver?) level, pressing the Pause key is equivalent to pressing
       // Ctrl+NumLock.
@@ -2261,8 +2264,7 @@ unsafe fn handle_raw_input<T: 'static>(
       // https://devblogs.microsoft.com/oldnewthing/20080211-00/?p=23503
       return;
     }
-    let code;
-    if keyboard.VKey == VK_NUMLOCK {
+    let code = if VIRTUAL_KEY(keyboard.VKey) == VK_NUMLOCK {
       // Historically, the NumLock and the Pause key were one and the same physical key.
       // The user could trigger Pause by pressing Ctrl+NumLock.
       // Now these are often physically separate and the two keys can be differentiated by
@@ -2275,11 +2277,11 @@ unsafe fn handle_raw_input<T: 'static>(
       // For more on this, read the article by Raymond Chen, titled:
       // "Why does Ctrl+ScrollLock cancel dialogs?"
       // https://devblogs.microsoft.com/oldnewthing/20080211-00/?p=23503
-      code = KeyCode::NumLock;
+      KeyCode::NumLock
     } else {
-      code = KeyCode::from_scancode(scancode as u32);
-    }
-    if keyboard.VKey == VK_SHIFT {
+      KeyCode::from_scancode(scancode as u32)
+    };
+    if VIRTUAL_KEY(keyboard.VKey) == VK_SHIFT {
       match code {
         KeyCode::NumpadDecimal
         | KeyCode::Numpad0

@@ -90,6 +90,8 @@ bitflags! {
 
         const MINIMIZED = 1 << 12;
 
+        const IGNORE_CURSOR_EVENT = 1 << 15;
+
         const EXCLUSIVE_FULLSCREEN_OR_MASK = WindowFlags::ALWAYS_ON_TOP.bits;
         const INVISIBLE_AND_MASK = !WindowFlags::MAXIMIZED.bits;
     }
@@ -191,7 +193,7 @@ impl WindowFlags {
   }
 
   pub fn to_window_styles(self) -> (WINDOW_STYLE, WINDOW_EX_STYLE) {
-    let (mut style, mut style_ex) = (0, 0);
+    let (mut style, mut style_ex) = (Default::default(), Default::default());
     style |= WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_SYSMENU | WS_CAPTION | WS_MINIMIZEBOX;
     style_ex |= WS_EX_ACCEPTFILES;
 
@@ -224,6 +226,9 @@ impl WindowFlags {
     }
     if self.contains(WindowFlags::MAXIMIZED) {
       style |= WS_MAXIMIZE;
+    }
+    if self.contains(WindowFlags::IGNORE_CURSOR_EVENT) {
+      style_ex |= WS_EX_TRANSPARENT | WS_EX_LAYERED;
     }
     if self.intersects(
       WindowFlags::MARKER_EXCLUSIVE_FULLSCREEN | WindowFlags::MARKER_BORDERLESS_FULLSCREEN,
@@ -323,8 +328,8 @@ impl WindowFlags {
 
         // This condition is necessary to avoid having an unrestorable window
         if !new.contains(WindowFlags::MINIMIZED) {
-          SetWindowLongW(window, GWL_STYLE, style as i32);
-          SetWindowLongW(window, GWL_EXSTYLE, style_ex as i32);
+          SetWindowLongW(window, GWL_STYLE, style.0 as i32);
+          SetWindowLongW(window, GWL_EXSTYLE, style_ex.0 as i32);
         }
 
         let mut flags = SWP_NOZORDER | SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED;

@@ -12,7 +12,7 @@ use crate::{
   error::OsError,
   event::{Event, Rectangle, TrayEvent},
   event_loop::EventLoopWindowTarget,
-  system_tray::SystemTray as RootSystemTray,
+  system_tray::{Icon, SystemTray as RootSystemTray},
 };
 use cocoa::{
   appkit::{
@@ -35,7 +35,7 @@ pub struct SystemTrayBuilder {
 impl SystemTrayBuilder {
   /// Creates a new SystemTray for platforms where this is appropriate.
   #[inline]
-  pub fn new(icon: Vec<u8>, tray_menu: Option<Menu>) -> Self {
+  pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
     unsafe {
       let ns_status_bar = NSStatusBar::systemStatusBar(nil)
         .statusItemWithLength_(NSSquareStatusItemLength)
@@ -45,6 +45,7 @@ impl SystemTrayBuilder {
         system_tray: SystemTray {
           icon_is_template: false,
           icon,
+          menu_on_left_click: true,
           tray_menu,
           ns_status_bar,
         },
@@ -71,6 +72,7 @@ impl SystemTrayBuilder {
       let tray_target: id = msg_send![tray_target, init];
       (*tray_target).set_ivar("status_bar", status_bar);
       (*tray_target).set_ivar("menu", nil);
+      (*tray_target).set_ivar("menu_on_left_click", self.system_tray.menu_on_left_click);
       let _: () = msg_send![button, setAction: sel!(click:)];
       let _: () = msg_send![button, setTarget: tray_target];
       let _: () = msg_send![
@@ -97,14 +99,15 @@ impl SystemTrayBuilder {
 /// System tray is a status icon that can show popup menu. It is usually displayed on top right or bottom right of the screen.
 #[derive(Debug, Clone)]
 pub struct SystemTray {
-  pub(crate) icon: Vec<u8>,
+  pub(crate) icon: Icon,
   pub(crate) icon_is_template: bool,
+  pub(crate) menu_on_left_click: bool,
   pub(crate) tray_menu: Option<Menu>,
   pub(crate) ns_status_bar: id,
 }
 
 impl SystemTray {
-  pub fn set_icon(&mut self, icon: Vec<u8>) {
+  pub fn set_icon(&mut self, icon: Icon) {
     // update our icon
     self.icon = icon;
     self.create_button_with_icon();
@@ -124,6 +127,8 @@ impl SystemTray {
     const ICON_WIDTH: f64 = 18.0;
     const ICON_HEIGHT: f64 = 18.0;
 
+    let icon = self.icon.inner.to_png();
+
     unsafe {
       let status_item = self.ns_status_bar;
       let button = status_item.button();
@@ -131,8 +136,8 @@ impl SystemTray {
       // build our icon
       let nsdata = NSData::dataWithBytes_length_(
         nil,
-        self.icon.as_ptr() as *const std::os::raw::c_void,
-        self.icon.len() as u64,
+        icon.as_ptr() as *const std::os::raw::c_void,
+        icon.len() as u64,
       );
 
       let nsimage = NSImage::initWithData_(NSImage::alloc(nil), nsdata);
@@ -218,23 +223,28 @@ extern "C" fn perform_tray_click(this: &mut Object, _: Sel, button: id) {
       _ => None,
     };
 
-    if let Some(event) = click_type {
+    if let Some(click_event) = click_type {
       let event = Event::TrayEvent {
         bounds: Rectangle { position, size },
         position: PhysicalPosition::new(
           mouse_location.x,
           bottom_left_to_top_left_for_cursor(mouse_location),
         ),
-        event,
+        event: click_event,
       };
 
       AppState::queue_event(EventWrapper::StaticEvent(event));
 
       let menu = this.get_ivar::<id>("menu");
       if *menu != nil {
-        let status_bar = this.get_ivar::<id>("status_bar");
-        status_bar.setMenu_(*menu);
-        let () = msg_send![button, performClick: nil];
+        let menu_on_left_click = this.get_ivar::<bool>("menu_on_left_click");
+        if click_event == TrayEvent::RightClick
+          || (menu_on_left_click && click_event == TrayEvent::LeftClick)
+        {
+          let status_bar = this.get_ivar::<id>("status_bar");
+          status_bar.setMenu_(*menu);
+          let () = msg_send![button, performClick: nil];
+        }
       }
     }
   }

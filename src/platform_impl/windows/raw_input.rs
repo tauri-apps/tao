@@ -125,8 +125,7 @@ pub fn get_raw_input_device_name(handle: HANDLE) -> Option<String> {
 pub fn register_raw_input_devices(devices: &[RAWINPUTDEVICE]) -> bool {
   let device_size = size_of::<RAWINPUTDEVICE>() as u32;
 
-  let success =
-    unsafe { RegisterRawInputDevices(devices.as_ptr() as _, devices.len() as _, device_size) };
+  let success = unsafe { RegisterRawInputDevices(devices, device_size) };
 
   success.as_bool()
 }
@@ -134,7 +133,7 @@ pub fn register_raw_input_devices(devices: &[RAWINPUTDEVICE]) -> bool {
 pub fn register_all_mice_and_keyboards_for_raw_input(window_handle: HWND) -> bool {
   // RIDEV_DEVNOTIFY: receive hotplug events
   // RIDEV_INPUTSINK: receive events even if we're not in the foreground
-  let flags = RIDEV_DEVNOTIFY | RIDEV_INPUTSINK;
+  let flags = RAWINPUTDEVICE_FLAGS(RIDEV_DEVNOTIFY.0 | RIDEV_INPUTSINK.0);
 
   let devices: [RAWINPUTDEVICE; 2] = [
     RAWINPUTDEVICE {

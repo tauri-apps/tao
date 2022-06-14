@@ -11,14 +11,17 @@ use crate::{
   event::{Event, Rectangle, TrayEvent},
   event_loop::EventLoopWindowTarget,
   menu::MenuType,
-  system_tray::SystemTray as RootSystemTray,
+  system_tray::{Icon, SystemTray as RootSystemTray},
 };
-use windows::Win32::{
-  Foundation::{HWND, LPARAM, LRESULT, POINT, PSTR, PWSTR, WPARAM},
-  System::LibraryLoader::*,
-  UI::{
-    Shell::*,
-    WindowsAndMessaging::{self as win32wm, *},
+use windows::{
+  core::{PCSTR, PCWSTR},
+  Win32::{
+    Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM},
+    System::LibraryLoader::*,
+    UI::{
+      Shell::*,
+      WindowsAndMessaging::{self as win32wm, *},
+    },
   },
 };
 
@@ -34,13 +37,13 @@ struct TrayLoopData {
 }
 
 pub struct SystemTrayBuilder {
-  pub(crate) icon: Vec<u8>,
+  pub(crate) icon: Icon,
   pub(crate) tray_menu: Option<Menu>,
 }
 
 impl SystemTrayBuilder {
   #[inline]
-  pub fn new(icon: Vec<u8>, tray_menu: Option<Menu>) -> Self {
+  pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
     Self { icon, tray_menu }
   }
 
@@ -51,13 +54,13 @@ impl SystemTrayBuilder {
   ) -> Result<RootSystemTray, RootOsError> {
     let hmenu: Option<HMENU> = self.tray_menu.map(|m| m.hmenu());
 
-    let mut class_name = util::encode_wide("tao_system_tray_app");
+    let class_name = util::encode_wide("tao_system_tray_app");
     unsafe {
-      let hinstance = GetModuleHandleA(PSTR::default());
+      let hinstance = GetModuleHandleA(PCSTR::default()).unwrap_or_default();
 
       let wnd_class = WNDCLASSW {
         lpfnWndProc: Some(util::call_default_window_proc),
-        lpszClassName: PWSTR(class_name.as_mut_ptr()),
+        lpszClassName: PCWSTR(class_name.as_ptr()),
         hInstance: hinstance,
         ..Default::default()
       };
@@ -65,8 +68,8 @@ impl SystemTrayBuilder {
       RegisterClassW(&wnd_class);
 
       let hwnd = CreateWindowExW(
-        0,
-        PWSTR(class_name.as_mut_ptr()),
+        Default::default(),
+        PCWSTR(class_name.as_ptr()),
         "tao_system_tray_window",
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
@@ -79,7 +82,7 @@ impl SystemTrayBuilder {
         std::ptr::null_mut(),
       );
 
-      if hwnd.is_invalid() {
+      if !IsWindow(hwnd).as_bool() {
         return Err(os_error!(OsError::CreationError(
           "Unable to get valid mutable pointer for CreateWindowEx"
         )));
@@ -99,8 +102,8 @@ impl SystemTrayBuilder {
         )));
       }
 
-      let system_tray = SystemTray { hwnd };
-      system_tray.set_icon_from_buffer(&self.icon, 32, 32);
+      let mut system_tray = SystemTray { hwnd };
+      system_tray.set_icon(self.icon);
 
       // system_tray event handler
       let event_loop_runner = window_target.p.runner_shared.clone();
@@ -147,22 +150,12 @@ pub struct SystemTray {
 }
 
 impl SystemTray {
-  pub fn set_icon(&mut self, icon: Vec<u8>) {
-    self.set_icon_from_buffer(&icon, 32, 32);
-  }
-
-  fn set_icon_from_buffer(&self, buffer: &[u8], width: u32, height: u32) {
-    if let Some(hicon) = util::get_hicon_from_buffer(buffer, width as _, height as _) {
-      self.set_hicon(hicon);
-    }
-  }
-
-  fn set_hicon(&self, icon: HICON) {
+  pub fn set_icon(&mut self, icon: Icon) {
     unsafe {
       let mut nid = NOTIFYICONDATAW {
         uFlags: NIF_ICON,
         hWnd: self.hwnd,
-        hIcon: icon,
+        hIcon: icon.inner.as_raw_handle(),
         uID: TRAYICON_UID,
         ..std::mem::zeroed()
       };

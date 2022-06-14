@@ -12,6 +12,7 @@
 pub use crate::platform_impl::{hit_test, EventLoop as UnixEventLoop};
 use crate::{
   event_loop::EventLoop,
+  platform_impl::Parent,
   window::{Window, WindowBuilder},
 };
 
@@ -37,11 +38,19 @@ impl WindowExtUnix for Window {
 pub trait WindowBuilderExtUnix {
   /// Whether to create the window icon with the taskbar icon or not.
   fn with_skip_taskbar(self, skip: bool) -> WindowBuilder;
+  /// Set this window as a transient dialog for `parent`
+  /// <https://gtk-rs.org/gtk3-rs/stable/latest/docs/gdk/struct.Window.html#method.set_transient_for>
+  fn with_transient_for(self, parent: gtk::ApplicationWindow) -> WindowBuilder;
 }
 
 impl WindowBuilderExtUnix for WindowBuilder {
   fn with_skip_taskbar(mut self, skip: bool) -> WindowBuilder {
     self.platform_specific.skip_taskbar = skip;
+    self
+  }
+
+  fn with_transient_for(mut self, parent: gtk::ApplicationWindow) -> WindowBuilder {
+    self.platform_specific.parent = Parent::ChildOf(parent);
     self
   }
 }

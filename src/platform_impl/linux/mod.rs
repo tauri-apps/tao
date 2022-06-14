@@ -9,34 +9,19 @@
   target_os = "openbsd"
 ))]
 
-#[cfg(all(feature = "tray", feature = "gtk-tray", feature = "ayatana-tray"))]
-compile_error!("`gtk-tray` and `ayatana-tray` Cargo features cannot be enabled at the same time");
-#[cfg(all(
-  feature = "tray",
-  not(any(feature = "gtk-tray", feature = "ayatana-tray"))
-))]
-compile_error!("You must enable one of `gtk-tray` or `ayatana-tray` Cargo features");
-
 mod clipboard;
 mod event_loop;
 mod global_shortcut;
+mod icon;
 mod keyboard;
 mod keycode;
 mod menu;
 mod monitor;
-#[cfg(all(
-  feature = "tray",
-  any(feature = "gtk-tray", feature = "ayatana-tray"),
-  not(all(feature = "gtk-tray", feature = "ayatana-tray"))
-))]
+#[cfg(feature = "tray")]
 mod system_tray;
 mod window;
 
-#[cfg(all(
-  feature = "tray",
-  any(feature = "gtk-tray", feature = "ayatana-tray"),
-  not(all(feature = "gtk-tray", feature = "ayatana-tray"))
-))]
+#[cfg(feature = "tray")]
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 pub use self::{
   clipboard::Clipboard,
@@ -45,8 +30,9 @@ pub use self::{
   menu::{Menu, MenuItemAttributes},
 };
 pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
+pub use icon::PlatformIcon;
 pub use monitor::{MonitorHandle, VideoMode};
-pub use window::{hit_test, PlatformIcon, Window, WindowId};
+pub use window::{hit_test, Window, WindowId};
 
 use crate::{event::DeviceId as RootDeviceId, keyboard::Key};
 
@@ -56,8 +42,22 @@ pub struct KeyEventExtra {
   pub key_without_modifiers: Key<'static>,
 }
 
+#[non_exhaustive]
+#[derive(Clone)]
+pub enum Parent {
+  None,
+  ChildOf(gtk::ApplicationWindow),
+}
+
+impl Default for Parent {
+  fn default() -> Self {
+    Parent::None
+  }
+}
+
 #[derive(Clone, Default)]
 pub struct PlatformSpecificWindowBuilderAttributes {
+  pub parent: Parent,
   pub skip_taskbar: bool,
 }
 

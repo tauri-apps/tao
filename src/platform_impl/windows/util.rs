@@ -14,9 +14,9 @@ use std::{
 use crate::{dpi::PhysicalSize, window::CursorIcon};
 
 use windows::{
-  core::HRESULT,
+  core::{HRESULT, PCWSTR},
   Win32::{
-    Foundation::{BOOL, FARPROC, HWND, LPARAM, LRESULT, POINT, PWSTR, RECT, WPARAM},
+    Foundation::{BOOL, FARPROC, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
     Globalization::lstrlenW,
     Graphics::Gdi::{ClientToScreen, InvalidateRgn, HMONITOR, HRGN},
     System::LibraryLoader::*,
@@ -40,7 +40,7 @@ pub fn wchar_to_string(wchar: &[u16]) -> String {
   String::from_utf16_lossy(wchar)
 }
 
-pub fn wchar_ptr_to_string(wchar: PWSTR) -> String {
+pub fn wchar_ptr_to_string(wchar: PCWSTR) -> String {
   let len = unsafe { lstrlenW(wchar) } as usize;
   let wchar_slice = unsafe { slice::from_raw_parts(wchar.0, len) };
   wchar_to_string(wchar_slice)
@@ -131,7 +131,7 @@ pub(crate) fn set_inner_size_physical(window: HWND, x: u32, y: u32, is_decorated
 
 pub fn adjust_window_rect(hwnd: HWND, rect: RECT, is_decorated: bool) -> Option<RECT> {
   unsafe {
-    let mut style = GetWindowLongW(hwnd, GWL_STYLE) as WINDOW_STYLE;
+    let mut style = WINDOW_STYLE(GetWindowLongW(hwnd, GWL_STYLE) as u32);
     // if the window isn't decorated, remove `WS_SIZEBOX` and `WS_CAPTION` so
     // `AdjustWindowRect*` functions doesn't account for the hidden caption and borders and
     // calculates a correct size for the client area.
@@ -139,7 +139,7 @@ pub fn adjust_window_rect(hwnd: HWND, rect: RECT, is_decorated: bool) -> Option<
       style &= !WS_CAPTION;
       style &= !WS_SIZEBOX;
     }
-    let style_ex = GetWindowLongW(hwnd, GWL_EXSTYLE) as WINDOW_EX_STYLE;
+    let style_ex = WINDOW_EX_STYLE(GetWindowLongW(hwnd, GWL_EXSTYLE) as u32);
     adjust_window_rect_with_styles(hwnd, style, style_ex, rect)
   }
 }
@@ -228,46 +228,8 @@ pub fn is_maximized(window: HWND) -> bool {
   placement.showCmd == SW_MAXIMIZE
 }
 
-pub fn get_hicon_from_buffer(buffer: &[u8], width: i32, height: i32) -> Option<HICON> {
-  unsafe {
-    match LookupIconIdFromDirectoryEx(buffer.as_ptr() as _, true, width, height, LR_DEFAULTCOLOR)
-      as isize
-    {
-      0 => {
-        debug!("Unable to LookupIconIdFromDirectoryEx");
-        None
-      }
-      offset => {
-        // once we got the pointer offset for the directory
-        // lets create our resource
-        match CreateIconFromResourceEx(
-          buffer.as_ptr().offset(offset) as _,
-          buffer.len() as _,
-          true,
-          0x00030000,
-          0,
-          0,
-          LR_DEFAULTCOLOR,
-        )
-        .ok()
-        {
-          // windows is really tough on icons
-          // if a bad icon is provided it'll fail here or in
-          // the LookupIconIdFromDirectoryEx if this is a bad format (example png's)
-          // with my tests, even some ICO's were failing...
-          Err(err) => {
-            debug!("Unable to CreateIconFromResourceEx: {:?}", err);
-            None
-          }
-          Ok(hicon) => Some(hicon),
-        }
-      }
-    }
-  }
-}
-
 impl CursorIcon {
-  pub(crate) fn to_windows_cursor(self) -> PWSTR {
+  pub(crate) fn to_windows_cursor(self) -> PCWSTR {
     match self {
       CursorIcon::Arrow | CursorIcon::Default => IDC_ARROW,
       CursorIcon::Hand => IDC_HAND,
@@ -300,7 +262,7 @@ pub(super) fn get_function_impl(library: &str, function: &str) -> FARPROC {
   assert_eq!(function.chars().last(), Some('\0'));
 
   // Library names we will use are ASCII so we can use the A version to avoid string conversion.
-  let module = unsafe { LoadLibraryA(library) };
+  let module = unsafe { LoadLibraryA(library) }.unwrap_or_default();
   if module.is_invalid() {
     return None;
   }

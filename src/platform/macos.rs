@@ -11,7 +11,7 @@ use crate::{
   menu::CustomMenuItem,
   monitor::MonitorHandle,
   platform_impl::{get_aux_state_mut, Parent},
-  window::{Window, WindowBuilder},
+  window::{Theme, Window, WindowBuilder},
 };
 
 #[cfg(feature = "tray")]
@@ -54,6 +54,9 @@ pub trait WindowExtMacOS {
 
   /// Sets whether or not the window has shadow.
   fn set_has_shadow(&self, has_shadow: bool);
+
+  /// Returns the current window theme.
+  fn theme(&self) -> Theme;
 }
 
 impl WindowExtMacOS for Window {
@@ -85,6 +88,11 @@ impl WindowExtMacOS for Window {
   #[inline]
   fn set_has_shadow(&self, has_shadow: bool) {
     self.window.set_has_shadow(has_shadow)
+  }
+
+  #[inline]
+  fn theme(&self) -> Theme {
+    self.window.theme()
   }
 }
 
@@ -338,6 +346,8 @@ pub trait WindowBuilderExtMacOS {
   fn with_resize_increments(self, increments: LogicalSize<f64>) -> WindowBuilder;
   fn with_disallow_hidpi(self, disallow_hidpi: bool) -> WindowBuilder;
   fn with_has_shadow(self, has_shadow: bool) -> WindowBuilder;
+  /// Forces a theme or uses the system settings if `None` was provided.
+  fn with_theme(self, theme: Option<Theme>) -> WindowBuilder;
 }
 
 impl WindowBuilderExtMacOS for WindowBuilder {
@@ -401,6 +411,12 @@ impl WindowBuilderExtMacOS for WindowBuilder {
   #[inline]
   fn with_has_shadow(mut self, has_shadow: bool) -> WindowBuilder {
     self.platform_specific.has_shadow = has_shadow;
+    self
+  }
+
+  #[inline]
+  fn with_theme(mut self, theme: Option<Theme>) -> WindowBuilder {
+    self.platform_specific.preferred_theme = theme;
     self
   }
 }
@@ -511,12 +527,20 @@ pub trait SystemTrayBuilderExtMacOS {
   /// You can use the alpha channel in the image to adjust the opacity of black content.
   ///
   fn with_icon_as_template(self, is_template: bool) -> Self;
+
+  /// Enables or disables showing the tray menu on left click, default is true.
+  fn with_menu_on_left_click(self, enable: bool) -> Self;
 }
 
 #[cfg(feature = "tray")]
 impl SystemTrayBuilderExtMacOS for SystemTrayBuilder {
   fn with_icon_as_template(mut self, is_template: bool) -> Self {
     self.0.system_tray.icon_is_template = is_template;
+    self
+  }
+
+  fn with_menu_on_left_click(mut self, enable: bool) -> Self {
+    self.0.system_tray.menu_on_left_click = enable;
     self
   }
 }
@@ -528,11 +552,18 @@ pub trait SystemTrayExtMacOS {
   /// You need to update this value before changing the icon.
   ///
   fn set_icon_as_template(&mut self, is_template: bool);
+
+  /// Enables or disables showing the tray menu on left click, default is true.
+  fn enable_menu_on_left_click(&mut self, enable: bool);
 }
 
 #[cfg(feature = "tray")]
 impl SystemTrayExtMacOS for SystemTray {
   fn set_icon_as_template(&mut self, is_template: bool) {
     self.0.icon_is_template = is_template
+  }
+
+  fn set_menu_on_left_click(&mut self, enable: bool) {
+    self.0.menu_on_left_click = enable
   }
 }

@@ -1,5 +1,38 @@
 # Changelog
 
+## \[0.10.0]
+
+- Fix movable window background on macOS.
+  - [e0520b48](https://github.com/tauri-apps/tao/commit/e0520b488bd95167c73c971448e83775032037af) fix: fix movable window background on macOS, closes [#406](https://github.com/tauri-apps/tao/pull/406) ([#405](https://github.com/tauri-apps/tao/pull/405)) on 2022-05-27
+- Remove trivial tray features.
+  - [f1bd25e6](https://github.com/tauri-apps/tao/commit/f1bd25e643b8a8a656ee64678e9f95135feafb39) Remove trivial tray features ([#411](https://github.com/tauri-apps/tao/pull/411)) on 2022-05-30
+
+## \[0.9.1]
+
+- Fix the size of the slice passed to `DragQueryFileW` by passing `std::mem::transmute(path_buf.spare_capacity_mut())` instead of `&mut path_buf`.
+  - [d0dbfa1a](https://github.com/tauri-apps/tao/commit/d0dbfa1a1274f16348701a63b213e9e92776cd74) Fix drag drop on Windows ([#401](https://github.com/tauri-apps/tao/pull/401)) on 2022-05-23
+
+## \[0.9.0]
+
+- Add standalone webview ndk port.
+  - [68c9f07e](https://github.com/tauri-apps/tao/commit/68c9f07e8e24690ddf449ebc545ebd90cd29e118) Implement standalone webview ndk ([#385](https://github.com/tauri-apps/tao/pull/385)) on 2022-05-19
+- Update the `windows` crate to the latest 0.37.0 release.
+
+The `#[implement]` macro in `windows-implement` and the `implement` feature in `windows` depend on some `const` generic features which stabilized in `rustc` 1.61. The MSRV on Windows targets is effectively 1.61, but other targets do not require these features.
+
+Since developers on non-Windows platforms are not always able to upgrade their toolchain with `rustup`, the package remains at 1.56. Windows developers may get less friendly compiler errors about using unstable language features until they upgrade their toolchain if they build `tao` without `wry`, which has some Windows-specific dependencies that transitively raise the MSRV for `wry` to 1.61.
+
+- [93c256f9](https://github.com/tauri-apps/tao/commit/93c256f9835b2da853129f2a1d77287aa714934e) Update the windows-rs crate to 0.37.0 ([#400](https://github.com/tauri-apps/tao/pull/400)) on 2022-05-23
+
+## \[0.8.5]
+
+- The `current_monitor` function now fallbacks to the primary monitor when the window is invisible.
+  - [6cdb99fd](https://github.com/tauri-apps/tao/commit/6cdb99fd271acc6bc2f1132c799c202c444ec7f2) fix(linux): fallback to primary monitor on `current_monitor` impl ([#395](https://github.com/tauri-apps/tao/pull/395)) on 2022-05-18
+- Change menubar background color to transparent on Linux when the window is transparent.
+  - [a0d9408b](https://github.com/tauri-apps/tao/commit/a0d9408bb89f8dd60687885c2344f7d1069e73d0) fix(linux): make menubar background transparent ([#389](https://github.com/tauri-apps/tao/pull/389)) on 2022-05-14
+- Rename full screen menu label to "Toggle Full Screen".
+  - [8945f544](https://github.com/tauri-apps/tao/commit/8945f544e77d5cd22a1f3e2ad492c4a2dc986268) fix: rename full screen menu label, closes [#391](https://github.com/tauri-apps/tao/pull/391) ([#393](https://github.com/tauri-apps/tao/pull/393)) on 2022-05-17
+
 ## \[0.8.4]
 
 - On Windows, remove the accelerator from `CustomMenuItem::title` returnd string.
