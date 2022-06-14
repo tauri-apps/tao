@@ -563,7 +563,7 @@ impl SystemTrayExtMacOS for SystemTray {
     self.0.icon_is_template = is_template
   }
 
-  fn set_menu_on_left_click(&mut self, enable: bool) {
+  fn enable_menu_on_left_click(&mut self, enable: bool) {
     self.0.menu_on_left_click = enable
   }
 }

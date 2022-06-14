@@ -239,7 +239,7 @@ extern "C" fn perform_tray_click(this: &mut Object, _: Sel, button: id) {
       if *menu != nil {
         let menu_on_left_click = this.get_ivar::<bool>("menu_on_left_click");
         if click_event == TrayEvent::RightClick
-          || (menu_on_left_click && click_event == TrayEvent::LeftClick)
+          || (*menu_on_left_click && click_event == TrayEvent::LeftClick)
         {
           let status_bar = this.get_ivar::<id>("status_bar");
           status_bar.setMenu_(*menu);
