@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.11.1]
+
+- Fix macOS `SystemTrayExtMacOS` implementation.
+  - [f42c1be1](https://github.com/tauri-apps/tao/commit/f42c1be13ce949a3ca47c9126c2c1e914dee179a) fix: fix wrong macOS trait implementation on 2022-06-14
+
 ## \[0.11.0]
 
 - **Breaking change** `SystemTrayBuilder::new` and `SystemTray::set_icon` now takes `system_tray::Icon` on all platforms.
