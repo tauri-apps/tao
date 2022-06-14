@@ -169,6 +169,7 @@ fn make_tray_class() -> *const Class {
     let mut decl = ClassDecl::new("TaoTrayHandler", superclass).unwrap();
     decl.add_ivar::<id>("status_bar");
     decl.add_ivar::<id>("menu");
+    decl.add_ivar::<bool>("menu_on_left_click");
     decl.add_method(
       sel!(click:),
       perform_tray_click as extern "C" fn(&mut Object, _, id),
