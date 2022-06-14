@@ -3,7 +3,7 @@ name: test
 on: pull_request
 
 jobs:
-  Tests:
+  tests:
     strategy:
       fail-fast: false
       matrix:
@@ -23,26 +23,34 @@ jobs:
           - { id: ios, target: aarch64-apple-ios, os: macos-latest }
 
     env:
-      RUST_BACKTRACE: 1
-      CARGO_INCREMENTAL: 0
-      RUSTFLAGS: "-C debuginfo=0"
-      OPTIONS: ${{ matrix.platform.options }}
-      FEATURES: ${{ format(',{0}', matrix.platform.features ) }}
-      CMD: ${{ matrix.platform.cmd }}
+      RUST_BACKTRACE: 1 # rustc option
+      CARGO_INCREMENTAL: 0 # cargo option
+      RUSTFLAGS: "-C debuginfo=0" # rustc option
+      OPTIONS: ${{ matrix.platform.options }} # as arguments
+      FEATURES: ${{ format(',{0}', matrix.platform.features ) }} # as arguments
+      CMD: ${{ matrix.platform.cmd }} # as arguments
 
     runs-on: ${{ matrix.platform.os }}
     steps:
       - uses: actions/checkout@v2
+
       - name: Cache cargo folder
         uses: actions/cache@v1
         with:
           path: ~/.cargo
           key: ${{ matrix.platform.target }}-cargo-${{ matrix.rust_version }}
 
-      - uses: hecrj/setup-rust-action@v1
+      - uses: actions-rs/toolchain@v1
         with:
-          rust-version: ${{ matrix.rust_version }}${{ matrix.platform.host }}
-          targets: ${{ matrix.platform.target }}
+          target: ${{ matrix.platform.target }}
+          toolchain: ${{ matrix.rust_version }}
+
+      - name: fmt check
+        if: matrix.platform.os != 'windows-latest' # "Incorrect newline style in [file]"
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
 
       - name: Install Gtk (ubuntu only)
         if: matrix.platform.os == 'ubuntu-latest'
@@ -63,6 +71,9 @@ jobs:
         if: contains(matrix.platform.target, 'android')
         run: cargo install cargo-apk
 
+      - name: Download dependencies
+        run: cargo $CMD fetch
+
       - name: Check documentation
         shell: bash
         run: cargo $CMD doc --no-deps --target ${{ matrix.platform.target }} $OPTIONS --features $FEATURES
@@ -81,18 +92,3 @@ jobs:
           !contains(matrix.platform.target, 'android') &&
           !contains(matrix.platform.target, 'ios'))
         run: cargo $CMD test --verbose --target ${{ matrix.platform.target }} $OPTIONS --features $FEATURES
-
-      - name: Build with serde enabled
-        shell: bash
-        run: cargo $CMD build --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,$FEATURES
-
-      - name: Build tests with serde enabled
-        shell: bash
-        run: cargo $CMD test --no-run --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,$FEATURES
-
-      - name: Run tests with serde enabled
-        shell: bash
-        if: (
-          !contains(matrix.platform.target, 'android') &&
-          !contains(matrix.platform.target, 'ios'))
-        run: cargo $CMD test --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,$FEATURES
