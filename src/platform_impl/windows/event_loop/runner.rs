@@ -394,12 +394,12 @@ impl<T> EventLoopRunner<T> {
     };
     self.call_event_handler(Event::NewEvents(start_cause));
     self.dispatch_buffered_events();
-    RedrawWindow(
-      self.thread_msg_target,
-      ptr::null(),
-      HRGN::default(),
-      RDW_INTERNALPAINT,
-    );
+    // RedrawWindow(
+    //   self.thread_msg_target,
+    //   ptr::null(),
+    //   HRGN::default(),
+    //   RDW_INTERNALPAINT,
+    // );
   }
 
   unsafe fn call_redraw_events_cleared(&self) {

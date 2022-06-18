@@ -2018,9 +2018,9 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
 ) -> LRESULT {
   let subclass_input = Box::from_raw(subclass_input_ptr as *mut ThreadMsgTargetSubclassInput<T>);
 
-  if msg != WM_PAINT {
-    RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
-  }
+  // if msg != WM_PAINT {
+  //   RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
+  // }
 
   let mut subclass_removed = false;
 
