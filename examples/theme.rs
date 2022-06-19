@@ -11,16 +11,16 @@ fn main() {
   };
 
   #[cfg(any(target_os = "macos"))]
-  use tao::platform::macos::WindowExtMacOS;
+  use tao::platform::macos::{WindowBuilderExtMacOS, WindowExtMacOS};
   #[cfg(target_os = "windows")]
-  use tao::platform::windows::WindowExtWindows;
+  use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 
   env_logger::init();
   let event_loop = EventLoop::new();
 
   let window = WindowBuilder::new()
     .with_title("A fantastic window!")
-    // .with_theme(Some(Theme::Light))
+    // .with_theme(Some(tao::window::Theme::Light))
     .build(&event_loop)
     .unwrap();
 
