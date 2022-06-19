@@ -274,6 +274,10 @@ pub(super) fn get_ns_theme() -> Theme {
     appearances.push(NSString::alloc(nil).init_str("NSAppearanceNameDarkAqua"));
     let app_class = class!(NSApplication);
     let app: id = msg_send![app_class, sharedApplication];
+    let has_theme: BOOL = msg_send![app, respondsToSelector: sel!(effectiveAppearance)];
+    if has_theme == NO {
+      return Theme::Light;
+    }
     let appearance: id = msg_send![app, effectiveAppearance];
     let name: id = msg_send![
       appearance,
@@ -293,11 +297,14 @@ pub(super) fn set_ns_theme(theme: Theme) {
     Theme::Light => "NSAppearanceNameAqua",
   };
   unsafe {
-    let name = NSString::alloc(nil).init_str(name);
-    let appearance: id = msg_send![class!(NSAppearance), appearanceNamed: name];
     let app_class = class!(NSApplication);
     let app: id = msg_send![app_class, sharedApplication];
-    let _: () = msg_send![app, setAppearance: appearance];
+    let has_theme: BOOL = msg_send![app, respondsToSelector: sel!(effectiveAppearance)];
+    if has_theme == YES {
+      let name = NSString::alloc(nil).init_str(name);
+      let appearance: id = msg_send![class!(NSAppearance), appearanceNamed: name];
+      let _: () = msg_send![app, setAppearance: appearance];
+    }
   }
 }
 
