@@ -653,7 +653,16 @@ extern "C" fn effective_appearance_did_change(this: &Object, _: Sel, _: id) {
 }
 extern "C" fn effective_appearance_did_changed_on_main_thread(this: &Object, _: Sel, _: id) {
   with_state(this, |state| {
-    state.emit_event(WindowEvent::ThemeChanged(get_ns_theme()));
+    let theme = get_ns_theme();
+    let current_theme = state.window.upgrade().map(|w| {
+      let mut state = w.shared_state.lock().unwrap();
+      let current_theme = state.current_theme;
+      state.current_theme = theme;
+      current_theme
+    });
+    if current_theme != Some(theme) {
+      state.emit_event(WindowEvent::ThemeChanged(theme));
+    }
   });
   trace!("Completed `effectiveAppearDidChange:`");
 }
