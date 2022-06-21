@@ -5,4 +5,4 @@
 # Order is important; the last matching pattern takes the most precedence.
 * @tauri-apps/wg-webview
 
-.github @tauri-apps/wg-wg-devops
+.github @tauri-apps/wg-devops
