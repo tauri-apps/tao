@@ -380,8 +380,8 @@ extern "C" fn frame_did_change(this: &Object, _sel: Sel, _event: id) {
     let logical_size = LogicalSize::new(rect.size.width as f64, rect.size.height as f64);
     let size = logical_size.to_physical::<u32>(state.get_scale_factor());
     AppState::queue_event(EventWrapper::StaticEvent(Event::WindowEvent {
-        window_id: WindowId(get_window_id(state.ns_window)),
-        event: WindowEvent::Resized(size),
+      window_id: WindowId(get_window_id(state.ns_window)),
+      event: WindowEvent::Resized(size),
     }));
 
     state.tracking_rect = Some(tracking_rect);
