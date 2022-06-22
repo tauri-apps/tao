@@ -17,11 +17,12 @@ use gio::{prelude::*, Cancellable};
 use glib::{source::Priority, Continue, MainContext};
 use gtk::{builders::AboutDialogBuilder, prelude::*, Inhibit};
 
-use crate::event::{MouseScrollDelta, TouchPhase};
 use crate::{
   accelerator::AcceleratorId,
   dpi::{LogicalPosition, LogicalSize},
-  event::{ElementState, Event, MouseButton, StartCause, WindowEvent},
+  event::{
+    ElementState, Event, MouseButton, MouseScrollDelta, StartCause, TouchPhase, WindowEvent,
+  },
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
   keyboard::ModifiersState,
   menu::{MenuItem, MenuType},
