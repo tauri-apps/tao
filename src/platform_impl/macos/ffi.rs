@@ -298,9 +298,9 @@ mod core_video {
   #[repr(C)]
   #[derive(Debug, Clone)]
   pub struct CVTime {
-      pub time_value: i64, // int64_t
-      pub time_scale: i32, // int32_t
-      pub flags: i32,      // int32_t
+    pub time_value: i64, // int64_t
+    pub time_scale: i32, // int32_t
+    pub flags: i32,      // int32_t
   }
 
   // CVReturn.h
@@ -313,14 +313,13 @@ mod core_video {
   pub type CVDisplayLinkRef = *mut c_void;
 
   extern "C" {
-      pub fn CVDisplayLinkCreateWithCGDisplay(
-          displayID: CGDirectDisplayID,
-          displayLinkOut: *mut CVDisplayLinkRef,
-      ) -> CVReturn;
-      pub fn CVDisplayLinkGetNominalOutputVideoRefreshPeriod(
-          displayLink: CVDisplayLinkRef,
-      ) -> CVTime;
-      pub fn CVDisplayLinkRelease(displayLink: CVDisplayLinkRef);
+    pub fn CVDisplayLinkCreateWithCGDisplay(
+      displayID: CGDirectDisplayID,
+      displayLinkOut: *mut CVDisplayLinkRef,
+    ) -> CVReturn;
+    pub fn CVDisplayLinkGetNominalOutputVideoRefreshPeriod(displayLink: CVDisplayLinkRef)
+      -> CVTime;
+    pub fn CVDisplayLinkRelease(displayLink: CVDisplayLinkRef);
   }
 }
 
