@@ -1036,35 +1036,68 @@ unsafe fn public_window_callback_inner<T: 'static>(
           right: window_pos.x + window_pos.cx,
           bottom: window_pos.y + window_pos.cy,
         };
-        let new_monitor = MonitorFromRect(&new_rect, MONITOR_DEFAULTTONULL);
-        match fullscreen {
-          Fullscreen::Borderless(ref mut fullscreen_monitor) => {
-            if !new_monitor.is_invalid()
-              && fullscreen_monitor
-                .as_ref()
-                .map(|monitor| new_monitor != monitor.inner.hmonitor())
-                .unwrap_or(true)
-            {
-              if let Ok(new_monitor_info) = monitor::get_monitor_info(new_monitor) {
-                let new_monitor_rect = new_monitor_info.monitorInfo.rcMonitor;
-                window_pos.x = new_monitor_rect.left;
-                window_pos.y = new_monitor_rect.top;
-                window_pos.cx = new_monitor_rect.right - new_monitor_rect.left;
-                window_pos.cy = new_monitor_rect.bottom - new_monitor_rect.top;
-              }
-              *fullscreen_monitor = Some(crate::monitor::MonitorHandle {
-                inner: MonitorHandle::new(new_monitor),
-              });
-            }
+
+        const NOMOVE_OR_NOSIZE: SET_WINDOW_POS_FLAGS =
+          SET_WINDOW_POS_FLAGS(SWP_NOMOVE.0 | SWP_NOSIZE.0);
+
+        let new_rect = if (window_pos.flags & NOMOVE_OR_NOSIZE) != SET_WINDOW_POS_FLAGS::default() {
+          let cur_rect = util::get_window_rect(window)
+                        .expect("Unexpected GetWindowRect failure; please report this error to https://github.com/rust-windowing/tao");
+
+          match window_pos.flags & NOMOVE_OR_NOSIZE {
+            NOMOVE_OR_NOSIZE => None,
+
+            SWP_NOMOVE => Some(RECT {
+              left: cur_rect.left,
+              top: cur_rect.top,
+              right: cur_rect.left + window_pos.cx,
+              bottom: cur_rect.top + window_pos.cy,
+            }),
+
+            SWP_NOSIZE => Some(RECT {
+              left: window_pos.x,
+              top: window_pos.y,
+              right: window_pos.x - cur_rect.left + cur_rect.right,
+              bottom: window_pos.y - cur_rect.top + cur_rect.bottom,
+            }),
+
+            _ => unreachable!(),
           }
-          Fullscreen::Exclusive(ref video_mode) => {
-            let old_monitor = video_mode.video_mode.monitor.hmonitor();
-            if let Ok(old_monitor_info) = monitor::get_monitor_info(old_monitor) {
-              let old_monitor_rect = old_monitor_info.monitorInfo.rcMonitor;
-              window_pos.x = old_monitor_rect.left;
-              window_pos.y = old_monitor_rect.top;
-              window_pos.cx = old_monitor_rect.right - old_monitor_rect.left;
-              window_pos.cy = old_monitor_rect.bottom - old_monitor_rect.top;
+        } else {
+          Some(new_rect)
+        };
+
+        if let Some(new_rect) = new_rect {
+          let new_monitor = MonitorFromRect(&new_rect, MONITOR_DEFAULTTONULL);
+          match fullscreen {
+            Fullscreen::Borderless(ref mut fullscreen_monitor) => {
+              if !new_monitor.is_invalid()
+                && fullscreen_monitor
+                  .as_ref()
+                  .map(|monitor| new_monitor != monitor.inner.hmonitor())
+                  .unwrap_or(true)
+              {
+                if let Ok(new_monitor_info) = monitor::get_monitor_info(new_monitor) {
+                  let new_monitor_rect = new_monitor_info.monitorInfo.rcMonitor;
+                  window_pos.x = new_monitor_rect.left;
+                  window_pos.y = new_monitor_rect.top;
+                  window_pos.cx = new_monitor_rect.right - new_monitor_rect.left;
+                  window_pos.cy = new_monitor_rect.bottom - new_monitor_rect.top;
+                }
+                *fullscreen_monitor = Some(crate::monitor::MonitorHandle {
+                  inner: MonitorHandle::new(new_monitor),
+                });
+              }
+            }
+            Fullscreen::Exclusive(ref video_mode) => {
+              let old_monitor = video_mode.video_mode.monitor.hmonitor();
+              if let Ok(old_monitor_info) = monitor::get_monitor_info(old_monitor) {
+                let old_monitor_rect = old_monitor_info.monitorInfo.rcMonitor;
+                window_pos.x = old_monitor_rect.left;
+                window_pos.y = old_monitor_rect.top;
+                window_pos.cx = old_monitor_rect.right - old_monitor_rect.left;
+                window_pos.cy = old_monitor_rect.bottom - old_monitor_rect.top;
+              }
             }
           }
         }
