@@ -280,8 +280,11 @@ impl AppState {
     }
   }
 
-  pub fn launched(app_delegate: &Object) {
+  pub fn will_launch(app_delegate: &Object) {
     apply_activation_policy(app_delegate);
+  }
+
+  pub fn launched() {
     unsafe {
       let ns_app = NSApp();
       window_activation_hack(ns_app);
@@ -434,7 +437,7 @@ unsafe fn window_activation_hack(ns_app: id) {
     }
   }
 }
-fn apply_activation_policy(app_delegate: &Object) {
+pub fn apply_activation_policy(app_delegate: &Object) {
   unsafe {
     use cocoa::appkit::NSApplicationActivationPolicy::*;
     let ns_app = NSApp();

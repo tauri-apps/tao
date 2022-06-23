@@ -37,6 +37,11 @@ lazy_static! {
     decl.add_method(sel!(dealloc), dealloc as extern "C" fn(&Object, Sel));
 
     decl.add_method(
+      sel!(applicationWillFinishLaunching:),
+      will_finish_launching as extern "C" fn(&Object, Sel, id),
+    );
+
+    decl.add_method(
       sel!(applicationDidFinishLaunching:),
       did_finish_launching as extern "C" fn(&Object, Sel, id),
     );
@@ -81,9 +86,13 @@ extern "C" fn dealloc(this: &Object, _: Sel) {
   }
 }
 
-extern "C" fn did_finish_launching(this: &Object, _: Sel, _: id) {
+extern "C" fn will_finish_launching(this: &Object, _: Sel, _: id) {
+  AppState::will_launch(this);
+}
+
+extern "C" fn did_finish_launching(_: &Object, _: Sel, _: id) {
   trace!("Triggered `applicationDidFinishLaunching`");
-  AppState::launched(this);
+  AppState::launched();
   trace!("Completed `applicationDidFinishLaunching`");
 }
 
