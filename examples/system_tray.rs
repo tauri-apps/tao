@@ -7,19 +7,16 @@
 #[cfg(any(feature = "tray", all(target_os = "linux", feature = "ayatana")))]
 fn main() {
   #[cfg(target_os = "macos")]
-  use tao::platform::macos::{CustomMenuItemExtMacOS, NativeImage, SystemTrayBuilderExtMacOS};
   use tao::{
     event::Event,
     event_loop::{ControlFlow, EventLoop},
     menu::{ContextMenu as Menu, MenuItemAttributes, MenuType},
+    platform::macos::{CustomMenuItemExtMacOS, NativeImage, SystemTrayBuilderExtMacOS},
     system_tray::SystemTrayBuilder,
   };
 
   env_logger::init();
   let event_loop = EventLoop::new();
-
-  let mut tray_menu = Menu::new();
-  let quit = tray_menu.add_item(MenuItemAttributes::new("Quit"));
 
   // You'll have to choose an icon size at your own discretion. On Linux, the icon should be
   // provided in whatever size it was naturally drawn; that is, don’t scale the image before passing
@@ -27,6 +24,17 @@ fn main() {
   // since it seems to work well enough in most cases. Be careful about going too high, or
   // you'll be bitten by the low-quality downscaling built into the WM.
   let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
+
+  let mut tray_menu = Menu::new();
+
+  #[cfg(target_os = "macos")]
+  {
+    let item = tray_menu
+      .add_item(MenuItemAttributes::new("Item 1"))
+      .set_native_image(NativeImage::FromFile(path.to_string()));
+  }
+
+  let quit = tray_menu.add_item(MenuItemAttributes::new("Quit"));
 
   let icon = load_icon(std::path::Path::new(path));
 
