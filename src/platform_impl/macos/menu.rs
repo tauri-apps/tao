@@ -87,10 +87,7 @@ impl MenuItemAttributes {
     unsafe {
       let image_ref: id = match icon {
         NativeImage::FromFile(..) => icon.get_ns_image(),
-        _ => {
-          let ns_image: id = icon.get_ns_image();
-          msg_send![class!(NSImage), imageNamed: ns_image]
-        }
+        _ => msg_send![class!(NSImage), imageNamed: icon.get_ns_image()],
       };
       let () = msg_send![self.1, setImage: image_ref];
     }
