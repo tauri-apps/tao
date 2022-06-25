@@ -7,11 +7,11 @@
 #[cfg(any(feature = "tray", all(target_os = "linux", feature = "ayatana")))]
 fn main() {
   #[cfg(target_os = "macos")]
+  use tao::platform::macos::{CustomMenuItemExtMacOS, NativeImage, SystemTrayBuilderExtMacOS};
   use tao::{
     event::Event,
     event_loop::{ControlFlow, EventLoop},
     menu::{ContextMenu as Menu, MenuItemAttributes, MenuType},
-    platform::macos::{CustomMenuItemExtMacOS, NativeImage, SystemTrayBuilderExtMacOS},
     system_tray::SystemTrayBuilder,
   };
 
