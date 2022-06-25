@@ -203,7 +203,7 @@ impl Menu {
         make_menu_item(
           "Hide Others",
           Some(selector("hideOtherApplications:")),
-          Some(Accelerator::new(RawMods::AltMeta, KeyCode::KeyW)),
+          Some(Accelerator::new(RawMods::AltMeta, KeyCode::KeyH)),
           menu_type,
         ),
       )),
