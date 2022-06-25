@@ -4,7 +4,7 @@
 use crate::{platform::macos::ActivationPolicy, platform_impl::platform::app_state::AppState};
 
 use cocoa::{
-  base::{id, YES},
+  base::{id, YES, BOOL},
   foundation::NSString,
 };
 use objc::{
@@ -51,7 +51,7 @@ lazy_static! {
     );
     decl.add_method(
       sel!(application:openFile:),
-      application_open_file as extern "C" fn(&Object, Sel, id, id) -> i8,
+      application_open_file as extern "C" fn(&Object, Sel, id, id) -> BOOL,
     );
     decl.add_ivar::<*mut c_void>(AUX_DELEGATE_STATE_NAME);
 
@@ -102,7 +102,7 @@ extern "C" fn application_will_terminate(_: &Object, _: Sel, _: id) {
   trace!("Completed `applicationWillTerminate`");
 }
 
-extern "C" fn application_open_file(_: &Object, _: Sel, _: id, file: id) -> i8 {
+extern "C" fn application_open_file(_: &Object, _: Sel, _: id, file: id) -> BOOL {
   let path_string = unsafe { CStr::from_ptr(file.UTF8String()).to_string_lossy() };
 
   let path = PathBuf::from(path_string.as_ref());

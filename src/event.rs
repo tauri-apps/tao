@@ -101,7 +101,9 @@ pub enum Event<'a, T: 'static> {
   },
 
   /// Emitted when open an external file with the app
+  ///
   /// ## Platform-specific
+  ///
   /// - **Windows / Android / Linux:** Unsupported.
   OpenFile(PathBuf),
 
