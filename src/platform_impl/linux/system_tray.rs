@@ -15,6 +15,22 @@ use libappindicator::{AppIndicator, AppIndicatorStatus};
 
 use super::{menu::Menu, window::WindowRequest, WindowId};
 
+lazy_static! {
+  // Avoid file IO of reading /.flatpak-info every time we set a new icon.
+  static ref FLATPAK_APP_NAME: Option<String> = get_flatpak_app_name();
+}
+
+#[derive(Deserialize, Debug, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+struct FlatpakInfo {
+  application: FlatpakApplication,
+}
+
+#[derive(Deserialize, Debug, PartialEq)]
+struct FlatpakApplication {
+  name: String,
+}
+
 pub struct SystemTrayBuilder {
   tray_menu: Option<Menu>,
   app_indicator: AppIndicator,
@@ -102,13 +118,35 @@ impl Drop for SystemTray {
 }
 
 fn temp_icon_path() -> std::io::Result<(PathBuf, PathBuf)> {
-  let mut parent_path = dirs_next::runtime_dir().unwrap_or_else(|| std::env::temp_dir());
+  let mut parent_path = match dirs_next::runtime_dir() {
+    Some(runtime_dir) => match &*FLATPAK_APP_NAME {
+      Some(app_name) => PathBuf::from(runtime_dir).join("app").join(app_name),
+      None => runtime_dir,
+    },
+    None => std::env::temp_dir(),
+  };
 
   parent_path.push("tao");
   std::fs::create_dir_all(&parent_path)?;
   let mut icon_path = parent_path.clone();
   icon_path.push(format!("tray-icon-{}.png", uuid::Uuid::new_v4()));
   Ok((parent_path, icon_path))
+}
+
+fn get_flatpak_app_name() -> Option<String> {
+  let info = PathBuf::from("/.flatpak-info");
+
+  if !info.exists() {
+    return None;
+  }
+
+  if let Ok(s) = std::fs::read_to_string(&info) {
+    if let Ok(info) = serde_ini::from_str::<FlatpakInfo>(&s) {
+      return Some(info.application.name.to_string());
+    }
+  }
+
+  None
 }
 
 #[test]
@@ -125,4 +163,30 @@ fn temp_icon_path_prefers_runtime() {
   }
 
   assert_eq!(dir2, PathBuf::from("/tmp/tao"));
+}
+
+#[test]
+fn parse_flatpak_info() {
+  assert_eq!(
+    FlatpakInfo {
+      application: FlatpakApplication {
+        name: "app.tauri.tao-tests".to_string(),
+      }
+    },
+    // Part of an example file.
+    serde_ini::from_str::<FlatpakInfo>(
+      r#"
+[Application]
+name=app.tauri.tao-tests
+runtime=runtime/org.gnome.Platform/x86_64/42
+
+[Instance]
+instance-id=123456789
+branch=master
+arch=x86_64
+flatpak-version=1.12.7
+"#,
+    )
+    .unwrap()
+  )
 }
