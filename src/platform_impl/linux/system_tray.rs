@@ -113,13 +113,16 @@ fn temp_icon_path() -> std::io::Result<(PathBuf, PathBuf)> {
 
 #[test]
 fn temp_icon_path_prefers_runtime() {
-  let runtime_dir = env!("XDG_RUNTIME_DIR");
+  let runtime_dir = option_env!("XDG_RUNTIME_DIR");
 
   let (dir1, _file1) = temp_icon_path().unwrap();
   std::env::remove_var("XDG_RUNTIME_DIR");
   let (dir2, _file2) = temp_icon_path().unwrap();
-  std::env::set_var("XDG_RUNTIME_DIR", runtime_dir);
 
-  assert_eq!(dir1, PathBuf::from(format!("{}/tao", runtime_dir)));
+  if let Some(runtime_dir) = runtime_dir {
+    std::env::set_var("XDG_RUNTIME_DIR", runtime_dir);
+    assert_eq!(dir1, PathBuf::from(format!("{}/tao", runtime_dir)));
+  }
+
   assert_eq!(dir2, PathBuf::from("/tmp/tao"));
 }
