@@ -85,8 +85,13 @@ impl MenuItemAttributes {
   // Available only with CustomMenuItemExtMacOS
   pub fn set_native_image(&mut self, icon: NativeImage) {
     unsafe {
-      let ns_image: id = icon.get_ns_image();
-      let image_ref: id = msg_send![class!(NSImage), imageNamed: ns_image];
+      let image_ref: id = match icon {
+        NativeImage::FromFile(..) => icon.get_ns_image(),
+        _ => {
+          let ns_image: id = icon.get_ns_image();
+          msg_send![class!(NSImage), imageNamed: ns_image]
+        }
+      };
       let () = msg_send![self.1, setImage: image_ref];
     }
   }

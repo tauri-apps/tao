@@ -3,7 +3,7 @@
 
 #![cfg(target_os = "macos")]
 
-use std::os::raw::c_void;
+use std::{ffi::CString, os::raw::c_void};
 
 use crate::{
   dpi::LogicalSize,
@@ -252,6 +252,9 @@ pub enum NativeImage {
   UserGroup,
   /// Permissions for guests.
   UserGuest,
+
+  /// Create a native image from a given path.
+  FromFile(String),
 }
 
 impl NativeImage {
@@ -313,7 +316,21 @@ impl NativeImage {
       NativeImage::UserAccounts => appkit::NSImageNameUserAccounts,
       NativeImage::UserGroup => appkit::NSImageNameUserGroup,
       NativeImage::UserGuest => appkit::NSImageNameUserGuest,
+      NativeImage::FromFile(path) => NativeImage::from_file(path),
     }
+  }
+
+  fn from_file<S>(path: S) -> id
+  where
+    S: Into<String>,
+  {
+    let path: id =
+      unsafe { msg_send![class!(NSString), stringWithCString: CString::new(path.into()).unwrap()] };
+    let ns_image: id = unsafe {
+      let img: id = msg_send![class!(NSImage), alloc];
+      msg_send![img, initWithContentsOfFile: path]
+    };
+    ns_image
   }
 }
 
