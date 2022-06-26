@@ -5,8 +5,8 @@
 use crate::{platform::macos::ActivationPolicy, platform_impl::platform::app_state::AppState};
 
 use cocoa::{
-  base::id,
-  foundation::{NSArray, NSString, NSURL},
+  base::{id, YES, BOOL},
+  foundation::NSString,
 };
 use objc::{
   declare::ClassDecl,
@@ -16,6 +16,7 @@ use std::{
   cell::{RefCell, RefMut},
   ffi::CStr,
   os::raw::c_void,
+  path::PathBuf,
 };
 
 static AUX_DELEGATE_STATE_NAME: &str = "auxState";
@@ -50,8 +51,8 @@ lazy_static! {
       application_will_terminate as extern "C" fn(&Object, Sel, id),
     );
     decl.add_method(
-      sel!(application:openURLs:),
-      application_open_urls as extern "C" fn(&Object, Sel, id, id),
+      sel!(application:openFile:),
+      application_open_file as extern "C" fn(&Object, Sel, id, id) -> BOOL,
     );
     decl.add_ivar::<*mut c_void>(AUX_DELEGATE_STATE_NAME);
 
@@ -102,19 +103,16 @@ extern "C" fn application_will_terminate(_: &Object, _: Sel, _: id) {
   trace!("Completed `applicationWillTerminate`");
 }
 
-extern "C" fn application_open_urls(_: &Object, _: Sel, _: id, urls: id) -> () {
-  trace!("Trigger `application:openURLs:`");
+extern "C" fn application_open_file(_: &Object, _: Sel, _: id, file: id) -> BOOL {
+  let path_string = unsafe { CStr::from_ptr(file.UTF8String()).to_string_lossy() };
 
-  let url_strings = unsafe {
-    (0..urls.count())
-      .map(|i| {
-        CStr::from_ptr(urls.objectAtIndex(i).absoluteString().UTF8String())
-          .to_string_lossy()
-          .into_owned()
-      })
-      .collect::<Vec<_>>()
-  };
-  trace!("Get `application:openURLs:` URLs: {:?}", url_strings);
-  AppState::open_urls(url_strings);
-  trace!("Completed `application:openURLs:`");
+  let path = PathBuf::from(path_string.as_ref());
+  trace!("Trigger `application:openFile:` with path: {}", path_string);
+  AppState::open_file(path);
+  trace!(
+    "Completed `application:openFile:` with path: {}",
+    &path_string
+  );
+
+  return YES;
 }

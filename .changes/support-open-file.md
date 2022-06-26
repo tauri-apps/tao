@@ -2,4 +2,4 @@
 "tao": minor
 ---
 
-Support OpenURLs on macOS.
+Support OpenFile on macOS.
