@@ -285,7 +285,13 @@ impl AppState {
     apply_activation_policy(app_delegate);
   }
 
-  pub fn launched() {
+  pub fn launched(app_delegate: &Object) {
+    // In catalina, if I set the activation policy before the app is launched,
+    // We get a bug where the menu is not clickable.
+    // We have solved this problem by setting the activation policy to prohibited
+    // with `set_policy_to_prohibited` and then running `apply_activation_policy` again. 
+    set_policy_to_prohibited();
+    apply_activation_policy(app_delegate);
     unsafe {
       let ns_app = NSApp();
       window_activation_hack(ns_app);
@@ -442,18 +448,22 @@ unsafe fn window_activation_hack(ns_app: id) {
     }
   }
 }
-pub fn apply_activation_policy(app_delegate: &Object) {
+fn apply_activation_policy(app_delegate: &Object) {
   unsafe {
     use cocoa::appkit::NSApplicationActivationPolicy::*;
     let ns_app = NSApp();
-    // We need to delay setting the activation policy and activating the app
-    // until `applicationDidFinishLaunching` has been called. Otherwise the
-    // menu bar won't be interactable.
     let act_pol = get_aux_state_mut(app_delegate).activation_policy;
     ns_app.setActivationPolicy_(match act_pol {
       ActivationPolicy::Regular => NSApplicationActivationPolicyRegular,
       ActivationPolicy::Accessory => NSApplicationActivationPolicyAccessory,
       ActivationPolicy::Prohibited => NSApplicationActivationPolicyProhibited,
     });
+  }
+}
+
+fn set_policy_to_prohibited(){
+  unsafe {
+    let ns_app = NSApp();
+    ns_app.setActivationPolicy_(cocoa::appkit::NSApplicationActivationPolicyProhibited);
   }
 }

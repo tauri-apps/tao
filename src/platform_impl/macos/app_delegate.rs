@@ -91,12 +91,14 @@ extern "C" fn dealloc(this: &Object, _: Sel) {
 }
 
 extern "C" fn will_finish_launching(this: &Object, _: Sel, _: id) {
+  trace!("Triggered `applicationWillFinishLaunching`");
   AppState::will_launch(this);
+  trace!("Completed `applicationWillFinishLaunching`");
 }
 
-extern "C" fn did_finish_launching(_: &Object, _: Sel, _: id) {
+extern "C" fn did_finish_launching(this: &Object, _: Sel, _: id) {
   trace!("Triggered `applicationDidFinishLaunching`");
-  AppState::launched();
+  AppState::launched(this);
   trace!("Completed `applicationDidFinishLaunching`");
 }
 
