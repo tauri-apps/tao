@@ -16,6 +16,7 @@ use libappindicator::{AppIndicator, AppIndicatorStatus};
 use super::{menu::Menu, window::WindowRequest, WindowId};
 
 pub struct SystemTrayBuilder {
+  pub(crate) temp_icon_dir: Option<PathBuf>,
   tray_menu: Option<Menu>,
   icon: Icon,
 }
@@ -23,7 +24,11 @@ pub struct SystemTrayBuilder {
 impl SystemTrayBuilder {
   #[inline]
   pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
-    Self { tray_menu, icon }
+    Self {
+      temp_icon_dir: None,
+      tray_menu,
+      icon,
+    }
   }
 
   #[inline]
@@ -33,8 +38,8 @@ impl SystemTrayBuilder {
   ) -> Result<RootSystemTray, OsError> {
     let mut app_indicator = AppIndicator::new("tao application", "");
 
-    let (parent_path, icon_path) =
-      temp_icon_path(None).expect("Failed to create a temp folder for icon");
+    let (parent_path, icon_path) = temp_icon_path(self.temp_icon_dir.as_ref())
+      .expect("Failed to create a temp folder for icon");
 
     self.icon.inner.write_to_png(&icon_path);
 
@@ -53,6 +58,7 @@ impl SystemTrayBuilder {
     app_indicator.set_status(AppIndicatorStatus::Active);
 
     Ok(RootSystemTray(SystemTray {
+      temp_icon_dir: self.temp_icon_dir,
       app_indicator,
       sender,
       path: icon_path,
@@ -61,6 +67,7 @@ impl SystemTrayBuilder {
 }
 
 pub struct SystemTray {
+  temp_icon_dir: Option<PathBuf>,
   app_indicator: AppIndicator,
   sender: Sender<(WindowId, WindowRequest)>,
   path: PathBuf,
@@ -68,8 +75,8 @@ pub struct SystemTray {
 
 impl SystemTray {
   pub fn set_icon(&mut self, icon: Icon) {
-    let (parent_path, icon_path) =
-      temp_icon_path(None).expect("Failed to create a temp folder for icon");
+    let (parent_path, icon_path) = temp_icon_path(self.temp_icon_dir.as_ref())
+      .expect("Failed to create a temp folder for icon");
     icon.inner.write_to_png(&icon_path);
 
     self
