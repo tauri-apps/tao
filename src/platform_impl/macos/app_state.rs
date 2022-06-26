@@ -289,7 +289,7 @@ impl AppState {
     // In catalina, if we set the activation policy before the app is launched,
     // We get a bug where the menu is not clickable.
     // We have solved this problem by setting the activation policy to prohibited
-    // with `set_policy_to_prohibited` and then running `apply_activation_policy` again. 
+    // with `set_policy_to_prohibited` and then running `apply_activation_policy` again.
     set_policy_to_prohibited();
     apply_activation_policy(app_delegate);
     unsafe {
@@ -461,7 +461,7 @@ fn apply_activation_policy(app_delegate: &Object) {
   }
 }
 
-fn set_policy_to_prohibited(){
+fn set_policy_to_prohibited() {
   unsafe {
     let ns_app = NSApp();
     ns_app.setActivationPolicy_(cocoa::appkit::NSApplicationActivationPolicyProhibited);
