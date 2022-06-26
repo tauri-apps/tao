@@ -17,48 +17,45 @@ use super::{menu::Menu, window::WindowRequest, WindowId};
 
 pub struct SystemTrayBuilder {
   tray_menu: Option<Menu>,
-  app_indicator: AppIndicator,
-  path: PathBuf,
+  icon: Icon,
 }
 
 impl SystemTrayBuilder {
   #[inline]
   pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
-    let (parent_path, icon_path) =
-      temp_icon_path().expect("Failed to create a temp folder for icon");
-    icon.inner.write_to_png(&icon_path);
-
-    let mut app_indicator = AppIndicator::new("tao application", "");
-    app_indicator.set_icon_theme_path(&parent_path.to_string_lossy());
-    app_indicator.set_icon_full(&icon_path.to_string_lossy(), "icon");
-
-    Self {
-      tray_menu,
-      app_indicator,
-      path: icon_path,
-    }
+    Self { tray_menu, icon }
   }
 
   #[inline]
   pub fn build<T: 'static>(
-    mut self,
+    self,
     window_target: &EventLoopWindowTarget<T>,
   ) -> Result<RootSystemTray, OsError> {
+    let mut app_indicator = AppIndicator::new("tao application", "");
+
+    let (parent_path, icon_path) =
+      temp_icon_path().expect("Failed to create a temp folder for icon");
+
+    self.icon.inner.write_to_png(&icon_path);
+
+    app_indicator.set_icon_theme_path(&parent_path.to_string_lossy());
+    app_indicator.set_icon_full(&icon_path.to_string_lossy(), "icon");
+
     let sender = window_target.p.window_requests_tx.clone();
 
     if let Some(tray_menu) = self.tray_menu.clone() {
       let menu = &mut tray_menu.into_gtkmenu(&sender, &AccelGroup::new(), WindowId::dummy());
 
-      self.app_indicator.set_menu(menu);
+      app_indicator.set_menu(menu);
       menu.show_all();
     }
 
-    self.app_indicator.set_status(AppIndicatorStatus::Active);
+    app_indicator.set_status(AppIndicatorStatus::Active);
 
     Ok(RootSystemTray(SystemTray {
-      app_indicator: self.app_indicator,
+      app_indicator,
       sender,
-      path: self.path,
+      path: icon_path,
     }))
   }
 }
