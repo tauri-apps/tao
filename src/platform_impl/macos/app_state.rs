@@ -286,7 +286,7 @@ impl AppState {
   }
 
   pub fn launched(app_delegate: &Object) {
-    // In catalina, if I set the activation policy before the app is launched,
+    // In catalina, if we set the activation policy before the app is launched,
     // We get a bug where the menu is not clickable.
     // We have solved this problem by setting the activation policy to prohibited
     // with `set_policy_to_prohibited` and then running `apply_activation_policy` again. 
