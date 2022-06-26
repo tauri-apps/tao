@@ -9,6 +9,7 @@
 //!  - `ios`
 //!  - `macos`
 //!  - `unix`
+//!  - `linux`
 //!  - `windows`
 //!
 //! And the following platform-specific module:
@@ -20,6 +21,7 @@
 
 pub mod android;
 pub mod ios;
+pub mod linux;
 pub mod macos;
 pub mod run_return;
 pub mod unix;

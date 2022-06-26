@@ -6,6 +6,8 @@
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 #[cfg(any(feature = "tray", all(target_os = "linux", feature = "ayatana")))]
 fn main() {
+  #[cfg(target_os = "linux")]
+  use tao::platform::linux::SystemTrayBuilderExtLinux;
   #[cfg(target_os = "macos")]
   use tao::platform::macos::{CustomMenuItemExtMacOS, NativeImage, SystemTrayBuilderExtMacOS};
   use tao::{
@@ -30,6 +32,13 @@ fn main() {
 
   let icon = load_icon(std::path::Path::new(path));
 
+  #[cfg(target_os = "linux")]
+  let system_tray = SystemTrayBuilder::new(icon, Some(tray_menu))
+    .with_temp_icon_dir(std::path::Path::new("/tmp/tao-examples"))
+    .build(&event_loop)
+    .unwrap();
+
+  #[cfg(not(target_os = "linux"))]
   let system_tray = SystemTrayBuilder::new(icon, Some(tray_menu))
     .build(&event_loop)
     .unwrap();
