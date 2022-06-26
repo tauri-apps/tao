@@ -105,7 +105,7 @@ pub enum Event<'a, T: 'static> {
   /// ## Platform-specific
   ///
   /// - **Windows / Android / Linux:** Unsupported.
-  OpenFile(PathBuf),
+  OpenURLs(Vec<String>),
 
   /// Emitted when a global shortcut is triggered.
   ///
@@ -210,7 +210,7 @@ impl<T: Clone> Clone for Event<'static, T> {
         position: *position,
       },
       GlobalShortcutEvent(accelerator_id) => GlobalShortcutEvent(*accelerator_id),
-      OpenFile(file_path) => OpenFile(file_path.clone()),
+      OpenURLs(urls) => OpenURLs(urls.clone()),
     }
   }
 }
@@ -248,7 +248,7 @@ impl<'a, T> Event<'a, T> {
         position,
       }),
       GlobalShortcutEvent(accelerator_id) => Ok(GlobalShortcutEvent(accelerator_id)),
-      OpenFile(file_path) => Ok(OpenFile(file_path)),
+      OpenURLs(urls) => Ok(OpenURLs(urls)),
     }
   }
 
@@ -288,7 +288,7 @@ impl<'a, T> Event<'a, T> {
         position,
       }),
       GlobalShortcutEvent(accelerator_id) => Some(GlobalShortcutEvent(accelerator_id)),
-      OpenFile(file_path) => Some(OpenFile(file_path)),
+      OpenURLs(urls) => Some(OpenURLs(urls)),
     }
   }
 }
