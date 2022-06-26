@@ -38,8 +38,8 @@ impl SystemTrayBuilder {
   ) -> Result<RootSystemTray, OsError> {
     let mut app_indicator = AppIndicator::new("tao application", "");
 
-    let (parent_path, icon_path) = temp_icon_path(self.temp_icon_dir.as_ref())
-      .expect("Failed to create a temp folder for icon");
+    let (parent_path, icon_path) =
+      temp_icon_path(self.temp_icon_dir.as_ref()).expect("Failed to create a temp folder for icon");
 
     self.icon.inner.write_to_png(&icon_path);
 
@@ -75,8 +75,8 @@ pub struct SystemTray {
 
 impl SystemTray {
   pub fn set_icon(&mut self, icon: Icon) {
-    let (parent_path, icon_path) = temp_icon_path(self.temp_icon_dir.as_ref())
-      .expect("Failed to create a temp folder for icon");
+    let (parent_path, icon_path) =
+      temp_icon_path(self.temp_icon_dir.as_ref()).expect("Failed to create a temp folder for icon");
     icon.inner.write_to_png(&icon_path);
 
     self
