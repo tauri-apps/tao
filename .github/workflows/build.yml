@@ -45,13 +45,6 @@ jobs:
           target: ${{ matrix.platform.target }}
           toolchain: ${{ matrix.rust_version }}
 
-      - name: fmt check
-        if: matrix.platform.os != 'windows-latest' # "Incorrect newline style in [file]"
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-
       - name: Install Gtk (ubuntu only)
         if: matrix.platform.os == 'ubuntu-latest'
         run: |
@@ -92,3 +85,16 @@ jobs:
           !contains(matrix.platform.target, 'android') &&
           !contains(matrix.platform.target, 'ios'))
         run: cargo $CMD test --verbose --target ${{ matrix.platform.target }} $OPTIONS --features $FEATURES
+  fmt:
+    name: fmt check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: fmt check
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
