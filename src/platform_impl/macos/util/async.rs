@@ -171,7 +171,9 @@ pub unsafe fn set_maximized_async(
       if shared_state_lock.fullscreen.is_some() {
         // Handle it in window_did_exit_fullscreen
         return;
-      } else if curr_mask.contains(NSWindowStyleMask::NSResizableWindowMask) {
+      } else if curr_mask.contains(NSWindowStyleMask::NSResizableWindowMask)
+        && curr_mask.contains(NSWindowStyleMask::NSTitledWindowMask)
+      {
         // Just use the native zoom if resizable
         ns_window.zoom_(nil);
       } else {
@@ -182,7 +184,7 @@ pub unsafe fn set_maximized_async(
         } else {
           shared_state_lock.saved_standard_frame()
         };
-        ns_window.setFrame_display_(new_rect, NO);
+        let _: () = msg_send![*ns_window, setFrame:new_rect display:NO animate: YES];
       }
 
       trace!("Unlocked shared state in `set_maximized`");
