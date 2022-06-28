@@ -83,20 +83,21 @@ jobs:
           !contains(matrix.platform.target, 'ios'))
         run: cargo $CMD test --verbose --target ${{ matrix.platform.target }} $OPTIONS --features $FEATURES
 
-      - name: Build with serde enabled
+      - name: Build with all features enabled
         shell: bash
         run: cargo $CMD build --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,tray,$FEATURES
 
-      - name: Build tests with serde enabled
+      - name: Build tests with all features enabled
         shell: bash
         run: cargo $CMD test --no-run --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,tray,$FEATURES
 
-      - name: Run tests with serde enabled
+      - name: Run tests with all features enabled
         shell: bash
         if: (
           !contains(matrix.platform.target, 'android') &&
           !contains(matrix.platform.target, 'ios'))
         run: cargo $CMD test --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,tray,$FEATURES
+
   fmt:
     name: fmt check
     runs-on: ubuntu-latest
