@@ -15,8 +15,6 @@ jobs:
           - { id: ubuntu, target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
           # Ubuntu without features
           - { id: ubuntu-without-feat, target: x86_64-unknown-linux-gnu, os: ubuntu-latest, options: --no-default-features }
-          # Ubuntu with ALL features
-          - { id: ubuntu-with-all-features, target: x86_64-unknown-linux-gnu, os: ubuntu-latest, features: [serde, tray, dox] }
           # macOS
           - { id: macos, target: x86_64-apple-darwin, os: macos-latest }
           # Android on Ubuntu
@@ -29,7 +27,7 @@ jobs:
       CARGO_INCREMENTAL: 0
       RUSTFLAGS: "-C debuginfo=0"
       OPTIONS: ${{ matrix.platform.options }}
-      FEATURES: ${{ join(matrix.platform.features, ',') }}
+      FEATURES: ${{ format(',{0}', matrix.platform.features ) }}
       CMD: ${{ matrix.platform.cmd }}
 
     runs-on: ${{ matrix.platform.os }}
@@ -84,6 +82,21 @@ jobs:
           !contains(matrix.platform.target, 'android') &&
           !contains(matrix.platform.target, 'ios'))
         run: cargo $CMD test --verbose --target ${{ matrix.platform.target }} $OPTIONS --features $FEATURES
+
+      - name: Build with serde enabled
+        shell: bash
+        run: cargo $CMD build --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,tray,$FEATURES
+
+      - name: Build tests with serde enabled
+        shell: bash
+        run: cargo $CMD test --no-run --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,tray,$FEATURES
+
+      - name: Run tests with serde enabled
+        shell: bash
+        if: (
+          !contains(matrix.platform.target, 'android') &&
+          !contains(matrix.platform.target, 'ios'))
+        run: cargo $CMD test --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,tray,$FEATURES
   fmt:
     name: fmt check
     runs-on: ubuntu-latest
