@@ -29,7 +29,7 @@ jobs:
       CARGO_INCREMENTAL: 0
       RUSTFLAGS: "-C debuginfo=0"
       OPTIONS: ${{ matrix.platform.options }}
-      FEATURES: ${{ format(',{0}', matrix.platform.features ) }}
+      FEATURES: ${{ join(matrix.platform.features, ',') }}
       CMD: ${{ matrix.platform.cmd }}
 
     runs-on: ${{ matrix.platform.os }}
