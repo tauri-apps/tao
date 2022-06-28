@@ -2051,8 +2051,10 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
 ) -> LRESULT {
   let subclass_input = Box::from_raw(subclass_input_ptr as *mut ThreadMsgTargetSubclassInput<T>);
 
+  // Calling RedrawWindow will cause other window busy waiting. So we handle clear event directly
+  // as long as there's a thread event target message.
   if msg != WM_PAINT {
-    RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
+    handle_clear_event(&subclass_input.event_loop_runner, window);
   }
 
   let mut subclass_removed = false;
@@ -2070,25 +2072,8 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
     // when the event queue has been emptied. See `process_event` for more details.
     win32wm::WM_PAINT => {
       ValidateRect(window, ptr::null());
-      // If the WM_PAINT handler in `public_window_callback` has already flushed the redraw
-      // events, `handling_events` will return false and we won't emit a second
-      // `RedrawEventsCleared` event.
-      if subclass_input.event_loop_runner.handling_events() {
-        if subclass_input.event_loop_runner.should_buffer() {
-          // This branch can be triggered when a nested win32 event loop is triggered
-          // inside of the `event_handler` callback.
-          RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
-        } else {
-          // This WM_PAINT handler will never be re-entrant because `flush_paint_messages`
-          // doesn't call WM_PAINT for the thread event target (i.e. this window).
-          assert!(flush_paint_messages(
-            None,
-            &subclass_input.event_loop_runner
-          ));
-          subclass_input.event_loop_runner.redraw_events_cleared();
-          process_control_flow(&subclass_input.event_loop_runner);
-        }
-      }
+
+      handle_clear_event(&subclass_input.event_loop_runner, window);
 
       // Default WM_PAINT behaviour. This makes sure modals and popups are shown immediatly when opening them.
       DefSubclassProc(window, msg, wparam, lparam)
@@ -2354,5 +2339,24 @@ unsafe fn handle_raw_input<T: 'static>(
         state,
       }),
     });
+  }
+}
+
+unsafe fn handle_clear_event<T: 'static>(event_loop_runner: &EventLoopRunner<T>, window: HWND) {
+  // If the WM_PAINT handler in `public_window_callback` has already flushed the redraw
+  // events, `handling_events` will return false and we won't emit a second
+  // `RedrawEventsCleared` event.
+  if event_loop_runner.handling_events() {
+    if event_loop_runner.should_buffer() {
+      // This branch can be triggered when a nested win32 event loop is triggered
+      // inside of the `event_handler` callback.
+      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
+    } else {
+      // This WM_PAINT handler will never be re-entrant because `flush_paint_messages`
+      // doesn't call WM_PAINT for the thread event target (i.e. this window).
+      assert!(flush_paint_messages(None, &event_loop_runner));
+      event_loop_runner.redraw_events_cleared();
+      process_control_flow(&event_loop_runner);
+    }
   }
 }

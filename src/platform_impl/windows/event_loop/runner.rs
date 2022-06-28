@@ -196,6 +196,13 @@ impl<T> EventLoopRunner<T> {
     owned_windows.extend(&new_owned_windows);
     self.owned_windows.set(owned_windows);
   }
+
+  pub fn no_owned_windows(&self) -> bool {
+    let owned_windows = self.owned_windows.take();
+    let result = owned_windows.is_empty();
+    self.owned_windows.set(owned_windows);
+    result
+  }
 }
 
 /// Event dispatch functions.
@@ -394,12 +401,16 @@ impl<T> EventLoopRunner<T> {
     };
     self.call_event_handler(Event::NewEvents(start_cause));
     self.dispatch_buffered_events();
-    RedrawWindow(
-      self.thread_msg_target,
-      ptr::null(),
-      HRGN::default(),
-      RDW_INTERNALPAINT,
-    );
+    // Calling RedrawWindow will cause other window busy waiting. So we only call it when
+    // there's no window.
+    if self.no_owned_windows() {
+      RedrawWindow(
+        self.thread_msg_target,
+        ptr::null(),
+        HRGN::default(),
+        RDW_INTERNALPAINT,
+      );
+    }
   }
 
   unsafe fn call_redraw_events_cleared(&self) {
