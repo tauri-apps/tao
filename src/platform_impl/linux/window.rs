@@ -184,6 +184,7 @@ impl Window {
     if attributes.maximized {
       window.maximize();
     }
+    window.set_resizable(attributes.resizable);
     window.set_visible(attributes.visible);
     window.set_decorated(attributes.decorations);
 
