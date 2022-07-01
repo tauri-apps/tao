@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.12.1]
+
+- Revert #427 due to random crash caused by it.
+  - [38f9a587](https://github.com/tauri-apps/tao/commit/38f9a587c5a394a88c767b28e1bf2ae40f990bae) Revert "Remove most RedrawWindow to event target window" ([#457](https://github.com/tauri-apps/tao/pull/457)) on 2022-07-01
+
 ## \[0.12.0]
 
 - On macOS, fix native file dialogs hanging the event loop and
