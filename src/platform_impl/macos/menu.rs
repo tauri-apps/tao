@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cocoa::{
-  appkit::{NSApp, NSApplication, NSButton, NSEventModifierFlags, NSMenu, NSMenuItem},
+  appkit::{NSApp, NSApplication, NSButton, NSEventModifierFlags, NSImage, NSMenu, NSMenuItem},
   base::{id, nil, selector},
-  foundation::{NSAutoreleasePool, NSString},
+  foundation::{NSAutoreleasePool, NSData, NSString},
 };
 use objc::{
   declare::ClassDecl,
@@ -18,6 +18,7 @@ use crate::{
   keyboard::{KeyCode, ModifiersState},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   platform::macos::NativeImage,
+  system_tray::Icon,
   window::WindowId,
 };
 
@@ -79,8 +80,21 @@ impl MenuItemAttributes {
     }
   }
 
-  // todo: set custom icon to the menu item
-  pub fn set_icon(&mut self, _icon: Vec<u8>) {}
+  // Available only with CustomMenuItemExtMacOS
+  pub fn set_icon(&mut self, icon: Icon) {
+    unsafe {
+      let icon = icon.inner.to_png();
+
+      let nsdata = NSData::dataWithBytes_length_(
+        nil,
+        icon.as_ptr() as *const std::os::raw::c_void,
+        icon.len() as u64,
+      );
+
+      let nsimage = NSImage::initWithData_(NSImage::alloc(nil), nsdata);
+      let _: () = msg_send![self.1, setImage: nsimage];
+    }
+  }
 
   // Available only with CustomMenuItemExtMacOS
   pub fn set_native_image(&mut self, icon: NativeImage) {
