@@ -79,9 +79,19 @@ impl Window {
       .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
       .unwrap_or((800, 600));
     if attributes.resizable {
+      window.set_resizable(attributes.resizable);
       window.set_default_size(width, height);
     } else {
-      window.set_size_request(width, height);
+      if attributes.maximized {
+        // Set resizable true to maximize window.
+        window.set_resizable(true);
+        // Set minimum size to maximize window.
+        // Because if dimension is over window size, maximization does not work correct.
+        window.set_size_request(100, 100);
+      } else {
+        window.set_resizable(false);
+        window.set_size_request(width, height);
+      }
     }
 
     // Set Min/Max Size
@@ -181,9 +191,20 @@ impl Window {
       }
     }
     if attributes.maximized {
+      // Set resizable to false after maximizing.
+      if !attributes.resizable {
+        let w = app.window_by_id(window.id()).unwrap();
+        glib::timeout_add_seconds_local(0, move || {
+          let (alloc, _) = w.allocated_size();
+          // Window is maximized and set resizable false then error is occurred,
+          // so we need to set aloccated size to window.
+          w.set_size_request(alloc.width(), alloc.height());
+          w.set_resizable(false);
+          glib::Continue(false)
+        });
+      }
       window.maximize();
     }
-    window.set_resizable(attributes.resizable);
     window.set_visible(attributes.visible);
     window.set_decorated(attributes.decorations);
 
