@@ -126,17 +126,11 @@ impl From<ActivationPolicy> for NSApplicationActivationPolicy {
 
 pub trait CustomMenuItemExtMacOS {
   fn set_native_image(&mut self, native_image: NativeImage);
-
-  fn set_icon(&mut self, icon: Icon);
 }
 
 impl CustomMenuItemExtMacOS for CustomMenuItem {
   fn set_native_image(&mut self, native_image: NativeImage) {
     self.0.set_native_image(native_image)
-  }
-
-  fn set_icon(&mut self, icon: Icon) {
-    self.0.set_icon(icon)
   }
 }
 
