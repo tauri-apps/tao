@@ -15,10 +15,10 @@ use std::sync::Once;
 use crate::{
   accelerator::{Accelerator, RawMods},
   event::Event,
+  icon::Icon,
   keyboard::{KeyCode, ModifiersState},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   platform::macos::NativeImage,
-  system_tray::Icon,
   window::WindowId,
 };
 
