@@ -6,8 +6,6 @@
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 #[cfg(any(feature = "tray", all(target_os = "linux", feature = "ayatana")))]
 fn main() {
-  #[cfg(target_os = "macos")]
-  use tao::platform::macos::CustomMenuItemExtMacOS;
   use tao::{
     event::Event,
     event_loop::{ControlFlow, EventLoop},
