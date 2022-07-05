@@ -80,7 +80,6 @@ impl MenuItemAttributes {
     }
   }
 
-  // Available only with CustomMenuItemExtMacOS
   pub fn set_icon(&mut self, icon: Icon) {
     unsafe {
       let icon = icon.inner.to_png();
