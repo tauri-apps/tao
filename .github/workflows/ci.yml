@@ -1,9 +1,9 @@
-name: test
+name: CI
 
 on: pull_request
 
 jobs:
-  Tests:
+  tests:
     strategy:
       fail-fast: false
       matrix:
@@ -33,16 +33,17 @@ jobs:
     runs-on: ${{ matrix.platform.os }}
     steps:
       - uses: actions/checkout@v2
+
       - name: Cache cargo folder
         uses: actions/cache@v1
         with:
           path: ~/.cargo
           key: ${{ matrix.platform.target }}-cargo-${{ matrix.rust_version }}
 
-      - uses: hecrj/setup-rust-action@v1
+      - uses: actions-rs/toolchain@v1
         with:
-          rust-version: ${{ matrix.rust_version }}${{ matrix.platform.host }}
-          targets: ${{ matrix.platform.target }}
+          target: ${{ matrix.platform.target }}
+          toolchain: ${{ matrix.rust_version }}
 
       - name: Install Gtk (ubuntu only)
         if: matrix.platform.os == 'ubuntu-latest'
@@ -82,17 +83,31 @@ jobs:
           !contains(matrix.platform.target, 'ios'))
         run: cargo $CMD test --verbose --target ${{ matrix.platform.target }} $OPTIONS --features $FEATURES
 
-      - name: Build with serde enabled
+      - name: Build with all features enabled
         shell: bash
-        run: cargo $CMD build --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,$FEATURES
+        run: cargo $CMD build --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,tray,$FEATURES
 
-      - name: Build tests with serde enabled
+      - name: Build tests with all features enabled
         shell: bash
-        run: cargo $CMD test --no-run --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,$FEATURES
+        run: cargo $CMD test --no-run --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,tray,$FEATURES
 
-      - name: Run tests with serde enabled
+      - name: Run tests with all features enabled
         shell: bash
         if: (
           !contains(matrix.platform.target, 'android') &&
           !contains(matrix.platform.target, 'ios'))
-        run: cargo $CMD test --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,$FEATURES
+        run: cargo $CMD test --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,tray,$FEATURES
+
+  fmt:
+    name: fmt check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: fmt check
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check

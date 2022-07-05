@@ -1,5 +1,40 @@
 # Changelog
 
+## \[0.12.1]
+
+- Revert #427 due to random crash caused by it.
+  - [38f9a587](https://github.com/tauri-apps/tao/commit/38f9a587c5a394a88c767b28e1bf2ae40f990bae) Revert "Remove most RedrawWindow to event target window" ([#457](https://github.com/tauri-apps/tao/pull/457)) on 2022-07-01
+
+## \[0.12.0]
+
+- On macOS, fix native file dialogs hanging the event loop and
+  having multiple windows would prevent `run_return` from ever returning.
+  - [5c9cc21a](https://github.com/tauri-apps/tao/commit/5c9cc21a394b3d6b32c794453344263457f7d223) Fix native file dialogs freezing the event loop ([#440](https://github.com/tauri-apps/tao/pull/440)) on 2022-06-22
+- Fix maximizing window.
+- On Windows, fix wrong fullscreen monitors being recognized when handling `WM_WINDOWPOSCHANGING` messages
+  - [054a34ec](https://github.com/tauri-apps/tao/commit/054a34ec504dc98235d1fafc9b1cdede7727193e) fix: fix assigning the wrong monitor when receiving Windows move events ([#438](https://github.com/tauri-apps/tao/pull/438)) on 2022-06-22
+- Fix global hide others shortcut.
+  - [dfae373e](https://github.com/tauri-apps/tao/commit/dfae373e58da44ab6adc977ffe24e3d55ed51de0) fix: global hide others shortcut ([#447](https://github.com/tauri-apps/tao/pull/447)) on 2022-06-25
+- Fix window can't be hidden when maximized.
+  - [cd9ad33a](https://github.com/tauri-apps/tao/commit/cd9ad33a088b3ab5dbcf3ff1681ebce323c5c61d) Fix window can't be hidden when maximized ([#384](https://github.com/tauri-apps/tao/pull/384)) on 2022-06-15
+- On macOS, `WindowEvent::Resized` is now emitted in `frameDidChange` instead of `windowDidResize`.
+  - [54062ca1](https://github.com/tauri-apps/tao/commit/54062ca1a96e3637acee771e9657ef0267933352) fix: emit resize event on frame_did_change on macOS, closes [#436](https://github.com/tauri-apps/tao/pull/436) ([#439](https://github.com/tauri-apps/tao/pull/439)) on 2022-06-22
+- On Linux, adds `SystemTrayBuilderExtLinux::with_temp_icon_dir` which sets a custom temp icon dir to store generated icon files.
+  This may be useful when the application requires icons to be stored in a specific location, such as when running in a Flatpak sandbox.
+  - [ce209d39](https://github.com/tauri-apps/tao/commit/ce209d39ab21e493ba98bab83aa7827fa05d7050) feat(linux) add `with_temp_icon_dir` builder extension ([#452](https://github.com/tauri-apps/tao/pull/452)) on 2022-06-26
+- On Linux, store tray icons in `$XDG_RUNTIME_DIR`.
+  This is preferred over `/tmp`, because this directory (typically `/run/user/{uid}`)
+  is only readable for the current user. While `/tmp` is shared with all users.
+  - [01253829](https://github.com/tauri-apps/tao/commit/01253829dc23b7316db8941ed8c302d479890186) feat(linux): store tray icons in `XDG_RUNTIME_DIR` ([#449](https://github.com/tauri-apps/tao/pull/449)) on 2022-06-25
+- Do not emit the `ThemeChanged` event when the window theme is set and the system theme changes (the window keeps its theme in this scenario).
+  - [aae6bec9](https://github.com/tauri-apps/tao/commit/aae6bec9110c19ed0b6618f08e6ce48f483bbfd0) fix(macos): do not emit ThemeChanged event if window theme didn't change ([#430](https://github.com/tauri-apps/tao/pull/430)) on 2022-06-20
+- Remvoe `core-video-sys` dependency.
+  - [3bb09aa6](https://github.com/tauri-apps/tao/commit/3bb09aa6a03c39bb78378fb85e977c37d8a47a79) fix: remove core-video-sys dependency, closes [#435](https://github.com/tauri-apps/tao/pull/435) ([#441](https://github.com/tauri-apps/tao/pull/441)) on 2022-06-22
+- The `theme` function now `Theme::Light` on macOS older than 10.14 and the initial theme setter has no effect instead of crashing the application.
+  - [ba9c5571](https://github.com/tauri-apps/tao/commit/ba9c5571f408bdca8584b1b44cc1b95a927d8e34) fix(macos): guard theme APIs to not crash when running on 10.13 or older ([#429](https://github.com/tauri-apps/tao/pull/429)) on 2022-06-20
+- Reduce `WM_PAINT` singal on event target window to prevent from webview2 delay.
+  - [5ca39af1](https://github.com/tauri-apps/tao/commit/5ca39af1117677b469f92a8094769610c01419ad) Remove most RedrawWindow to event target window ([#427](https://github.com/tauri-apps/tao/pull/427)) on 2022-06-28
+
 ## \[0.11.2]
 
 - Fixes the `Ivar menu_on_left_click not found on class TaoTrayHandler` panic on macOS.
