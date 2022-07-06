@@ -90,13 +90,12 @@ use std::fmt;
 pub use self::{
   clipboard::Clipboard,
   event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
-  icon::Icon,
   keycode::{keycode_from_scancode, keycode_to_scancode},
   monitor::{MonitorHandle, VideoMode},
   window::{PlatformSpecificWindowBuilderAttributes, Window, WindowId},
 };
 
-pub(crate) use crate::icon::NoIcon as PlatformIcon;
+pub(crate) use crate::icon::{Icon, NoIcon as PlatformIcon};
 
 // todo: implement iOS keyboard event
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
