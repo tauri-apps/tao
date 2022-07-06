@@ -220,10 +220,11 @@ impl<T> EventLoopWindowTarget<T> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Wayland / Windows / macOS / iOS / Android / Web**: Unsupported.
+  /// - ** Linux / macOS / iOS / Android / Web**: Unsupported.
   ///
   /// [`DeviceEvent`]: crate::event::DeviceEvent
   pub fn set_device_event_filter(&self, _filter: DeviceEventFilter) {
+    #[cfg(target_os = "windows")]
     self.p.set_device_event_filter(_filter);
   }
 }
