@@ -90,6 +90,7 @@ use std::fmt;
 pub use self::{
   clipboard::Clipboard,
   event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
+  icon::Icon,
   keycode::{keycode_from_scancode, keycode_to_scancode},
   monitor::{MonitorHandle, VideoMode},
   window::{PlatformSpecificWindowBuilderAttributes, Window, WindowId},
@@ -151,7 +152,7 @@ impl MenuItemAttributes {
   pub fn set_enabled(&mut self, _is_enabled: bool) {}
   pub fn set_title(&mut self, _title: &str) {}
   pub fn set_selected(&mut self, _is_selected: bool) {}
-  pub fn set_icon(&mut self, _icon: Vec<u8>) {}
+  pub fn set_icon(&mut self, _icon: Icon) {}
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
