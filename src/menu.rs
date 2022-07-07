@@ -401,6 +401,7 @@ impl CustomMenuItem {
   /// Set icon of the menu item.
   ///
   /// ## Platform-specific
+  ///
   /// - **Windows / Linux:** Not implemented
   pub fn set_icon(&mut self, icon: Icon) {
     self.0.set_icon(icon)
