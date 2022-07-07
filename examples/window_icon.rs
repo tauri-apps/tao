@@ -51,6 +51,7 @@ fn main() {
 
 fn load_icon(path: &Path) -> Icon {
   let (icon_rgba, icon_width, icon_height) = {
+    // alternatively, you can embed the icon in the binary through `include_bytes!` macro and use `image::load_from_memory`
     let image = image::open(path)
       .expect("Failed to open icon path")
       .into_rgba8();
