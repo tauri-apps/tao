@@ -11,7 +11,7 @@ use crate::{
   menu::CustomMenuItem,
   monitor::MonitorHandle,
   platform_impl::{get_aux_state_mut, Parent},
-  window::{Theme, Window, WindowBuilder},
+  window::{Icon, Theme, Window, WindowBuilder},
 };
 
 #[cfg(feature = "tray")]

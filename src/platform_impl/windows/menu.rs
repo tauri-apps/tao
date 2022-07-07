@@ -18,6 +18,7 @@ use windows::{
 use crate::{
   accelerator::Accelerator,
   event::{Event, WindowEvent},
+  icon::Icon,
   keyboard::{KeyCode, ModifiersState},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   window::WindowId as RootWindowId,
@@ -146,7 +147,7 @@ impl MenuItemAttributes {
   }
 
   // todo: set custom icon to the menu item
-  pub fn set_icon(&mut self, _icon: Vec<u8>) {}
+  pub fn set_icon(&mut self, _icon: Icon) {}
 }
 
 #[derive(Debug, Clone)]

@@ -13,6 +13,7 @@ use super::{
 };
 use crate::{
   accelerator::Accelerator,
+  icon::Icon,
   keyboard::{KeyCode, ModifiersState},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
 };
@@ -99,7 +100,7 @@ impl MenuItemAttributes {
   }
 
   // TODO
-  pub fn set_icon(&mut self, _icon: Vec<u8>) {}
+  pub fn set_icon(&mut self, _icon: Icon) {}
 }
 
 impl Default for Menu {

@@ -7,6 +7,7 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error, event,
   event_loop::{self, ControlFlow},
+  icon::Icon,
   keyboard::{Key, KeyCode, KeyLocation, NativeKeyCode},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   monitor, window,
@@ -107,7 +108,7 @@ impl MenuItemAttributes {
   pub fn set_enabled(&mut self, _is_enabled: bool) {}
   pub fn set_title(&mut self, _title: &str) {}
   pub fn set_selected(&mut self, _is_selected: bool) {}
-  pub fn set_icon(&mut self, _icon: Vec<u8>) {}
+  pub fn set_icon(&mut self, _icon: Icon) {}
 }
 
 pub struct EventLoop<T: 'static> {

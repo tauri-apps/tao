@@ -26,6 +26,7 @@ use std::{
 use crate::{
   accelerator::Accelerator,
   platform_impl::{Menu as MenuPlatform, MenuItemAttributes as CustomMenuItemPlatform},
+  window::Icon,
 };
 
 /// Object that allows you to create a `ContextMenu`.
@@ -397,10 +398,14 @@ impl CustomMenuItem {
     self.0.set_selected(is_selected)
   }
 
-  // todo: Add set_icon
-  // pub fn set_icon(&mut self, icon: Vec<u8>) {
-  //   self.0.set_icon(icon)
-  // }
+  /// Set icon of the menu item.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows / Linux:** Not implemented
+  pub fn set_icon(&mut self, icon: Icon) {
+    self.0.set_icon(icon)
+  }
 }
 
 /// Identifier of a custom menu item.
