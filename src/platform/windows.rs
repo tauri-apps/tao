@@ -207,9 +207,6 @@ pub trait WindowBuilderExtWindows {
   /// See <https://docs.microsoft.com/en-us/windows/win32/api/objbase/nf-objbase-coinitialize#remarks> for more information.
   fn with_drag_and_drop(self, flag: bool) -> WindowBuilder;
 
-  /// Forces a theme or uses the system settings if `None` was provided.
-  fn with_theme(self, theme: Option<Theme>) -> WindowBuilder;
-
   /// Whether to create the window icon with the taskbar icon or not.
   fn with_skip_taskbar(self, skip: bool) -> WindowBuilder;
 }
@@ -248,12 +245,6 @@ impl WindowBuilderExtWindows for WindowBuilder {
   #[inline]
   fn with_drag_and_drop(mut self, flag: bool) -> WindowBuilder {
     self.platform_specific.drag_and_drop = flag;
-    self
-  }
-
-  #[inline]
-  fn with_theme(mut self, theme: Option<Theme>) -> WindowBuilder {
-    self.platform_specific.preferred_theme = theme;
     self
   }
 

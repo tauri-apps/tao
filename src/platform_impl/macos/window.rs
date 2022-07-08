@@ -87,7 +87,6 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub resize_increments: Option<LogicalSize<f64>>,
   pub disallow_hidpi: bool,
   pub has_shadow: bool,
-  pub preferred_theme: Option<Theme>,
 }
 
 impl Default for PlatformSpecificWindowBuilderAttributes {
@@ -104,7 +103,6 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       resize_increments: None,
       disallow_hidpi: false,
       has_shadow: true,
-      preferred_theme: None,
     }
   }
 }
@@ -484,6 +482,8 @@ impl UnownedWindow {
       .inner_size
       .map(|size| size.to_physical(scale_factor));
 
+    let cloned_preferred_theme = win_attribs.preferred_theme.clone();
+
     let window = Arc::new(UnownedWindow {
       ns_view,
       ns_window,
@@ -494,11 +494,11 @@ impl UnownedWindow {
       inner_rect,
     });
 
-    match pl_attribs.preferred_theme {
+    match cloned_preferred_theme {
       Some(theme) => {
         set_ns_theme(theme);
         let mut state = window.shared_state.lock().unwrap();
-        state.current_theme = theme;
+        state.current_theme = theme.clone();
       }
       None => {
         let mut state = window.shared_state.lock().unwrap();
@@ -1208,6 +1208,12 @@ impl UnownedWindow {
     handle.ns_view = *self.ns_view as *mut _;
     RawWindowHandle::AppKit(handle)
   }
+
+  #[inline]
+  pub fn theme(&self) -> Theme {
+    let state = self.shared_state.lock().unwrap();
+    state.current_theme
+  }
 }
 
 impl WindowExtMacOS for UnownedWindow {
@@ -1322,12 +1328,6 @@ impl WindowExtMacOS for UnownedWindow {
         .ns_window
         .setHasShadow_(if has_shadow { YES } else { NO })
     }
-  }
-
-  #[inline]
-  fn theme(&self) -> Theme {
-    let state = self.shared_state.lock().unwrap();
-    state.current_theme
   }
 }
 

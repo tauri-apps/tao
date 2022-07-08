@@ -9,7 +9,7 @@ use std::{
 };
 
 use gdk::{WindowEdge, WindowState};
-use gtk::{prelude::*, AccelGroup, Orientation};
+use gtk::{prelude::*, traits::SettingsExt, AccelGroup, Orientation, Settings};
 use raw_window_handle::{RawWindowHandle, XlibHandle};
 
 use crate::{
@@ -18,7 +18,9 @@ use crate::{
   icon::Icon,
   menu::{MenuId, MenuItem},
   monitor::MonitorHandle as RootMonitorHandle,
-  window::{CursorIcon, Fullscreen, UserAttentionType, WindowAttributes, BORDERLESS_RESIZE_INSET},
+  window::{
+    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, BORDERLESS_RESIZE_INSET,
+  },
 };
 
 use super::{
@@ -190,6 +192,26 @@ impl Window {
     window.set_keep_above(attributes.always_on_top);
     if let Some(icon) = attributes.window_icon {
       window.set_icon(Some(&icon.inner.into()));
+    }
+
+    let settings = Settings::default();
+
+    if let Some(settings) = settings {
+      if let Some(preferred_theme) = attributes.preferred_theme {
+        match preferred_theme {
+          Theme::Dark => settings.set_gtk_application_prefer_dark_theme(true),
+          Theme::Light => {
+            let theme_name = settings.gtk_theme_name().map(|t| t.as_str().to_owned());
+            if let Some(theme) = theme_name {
+              // Remove dark variant.
+              match (theme.strip_suffix("-dark"), theme.strip_suffix("-Dark")) {
+                (theme, None) | (None, theme) => settings.set_gtk_theme_name(theme),
+                _ => {}
+              }
+            }
+          }
+        }
+      }
     }
 
     if attributes.visible {
@@ -646,6 +668,20 @@ impl Window {
     {
       log::warn!("Fail to send skip taskbar request: {}", e);
     }
+  }
+
+  pub fn theme(&self) -> Theme {
+    if let Some(settings) = Settings::default() {
+      let theme_name = settings.gtk_theme_name().map(|s| s.as_str().to_owned());
+      if let Some(theme) = theme_name {
+        // Currently GTK doesn't provide feature for detect theme, so we need to check theme manually.
+        // ref: https://github.com/WebKit/WebKit/blob/e44ffaa0d999a9807f76f1805943eea204cfdfbc/Source/WebKit/UIProcess/API/gtk/PageClientImpl.cpp#L587
+        if theme.ends_with("-dark") || theme.ends_with("-Dark") {
+          return Theme::Dark;
+        }
+      }
+    }
+    return Theme::Light;
   }
 }
 

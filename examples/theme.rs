@@ -1,7 +1,6 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(any(target_os = "windows", target_os = "macos"))]
 #[allow(clippy::single_match)]
 fn main() {
   use tao::{
@@ -9,11 +8,6 @@ fn main() {
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
   };
-
-  #[cfg(any(target_os = "macos"))]
-  use tao::platform::macos::{WindowBuilderExtMacOS, WindowExtMacOS};
-  #[cfg(target_os = "windows")]
-  use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 
   env_logger::init();
   let event_loop = EventLoop::new();
@@ -44,17 +38,4 @@ fn main() {
       _ => (),
     }
   });
-}
-
-#[cfg(any(
-  target_os = "ios",
-  target_os = "android",
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
-))]
-fn main() {
-  println!("This platform doesn't support theme.");
 }

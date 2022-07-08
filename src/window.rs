@@ -197,6 +197,8 @@ pub struct WindowAttributes {
   ///
   /// The default is `None`.
   pub window_menu: Option<platform_impl::Menu>,
+
+  pub preferred_theme: Option<Theme>,
 }
 
 impl Default for WindowAttributes {
@@ -217,6 +219,7 @@ impl Default for WindowAttributes {
       always_on_top: false,
       window_icon: None,
       window_menu: None,
+      preferred_theme: None,
     }
   }
 }
@@ -375,6 +378,13 @@ impl WindowBuilder {
   #[inline]
   pub fn with_window_icon(mut self, window_icon: Option<Icon>) -> Self {
     self.window.window_icon = window_icon;
+    self
+  }
+
+  /// Forces a theme or uses the system settings if `None` was provided.
+  #[inline]
+  pub fn with_theme(mut self, theme: Option<Theme>) -> WindowBuilder {
+    self.window.preferred_theme = theme;
     self
   }
 
@@ -831,6 +841,16 @@ impl Window {
   /// - **macOS:** Always return true, as the menu is always visible.
   pub fn is_menu_visible(&self) -> bool {
     self.window.is_menu_visible()
+  }
+
+  /// Returns the current window theme.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn theme(&self) -> Theme {
+    self.window.theme()
   }
 }
 
