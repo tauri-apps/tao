@@ -10,7 +10,8 @@ use crate::{
   icon::Icon,
   keyboard::{Key, KeyCode, KeyLocation, NativeKeyCode},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
-  monitor, window,
+  monitor,
+  window::{self, Theme},
 };
 use ndk::{
   configuration::Configuration,
@@ -688,6 +689,10 @@ impl Window {
 
   pub fn content_rect(&self) -> Rect {
     ndk_glue::content_rect()
+  }
+
+  pub fn theme(&self) -> Theme {
+    Theme::Light
   }
 }
 

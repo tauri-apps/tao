@@ -469,7 +469,9 @@ pub enum WindowEvent<'a> {
   /// Applications might wish to react to this to change the theme of the content of the window
   /// when the system changes the window theme.
   ///
-  /// At the moment this is only supported on Windows.
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Android / iOS:** Unsupported
   ThemeChanged(Theme),
 
   /// The window decorations has been clicked.
