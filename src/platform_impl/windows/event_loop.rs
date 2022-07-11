@@ -1982,9 +1982,10 @@ unsafe fn public_window_callback_inner<T: 'static>(
       if !win_flags.contains(WindowFlags::DECORATIONS) {
         // adjust the maximized borderless window so it doesn't cover the taskbar
         if util::is_maximized(window) {
-          let monitor = monitor::current_monitor(window);
-          if let Ok(monitor_info) = monitor::get_monitor_info(monitor.hmonitor()) {
-            let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
+          let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
+          if let Ok(monitor_info) =
+            monitor::get_monitor_info(MonitorFromRect(&params.rgrc[0], MONITOR_DEFAULTTONULL))
+          {
             params.rgrc[0] = monitor_info.monitorInfo.rcWork;
           }
         }
