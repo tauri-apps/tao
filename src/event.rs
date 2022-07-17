@@ -164,7 +164,7 @@ pub enum Event<'a, T: 'static> {
   LoopDestroyed,
 }
 
-impl<T: Clone> Clone for Event<'static, T> {
+impl<T: Clone> Clone for Event<'_, T> {
   fn clone(&self) -> Self {
     use self::Event::*;
     match self {
@@ -482,7 +482,7 @@ pub enum WindowEvent<'a> {
   DecorationsClick,
 }
 
-impl Clone for WindowEvent<'static> {
+impl Clone for WindowEvent<'_> {
   fn clone(&self) -> Self {
     use self::WindowEvent::*;
     return match self {
