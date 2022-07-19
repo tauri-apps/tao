@@ -821,6 +821,31 @@ fn update_modifiers<T>(window: HWND, subclass_input: &SubclassInput<T>) -> Modif
   modifiers
 }
 
+unsafe fn gain_active_focus<T>(window: HWND, subclass_input: &SubclassInput<T>) {
+  use crate::event::WindowEvent::Focused;
+  update_modifiers(window, subclass_input);
+
+  subclass_input.send_event(Event::WindowEvent {
+    window_id: RootWindowId(WindowId(window.0)),
+    event: Focused(true),
+  });
+}
+
+unsafe fn lose_active_focus<T>(window: HWND, subclass_input: &SubclassInput<T>) {
+  use crate::event::WindowEvent::{Focused, ModifiersChanged};
+
+  subclass_input.window_state.lock().modifiers_state = ModifiersState::empty();
+  subclass_input.send_event(Event::WindowEvent {
+    window_id: RootWindowId(WindowId(window.0)),
+    event: ModifiersChanged(ModifiersState::empty()),
+  });
+
+  subclass_input.send_event(Event::WindowEvent {
+    window_id: RootWindowId(WindowId(window.0)),
+    event: Focused(false),
+  });
+}
+
 /// Any window whose callback is configured to this function will have its events propagated
 /// through the events loop of the thread the window was created in.
 //
@@ -1649,31 +1674,32 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(LRESULT(0));
     }
 
+    win32wm::WM_NCACTIVATE => {
+      let is_active = wparam == WPARAM(1);
+      let active_focus_changed = subclass_input.window_state.lock().set_active(is_active);
+      if active_focus_changed {
+        if is_active {
+          gain_active_focus(window, subclass_input);
+        } else {
+          lose_active_focus(window, subclass_input);
+        }
+      }
+      result = ProcResult::DefWindowProc;
+    }
+
     win32wm::WM_SETFOCUS => {
-      use crate::event::WindowEvent::Focused;
-      update_modifiers(window, subclass_input);
-
-      subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
-        event: Focused(true),
-      });
-
+      let active_focus_changed = subclass_input.window_state.lock().set_focused(true);
+      if active_focus_changed {
+        gain_active_focus(window, subclass_input);
+      }
       result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_KILLFOCUS => {
-      use crate::event::WindowEvent::{Focused, ModifiersChanged};
-
-      subclass_input.window_state.lock().modifiers_state = ModifiersState::empty();
-      subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
-        event: ModifiersChanged(ModifiersState::empty()),
-      });
-
-      subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
-        event: Focused(false),
-      });
+      let active_focus_changed = subclass_input.window_state.lock().set_focused(false);
+      if active_focus_changed {
+        lose_active_focus(window, subclass_input);
+      }
       result = ProcResult::Value(LRESULT(0));
     }
 
