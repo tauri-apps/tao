@@ -38,22 +38,8 @@ fn main() {
   let quit = tray_menu.add_item(MenuItemAttributes::new("Quit"));
 
   #[cfg(target_os = "linux")]
-  let icon = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/icon.png");
-
-  // Windows require Vec<u8> ICO file
-  #[cfg(target_os = "windows")]
-  let new_icon = include_bytes!("icon_blue.ico").to_vec();
-  // macOS require Vec<u8> PNG file
-  #[cfg(target_os = "macos")]
-  let new_icon = include_bytes!("icon_dark.png").to_vec();
-  // Linux require Pathbuf to PNG file
-  #[cfg(target_os = "linux")]
-  let new_icon = Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/icon_dark.png");
-
-  // Menu is shown with left click on macOS and right click on Windows.
-  #[cfg(target_os = "macos")]
-  let mut system_tray = SystemTrayBuilder::new(icon.clone(), Some(tray_menu))
-    .with_icon_as_template(true)
+  let system_tray = SystemTrayBuilder::new(icon, Some(tray_menu))
+    .with_temp_icon_dir(std::path::Path::new("/tmp/tao-examples"))
     .with_tool_tip("Tauri - Build smaller, faster, and more secure desktop applications with a web frontend.")
     .build(&event_loop)
     .unwrap();
