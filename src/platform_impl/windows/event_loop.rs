@@ -56,6 +56,7 @@ use crate::{
     minimal_ime::is_msg_ime_related,
     monitor::{self, MonitorHandle},
     raw_input, util,
+    window::set_skip_taskbar,
     window_state::{CursorFlags, WindowFlags, WindowState},
     wrap_device_id, WindowId, DEVICE_ID,
   },
@@ -540,16 +541,16 @@ impl<T: 'static> EventLoopProxy<T> {
 type WaitUntilInstantBox = Box<Instant>;
 
 lazy_static! {
-    // Message sent by the `EventLoopProxy` when we want to wake up the thread.
-    // WPARAM and LPARAM are unused.
+    /// Message sent by the `EventLoopProxy` when we want to wake up the thread.
+    /// WPARAM and LPARAM are unused.
     static ref USER_EVENT_MSG_ID: u32 = {
         unsafe {
             RegisterWindowMessageA("Tao::WakeupMsg")
         }
     };
-    // Message sent when we want to execute a closure in the thread.
-    // WPARAM contains a Box<Box<dyn FnMut()>> that must be retrieved with `Box::from_raw`,
-    // and LPARAM is unused.
+    /// Message sent when we want to execute a closure in the thread.
+    /// WPARAM contains a Box<Box<dyn FnMut()>> that must be retrieved with `Box::from_raw`,
+    /// and LPARAM is unused.
     static ref EXEC_MSG_ID: u32 = {
         unsafe {
             RegisterWindowMessageA("Tao::ExecMsg")
@@ -578,17 +579,22 @@ lazy_static! {
             RegisterWindowMessageA("Tao::CancelWaitUntil")
         }
     };
-    // Message sent by a `Window` when it wants to be destroyed by the main thread.
-    // WPARAM and LPARAM are unused.
+    /// Message sent by a `Window` when it wants to be destroyed by the main thread.
+    /// WPARAM and LPARAM are unused.
     pub static ref DESTROY_MSG_ID: u32 = {
         unsafe {
             RegisterWindowMessageA("Tao::DestroyMsg")
         }
     };
-    // WPARAM is a bool specifying the `WindowFlags::MARKER_RETAIN_STATE_ON_SIZE` flag. See the
-    // documentation in the `window_state` module for more information.
+    /// WPARAM is a bool specifying the `WindowFlags::MARKER_RETAIN_STATE_ON_SIZE` flag. See the
+    /// documentation in the `window_state` module for more information.
     pub static ref SET_RETAIN_STATE_ON_SIZE_MSG_ID: u32 = unsafe {
         RegisterWindowMessageA("Tao::SetRetainMaximized")
+    };
+    /// When the taskbar is created, it registers a message with the "TaskbarCreated" string and then broadcasts this message to all top-level windows
+    /// When the application receives this message, it should assume that any taskbar icons it added have been removed and add them again.
+    pub static ref S_U_TASKBAR_RESTART: u32 = unsafe {
+      RegisterWindowMessageA("TaskbarCreated")
     };
     static ref THREAD_EVENT_TARGET_WINDOW_CLASS: Vec<u16> = unsafe {
         let class_name= util::encode_wide("Tao Thread Event Target");
@@ -2026,6 +2032,9 @@ unsafe fn public_window_callback_inner<T: 'static>(
           f.set(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE, wparam.0 != 0)
         });
         result = ProcResult::Value(LRESULT(0));
+      } else if msg == *S_U_TASKBAR_RESTART {
+        let window_state = subclass_input.window_state.lock();
+        set_skip_taskbar(window, window_state.skip_taskbar);
       }
     }
   };

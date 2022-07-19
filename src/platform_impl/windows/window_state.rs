@@ -30,6 +30,8 @@ pub struct WindowState {
   pub saved_window: Option<SavedWindow>,
   pub scale_factor: f64,
 
+  pub skip_taskbar: bool,
+
   pub modifiers_state: ModifiersState,
   pub fullscreen: Option<Fullscreen>,
   pub current_theme: Theme,
@@ -121,6 +123,8 @@ impl WindowState {
 
       saved_window: None,
       scale_factor,
+
+      skip_taskbar: false,
 
       modifiers_state: ModifiersState::default(),
       fullscreen: None,
