@@ -23,6 +23,7 @@ mod view;
 mod window;
 mod window_delegate;
 
+use cocoa::base::{BOOL, YES};
 use std::{fmt, ops::Deref, sync::Arc};
 
 #[cfg(feature = "tray")]
@@ -97,6 +98,12 @@ impl Window {
     let f = self.window.is_zoomed();
     let () = unsafe { msg_send![*self.delegate, clearIsCheckingZoomedIn] };
     f
+  }
+
+  #[inline]
+  pub fn is_minimized(&self) -> bool {
+    let is_minimized: BOOL = unsafe { msg_send![*self.ns_window, isMiniaturized] };
+    is_minimized == YES
   }
 }
 
