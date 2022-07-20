@@ -617,10 +617,18 @@ lazy_static! {
 fn create_event_target_window() -> HWND {
   let window = unsafe {
     CreateWindowExW(
-      WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_LAYERED,
+      WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_LAYERED |
+      // WS_EX_TOOLWINDOW prevents this window from ever showing up in the taskbar, which
+      // we want to avoid. If you remove this style, this window won't show up in the
+      // taskbar *initially*, but it can show up at some later point. This can sometimes
+      // happen on its own after several hours have passed, although this has proven
+      // difficult to reproduce. Alternatively, it can be manually triggered by killing
+      // `explorer.exe` and then starting the process back up.
+      // It is unclear why the bug is triggered by waiting for several hours.
+      WS_EX_TOOLWINDOW,
       PCWSTR(THREAD_EVENT_TARGET_WINDOW_CLASS.clone().as_ptr()),
       PCWSTR::default(),
-      Default::default(),
+      WS_OVERLAPPED,
       0,
       0,
       0,
