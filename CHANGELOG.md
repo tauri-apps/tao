@@ -19,6 +19,8 @@
 - On Windows, subscribe to taskbar restart event and re-add the system tray icon.
   Also skip the window from the taskbar if it was already skipped.
   - [9450329e](https://github.com/tauri-apps/tao/commit/9450329e3ab70aa3608ef44207df19cfdddf45a0) fix(windows): subscribe to taskbar restart event, closes [#476](https://github.com/tauri-apps/tao/pull/476) ([#487](https://github.com/tauri-apps/tao/pull/487)) on 2022-07-21
+- On Windows, fix focus events being sent to inactive windows.
+  - [23ae71b7](https://github.com/tauri-apps/tao/commit/23ae71b717184e2eb0f2da0c683b7c8f0b5cd216) fix(windows): fix focus events being sent to inactive windows. ([#488](https://github.com/tauri-apps/tao/pull/488)) on 2022-07-21
 
 ## \[0.12.1]
 
