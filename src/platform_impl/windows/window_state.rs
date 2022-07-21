@@ -41,6 +41,10 @@ pub struct WindowState {
   pub ime_handler: MinimalIme,
 
   pub window_flags: WindowFlags,
+
+  // Used by WM_NCACTIVATE, WM_SETFOCUS and WM_KILLFOCUS
+  pub is_active: bool,
+  pub is_focused: bool,
 }
 
 #[derive(Clone)]
@@ -133,6 +137,8 @@ impl WindowState {
       high_surrogate: None,
       ime_handler: MinimalIme::default(),
       window_flags: WindowFlags::empty(),
+      is_active: false,
+      is_focused: false,
     }
   }
 
@@ -157,6 +163,24 @@ impl WindowState {
     F: FnOnce(&mut WindowFlags),
   {
     f(&mut self.window_flags);
+  }
+
+  pub fn has_active_focus(&self) -> bool {
+    self.is_active && self.is_focused
+  }
+
+  // Updates is_active and returns whether active-focus state has changed
+  pub fn set_active(&mut self, is_active: bool) -> bool {
+    let old = self.has_active_focus();
+    self.is_active = is_active;
+    old != self.has_active_focus()
+  }
+
+  // Updates is_focused and returns whether active-focus state has changed
+  pub fn set_focused(&mut self, is_focused: bool) -> bool {
+    let old = self.has_active_focus();
+    self.is_focused = is_focused;
+    old != self.has_active_focus()
   }
 }
 
