@@ -785,18 +785,8 @@ impl Window {
 
   #[inline]
   pub(crate) fn set_skip_taskbar(&self, skip: bool) {
-    unsafe {
-      com_initialized();
-      let taskbar_list: ITaskbarList =
-        CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).expect("failed to create TaskBarList");
-      if skip {
-        taskbar_list
-          .DeleteTab(self.hwnd())
-          .expect("DeleteTab failed");
-      } else {
-        taskbar_list.AddTab(self.hwnd()).expect("AddTab failed");
-      }
-    }
+    self.window_state.lock().skip_taskbar = skip;
+    unsafe { set_skip_taskbar(self.hwnd(), skip) };
   }
 }
 
@@ -1152,6 +1142,17 @@ unsafe fn force_window_active(handle: HWND) {
   SendInput(&inputs, mem::size_of::<INPUT>() as _);
 
   SetForegroundWindow(handle);
+}
+
+pub(crate) unsafe fn set_skip_taskbar(hwnd: HWND, skip: bool) {
+  com_initialized();
+  let taskbar_list: ITaskbarList =
+    CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).expect("failed to create TaskBarList");
+  if skip {
+    taskbar_list.DeleteTab(hwnd).expect("DeleteTab failed");
+  } else {
+    taskbar_list.AddTab(hwnd).expect("AddTab failed");
+  }
 }
 
 pub fn hit_test(hwnd: *mut libc::c_void, cx: i32, cy: i32) -> LRESULT {
