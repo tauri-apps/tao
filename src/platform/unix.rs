@@ -11,7 +11,7 @@
 
 pub use crate::platform_impl::{hit_test, EventLoop as UnixEventLoop};
 use crate::{
-  event_loop::EventLoop,
+  event_loop::{EventLoop, EventLoopWindowTarget},
   platform_impl::Parent,
   window::{Window, WindowBuilder},
 };
@@ -41,6 +41,11 @@ pub trait WindowBuilderExtUnix {
   /// Set this window as a transient dialog for `parent`
   /// <https://gtk-rs.org/gtk3-rs/stable/latest/docs/gdk/struct.Window.html#method.set_transient_for>
   fn with_transient_for(self, parent: gtk::ApplicationWindow) -> WindowBuilder;
+
+  /// Receive draw event of the window. Set this to `true` if you want to receive draw events of the window.
+  /// This will overwrite transparent attributes.
+  /// Default is `true`.
+  fn with_draw_event(self, filter: bool) -> WindowBuilder;
 }
 
 impl WindowBuilderExtUnix for WindowBuilder {
@@ -51,6 +56,11 @@ impl WindowBuilderExtUnix for WindowBuilder {
 
   fn with_transient_for(mut self, parent: gtk::ApplicationWindow) -> WindowBuilder {
     self.platform_specific.parent = Parent::ChildOf(parent);
+    self
+  }
+
+  fn with_draw_event(mut self, filter: bool) -> WindowBuilder {
+    self.platform_specific.draw_event = filter;
     self
   }
 }

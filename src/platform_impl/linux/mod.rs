@@ -59,6 +59,7 @@ impl Default for Parent {
 pub struct PlatformSpecificWindowBuilderAttributes {
   pub parent: Parent,
   pub skip_taskbar: bool,
+  pub draw_event: bool,
 }
 
 unsafe impl Send for PlatformSpecificWindowBuilderAttributes {}

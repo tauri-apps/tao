@@ -140,7 +140,7 @@ impl Window {
     }
 
     // Set Transparent
-    if attributes.transparent {
+    if !pl_attribs.draw_event && attributes.transparent {
       if let Some(screen) = window.screen() {
         if let Some(visual) = screen.rgba_visual() {
           window.set_visual(Some(&visual));
@@ -284,7 +284,7 @@ impl Window {
       scale_factor_clone.store(window.scale_factor(), Ordering::Release);
     });
 
-    if let Err(e) = window_requests_tx.send((window_id, WindowRequest::WireUpEvents)) {
+    if let Err(e) = window_requests_tx.send((window_id, WindowRequest::WireUpEvents(pl_attribs.draw_event))) {
       log::warn!("Fail to send wire up events request: {}", e);
     }
 
@@ -743,7 +743,7 @@ pub enum WindowRequest {
   CursorIcon(Option<CursorIcon>),
   CursorPosition((i32, i32)),
   CursorIgnoreEvents(bool),
-  WireUpEvents,
+  WireUpEvents(bool),
   Redraw,
   Menu((Option<MenuItem>, Option<MenuId>)),
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
