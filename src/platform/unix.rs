@@ -89,3 +89,54 @@ impl<T> EventLoopExtUnix for EventLoop<T> {
     wrap_ev(UnixEventLoop::new_any_thread())
   }
 }
+
+/// Additional methods on `EventLoopWindowTarget` that are specific to Unix.
+pub trait EventLoopWindowTargetExtUnix {
+  /// True if the `EventLoopWindowTarget` uses Wayland.
+  fn is_wayland(&self) -> bool;
+
+  /// True if the `EventLoopWindowTarget` uses X11.
+  fn is_x11(&self) -> bool;
+
+  // fn xlib_xconnection(&self) -> Option<Arc<XConnection>>;
+
+  // /// Returns a pointer to the `wl_display` object of wayland that is used by this
+  // /// `EventLoopWindowTarget`.
+  // ///
+  // /// Returns `None` if the `EventLoop` doesn't use wayland (if it uses xlib for example).
+  // ///
+  // /// The pointer will become invalid when the winit `EventLoop` is destroyed.
+  // fn wayland_display(&self) -> Option<*mut raw::c_void>;
+}
+
+impl<T> EventLoopWindowTargetExtUnix for EventLoopWindowTarget<T> {
+  #[inline]
+  fn is_wayland(&self) -> bool {
+      self.p.is_wayland()
+  }
+
+  #[inline]
+  fn is_x11(&self) -> bool {
+      !self.p.is_wayland()
+  }
+
+  // #[inline]
+  // fn xlib_xconnection(&self) -> Option<Arc<XConnection>> {
+  //     match self.p {
+  //         LinuxEventLoopWindowTarget::X(ref e) => Some(e.x_connection().clone()),
+  //         #[cfg(feature = "wayland")]
+  //         _ => None,
+  //     }
+  // }
+
+  // #[inline]
+  // fn wayland_display(&self) -> Option<*mut raw::c_void> {
+  //     match self.p {
+  //         LinuxEventLoopWindowTarget::Wayland(ref p) => {
+  //             Some(p.display().get_display_ptr() as *mut _)
+  //         }
+  //         #[cfg(feature = "x11")]
+  //         _ => None,
+  //     }
+  // }
+}
