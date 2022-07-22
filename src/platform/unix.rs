@@ -9,12 +9,21 @@
   target_os = "openbsd"
 ))]
 
+use std::os::raw::c_int;
+use std::sync::Arc;
+
+// XConnection utilities
+pub use crate::platform_impl::x11;
+
+use crate::platform_impl::x11::xdisplay::XError;
 pub use crate::platform_impl::{hit_test, EventLoop as UnixEventLoop};
 use crate::{
   event_loop::{EventLoop, EventLoopWindowTarget},
   platform_impl::Parent,
   window::{Window, WindowBuilder},
 };
+
+use self::x11::xdisplay::XConnection;
 
 /// Additional methods on `Window` that are specific to Unix.
 pub trait WindowExtUnix {
@@ -98,7 +107,7 @@ pub trait EventLoopWindowTargetExtUnix {
   /// True if the `EventLoopWindowTarget` uses X11.
   fn is_x11(&self) -> bool;
 
-  // fn xlib_xconnection(&self) -> Option<Arc<XConnection>>;
+  fn xlib_xconnection(&self) -> Option<Arc<XConnection>>;
 
   // /// Returns a pointer to the `wl_display` object of wayland that is used by this
   // /// `EventLoopWindowTarget`.
@@ -120,14 +129,18 @@ impl<T> EventLoopWindowTargetExtUnix for EventLoopWindowTarget<T> {
       !self.p.is_wayland()
   }
 
-  // #[inline]
-  // fn xlib_xconnection(&self) -> Option<Arc<XConnection>> {
-  //     match self.p {
-  //         LinuxEventLoopWindowTarget::X(ref e) => Some(e.x_connection().clone()),
-  //         #[cfg(feature = "wayland")]
-  //         _ => None,
-  //     }
-  // }
+  #[inline]
+  fn xlib_xconnection(&self) -> Option<Arc<XConnection>> {
+      if self.is_x11() {
+        if let Ok(xconn) = XConnection::new(Some(x_error_callback)) {
+          Some(Arc::new(xconn))
+        } else {
+          None
+        }
+      } else {
+        None
+      }
+  }
 
   // #[inline]
   // fn wayland_display(&self) -> Option<*mut raw::c_void> {
@@ -139,4 +152,22 @@ impl<T> EventLoopWindowTargetExtUnix for EventLoopWindowTarget<T> {
   //         _ => None,
   //     }
   // }
+}
+
+unsafe extern "C" fn x_error_callback(
+  _display: *mut x11::ffi::Display,
+  event: *mut x11::ffi::XErrorEvent,
+) -> c_int {
+  let error = XError {
+    // TODO get the error text as description
+    description: String::new(),
+    error_code: (*event).error_code,
+    request_code: (*event).request_code,
+    minor_code: (*event).minor_code,
+  };
+
+  error!("X11 error: {:#?}", error);
+
+  // Fun fact: this return value is completely ignored.
+  0
 }

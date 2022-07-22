@@ -744,6 +744,12 @@ impl<T: 'static> EventLoop<T> {
 
             // Receive draw events of the window.
             if draw_event {
+              if let Some(screen) = window.screen() {
+                if let Some(visual) = screen.rgba_visual() {
+                  window.set_visual(Some(&visual));
+                }
+              }
+
               let widget = window.upcast_ref::<gtk::Widget>();
               unsafe { gtk::ffi::gtk_widget_set_double_buffered(widget.to_glib_none().0, 0); }
               window.set_app_paintable(true);
