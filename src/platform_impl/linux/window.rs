@@ -682,8 +682,9 @@ impl Window {
   pub fn raw_display_handle(&self) -> RawDisplayHandle {
     let mut display_handle = XlibDisplayHandle::empty();
     if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
-      display_handle.display = (xlib.XOpenDisplay)(std::ptr::null()) as _;
-      display_handle.screen = (xlib.XDefaultScreen)(display_handle.display) as _;
+      let display = (xlib.XOpenDisplay)(std::ptr::null());
+      display_handle.display = display as _;
+      display_handle.screen = (xlib.XDefaultScreen)(display) as _;
     }
 
     RawDisplayHandle::Xlib(display_handle)
