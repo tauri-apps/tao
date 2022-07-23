@@ -490,6 +490,10 @@ impl<T: 'static> EventLoopWindowTarget<T> {
     v.push_back(MonitorHandle);
     v
   }
+
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    RawDisplayHandle::Android(AndroidDisplayHandle::empty())
+  }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -539,10 +543,6 @@ impl Window {
     let mut v = VecDeque::with_capacity(1);
     v.push_back(MonitorHandle);
     v
-  }
-
-  pub fn raw_display_handle(&self) -> RawDisplayHandle {
-    RawDisplayHandle::Android(AndroidDisplayHandle::empty())
   }
 
   pub fn current_monitor(&self) -> Option<monitor::MonitorHandle> {

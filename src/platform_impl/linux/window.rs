@@ -10,7 +10,7 @@ use std::{
 
 use gdk::{WindowEdge, WindowState};
 use gtk::{prelude::*, traits::SettingsExt, AccelGroup, Orientation, Settings};
-use raw_window_handle::{RawWindowHandle, XlibWindowHandle};
+use raw_window_handle::{RawWindowHandle, RawDisplayHandle , XlibWindowHandle};
 
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
