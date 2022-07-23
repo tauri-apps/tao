@@ -17,7 +17,7 @@ use gio::{prelude::*, Cancellable};
 use glib::{source::Priority, Continue, MainContext};
 use gtk::{builders::AboutDialogBuilder, prelude::*, Inhibit};
 
-use raw_window_handle::RawDisplayHandle;
+use raw_window_handle::{RawDisplayHandle, XlibDisplayHandle};
 
 use crate::{
   accelerator::AcceleratorId,
