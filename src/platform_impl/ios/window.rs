@@ -347,11 +347,15 @@ impl Inner {
   }
 
   pub fn raw_window_handle(&self) -> RawWindowHandle {
-    let mut handle = UiKitHandle::empty();
-    handle.ui_window = self.window as _;
-    handle.ui_view = self.view as _;
-    handle.ui_view_controller = self.view_controller as _;
-    RawWindowHandle::UiKit(handle)
+    let mut window_handle = UiKitWindowHandle::empty();
+    window_handle.ui_window = self.window as _;
+    window_handle.ui_view = self.view as _;
+    window_handle.ui_view_controller = self.view_controller as _;
+    RawWindowHandle::UiKit(window_handle)
+  }
+
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    RawDisplayHandle::UiKit(UiKitDisplayHandle::empty())
   }
 
   pub fn theme(&self) -> Theme {

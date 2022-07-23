@@ -19,7 +19,9 @@ use ndk::{
   looper::{ForeignLooper, Poll, ThreadLooper},
 };
 use ndk_sys::AKeyEvent_getKeyCode;
-use raw_window_handle::{AndroidNdkHandle, RawWindowHandle};
+use raw_window_handle::{
+  AndroidDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
+};
 use std::{
   collections::VecDeque,
   convert::TryInto,
@@ -539,6 +541,10 @@ impl Window {
     v
   }
 
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    RawDisplayHandle::Android(AndroidDisplayHandle::empty())
+  }
+
   pub fn current_monitor(&self) -> Option<monitor::MonitorHandle> {
     Some(monitor::MonitorHandle {
       inner: MonitorHandle,
@@ -674,13 +680,17 @@ impl Window {
 
   pub fn raw_window_handle(&self) -> RawWindowHandle {
     // TODO: Use main activity instead?
-    let mut handle = AndroidNdkHandle::empty();
+    let mut handle = AndroidNdkWindowHandle::empty();
     if let Some(w) = ndk_glue::window_manager() {
       handle.a_native_window = w.as_obj().into_inner() as *mut _;
     } else {
       panic!("Cannot get the native window, it's null and will always be null before Event::Resumed and after Event::Suspended. Make sure you only call this function between those events.");
     };
     RawWindowHandle::AndroidNdk(handle)
+  }
+
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    RawDisplayHandle::Android(AndroidDisplayHandle::empty())
   }
 
   pub fn config(&self) -> Configuration {
