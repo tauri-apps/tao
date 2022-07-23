@@ -20,7 +20,7 @@ use ndk::{
 };
 use ndk_sys::AKeyEvent_getKeyCode;
 use raw_window_handle::{
-  AndroidDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
+  AndroidDisplayHandle, AndroidNdkWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
 use std::{
   collections::VecDeque,

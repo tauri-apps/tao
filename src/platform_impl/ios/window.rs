@@ -1,7 +1,7 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use raw_window_handle::{RawWindowHandle, UiKitHandle};
+use raw_window_handle::{RawWindowHandle, UiKitWindowHandle, RawDisplayHandle};
 use std::{
   collections::VecDeque,
   ops::{Deref, DerefMut},
