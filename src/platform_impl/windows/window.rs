@@ -5,7 +5,9 @@
 
 use mem::MaybeUninit;
 use parking_lot::Mutex;
-use raw_window_handle::{RawWindowHandle, Win32Handle};
+use raw_window_handle::{
+  RawDisplayHandle, RawWindowHandle, Win32WindowHandle, WindowsDisplayHandle,
+};
 use std::{
   cell::{Cell, RefCell},
   ffi::OsStr,
@@ -312,10 +314,15 @@ impl Window {
 
   #[inline]
   pub fn raw_window_handle(&self) -> RawWindowHandle {
-    let mut handle = Win32Handle::empty();
-    handle.hwnd = self.window.0 .0 as *mut _;
-    handle.hinstance = self.hinstance().0 as *mut _;
-    RawWindowHandle::Win32(handle)
+    let mut window_handle = Win32WindowHandle::empty();
+    window_handle.hwnd = self.window.0 .0 as *mut _;
+    window_handle.hinstance = self.hinstance().0 as *mut _;
+    RawWindowHandle::Win32(window_handle)
+  }
+
+  #[inline]
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    RawDisplayHandle::Windows(WindowsDisplayHandle::empty())
   }
 
   #[inline]

@@ -10,7 +10,7 @@ use std::{
 
 use gdk::{WindowEdge, WindowState};
 use gtk::{prelude::*, traits::SettingsExt, AccelGroup, Orientation, Settings};
-use raw_window_handle::{RawWindowHandle, XlibHandle};
+use raw_window_handle::{RawDisplayHandle, RawWindowHandle, XlibDisplayHandle, XlibWindowHandle};
 
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
@@ -670,16 +670,26 @@ impl Window {
 
   pub fn raw_window_handle(&self) -> RawWindowHandle {
     // TODO: add wayland support
-    let mut handle = XlibHandle::empty();
+    let mut window_handle = XlibWindowHandle::empty();
     unsafe {
       if let Some(window) = self.window.window() {
-        handle.window = gdk_x11_sys::gdk_x11_window_get_xid(window.as_ptr() as *mut _);
-      }
-      if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
-        handle.display = (xlib.XOpenDisplay)(std::ptr::null()) as _;
+        window_handle.window = gdk_x11_sys::gdk_x11_window_get_xid(window.as_ptr() as *mut _);
       }
     }
-    RawWindowHandle::Xlib(handle)
+    RawWindowHandle::Xlib(window_handle)
+  }
+
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    let mut display_handle = XlibDisplayHandle::empty();
+    unsafe {
+      if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
+        let display = (xlib.XOpenDisplay)(std::ptr::null());
+        display_handle.display = display as _;
+        display_handle.screen = (xlib.XDefaultScreen)(display) as _;
+      }
+    }
+
+    RawDisplayHandle::Xlib(display_handle)
   }
 
   pub(crate) fn set_skip_taskbar(&self, skip: bool) {

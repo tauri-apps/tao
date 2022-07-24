@@ -4,6 +4,8 @@
 //! The `Window` struct and associated types.
 use std::fmt;
 
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
+
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError},
@@ -979,7 +981,7 @@ impl Window {
 }
 
 // Safety: objc runtime calls are unsafe
-unsafe impl raw_window_handle::HasRawWindowHandle for Window {
+unsafe impl HasRawWindowHandle for Window {
   /// Returns a `raw_window_handle::RawWindowHandle` for the Window
   ///
   /// ## Platform-specific
@@ -991,6 +993,15 @@ unsafe impl raw_window_handle::HasRawWindowHandle for Window {
   }
 }
 
+unsafe impl HasRawDisplayHandle for Window {
+  /// Returns a [`raw_window_handle::RawDisplayHandle`] used by the [`EventLoop`] that
+  /// created a window.
+  ///
+  /// [`EventLoop`]: crate::event_loop::EventLoop
+  fn raw_display_handle(&self) -> RawDisplayHandle {
+    self.window.raw_display_handle()
+  }
+}
 /// Describes the appearance of the mouse cursor.
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]

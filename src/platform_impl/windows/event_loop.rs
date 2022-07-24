@@ -7,6 +7,7 @@ mod runner;
 
 use crossbeam_channel::{self as channel, Receiver, Sender};
 use parking_lot::Mutex;
+use raw_window_handle::{RawDisplayHandle, WindowsDisplayHandle};
 use std::{
   cell::Cell,
   collections::VecDeque,
@@ -304,6 +305,10 @@ impl<T> EventLoopWindowTarget<T> {
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
     let monitor = monitor::primary_monitor();
     Some(RootMonitorHandle { inner: monitor })
+  }
+
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    RawDisplayHandle::Windows(WindowsDisplayHandle::empty())
   }
 }
 
