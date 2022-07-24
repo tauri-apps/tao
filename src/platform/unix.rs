@@ -9,17 +9,15 @@
   target_os = "openbsd"
 ))]
 
-use std::os::raw::c_int;
-use std::sync::Arc;
+use std::{os::raw::c_int, sync::Arc};
 
 // XConnection utilities
 pub use crate::platform_impl::x11;
 
-use crate::platform_impl::x11::xdisplay::XError;
 pub use crate::platform_impl::{hit_test, EventLoop as UnixEventLoop};
 use crate::{
   event_loop::{EventLoop, EventLoopWindowTarget},
-  platform_impl::Parent,
+  platform_impl::{x11::xdisplay::XError, Parent},
   window::{Window, WindowBuilder},
 };
 
@@ -51,10 +49,12 @@ pub trait WindowBuilderExtUnix {
   /// <https://gtk-rs.org/gtk3-rs/stable/latest/docs/gdk/struct.Window.html#method.set_transient_for>
   fn with_transient_for(self, parent: gtk::ApplicationWindow) -> WindowBuilder;
 
-  /// Receive draw event of the window. Set this to `true` if you want to receive draw events of the window.
-  /// This will overwrite transparent attributes.
+  /// Disable the ability to draw transparent window automatically.
+  ///
+  /// When tranparent attribute is enabled, we will call `connect_draw` and draw the background automatically.
+  /// For anyone who wants to draw the background themselves, set this to `false`.
   /// Default is `true`.
-  fn with_draw_event(self, filter: bool) -> WindowBuilder;
+  fn with_auto_transparent(self, auto: bool) -> WindowBuilder;
 }
 
 impl WindowBuilderExtUnix for WindowBuilder {
@@ -68,8 +68,8 @@ impl WindowBuilderExtUnix for WindowBuilder {
     self
   }
 
-  fn with_draw_event(mut self, filter: bool) -> WindowBuilder {
-    self.platform_specific.draw_event = filter;
+  fn with_auto_transparent(mut self, auto: bool) -> WindowBuilder {
+    self.platform_specific.auto_transparent = auto;
     self
   }
 }
@@ -121,25 +121,25 @@ pub trait EventLoopWindowTargetExtUnix {
 impl<T> EventLoopWindowTargetExtUnix for EventLoopWindowTarget<T> {
   #[inline]
   fn is_wayland(&self) -> bool {
-      self.p.is_wayland()
+    self.p.is_wayland()
   }
 
   #[inline]
   fn is_x11(&self) -> bool {
-      !self.p.is_wayland()
+    !self.p.is_wayland()
   }
 
   #[inline]
   fn xlib_xconnection(&self) -> Option<Arc<XConnection>> {
-      if self.is_x11() {
-        if let Ok(xconn) = XConnection::new(Some(x_error_callback)) {
-          Some(Arc::new(xconn))
-        } else {
-          None
-        }
+    if self.is_x11() {
+      if let Ok(xconn) = XConnection::new(Some(x_error_callback)) {
+        Some(Arc::new(xconn))
       } else {
         None
       }
+    } else {
+      None
+    }
   }
 
   // #[inline]

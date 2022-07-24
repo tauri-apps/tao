@@ -56,11 +56,21 @@ impl Default for Parent {
   }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct PlatformSpecificWindowBuilderAttributes {
   pub parent: Parent,
   pub skip_taskbar: bool,
-  pub draw_event: bool,
+  pub auto_transparent: bool,
+}
+
+impl Default for PlatformSpecificWindowBuilderAttributes {
+  fn default() -> Self {
+    Self {
+      parent: Default::default(),
+      skip_taskbar: Default::default(),
+      auto_transparent: true,
+    }
+  }
 }
 
 unsafe impl Send for PlatformSpecificWindowBuilderAttributes {}

@@ -9,6 +9,7 @@ use std::{
 };
 
 use gdk::{WindowEdge, WindowState};
+use glib::translate::ToGlibPtr;
 use gtk::{prelude::*, traits::SettingsExt, AccelGroup, Orientation, Settings};
 use raw_window_handle::{RawDisplayHandle, RawWindowHandle, XlibDisplayHandle, XlibWindowHandle};
 
@@ -139,22 +140,20 @@ impl Window {
       window.move_(x, y);
     }
 
-    // Set Transparent
-    if !pl_attribs.draw_event && attributes.transparent {
-      if let Some(screen) = window.screen() {
-        if let Some(visual) = screen.rgba_visual() {
-          window.set_visual(Some(&visual));
-        }
+    // Set GDK Visual
+    if let Some(screen) = window.screen() {
+      if let Some(visual) = screen.rgba_visual() {
+        window.set_visual(Some(&visual));
       }
+    }
 
-      window.connect_draw(|_, cr| {
-        cr.set_source_rgba(0., 0., 0., 0.);
-        cr.set_operator(cairo::Operator::Source);
-        let _ = cr.paint();
-        cr.set_operator(cairo::Operator::Over);
-        Inhibit(false)
-      });
-      window.set_app_paintable(true);
+    // Set a few attributes to make the window can be painted.
+    // See Gtk drawing model for more info:
+    // https://docs.gtk.org/gtk3/drawing-model.html
+    window.set_app_paintable(true);
+    let widget = window.upcast_ref::<gtk::Widget>();
+    unsafe {
+      gtk::ffi::gtk_widget_set_double_buffered(widget.to_glib_none().0, 0);
     }
 
     // We always create a box and allocate menubar, so if they set_menu after creation
@@ -284,7 +283,14 @@ impl Window {
       scale_factor_clone.store(window.scale_factor(), Ordering::Release);
     });
 
-    if let Err(e) = window_requests_tx.send((window_id, WindowRequest::WireUpEvents(pl_attribs.draw_event))) {
+    // Check if we should paint the transparent background ourselves.
+    let mut draw_transparent = false;
+    if attributes.transparent && pl_attribs.auto_transparent {
+      draw_transparent = true;
+    }
+    if let Err(e) =
+      window_requests_tx.send((window_id, WindowRequest::WireUpEvents(draw_transparent)))
+    {
       log::warn!("Fail to send wire up events request: {}", e);
     }
 

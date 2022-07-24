@@ -14,7 +14,7 @@ use std::{
 use cairo::{RectangleInt, Region};
 use gdk::{Cursor, CursorType, EventKey, EventMask, ScrollDirection, WindowEdge, WindowState};
 use gio::{prelude::*, Cancellable};
-use glib::{source::Priority, Continue, MainContext, translate::ToGlibPtr};
+use glib::{source::Priority, Continue, MainContext};
 use gtk::{builders::AboutDialogBuilder, prelude::*, Inhibit};
 
 use raw_window_handle::{RawDisplayHandle, XlibDisplayHandle};
@@ -350,7 +350,7 @@ impl<T: 'static> EventLoop<T> {
               window.input_shape_combine_region(None)
             };
           }
-          WindowRequest::WireUpEvents(draw_event) => {
+          WindowRequest::WireUpEvents(draw_transparent) => {
             window.add_events(
               EventMask::POINTER_MOTION_MASK
                 | EventMask::BUTTON1_MOTION_MASK
@@ -743,26 +743,21 @@ impl<T: 'static> EventLoop<T> {
             });
 
             // Receive draw events of the window.
-            if draw_event {
-              if let Some(screen) = window.screen() {
-                if let Some(visual) = screen.rgba_visual() {
-                  window.set_visual(Some(&visual));
-                }
+            let draw_clone = draw_tx.clone();
+            window.connect_draw(move |_, cr| {
+              if let Err(e) = draw_clone.send(id) {
+                log::warn!("Failed to send redraw event to event channel: {}", e);
               }
 
-              let widget = window.upcast_ref::<gtk::Widget>();
-              unsafe { gtk::ffi::gtk_widget_set_double_buffered(widget.to_glib_none().0, 0); }
-              window.set_app_paintable(true);
+              if draw_transparent {
+                cr.set_source_rgba(0., 0., 0., 0.);
+                cr.set_operator(cairo::Operator::Source);
+                let _ = cr.paint();
+                cr.set_operator(cairo::Operator::Over);
+              }
 
-              let draw_clone = draw_tx.clone();
-              window.connect_draw(move |_, _| {
-                if let Err(e) = draw_clone.send(id) {
-                  log::warn!("Failed to send redraw event to event channel: {}", e);
-                }
-
-                Inhibit(false)
-              });
-            }
+              Inhibit(false)
+            });
           }
           WindowRequest::Redraw => {
             if let Err(e) = draw_tx.send(id) {
