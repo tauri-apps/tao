@@ -941,21 +941,30 @@ unsafe fn init<T: 'static>(
 
   win.set_skip_taskbar(pl_attribs.skip_taskbar);
 
-  let dimensions = attributes
-    .inner_size
-    .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
-  win.set_inner_size(dimensions);
-  if attributes.maximized {
-    // Need to set MAXIMIZED after setting `inner_size` as
-    // `Window::set_inner_size` changes MAXIMIZED to false.
-    win.set_maximized(true);
-  }
-  win.set_visible(attributes.visible);
-
   if attributes.fullscreen.is_some() {
     win.set_fullscreen(attributes.fullscreen);
     force_window_active(win.window.0);
+  } else {
+    let size = attributes
+      .inner_size
+      .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
+    let max_size = attributes
+      .max_inner_size
+      .unwrap_or_else(|| PhysicalSize::new(f64::MAX, f64::MAX).into());
+    let min_size = attributes
+      .min_inner_size
+      .unwrap_or_else(|| PhysicalSize::new(0, 0).into());
+    let clamped_size = Size::clamp(size, min_size, max_size, win.scale_factor());
+    win.set_inner_size(clamped_size);
+
+    if attributes.maximized {
+      // Need to set MAXIMIZED after setting `inner_size` as
+      // `Window::set_inner_size` changes MAXIMIZED to false.
+      win.set_maximized(true);
+    }
   }
+
+  win.set_visible(attributes.visible);
 
   if let Some(position) = attributes.position {
     win.set_outer_position(position);
