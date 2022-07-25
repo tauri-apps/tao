@@ -12,6 +12,7 @@
 use std::{os::raw::c_int, sync::Arc};
 
 // XConnection utilities
+#[doc(hidden)]
 pub use crate::platform_impl::x11;
 
 pub use crate::platform_impl::{hit_test, EventLoop as UnixEventLoop};
@@ -49,12 +50,12 @@ pub trait WindowBuilderExtUnix {
   /// <https://gtk-rs.org/gtk3-rs/stable/latest/docs/gdk/struct.Window.html#method.set_transient_for>
   fn with_transient_for(self, parent: gtk::ApplicationWindow) -> WindowBuilder;
 
-  /// Disable the ability to draw transparent window automatically.
+  /// Whether to enable or disable the internal draw for transparent window.
   ///
-  /// When tranparent attribute is enabled, we will call `connect_draw` and draw the background automatically.
+  /// When tranparent attribute is enabled, we will call `connect_draw` and draw a transparent background.
   /// For anyone who wants to draw the background themselves, set this to `false`.
   /// Default is `true`.
-  fn with_auto_transparent(self, auto: bool) -> WindowBuilder;
+  fn with_transparent_draw(self, draw: bool) -> WindowBuilder;
 }
 
 impl WindowBuilderExtUnix for WindowBuilder {
@@ -68,8 +69,8 @@ impl WindowBuilderExtUnix for WindowBuilder {
     self
   }
 
-  fn with_auto_transparent(mut self, auto: bool) -> WindowBuilder {
-    self.platform_specific.auto_transparent = auto;
+  fn with_transparent_draw(mut self, draw: bool) -> WindowBuilder {
+    self.platform_specific.auto_transparent = draw;
     self
   }
 }

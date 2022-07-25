@@ -350,7 +350,7 @@ impl<T: 'static> EventLoop<T> {
               window.input_shape_combine_region(None)
             };
           }
-          WindowRequest::WireUpEvents(draw_transparent) => {
+          WindowRequest::WireUpEvents { transparent } => {
             window.add_events(
               EventMask::POINTER_MOTION_MASK
                 | EventMask::BUTTON1_MOTION_MASK
@@ -749,7 +749,7 @@ impl<T: 'static> EventLoop<T> {
                 log::warn!("Failed to send redraw event to event channel: {}", e);
               }
 
-              if draw_transparent {
+              if transparent {
                 cr.set_source_rgba(0., 0., 0., 0.);
                 cr.set_operator(cairo::Operator::Source);
                 let _ = cr.paint();
