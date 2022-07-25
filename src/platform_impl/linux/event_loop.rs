@@ -1022,17 +1022,17 @@ impl<T: 'static> EventLoop<T> {
                 callback(Event::LoopDestroyed, window_target, &mut control_flow);
                 break code;
               }
-              _ => match draws.try_recv() {
-                Ok(id) => callback(
-                  Event::RedrawRequested(RootWindowId(id)),
-                  window_target,
-                  &mut control_flow,
-                ),
-                Err(_) => {
-                  callback(Event::RedrawEventsCleared, window_target, &mut control_flow);
-                  state = EventState::NewStart;
+              _ => {
+                if let Ok(id) = draws.try_recv() {
+                  callback(
+                    Event::RedrawRequested(RootWindowId(id)),
+                    window_target,
+                    &mut control_flow,
+                  );
                 }
-              },
+                callback(Event::RedrawEventsCleared, window_target, &mut control_flow);
+                state = EventState::NewStart;
+              }
             },
           }
           gtk::main_iteration_do(blocking);
