@@ -120,3 +120,4 @@ dirs-next = { version = "2.0.0", optional = true }
 x11-dl = "2.19"
 uuid = { version = "1.1", features = [ "v4" ] }
 png = "0.17"
+parking_lot = "0.12"

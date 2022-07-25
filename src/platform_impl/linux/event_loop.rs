@@ -87,6 +87,10 @@ impl<T> EventLoopWindowTarget<T> {
     }
     RawDisplayHandle::Xlib(display_handle)
   }
+
+  pub fn is_wayland(&self) -> bool {
+    self.display.backend().is_wayland()
+  }
 }
 
 pub struct EventLoop<T: 'static> {
@@ -346,7 +350,7 @@ impl<T: 'static> EventLoop<T> {
               window.input_shape_combine_region(None)
             };
           }
-          WindowRequest::WireUpEvents => {
+          WindowRequest::WireUpEvents { transparent } => {
             window.add_events(
               EventMask::POINTER_MOTION_MASK
                 | EventMask::BUTTON1_MOTION_MASK
@@ -735,6 +739,23 @@ impl<T: 'static> EventLoop<T> {
                   );
                 }
               }
+              Inhibit(false)
+            });
+
+            // Receive draw events of the window.
+            let draw_clone = draw_tx.clone();
+            window.connect_draw(move |_, cr| {
+              if let Err(e) = draw_clone.send(id) {
+                log::warn!("Failed to send redraw event to event channel: {}", e);
+              }
+
+              if transparent {
+                cr.set_source_rgba(0., 0., 0., 0.);
+                cr.set_operator(cairo::Operator::Source);
+                let _ = cr.paint();
+                cr.set_operator(cairo::Operator::Over);
+              }
+
               Inhibit(false)
             });
           }

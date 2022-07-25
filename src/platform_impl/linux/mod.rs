@@ -20,6 +20,7 @@ mod monitor;
 #[cfg(feature = "tray")]
 mod system_tray;
 mod window;
+pub mod x11;
 
 #[cfg(feature = "tray")]
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
@@ -55,10 +56,21 @@ impl Default for Parent {
   }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct PlatformSpecificWindowBuilderAttributes {
   pub parent: Parent,
   pub skip_taskbar: bool,
+  pub auto_transparent: bool,
+}
+
+impl Default for PlatformSpecificWindowBuilderAttributes {
+  fn default() -> Self {
+    Self {
+      parent: Default::default(),
+      skip_taskbar: Default::default(),
+      auto_transparent: true,
+    }
+  }
 }
 
 unsafe impl Send for PlatformSpecificWindowBuilderAttributes {}
