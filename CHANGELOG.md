@@ -1,5 +1,18 @@
 # Changelog
 
+## \[0.13.0]
+
+- On Linux, receive only one draw event per cycle to prevent receiving infinite draw events.
+  - [b86ada73](https://github.com/tauri-apps/tao/commit/b86ada73ccc493340f4cee35d884867623287111) Receive only one draw event per cycle ([#500](https://github.com/tauri-apps/tao/pull/500)) on 2022-07-25
+- - On Linux, add `EventLoopWindowTargetExtUnix` for methods to determine if the backend is x11 or wayland.
+- On Linux, add `x11` module for glutin internal use. This is basically just x11-dl, but winit secretly exports it.
+- On Linux, add `WindowBuilder::with_transparent_draw` to disable the internal draw for transparent window and allows users to draw it manually.
+- [db7e5cb4](https://github.com/tauri-apps/tao/commit/db7e5cb4466133869f512487e605b061a6610560) feat(linux): Add necessary features for creating GL windows ([#495](https://github.com/tauri-apps/tao/pull/495)) on 2022-07-25
+- **Breaking** Updated `raw-window-handle` to `0.5` and added `Window::raw_display_handle` and `EventLoopWindowTarget::raw_display_handle`.
+  - [b905852d](https://github.com/tauri-apps/tao/commit/b905852d2e76dafaadc8c0ca5785328981628bf0) chore(deps): update `raw-window-handle` to `0.5` ([#493](https://github.com/tauri-apps/tao/pull/493)) on 2022-07-24
+- On Windows, respect min/max inner sizes when creating the window.
+  - [c1c6822e](https://github.com/tauri-apps/tao/commit/c1c6822e8bb4708857225491b939f076b120dec1) fix(windows): respect min/max sizes when creating window, closes [#498](https://github.com/tauri-apps/tao/pull/498) ([#499](https://github.com/tauri-apps/tao/pull/499)) on 2022-07-25
+
 ## \[0.12.2]
 
 - On Windows, fix assigning the wrong mintor rect to undecorated maximized window. This caused a blank window downstream in wry and tauri.
