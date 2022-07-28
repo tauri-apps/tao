@@ -152,8 +152,10 @@ impl Window {
     // https://docs.gtk.org/gtk3/drawing-model.html
     window.set_app_paintable(true);
     let widget = window.upcast_ref::<gtk::Widget>();
-    unsafe {
-      gtk::ffi::gtk_widget_set_double_buffered(widget.to_glib_none().0, 0);
+    if !event_loop_window_target.is_wayland() {
+      unsafe {
+        gtk::ffi::gtk_widget_set_double_buffered(widget.to_glib_none().0, 0);
+      }
     }
 
     // We always create a box and allocate menubar, so if they set_menu after creation
