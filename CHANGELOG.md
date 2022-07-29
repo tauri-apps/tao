@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.13.1]
+
+- On Linux, fix Window can't be displayed on wayland.
+  - [eb880f48](https://github.com/tauri-apps/tao/commit/eb880f48932adb96bc428efdf69e2256fe989b6b) Fix window can't be displayed on wayland ([#504](https://github.com/tauri-apps/tao/pull/504)) on 2022-07-28
+
 ## \[0.13.0]
 
 - On Linux, receive only one draw event per cycle to prevent receiving infinite draw events.
