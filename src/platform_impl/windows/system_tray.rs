@@ -72,10 +72,18 @@ impl SystemTrayBuilder {
       RegisterClassW(&wnd_class);
 
       let hwnd = CreateWindowExW(
-        Default::default(),
+        WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_LAYERED |
+        // WS_EX_TOOLWINDOW prevents this window from ever showing up in the taskbar, which
+        // we want to avoid. If you remove this style, this window won't show up in the
+        // taskbar *initially*, but it can show up at some later point. This can sometimes
+        // happen on its own after several hours have passed, although this has proven
+        // difficult to reproduce. Alternatively, it can be manually triggered by killing
+        // `explorer.exe` and then starting the process back up.
+        // It is unclear why the bug is triggered by waiting for several hours.
+        WS_EX_TOOLWINDOW,,
         PCWSTR(class_name.as_ptr()),
-        "tao_system_tray_window",
-        WS_OVERLAPPEDWINDOW,
+        PCWSTR::default(),
+        WS_OVERLAPPED,
         CW_USEDEFAULT,
         0,
         CW_USEDEFAULT,
