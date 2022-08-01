@@ -80,7 +80,7 @@ impl SystemTrayBuilder {
         // difficult to reproduce. Alternatively, it can be manually triggered by killing
         // `explorer.exe` and then starting the process back up.
         // It is unclear why the bug is triggered by waiting for several hours.
-        WS_EX_TOOLWINDOW,,
+        WS_EX_TOOLWINDOW,
         PCWSTR(class_name.as_ptr()),
         PCWSTR::default(),
         WS_OVERLAPPED,
