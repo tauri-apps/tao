@@ -20,7 +20,7 @@ use cocoa::{
     NSStatusBar, NSStatusItem, NSWindow,
   },
   base::{id, nil, NO, YES},
-  foundation::{NSAutoreleasePool, NSData, NSPoint, NSSize},
+  foundation::{NSAutoreleasePool, NSData, NSPoint, NSSize, NSString},
 };
 use objc::{
   declare::ClassDecl,
@@ -58,6 +58,7 @@ impl SystemTrayBuilder {
   pub fn build<T: 'static>(
     self,
     _window_target: &EventLoopWindowTarget<T>,
+    tooltip: Option<String>,
   ) -> Result<RootSystemTray, OsError> {
     unsafe {
       // use our existing status bar
@@ -90,6 +91,11 @@ impl SystemTrayBuilder {
         (*tray_target).set_ivar("menu", menu.menu);
         let () = msg_send![menu.menu, setDelegate: tray_target];
       }
+
+      // attach tool_tip if provided
+      if let Some(tooltip) = tooltip {
+        self.system_tray.set_tooltip(&tooltip);
+      }
     }
 
     Ok(RootSystemTray(self.system_tray))
@@ -120,6 +126,13 @@ impl SystemTray {
   pub fn set_menu(&mut self, tray_menu: &Menu) {
     unsafe {
       self.ns_status_bar.setMenu_(tray_menu.menu);
+    }
+  }
+
+  pub fn set_tooltip(&self, tooltip: &str) {
+    unsafe {
+      let tooltip = NSString::alloc(nil).init_str(tooltip);
+      let _: () = msg_send![self.ns_status_bar.button(), setToolTip: tooltip];
     }
   }
 

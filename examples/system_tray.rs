@@ -45,6 +45,7 @@ fn main() {
 
   #[cfg(not(target_os = "linux"))]
   let system_tray = SystemTrayBuilder::new(icon, Some(tray_menu))
+    .with_tooltip("tao - windowing creation library")
     .build(&event_loop)
     .unwrap();
 

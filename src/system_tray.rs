@@ -40,15 +40,32 @@ use crate::{
 pub use crate::icon::{BadIcon, Icon};
 
 /// Object that allows you to build SystemTray instance.
-pub struct SystemTrayBuilder(pub(crate) SystemTrayBuilderPlatform);
+pub struct SystemTrayBuilder {
+  pub(crate) platform_tray_builder: SystemTrayBuilderPlatform,
+  tooltip: Option<String>,
+}
 
 impl SystemTrayBuilder {
   /// Creates a new SystemTray for platforms where this is appropriate.
   pub fn new(icon: Icon, tray_menu: Option<ContextMenu>) -> Self {
-    Self(SystemTrayBuilderPlatform::new(
-      icon,
-      tray_menu.map(|m| m.0.menu_platform),
-    ))
+    Self {
+      platform_tray_builder: SystemTrayBuilderPlatform::new(
+        icon,
+        tray_menu.map(|m| m.0.menu_platform),
+      ),
+      tooltip: None,
+    }
+  }
+
+  /// Adds a tooltip for this tray icon.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows:** Not implemented.
+  /// - **Linux:** Unsupported
+  pub fn with_tooltip(mut self, tooltip: &str) -> Self {
+    self.tooltip = Some(tooltip.to_string());
+    self
   }
 
   /// Builds the SystemTray.
@@ -58,7 +75,9 @@ impl SystemTrayBuilder {
     self,
     window_target: &EventLoopWindowTarget<T>,
   ) -> Result<SystemTray, OsError> {
-    self.0.build(window_target)
+    self
+      .platform_tray_builder
+      .build(window_target, self.tooltip)
   }
 }
 
@@ -81,5 +100,15 @@ impl SystemTray {
   /// Set new tray menu.
   pub fn set_menu(&mut self, tray_menu: &ContextMenu) {
     self.0.set_menu(&tray_menu.0.menu_platform)
+  }
+
+  /// Sets the tooltip for this tray icon.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows:** Not implemented.
+  /// - **Linux:** Unsupported
+  pub fn set_tooltip(&mut self, tooltip: &str) {
+    self.0.set_tooltip(tooltip);
   }
 }
