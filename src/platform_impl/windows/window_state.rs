@@ -30,6 +30,8 @@ pub struct WindowState {
   pub saved_window: Option<SavedWindow>,
   pub scale_factor: f64,
 
+  pub skip_taskbar: bool,
+
   pub modifiers_state: ModifiersState,
   pub fullscreen: Option<Fullscreen>,
   pub current_theme: Theme,
@@ -39,6 +41,10 @@ pub struct WindowState {
   pub ime_handler: MinimalIme,
 
   pub window_flags: WindowFlags,
+
+  // Used by WM_NCACTIVATE, WM_SETFOCUS and WM_KILLFOCUS
+  pub is_active: bool,
+  pub is_focused: bool,
 }
 
 #[derive(Clone)]
@@ -93,7 +99,6 @@ bitflags! {
         const IGNORE_CURSOR_EVENT = 1 << 15;
 
         const EXCLUSIVE_FULLSCREEN_OR_MASK = WindowFlags::ALWAYS_ON_TOP.bits;
-        const INVISIBLE_AND_MASK = !WindowFlags::MAXIMIZED.bits;
     }
 }
 
@@ -122,6 +127,8 @@ impl WindowState {
       saved_window: None,
       scale_factor,
 
+      skip_taskbar: false,
+
       modifiers_state: ModifiersState::default(),
       fullscreen: None,
       current_theme,
@@ -129,6 +136,8 @@ impl WindowState {
       high_surrogate: None,
       ime_handler: MinimalIme::default(),
       window_flags: WindowFlags::empty(),
+      is_active: false,
+      is_focused: false,
     }
   }
 
@@ -153,6 +162,24 @@ impl WindowState {
     F: FnOnce(&mut WindowFlags),
   {
     f(&mut self.window_flags);
+  }
+
+  pub fn has_active_focus(&self) -> bool {
+    self.is_active && self.is_focused
+  }
+
+  // Updates is_active and returns whether active-focus state has changed
+  pub fn set_active(&mut self, is_active: bool) -> bool {
+    let old = self.has_active_focus();
+    self.is_active = is_active;
+    old != self.has_active_focus()
+  }
+
+  // Updates is_focused and returns whether active-focus state has changed
+  pub fn set_focused(&mut self, is_focused: bool) -> bool {
+    let old = self.has_active_focus();
+    self.is_focused = is_focused;
+    old != self.has_active_focus()
   }
 }
 
@@ -183,10 +210,6 @@ impl WindowFlags {
   fn mask(mut self) -> WindowFlags {
     if self.contains(WindowFlags::MARKER_EXCLUSIVE_FULLSCREEN) {
       self |= WindowFlags::EXCLUSIVE_FULLSCREEN_OR_MASK;
-    }
-
-    if !self.contains(WindowFlags::VISIBLE) {
-      self &= WindowFlags::INVISIBLE_AND_MASK;
     }
 
     self
@@ -244,34 +267,18 @@ impl WindowFlags {
     self = self.mask();
     new = new.mask();
 
-    let mut diff = self ^ new;
-
-    // when hiding a maximized window, `self` contains `WindowFlags::MAXIMIZED`
-    // but `new` won't have it as it is removed in `new.mask()` call by applying `WindowFlags::INVISIBLE_AND_MASK`
-    // so `diff` will contain `WindowFlags::MAXIMIZED` and that will cause the window to unmaximize, but
-    // since we are trying to hide the window, we need to apply `WindowFlags::INVISIBLE_AND_MASK` on `diff` too.
-    if diff.contains(WindowFlags::MAXIMIZED)
-      && diff.contains(WindowFlags::VISIBLE)
-      && !new.contains(WindowFlags::VISIBLE)
-    {
-      diff &= WindowFlags::INVISIBLE_AND_MASK;
-    }
+    let diff = self ^ new;
 
     if diff == WindowFlags::empty() {
       return;
     }
 
-    if diff.contains(WindowFlags::VISIBLE) {
+    if new.contains(WindowFlags::VISIBLE) {
       unsafe {
-        ShowWindow(
-          window,
-          match new.contains(WindowFlags::VISIBLE) {
-            true => SW_SHOW,
-            false => SW_HIDE,
-          },
-        );
+        ShowWindow(window, SW_SHOW);
       }
     }
+
     if diff.contains(WindowFlags::ALWAYS_ON_TOP) {
       unsafe {
         SetWindowPos(
@@ -312,6 +319,12 @@ impl WindowFlags {
             false => SW_RESTORE,
           },
         );
+      }
+    }
+
+    if !new.contains(WindowFlags::VISIBLE) {
+      unsafe {
+        ShowWindow(window, SW_HIDE);
       }
     }
 

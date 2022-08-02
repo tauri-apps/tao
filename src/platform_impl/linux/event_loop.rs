@@ -17,6 +17,8 @@ use gio::{prelude::*, Cancellable};
 use glib::{source::Priority, Continue, MainContext};
 use gtk::{builders::AboutDialogBuilder, prelude::*, Inhibit};
 
+use raw_window_handle::{RawDisplayHandle, XlibDisplayHandle};
+
 use crate::{
   accelerator::AcceleratorId,
   dpi::{LogicalPosition, LogicalSize},
@@ -72,6 +74,22 @@ impl<T> EventLoopWindowTarget<T> {
     let number = screen.primary_monitor();
     let handle = MonitorHandle::new(&self.display, number);
     Some(RootMonitorHandle { inner: handle })
+  }
+
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    let mut display_handle = XlibDisplayHandle::empty();
+    unsafe {
+      if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
+        let display = (xlib.XOpenDisplay)(std::ptr::null());
+        display_handle.display = display as _;
+        display_handle.screen = (xlib.XDefaultScreen)(display) as _;
+      }
+    }
+    RawDisplayHandle::Xlib(display_handle)
+  }
+
+  pub fn is_wayland(&self) -> bool {
+    self.display.backend().is_wayland()
   }
 }
 
@@ -332,7 +350,7 @@ impl<T: 'static> EventLoop<T> {
               window.input_shape_combine_region(None)
             };
           }
-          WindowRequest::WireUpEvents => {
+          WindowRequest::WireUpEvents { transparent } => {
             window.add_events(
               EventMask::POINTER_MOTION_MASK
                 | EventMask::BUTTON1_MOTION_MASK
@@ -723,6 +741,23 @@ impl<T: 'static> EventLoop<T> {
               }
               Inhibit(false)
             });
+
+            // Receive draw events of the window.
+            let draw_clone = draw_tx.clone();
+            window.connect_draw(move |_, cr| {
+              if let Err(e) = draw_clone.send(id) {
+                log::warn!("Failed to send redraw event to event channel: {}", e);
+              }
+
+              if transparent {
+                cr.set_source_rgba(0., 0., 0., 0.);
+                cr.set_operator(cairo::Operator::Source);
+                let _ = cr.paint();
+                cr.set_operator(cairo::Operator::Over);
+              }
+
+              Inhibit(false)
+            });
           }
           WindowRequest::Redraw => {
             if let Err(e) = draw_tx.send(id) {
@@ -987,17 +1022,17 @@ impl<T: 'static> EventLoop<T> {
                 callback(Event::LoopDestroyed, window_target, &mut control_flow);
                 break code;
               }
-              _ => match draws.try_recv() {
-                Ok(id) => callback(
-                  Event::RedrawRequested(RootWindowId(id)),
-                  window_target,
-                  &mut control_flow,
-                ),
-                Err(_) => {
-                  callback(Event::RedrawEventsCleared, window_target, &mut control_flow);
-                  state = EventState::NewStart;
+              _ => {
+                if let Ok(id) = draws.try_recv() {
+                  callback(
+                    Event::RedrawRequested(RootWindowId(id)),
+                    window_target,
+                    &mut control_flow,
+                  );
                 }
-              },
+                callback(Event::RedrawEventsCleared, window_target, &mut control_flow);
+                state = EventState::NewStart;
+              }
             },
           }
           gtk::main_iteration_do(blocking);

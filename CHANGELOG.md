@@ -1,5 +1,45 @@
 # Changelog
 
+## \[0.13.1]
+
+- On Linux, fix Window can't be displayed on wayland.
+  - [eb880f48](https://github.com/tauri-apps/tao/commit/eb880f48932adb96bc428efdf69e2256fe989b6b) Fix window can't be displayed on wayland ([#504](https://github.com/tauri-apps/tao/pull/504)) on 2022-07-28
+
+## \[0.13.0]
+
+- On Linux, receive only one draw event per cycle to prevent receiving infinite draw events.
+  - [b86ada73](https://github.com/tauri-apps/tao/commit/b86ada73ccc493340f4cee35d884867623287111) Receive only one draw event per cycle ([#500](https://github.com/tauri-apps/tao/pull/500)) on 2022-07-25
+- - On Linux, add `EventLoopWindowTargetExtUnix` for methods to determine if the backend is x11 or wayland.
+- On Linux, add `x11` module for glutin internal use. This is basically just x11-dl, but winit secretly exports it.
+- On Linux, add `WindowBuilder::with_transparent_draw` to disable the internal draw for transparent window and allows users to draw it manually.
+- [db7e5cb4](https://github.com/tauri-apps/tao/commit/db7e5cb4466133869f512487e605b061a6610560) feat(linux): Add necessary features for creating GL windows ([#495](https://github.com/tauri-apps/tao/pull/495)) on 2022-07-25
+- **Breaking** Updated `raw-window-handle` to `0.5` and added `Window::raw_display_handle` and `EventLoopWindowTarget::raw_display_handle`.
+  - [b905852d](https://github.com/tauri-apps/tao/commit/b905852d2e76dafaadc8c0ca5785328981628bf0) chore(deps): update `raw-window-handle` to `0.5` ([#493](https://github.com/tauri-apps/tao/pull/493)) on 2022-07-24
+- On Windows, respect min/max inner sizes when creating the window.
+  - [c1c6822e](https://github.com/tauri-apps/tao/commit/c1c6822e8bb4708857225491b939f076b120dec1) fix(windows): respect min/max sizes when creating window, closes [#498](https://github.com/tauri-apps/tao/pull/498) ([#499](https://github.com/tauri-apps/tao/pull/499)) on 2022-07-25
+
+## \[0.12.2]
+
+- On Windows, fix assigning the wrong mintor rect to undecorated maximized window. This caused a blank window downstream in wry and tauri.
+  - [9d97e4a6](https://github.com/tauri-apps/tao/commit/9d97e4a646ce8a4372d3ed2c22d227d8a33ba8ba) fix(windows): get correct monitor in `WM_NCCALCSIZE`, closes [#471](https://github.com/tauri-apps/tao/pull/471) ([#472](https://github.com/tauri-apps/tao/pull/472)) on 2022-07-12
+- Fixed set_inner_size is reset when resizable is set to false.
+  - [17203d08](https://github.com/tauri-apps/tao/commit/17203d08a4ee49c8fa8decb24bcf76fe4c264ca7) fix: fixed inner_size even if resizable is set to false ([#461](https://github.com/tauri-apps/tao/pull/461)) on 2022-07-05
+- On Windows, prevent ghost window from showing up in the taskbar after either several hours of use or restarting `explorer.exe`.
+  - [feb21272](https://github.com/tauri-apps/tao/commit/feb212726da553397beda6428666092b0561fd12) fix(windows): prevent ghost window from showing up on taskbar ([#489](https://github.com/tauri-apps/tao/pull/489)) on 2022-07-21
+- Add theme feature on Linux.
+  - [74425e8e](https://github.com/tauri-apps/tao/commit/74425e8e5b032299cec99f8278d9a05ae650013c) feat: add theme feature on Linux ([#468](https://github.com/tauri-apps/tao/pull/468)) on 2022-07-10
+- Fix maximizing window on Linux.
+  - [01fb1d6c](https://github.com/tauri-apps/tao/commit/01fb1d6cdf17f01ebe5757f4a66a0d8e40222490) fix: maximizing window on linux, closes [#442](https://github.com/tauri-apps/tao/pull/442) ([#456](https://github.com/tauri-apps/tao/pull/456)) on 2022-07-12
+- On macOS, fallback resize event for NSWindow to handle.
+  - [ab2e57e9](https://github.com/tauri-apps/tao/commit/ab2e57e9ec056861fa772262a2128c2ac2e16d1b) On macOS, fallback resize event for NSWindow to handle on 2022-07-12
+- Add `CustomMenuItem::set_icon`. Only implemented on macOS for now.
+  - [13f9f182](https://github.com/tauri-apps/tao/commit/13f9f182754b0bfbaa9163330aed4d444b1e007a) feat(macos): implement CustomMenuItem::set_icon() ([#459](https://github.com/tauri-apps/tao/pull/459)) on 2022-07-07
+- On Windows, subscribe to taskbar restart event and re-add the system tray icon.
+  Also skip the window from the taskbar if it was already skipped.
+  - [9450329e](https://github.com/tauri-apps/tao/commit/9450329e3ab70aa3608ef44207df19cfdddf45a0) fix(windows): subscribe to taskbar restart event, closes [#476](https://github.com/tauri-apps/tao/pull/476) ([#487](https://github.com/tauri-apps/tao/pull/487)) on 2022-07-21
+- On Windows, fix focus events being sent to inactive windows.
+  - [23ae71b7](https://github.com/tauri-apps/tao/commit/23ae71b717184e2eb0f2da0c683b7c8f0b5cd216) fix(windows): fix focus events being sent to inactive windows. ([#488](https://github.com/tauri-apps/tao/pull/488)) on 2022-07-21
+
 ## \[0.12.1]
 
 - Revert #427 due to random crash caused by it.

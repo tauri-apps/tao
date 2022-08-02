@@ -5,7 +5,9 @@
 
 use mem::MaybeUninit;
 use parking_lot::Mutex;
-use raw_window_handle::{RawWindowHandle, Win32Handle};
+use raw_window_handle::{
+  RawDisplayHandle, RawWindowHandle, Win32WindowHandle, WindowsDisplayHandle,
+};
 use std::{
   cell::{Cell, RefCell},
   ffi::OsStr,
@@ -312,10 +314,15 @@ impl Window {
 
   #[inline]
   pub fn raw_window_handle(&self) -> RawWindowHandle {
-    let mut handle = Win32Handle::empty();
-    handle.hwnd = self.window.0 .0 as *mut _;
-    handle.hinstance = self.hinstance().0 as *mut _;
-    RawWindowHandle::Win32(handle)
+    let mut window_handle = Win32WindowHandle::empty();
+    window_handle.hwnd = self.window.0 .0 as *mut _;
+    window_handle.hinstance = self.hinstance().0 as *mut _;
+    RawWindowHandle::Win32(window_handle)
+  }
+
+  #[inline]
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    RawDisplayHandle::Windows(WindowsDisplayHandle::empty())
   }
 
   #[inline]
@@ -785,18 +792,8 @@ impl Window {
 
   #[inline]
   pub(crate) fn set_skip_taskbar(&self, skip: bool) {
-    unsafe {
-      com_initialized();
-      let taskbar_list: ITaskbarList =
-        CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).expect("failed to create TaskBarList");
-      if skip {
-        taskbar_list
-          .DeleteTab(self.hwnd())
-          .expect("DeleteTab failed");
-      } else {
-        taskbar_list.AddTab(self.hwnd()).expect("AddTab failed");
-      }
-    }
+    self.window_state.lock().skip_taskbar = skip;
+    unsafe { set_skip_taskbar(self.hwnd(), skip) };
   }
 }
 
@@ -944,21 +941,30 @@ unsafe fn init<T: 'static>(
 
   win.set_skip_taskbar(pl_attribs.skip_taskbar);
 
-  let dimensions = attributes
-    .inner_size
-    .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
-  win.set_inner_size(dimensions);
-  if attributes.maximized {
-    // Need to set MAXIMIZED after setting `inner_size` as
-    // `Window::set_inner_size` changes MAXIMIZED to false.
-    win.set_maximized(true);
-  }
-  win.set_visible(attributes.visible);
-
   if attributes.fullscreen.is_some() {
     win.set_fullscreen(attributes.fullscreen);
     force_window_active(win.window.0);
+  } else {
+    let size = attributes
+      .inner_size
+      .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
+    let max_size = attributes
+      .max_inner_size
+      .unwrap_or_else(|| PhysicalSize::new(f64::MAX, f64::MAX).into());
+    let min_size = attributes
+      .min_inner_size
+      .unwrap_or_else(|| PhysicalSize::new(0, 0).into());
+    let clamped_size = Size::clamp(size, min_size, max_size, win.scale_factor());
+    win.set_inner_size(clamped_size);
+
+    if attributes.maximized {
+      // Need to set MAXIMIZED after setting `inner_size` as
+      // `Window::set_inner_size` changes MAXIMIZED to false.
+      win.set_maximized(true);
+    }
   }
+
+  win.set_visible(attributes.visible);
 
   if let Some(position) = attributes.position {
     win.set_outer_position(position);
@@ -1152,6 +1158,17 @@ unsafe fn force_window_active(handle: HWND) {
   SendInput(&inputs, mem::size_of::<INPUT>() as _);
 
   SetForegroundWindow(handle);
+}
+
+pub(crate) unsafe fn set_skip_taskbar(hwnd: HWND, skip: bool) {
+  com_initialized();
+  let taskbar_list: ITaskbarList =
+    CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).expect("failed to create TaskBarList");
+  if skip {
+    taskbar_list.DeleteTab(hwnd).expect("DeleteTab failed");
+  } else {
+    taskbar_list.AddTab(hwnd).expect("AddTab failed");
+  }
 }
 
 pub fn hit_test(hwnd: *mut libc::c_void, cx: i32, cy: i32) -> LRESULT {

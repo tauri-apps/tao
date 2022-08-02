@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{
+  event_loop::S_U_TASKBAR_RESTART,
   menu::{subclass_proc as menu_subclass_proc, Menu, MenuHandler},
   util, OsError,
 };
@@ -27,12 +28,15 @@ use windows::{
 
 const WM_USER_TRAYICON: u32 = 6001;
 const WM_USER_UPDATE_TRAYMENU: u32 = 6002;
-const TRAYICON_UID: u32 = 6003;
-const TRAY_SUBCLASS_ID: usize = 6004;
-const TRAY_MENU_SUBCLASS_ID: usize = 6005;
+const WM_USER_UPDATE_TRAYICON: u32 = 6003;
+const TRAYICON_UID: u32 = 6004;
+const TRAY_SUBCLASS_ID: usize = 6005;
+const TRAY_MENU_SUBCLASS_ID: usize = 6006;
 
 struct TrayLoopData {
+  hwnd: HWND,
   hmenu: Option<HMENU>,
+  icon: Icon,
   sender: Box<dyn Fn(Event<'static, ()>)>,
 }
 
@@ -69,10 +73,18 @@ impl SystemTrayBuilder {
       RegisterClassW(&wnd_class);
 
       let hwnd = CreateWindowExW(
-        Default::default(),
+        WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_LAYERED |
+        // WS_EX_TOOLWINDOW prevents this window from ever showing up in the taskbar, which
+        // we want to avoid. If you remove this style, this window won't show up in the
+        // taskbar *initially*, but it can show up at some later point. This can sometimes
+        // happen on its own after several hours have passed, although this has proven
+        // difficult to reproduce. Alternatively, it can be manually triggered by killing
+        // `explorer.exe` and then starting the process back up.
+        // It is unclear why the bug is triggered by waiting for several hours.
+        WS_EX_TOOLWINDOW,
         PCWSTR(class_name.as_ptr()),
-        "tao_system_tray_window",
-        WS_OVERLAPPEDWINDOW,
+        PCWSTR::default(),
+        WS_OVERLAPPED,
         CW_USEDEFAULT,
         0,
         CW_USEDEFAULT,
@@ -82,34 +94,28 @@ impl SystemTrayBuilder {
         hinstance,
         std::ptr::null_mut(),
       );
-
       if !IsWindow(hwnd).as_bool() {
         return Err(os_error!(OsError::CreationError(
           "Unable to get valid mutable pointer for CreateWindowEx"
         )));
       }
 
-      let mut nid = NOTIFYICONDATAW {
-        uFlags: NIF_MESSAGE,
-        hWnd: hwnd,
-        uID: TRAYICON_UID,
-        uCallbackMessage: WM_USER_TRAYICON,
-        ..std::mem::zeroed()
-      };
+      let hicon = self.icon.inner.as_raw_handle();
 
-      if !Shell_NotifyIconW(NIM_ADD, &mut nid as _).as_bool() {
+      if !register_tray_icon(hwnd, hicon) {
         return Err(os_error!(OsError::CreationError(
           "Error with shellapi::Shell_NotifyIconW"
         )));
       }
 
-      let mut system_tray = SystemTray { hwnd };
-      system_tray.set_icon(self.icon);
+      let system_tray = SystemTray { hwnd: hwnd.clone() };
 
       // system_tray event handler
       let event_loop_runner = window_target.p.runner_shared.clone();
       let traydata = TrayLoopData {
+        hwnd,
         hmenu,
+        icon: self.icon,
         sender: Box::new(move |event| {
           if let Ok(e) = event.map_nonuser_event() {
             event_loop_runner.send_event(e)
@@ -163,6 +169,14 @@ impl SystemTray {
       if !Shell_NotifyIconW(NIM_MODIFY, &mut nid as _).as_bool() {
         debug!("Error setting icon");
       }
+
+      // send the new icon to the subclass proc to store it in the tray data
+      SendMessageW(
+        self.hwnd,
+        WM_USER_UPDATE_TRAYICON,
+        WPARAM(Box::into_raw(Box::new(icon)) as _),
+        LPARAM(0),
+      );
     }
   }
 
@@ -220,6 +234,18 @@ unsafe extern "system" fn tray_subclass_proc(
 
   if msg == WM_USER_UPDATE_TRAYMENU {
     subclass_input.hmenu = Some(HMENU(wparam.0 as _));
+  }
+
+  if msg == WM_USER_UPDATE_TRAYICON {
+    let icon = wparam.0 as *mut Icon;
+    subclass_input.icon = (*icon).clone();
+  }
+
+  if msg == *S_U_TASKBAR_RESTART {
+    register_tray_icon(
+      subclass_input.hwnd,
+      subclass_input.icon.inner.as_raw_handle(),
+    );
   }
 
   if msg == WM_USER_TRAYICON
@@ -299,4 +325,17 @@ unsafe fn show_tray_menu(hwnd: HWND, menu: HMENU, x: i32, y: i32) {
     hwnd,
     std::ptr::null_mut(),
   );
+}
+
+unsafe fn register_tray_icon(hwnd: HWND, hicon: HICON) -> bool {
+  let mut nid = NOTIFYICONDATAW {
+    uFlags: NIF_MESSAGE | NIF_ICON,
+    hWnd: hwnd,
+    hIcon: hicon,
+    uID: TRAYICON_UID,
+    uCallbackMessage: WM_USER_TRAYICON,
+    ..std::mem::zeroed()
+  };
+
+  Shell_NotifyIconW(NIM_ADD, &mut nid as _).as_bool()
 }

@@ -9,8 +9,9 @@ use std::{
 };
 
 use gdk::{WindowEdge, WindowState};
+use glib::translate::ToGlibPtr;
 use gtk::{prelude::*, traits::SettingsExt, AccelGroup, Orientation, Settings};
-use raw_window_handle::{RawWindowHandle, XlibHandle};
+use raw_window_handle::{RawDisplayHandle, RawWindowHandle, XlibDisplayHandle, XlibWindowHandle};
 
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
@@ -139,22 +140,22 @@ impl Window {
       window.move_(x, y);
     }
 
-    // Set Transparent
-    if attributes.transparent {
-      if let Some(screen) = window.screen() {
-        if let Some(visual) = screen.rgba_visual() {
-          window.set_visual(Some(&visual));
-        }
+    // Set GDK Visual
+    if let Some(screen) = window.screen() {
+      if let Some(visual) = screen.rgba_visual() {
+        window.set_visual(Some(&visual));
       }
+    }
 
-      window.connect_draw(|_, cr| {
-        cr.set_source_rgba(0., 0., 0., 0.);
-        cr.set_operator(cairo::Operator::Source);
-        let _ = cr.paint();
-        cr.set_operator(cairo::Operator::Over);
-        Inhibit(false)
-      });
-      window.set_app_paintable(true);
+    // Set a few attributes to make the window can be painted.
+    // See Gtk drawing model for more info:
+    // https://docs.gtk.org/gtk3/drawing-model.html
+    window.set_app_paintable(true);
+    let widget = window.upcast_ref::<gtk::Widget>();
+    if !event_loop_window_target.is_wayland() {
+      unsafe {
+        gtk::ffi::gtk_widget_set_double_buffered(widget.to_glib_none().0, 0);
+      }
     }
 
     // We always create a box and allocate menubar, so if they set_menu after creation
@@ -284,7 +285,14 @@ impl Window {
       scale_factor_clone.store(window.scale_factor(), Ordering::Release);
     });
 
-    if let Err(e) = window_requests_tx.send((window_id, WindowRequest::WireUpEvents)) {
+    // Check if we should paint the transparent background ourselves.
+    let mut transparent = false;
+    if attributes.transparent && pl_attribs.auto_transparent {
+      transparent = true;
+    }
+    if let Err(e) =
+      window_requests_tx.send((window_id, WindowRequest::WireUpEvents { transparent }))
+    {
       log::warn!("Fail to send wire up events request: {}", e);
     }
 
@@ -670,16 +678,26 @@ impl Window {
 
   pub fn raw_window_handle(&self) -> RawWindowHandle {
     // TODO: add wayland support
-    let mut handle = XlibHandle::empty();
+    let mut window_handle = XlibWindowHandle::empty();
     unsafe {
       if let Some(window) = self.window.window() {
-        handle.window = gdk_x11_sys::gdk_x11_window_get_xid(window.as_ptr() as *mut _);
-      }
-      if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
-        handle.display = (xlib.XOpenDisplay)(std::ptr::null()) as _;
+        window_handle.window = gdk_x11_sys::gdk_x11_window_get_xid(window.as_ptr() as *mut _);
       }
     }
-    RawWindowHandle::Xlib(handle)
+    RawWindowHandle::Xlib(window_handle)
+  }
+
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    let mut display_handle = XlibDisplayHandle::empty();
+    unsafe {
+      if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
+        let display = (xlib.XOpenDisplay)(std::ptr::null());
+        display_handle.display = display as _;
+        display_handle.screen = (xlib.XDefaultScreen)(display) as _;
+      }
+    }
+
+    RawDisplayHandle::Xlib(display_handle)
   }
 
   pub(crate) fn set_skip_taskbar(&self, skip: bool) {
@@ -733,7 +751,7 @@ pub enum WindowRequest {
   CursorIcon(Option<CursorIcon>),
   CursorPosition((i32, i32)),
   CursorIgnoreEvents(bool),
-  WireUpEvents,
+  WireUpEvents { transparent: bool },
   Redraw,
   Menu((Option<MenuItem>, Option<MenuId>)),
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),

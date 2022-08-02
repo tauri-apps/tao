@@ -7,6 +7,7 @@ mod runner;
 
 use crossbeam_channel::{self as channel, Receiver, Sender};
 use parking_lot::Mutex;
+use raw_window_handle::{RawDisplayHandle, WindowsDisplayHandle};
 use std::{
   cell::Cell,
   collections::VecDeque,
@@ -56,6 +57,7 @@ use crate::{
     minimal_ime::is_msg_ime_related,
     monitor::{self, MonitorHandle},
     raw_input, util,
+    window::set_skip_taskbar,
     window_state::{CursorFlags, WindowFlags, WindowState},
     wrap_device_id, WindowId, DEVICE_ID,
   },
@@ -304,6 +306,10 @@ impl<T> EventLoopWindowTarget<T> {
     let monitor = monitor::primary_monitor();
     Some(RootMonitorHandle { inner: monitor })
   }
+
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    RawDisplayHandle::Windows(WindowsDisplayHandle::empty())
+  }
 }
 
 fn main_thread_id() -> u32 {
@@ -540,16 +546,16 @@ impl<T: 'static> EventLoopProxy<T> {
 type WaitUntilInstantBox = Box<Instant>;
 
 lazy_static! {
-    // Message sent by the `EventLoopProxy` when we want to wake up the thread.
-    // WPARAM and LPARAM are unused.
+    /// Message sent by the `EventLoopProxy` when we want to wake up the thread.
+    /// WPARAM and LPARAM are unused.
     static ref USER_EVENT_MSG_ID: u32 = {
         unsafe {
             RegisterWindowMessageA("Tao::WakeupMsg")
         }
     };
-    // Message sent when we want to execute a closure in the thread.
-    // WPARAM contains a Box<Box<dyn FnMut()>> that must be retrieved with `Box::from_raw`,
-    // and LPARAM is unused.
+    /// Message sent when we want to execute a closure in the thread.
+    /// WPARAM contains a Box<Box<dyn FnMut()>> that must be retrieved with `Box::from_raw`,
+    /// and LPARAM is unused.
     static ref EXEC_MSG_ID: u32 = {
         unsafe {
             RegisterWindowMessageA("Tao::ExecMsg")
@@ -578,17 +584,22 @@ lazy_static! {
             RegisterWindowMessageA("Tao::CancelWaitUntil")
         }
     };
-    // Message sent by a `Window` when it wants to be destroyed by the main thread.
-    // WPARAM and LPARAM are unused.
+    /// Message sent by a `Window` when it wants to be destroyed by the main thread.
+    /// WPARAM and LPARAM are unused.
     pub static ref DESTROY_MSG_ID: u32 = {
         unsafe {
             RegisterWindowMessageA("Tao::DestroyMsg")
         }
     };
-    // WPARAM is a bool specifying the `WindowFlags::MARKER_RETAIN_STATE_ON_SIZE` flag. See the
-    // documentation in the `window_state` module for more information.
+    /// WPARAM is a bool specifying the `WindowFlags::MARKER_RETAIN_STATE_ON_SIZE` flag. See the
+    /// documentation in the `window_state` module for more information.
     pub static ref SET_RETAIN_STATE_ON_SIZE_MSG_ID: u32 = unsafe {
         RegisterWindowMessageA("Tao::SetRetainMaximized")
+    };
+    /// When the taskbar is created, it registers a message with the "TaskbarCreated" string and then broadcasts this message to all top-level windows
+    /// When the application receives this message, it should assume that any taskbar icons it added have been removed and add them again.
+    pub static ref S_U_TASKBAR_RESTART: u32 = unsafe {
+      RegisterWindowMessageA("TaskbarCreated")
     };
     static ref THREAD_EVENT_TARGET_WINDOW_CLASS: Vec<u16> = unsafe {
         let class_name= util::encode_wide("Tao Thread Event Target");
@@ -617,10 +628,18 @@ lazy_static! {
 fn create_event_target_window() -> HWND {
   let window = unsafe {
     CreateWindowExW(
-      WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_LAYERED,
+      WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_LAYERED |
+      // WS_EX_TOOLWINDOW prevents this window from ever showing up in the taskbar, which
+      // we want to avoid. If you remove this style, this window won't show up in the
+      // taskbar *initially*, but it can show up at some later point. This can sometimes
+      // happen on its own after several hours have passed, although this has proven
+      // difficult to reproduce. Alternatively, it can be manually triggered by killing
+      // `explorer.exe` and then starting the process back up.
+      // It is unclear why the bug is triggered by waiting for several hours.
+      WS_EX_TOOLWINDOW,
       PCWSTR(THREAD_EVENT_TARGET_WINDOW_CLASS.clone().as_ptr()),
       PCWSTR::default(),
-      Default::default(),
+      WS_OVERLAPPED,
       0,
       0,
       0,
@@ -819,6 +838,31 @@ fn update_modifiers<T>(window: HWND, subclass_input: &SubclassInput<T>) -> Modif
     }
   }
   modifiers
+}
+
+unsafe fn gain_active_focus<T>(window: HWND, subclass_input: &SubclassInput<T>) {
+  use crate::event::WindowEvent::Focused;
+  update_modifiers(window, subclass_input);
+
+  subclass_input.send_event(Event::WindowEvent {
+    window_id: RootWindowId(WindowId(window.0)),
+    event: Focused(true),
+  });
+}
+
+unsafe fn lose_active_focus<T>(window: HWND, subclass_input: &SubclassInput<T>) {
+  use crate::event::WindowEvent::{Focused, ModifiersChanged};
+
+  subclass_input.window_state.lock().modifiers_state = ModifiersState::empty();
+  subclass_input.send_event(Event::WindowEvent {
+    window_id: RootWindowId(WindowId(window.0)),
+    event: ModifiersChanged(ModifiersState::empty()),
+  });
+
+  subclass_input.send_event(Event::WindowEvent {
+    window_id: RootWindowId(WindowId(window.0)),
+    event: Focused(false),
+  });
 }
 
 /// Any window whose callback is configured to this function will have its events propagated
@@ -1649,31 +1693,32 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(LRESULT(0));
     }
 
+    win32wm::WM_NCACTIVATE => {
+      let is_active = wparam == WPARAM(1);
+      let active_focus_changed = subclass_input.window_state.lock().set_active(is_active);
+      if active_focus_changed {
+        if is_active {
+          gain_active_focus(window, subclass_input);
+        } else {
+          lose_active_focus(window, subclass_input);
+        }
+      }
+      result = ProcResult::DefWindowProc;
+    }
+
     win32wm::WM_SETFOCUS => {
-      use crate::event::WindowEvent::Focused;
-      update_modifiers(window, subclass_input);
-
-      subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
-        event: Focused(true),
-      });
-
+      let active_focus_changed = subclass_input.window_state.lock().set_focused(true);
+      if active_focus_changed {
+        gain_active_focus(window, subclass_input);
+      }
       result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_KILLFOCUS => {
-      use crate::event::WindowEvent::{Focused, ModifiersChanged};
-
-      subclass_input.window_state.lock().modifiers_state = ModifiersState::empty();
-      subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
-        event: ModifiersChanged(ModifiersState::empty()),
-      });
-
-      subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
-        event: Focused(false),
-      });
+      let active_focus_changed = subclass_input.window_state.lock().set_focused(false);
+      if active_focus_changed {
+        lose_active_focus(window, subclass_input);
+      }
       result = ProcResult::Value(LRESULT(0));
     }
 
@@ -2026,6 +2071,9 @@ unsafe fn public_window_callback_inner<T: 'static>(
           f.set(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE, wparam.0 != 0)
         });
         result = ProcResult::Value(LRESULT(0));
+      } else if msg == *S_U_TASKBAR_RESTART {
+        let window_state = subclass_input.window_state.lock();
+        set_skip_taskbar(window, window_state.skip_taskbar);
       }
     }
   };
