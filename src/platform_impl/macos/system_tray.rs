@@ -129,7 +129,7 @@ impl SystemTray {
     }
   }
 
-  pub fn set_tooltip(&mut self, tooltip: &str) {
+  pub fn set_tooltip(&self, tooltip: &str) {
     unsafe {
       let tooltip = NSString::alloc(nil).init_str(tooltip);
       let _: () = msg_send![self.ns_status_bar.button(), setToolTip: tooltip];

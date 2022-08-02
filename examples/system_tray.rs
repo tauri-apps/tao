@@ -40,12 +40,12 @@ fn main() {
   #[cfg(target_os = "linux")]
   let system_tray = SystemTrayBuilder::new(icon, Some(tray_menu))
     .with_temp_icon_dir(std::path::Path::new("/tmp/tao-examples"))
-    .with_tool_tip("tao - windowing creation library")
     .build(&event_loop)
     .unwrap();
 
   #[cfg(not(target_os = "linux"))]
   let system_tray = SystemTrayBuilder::new(icon, Some(tray_menu))
+    .with_tooltip("tao - windowing creation library")
     .build(&event_loop)
     .unwrap();
 
