@@ -40,7 +40,7 @@ fn main() {
   #[cfg(target_os = "linux")]
   let system_tray = SystemTrayBuilder::new(icon, Some(tray_menu))
     .with_temp_icon_dir(std::path::Path::new("/tmp/tao-examples"))
-    .with_tool_tip("Tauri - Build smaller, faster, and more secure desktop applications with a web frontend.")
+    .with_tool_tip("tao - windowing creation library")
     .build(&event_loop)
     .unwrap();
 
