@@ -51,6 +51,7 @@ impl SystemTrayBuilder {
   pub fn build<T: 'static>(
     self,
     window_target: &EventLoopWindowTarget<T>,
+    _tooltip: Option<String>,
   ) -> Result<RootSystemTray, RootOsError> {
     let hmenu: Option<HMENU> = self.tray_menu.map(|m| m.hmenu());
 
@@ -163,6 +164,10 @@ impl SystemTray {
         debug!("Error setting icon");
       }
     }
+  }
+
+  pub fn set_tooltip(&self, _tooltip: &str) {
+    //
   }
 
   pub fn set_menu(&mut self, tray_menu: &Menu) {

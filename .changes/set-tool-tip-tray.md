@@ -1,5 +1,5 @@
 ---
-"tao": minor
+"tao": patch
 ---
 
-Add the `set_tool_tip` method to the tray.
+Implement `SystemTrayBuilder::with_tooltip` and `SystemTray::set_tooltip` on macOS.

@@ -514,9 +514,6 @@ pub trait SystemTrayBuilderExtMacOS {
 
   /// Enables or disables showing the tray menu on left click, default is true.
   fn with_menu_on_left_click(self, enable: bool) -> Self;
-  
-  /// Sets the hover text for this tray icon.
-  fn with_tool_tip(self, tool_tip: &str) -> Self;
 }
 
 #[cfg(feature = "tray")]
@@ -528,11 +525,6 @@ impl SystemTrayBuilderExtMacOS for SystemTrayBuilder {
 
   fn with_menu_on_left_click(mut self, enable: bool) -> Self {
     self.0.system_tray.menu_on_left_click = enable;
-  }
-
-  fn with_tool_tip(mut self, tool_tip: &str) -> Self {
-    self.0.system_tray.tool_tip = Some(tool_tip.to_string());
-    self
   }
 }
 

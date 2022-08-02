@@ -35,6 +35,7 @@ impl SystemTrayBuilder {
   pub fn build<T: 'static>(
     self,
     window_target: &EventLoopWindowTarget<T>,
+    _tooltip: Option<String>,
   ) -> Result<RootSystemTray, OsError> {
     let mut app_indicator = AppIndicator::new("tao application", "");
 
@@ -87,6 +88,8 @@ impl SystemTray {
       .set_icon_full(&icon_path.to_string_lossy(), "icon");
     self.path = icon_path;
   }
+
+  pub fn set_tooltip(&self, _tooltip: &str) {}
 
   pub fn set_menu(&mut self, tray_menu: &Menu) {
     let mut menu =
