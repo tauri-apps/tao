@@ -17,7 +17,7 @@ pub trait SystemTrayBuilderExtLinux {
 #[cfg(feature = "tray")]
 impl SystemTrayBuilderExtLinux for SystemTrayBuilder {
   fn with_temp_icon_dir<P: AsRef<Path>>(mut self, p: P) -> Self {
-    self.0.temp_icon_dir = Some(p.as_ref().to_path_buf());
+    self.platform_tray_builder.temp_icon_dir = Some(p.as_ref().to_path_buf());
     self
   }
 }

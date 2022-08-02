@@ -63,7 +63,7 @@ impl SystemTrayBuilder {
   ///
   /// - **Windows:** Not implemented.
   /// - **Linux:** Unsupported
-  fn with_tooltip(mut self, tooltip: &str) -> Self {
+  pub fn with_tooltip(mut self, tooltip: &str) -> Self {
     self.tooltip = Some(tooltip.to_string());
     self
   }

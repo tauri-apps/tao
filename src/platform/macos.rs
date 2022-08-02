@@ -519,12 +519,13 @@ pub trait SystemTrayBuilderExtMacOS {
 #[cfg(feature = "tray")]
 impl SystemTrayBuilderExtMacOS for SystemTrayBuilder {
   fn with_icon_as_template(mut self, is_template: bool) -> Self {
-    self.0.system_tray.icon_is_template = is_template;
+    self.platform_tray_builder.system_tray.icon_is_template = is_template;
     self
   }
 
   fn with_menu_on_left_click(mut self, enable: bool) -> Self {
-    self.0.system_tray.menu_on_left_click = enable;
+    self.platform_tray_builder.system_tray.menu_on_left_click = enable;
+    self
   }
 }
 
