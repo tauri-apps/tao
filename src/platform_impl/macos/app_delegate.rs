@@ -3,13 +3,17 @@
 
 use crate::{platform::macos::ActivationPolicy, platform_impl::platform::app_state::AppState};
 
-use cocoa::base::id;
+use cocoa::{
+  base::id,
+  foundation::{NSArray, NSString, NSURL},
+};
 use objc::{
   declare::ClassDecl,
   runtime::{Class, Object, Sel},
 };
 use std::{
   cell::{RefCell, RefMut},
+  ffi::CStr,
   os::raw::c_void,
 };
 
@@ -43,6 +47,10 @@ lazy_static! {
     decl.add_method(
       sel!(applicationWillTerminate:),
       application_will_terminate as extern "C" fn(&Object, Sel, id),
+    );
+    decl.add_method(
+      sel!(application:openURLs:),
+      application_open_urls as extern "C" fn(&Object, Sel, id, id),
     );
     decl.add_ivar::<*mut c_void>(AUX_DELEGATE_STATE_NAME);
 
@@ -91,4 +99,21 @@ extern "C" fn application_will_terminate(_: &Object, _: Sel, _: id) {
   trace!("Triggered `applicationWillTerminate`");
   AppState::exit();
   trace!("Completed `applicationWillTerminate`");
+}
+
+extern "C" fn application_open_urls(_: &Object, _: Sel, _: id, urls: id) -> () {
+  trace!("Trigger `application:openURLs:`");
+
+  let url_strings = unsafe {
+    (0..urls.count())
+      .map(|i| {
+        CStr::from_ptr(urls.objectAtIndex(i).absoluteString().UTF8String())
+          .to_string_lossy()
+          .into_owned()
+      })
+      .collect::<Vec<_>>()
+  };
+  trace!("Get `application:openURLs:` URLs: {:?}", url_strings);
+  AppState::open_urls(url_strings);
+  trace!("Completed `application:openURLs:`");
 }

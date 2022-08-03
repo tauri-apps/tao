@@ -297,6 +297,10 @@ impl AppState {
     HANDLER.set_in_callback(false);
   }
 
+  pub fn open_urls(urls: Vec<String>) {
+    HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::OpenURLs(urls)));
+  }
+
   pub fn wakeup(panic_info: Weak<PanicInfo>) {
     let panic_info = panic_info
       .upgrade()

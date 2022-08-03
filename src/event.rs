@@ -100,6 +100,13 @@ pub enum Event<'a, T: 'static> {
     position: PhysicalPosition<f64>,
   },
 
+  /// Emitted when open an external file with the app
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows / Android / Linux:** Unsupported.
+  OpenURLs(Vec<String>),
+
   /// Emitted when a global shortcut is triggered.
   ///
   /// ## Platform-specific
@@ -203,6 +210,7 @@ impl<T: Clone> Clone for Event<'static, T> {
         position: *position,
       },
       GlobalShortcutEvent(accelerator_id) => GlobalShortcutEvent(*accelerator_id),
+      OpenURLs(urls) => OpenURLs(urls.clone()),
     }
   }
 }
@@ -240,6 +248,7 @@ impl<'a, T> Event<'a, T> {
         position,
       }),
       GlobalShortcutEvent(accelerator_id) => Ok(GlobalShortcutEvent(accelerator_id)),
+      OpenURLs(urls) => Ok(OpenURLs(urls)),
     }
   }
 
@@ -279,6 +288,7 @@ impl<'a, T> Event<'a, T> {
         position,
       }),
       GlobalShortcutEvent(accelerator_id) => Some(GlobalShortcutEvent(accelerator_id)),
+      OpenURLs(urls) => Some(OpenURLs(urls)),
     }
   }
 }
