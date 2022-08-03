@@ -50,7 +50,7 @@ pub struct SystemTrayBuilder {
 impl SystemTrayBuilder {
   #[inline]
   pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
-    Self {
+    Self { icon, tray_menu }
       id,
       icon,
       tray_menu,
