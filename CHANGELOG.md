@@ -1,5 +1,14 @@
 # Changelog
 
+## \[0.13.2]
+
+- Fix theme feature to support Darker theme on Linux.
+  - [c6d6c011](https://github.com/tauri-apps/tao/commit/c6d6c0115c2facd488e8fab73c8f8b92e172771c) fix: support Darker theme on Linux ([#511](https://github.com/tauri-apps/tao/pull/511)) on 2022-08-03
+- Implement `SystemTrayBuilder::with_tooltip` and `SystemTray::set_tooltip` on macOS.
+  - [14e26568](https://github.com/tauri-apps/tao/commit/14e265682fab87502d59a718c9607aaf146c4d3e) feat(macos): add `SystemTray::set_tooltip`, ref [#409](https://github.com/tauri-apps/tao/pull/409) ([#410](https://github.com/tauri-apps/tao/pull/410)) on 2022-08-03
+- On Windows, fix a ghost window appearing occasionally when clicking the tray icon.
+  - [ad1f641f](https://github.com/tauri-apps/tao/commit/ad1f641f496c21a02c8d173167d77f1b31849273) fix(windows): fix tray event window showing up on click, closes [#506](https://github.com/tauri-apps/tao/pull/506) ([#507](https://github.com/tauri-apps/tao/pull/507)) on 2022-08-02
+
 ## \[0.13.1]
 
 - On Linux, fix Window can't be displayed on wayland.
