@@ -38,6 +38,10 @@ impl WindowId {
   }
 }
 
+// Currently GTK doesn't provide feature for detect theme, so we need to check theme manually.
+// ref: https://github.com/WebKit/WebKit/blob/e44ffaa0d999a9807f76f1805943eea204cfdfbc/Source/WebKit/UIProcess/API/gtk/PageClientImpl.cpp#L587
+const GTK_THEME_SUFFIX_LIST: [&'static str; 3] = ["-dark", "-Dark", "-Darker"];
+
 pub struct Window {
   /// Window id.
   pub(crate) window_id: WindowId,
@@ -226,9 +230,12 @@ impl Window {
             let theme_name = settings.gtk_theme_name().map(|t| t.as_str().to_owned());
             if let Some(theme) = theme_name {
               // Remove dark variant.
-              match (theme.strip_suffix("-dark"), theme.strip_suffix("-Dark")) {
-                (theme, None) | (None, theme) => settings.set_gtk_theme_name(theme),
-                _ => {}
+              if let Some(theme) = GTK_THEME_SUFFIX_LIST
+                .iter()
+                .find(|t| theme.ends_with(*t))
+                .map(|v| theme.strip_suffix(v))
+              {
+                settings.set_gtk_theme_name(theme);
               }
             }
           }
@@ -713,9 +720,7 @@ impl Window {
     if let Some(settings) = Settings::default() {
       let theme_name = settings.gtk_theme_name().map(|s| s.as_str().to_owned());
       if let Some(theme) = theme_name {
-        // Currently GTK doesn't provide feature for detect theme, so we need to check theme manually.
-        // ref: https://github.com/WebKit/WebKit/blob/e44ffaa0d999a9807f76f1805943eea204cfdfbc/Source/WebKit/UIProcess/API/gtk/PageClientImpl.cpp#L587
-        if theme.ends_with("-dark") || theme.ends_with("-Dark") {
+        if GTK_THEME_SUFFIX_LIST.iter().any(|t| theme.ends_with(t)) {
           return Theme::Dark;
         }
       }

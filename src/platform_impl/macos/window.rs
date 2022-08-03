@@ -77,6 +77,7 @@ pub enum Parent {
   None,
   ChildOf(*mut c_void),
 }
+const GTK_THEME_LIST: [&'static str; 3] = ["dark", "Dark", "Darker"];
 
 #[derive(Clone)]
 pub struct PlatformSpecificWindowBuilderAttributes {
