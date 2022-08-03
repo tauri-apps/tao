@@ -73,7 +73,7 @@ impl SystemTrayBuilder {
       let button = status_bar.button();
       let tray_target: id = msg_send![make_tray_class(), alloc];
       let tray_target: id = msg_send![tray_target, init];
-      (*tray_target).set_ivar("id", self.system_tray.id);
+      (*tray_target).set_ivar("id", self.system_tray.id.0);
       (*tray_target).set_ivar("status_bar", status_bar);
       (*tray_target).set_ivar("menu", nil);
       (*tray_target).set_ivar("menu_on_left_click", self.system_tray.menu_on_left_click);
@@ -187,7 +187,7 @@ fn make_tray_class() -> *const Class {
     decl.add_ivar::<id>("status_bar");
     decl.add_ivar::<id>("menu");
     decl.add_ivar::<bool>("menu_on_left_click");
-    decl.add_ivar::<usize>("id");
+    decl.add_ivar::<u16>("id");
     decl.add_method(
       sel!(click:),
       perform_tray_click as extern "C" fn(&mut Object, _, id),
@@ -209,7 +209,7 @@ fn make_tray_class() -> *const Class {
 /// This will fire for an NSButton callback.
 extern "C" fn perform_tray_click(this: &mut Object, _: Sel, button: id) {
   unsafe {
-    let id = this.get_ivar::<usize>("id");
+    let id = this.get_ivar::<u16>("id");
     let app: id = msg_send![class!(NSApplication), sharedApplication];
     let current_event: id = msg_send![app, currentEvent];
 
@@ -245,7 +245,7 @@ extern "C" fn perform_tray_click(this: &mut Object, _: Sel, button: id) {
 
     if let Some(click_event) = click_type {
       let event = Event::TrayEvent {
-        id,
+        id: TrayId(*id as u16),
         bounds: Rectangle { position, size },
         position: PhysicalPosition::new(
           mouse_location.x,
