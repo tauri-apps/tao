@@ -54,6 +54,8 @@ pub trait WindowExtMacOS {
 
   /// Sets whether or not the window has shadow.
   fn set_has_shadow(&self, has_shadow: bool);
+
+  fn set_traffic_light_inset(&self, inset: (f64, f64));
 }
 
 impl WindowExtMacOS for Window {
@@ -85,6 +87,10 @@ impl WindowExtMacOS for Window {
   #[inline]
   fn set_has_shadow(&self, has_shadow: bool) {
     self.window.set_has_shadow(has_shadow)
+  }
+
+  fn set_traffic_light_inset(&self, inset: (f64, f64)) {
+    self.window.set_traffic_light_inset(inset);
   }
 }
 
@@ -338,6 +344,7 @@ pub trait WindowBuilderExtMacOS {
   fn with_resize_increments(self, increments: LogicalSize<f64>) -> WindowBuilder;
   fn with_disallow_hidpi(self, disallow_hidpi: bool) -> WindowBuilder;
   fn with_has_shadow(self, has_shadow: bool) -> WindowBuilder;
+  fn with_traffic_light_inset(self, inset: (f64, f64)) -> WindowBuilder;
 }
 
 impl WindowBuilderExtMacOS for WindowBuilder {
@@ -401,6 +408,12 @@ impl WindowBuilderExtMacOS for WindowBuilder {
   #[inline]
   fn with_has_shadow(mut self, has_shadow: bool) -> WindowBuilder {
     self.platform_specific.has_shadow = has_shadow;
+    self
+  }
+
+  #[inline]
+  fn with_traffic_light_inset(mut self, inset: (f64, f64)) -> WindowBuilder {
+    self.platform_specific.traffic_light_inset = Some(inset);
     self
   }
 }

@@ -90,6 +90,7 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub resize_increments: Option<LogicalSize<f64>>,
   pub disallow_hidpi: bool,
   pub has_shadow: bool,
+  pub traffic_light_inset: Option<(f64, f64)>,
 }
 
 impl Default for PlatformSpecificWindowBuilderAttributes {
@@ -106,6 +107,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       resize_increments: None,
       disallow_hidpi: false,
       has_shadow: true,
+      traffic_light_inset: None,
     }
   }
 }
@@ -133,6 +135,7 @@ unsafe fn create_view(
   })
 }
 
+// TODO: Modify this
 fn create_window(
   attrs: &WindowAttributes,
   pl_attrs: &PlatformSpecificWindowBuilderAttributes,
@@ -259,6 +262,11 @@ fn create_window(
       }
       if let Some(window_menu) = attrs.window_menu.clone() {
         menu::initialize(window_menu);
+      }
+
+      if let Some((offset_x, offset_y)) = pl_attrs.traffic_light_inset {
+        println!("{} {}", offset_x, offset_y);
+        position_traffic_lights(*ns_window, offset_x, offset_y);
       }
 
       ns_window
@@ -1324,6 +1332,10 @@ impl WindowExtMacOS for UnownedWindow {
     }
   }
 
+  fn set_traffic_light_inset(&self, inset: (f64, f64)) {
+    unsafe { position_traffic_lights(*self.ns_window, inset.0, inset.1) }
+  }
+
   #[inline]
   fn has_shadow(&self) -> bool {
     unsafe { self.ns_window.hasShadow() == YES }
@@ -1394,5 +1406,31 @@ unsafe fn set_max_inner_size<V: NSWindow + Copy>(window: V, mut max_size: Logica
     current_rect.origin.y += current_rect.size.height - max_size.height;
     current_rect.size.height = max_size.height;
     window.setFrame_display_(current_rect, NO)
+  }
+}
+
+pub(crate) unsafe fn position_traffic_lights<V: NSWindow + Copy>(window: V, x: f64, y: f64) {
+  let close = window.standardWindowButton_(NSWindowButton::NSWindowCloseButton);
+  let miniaturize = window.standardWindowButton_(NSWindowButton::NSWindowMiniaturizeButton);
+  let zoom = window.standardWindowButton_(NSWindowButton::NSWindowZoomButton);
+
+  let title_bar_container_view = close.superview().superview();
+
+  let close_rect: NSRect = msg_send![close, frame];
+  let button_height = close_rect.size.height;
+
+  let title_bar_frame_height = button_height + y;
+  let mut title_bar_rect = NSView::frame(title_bar_container_view);
+  title_bar_rect.size.height = title_bar_frame_height;
+  title_bar_rect.origin.y = NSWindow::frame(window).size.height - title_bar_frame_height;
+  let _: () = msg_send![title_bar_container_view, setFrame: title_bar_rect];
+
+  let window_buttons = vec![close, miniaturize, zoom];
+  let space_between = NSView::frame(miniaturize).origin.x - NSView::frame(close).origin.x;
+
+  for (i, button) in window_buttons.into_iter().enumerate() {
+    let mut rect: NSRect = NSView::frame(button);
+    rect.origin.x = x + (i as f64 * space_between);
+    button.setFrameOrigin(rect.origin);
   }
 }
