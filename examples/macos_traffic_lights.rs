@@ -16,7 +16,7 @@ fn main() {
     WindowBuilder::new()
       .with_title("A fantastic window!")
       .with_inner_size(tao::dpi::LogicalSize::new(128.0, 128.0))
-      .with_traffic_light_inset((32., 32.))
+      .with_titlebar_transparent(true)
       .with_resizable(true)
       .build(&event_loop)
       .unwrap(),
@@ -41,15 +41,10 @@ fn main() {
       } => {
         *control_flow = ControlFlow::Exit;
       }
-      Event::WindowEvent {
-        event: WindowEvent::Resized(..),
-        window_id: _,
-        ..
-      } => {
-        let id = &window.unwrap().ns_window() as cocoa::base::id;
-      }
+
       Event::MainEventsCleared => {
         if let Some(w) = &window {
+          w.set_traffic_light_inset((30., 30.));
           w.request_redraw();
         }
       }
