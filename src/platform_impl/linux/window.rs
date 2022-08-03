@@ -498,6 +498,10 @@ impl Window {
     self.maximized.load(Ordering::Acquire)
   }
 
+  pub fn is_minimized(&self) -> bool {
+    self.minimized.load(Ordering::Acquire)
+  }
+
   pub fn is_resizable(&self) -> bool {
     self.window.is_resizable()
   }
