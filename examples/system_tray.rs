@@ -41,22 +41,23 @@ fn main() {
   let quit = tray_menu.add_item(MenuItemAttributes::new("Quit"));
 
   #[cfg(target_os = "linux")]
-  let system_tray = SystemTrayBuilder::new(main_tray_id, icon.clone(), Some(tray_menu))
+  let system_tray = SystemTrayBuilder::new_with_id(main_tray_id, icon.clone(), Some(tray_menu))
     .with_temp_icon_dir(std::path::Path::new("/tmp/tao-examples"))
     .build(&event_loop)
     .unwrap();
 
   #[cfg(not(target_os = "linux"))]
-  let system_tray = SystemTrayBuilder::new(main_tray_id, icon.clone(), Some(tray_menu))
+  let system_tray = SystemTrayBuilder::new_with_id(main_tray_id, icon.clone(), Some(tray_menu))
     .with_tooltip("tao - windowing creation library")
     .build(&event_loop)
     .unwrap();
 
   let mut second_tray_menu = Menu::new();
   let log = second_tray_menu.add_item(MenuItemAttributes::new("Log"));
-  let second_system_tray = SystemTrayBuilder::new(second_tray_id, icon, Some(second_tray_menu))
-    .build(&event_loop)
-    .unwrap();
+  let second_system_tray =
+    SystemTrayBuilder::new_with_id(second_tray_id, icon, Some(second_tray_menu))
+      .build(&event_loop)
+      .unwrap();
 
   event_loop.run(move |event, _event_loop, control_flow| {
     *control_flow = ControlFlow::Wait;

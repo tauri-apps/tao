@@ -47,8 +47,20 @@ pub struct SystemTrayBuilder {
 }
 
 impl SystemTrayBuilder {
-  /// Creates a new SystemTray for platforms where this is appropriate.
-  pub fn new(id: TrayId, icon: Icon, tray_menu: Option<ContextMenu>) -> Self {
+  /// Creates a new SystemTray with an empty identifier for platforms where this is appropriate.
+  pub fn new(icon: Icon, tray_menu: Option<ContextMenu>) -> Self {
+    Self {
+      platform_tray_builder: SystemTrayBuilderPlatform::new(
+        TrayId::EMPTY,
+        icon,
+        tray_menu.map(|m| m.0.menu_platform),
+      ),
+      tooltip: None,
+    }
+  }
+
+  /// Creates a new SystemTray with an identifier for platforms where this is appropriate.
+  pub fn new_with_id(id: TrayId, icon: Icon, tray_menu: Option<ContextMenu>) -> Self {
     Self {
       platform_tray_builder: SystemTrayBuilderPlatform::new(
         id,
