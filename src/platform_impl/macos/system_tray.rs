@@ -13,6 +13,7 @@ use crate::{
   event::{Event, Rectangle, TrayEvent},
   event_loop::EventLoopWindowTarget,
   system_tray::{Icon, SystemTray as RootSystemTray},
+  TrayId,
 };
 use cocoa::{
   appkit::{
@@ -35,7 +36,7 @@ pub struct SystemTrayBuilder {
 impl SystemTrayBuilder {
   /// Creates a new SystemTray for platforms where this is appropriate.
   #[inline]
-  pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
+  pub fn new(id: TrayId, icon: Icon, tray_menu: Option<Menu>) -> Self {
     unsafe {
       let ns_status_bar = NSStatusBar::systemStatusBar(nil)
         .statusItemWithLength_(NSSquareStatusItemLength)
@@ -43,6 +44,7 @@ impl SystemTrayBuilder {
 
       Self {
         system_tray: SystemTray {
+          id,
           icon_is_template: false,
           icon,
           menu_on_left_click: true,
@@ -71,6 +73,7 @@ impl SystemTrayBuilder {
       let button = status_bar.button();
       let tray_target: id = msg_send![make_tray_class(), alloc];
       let tray_target: id = msg_send![tray_target, init];
+      (*tray_target).set_ivar("id", self.system_tray.id);
       (*tray_target).set_ivar("status_bar", status_bar);
       (*tray_target).set_ivar("menu", nil);
       (*tray_target).set_ivar("menu_on_left_click", self.system_tray.menu_on_left_click);
@@ -105,6 +108,7 @@ impl SystemTrayBuilder {
 /// System tray is a status icon that can show popup menu. It is usually displayed on top right or bottom right of the screen.
 #[derive(Debug, Clone)]
 pub struct SystemTray {
+  pub(crate) id: TrayId,
   pub(crate) icon: Icon,
   pub(crate) icon_is_template: bool,
   pub(crate) menu_on_left_click: bool,
@@ -183,6 +187,7 @@ fn make_tray_class() -> *const Class {
     decl.add_ivar::<id>("status_bar");
     decl.add_ivar::<id>("menu");
     decl.add_ivar::<bool>("menu_on_left_click");
+    decl.add_ivar::<usize>("id");
     decl.add_method(
       sel!(click:),
       perform_tray_click as extern "C" fn(&mut Object, _, id),
@@ -204,6 +209,7 @@ fn make_tray_class() -> *const Class {
 /// This will fire for an NSButton callback.
 extern "C" fn perform_tray_click(this: &mut Object, _: Sel, button: id) {
   unsafe {
+    let id = this.get_ivar::<usize>("id");
     let app: id = msg_send![class!(NSApplication), sharedApplication];
     let current_event: id = msg_send![app, currentEvent];
 
@@ -239,6 +245,7 @@ extern "C" fn perform_tray_click(this: &mut Object, _: Sel, button: id) {
 
     if let Some(click_event) = click_type {
       let event = Event::TrayEvent {
+        id,
         bounds: Rectangle { position, size },
         position: PhysicalPosition::new(
           mouse_location.x,

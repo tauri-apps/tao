@@ -95,6 +95,7 @@ pub enum Event<'a, T: 'static> {
   /// - **iOS / Android / Linux:** Unsupported.
   #[non_exhaustive]
   TrayEvent {
+    id: crate::TrayId,
     bounds: Rectangle,
     event: TrayEvent,
     position: PhysicalPosition<f64>,
@@ -194,10 +195,12 @@ impl<T: Clone> Clone for Event<'static, T> {
         origin: *origin,
       },
       TrayEvent {
+        id,
         bounds,
         event,
         position,
       } => TrayEvent {
+        id: *id,
         bounds: *bounds,
         event: *event,
         position: *position,
@@ -231,10 +234,12 @@ impl<'a, T> Event<'a, T> {
         origin,
       }),
       TrayEvent {
+        id,
         bounds,
         event,
         position,
       } => Ok(TrayEvent {
+        id,
         bounds,
         event,
         position,
@@ -270,10 +275,12 @@ impl<'a, T> Event<'a, T> {
         origin,
       }),
       TrayEvent {
+        id,
         bounds,
         event,
         position,
       } => Some(TrayEvent {
+        id,
         bounds,
         event,
         position,

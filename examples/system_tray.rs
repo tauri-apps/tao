@@ -13,6 +13,7 @@ fn main() {
     event_loop::{ControlFlow, EventLoop},
     menu::{ContextMenu as Menu, MenuItemAttributes, MenuType},
     system_tray::SystemTrayBuilder,
+    TrayId,
   };
 
   env_logger::init();
@@ -25,6 +26,8 @@ fn main() {
   // you'll be bitten by the low-quality downscaling built into the WM.
   let path = concat!(env!("CARGO_MANIFEST_DIR"), "/examples/icon.png");
 
+  let main_tray_id = TrayId::new("main-tray");
+  let second_tray_id = TrayId::new("2nd-tray");
   let icon = load_icon(std::path::Path::new(path));
   let mut tray_menu = Menu::new();
 
@@ -38,14 +41,20 @@ fn main() {
   let quit = tray_menu.add_item(MenuItemAttributes::new("Quit"));
 
   #[cfg(target_os = "linux")]
-  let system_tray = SystemTrayBuilder::new(icon, Some(tray_menu))
+  let system_tray = SystemTrayBuilder::new(main_tray_id, icon.clone(), Some(tray_menu))
     .with_temp_icon_dir(std::path::Path::new("/tmp/tao-examples"))
     .build(&event_loop)
     .unwrap();
 
   #[cfg(not(target_os = "linux"))]
-  let system_tray = SystemTrayBuilder::new(icon, Some(tray_menu))
+  let system_tray = SystemTrayBuilder::new(main_tray_id, icon.clone(), Some(tray_menu))
     .with_tooltip("tao - windowing creation library")
+    .build(&event_loop)
+    .unwrap();
+
+  let mut second_tray_menu = Menu::new();
+  let log = second_tray_menu.add_item(MenuItemAttributes::new("Log"));
+  let second_system_tray = SystemTrayBuilder::new(second_tray_id, icon, Some(second_tray_menu))
     .build(&event_loop)
     .unwrap();
 
@@ -62,8 +71,30 @@ fn main() {
         if menu_id == quit.clone().id() {
           // drop the system tray before exiting to remove the icon from system tray on Windows
           drop(&system_tray);
+          drop(&second_system_tray);
           *control_flow = ControlFlow::Exit;
+        } else if menu_id == log.clone().id() {
+          println!("Log clicked");
         }
+      }
+      Event::TrayEvent {
+        id,
+        bounds,
+        event,
+        position,
+        ..
+      } => {
+        let tray = if id == main_tray_id {
+          "main"
+        } else if id == second_tray_id {
+          "second"
+        } else {
+          "unknown"
+        };
+        println!(
+          "tray `{}` event: {:?} {:?} {:?}",
+          tray, event, bounds, position
+        );
       }
       _ => (),
     }

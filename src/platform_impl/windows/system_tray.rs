@@ -13,6 +13,7 @@ use crate::{
   event_loop::EventLoopWindowTarget,
   menu::MenuType,
   system_tray::{Icon, SystemTray as RootSystemTray},
+  TrayId,
 };
 use windows::{
   core::{PCSTR, PCWSTR},
@@ -34,6 +35,7 @@ const TRAY_SUBCLASS_ID: usize = 6005;
 const TRAY_MENU_SUBCLASS_ID: usize = 6006;
 
 struct TrayLoopData {
+  id: TrayId,
   hwnd: HWND,
   hmenu: Option<HMENU>,
   icon: Icon,
@@ -41,14 +43,19 @@ struct TrayLoopData {
 }
 
 pub struct SystemTrayBuilder {
+  pub(crate) id: TrayId,
   pub(crate) icon: Icon,
   pub(crate) tray_menu: Option<Menu>,
 }
 
 impl SystemTrayBuilder {
   #[inline]
-  pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
-    Self { icon, tray_menu }
+  pub fn new(id: TrayId, icon: Icon, tray_menu: Option<Menu>) -> Self {
+    Self {
+      id,
+      icon,
+      tray_menu,
+    }
   }
 
   #[inline]
@@ -113,6 +120,7 @@ impl SystemTrayBuilder {
       // system_tray event handler
       let event_loop_runner = window_target.p.runner_shared.clone();
       let traydata = TrayLoopData {
+        id,
         hwnd,
         hmenu,
         icon: self.icon,
@@ -277,6 +285,7 @@ unsafe extern "system" fn tray_subclass_proc(
     match lparam.0 as u32 {
       win32wm::WM_LBUTTONUP => {
         (subclass_input.sender)(Event::TrayEvent {
+          id: subclass_input.id,
           event: TrayEvent::LeftClick,
           position,
           bounds,
@@ -285,6 +294,7 @@ unsafe extern "system" fn tray_subclass_proc(
 
       win32wm::WM_RBUTTONUP => {
         (subclass_input.sender)(Event::TrayEvent {
+          id: subclass_input.id,
           event: TrayEvent::RightClick,
           position,
           bounds,
@@ -297,6 +307,7 @@ unsafe extern "system" fn tray_subclass_proc(
 
       win32wm::WM_LBUTTONDBLCLK => {
         (subclass_input.sender)(Event::TrayEvent {
+          id: subclass_input.id,
           event: TrayEvent::DoubleClick,
           position,
           bounds,

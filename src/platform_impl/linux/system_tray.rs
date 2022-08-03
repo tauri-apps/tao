@@ -5,6 +5,7 @@ use crate::{
   error::OsError,
   event_loop::EventLoopWindowTarget,
   system_tray::{Icon, SystemTray as RootSystemTray},
+  TrayId,
 };
 
 use glib::Sender;
@@ -23,7 +24,7 @@ pub struct SystemTrayBuilder {
 
 impl SystemTrayBuilder {
   #[inline]
-  pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
+  pub fn new(_id: TrayId, icon: Icon, tray_menu: Option<Menu>) -> Self {
     Self {
       temp_icon_dir: None,
       tray_menu,

@@ -35,6 +35,7 @@ use crate::{
   platform_impl::{
     SystemTray as SystemTrayPlatform, SystemTrayBuilder as SystemTrayBuilderPlatform,
   },
+  TrayId,
 };
 
 pub use crate::icon::{BadIcon, Icon};
@@ -47,9 +48,10 @@ pub struct SystemTrayBuilder {
 
 impl SystemTrayBuilder {
   /// Creates a new SystemTray for platforms where this is appropriate.
-  pub fn new(icon: Icon, tray_menu: Option<ContextMenu>) -> Self {
+  pub fn new(id: TrayId, icon: Icon, tray_menu: Option<ContextMenu>) -> Self {
     Self {
       platform_tray_builder: SystemTrayBuilderPlatform::new(
+        id,
         icon,
         tray_menu.map(|m| m.0.menu_platform),
       ),
