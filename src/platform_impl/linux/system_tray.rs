@@ -24,7 +24,7 @@ pub struct SystemTrayBuilder {
 
 impl SystemTrayBuilder {
   #[inline]
-  pub fn new(_id: TrayId, icon: Icon, tray_menu: Option<Menu>) -> Self {
+  pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
     Self {
       temp_icon_dir: None,
       tray_menu,
@@ -36,6 +36,7 @@ impl SystemTrayBuilder {
   pub fn build<T: 'static>(
     self,
     window_target: &EventLoopWindowTarget<T>,
+    _id: TrayId,
     _tooltip: Option<String>,
   ) -> Result<RootSystemTray, OsError> {
     let mut app_indicator = AppIndicator::new("tao application", "");

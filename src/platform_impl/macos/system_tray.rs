@@ -36,7 +36,7 @@ pub struct SystemTrayBuilder {
 impl SystemTrayBuilder {
   /// Creates a new SystemTray for platforms where this is appropriate.
   #[inline]
-  pub fn new(id: TrayId, icon: Icon, tray_menu: Option<Menu>) -> Self {
+  pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
     unsafe {
       let ns_status_bar = NSStatusBar::systemStatusBar(nil)
         .statusItemWithLength_(NSSquareStatusItemLength)
@@ -44,7 +44,6 @@ impl SystemTrayBuilder {
 
       Self {
         system_tray: SystemTray {
-          id,
           icon_is_template: false,
           icon,
           menu_on_left_click: true,
@@ -60,6 +59,7 @@ impl SystemTrayBuilder {
   pub fn build<T: 'static>(
     self,
     _window_target: &EventLoopWindowTarget<T>,
+    tray_id: TrayId,
     tooltip: Option<String>,
   ) -> Result<RootSystemTray, OsError> {
     unsafe {
@@ -73,7 +73,7 @@ impl SystemTrayBuilder {
       let button = status_bar.button();
       let tray_target: id = msg_send![make_tray_class(), alloc];
       let tray_target: id = msg_send![tray_target, init];
-      (*tray_target).set_ivar("id", self.system_tray.id.0);
+      (*tray_target).set_ivar("id", tray_id.0);
       (*tray_target).set_ivar("status_bar", status_bar);
       (*tray_target).set_ivar("menu", nil);
       (*tray_target).set_ivar("menu_on_left_click", self.system_tray.menu_on_left_click);
@@ -108,7 +108,6 @@ impl SystemTrayBuilder {
 /// System tray is a status icon that can show popup menu. It is usually displayed on top right or bottom right of the screen.
 #[derive(Debug, Clone)]
 pub struct SystemTray {
-  pub(crate) id: TrayId,
   pub(crate) icon: Icon,
   pub(crate) icon_is_template: bool,
   pub(crate) menu_on_left_click: bool,

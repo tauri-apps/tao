@@ -43,14 +43,13 @@ struct TrayLoopData {
 }
 
 pub struct SystemTrayBuilder {
-  pub(crate) id: TrayId,
   pub(crate) icon: Icon,
   pub(crate) tray_menu: Option<Menu>,
 }
 
 impl SystemTrayBuilder {
   #[inline]
-  pub fn new(id: TrayId, icon: Icon, tray_menu: Option<Menu>) -> Self {
+  pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
     Self {
       id,
       icon,
@@ -62,6 +61,7 @@ impl SystemTrayBuilder {
   pub fn build<T: 'static>(
     self,
     window_target: &EventLoopWindowTarget<T>,
+    tray_id: TrayId,
     _tooltip: Option<String>,
   ) -> Result<RootSystemTray, RootOsError> {
     let hmenu: Option<HMENU> = self.tray_menu.map(|m| m.hmenu());
@@ -120,7 +120,7 @@ impl SystemTrayBuilder {
       // system_tray event handler
       let event_loop_runner = window_target.p.runner_shared.clone();
       let traydata = TrayLoopData {
-        id: self.id,
+        id: tray_id,
         hwnd,
         hmenu,
         icon: self.icon,
