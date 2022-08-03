@@ -34,3 +34,4 @@ Run the `cargo run --example <file_name>` to see how each example works.
 - `window`: example that makes a window.
 - `system_tray`: add icon to your system tray, click icon to start. 
 - `system_tray_no_menu`: like system_tray, but no menu when right click icon. 
+- `activate_event`: example of how to handle click on dock icon.
