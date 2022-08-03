@@ -120,7 +120,7 @@ impl SystemTrayBuilder {
       // system_tray event handler
       let event_loop_runner = window_target.p.runner_shared.clone();
       let traydata = TrayLoopData {
-        id,
+        id: self.id,
         hwnd,
         hmenu,
         icon: self.icon,
