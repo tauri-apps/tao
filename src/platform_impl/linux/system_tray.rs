@@ -106,6 +106,7 @@ impl SystemTray {
 
 impl Drop for SystemTray {
   fn drop(&mut self) {
+    self.app_indicator.set_status(AppIndicatorStatus::Passive);
     let _ = std::fs::remove_file(self.path.clone());
   }
 }
