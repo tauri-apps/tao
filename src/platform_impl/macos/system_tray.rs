@@ -115,6 +115,14 @@ pub struct SystemTray {
   pub(crate) ns_status_bar: id,
 }
 
+impl Drop for SystemTray {
+  fn drop(&mut self) {
+    unsafe {
+      NSStatusBar::systemStatusBar(nil).removeStatusItem_(self.ns_status_bar);
+    }
+  }
+}
+
 impl SystemTray {
   pub fn set_icon(&mut self, icon: Icon) {
     // update our icon
