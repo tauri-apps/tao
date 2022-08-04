@@ -49,7 +49,7 @@ fn main() {
       // handle click on dock icon
       Event::ApplicationShouldHandleReopen {
         has_visible_windows,
-        handled,
+        should_handle,
       } => {
         if !has_visible_windows {
           if let Some(window) = &window {
@@ -60,7 +60,7 @@ fn main() {
             window.set_visible(false)
           }
         }
-        *handled = true // true if the application is doing something in this event
+        *should_handle = false // true if you want the NSApplication to perform its normal tasks
       }
       _ => {}
     }
