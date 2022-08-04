@@ -30,7 +30,7 @@ fn main() {
         ..
       } => {
         // drop the window to fire the `Destroyed` event
-        if let Some(window) = &window{
+        if let Some(window) = &window {
           window.set_visible(false)
         }
       }
@@ -47,13 +47,16 @@ fn main() {
         }
       }
       // handle click on dock icon
-      Event::ApplicationShouldHandleReopen { has_visible_windows, should_handle } => {
+      Event::ApplicationShouldHandleReopen {
+        has_visible_windows,
+        should_handle,
+      } => {
         if !has_visible_windows {
-          if let Some(window) = &window{
+          if let Some(window) = &window {
             window.set_visible(true)
           }
         } else {
-          if let Some(window) = &window{
+          if let Some(window) = &window {
             window.set_visible(false)
           }
         }
