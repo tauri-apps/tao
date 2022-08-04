@@ -5,6 +5,7 @@ use crate::{
   error::OsError,
   event_loop::EventLoopWindowTarget,
   system_tray::{Icon, SystemTray as RootSystemTray},
+  TrayId,
 };
 
 use glib::Sender;
@@ -35,6 +36,7 @@ impl SystemTrayBuilder {
   pub fn build<T: 'static>(
     self,
     window_target: &EventLoopWindowTarget<T>,
+    _id: TrayId,
     _tooltip: Option<String>,
   ) -> Result<RootSystemTray, OsError> {
     let mut app_indicator = AppIndicator::new("tao application", "");

@@ -35,6 +35,7 @@ use crate::{
   platform_impl::{
     SystemTray as SystemTrayPlatform, SystemTrayBuilder as SystemTrayBuilderPlatform,
   },
+  TrayId,
 };
 
 pub use crate::icon::{BadIcon, Icon};
@@ -43,10 +44,11 @@ pub use crate::icon::{BadIcon, Icon};
 pub struct SystemTrayBuilder {
   pub(crate) platform_tray_builder: SystemTrayBuilderPlatform,
   tooltip: Option<String>,
+  id: TrayId,
 }
 
 impl SystemTrayBuilder {
-  /// Creates a new SystemTray for platforms where this is appropriate.
+  /// Creates a new SystemTray with an empty identifier for platforms where this is appropriate.
   pub fn new(icon: Icon, tray_menu: Option<ContextMenu>) -> Self {
     Self {
       platform_tray_builder: SystemTrayBuilderPlatform::new(
@@ -54,7 +56,14 @@ impl SystemTrayBuilder {
         tray_menu.map(|m| m.0.menu_platform),
       ),
       tooltip: None,
+      id: TrayId::EMPTY,
     }
+  }
+
+  /// Sets the tray identifier.
+  pub fn with_id(mut self, id: TrayId) -> Self {
+    self.id = id;
+    self
   }
 
   /// Adds a tooltip for this tray icon.
@@ -77,7 +86,7 @@ impl SystemTrayBuilder {
   ) -> Result<SystemTray, OsError> {
     self
       .platform_tray_builder
-      .build(window_target, self.tooltip)
+      .build(window_target, self.id, self.tooltip)
   }
 }
 
