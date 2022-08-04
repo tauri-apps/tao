@@ -304,14 +304,14 @@ impl AppState {
   }
 
   pub fn should_handle_reopen(has_visible_windows: bool) -> bool {
-    let mut should_handle = true;
+    let mut handled = false;
 
     HANDLER.handle_nonuser_event_without_wrapper(Event::ApplicationShouldHandleReopen {
       has_visible_windows,
-      should_handle: &mut should_handle,
+      handled: &mut handled,
     });
 
-    should_handle
+    handled
   }
 
   pub fn wakeup(panic_info: Weak<PanicInfo>) {

@@ -105,9 +105,9 @@ extern "C" fn application_should_handle_reopen(
   has_visible_windows: BOOL,
 ) -> BOOL {
   trace!("Triggered `applicationShouldHandleReopen`");
-  let should_handle = AppState::should_handle_reopen(has_visible_windows == YES);
+  let handled = AppState::should_handle_reopen(has_visible_windows == YES);
   trace!("Completed `applicationShouldHandleReopen`");
-  if should_handle {
+  if handled {
     YES
   } else {
     NO
