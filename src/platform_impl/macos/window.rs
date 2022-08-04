@@ -40,8 +40,8 @@ use crate::{
 use cocoa::{
   appkit::{
     self, CGFloat, NSApp, NSApplication, NSApplicationPresentationOptions, NSColor, NSEvent,
-    NSRequestUserAttentionType, NSScreen, NSView, NSWindow, NSWindowButton, NSWindowOrderingMode,
-    NSWindowStyleMask,
+    NSRequestUserAttentionType, NSScreen, NSToolbar, NSView, NSWindow, NSWindowButton,
+    NSWindowOrderingMode, NSWindowStyleMask,
   },
   base::{id, nil},
   foundation::{
@@ -91,6 +91,7 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub resize_increments: Option<LogicalSize<f64>>,
   pub disallow_hidpi: bool,
   pub has_shadow: bool,
+  pub has_toolbar: bool,
 }
 
 impl Default for PlatformSpecificWindowBuilderAttributes {
@@ -107,6 +108,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       resize_increments: None,
       disallow_hidpi: false,
       has_shadow: true,
+      has_toolbar: false,
     }
   }
 }
@@ -262,6 +264,13 @@ fn create_window(
         menu::initialize(window_menu);
       }
 
+      if pl_attrs.has_toolbar {
+        // this could be expanded to include toolbar styles like transparency
+        let new_toolbar = NSToolbar::alloc(*ns_window);
+        new_toolbar.init_();
+        ns_window.setToolbar_(new_toolbar);
+      }
+      
       ns_window
     });
     pool.drain();
