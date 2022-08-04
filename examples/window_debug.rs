@@ -50,8 +50,8 @@ fn main() {
         ..
       } => match physical_key {
         KeyCode::KeyM => {
-          if !window.is_minimized() {
-            window.set_minimized(true);
+          if window.is_minimized() {
+            window.set_minimized(false);
           }
         }
         KeyCode::KeyV => {
@@ -108,7 +108,7 @@ fn main() {
           }
         }
         "m" => {
-          window.set_minimized(true);
+          window.set_minimized(!window.is_minimized());
         }
         "q" => {
           *control_flow = ControlFlow::Exit;
