@@ -854,6 +854,17 @@ impl UnownedWindow {
   }
 
   #[inline]
+  pub fn is_maximized(&self) -> bool {
+    self.is_zoomed()
+  }
+
+  #[inline]
+  pub fn is_minimized(&self) -> bool {
+    let is_minimized: BOOL = unsafe { msg_send![*self.ns_window, isMiniaturized] };
+    is_minimized == YES
+  }
+
+  #[inline]
   pub fn is_resizable(&self) -> bool {
     let is_resizable: BOOL = unsafe { msg_send![*self.ns_window, isResizable] };
     is_resizable == YES

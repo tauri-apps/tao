@@ -23,7 +23,6 @@ mod view;
 mod window;
 mod window_delegate;
 
-use cocoa::base::{BOOL, YES};
 use std::{fmt, ops::Deref, sync::Arc};
 
 #[cfg(feature = "tray")]
@@ -60,8 +59,6 @@ pub(crate) const DEVICE_ID: RootDeviceId = RootDeviceId(DeviceId);
 
 pub struct Window {
   window: Arc<UnownedWindow>,
-  // We keep this around so that it doesn't get dropped until the window does.
-  delegate: util::IdRef,
 }
 
 #[non_exhaustive]
@@ -88,22 +85,8 @@ impl Window {
     attributes: WindowAttributes,
     pl_attribs: PlatformSpecificWindowBuilderAttributes,
   ) -> Result<Self, RootOsError> {
-    let (window, delegate) = UnownedWindow::new(attributes, pl_attribs)?;
-    Ok(Window { window, delegate })
-  }
-
-  #[inline]
-  pub fn is_maximized(&self) -> bool {
-    let () = unsafe { msg_send![*self.delegate, markIsCheckingZoomedIn] };
-    let f = self.window.is_zoomed();
-    let () = unsafe { msg_send![*self.delegate, clearIsCheckingZoomedIn] };
-    f
-  }
-
-  #[inline]
-  pub fn is_minimized(&self) -> bool {
-    let is_minimized: BOOL = unsafe { msg_send![*self.ns_window, isMiniaturized] };
-    is_minimized == YES
+    let (window, _delegate) = UnownedWindow::new(attributes, pl_attribs)?;
+    Ok(Window { window })
   }
 }
 

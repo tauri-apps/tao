@@ -118,8 +118,7 @@ fn main() {
           window.set_visible(visible);
         }
         "x" => {
-          let is_maximized = window.is_maximized();
-          window.set_maximized(!is_maximized);
+          window.set_maximized(!window.is_maximized());
         }
         _ => (),
       },
