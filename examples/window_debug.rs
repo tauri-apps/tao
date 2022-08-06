@@ -31,7 +31,11 @@ fn main() {
   eprintln!("  (Q) Quit event loop");
   eprintln!("  (V) Toggle visibility");
   eprintln!("  (X) Toggle maximized");
+  eprintln!("  (T) Toggle always on top");
+  eprintln!("  (B) Toggle always below bottom");
 
+  let mut always_below_bottom = false;
+  let mut always_on_top = false;
   let mut visible = true;
 
   event_loop.run(move |event, _, control_flow| {
@@ -119,6 +123,14 @@ fn main() {
         }
         "x" => {
           window.set_maximized(!window.is_maximized());
+        }
+        "t" => {
+          always_on_top = !always_on_top;
+          window.set_always_on_top(always_on_top);
+        }
+        "b" => {
+          always_below_bottom = !always_below_bottom;
+          window.set_always_below_bottom(always_below_bottom);
         }
         _ => (),
       },

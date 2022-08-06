@@ -190,6 +190,11 @@ pub struct WindowAttributes {
   /// The default is `false`.
   pub always_on_top: bool,
 
+  /// Whether the window should always be on bottom of other windows.
+  ///
+  /// The default is `false`.
+  pub always_below_bottom: bool,
+
   /// The window icon.
   ///
   /// The default is `None`.
@@ -219,6 +224,7 @@ impl Default for WindowAttributes {
       transparent: false,
       decorations: true,
       always_on_top: false,
+      always_below_bottom: false,
       window_icon: None,
       window_menu: None,
       preferred_theme: None,
@@ -358,6 +364,17 @@ impl WindowBuilder {
   #[inline]
   pub fn with_decorations(mut self, decorations: bool) -> Self {
     self.window.decorations = decorations;
+    self
+  }
+
+  /// Sets whether or not the window will always be below other windows.
+  ///
+  /// See [`Window::set_always_below_bottom`] for details.
+  ///
+  /// [`Window::set_always_below_bottom`]: crate::window::Window::set_always_below_bottom
+  #[inline]
+  pub fn with_always_below_bottom(mut self, always_below_bottom: bool) -> Self {
+    self.window.always_below_bottom = always_below_bottom;
     self
   }
 
@@ -782,6 +799,16 @@ impl Window {
   #[inline]
   pub fn set_decorations(&self, decorations: bool) {
     self.window.set_decorations(decorations)
+  }
+
+  /// Change whether or not the window will always be below other windows.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_always_below_bottom(&self, always_below_bottom: bool) {
+    self.window.set_always_below_bottom(always_below_bottom)
   }
 
   /// Change whether or not the window will always be on top of other windows.

@@ -232,10 +232,17 @@ fn create_window(
         ns_window.setMovableByWindowBackground_(YES);
       }
 
-      if attrs.always_on_top {
+      if attrs.always_on_top && !attrs.always_below_bottom {
         let _: () = msg_send![
           *ns_window,
           setLevel: ffi::NSWindowLevel::NSFloatingWindowLevel
+        ];
+      }
+
+      if attrs.always_below_bottom && !attrs.always_on_top {
+        let _: () = msg_send![
+          *ns_window,
+          setLevel: ffi::NSWindowLevel::BelowNormalWindowLevel
         ];
       }
 
@@ -1123,6 +1130,16 @@ impl UnownedWindow {
       };
       self.set_style_mask_async(new_mask);
     }
+  }
+
+  #[inline]
+  pub fn set_always_below_bottom(&self, always_below_bottom: bool) {
+    let level = if always_below_bottom {
+      ffi::NSWindowLevel::BelowNormalWindowLevel
+    } else {
+      ffi::NSWindowLevel::NSNormalWindowLevel
+    };
+    unsafe { util::set_level_async(*self.ns_window, level) };
   }
 
   #[inline]

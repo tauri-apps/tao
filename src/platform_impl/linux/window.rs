@@ -215,7 +215,12 @@ impl Window {
     window.set_visible(attributes.visible);
     window.set_decorated(attributes.decorations);
 
-    window.set_keep_above(attributes.always_on_top);
+    if attributes.always_below_bottom && !attributes.always_on_top {
+      window.set_keep_below(attributes.always_below_bottom);
+    }
+    if attributes.always_on_top && !attributes.always_below_bottom {
+      window.set_keep_above(attributes.always_on_top);
+    }
     if let Some(icon) = attributes.window_icon {
       window.set_icon(Some(&icon.inner.into()));
     }
@@ -552,6 +557,15 @@ impl Window {
     }
   }
 
+  pub fn set_always_below_bottom(&self, always_below_bottom: bool) {
+    if let Err(e) = self.window_requests_tx.send((
+      self.window_id,
+      WindowRequest::AlwaysBelowBottom(always_below_bottom),
+    )) {
+      log::warn!("Fail to send always on bottom request: {}", e);
+    }
+  }
+
   pub fn set_always_on_top(&self, always_on_top: bool) {
     if let Err(e) = self
       .window_requests_tx
@@ -757,6 +771,7 @@ pub enum WindowRequest {
   DragWindow,
   Fullscreen(Option<Fullscreen>),
   Decorations(bool),
+  AlwaysBelowBottom(bool),
   AlwaysOnTop(bool),
   WindowIcon(Option<Icon>),
   UserAttention(Option<UserAttentionType>),
