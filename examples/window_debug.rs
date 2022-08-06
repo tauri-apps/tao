@@ -32,7 +32,6 @@ fn main() {
   eprintln!("  (V) Toggle visibility");
   eprintln!("  (X) Toggle maximized");
 
-  let mut minimized = false;
   let mut visible = true;
 
   event_loop.run(move |event, _, control_flow| {
@@ -51,9 +50,8 @@ fn main() {
         ..
       } => match physical_key {
         KeyCode::KeyM => {
-          if minimized {
-            minimized = !minimized;
-            window.set_minimized(minimized);
+          if window.is_minimized() {
+            window.set_minimized(false);
           }
         }
         KeyCode::KeyV => {
@@ -110,8 +108,7 @@ fn main() {
           }
         }
         "m" => {
-          minimized = !minimized;
-          window.set_minimized(minimized);
+          window.set_minimized(!window.is_minimized());
         }
         "q" => {
           *control_flow = ControlFlow::Exit;
@@ -121,8 +118,7 @@ fn main() {
           window.set_visible(visible);
         }
         "x" => {
-          let is_maximized = window.is_maximized();
-          window.set_maximized(!is_maximized);
+          window.set_maximized(!window.is_maximized());
         }
         _ => (),
       },
