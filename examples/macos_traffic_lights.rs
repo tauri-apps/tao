@@ -42,7 +42,7 @@ fn main() {
         *control_flow = ControlFlow::Exit;
       }
 
-      Event::MainEventsCleared => {
+      Event::RedrawRequested(_) => {
         if let Some(w) = &window {
           w.set_traffic_light_inset((30., 30.));
           w.request_redraw();
