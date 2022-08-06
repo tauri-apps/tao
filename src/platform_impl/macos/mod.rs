@@ -59,6 +59,9 @@ pub(crate) const DEVICE_ID: RootDeviceId = RootDeviceId(DeviceId);
 
 pub struct Window {
   window: Arc<UnownedWindow>,
+  // We keep this around so that it doesn't get dropped until the window does.
+  #[allow(dead_code)]
+  delegate: util::IdRef,
 }
 
 #[non_exhaustive]
@@ -85,8 +88,8 @@ impl Window {
     attributes: WindowAttributes,
     pl_attribs: PlatformSpecificWindowBuilderAttributes,
   ) -> Result<Self, RootOsError> {
-    let (window, _delegate) = UnownedWindow::new(attributes, pl_attribs)?;
-    Ok(Window { window })
+    let (window, delegate) = UnownedWindow::new(attributes, pl_attribs)?;
+    Ok(Window { window, delegate })
   }
 }
 
