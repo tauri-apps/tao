@@ -1,5 +1,24 @@
 # Changelog
 
+## \[0.13.2]
+
+- Remove the NSStatusItem from the menu bar when the `SystemTray` instance is dropped.
+  - [aca4d3fb](https://github.com/tauri-apps/tao/commit/aca4d3fb2619d8bd38e4514583e921227cba6a04) feat(tray): remove from tray on `Drop` on macOS ([#520](https://github.com/tauri-apps/tao/pull/520)) on 2022-08-04
+- Fixes `Window::is_decorated` always returning `true` on macOS.
+  - [c3e076e9](https://github.com/tauri-apps/tao/commit/c3e076e9345ad33183426f5ef4bd936305254e15) fix(window): `is_decorated` wrong return value, closes [#518](https://github.com/tauri-apps/tao/pull/518) ([#519](https://github.com/tauri-apps/tao/pull/519)) on 2022-08-04
+- Fix theme feature to support Darker theme on Linux.
+  - [c6d6c011](https://github.com/tauri-apps/tao/commit/c6d6c0115c2facd488e8fab73c8f8b92e172771c) fix: support Darker theme on Linux ([#511](https://github.com/tauri-apps/tao/pull/511)) on 2022-08-03
+- Add `Window::is_minimized()`.
+  - [9c348154](https://github.com/tauri-apps/tao/commit/9c3481548b05de1d56c2efe8a1951fd014006b27) feat: add `Window::is_minimized()`, closes [#257](https://github.com/tauri-apps/tao/pull/257) ([#486](https://github.com/tauri-apps/tao/pull/486)) on 2022-08-06
+- Implement `SystemTrayBuilder::with_tooltip` and `SystemTray::set_tooltip` on macOS.
+  - [14e26568](https://github.com/tauri-apps/tao/commit/14e265682fab87502d59a718c9607aaf146c4d3e) feat(macos): add `SystemTray::set_tooltip`, ref [#409](https://github.com/tauri-apps/tao/pull/409) ([#410](https://github.com/tauri-apps/tao/pull/410)) on 2022-08-03
+- On Windows, fix a ghost window appearing occasionally when clicking the tray icon.
+  - [ad1f641f](https://github.com/tauri-apps/tao/commit/ad1f641f496c21a02c8d173167d77f1b31849273) fix(windows): fix tray event window showing up on click, closes [#506](https://github.com/tauri-apps/tao/pull/506) ([#507](https://github.com/tauri-apps/tao/pull/507)) on 2022-08-02
+- Added `SystemTrayBuilder::with_id` and the `id` field to `Event::TrayEvent` for better multitray support.
+  - [4ea78bcb](https://github.com/tauri-apps/tao/commit/4ea78bcb577f36ebd4f6b7ce4fcd31d7c02cafdb) feat(tray): add identifier to allow multiple tray setup ([#514](https://github.com/tauri-apps/tao/pull/514)) on 2022-08-04
+- Hide the app indicator when dropping `SystemTray` on Linux
+  - [9c6a543c](https://github.com/tauri-apps/tao/commit/9c6a543c1a748ed53ae408780a65043f6a9448f9) feat(tray): hide indicator on drop on Linux ([#521](https://github.com/tauri-apps/tao/pull/521)) on 2022-08-04
+
 ## \[0.13.1]
 
 - On Linux, fix Window can't be displayed on wayland.
