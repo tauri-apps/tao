@@ -188,7 +188,7 @@ impl<T: 'static> EventLoop<T> {
     let runner_shared = Rc::new(EventLoopRunner::new(thread_msg_target, wait_thread_id));
 
     let thread_msg_sender = subclass_event_target_window(thread_msg_target, runner_shared.clone());
-    raw_input::register_all_mice_and_keyboards_for_raw_input(thread_msg_target);
+    raw_input::register_all_mice_and_keyboards_for_raw_input(thread_msg_target, Default::default());
 
     EventLoop {
       thread_msg_sender,
@@ -309,9 +309,10 @@ impl<T> EventLoopWindowTarget<T> {
 
   pub fn raw_display_handle(&self) -> RawDisplayHandle {
     RawDisplayHandle::Windows(WindowsDisplayHandle::empty())
+  }
 
   pub fn set_device_event_filter(&self, filter: DeviceEventFilter) {
-    self.runner_shared.set_device_event_filter(filter);
+    raw_input::register_all_mice_and_keyboards_for_raw_input(self.thread_msg_target, filter);
   }
 }
 
@@ -2160,14 +2161,9 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
     }
 
     win32wm::WM_INPUT => {
-      let filter = subclass_input.event_loop_runner.device_event_filter();
-      if filter == DeviceEventFilter::Never
-        || (filter == DeviceEventFilter::Unfocused && GetActiveWindow().0 != 0)
-      {
-        if let Some(data) = raw_input::get_raw_input_data(HRAWINPUT(lparam.0)) {
-          handle_raw_input(&subclass_input, data);
-          RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
-        }
+      if let Some(data) = raw_input::get_raw_input_data(HRAWINPUT(lparam.0)) {
+        handle_raw_input(&subclass_input, data);
+        RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
       }
 
       DefSubclassProc(window, msg, wparam, lparam)

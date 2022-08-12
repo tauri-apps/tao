@@ -18,7 +18,7 @@ use windows::Win32::{
 use crate::{
   dpi::PhysicalSize,
   event::{Event, StartCause, WindowEvent},
-  event_loop::{ControlFlow, DeviceEventFilter},
+  event_loop::ControlFlow,
   platform_impl::platform::util,
   window::WindowId,
 };
@@ -39,7 +39,6 @@ pub(crate) struct EventLoopRunner<T: 'static> {
   owned_windows: Cell<HashSet<isize>>,
 
   panic_error: Cell<Option<PanicError>>,
-  device_event_filter: Cell<DeviceEventFilter>,
 }
 
 pub type PanicError = Box<dyn Any + Send + 'static>;
@@ -78,7 +77,6 @@ impl<T> EventLoopRunner<T> {
       event_handler: Cell::new(None),
       event_buffer: RefCell::new(VecDeque::new()),
       owned_windows: Cell::new(HashSet::new()),
-      device_event_filter: Cell::new(DeviceEventFilter::default()),
     }
   }
 
@@ -104,7 +102,6 @@ impl<T> EventLoopRunner<T> {
       event_handler,
       event_buffer: _,
       owned_windows: _,
-      device_event_filter: _,
     } = self;
     runner_state.set(RunnerState::Uninitialized);
     panic_error.set(None);
@@ -198,14 +195,6 @@ impl<T> EventLoopRunner<T> {
     let new_owned_windows = self.owned_windows.take();
     owned_windows.extend(&new_owned_windows);
     self.owned_windows.set(owned_windows);
-  }
-
-  pub fn set_device_event_filter(&self, filter: DeviceEventFilter) {
-    self.device_event_filter.replace(filter);
-  }
-
-  pub fn device_event_filter(&self) -> DeviceEventFilter {
-    self.device_event_filter.get()
   }
 }
 
