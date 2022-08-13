@@ -536,16 +536,12 @@ pub unsafe fn handleRequest(env: JNIEnv, _: JClass, request: JObject) -> jobject
 }
 
 pub unsafe fn ipc(env: JNIEnv, _: JClass, arg: JString) {
-  println!("[IPC] got ipc");
   match env.get_string(arg) {
     Ok(arg) => {
       let arg = arg.to_string_lossy().to_string();
-      println!("[IPC] arg {:?}", arg);
       if let Some(w) = IPC.get() {
-        println!("[IPC] ipc is set");
         let ipc = w.0;
         if !ipc.is_null() {
-          println!("[IPC] ipc is not null");
           let ipc = &*(ipc as *mut Box<dyn Fn(&Window, String)>);
           ipc(&w.1, arg)
         }
