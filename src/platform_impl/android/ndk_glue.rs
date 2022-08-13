@@ -221,6 +221,7 @@ impl MainPipe<'_> {
 pub enum WebViewMessage {
   CreateWebView(String, Vec<String>, bool),
   RunInitializationScripts,
+  // evaluate a single script
   Eval(String),
 }
 
