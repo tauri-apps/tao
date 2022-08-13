@@ -480,9 +480,7 @@ fn handle_request(env: JNIEnv, request: JObject) -> Result<jobject, jni::errors:
       headers,
     });
     if let Some(response) = response {
-      #[allow(unused_variables)]
-      let status_code = response.status.as_u16();
-      #[allow(unused_variables)]
+      let status_code = response.status.as_u16() as i32;
       let reason_phrase = "OK";
       let encoding = "UTF-8";
       let mime_type = if let Some(mime) = response.mimetype {
@@ -516,35 +514,9 @@ fn handle_request(env: JNIEnv, request: JObject) -> Result<jobject, jni::errors:
       let web_resource_response_class = env.find_class("android/webkit/WebResourceResponse")?;
       let web_resource_response = env.new_object(
         web_resource_response_class,
-        "(Ljava/lang/String;Ljava/lang/String;Ljava/io/InputStream;)V",
-        &[
-          mime_type.into(),
-          env.new_string(encoding)?.into(),
-          stream.into(),
-        ],
-      )?;
-
-      env.call_method(
-        web_resource_response,
-        "setResponseHeaders",
-        "(Ljava/util/Map;)V",
-        &[response_headers.into()],
-      )?;
-
-      // TODO: this is not working :(
-      /*env.call_method(
-        web_resource_response,
-        "setStatusCodeAndReasonPhrase",
-        "(ILjava/lang/String;)V",
-        &[status_code.into(), env.new_string(reason_phrase)?.into()],
-      )?;*/
-
-      // TODO: alternative with a single call (not working because of the status code)
-      /*let web_resource_response = env.new_object(
-        web_resource_response_class,
         "(Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/util/Map;Ljava/io/InputStream;)V",
         &[mime_type.into(), env.new_string(encoding)?.into(), status_code.into(), env.new_string(reason_phrase)?.into(), response_headers.into(), stream.into()],
-      )?;*/
+      )?;
 
       return Ok(*web_resource_response);
     }
@@ -556,21 +528,24 @@ fn handle_request(env: JNIEnv, request: JObject) -> Result<jobject, jni::errors:
 pub unsafe fn handleRequest(env: JNIEnv, _: JClass, request: JObject) -> jobject {
   match handle_request(env, request) {
     Ok(response) => response,
-    Err(_e) => {
-      #[cfg(debug_assertions)]
-      eprintln!("{}", _e);
+    Err(e) => {
+      log::error!("Failed to handle request: {}", e);
       *JObject::null()
     }
   }
 }
 
 pub unsafe fn ipc(env: JNIEnv, _: JClass, arg: JString) {
+  println!("[IPC] got ipc");
   match env.get_string(arg) {
     Ok(arg) => {
       let arg = arg.to_string_lossy().to_string();
+      println!("[IPC] arg {:?}", arg);
       if let Some(w) = IPC.get() {
+        println!("[IPC] ipc is set");
         let ipc = w.0;
         if !ipc.is_null() {
+          println!("[IPC] ipc is not null");
           let ipc = &*(ipc as *mut Box<dyn Fn(&Window, String)>);
           ipc(&w.1, arg)
         }
