@@ -1,16 +1,11 @@
-use crate::window::Window;
-use crossbeam_channel::*;
-use http::{
-  header::{HeaderMap, HeaderName, HeaderValue},
-  status::StatusCode,
-};
+pub use jni;
 pub use jni::{
   objects::{GlobalRef, JClass, JMap, JObject, JString},
   sys::jobject,
   JNIEnv,
 };
-use libc::c_void;
 use log::Level;
+pub use ndk;
 use ndk::{
   input_queue::InputQueue,
   looper::{FdEvent, ForeignLooper, ThreadLooper},
@@ -21,17 +16,16 @@ use std::{
   fs::File,
   io::{BufRead, BufReader},
   os::{raw, unix::prelude::*},
-  rc::Rc,
   sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard},
   thread,
 };
 
 #[macro_export]
-macro_rules! android_fn {
-  ($domain:ident, $package:ident) => {
+macro_rules! android_binding {
+  ($domain:ident, $package:ident, $setup: ident, $main: ident) => {
     paste::paste! {
         #[no_mangle]
-        unsafe extern "C" fn [< Java_ $domain _ $package _ MainActivity_create >](
+        unsafe extern "C" fn [< Java_ $domain _ $package _ TauriActivity_create >](
           env: JNIEnv,
           class: JClass,
           object: JObject,
@@ -39,22 +33,23 @@ macro_rules! android_fn {
             let domain = stringify!($domain).replace("_", "/");
             let package = format!("{}/{}", domain, stringify!($package));
             PACKAGE.get_or_init(move || package);
-            create(env, class, object, _start_app)
+            create(env, class, object, $setup, $main)
         }
 
-        android_fn!($domain, $package, MainActivity, start);
-        android_fn!($domain, $package, MainActivity, stop);
-        android_fn!($domain, $package, MainActivity, resume);
-        android_fn!($domain, $package, MainActivity, pause);
-        android_fn!($domain, $package, MainActivity, save);
-        android_fn!($domain, $package, MainActivity, destroy);
-        android_fn!($domain, $package, MainActivity, memory);
-        android_fn!($domain, $package, MainActivity, focus, i32);
-        android_fn!($domain, $package, RustChromeClient, runInitializationScripts);
-        android_fn!($domain, $package, RustClient, handleRequest, JObject, jobject);
-        android_fn!($domain, $package, IpcInterface, ipc, JString);
+        android_fn!($domain, $package, TauriActivity, start);
+        android_fn!($domain, $package, TauriActivity, stop);
+        android_fn!($domain, $package, TauriActivity, resume);
+        android_fn!($domain, $package, TauriActivity, pause);
+        android_fn!($domain, $package, TauriActivity, save);
+        android_fn!($domain, $package, TauriActivity, destroy);
+        android_fn!($domain, $package, TauriActivity, memory);
+        android_fn!($domain, $package, TauriActivity, focus, i32);
     }
   };
+}
+
+#[macro_export]
+macro_rules! android_fn {
   ($domain:ident, $package:ident, $class:ident, $function:ident) => {
     android_fn!($domain, $package, $class, $function, JObject)
   };
@@ -76,175 +71,6 @@ macro_rules! android_fn {
 }
 
 pub static PACKAGE: OnceCell<String> = OnceCell::new();
-static CHANNEL: Lazy<(Sender<WebViewMessage>, Receiver<WebViewMessage>)> = Lazy::new(|| bounded(8));
-static MAIN_PIPE: Lazy<[RawFd; 2]> = Lazy::new(|| {
-  let mut pipe: [RawFd; 2] = Default::default();
-  unsafe { libc::pipe(pipe.as_mut_ptr()) };
-  pipe
-});
-
-pub struct MainPipe<'a> {
-  env: JNIEnv<'a>,
-  activity: GlobalRef,
-  initialization_scripts: Vec<String>,
-  webview: Option<GlobalRef>,
-}
-
-impl MainPipe<'_> {
-  pub fn send(message: WebViewMessage) {
-    let size = std::mem::size_of::<bool>();
-    if let Ok(()) = CHANNEL.0.send(message) {
-      unsafe { libc::write(MAIN_PIPE[1], &true as *const _ as *const _, size) };
-    }
-  }
-
-  fn recv(&mut self) -> Result<(), jni::errors::Error> {
-    let env = self.env;
-    let activity = self.activity.as_obj();
-    if let Ok(message) = CHANNEL.1.recv() {
-      match message {
-        WebViewMessage::CreateWebView(url, mut initialization_scripts, devtools) => {
-          // Create webview
-          let class = env.find_class("android/webkit/WebView")?;
-          let webview =
-            env.new_object(class, "(Landroid/content/Context;)V", &[activity.into()])?;
-
-          // Enable Javascript
-          let settings = env
-            .call_method(
-              webview,
-              "getSettings",
-              "()Landroid/webkit/WebSettings;",
-              &[],
-            )?
-            .l()?;
-          env.call_method(settings, "setJavaScriptEnabled", "(Z)V", &[true.into()])?;
-
-          // Load URL
-          if let Ok(url) = env.new_string(url) {
-            env.call_method(webview, "loadUrl", "(Ljava/lang/String;)V", &[url.into()])?;
-          }
-
-          // Enable devtools
-          env.call_static_method(
-            class,
-            "setWebContentsDebuggingEnabled",
-            "(Z)V",
-            &[devtools.into()],
-          )?;
-
-          // Initialize scripts
-          self
-            .initialization_scripts
-            .append(&mut initialization_scripts);
-
-          // Set webview client
-          let client = env.call_method(
-            activity,
-            "getClient",
-            "()Landroid/webkit/WebViewClient;",
-            &[],
-          )?;
-          env.call_method(
-            webview,
-            "setWebViewClient",
-            "(Landroid/webkit/WebViewClient;)V",
-            &[client.into()],
-          )?;
-
-          // Set chrome client
-          let chrome_client = env.call_method(
-            activity,
-            "getChromeClient",
-            "()Landroid/webkit/WebChromeClient;",
-            &[],
-          )?;
-          env.call_method(
-            webview,
-            "setWebChromeClient",
-            "(Landroid/webkit/WebChromeClient;)V",
-            &[chrome_client.into()],
-          )?;
-
-          // Add javascript interface (IPC)
-          let sig = format!("()L{}/IpcInterface;", PACKAGE.get().unwrap());
-          let handler = env.call_method(activity, "getIpc", sig, &[])?;
-          let ipc = env.new_string("ipc")?;
-          env.call_method(
-            webview,
-            "addJavascriptInterface",
-            "(Ljava/lang/Object;Ljava/lang/String;)V",
-            &[handler.into(), ipc.into()],
-          )?;
-
-          // Set content view
-          env.call_method(
-            activity,
-            "setContentView",
-            "(Landroid/view/View;)V",
-            &[webview.into()],
-          )?;
-          let webview = env.new_global_ref(webview)?;
-          self.webview = Some(webview);
-        }
-        WebViewMessage::RunInitializationScripts => {
-          if let Some(webview) = &self.webview {
-            for s in &self.initialization_scripts {
-              let s = env.new_string(s)?;
-              env.call_method(
-                webview.as_obj(),
-                "evaluateJavascript",
-                "(Ljava/lang/String;Landroid/webkit/ValueCallback;)V",
-                &[s.into(), JObject::null().into()],
-              )?;
-            }
-          }
-        }
-        WebViewMessage::Eval(script) => {
-          if let Some(webview) = &self.webview {
-            let s = env.new_string(script)?;
-            env.call_method(
-              webview.as_obj(),
-              "evaluateJavascript",
-              "(Ljava/lang/String;Landroid/webkit/ValueCallback;)V",
-              &[s.into(), JObject::null().into()],
-            )?;
-          }
-        }
-      }
-    }
-    Ok(())
-  }
-}
-
-#[derive(Debug)]
-pub enum WebViewMessage {
-  CreateWebView(String, Vec<String>, bool),
-  RunInitializationScripts,
-  // evaluate a single script
-  Eval(String),
-}
-
-pub static IPC: OnceCell<UnsafeIpc> = OnceCell::new();
-pub static REQUEST_HANDLER: OnceCell<UnsafeRequestHandler> = OnceCell::new();
-
-pub struct UnsafeIpc(*mut c_void, Rc<Window>);
-impl UnsafeIpc {
-  pub fn new(f: *mut c_void, w: Rc<Window>) -> Self {
-    Self(f, w)
-  }
-}
-unsafe impl Send for UnsafeIpc {}
-unsafe impl Sync for UnsafeIpc {}
-
-pub struct UnsafeRequestHandler(Box<dyn Fn(WebResourceRequest) -> Option<WebResourceResponse>>);
-impl UnsafeRequestHandler {
-  pub fn new(f: Box<dyn Fn(WebResourceRequest) -> Option<WebResourceResponse>>) -> Self {
-    Self(f)
-  }
-}
-unsafe impl Send for UnsafeRequestHandler {}
-unsafe impl Sync for UnsafeRequestHandler {}
 
 /// `ndk-glue` macros register the reading end of an event pipe with the
 /// main [`ThreadLooper`] under this `ident`.
@@ -343,7 +169,13 @@ pub enum Event {
   ContentRectChanged,
 }
 
-pub unsafe fn create(env: JNIEnv, _jclass: JClass, jobject: JObject, main: fn()) {
+pub unsafe fn create(
+  env: JNIEnv,
+  _jclass: JClass,
+  jobject: JObject,
+  setup: unsafe fn(JNIEnv, &ForeignLooper, GlobalRef),
+  main: fn(),
+) {
   //-> jobjectArray {
   // Initialize global context
   let window_manager = env
@@ -366,27 +198,8 @@ pub unsafe fn create(env: JNIEnv, _jclass: JClass, jobject: JObject, main: fn())
     activity.as_obj().into_inner() as *mut _,
   );
 
-  let mut main_pipe = MainPipe {
-    env,
-    activity,
-    initialization_scripts: vec![],
-    webview: None,
-  };
   let looper = ThreadLooper::for_thread().unwrap().into_foreign();
-  looper
-    .add_fd_with_callback(MAIN_PIPE[0], FdEvent::INPUT, move |_| {
-      let size = std::mem::size_of::<bool>();
-      let mut wake = false;
-      if libc::read(MAIN_PIPE[0], &mut wake as *mut _ as *mut _, size) == size as libc::ssize_t {
-        match main_pipe.recv() {
-          Ok(_) => true,
-          Err(_) => false,
-        }
-      } else {
-        false
-      }
-    })
-    .unwrap();
+  setup(env, &looper, activity);
 
   let mut logpipe: [RawFd; 2] = Default::default();
   libc::pipe(logpipe.as_mut_ptr());
@@ -441,144 +254,6 @@ pub unsafe fn create(env: JNIEnv, _jclass: JClass, jobject: JObject, main: fn())
   let _mutex_guard = looper_ready
     .wait_while(locked_looper, |looper| looper.is_none())
     .unwrap();
-}
-
-#[allow(non_snake_case)]
-pub unsafe fn runInitializationScripts(_: JNIEnv, _: JClass, _: JObject) {
-  MainPipe::send(WebViewMessage::RunInitializationScripts);
-}
-
-pub struct WebResourceRequest {
-  /// The request url.
-  pub url: String,
-  /// The request method.
-  pub method: String,
-  /// The request headers.
-  pub headers: HeaderMap<HeaderValue>,
-}
-
-pub struct WebResourceResponse {
-  /// The response's status
-  pub status: StatusCode,
-
-  /// The response's headers
-  pub headers: HeaderMap<HeaderValue>,
-
-  /// The response's mimetype type
-  pub mimetype: Option<String>,
-
-  /// The response body.
-  pub body: Vec<u8>,
-}
-
-fn handle_request(env: JNIEnv, request: JObject) -> Result<jobject, jni::errors::Error> {
-  let uri = env
-    .call_method(request, "getUrl", "()Landroid/net/Uri;", &[])?
-    .l()?;
-  let url: JString = env
-    .call_method(uri, "toString", "()Ljava/lang/String;", &[])?
-    .l()?
-    .into();
-  let url = env.get_string(url)?.to_string_lossy().to_string();
-
-  let method: JString = env
-    .call_method(request, "getMethod", "()Ljava/lang/String;", &[])?
-    .l()?
-    .into();
-  let method = env.get_string(method)?.to_string_lossy().to_string();
-
-  let request_headers = env
-    .call_method(request, "getRequestHeaders", "()Ljava/util/Map;", &[])?
-    .l()?;
-  let request_headers = JMap::from_env(&env, request_headers)?;
-  let mut headers = HeaderMap::new();
-  for (header, value) in request_headers.iter()? {
-    let header = env.get_string(header.into())?;
-    let value = env.get_string(value.into())?;
-    if let (Ok(header), Ok(value)) = (
-      HeaderName::from_bytes(header.to_bytes()),
-      HeaderValue::from_bytes(value.to_bytes()),
-    ) {
-      headers.insert(header, value);
-    }
-  }
-
-  if let Some(handler) = REQUEST_HANDLER.get() {
-    let response = (handler.0)(WebResourceRequest {
-      url,
-      method,
-      headers,
-    });
-    if let Some(response) = response {
-      let status_code = response.status.as_u16() as i32;
-      let reason_phrase = "OK";
-      let encoding = "UTF-8";
-      let mime_type = if let Some(mime) = response.mimetype {
-        env.new_string(mime)?.into()
-      } else {
-        JObject::null()
-      };
-      let bytes = response.body;
-
-      let hashmap = env.find_class("java/util/HashMap")?;
-      let response_headers = env.new_object(hashmap, "()V", &[])?;
-      for (key, value) in response.headers.iter() {
-        env.call_method(
-          response_headers,
-          "put",
-          "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;",
-          &[
-            env.new_string(key.as_str())?.into(),
-            // TODO can we handle this better?
-            env
-              .new_string(String::from_utf8_lossy(value.as_bytes()))?
-              .into(),
-          ],
-        )?;
-      }
-
-      let byte_array_input_stream = env.find_class("java/io/ByteArrayInputStream")?;
-      let byte_array = env.byte_array_from_slice(&bytes)?;
-      let stream = env.new_object(byte_array_input_stream, "([B)V", &[byte_array.into()])?;
-
-      let web_resource_response_class = env.find_class("android/webkit/WebResourceResponse")?;
-      let web_resource_response = env.new_object(
-        web_resource_response_class,
-        "(Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/util/Map;Ljava/io/InputStream;)V",
-        &[mime_type.into(), env.new_string(encoding)?.into(), status_code.into(), env.new_string(reason_phrase)?.into(), response_headers.into(), stream.into()],
-      )?;
-
-      return Ok(*web_resource_response);
-    }
-  }
-  Ok(*JObject::null())
-}
-
-#[allow(non_snake_case)]
-pub unsafe fn handleRequest(env: JNIEnv, _: JClass, request: JObject) -> jobject {
-  match handle_request(env, request) {
-    Ok(response) => response,
-    Err(e) => {
-      log::error!("Failed to handle request: {}", e);
-      *JObject::null()
-    }
-  }
-}
-
-pub unsafe fn ipc(env: JNIEnv, _: JClass, arg: JString) {
-  match env.get_string(arg) {
-    Ok(arg) => {
-      let arg = arg.to_string_lossy().to_string();
-      if let Some(w) = IPC.get() {
-        let ipc = w.0;
-        if !ipc.is_null() {
-          let ipc = &*(ipc as *mut Box<dyn Fn(&Window, String)>);
-          ipc(&w.1, arg)
-        }
-      }
-    }
-    Err(e) => log::error!("Failed to parse JString: {}", e),
-  }
 }
 
 pub unsafe fn resume(_: JNIEnv, _: JClass, _: JObject) {
