@@ -200,6 +200,17 @@ impl MainPipe<'_> {
             }
           }
         }
+        WebViewMessage::Eval(script) => {
+          if let Some(webview) = &self.webview {
+            let s = env.new_string(script)?;
+            env.call_method(
+              webview.as_obj(),
+              "evaluateJavascript",
+              "(Ljava/lang/String;Landroid/webkit/ValueCallback;)V",
+              &[s.into(), JObject::null().into()],
+            )?;
+          }
+        }
       }
     }
     Ok(())
@@ -210,6 +221,8 @@ impl MainPipe<'_> {
 pub enum WebViewMessage {
   CreateWebView(String, Vec<String>, bool),
   RunInitializationScripts,
+  // evaluate a single script
+  Eval(String),
 }
 
 pub static IPC: OnceCell<UnsafeIpc> = OnceCell::new();
