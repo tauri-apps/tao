@@ -1,5 +1,18 @@
 # Changelog
 
+## \[0.13.3]
+
+- Implement custom protocol on Android.
+  - [b464b8ae](https://github.com/tauri-apps/tao/commit/b464b8ae296cf2b545cd0a98a1506f83779e94ff) feat(android): implement custom protocol ([#527](https://github.com/tauri-apps/tao/pull/527)) on 2022-08-13
+- Changed `WebViewMessage::Eval` to evaluate an specific script.
+  - [903c7e7f](https://github.com/tauri-apps/tao/commit/903c7e7f5b8c7984515697865fc7c74b496a64dc) feat(android): change WebViewMessage::Eval to run specific script ([#529](https://github.com/tauri-apps/tao/pull/529)) on 2022-08-13
+- Fix webview initialization scripts implementation on Android.
+  - [3d66ad0b](https://github.com/tauri-apps/tao/commit/3d66ad0b5548ed40da6e954fb5a911c3fb5a13e8) fix(android): run initialization scripts before page loads ([#528](https://github.com/tauri-apps/tao/pull/528)) on 2022-08-13
+- Removed the webview logic from the Android glue.
+  - [152aaa44](https://github.com/tauri-apps/tao/commit/152aaa4481ff8e44fc32ea3fe93a74c7fecd5be5) refactor(android): remove WebView logic, allow wry to hook into it ([#530](https://github.com/tauri-apps/tao/pull/530)) on 2022-08-14
+- Implement `SystemTray::set_tooltip` and `SystemTrayBuilder::with_tooltip` on Windows.
+  - [06949a79](https://github.com/tauri-apps/tao/commit/06949a7948100a51e98008c9e6f4ac73e069433a) feat(windows): implement `with_tooltip`&`set_tooltip`, closes [#205](https://github.com/tauri-apps/tao/pull/205) ([#524](https://github.com/tauri-apps/tao/pull/524)) on 2022-08-10
+
 ## \[0.13.2]
 
 - Remove the NSStatusItem from the menu bar when the `SystemTray` instance is dropped.
