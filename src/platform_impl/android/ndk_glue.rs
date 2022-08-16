@@ -31,7 +31,7 @@ macro_rules! android_binding {
           object: JObject,
         ) {
             let domain = stringify!($domain).replace("_", "/");
-            let package = format!("{}/{}", domain, stringify!($package));
+            let package = format!("{}/{}", domain, stringify!($package).replace("_1","_"));
             PACKAGE.get_or_init(move || package);
             create(env, class, object, $setup, $main)
         }
