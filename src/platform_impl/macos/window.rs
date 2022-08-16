@@ -575,6 +575,14 @@ impl UnownedWindow {
     }
   }
 
+  #[inline]
+  pub fn is_focused(&self) -> bool {
+    unsafe {
+      let is_key_window: BOOL = msg_send![*self.ns_window, isKeyWindow];
+      is_key_window == YES
+    }
+  }
+
   pub fn request_redraw(&self) {
     AppState::queue_redraw(RootWindowId(self.id()));
   }

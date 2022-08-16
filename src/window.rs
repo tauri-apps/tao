@@ -638,6 +638,16 @@ impl Window {
     self.window.set_focus()
   }
 
+  /// Is window active and focused?
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_focused(&self) -> bool {
+    self.window.is_focused()
+  }
+
   /// Sets whether the window is resizable or not.
   ///
   /// Note that making the window unresizable doesn't exempt you from handling `Resized`, as that event can still be
@@ -697,7 +707,7 @@ impl Window {
     self.window.is_minimized()
   }
 
-  /// Gets the window's current vibility state.
+  /// Gets the window's current visibility state.
   ///
   /// ## Platform-specific
   ///

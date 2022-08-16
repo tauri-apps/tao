@@ -467,6 +467,10 @@ impl Window {
     }
   }
 
+  pub fn is_focused(&self) -> bool {
+    self.window.is_active()
+  }
+
   pub fn set_resizable(&self, resizable: bool) {
     if let Err(e) = self
       .window_requests_tx
