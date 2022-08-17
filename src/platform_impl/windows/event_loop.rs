@@ -45,7 +45,7 @@ use crate::{
   accelerator::AcceleratorId,
   dpi::{PhysicalPosition, PhysicalSize},
   event::{DeviceEvent, Event, Force, RawKeyEvent, Touch, TouchPhase, WindowEvent},
-  event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
+  event_loop::{ControlFlow, DeviceEventFilter, EventLoopClosed, EventLoopWindowTarget as RootELW},
   keyboard::{KeyCode, ModifiersState},
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{
@@ -188,7 +188,7 @@ impl<T: 'static> EventLoop<T> {
     let runner_shared = Rc::new(EventLoopRunner::new(thread_msg_target, wait_thread_id));
 
     let thread_msg_sender = subclass_event_target_window(thread_msg_target, runner_shared.clone());
-    raw_input::register_all_mice_and_keyboards_for_raw_input(thread_msg_target);
+    raw_input::register_all_mice_and_keyboards_for_raw_input(thread_msg_target, Default::default());
 
     EventLoop {
       thread_msg_sender,
@@ -309,6 +309,10 @@ impl<T> EventLoopWindowTarget<T> {
 
   pub fn raw_display_handle(&self) -> RawDisplayHandle {
     RawDisplayHandle::Windows(WindowsDisplayHandle::empty())
+  }
+
+  pub fn set_device_event_filter(&self, filter: DeviceEventFilter) {
+    raw_input::register_all_mice_and_keyboards_for_raw_input(self.thread_msg_target, filter);
   }
 }
 
@@ -2100,10 +2104,6 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
 ) -> LRESULT {
   let subclass_input = Box::from_raw(subclass_input_ptr as *mut ThreadMsgTargetSubclassInput<T>);
 
-  if msg != WM_PAINT {
-    RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
-  }
-
   let mut subclass_removed = false;
 
   // I decided to bind the closure to `callback` and pass it to catch_unwind rather than passing
@@ -2113,6 +2113,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
     win32wm::WM_NCDESTROY => {
       remove_event_target_window_subclass::<T>(window);
       subclass_removed = true;
+      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
       LRESULT(0)
     }
     // Because WM_PAINT comes after all other messages, we use it during modal loops to detect
@@ -2154,6 +2155,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
         device_id: wrap_device_id(lparam.0),
         event,
       });
+      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
 
       LRESULT(0)
     }
@@ -2161,6 +2163,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
     win32wm::WM_INPUT => {
       if let Some(data) = raw_input::get_raw_input_data(HRAWINPUT(lparam.0)) {
         handle_raw_input(&subclass_input, data);
+        RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
       }
 
       DefSubclassProc(window, msg, wparam, lparam)
@@ -2170,11 +2173,13 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       if let Ok(event) = subclass_input.user_event_receiver.recv() {
         subclass_input.send_event(Event::UserEvent(event));
       }
+      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
       LRESULT(0)
     }
     _ if msg == *EXEC_MSG_ID => {
       let mut function: ThreadExecFn = Box::from_raw(wparam.0 as *mut _);
       function();
+      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
       LRESULT(0)
     }
     _ if msg == *PROCESS_NEW_EVENTS_MSG_ID => {
@@ -2209,6 +2214,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
         }
       }
       subclass_input.event_loop_runner.poll();
+      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
       LRESULT(0)
     }
     _ => DefSubclassProc(window, msg, wparam, lparam),
