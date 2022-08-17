@@ -72,6 +72,11 @@ impl Inner {
     warn!("set_focus not yet implemented on iOS");
   }
 
+  pub fn is_focused(&self) -> bool {
+    warn!("`Window::is_focused` is ignored on iOS");
+    false
+  }
+
   pub fn request_redraw(&self) {
     unsafe {
       if self.gl_or_metal_backed {

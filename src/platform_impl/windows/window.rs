@@ -174,6 +174,12 @@ impl Window {
   }
 
   #[inline]
+  pub fn is_focused(&self) -> bool {
+    let window_state = self.window_state.lock();
+    window_state.has_active_focus()
+  }
+
+  #[inline]
   pub fn request_redraw(&self) {
     unsafe {
       RedrawWindow(
