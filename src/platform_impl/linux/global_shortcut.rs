@@ -62,7 +62,9 @@ impl ShortcutManager {
             (xlib.XNextEvent)(display, &mut event);
             if let xlib::KeyRelease = event.get_type() {
               let keycode = event.key.keycode;
-              let modifiers = event.key.state;
+              // X11 sends masks for Lock keys also and we only care about the 4 below
+              let modifiers = event.key.state
+                & (xlib::ControlMask | xlib::ShiftMask | xlib::Mod4Mask | xlib::Mod1Mask);
               if let Some(hotkey_id) = hotkey_map.lock().unwrap().get(&(keycode as i32, modifiers))
               {
                 event_loop_channel
