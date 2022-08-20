@@ -74,19 +74,32 @@ impl ShortcutManager {
             }
           }
 
+          // XGrabKey works only with the exact state (modifiers)
+          // and since X11 considers NumLock, ScrollLock and CapsLock a modifier when it is ON,
+          // we also need to register our shortcut combined with these extra modifiers as well
+          const IGNORED_MODS: [u32; 4] = [
+            0,              // modifier only
+            xlib::Mod2Mask, // NumLock
+            xlib::LockMask, // CapsLock
+            xlib::Mod2Mask | xlib::LockMask,
+          ];
+
           match thread_receiver.try_recv() {
             Ok(HotkeyMessage::RegisterHotkey(_, modifiers, key)) => {
               let keycode = (xlib.XKeysymToKeycode)(display, key.into()) as i32;
 
-              let result = (xlib.XGrabKey)(
-                display,
-                keycode,
-                modifiers,
-                root,
-                0,
-                xlib::GrabModeAsync,
-                xlib::GrabModeAsync,
-              );
+              let mut result = 0;
+              for m in IGNORED_MODS {
+                result = (xlib.XGrabKey)(
+                  display,
+                  keycode,
+                  modifiers | m,
+                  root,
+                  0,
+                  xlib::GrabModeAsync,
+                  xlib::GrabModeAsync,
+                );
+              }
               if result == 0 {
                 if let Err(err) = thread_sender
                   .clone()
@@ -107,7 +120,10 @@ impl ShortcutManager {
               }
             }
             Ok(HotkeyMessage::UnregisterHotkey(id)) => {
-              let result = (xlib.XUngrabKey)(display, id.0, id.1, root);
+              let mut result = 0;
+              for m in IGNORED_MODS {
+                result = (xlib.XUngrabKey)(display, id.0, id.1 | m, root);
+              }
               if result == 0 {
                 if let Err(err) = thread_sender
                   .clone()
