@@ -9,7 +9,7 @@ fn main() {
   #[cfg(target_os = "linux")]
   use tao::platform::linux::SystemTrayBuilderExtLinux;
   use tao::{
-    event::Event,
+    event::{Event, StartCause},
     event_loop::{ControlFlow, EventLoop},
     menu::{ContextMenu as Menu, MenuItemAttributes, MenuType},
     system_tray::SystemTrayBuilder,
@@ -56,15 +56,22 @@ fn main() {
 
   let mut second_tray_menu = Menu::new();
   let log = second_tray_menu.add_item(MenuItemAttributes::new("Log"));
-  let second_system_tray = SystemTrayBuilder::new(icon, Some(second_tray_menu))
-    .with_id(second_tray_id)
-    .build(&event_loop)
-    .unwrap();
+  let mut second_tray_menu = Some(second_tray_menu);
 
-  event_loop.run(move |event, _event_loop, control_flow| {
+  let mut system_tray = Some(system_tray);
+  let mut second_system_tray = None;
+
+  event_loop.run(move |event, event_loop, control_flow| {
     *control_flow = ControlFlow::Wait;
 
     match event {
+      Event::NewEvents(StartCause::Init) => {
+        let tray = SystemTrayBuilder::new(icon.clone(), second_tray_menu.take())
+          .with_id(second_tray_id)
+          .build(&event_loop)
+          .unwrap();
+        second_system_tray.replace(tray);
+      }
       Event::MenuEvent {
         menu_id,
         // specify only context menu's
@@ -73,8 +80,8 @@ fn main() {
       } => {
         if menu_id == quit.clone().id() {
           // drop the system tray before exiting to remove the icon from system tray on Windows
-          drop(&system_tray);
-          drop(&second_system_tray);
+          system_tray.take();
+          second_system_tray.take();
           *control_flow = ControlFlow::Exit;
         } else if menu_id == log.clone().id() {
           println!("Log clicked");

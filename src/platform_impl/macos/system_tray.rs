@@ -21,7 +21,7 @@ use cocoa::{
     NSStatusBar, NSStatusItem, NSWindow,
   },
   base::{id, nil, NO, YES},
-  foundation::{NSAutoreleasePool, NSData, NSPoint, NSSize, NSString},
+  foundation::{NSData, NSPoint, NSSize, NSString},
 };
 use objc::{
   declare::ClassDecl,
@@ -38,9 +38,9 @@ impl SystemTrayBuilder {
   #[inline]
   pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
     unsafe {
-      let ns_status_bar = NSStatusBar::systemStatusBar(nil)
-        .statusItemWithLength_(NSSquareStatusItemLength)
-        .autorelease();
+      let ns_status_bar =
+        NSStatusBar::systemStatusBar(nil).statusItemWithLength_(NSSquareStatusItemLength);
+      let _: () = msg_send![ns_status_bar, retain];
 
       Self {
         system_tray: SystemTray {
@@ -119,6 +119,7 @@ impl Drop for SystemTray {
   fn drop(&mut self) {
     unsafe {
       NSStatusBar::systemStatusBar(nil).removeStatusItem_(self.ns_status_bar);
+      let _: () = msg_send![self.ns_status_bar, release];
     }
   }
 }
