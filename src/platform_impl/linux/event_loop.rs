@@ -258,6 +258,9 @@ impl<T: 'static> EventLoop<T> {
             None => window.unfullscreen(),
           },
           WindowRequest::Decorations(decorations) => window.set_decorated(decorations),
+          WindowRequest::AlwaysOnBottom(always_on_bottom) => {
+            window.set_keep_below(always_on_bottom)
+          }
           WindowRequest::AlwaysOnTop(always_on_top) => window.set_keep_above(always_on_top),
           WindowRequest::WindowIcon(window_icon) => {
             if let Some(icon) = window_icon {

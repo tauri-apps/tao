@@ -1076,6 +1076,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
     win32wm::WM_WINDOWPOSCHANGING => {
       let mut window_state = subclass_input.window_state.lock();
+
       if let Some(ref mut fullscreen) = window_state.fullscreen {
         let window_pos = &mut *(lparam.0 as *mut WINDOWPOS);
         let new_rect = RECT {
@@ -1149,6 +1150,12 @@ unsafe fn public_window_callback_inner<T: 'static>(
             }
           }
         }
+      }
+
+      let window_flags = window_state.window_flags;
+      if window_flags.contains(WindowFlags::ALWAYS_ON_BOTTOM) {
+        let window_pos = &mut *(lparam.0 as *mut WINDOWPOS);
+        window_pos.hwndInsertAfter = HWND_BOTTOM;
       }
 
       result = ProcResult::Value(LRESULT(0));

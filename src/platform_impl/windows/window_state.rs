@@ -69,16 +69,17 @@ bitflags! {
 }
 bitflags! {
     pub struct WindowFlags: u32 {
-        const RESIZABLE      = 1 << 0;
-        const DECORATIONS    = 1 << 1;
-        const VISIBLE        = 1 << 2;
-        const ON_TASKBAR     = 1 << 3;
-        const ALWAYS_ON_TOP  = 1 << 4;
-        const NO_BACK_BUFFER = 1 << 5;
-        const TRANSPARENT    = 1 << 6;
-        const CHILD          = 1 << 7;
-        const MAXIMIZED      = 1 << 8;
-        const POPUP          = 1 << 14;
+        const RESIZABLE        = 1 << 0;
+        const DECORATIONS      = 1 << 1;
+        const VISIBLE          = 1 << 2;
+        const ON_TASKBAR       = 1 << 3;
+        const ALWAYS_ON_TOP    = 1 << 4;
+        const NO_BACK_BUFFER   = 1 << 5;
+        const TRANSPARENT      = 1 << 6;
+        const CHILD            = 1 << 7;
+        const MAXIMIZED        = 1 << 8;
+        const POPUP            = 1 << 14;
+        const ALWAYS_ON_BOTTOM = 1 << 16;
 
         /// Marker flag for fullscreen. Should always match `WindowState::fullscreen`, but is
         /// included here to make masking easier.
@@ -285,6 +286,24 @@ impl WindowFlags {
           window,
           match new.contains(WindowFlags::ALWAYS_ON_TOP) {
             true => HWND_TOPMOST,
+            false => HWND_NOTOPMOST,
+          },
+          0,
+          0,
+          0,
+          0,
+          SWP_ASYNCWINDOWPOS | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+        );
+        InvalidateRgn(window, HRGN::default(), false);
+      }
+    }
+
+    if diff.contains(WindowFlags::ALWAYS_ON_BOTTOM) {
+      unsafe {
+        SetWindowPos(
+          window,
+          match new.contains(WindowFlags::ALWAYS_ON_BOTTOM) {
+            true => HWND_BOTTOM,
             false => HWND_NOTOPMOST,
           },
           0,

@@ -656,6 +656,18 @@ impl Window {
   }
 
   #[inline]
+  pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
+    let window = self.window.clone();
+    let window_state = Arc::clone(&self.window_state);
+
+    self.thread_executor.execute_in_thread(move || {
+      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+        f.set(WindowFlags::ALWAYS_ON_BOTTOM, always_on_bottom)
+      });
+    });
+  }
+
+  #[inline]
   pub fn set_always_on_top(&self, always_on_top: bool) {
     let window = self.window.clone();
     let window_state = Arc::clone(&self.window_state);
@@ -843,6 +855,7 @@ unsafe fn init<T: 'static>(
 
   let mut window_flags = WindowFlags::empty();
   window_flags.set(WindowFlags::DECORATIONS, attributes.decorations);
+  window_flags.set(WindowFlags::ALWAYS_ON_BOTTOM, attributes.always_on_bottom);
   window_flags.set(WindowFlags::ALWAYS_ON_TOP, attributes.always_on_top);
   window_flags.set(
     WindowFlags::NO_BACK_BUFFER,
