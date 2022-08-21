@@ -300,8 +300,8 @@ impl Inner {
     warn!("`Window::set_decorations` is ignored on iOS")
   }
 
-  pub fn set_always_below_bottom(&self, _always_below_bottom: bool) {
-    warn!("`Window::set_always_below_bottom` is ignored on iOS")
+  pub fn set_always_on_bottom(&self, _always_on_bottom: bool) {
+    warn!("`Window::set_always_on_bottom` is ignored on iOS")
   }
 
   pub fn set_always_on_top(&self, _always_on_top: bool) {

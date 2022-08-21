@@ -193,7 +193,7 @@ pub struct WindowAttributes {
   /// Whether the window should always be on bottom of other windows.
   ///
   /// The default is `false`.
-  pub always_below_bottom: bool,
+  pub always_on_bottom: bool,
 
   /// The window icon.
   ///
@@ -224,7 +224,7 @@ impl Default for WindowAttributes {
       transparent: false,
       decorations: true,
       always_on_top: false,
-      always_below_bottom: false,
+      always_on_bottom: false,
       window_icon: None,
       window_menu: None,
       preferred_theme: None,
@@ -369,12 +369,13 @@ impl WindowBuilder {
 
   /// Sets whether or not the window will always be below other windows.
   ///
-  /// See [`Window::set_always_below_bottom`] for details.
+  /// See [`Window::set_always_on_bottom`] for details.
   ///
-  /// [`Window::set_always_below_bottom`]: crate::window::Window::set_always_below_bottom
+  /// [`Window::set_always_on_bottom`]: crate::window::Window::set_always_on_bottom
   #[inline]
-  pub fn with_always_below_bottom(mut self, always_below_bottom: bool) -> Self {
-    self.window.always_below_bottom = always_below_bottom;
+  pub fn with_always_on_bottom(mut self, always_on_bottom: bool) -> Self {
+    self.window.always_on_top = false;
+    self.window.always_on_bottom = always_on_bottom;
     self
   }
 
@@ -385,6 +386,7 @@ impl WindowBuilder {
   /// [`Window::set_always_on_top`]: crate::window::Window::set_always_on_top
   #[inline]
   pub fn with_always_on_top(mut self, always_on_top: bool) -> Self {
+    self.window.always_on_bottom = false;
     self.window.always_on_top = always_on_top;
     self
   }
@@ -805,10 +807,11 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
+  /// - **Windows**: There is no guarantee that the window will be the bottom most but it will try to be.
   /// - **iOS / Android:** Unsupported.
   #[inline]
-  pub fn set_always_below_bottom(&self, always_below_bottom: bool) {
-    self.window.set_always_below_bottom(always_below_bottom)
+  pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
+    self.window.set_always_on_bottom(always_on_bottom)
   }
 
   /// Change whether or not the window will always be on top of other windows.

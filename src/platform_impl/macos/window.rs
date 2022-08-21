@@ -232,14 +232,14 @@ fn create_window(
         ns_window.setMovableByWindowBackground_(YES);
       }
 
-      if attrs.always_on_top && !attrs.always_below_bottom {
+      if attrs.always_on_top && attrs.always_on_bottom {
+        log::warn!("Always on top and always on bottom, are both specified, you should only set one.");
+      } else if attrs.always_on_top {
         let _: () = msg_send![
           *ns_window,
           setLevel: ffi::NSWindowLevel::NSFloatingWindowLevel
         ];
-      }
-
-      if attrs.always_below_bottom && !attrs.always_on_top {
+      } else if attrs.always_on_bottom {
         let _: () = msg_send![
           *ns_window,
           setLevel: ffi::NSWindowLevel::BelowNormalWindowLevel
@@ -1133,8 +1133,8 @@ impl UnownedWindow {
   }
 
   #[inline]
-  pub fn set_always_below_bottom(&self, always_below_bottom: bool) {
-    let level = if always_below_bottom {
+  pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
+    let level = if always_on_bottom {
       ffi::NSWindowLevel::BelowNormalWindowLevel
     } else {
       ffi::NSWindowLevel::NSNormalWindowLevel

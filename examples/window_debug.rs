@@ -32,9 +32,9 @@ fn main() {
   eprintln!("  (V) Toggle visibility");
   eprintln!("  (X) Toggle maximized");
   eprintln!("  (T) Toggle always on top");
-  eprintln!("  (B) Toggle always below bottom");
+  eprintln!("  (B) Toggle always on bottom");
 
-  let mut always_below_bottom = false;
+  let mut always_on_bottom = false;
   let mut always_on_top = false;
   let mut visible = true;
 
@@ -129,8 +129,8 @@ fn main() {
           window.set_always_on_top(always_on_top);
         }
         "b" => {
-          always_below_bottom = !always_below_bottom;
-          window.set_always_below_bottom(always_below_bottom);
+          always_on_bottom = !always_on_bottom;
+          window.set_always_on_bottom(always_on_bottom);
         }
         _ => (),
       },

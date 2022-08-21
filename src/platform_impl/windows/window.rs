@@ -656,13 +656,13 @@ impl Window {
   }
 
   #[inline]
-  pub fn set_always_below_bottom(&self, always_below_bottom: bool) {
+  pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
     let window = self.window.clone();
     let window_state = Arc::clone(&self.window_state);
 
     self.thread_executor.execute_in_thread(move || {
       WindowState::set_window_flags(window_state.lock(), window.0, |f| {
-        f.set(WindowFlags::ALWAYS_BELOW_BOTTOM, always_below_bottom)
+        f.set(WindowFlags::ALWAYS_ON_BOTTOM, always_on_bottom)
       });
     });
   }

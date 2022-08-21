@@ -642,7 +642,7 @@ impl Window {
 
   pub fn set_decorations(&self, _decorations: bool) {}
 
-  pub fn set_always_below_bottom(&self, _always_below_bottom: bool) {}
+  pub fn set_always_on_bottom(&self, _always_on_bottom: bool) {}
 
   pub fn set_always_on_top(&self, _always_on_top: bool) {}
 
