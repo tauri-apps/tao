@@ -215,12 +215,11 @@ impl Window {
     window.set_visible(attributes.visible);
     window.set_decorated(attributes.decorations);
 
-    if attributes.always_on_bottom && attributes.always_on_top {
-      log::warn!(
-        "Always on top and always on bottom, are both specified, you should only set one."
-      );
-    } else if attributes.always_on_bottom || attributes.always_on_top {
+    if attributes.always_on_bottom {
       window.set_keep_below(attributes.always_on_bottom);
+    }
+
+    if attributes.always_on_top {
       window.set_keep_above(attributes.always_on_top);
     }
 

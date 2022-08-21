@@ -855,6 +855,7 @@ unsafe fn init<T: 'static>(
 
   let mut window_flags = WindowFlags::empty();
   window_flags.set(WindowFlags::DECORATIONS, attributes.decorations);
+  window_flags.set(WindowFlags::ALWAYS_ON_BOTTOM, attributes.always_on_bottom);
   window_flags.set(WindowFlags::ALWAYS_ON_TOP, attributes.always_on_top);
   window_flags.set(
     WindowFlags::NO_BACK_BUFFER,

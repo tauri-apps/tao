@@ -232,14 +232,14 @@ fn create_window(
         ns_window.setMovableByWindowBackground_(YES);
       }
 
-      if attrs.always_on_top && attrs.always_on_bottom {
-        log::warn!("Always on top and always on bottom, are both specified, you should only set one.");
-      } else if attrs.always_on_top {
+      if attrs.always_on_top {
         let _: () = msg_send![
           *ns_window,
           setLevel: ffi::NSWindowLevel::NSFloatingWindowLevel
         ];
-      } else if attrs.always_on_bottom {
+      }
+
+      if attrs.always_on_bottom {
         let _: () = msg_send![
           *ns_window,
           setLevel: ffi::NSWindowLevel::BelowNormalWindowLevel
