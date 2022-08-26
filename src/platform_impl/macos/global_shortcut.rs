@@ -1,3 +1,7 @@
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 use std::os::raw::{c_int, c_void};
 
 use crate::{

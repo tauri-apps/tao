@@ -1,3 +1,7 @@
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 //! **UNSTABLE** -- Types related to the keyboard.
 
 // This file contains a substantial portion of the UI Events Specification by the W3C. In
