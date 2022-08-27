@@ -1,3 +1,7 @@
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 //! Accelerators describe keyboard shortcuts defined by the application.
 //!
 //! [`Accelerator`s](crate::accelerator::Accelerator) are used to define a keyboard shortcut consisting
