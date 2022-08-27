@@ -71,7 +71,7 @@ cc = "1"
 parking_lot = "0.12"
 unicode-segmentation = "1.9.0"
 image = { version = "0.24", default-features = false }
-windows-implement = "0.37.0"
+windows-implement = "0.39.0"
 
   [target."cfg(target_os = \"windows\")".dependencies.windows]
   version = "0.37.0"
