@@ -16,8 +16,9 @@ use crate::{
   system_tray::{Icon, SystemTray as RootSystemTray},
   TrayId,
 };
+use std::ptr;
 use windows::{
-  core::{PCSTR, PCWSTR},
+  core::PCWSTR,
   Win32::{
     Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM},
     System::LibraryLoader::*,
@@ -67,7 +68,7 @@ impl SystemTrayBuilder {
 
     let class_name = util::encode_wide("tao_system_tray_app");
     unsafe {
-      let hinstance = GetModuleHandleA(PCSTR::default()).unwrap_or_default();
+      let hinstance = GetModuleHandleW(PCWSTR(ptr::null())).unwrap_or_default();
 
       let wnd_class = WNDCLASSW {
         lpfnWndProc: Some(util::call_default_window_proc),
