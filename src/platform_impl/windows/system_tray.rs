@@ -16,7 +16,6 @@ use crate::{
   system_tray::{Icon, SystemTray as RootSystemTray},
   TrayId,
 };
-use std::ptr;
 use windows::{
   core::PCWSTR,
   Win32::{
@@ -68,7 +67,7 @@ impl SystemTrayBuilder {
 
     let class_name = util::encode_wide("tao_system_tray_app");
     unsafe {
-      let hinstance = GetModuleHandleW(PCWSTR(ptr::null())).unwrap_or_default();
+      let hinstance = GetModuleHandleW(PCWSTR::null()).unwrap_or_default();
 
       let wnd_class = WNDCLASSW {
         lpfnWndProc: Some(util::call_default_window_proc),
@@ -90,7 +89,7 @@ impl SystemTrayBuilder {
         // It is unclear why the bug is triggered by waiting for several hours.
         WS_EX_TOOLWINDOW,
         PCWSTR(class_name.as_ptr()),
-        PCWSTR(ptr::null()),
+        PCWSTR::null(),
         WS_OVERLAPPED,
         CW_USEDEFAULT,
         0,

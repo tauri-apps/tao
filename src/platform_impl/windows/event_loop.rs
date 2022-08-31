@@ -615,11 +615,11 @@ lazy_static! {
             lpfnWndProc: Some(util::call_default_window_proc),
             cbClsExtra: 0,
             cbWndExtra: 0,
-            hInstance: GetModuleHandleW(PCWSTR(ptr::null())).unwrap_or_default(),
+            hInstance: GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
             hIcon: HICON::default(),
             hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
             hbrBackground: HBRUSH::default(),
-            lpszMenuName: PCWSTR(ptr::null()),
+            lpszMenuName: PCWSTR::null(),
             lpszClassName: PCWSTR(class_name.as_ptr()),
             hIconSm: HICON::default(),
         };
@@ -643,7 +643,7 @@ fn create_event_target_window() -> HWND {
       // It is unclear why the bug is triggered by waiting for several hours.
       WS_EX_TOOLWINDOW,
       PCWSTR(THREAD_EVENT_TARGET_WINDOW_CLASS.clone().as_ptr()),
-      PCWSTR(ptr::null()),
+      PCWSTR::null(),
       WS_OVERLAPPED,
       0,
       0,
@@ -651,7 +651,7 @@ fn create_event_target_window() -> HWND {
       0,
       HWND::default(),
       HMENU::default(),
-      GetModuleHandleW(PCWSTR(ptr::null())).unwrap_or_default(),
+      GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
       ptr::null_mut(),
     )
   };

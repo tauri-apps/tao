@@ -2,7 +2,7 @@
 // Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{fmt, io, iter::once, mem, os::windows::ffi::OsStrExt, path::Path, ptr, sync::Arc};
+use std::{fmt, io, iter::once, mem, os::windows::ffi::OsStrExt, path::Path, sync::Arc};
 
 use windows::{
   core::PCWSTR,
@@ -109,7 +109,7 @@ impl WinIcon {
     let (width, height) = size.map(Into::into).unwrap_or((0, 0));
     let handle = unsafe {
       LoadImageW(
-        GetModuleHandleW(PCWSTR(ptr::null())).unwrap_or_default(),
+        GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
         PCWSTR(resource_id as usize as *const u16),
         IMAGE_ICON,
         width as i32,

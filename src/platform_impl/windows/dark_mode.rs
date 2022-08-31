@@ -13,7 +13,7 @@ use windows::{
   },
 };
 
-use std::{ffi::c_void, ptr};
+use std::ffi::c_void;
 
 use crate::{platform_impl::platform::util, window::Theme};
 
@@ -95,7 +95,7 @@ pub fn try_theme(hwnd: HWND, preferred_theme: Option<Theme>) -> Theme {
       .as_ptr(),
     );
 
-    let status = unsafe { SetWindowTheme(hwnd, theme_name, PCWSTR(ptr::null())) };
+    let status = unsafe { SetWindowTheme(hwnd, theme_name, PCWSTR::null()) };
 
     if status.is_ok() && set_dark_mode_for_window(hwnd, is_dark_mode) {
       return theme;
@@ -187,7 +187,7 @@ fn is_high_contrast() -> bool {
   let mut hc = HIGHCONTRASTA {
     cbSize: 0,
     dwFlags: Default::default(),
-    lpszDefaultScheme: PSTR(ptr::null_mut()),
+    lpszDefaultScheme: PSTR::null(),
   };
 
   let ok = unsafe {

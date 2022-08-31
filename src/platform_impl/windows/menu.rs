@@ -2,7 +2,7 @@
 // Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashMap, fmt, ptr, sync::Mutex};
+use std::{collections::HashMap, fmt, sync::Mutex};
 
 use windows::{
   core::{PCWSTR, PWSTR},
@@ -91,7 +91,7 @@ impl MenuItemAttributes {
       let mut mif = MENUITEMINFOW {
         cbSize: std::mem::size_of::<MENUITEMINFOW>() as _,
         fMask: MIIM_STRING,
-        dwTypeData: PWSTR(ptr::null_mut()),
+        dwTypeData: PWSTR::null(),
         ..Default::default()
       };
       GetMenuItemInfoW(self.1, self.0 as u32, false, &mut mif);
@@ -269,7 +269,7 @@ impl Menu {
     match item {
       MenuItem::Separator => {
         unsafe {
-          AppendMenuW(self.hmenu, MF_SEPARATOR, 0, PCWSTR(ptr::null()));
+          AppendMenuW(self.hmenu, MF_SEPARATOR, 0, PCWSTR::null());
         };
       }
       MenuItem::Cut => unsafe {

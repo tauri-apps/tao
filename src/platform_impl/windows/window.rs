@@ -549,7 +549,7 @@ impl Window {
         | (&Some(Fullscreen::Exclusive(_)), &Some(Fullscreen::Borderless(_))) => {
           let res = unsafe {
             ChangeDisplaySettingsExW(
-              PCWSTR(ptr::null()),
+              PCWSTR::null(),
               std::ptr::null_mut(),
               HWND::default(),
               CDS_FULLSCREEN,
@@ -900,7 +900,7 @@ unsafe fn init<T: 'static>(
       CW_USEDEFAULT,
       parent.unwrap_or_default(),
       pl_attribs.menu.unwrap_or_default(),
-      GetModuleHandleW(PCWSTR(ptr::null())).unwrap_or_default(),
+      GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
       Box::into_raw(Box::new(window_flags)) as _,
     );
 
@@ -1042,11 +1042,11 @@ unsafe fn register_window_class(
     lpfnWndProc: Some(window_proc),
     cbClsExtra: 0,
     cbWndExtra: 0,
-    hInstance: GetModuleHandleW(PCWSTR(ptr::null())).unwrap_or_default(),
+    hInstance: GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
     hIcon: h_icon,
     hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
     hbrBackground: HBRUSH::default(),
-    lpszMenuName: PCWSTR(ptr::null()),
+    lpszMenuName: PCWSTR::null(),
     lpszClassName: PCWSTR(class_name.as_ptr()),
     hIconSm: h_icon_small,
   };
