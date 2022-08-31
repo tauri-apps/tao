@@ -89,7 +89,7 @@ impl SystemTrayBuilder {
         // It is unclear why the bug is triggered by waiting for several hours.
         WS_EX_TOOLWINDOW,
         PCWSTR(class_name.as_ptr()),
-        PCWSTR::default(),
+        PCWSTR(ptr::null()),
         WS_OVERLAPPED,
         CW_USEDEFAULT,
         0,

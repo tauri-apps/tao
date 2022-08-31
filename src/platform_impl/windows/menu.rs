@@ -5,7 +5,7 @@
 use std::{collections::HashMap, fmt, ptr, sync::Mutex};
 
 use windows::{
-  core::{PCWSTR, PWSTR},
+  core::{w, PCWSTR, PWSTR},
   Win32::{
     Foundation::{HWND, LPARAM, LRESULT, WPARAM},
     UI::{
@@ -251,7 +251,13 @@ impl Menu {
         flags |= MF_DISABLED;
       }
 
-      AppendMenuW(self.hmenu, flags, submenu.hmenu().0 as usize, title);
+      let title = util::encode_wide(title);
+      AppendMenuW(
+        self.hmenu,
+        flags,
+        submenu.hmenu().0 as usize,
+        PCWSTR(title.as_ptr()),
+      );
     }
   }
 
@@ -263,32 +269,37 @@ impl Menu {
     match item {
       MenuItem::Separator => {
         unsafe {
-          AppendMenuW(self.hmenu, MF_SEPARATOR, 0, PCWSTR::default());
+          AppendMenuW(self.hmenu, MF_SEPARATOR, 0, PCWSTR(ptr::null()));
         };
       }
       MenuItem::Cut => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, CUT_ID, "&Cut\tCtrl+X");
+        AppendMenuW(self.hmenu, MF_STRING, CUT_ID, w!("&Cut\tCtrl+X"));
       },
       MenuItem::Copy => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, COPY_ID, "&Copy\tCtrl+C");
+        AppendMenuW(self.hmenu, MF_STRING, COPY_ID, w!("&Copy\tCtrl+C"));
       },
       MenuItem::Paste => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, PASTE_ID, "&Paste\tCtrl+V");
+        AppendMenuW(self.hmenu, MF_STRING, PASTE_ID, w!("&Paste\tCtrl+V"));
       },
       MenuItem::SelectAll => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, SELECT_ALL_ID, "&Select all\tCtrl+A");
+        AppendMenuW(
+          self.hmenu,
+          MF_STRING,
+          SELECT_ALL_ID,
+          w!("&Select all\tCtrl+A"),
+        );
       },
       MenuItem::Hide => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, HIDE_ID, "&Hide\tCtrl+H");
+        AppendMenuW(self.hmenu, MF_STRING, HIDE_ID, w!("&Hide\tCtrl+H"));
       },
       MenuItem::CloseWindow => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, CLOSE_ID, "&Close\tAlt+F4");
+        AppendMenuW(self.hmenu, MF_STRING, CLOSE_ID, w!("&Close\tAlt+F4"));
       },
       MenuItem::Quit => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, QUIT_ID, "&Quit");
+        AppendMenuW(self.hmenu, MF_STRING, QUIT_ID, w!("&Quit"));
       },
       MenuItem::Minimize => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, MINIMIZE_ID, "&Minimize");
+        AppendMenuW(self.hmenu, MF_STRING, MINIMIZE_ID, w!("&Minimize"));
       },
       // FIXME: create all shortcuts of MenuItem if possible...
       // like linux?

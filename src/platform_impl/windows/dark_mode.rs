@@ -5,7 +5,7 @@
 /// This is a simple implementation of support for Windows Dark Mode,
 /// which is inspired by the solution in https://github.com/ysc3839/win32-darkmode
 use windows::{
-  core::{PCSTR, PCWSTR},
+  core::{s, PCSTR, PCWSTR, PSTR},
   Win32::{
     Foundation::{BOOL, HWND},
     System::LibraryLoader::*,
@@ -13,7 +13,7 @@ use windows::{
   },
 };
 
-use std::ffi::c_void;
+use std::{ffi::c_void, ptr};
 
 use crate::{platform_impl::platform::util, window::Theme};
 
@@ -95,7 +95,7 @@ pub fn try_theme(hwnd: HWND, preferred_theme: Option<Theme>) -> Theme {
       .as_ptr(),
     );
 
-    let status = unsafe { SetWindowTheme(hwnd, theme_name, PCWSTR::default()) };
+    let status = unsafe { SetWindowTheme(hwnd, theme_name, PCWSTR(ptr::null())) };
 
     if status.is_ok() && set_dark_mode_for_window(hwnd, is_dark_mode) {
       return theme;
@@ -160,7 +160,7 @@ fn should_apps_use_dark_mode() -> bool {
       unsafe {
         const UXTHEME_SHOULDAPPSUSEDARKMODE_ORDINAL: u16 = 132;
 
-        let module = LoadLibraryA("uxtheme.dll").unwrap_or_default();
+        let module = LoadLibraryA(s!("uxtheme.dll")).unwrap_or_default();
 
         if module.is_invalid() {
           return None;
@@ -187,7 +187,7 @@ fn is_high_contrast() -> bool {
   let mut hc = HIGHCONTRASTA {
     cbSize: 0,
     dwFlags: Default::default(),
-    lpszDefaultScheme: Default::default(),
+    lpszDefaultScheme: PSTR(ptr::null_mut()),
   };
 
   let ok = unsafe {
