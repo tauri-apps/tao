@@ -17,7 +17,7 @@ use crate::{
   TrayId,
 };
 use windows::{
-  core::{PCSTR, PCWSTR},
+  core::PCWSTR,
   Win32::{
     Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM},
     System::LibraryLoader::*,
@@ -67,11 +67,11 @@ impl SystemTrayBuilder {
 
     let class_name = util::encode_wide("tao_system_tray_app");
     unsafe {
-      let hinstance = GetModuleHandleA(PCSTR::default()).unwrap_or_default();
+      let hinstance = GetModuleHandleW(PCWSTR::null()).unwrap_or_default();
 
       let wnd_class = WNDCLASSW {
         lpfnWndProc: Some(util::call_default_window_proc),
-        lpszClassName: PCWSTR(class_name.as_ptr()),
+        lpszClassName: PCWSTR::from_raw(class_name.as_ptr()),
         hInstance: hinstance,
         ..Default::default()
       };
@@ -88,8 +88,8 @@ impl SystemTrayBuilder {
         // `explorer.exe` and then starting the process back up.
         // It is unclear why the bug is triggered by waiting for several hours.
         WS_EX_TOOLWINDOW,
-        PCWSTR(class_name.as_ptr()),
-        PCWSTR::default(),
+        PCWSTR::from_raw(class_name.as_ptr()),
+        PCWSTR::null(),
         WS_OVERLAPPED,
         CW_USEDEFAULT,
         0,

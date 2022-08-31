@@ -158,7 +158,7 @@ impl MonitorHandle {
   #[inline]
   pub fn name(&self) -> Option<String> {
     let monitor_info = get_monitor_info(self.hmonitor()).unwrap();
-    Some(util::wchar_ptr_to_string(PCWSTR(
+    Some(util::wchar_ptr_to_string(PCWSTR::from_raw(
       monitor_info.szDevice.as_ptr(),
     )))
   }
@@ -209,7 +209,7 @@ impl MonitorHandle {
     loop {
       unsafe {
         let monitor_info = get_monitor_info(self.hmonitor()).unwrap();
-        let device_name = PCWSTR(monitor_info.szDevice.as_ptr());
+        let device_name = PCWSTR::from_raw(monitor_info.szDevice.as_ptr());
         let mut mode: DEVMODEW = mem::zeroed();
         mode.dmSize = mem::size_of_val(&mode) as u16;
         if !EnumDisplaySettingsExW(device_name, ENUM_DISPLAY_SETTINGS_MODE(i), &mut mode, 0)
