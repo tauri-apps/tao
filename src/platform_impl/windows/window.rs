@@ -143,7 +143,7 @@ impl Window {
   pub fn set_title(&self, text: &str) {
     let text = util::encode_wide(text);
     unsafe {
-      SetWindowTextW(self.window.0, PCWSTR(text.as_ptr()));
+      SetWindowTextW(self.window.0, PCWSTR::from_raw(text.as_ptr()));
     }
   }
 
@@ -531,7 +531,7 @@ impl Window {
 
           let res = unsafe {
             ChangeDisplaySettingsExW(
-              PCWSTR(display_name.as_ptr()),
+              PCWSTR::from_raw(display_name.as_ptr()),
               &native_video_mode,
               HWND::default(),
               CDS_FULLSCREEN,
@@ -891,8 +891,8 @@ unsafe fn init<T: 'static>(
     let title = util::encode_wide(&attributes.title);
     let handle = CreateWindowExW(
       ex_style,
-      PCWSTR(class_name.as_ptr()),
-      PCWSTR(title.as_ptr()),
+      PCWSTR::from_raw(class_name.as_ptr()),
+      PCWSTR::from_raw(title.as_ptr()),
       style,
       CW_USEDEFAULT,
       CW_USEDEFAULT,
@@ -1047,7 +1047,7 @@ unsafe fn register_window_class(
     hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
     hbrBackground: HBRUSH::default(),
     lpszMenuName: PCWSTR::null(),
-    lpszClassName: PCWSTR(class_name.as_ptr()),
+    lpszClassName: PCWSTR::from_raw(class_name.as_ptr()),
     hIconSm: h_icon_small,
   };
 

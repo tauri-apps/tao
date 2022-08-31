@@ -96,9 +96,9 @@ impl MenuItemAttributes {
       };
       GetMenuItemInfoW(self.1, self.0 as u32, false, &mut mif);
       mif.cch += 1;
-      mif.dwTypeData = PWSTR(Vec::with_capacity(mif.cch as usize).as_mut_ptr());
+      mif.dwTypeData = PWSTR::from_raw(Vec::with_capacity(mif.cch as usize).as_mut_ptr());
       GetMenuItemInfoW(self.1, self.0 as u32, false, &mut mif);
-      util::wchar_ptr_to_string(PCWSTR(mif.dwTypeData.0))
+      util::wchar_ptr_to_string(PCWSTR::from_raw(mif.dwTypeData.0))
         .split('\t')
         .next()
         .unwrap_or_default()
@@ -127,7 +127,7 @@ impl MenuItemAttributes {
       let info = MENUITEMINFOW {
         cbSize: std::mem::size_of::<MENUITEMINFOW>() as _,
         fMask: MIIM_STRING,
-        dwTypeData: PWSTR(util::encode_wide(title).as_mut_ptr()),
+        dwTypeData: PWSTR::from_raw(util::encode_wide(title).as_mut_ptr()),
         ..Default::default()
       };
 
@@ -227,7 +227,7 @@ impl Menu {
         self.hmenu,
         flags,
         menu_id.0 as _,
-        PCWSTR(util::encode_wide(title).as_ptr()),
+        PCWSTR::from_raw(util::encode_wide(title).as_ptr()),
       );
 
       // add our accels
@@ -256,7 +256,7 @@ impl Menu {
         self.hmenu,
         flags,
         submenu.hmenu().0 as usize,
-        PCWSTR(title.as_ptr()),
+        PCWSTR::from_raw(title.as_ptr()),
       );
     }
   }
@@ -277,7 +277,7 @@ impl Menu {
           self.hmenu,
           MF_STRING,
           CUT_ID,
-          PCWSTR(util::encode_wide("&Cut\tCtrl+X").as_ptr()),
+          PCWSTR::from_raw(util::encode_wide("&Cut\tCtrl+X").as_ptr()),
         );
       },
       MenuItem::Copy => unsafe {
@@ -285,7 +285,7 @@ impl Menu {
           self.hmenu,
           MF_STRING,
           COPY_ID,
-          PCWSTR(util::encode_wide("&Copy\tCtrl+C").as_ptr()),
+          PCWSTR::from_raw(util::encode_wide("&Copy\tCtrl+C").as_ptr()),
         );
       },
       MenuItem::Paste => unsafe {
@@ -293,7 +293,7 @@ impl Menu {
           self.hmenu,
           MF_STRING,
           PASTE_ID,
-          PCWSTR(util::encode_wide("&Paste\tCtrl+V").as_ptr()),
+          PCWSTR::from_raw(util::encode_wide("&Paste\tCtrl+V").as_ptr()),
         );
       },
       MenuItem::SelectAll => unsafe {
@@ -301,7 +301,7 @@ impl Menu {
           self.hmenu,
           MF_STRING,
           SELECT_ALL_ID,
-          PCWSTR(util::encode_wide("&Select all\tCtrl+A").as_ptr()),
+          PCWSTR::from_raw(util::encode_wide("&Select all\tCtrl+A").as_ptr()),
         );
       },
       MenuItem::Hide => unsafe {
@@ -309,7 +309,7 @@ impl Menu {
           self.hmenu,
           MF_STRING,
           HIDE_ID,
-          PCWSTR(util::encode_wide("&Hide\tCtrl+H").as_ptr()),
+          PCWSTR::from_raw(util::encode_wide("&Hide\tCtrl+H").as_ptr()),
         );
       },
       MenuItem::CloseWindow => unsafe {
@@ -317,7 +317,7 @@ impl Menu {
           self.hmenu,
           MF_STRING,
           CLOSE_ID,
-          PCWSTR(util::encode_wide("&Close\tAlt+F4").as_ptr()),
+          PCWSTR::from_raw(util::encode_wide("&Close\tAlt+F4").as_ptr()),
         );
       },
       MenuItem::Quit => unsafe {
@@ -325,7 +325,7 @@ impl Menu {
           self.hmenu,
           MF_STRING,
           QUIT_ID,
-          PCWSTR(util::encode_wide("&Quit").as_ptr()),
+          PCWSTR::from_raw(util::encode_wide("&Quit").as_ptr()),
         );
       },
       MenuItem::Minimize => unsafe {
@@ -333,7 +333,7 @@ impl Menu {
           self.hmenu,
           MF_STRING,
           MINIMIZE_ID,
-          PCWSTR(util::encode_wide("&Minimize").as_ptr()),
+          PCWSTR::from_raw(util::encode_wide("&Minimize").as_ptr()),
         );
       },
       // FIXME: create all shortcuts of MenuItem if possible...

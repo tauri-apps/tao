@@ -261,15 +261,15 @@ impl CursorIcon {
 pub(super) fn get_function_impl(library: &str, function: &str) -> FARPROC {
   let library = encode_wide(library);
   assert_eq!(function.chars().last(), Some('\0'));
-  let function = PCSTR(function.as_ptr());
+  let function = PCSTR::from_raw(function.as_ptr());
 
   // Library names we will use are ASCII so we can use the A version to avoid string conversion.
-  let module = unsafe { LoadLibraryW(PCWSTR(library.as_ptr())) }.unwrap_or_default();
+  let module = unsafe { LoadLibraryW(PCWSTR::from_raw(library.as_ptr())) }.unwrap_or_default();
   if module.is_invalid() {
     return None;
   }
 
-  unsafe { GetProcAddress(module, PCSTR(function.as_ptr())) }
+  unsafe { GetProcAddress(module, PCSTR::from_raw(function.as_ptr())) }
 }
 
 macro_rules! get_function {

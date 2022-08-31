@@ -87,7 +87,7 @@ pub fn try_theme(hwnd: HWND, preferred_theme: Option<Theme>) -> Theme {
     } else {
       Theme::Light
     };
-    let theme_name = PCWSTR(
+    let theme_name = PCWSTR::from_raw(
       match theme {
         Theme::Dark => DARK_THEME_NAME.clone(),
         Theme::Light => LIGHT_THEME_NAME.clone(),
@@ -168,7 +168,7 @@ fn should_apps_use_dark_mode() -> bool {
 
         let handle = GetProcAddress(
           module,
-          PCSTR(UXTHEME_SHOULDAPPSUSEDARKMODE_ORDINAL as usize as *mut _),
+          PCSTR::from_raw(UXTHEME_SHOULDAPPSUSEDARKMODE_ORDINAL as usize as *mut _),
         );
 
         handle.map(|handle| std::mem::transmute(handle))

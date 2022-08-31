@@ -36,7 +36,7 @@ impl Clipboard {
       if handle.is_invalid() {
         None
       } else {
-        let unic_str = PWSTR(GlobalLock(handle.0) as *mut _);
+        let unic_str = PWSTR::from_raw(GlobalLock(handle.0) as *mut _);
         let mut len = 0;
         while *unic_str.0.offset(len) != 0 {
           len += 1;
@@ -94,7 +94,7 @@ fn register_identifier(ident: &str) -> Option<u32> {
   unsafe {
     let clipboard_format = util::encode_wide(ident);
 
-    let pb_format = RegisterClipboardFormatW(PCWSTR(clipboard_format.as_ptr()));
+    let pb_format = RegisterClipboardFormatW(PCWSTR::from_raw(clipboard_format.as_ptr()));
     if pb_format == 0 {
       #[cfg(debug_assertions)]
       println!(

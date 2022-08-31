@@ -91,7 +91,7 @@ impl WinIcon {
     let handle = unsafe {
       LoadImageW(
         HINSTANCE::default(),
-        PCWSTR(wide_path.as_ptr()),
+        PCWSTR::from_raw(wide_path.as_ptr()),
         IMAGE_ICON,
         width as i32,
         height as i32,
@@ -110,7 +110,7 @@ impl WinIcon {
     let handle = unsafe {
       LoadImageW(
         GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
-        PCWSTR(resource_id as usize as *const u16),
+        PCWSTR::from_raw(resource_id as usize as *const u16),
         IMAGE_ICON,
         width as i32,
         height as i32,

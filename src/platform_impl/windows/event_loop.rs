@@ -620,7 +620,7 @@ lazy_static! {
             hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
             hbrBackground: HBRUSH::default(),
             lpszMenuName: PCWSTR::null(),
-            lpszClassName: PCWSTR(class_name.as_ptr()),
+            lpszClassName: PCWSTR::from_raw(class_name.as_ptr()),
             hIconSm: HICON::default(),
         };
 
@@ -642,7 +642,7 @@ fn create_event_target_window() -> HWND {
       // `explorer.exe` and then starting the process back up.
       // It is unclear why the bug is triggered by waiting for several hours.
       WS_EX_TOOLWINDOW,
-      PCWSTR(THREAD_EVENT_TARGET_WINDOW_CLASS.clone().as_ptr()),
+      PCWSTR::from_raw(THREAD_EVENT_TARGET_WINDOW_CLASS.clone().as_ptr()),
       PCWSTR::null(),
       WS_OVERLAPPED,
       0,

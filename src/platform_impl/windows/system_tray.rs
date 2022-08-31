@@ -71,7 +71,7 @@ impl SystemTrayBuilder {
 
       let wnd_class = WNDCLASSW {
         lpfnWndProc: Some(util::call_default_window_proc),
-        lpszClassName: PCWSTR(class_name.as_ptr()),
+        lpszClassName: PCWSTR::from_raw(class_name.as_ptr()),
         hInstance: hinstance,
         ..Default::default()
       };
@@ -88,7 +88,7 @@ impl SystemTrayBuilder {
         // `explorer.exe` and then starting the process back up.
         // It is unclear why the bug is triggered by waiting for several hours.
         WS_EX_TOOLWINDOW,
-        PCWSTR(class_name.as_ptr()),
+        PCWSTR::from_raw(class_name.as_ptr()),
         PCWSTR::null(),
         WS_OVERLAPPED,
         CW_USEDEFAULT,
