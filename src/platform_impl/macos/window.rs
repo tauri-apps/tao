@@ -1256,11 +1256,7 @@ impl UnownedWindow {
 
   pub fn set_content_protection(&self, enabled: bool) {
     unsafe {
-      if enabled {
-        let _: () = msg_send![*self.ns_window, setSharingType: 0];
-      } else {
-        let _: () = msg_send![*self.ns_window, setSharingType: 1];
-      }
+	let _: () = msg_send![*self.ns_window, setSharingType: !enabled as i32];
     }
   }
 }
