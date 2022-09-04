@@ -20,6 +20,7 @@ fn main() {
       .unwrap(),
   );
 
+  #[cfg(any(target_os = "macos", target_os = "windows"))]
   if let Some(w) = &window {
     println!("set content protection");
     w.set_content_protection(true);
