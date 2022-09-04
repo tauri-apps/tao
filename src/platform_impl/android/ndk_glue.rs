@@ -2,8 +2,8 @@
 // Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-pub use jni;
 pub use jni::{
+  self,
   objects::{GlobalRef, JClass, JMap, JObject, JString},
   sys::jobject,
   JNIEnv,

@@ -1253,6 +1253,12 @@ impl UnownedWindow {
     let state = self.shared_state.lock().unwrap();
     state.current_theme
   }
+
+  pub fn set_content_protection(&self, enabled: bool) {
+    unsafe {
+      let _: () = msg_send![*self.ns_window, setSharingType: !enabled as i32];
+    }
+  }
 }
 
 impl WindowExtMacOS for UnownedWindow {

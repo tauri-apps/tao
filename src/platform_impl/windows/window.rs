@@ -821,6 +821,19 @@ impl Window {
     self.window_state.lock().skip_taskbar = skip;
     unsafe { set_skip_taskbar(self.hwnd(), skip) };
   }
+
+  pub fn set_content_protection(&self, enabled: bool) {
+    unsafe {
+      SetWindowDisplayAffinity(
+        self.hwnd(),
+        if enabled {
+          WDA_EXCLUDEFROMCAPTURE
+        } else {
+          WDA_NONE
+        },
+      );
+    }
+  }
 }
 
 impl Drop for Window {
