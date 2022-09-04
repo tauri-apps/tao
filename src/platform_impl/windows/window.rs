@@ -824,11 +824,7 @@ impl Window {
 
   pub fn set_content_protection(&self, enabled: bool) {
     unsafe {
-      if enabled {
-        SetWindowDisplayAffinity(self.hwnd(), WDA_EXCLUDEFROMCAPTURE);
-      } else {
-        SetWindowDisplayAffinity(self.hwnd(), WDA_NONE);
-      }
+	SetWindowDisplayAffinity(self.hwnd(), if enabled { WDA_EXCLUDEFROMCAPTURE } else { WDA_NONE });
     }
   }
 }
