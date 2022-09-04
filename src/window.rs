@@ -907,7 +907,7 @@ impl Window {
   }
 
   /// Prevents the window contents from being captured by other apps.
-  /// 
+  ///
   /// ## Platform-specific
   ///
   /// - **iOS / Android / Linux:** Unsupported.
