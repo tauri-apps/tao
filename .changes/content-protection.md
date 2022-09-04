@@ -2,4 +2,4 @@
 "tao": "minor"
 ---
 
-Implement `set_content_protection`.
+Add `Window::set_content_protection` for macOS and Windows.
