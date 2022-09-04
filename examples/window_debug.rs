@@ -34,10 +34,12 @@ fn main() {
   eprintln!("  (X) Toggle maximized");
   eprintln!("  (T) Toggle always on top");
   eprintln!("  (B) Toggle always on bottom");
+  eprintln!("  (C) Toggle content protection");
 
   let mut always_on_bottom = false;
   let mut always_on_top = false;
   let mut visible = true;
+  let mut content_protection = false;
 
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Wait;
@@ -132,6 +134,10 @@ fn main() {
         "b" => {
           always_on_bottom = !always_on_bottom;
           window.set_always_on_bottom(always_on_bottom);
+        }
+        "c" => {
+          content_protection = !content_protection;
+          window.set_content_protection(content_protection);
         }
         _ => (),
       },
