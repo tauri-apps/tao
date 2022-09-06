@@ -86,21 +86,16 @@ impl Window {
       .inner_size
       .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
       .unwrap_or((800, 600));
-    if attributes.resizable {
-      window.set_resizable(attributes.resizable);
-      window.set_default_size(width, height);
+    if attributes.maximized {
+      // Set resizable true to maximize window.
+      window.set_resizable(true);
+      // Set minimum size to maximize window.
+      // Because if dimension is over window size, maximization does not work correct.
+      window.set_size_request(100, 100);
     } else {
-      if attributes.maximized {
-        // Set resizable true to maximize window.
-        window.set_resizable(true);
-        // Set minimum size to maximize window.
-        // Because if dimension is over window size, maximization does not work correct.
-        window.set_size_request(100, 100);
-      } else {
-        window.set_resizable(false);
-        window.set_size_request(width, height);
-      }
+      window.set_default_size(width, height);
     }
+    window.set_resizable(attributes.resizable);
 
     // Set Min/Max Size
     let geom_mask = (if attributes.min_inner_size.is_some() {
