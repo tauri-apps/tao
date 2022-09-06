@@ -93,7 +93,8 @@ impl Window {
       // Because if dimension is over window size, maximization does not work correct.
       window.set_size_request(100, 100);
     } else {
-      window.set_default_size(width, height);
+      window.set_default_size(1, 1);
+      window.resize(width, height);
     }
     window.set_resizable(attributes.resizable);
 
