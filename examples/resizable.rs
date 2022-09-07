@@ -39,11 +39,9 @@ fn main() {
             },
           ..
         } => {
-          // resizable = !resizable;
-          // println!("Resizable: {}", resizable);
-          window.set_resizable(true);
-          window.set_inner_size(LogicalSize::new(100.0, 100.0));
-          window.set_resizable(false);
+          resizable = !resizable;
+          println!("Resizable: {}", resizable);
+          window.set_resizable(resizable);
         }
         _ => (),
       },
