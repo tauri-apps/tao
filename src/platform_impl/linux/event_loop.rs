@@ -215,11 +215,7 @@ impl<T: 'static> EventLoop<T> {
           WindowRequest::Focus => {
             window.present_with_time(gdk_sys::GDK_CURRENT_TIME as _);
           }
-          WindowRequest::Resizable(resizable) => {
-            let (alloc, _) = window.allocated_size();
-            window.set_size_request(alloc.width(), alloc.height());
-            window.set_resizable(resizable)
-          }
+          WindowRequest::Resizable(resizable) => window.set_resizable(resizable),
           WindowRequest::Minimized(minimized) => {
             if minimized {
               window.iconify();
