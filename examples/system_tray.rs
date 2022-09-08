@@ -17,6 +17,9 @@ fn main() {
     TrayId,
   };
 
+  #[cfg(target_os = "macos")]
+  use tao::platform::macos::{SystemTrayBuilderExtMacOS, SystemTrayExtMacOS};
+
   env_logger::init();
   let event_loop = EventLoop::new();
 
@@ -31,11 +34,12 @@ fn main() {
   let second_tray_id = TrayId::new("2nd-tray");
   let icon = load_icon(std::path::Path::new(path));
   let mut tray_menu = Menu::new();
+  let menu_item = tray_menu.add_item(MenuItemAttributes::new("Set tray title (macos)"));
 
   #[cfg(target_os = "macos")]
   {
     tray_menu
-      .add_item(MenuItemAttributes::new("Item 1"))
+      .add_item(MenuItemAttributes::new("Menu Item with icon"))
       .set_icon(icon.clone());
   }
 
@@ -48,10 +52,18 @@ fn main() {
     .build(&event_loop)
     .unwrap();
 
-  #[cfg(not(target_os = "linux"))]
+  #[cfg(target_os = "windows")]
   let system_tray = SystemTrayBuilder::new(icon.clone(), Some(tray_menu))
     .with_id(main_tray_id)
     .with_tooltip("tao - windowing creation library")
+    .build(&event_loop)
+    .unwrap();
+
+  #[cfg(target_os = "macos")]
+  let system_tray = SystemTrayBuilder::new(icon.clone(), Some(tray_menu))
+    .with_id(main_tray_id)
+    .with_tooltip("tao - windowing creation library")
+    .with_title("Tao")
     .build(&event_loop)
     .unwrap();
 
@@ -86,6 +98,13 @@ fn main() {
           *control_flow = ControlFlow::Exit;
         } else if menu_id == log.clone().id() {
           println!("Log clicked");
+        } else if menu_id == menu_item.clone().id() {
+          #[cfg(target_os = "macos")]
+          {
+            if let Some(tray) = system_tray.as_mut() {
+              tray.set_title("Tao - clicked");
+            }
+          }
         }
       }
       Event::TrayEvent {
