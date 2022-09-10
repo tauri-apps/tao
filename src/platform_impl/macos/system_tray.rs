@@ -168,6 +168,8 @@ impl SystemTray {
   fn create_button_with_icon(&self) {
     const ICON_WIDTH: f64 = 18.0;
     const ICON_HEIGHT: f64 = 18.0;
+    // The image is to the right of the title https://developer.apple.com/documentation/appkit/nscellimageposition/nsimageleft
+    const IMAGE_POSITION: i32 = 2;
 
     let icon = self.icon.inner.to_png();
 
@@ -187,7 +189,7 @@ impl SystemTray {
 
       button.setImage_(nsimage);
       let _: () = msg_send![nsimage, setSize: new_size];
-      let _: () = msg_send![button, setImagePosition: 2]; // https://developer.apple.com/documentation/appkit/nscellimageposition/nsimageleft
+      let _: () = msg_send![button, setImagePosition: IMAGE_POSITION];
       let is_template = match self.icon_is_template {
         true => YES,
         false => NO,
