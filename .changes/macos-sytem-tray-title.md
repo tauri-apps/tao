@@ -2,4 +2,4 @@
 "tao": "minor"
 ---
 
-Added `set_title(title: &str)` to `SystemTray` and `with_title(title: &str)` to `SystemTrayBuilder` to set the title on MacOS
+Added `SystemTrayExtMacOS::set_title` to `SystemTray` and `SystemTrayBuilderExtMacOS::with_title` to set the tray icon title on MacOS
