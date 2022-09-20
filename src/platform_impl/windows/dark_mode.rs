@@ -1,10 +1,11 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 /// This is a simple implementation of support for Windows Dark Mode,
 /// which is inspired by the solution in https://github.com/ysc3839/win32-darkmode
 use windows::{
-  core::{PCSTR, PCWSTR},
+  core::{s, PCSTR, PCWSTR, PSTR},
   Win32::{
     Foundation::{BOOL, HWND},
     System::LibraryLoader::*,
@@ -86,7 +87,7 @@ pub fn try_theme(hwnd: HWND, preferred_theme: Option<Theme>) -> Theme {
     } else {
       Theme::Light
     };
-    let theme_name = PCWSTR(
+    let theme_name = PCWSTR::from_raw(
       match theme {
         Theme::Dark => DARK_THEME_NAME.clone(),
         Theme::Light => LIGHT_THEME_NAME.clone(),
@@ -94,7 +95,7 @@ pub fn try_theme(hwnd: HWND, preferred_theme: Option<Theme>) -> Theme {
       .as_ptr(),
     );
 
-    let status = unsafe { SetWindowTheme(hwnd, theme_name, PCWSTR::default()) };
+    let status = unsafe { SetWindowTheme(hwnd, theme_name, PCWSTR::null()) };
 
     if status.is_ok() && set_dark_mode_for_window(hwnd, is_dark_mode) {
       return theme;
@@ -159,7 +160,7 @@ fn should_apps_use_dark_mode() -> bool {
       unsafe {
         const UXTHEME_SHOULDAPPSUSEDARKMODE_ORDINAL: u16 = 132;
 
-        let module = LoadLibraryA("uxtheme.dll").unwrap_or_default();
+        let module = LoadLibraryA(s!("uxtheme.dll")).unwrap_or_default();
 
         if module.is_invalid() {
           return None;
@@ -167,7 +168,7 @@ fn should_apps_use_dark_mode() -> bool {
 
         let handle = GetProcAddress(
           module,
-          PCSTR(UXTHEME_SHOULDAPPSUSEDARKMODE_ORDINAL as usize as *mut _),
+          PCSTR::from_raw(UXTHEME_SHOULDAPPSUSEDARKMODE_ORDINAL as usize as *mut _),
         );
 
         handle.map(|handle| std::mem::transmute(handle))
@@ -186,7 +187,7 @@ fn is_high_contrast() -> bool {
   let mut hc = HIGHCONTRASTA {
     cbSize: 0,
     dwFlags: Default::default(),
-    lpszDefaultScheme: Default::default(),
+    lpszDefaultScheme: PSTR::null(),
   };
 
   let ok = unsafe {

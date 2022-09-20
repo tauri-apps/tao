@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 //! The `EventLoop` struct and assorted supporting types, including `ControlFlow`.
@@ -211,6 +212,22 @@ impl<T> EventLoopWindowTarget<T> {
   pub fn primary_monitor(&self) -> Option<MonitorHandle> {
     self.p.primary_monitor()
   }
+
+  /// Change [`DeviceEvent`] filter mode.
+  ///
+  /// Since the [`DeviceEvent`] capture can lead to high CPU usage for unfocused windows, winit
+  /// will ignore them by default for unfocused windows on Linux/BSD. This method allows changing
+  /// this filter at runtime to explicitly capture them again.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - ** Linux / macOS / iOS / Android / Web**: Unsupported.
+  ///
+  /// [`DeviceEvent`]: crate::event::DeviceEvent
+  pub fn set_device_event_filter(&self, _filter: DeviceEventFilter) {
+    #[cfg(target_os = "windows")]
+    self.p.set_device_event_filter(_filter);
+  }
 }
 
 unsafe impl<T> HasRawDisplayHandle for EventLoopWindowTarget<T> {
@@ -262,3 +279,20 @@ impl<T> fmt::Display for EventLoopClosed<T> {
 }
 
 impl<T: fmt::Debug> error::Error for EventLoopClosed<T> {}
+
+/// Fiter controlling the propagation of device events.
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum DeviceEventFilter {
+  /// Always filter out device events.
+  Always,
+  /// Filter out device events while the window is not focused.
+  Unfocused,
+  /// Report all device events regardless of window focus.
+  Never,
+}
+
+impl Default for DeviceEventFilter {
+  fn default() -> Self {
+    Self::Unfocused
+  }
+}

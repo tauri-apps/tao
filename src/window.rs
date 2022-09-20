@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 //! The `Window` struct and associated types.
@@ -190,6 +191,11 @@ pub struct WindowAttributes {
   /// The default is `false`.
   pub always_on_top: bool,
 
+  /// Whether the window should always be on bottom of other windows.
+  ///
+  /// The default is `false`.
+  pub always_on_bottom: bool,
+
   /// The window icon.
   ///
   /// The default is `None`.
@@ -219,6 +225,7 @@ impl Default for WindowAttributes {
       transparent: false,
       decorations: true,
       always_on_top: false,
+      always_on_bottom: false,
       window_icon: None,
       window_menu: None,
       preferred_theme: None,
@@ -361,6 +368,18 @@ impl WindowBuilder {
     self
   }
 
+  /// Sets whether or not the window will always be below other windows.
+  ///
+  /// See [`Window::set_always_on_bottom`] for details.
+  ///
+  /// [`Window::set_always_on_bottom`]: crate::window::Window::set_always_on_bottom
+  #[inline]
+  pub fn with_always_on_bottom(mut self, always_on_bottom: bool) -> Self {
+    self.window.always_on_top = false;
+    self.window.always_on_bottom = always_on_bottom;
+    self
+  }
+
   /// Sets whether or not the window will always be on top of other windows.
   ///
   /// See [`Window::set_always_on_top`] for details.
@@ -368,6 +387,7 @@ impl WindowBuilder {
   /// [`Window::set_always_on_top`]: crate::window::Window::set_always_on_top
   #[inline]
   pub fn with_always_on_top(mut self, always_on_top: bool) -> Self {
+    self.window.always_on_bottom = false;
     self.window.always_on_top = always_on_top;
     self
   }
@@ -638,6 +658,16 @@ impl Window {
     self.window.set_focus()
   }
 
+  /// Is window active and focused?
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_focused(&self) -> bool {
+    self.window.is_focused()
+  }
+
   /// Sets whether the window is resizable or not.
   ///
   /// Note that making the window unresizable doesn't exempt you from handling `Resized`, as that event can still be
@@ -651,6 +681,12 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
+  /// - **Linux:** Most size methods like maximized are async and do not work well with calling
+  /// sequentailly. For setting inner or outer size, you don't need to set resizable to true before
+  /// it. It can resize no matter what. But if you insist to do so, it has a `100, 100` minimum
+  /// limitation somehow. For maximizing, it requires resizable is true. If you really want to set
+  /// resizable to false after it. You might need a mechanism to check the window is really
+  /// maximized.
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_resizable(&self, resizable: bool) {
@@ -687,7 +723,17 @@ impl Window {
     self.window.is_maximized()
   }
 
-  /// Gets the window's current vibility state.
+  /// Gets the window's current minimized state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_minimized(&self) -> bool {
+    self.window.is_minimized()
+  }
+
+  /// Gets the window's current visibility state.
   ///
   /// ## Platform-specific
   ///
@@ -762,6 +808,17 @@ impl Window {
   #[inline]
   pub fn set_decorations(&self, decorations: bool) {
     self.window.set_decorations(decorations)
+  }
+
+  /// Change whether or not the window will always be below other windows.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: There is no guarantee that the window will be the bottom most but it will try to be.
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
+    self.window.set_always_on_bottom(always_on_bottom)
   }
 
   /// Change whether or not the window will always be on top of other windows.
@@ -853,6 +910,16 @@ impl Window {
   #[inline]
   pub fn theme(&self) -> Theme {
     self.window.theme()
+  }
+
+  /// Prevents the window contents from being captured by other apps.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Linux:** Unsupported.
+  pub fn set_content_protection(&self, enabled: bool) {
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    self.window.set_content_protection(enabled);
   }
 }
 

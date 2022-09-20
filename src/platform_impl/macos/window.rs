@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -236,6 +237,13 @@ fn create_window(
         let _: () = msg_send![
           *ns_window,
           setLevel: ffi::NSWindowLevel::NSFloatingWindowLevel
+        ];
+      }
+
+      if attrs.always_on_bottom {
+        let _: () = msg_send![
+          *ns_window,
+          setLevel: ffi::NSWindowLevel::BelowNormalWindowLevel
         ];
       }
 
@@ -575,6 +583,14 @@ impl UnownedWindow {
     }
   }
 
+  #[inline]
+  pub fn is_focused(&self) -> bool {
+    unsafe {
+      let is_key_window: BOOL = msg_send![*self.ns_window, isKeyWindow];
+      is_key_window == YES
+    }
+  }
+
   pub fn request_redraw(&self) {
     AppState::queue_redraw(RootWindowId(self.id()));
   }
@@ -854,6 +870,17 @@ impl UnownedWindow {
   }
 
   #[inline]
+  pub fn is_maximized(&self) -> bool {
+    self.is_zoomed()
+  }
+
+  #[inline]
+  pub fn is_minimized(&self) -> bool {
+    let is_minimized: BOOL = unsafe { msg_send![*self.ns_window, isMiniaturized] };
+    is_minimized == YES
+  }
+
+  #[inline]
   pub fn is_resizable(&self) -> bool {
     let is_resizable: BOOL = unsafe { msg_send![*self.ns_window, isResizable] };
     is_resizable == YES
@@ -861,13 +888,7 @@ impl UnownedWindow {
 
   #[inline]
   pub fn is_decorated(&self) -> bool {
-    let current_mask = unsafe { self.ns_window.styleMask() };
-    if current_mask
-      == NSWindowStyleMask::NSMiniaturizableWindowMask | NSWindowStyleMask::NSResizableWindowMask
-    {
-      return false;
-    }
-    true
+    self.decorations.load(Ordering::Acquire)
   }
 
   #[inline]
@@ -1113,6 +1134,16 @@ impl UnownedWindow {
   }
 
   #[inline]
+  pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
+    let level = if always_on_bottom {
+      ffi::NSWindowLevel::BelowNormalWindowLevel
+    } else {
+      ffi::NSWindowLevel::NSNormalWindowLevel
+    };
+    unsafe { util::set_level_async(*self.ns_window, level) };
+  }
+
+  #[inline]
   pub fn set_always_on_top(&self, always_on_top: bool) {
     let level = if always_on_top {
       ffi::NSWindowLevel::NSFloatingWindowLevel
@@ -1221,6 +1252,12 @@ impl UnownedWindow {
   pub fn theme(&self) -> Theme {
     let state = self.shared_state.lock().unwrap();
     state.current_theme
+  }
+
+  pub fn set_content_protection(&self, enabled: bool) {
+    unsafe {
+      let _: () = msg_send![*self.ns_window, setSharingType: !enabled as i32];
+    }
   }
 }
 

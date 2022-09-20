@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{cell::UnsafeCell, ffi::OsString, os::windows::ffi::OsStringExt, path::PathBuf, ptr};
@@ -32,7 +33,7 @@ impl FileDropHandler {
     Self {
       window,
       send_event,
-      cursor_effect: DROPEFFECT_NONE.into(),
+      cursor_effect: DROPEFFECT_NONE.0.into(),
       hovered_is_valid: false.into(),
     }
   }
@@ -121,8 +122,8 @@ impl IDropTarget_Impl for FileDropHandler {
         DROPEFFECT_NONE
       };
       *self.hovered_is_valid.get() = hovered_is_valid;
-      *self.cursor_effect.get() = cursor_effect;
-      *pdwEffect = cursor_effect;
+      *self.cursor_effect.get() = cursor_effect.0;
+      *pdwEffect = cursor_effect.0;
     }
     Ok(())
   }

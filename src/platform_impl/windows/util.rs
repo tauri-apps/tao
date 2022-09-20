@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -14,7 +15,7 @@ use std::{
 use crate::{dpi::PhysicalSize, window::CursorIcon};
 
 use windows::{
-  core::{HRESULT, PCWSTR},
+  core::{HRESULT, PCSTR, PCWSTR},
   Win32::{
     Foundation::{BOOL, FARPROC, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
     Globalization::lstrlenW,
@@ -258,25 +259,23 @@ impl CursorIcon {
 // Helper function to dynamically load function pointer.
 // `library` and `function` must be zero-terminated.
 pub(super) fn get_function_impl(library: &str, function: &str) -> FARPROC {
-  assert_eq!(library.chars().last(), Some('\0'));
+  let library = encode_wide(library);
   assert_eq!(function.chars().last(), Some('\0'));
+  let function = PCSTR::from_raw(function.as_ptr());
 
   // Library names we will use are ASCII so we can use the A version to avoid string conversion.
-  let module = unsafe { LoadLibraryA(library) }.unwrap_or_default();
+  let module = unsafe { LoadLibraryW(PCWSTR::from_raw(library.as_ptr())) }.unwrap_or_default();
   if module.is_invalid() {
     return None;
   }
 
-  unsafe { GetProcAddress(module, function) }
+  unsafe { GetProcAddress(module, PCSTR::from_raw(function.as_ptr())) }
 }
 
 macro_rules! get_function {
   ($lib:expr, $func:ident) => {
-    crate::platform_impl::platform::util::get_function_impl(
-      concat!($lib, '\0'),
-      concat!(stringify!($func), '\0'),
-    )
-    .map(|f| unsafe { std::mem::transmute::<_, $func>(f) })
+    crate::platform_impl::platform::util::get_function_impl($lib, concat!(stringify!($func), '\0'))
+      .map(|f| unsafe { std::mem::transmute::<_, $func>(f) })
   };
 }
 

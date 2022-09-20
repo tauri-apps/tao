@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 //! **UNSTABLE** -- The `SystemTray` struct and associated types.
@@ -70,7 +71,6 @@ impl SystemTrayBuilder {
   ///
   /// ## Platform-specific:
   ///
-  /// - **Windows:** Not implemented.
   /// - **Linux:** Unsupported
   pub fn with_tooltip(mut self, tooltip: &str) -> Self {
     self.tooltip = Some(tooltip.to_string());
@@ -96,8 +96,8 @@ impl SystemTrayBuilder {
 ///
 /// **Linux:**
 ///   - Dropping the tray too early could lead to a default icon.
-///   - Dropping the tray after the icon has been added to the system tray may not remove it.
-/// **Windows:** Dropping the tray will effectively remove the icon from the system tray.
+///   - Dropping the tray hides it.
+/// **Windows / macOS:** Dropping the tray will effectively remove the icon from the system tray.
 pub struct SystemTray(pub SystemTrayPlatform);
 
 impl SystemTray {
@@ -115,7 +115,6 @@ impl SystemTray {
   ///
   /// ## Platform-specific:
   ///
-  /// - **Windows:** Not implemented.
   /// - **Linux:** Unsupported
   pub fn set_tooltip(&mut self, tooltip: &str) {
     self.0.set_tooltip(tooltip);

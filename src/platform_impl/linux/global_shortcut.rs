@@ -1,3 +1,7 @@
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 use super::window::{WindowId, WindowRequest};
 use crate::{
   accelerator::{Accelerator, AcceleratorId},
@@ -40,108 +44,130 @@ impl ShortcutManager {
     let (method_sender, thread_receiver) = channel::unbounded();
     let (thread_sender, method_receiver) = channel::unbounded();
 
-    std::thread::spawn(move || {
-      let event_loop_channel = event_loop_channel.clone();
-      let xlib = xlib::Xlib::open().unwrap();
-      unsafe {
-        let display = (xlib.XOpenDisplay)(ptr::null());
-        let root = (xlib.XDefaultRootWindow)(display);
+    if !_window_target.p.is_wayland() {
+      std::thread::spawn(move || {
+        let event_loop_channel = event_loop_channel.clone();
+        let xlib = xlib::Xlib::open().unwrap();
+        unsafe {
+          let display = (xlib.XOpenDisplay)(ptr::null());
+          let root = (xlib.XDefaultRootWindow)(display);
 
-        // Only trigger key release at end of repeated keys
-        #[allow(clippy::uninit_assumed_init)]
-        let mut supported_rtrn: i32 = std::mem::MaybeUninit::uninit().assume_init();
-        (xlib.XkbSetDetectableAutoRepeat)(display, 1, &mut supported_rtrn);
+          // Only trigger key release at end of repeated keys
+          #[allow(clippy::uninit_assumed_init)]
+          let mut supported_rtrn: i32 = std::mem::MaybeUninit::uninit().assume_init();
+          (xlib.XkbSetDetectableAutoRepeat)(display, 1, &mut supported_rtrn);
 
-        (xlib.XSelectInput)(display, root, xlib::KeyReleaseMask);
-        #[allow(clippy::uninit_assumed_init)]
-        let mut event: xlib::XEvent = std::mem::MaybeUninit::uninit().assume_init();
+          (xlib.XSelectInput)(display, root, xlib::KeyReleaseMask);
+          #[allow(clippy::uninit_assumed_init)]
+          let mut event: xlib::XEvent = std::mem::MaybeUninit::uninit().assume_init();
 
-        loop {
-          let event_loop_channel = event_loop_channel.clone();
-          if (xlib.XPending)(display) > 0 {
-            (xlib.XNextEvent)(display, &mut event);
-            if let xlib::KeyRelease = event.get_type() {
-              let keycode = event.key.keycode;
-              let modifiers = event.key.state;
-              if let Some(hotkey_id) = hotkey_map.lock().unwrap().get(&(keycode as i32, modifiers))
-              {
-                event_loop_channel
-                  .send((window_id, WindowRequest::GlobalHotKey(*hotkey_id as u16)))
-                  .unwrap();
+          loop {
+            let event_loop_channel = event_loop_channel.clone();
+            if (xlib.XPending)(display) > 0 {
+              (xlib.XNextEvent)(display, &mut event);
+              if let xlib::KeyRelease = event.get_type() {
+                let keycode = event.key.keycode;
+                // X11 sends masks for Lock keys also and we only care about the 4 below
+                let modifiers = event.key.state
+                  & (xlib::ControlMask | xlib::ShiftMask | xlib::Mod4Mask | xlib::Mod1Mask);
+                if let Some(hotkey_id) =
+                  hotkey_map.lock().unwrap().get(&(keycode as i32, modifiers))
+                {
+                  event_loop_channel
+                    .send((window_id, WindowRequest::GlobalHotKey(*hotkey_id as u16)))
+                    .unwrap();
+                }
               }
             }
+
+            // XGrabKey works only with the exact state (modifiers)
+            // and since X11 considers NumLock, ScrollLock and CapsLock a modifier when it is ON,
+            // we also need to register our shortcut combined with these extra modifiers as well
+            const IGNORED_MODS: [u32; 4] = [
+              0,              // modifier only
+              xlib::Mod2Mask, // NumLock
+              xlib::LockMask, // CapsLock
+              xlib::Mod2Mask | xlib::LockMask,
+            ];
+
+            match thread_receiver.try_recv() {
+              Ok(HotkeyMessage::RegisterHotkey(_, modifiers, key)) => {
+                let keycode = (xlib.XKeysymToKeycode)(display, key.into()) as i32;
+
+                let mut result = 0;
+                for m in IGNORED_MODS {
+                  result = (xlib.XGrabKey)(
+                    display,
+                    keycode,
+                    modifiers | m,
+                    root,
+                    0,
+                    xlib::GrabModeAsync,
+                    xlib::GrabModeAsync,
+                  );
+                }
+                if result == 0 {
+                  if let Err(err) = thread_sender
+                    .clone()
+                    .send(HotkeyMessage::RegisterHotkeyResult(Err(
+                      ShortcutManagerError::InvalidAccelerator(
+                        "Unable to register accelerator".into(),
+                      ),
+                    )))
+                  {
+                    #[cfg(debug_assertions)]
+                    eprintln!("hotkey: thread_sender.send error {}", err);
+                  }
+                } else if let Err(err) = thread_sender.send(HotkeyMessage::RegisterHotkeyResult(
+                  Ok((keycode, modifiers)),
+                )) {
+                  #[cfg(debug_assertions)]
+                  eprintln!("hotkey: thread_sender.send error {}", err);
+                }
+              }
+              Ok(HotkeyMessage::UnregisterHotkey(id)) => {
+                let mut result = 0;
+                for m in IGNORED_MODS {
+                  result = (xlib.XUngrabKey)(display, id.0, id.1 | m, root);
+                }
+                if result == 0 {
+                  if let Err(err) =
+                    thread_sender
+                      .clone()
+                      .send(HotkeyMessage::UnregisterHotkeyResult(Err(
+                        ShortcutManagerError::InvalidAccelerator(
+                          "Unable to unregister accelerator".into(),
+                        ),
+                      )))
+                  {
+                    #[cfg(debug_assertions)]
+                    eprintln!("hotkey: thread_sender.send error {}", err);
+                  }
+                } else if let Err(err) =
+                  thread_sender.send(HotkeyMessage::UnregisterHotkeyResult(Ok(())))
+                {
+                  #[cfg(debug_assertions)]
+                  eprintln!("hotkey: thread_sender.send error {}", err);
+                }
+              }
+              Ok(HotkeyMessage::DropThread) => {
+                (xlib.XCloseDisplay)(display);
+                return;
+              }
+              Err(err) => {
+                if let TryRecvError::Disconnected = err {
+                  #[cfg(debug_assertions)]
+                  eprintln!("hotkey: try_recv error {}", err);
+                }
+              }
+              _ => unreachable!("other message should not arrive"),
+            };
+
+            std::thread::sleep(std::time::Duration::from_millis(50));
           }
-
-          match thread_receiver.try_recv() {
-            Ok(HotkeyMessage::RegisterHotkey(_, modifiers, key)) => {
-              let keycode = (xlib.XKeysymToKeycode)(display, key.into()) as i32;
-
-              let result = (xlib.XGrabKey)(
-                display,
-                keycode,
-                modifiers,
-                root,
-                0,
-                xlib::GrabModeAsync,
-                xlib::GrabModeAsync,
-              );
-              if result == 0 {
-                if let Err(err) = thread_sender
-                  .clone()
-                  .send(HotkeyMessage::RegisterHotkeyResult(Err(
-                    ShortcutManagerError::InvalidAccelerator(
-                      "Unable to register accelerator".into(),
-                    ),
-                  )))
-                {
-                  #[cfg(debug_assertions)]
-                  eprintln!("hotkey: thread_sender.send error {}", err);
-                }
-              } else if let Err(err) = thread_sender.send(HotkeyMessage::RegisterHotkeyResult(Ok(
-                (keycode, modifiers),
-              ))) {
-                #[cfg(debug_assertions)]
-                eprintln!("hotkey: thread_sender.send error {}", err);
-              }
-            }
-            Ok(HotkeyMessage::UnregisterHotkey(id)) => {
-              let result = (xlib.XUngrabKey)(display, id.0, id.1, root);
-              if result == 0 {
-                if let Err(err) = thread_sender
-                  .clone()
-                  .send(HotkeyMessage::UnregisterHotkeyResult(Err(
-                    ShortcutManagerError::InvalidAccelerator(
-                      "Unable to unregister accelerator".into(),
-                    ),
-                  )))
-                {
-                  #[cfg(debug_assertions)]
-                  eprintln!("hotkey: thread_sender.send error {}", err);
-                }
-              } else if let Err(err) =
-                thread_sender.send(HotkeyMessage::UnregisterHotkeyResult(Ok(())))
-              {
-                #[cfg(debug_assertions)]
-                eprintln!("hotkey: thread_sender.send error {}", err);
-              }
-            }
-            Ok(HotkeyMessage::DropThread) => {
-              (xlib.XCloseDisplay)(display);
-              return;
-            }
-            Err(err) => {
-              if let TryRecvError::Disconnected = err {
-                #[cfg(debug_assertions)]
-                eprintln!("hotkey: try_recv error {}", err);
-              }
-            }
-            _ => unreachable!("other message should not arrive"),
-          };
-
-          std::thread::sleep(std::time::Duration::from_millis(50));
         }
-      }
-    });
+      });
+    }
 
     ShortcutManager {
       shortcuts: hotkeys,

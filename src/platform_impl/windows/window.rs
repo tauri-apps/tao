@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(target_os = "windows")]
@@ -119,7 +120,7 @@ impl Window {
           )
           .into();
 
-          assert!(RegisterDragDrop(win.window.0, file_drop_handler.clone()).is_ok());
+          assert!(RegisterDragDrop(win.window.0, &file_drop_handler).is_ok());
           Some(file_drop_handler)
         } else {
           None
@@ -140,8 +141,9 @@ impl Window {
   }
 
   pub fn set_title(&self, text: &str) {
+    let text = util::encode_wide(text);
     unsafe {
-      SetWindowTextW(self.window.0, text);
+      SetWindowTextW(self.window.0, PCWSTR::from_raw(text.as_ptr()));
     }
   }
 
@@ -171,6 +173,12 @@ impl Window {
     if is_visible && !is_minimized && !is_foreground {
       unsafe { force_window_active(window.0) };
     }
+  }
+
+  #[inline]
+  pub fn is_focused(&self) -> bool {
+    let window_state = self.window_state.lock();
+    window_state.has_active_focus()
   }
 
   #[inline]
@@ -461,6 +469,12 @@ impl Window {
   }
 
   #[inline]
+  pub fn is_minimized(&self) -> bool {
+    let window_state = self.window_state.lock();
+    window_state.window_flags.contains(WindowFlags::MINIMIZED)
+  }
+
+  #[inline]
   pub fn is_resizable(&self) -> bool {
     let window_state = self.window_state.lock();
     window_state.window_flags.contains(WindowFlags::RESIZABLE)
@@ -517,7 +531,7 @@ impl Window {
 
           let res = unsafe {
             ChangeDisplaySettingsExW(
-              PCWSTR(display_name.as_ptr()),
+              PCWSTR::from_raw(display_name.as_ptr()),
               &native_video_mode,
               HWND::default(),
               CDS_FULLSCREEN,
@@ -535,7 +549,7 @@ impl Window {
         | (&Some(Fullscreen::Exclusive(_)), &Some(Fullscreen::Borderless(_))) => {
           let res = unsafe {
             ChangeDisplaySettingsExW(
-              PCWSTR::default(),
+              PCWSTR::null(),
               std::ptr::null_mut(),
               HWND::default(),
               CDS_FULLSCREEN,
@@ -639,6 +653,18 @@ impl Window {
     self.thread_executor.execute_in_thread(move || {
       WindowState::set_window_flags(window_state.lock(), window.0, |f| {
         f.set(WindowFlags::DECORATIONS, decorations)
+      });
+    });
+  }
+
+  #[inline]
+  pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
+    let window = self.window.clone();
+    let window_state = Arc::clone(&self.window_state);
+
+    self.thread_executor.execute_in_thread(move || {
+      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+        f.set(WindowFlags::ALWAYS_ON_BOTTOM, always_on_bottom)
       });
     });
   }
@@ -795,6 +821,19 @@ impl Window {
     self.window_state.lock().skip_taskbar = skip;
     unsafe { set_skip_taskbar(self.hwnd(), skip) };
   }
+
+  pub fn set_content_protection(&self, enabled: bool) {
+    unsafe {
+      SetWindowDisplayAffinity(
+        self.hwnd(),
+        if enabled {
+          WDA_EXCLUDEFROMCAPTURE
+        } else {
+          WDA_NONE
+        },
+      );
+    }
+  }
 }
 
 impl Drop for Window {
@@ -831,6 +870,7 @@ unsafe fn init<T: 'static>(
 
   let mut window_flags = WindowFlags::empty();
   window_flags.set(WindowFlags::DECORATIONS, attributes.decorations);
+  window_flags.set(WindowFlags::ALWAYS_ON_BOTTOM, attributes.always_on_bottom);
   window_flags.set(WindowFlags::ALWAYS_ON_TOP, attributes.always_on_top);
   window_flags.set(
     WindowFlags::NO_BACK_BUFFER,
@@ -861,10 +901,11 @@ unsafe fn init<T: 'static>(
   // creating the real window this time, by using the functions in `extra_functions`
   let real_window = {
     let (style, ex_style) = window_flags.to_window_styles();
+    let title = util::encode_wide(&attributes.title);
     let handle = CreateWindowExW(
       ex_style,
-      PCWSTR(class_name.as_ptr()),
-      attributes.title.as_str(),
+      PCWSTR::from_raw(class_name.as_ptr()),
+      PCWSTR::from_raw(title.as_ptr()),
       style,
       CW_USEDEFAULT,
       CW_USEDEFAULT,
@@ -872,7 +913,7 @@ unsafe fn init<T: 'static>(
       CW_USEDEFAULT,
       parent.unwrap_or_default(),
       pl_attribs.menu.unwrap_or_default(),
-      GetModuleHandleW(PCWSTR::default()).unwrap_or_default(),
+      GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
       Box::into_raw(Box::new(window_flags)) as _,
     );
 
@@ -1014,12 +1055,12 @@ unsafe fn register_window_class(
     lpfnWndProc: Some(window_proc),
     cbClsExtra: 0,
     cbWndExtra: 0,
-    hInstance: GetModuleHandleW(PCWSTR::default()).unwrap_or_default(),
+    hInstance: GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
     hIcon: h_icon,
     hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
     hbrBackground: HBRUSH::default(),
-    lpszMenuName: PCWSTR::default(),
-    lpszClassName: PCWSTR(class_name.as_ptr()),
+    lpszMenuName: PCWSTR::null(),
+    lpszClassName: PCWSTR::from_raw(class_name.as_ptr()),
     hIconSm: h_icon_small,
   };
 

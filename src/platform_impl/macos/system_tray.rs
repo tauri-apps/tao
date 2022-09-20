@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{
@@ -17,11 +18,11 @@ use crate::{
 };
 use cocoa::{
   appkit::{
-    NSButton, NSEventMask, NSEventModifierFlags, NSEventType, NSImage, NSSquareStatusItemLength,
-    NSStatusBar, NSStatusItem, NSWindow,
+    NSButton, NSEventMask, NSEventModifierFlags, NSEventType, NSImage, NSStatusBar, NSStatusItem,
+    NSVariableStatusItemLength, NSWindow,
   },
   base::{id, nil, NO, YES},
-  foundation::{NSAutoreleasePool, NSData, NSPoint, NSSize, NSString},
+  foundation::{NSData, NSPoint, NSSize, NSString},
 };
 use objc::{
   declare::ClassDecl,
@@ -38,9 +39,9 @@ impl SystemTrayBuilder {
   #[inline]
   pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
     unsafe {
-      let ns_status_bar = NSStatusBar::systemStatusBar(nil)
-        .statusItemWithLength_(NSSquareStatusItemLength)
-        .autorelease();
+      let ns_status_bar =
+        NSStatusBar::systemStatusBar(nil).statusItemWithLength_(NSVariableStatusItemLength);
+      let _: () = msg_send![ns_status_bar, retain];
 
       Self {
         system_tray: SystemTray {
@@ -49,6 +50,7 @@ impl SystemTrayBuilder {
           menu_on_left_click: true,
           tray_menu,
           ns_status_bar,
+          title: None,
         },
       }
     }
@@ -99,6 +101,11 @@ impl SystemTrayBuilder {
       if let Some(tooltip) = tooltip {
         self.system_tray.set_tooltip(&tooltip);
       }
+
+      // set up title if provided
+      if let Some(title) = &self.system_tray.title {
+        self.system_tray.set_title(title);
+      }
     }
 
     Ok(RootSystemTray(self.system_tray))
@@ -113,6 +120,16 @@ pub struct SystemTray {
   pub(crate) menu_on_left_click: bool,
   pub(crate) tray_menu: Option<Menu>,
   pub(crate) ns_status_bar: id,
+  pub(crate) title: Option<String>,
+}
+
+impl Drop for SystemTray {
+  fn drop(&mut self) {
+    unsafe {
+      NSStatusBar::systemStatusBar(nil).removeStatusItem_(self.ns_status_bar);
+      let _: () = msg_send![self.ns_status_bar, release];
+    }
+  }
 }
 
 impl SystemTray {
@@ -139,9 +156,20 @@ impl SystemTray {
     }
   }
 
+  pub fn set_title(&self, title: &str) {
+    unsafe {
+      NSButton::setTitle_(
+        self.ns_status_bar.button(),
+        NSString::alloc(nil).init_str(title),
+      );
+    }
+  }
+
   fn create_button_with_icon(&self) {
     const ICON_WIDTH: f64 = 18.0;
     const ICON_HEIGHT: f64 = 18.0;
+    // The image is to the right of the title https://developer.apple.com/documentation/appkit/nscellimageposition/nsimageleft
+    const NSIMAGE_LEFT: i32 = 2;
 
     let icon = self.icon.inner.to_png();
 
@@ -161,6 +189,7 @@ impl SystemTray {
 
       button.setImage_(nsimage);
       let _: () = msg_send![nsimage, setSize: new_size];
+      let _: () = msg_send![button, setImagePosition: NSIMAGE_LEFT];
       let is_template = match self.icon_is_template {
         true => YES,
         false => NO,

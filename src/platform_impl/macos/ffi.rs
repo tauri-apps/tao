@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 // TODO: Upstream these
@@ -116,6 +117,7 @@ pub const kCGNumberOfWindowLevelKeys: NSInteger = 20;
 #[derive(Debug, Clone, Copy)]
 #[repr(isize)]
 pub enum NSWindowLevel {
+  BelowNormalWindowLevel = (kCGBaseWindowLevelKey - 1) as _,
   NSNormalWindowLevel = kCGBaseWindowLevelKey as _,
   NSFloatingWindowLevel = kCGFloatingWindowLevelKey as _,
   NSTornOffMenuWindowLevel = kCGTornOffMenuWindowLevelKey as _,

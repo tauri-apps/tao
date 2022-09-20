@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{fmt, io, iter::once, mem, os::windows::ffi::OsStrExt, path::Path, sync::Arc};
@@ -90,7 +91,7 @@ impl WinIcon {
     let handle = unsafe {
       LoadImageW(
         HINSTANCE::default(),
-        PCWSTR(wide_path.as_ptr()),
+        PCWSTR::from_raw(wide_path.as_ptr()),
         IMAGE_ICON,
         width as i32,
         height as i32,
@@ -108,8 +109,8 @@ impl WinIcon {
     let (width, height) = size.map(Into::into).unwrap_or((0, 0));
     let handle = unsafe {
       LoadImageW(
-        GetModuleHandleW(PCWSTR::default()).unwrap_or_default(),
-        PCWSTR(resource_id as usize as *const u16),
+        GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
+        PCWSTR::from_raw(resource_id as usize as *const u16),
         IMAGE_ICON,
         width as i32,
         height as i32,

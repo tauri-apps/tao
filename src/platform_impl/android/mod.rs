@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(target_os = "android")]
@@ -598,6 +599,11 @@ impl Window {
     warn!("set_focus not yet implemented on Android");
   }
 
+  pub fn is_focused(&self) -> bool {
+    log::warn!("`Window::is_focused` is ignored on Android");
+    false
+  }
+
   pub fn set_resizable(&self, _resizeable: bool) {}
 
   pub fn set_minimized(&self, _minimized: bool) {}
@@ -605,6 +611,10 @@ impl Window {
   pub fn set_maximized(&self, _maximized: bool) {}
 
   pub fn is_maximized(&self) -> bool {
+    false
+  }
+
+  pub fn is_minimized(&self) -> bool {
     false
   }
 
@@ -632,6 +642,8 @@ impl Window {
   }
 
   pub fn set_decorations(&self, _decorations: bool) {}
+
+  pub fn set_always_on_bottom(&self, _always_on_bottom: bool) {}
 
   pub fn set_always_on_top(&self, _always_on_top: bool) {}
 
