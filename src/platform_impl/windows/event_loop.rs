@@ -1706,7 +1706,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     win32wm::WM_NCACTIVATE => {
-      let is_active = wparam == WPARAM(1);
+      let is_active = wparam != WPARAM(0);
       let active_focus_changed = subclass_input.window_state.lock().set_active(is_active);
       if active_focus_changed {
         if is_active {
