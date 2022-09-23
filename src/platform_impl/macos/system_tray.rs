@@ -46,6 +46,7 @@ impl SystemTrayBuilder {
       Self {
         system_tray: SystemTray {
           icon_is_template: false,
+          icon_aspect_ratio: false,
           icon,
           menu_on_left_click: true,
           tray_menu,
@@ -117,6 +118,7 @@ impl SystemTrayBuilder {
 pub struct SystemTray {
   pub(crate) icon: Icon,
   pub(crate) icon_is_template: bool,
+  pub(crate) icon_aspect_ratio: bool,
   pub(crate) menu_on_left_click: bool,
   pub(crate) tray_menu: Option<Menu>,
   pub(crate) ns_status_bar: id,
@@ -143,6 +145,10 @@ impl SystemTray {
     self.icon_is_template = is_template;
   }
 
+  pub fn set_icon_aspect_ratio(mut self, is_same: bool) {
+    self.icon_aspect_ratio = is_same;
+  }
+
   pub fn set_menu(&mut self, tray_menu: &Menu) {
     unsafe {
       self.ns_status_bar.setMenu_(tray_menu.menu);
@@ -166,12 +172,18 @@ impl SystemTray {
   }
 
   fn create_button_with_icon(&self) {
-    const ICON_WIDTH: f64 = 18.0;
-    const ICON_HEIGHT: f64 = 18.0;
     // The image is to the right of the title https://developer.apple.com/documentation/appkit/nscellimageposition/nsimageleft
     const NSIMAGE_LEFT: i32 = 2;
 
     let icon = self.icon.inner.to_png();
+
+    let mut icon_width: f64 = 18.0;
+    let icon_height: f64 = 18.0;
+
+    if self.icon_aspect_ratio {
+      let (width, height) = self.icon.inner.get_size();
+      icon_width = (width as f64) / (height as f64) * icon_height;
+    }
 
     unsafe {
       let status_item = self.ns_status_bar;
@@ -185,7 +197,7 @@ impl SystemTray {
       );
 
       let nsimage = NSImage::initWithData_(NSImage::alloc(nil), nsdata);
-      let new_size = NSSize::new(ICON_WIDTH, ICON_HEIGHT);
+      let new_size = NSSize::new(icon_width, icon_height);
 
       button.setImage_(nsimage);
       let _: () = msg_send![nsimage, setSize: new_size];
