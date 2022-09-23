@@ -143,6 +143,7 @@ pub struct WindowAttributes {
   /// There may be a small gap between this position and the window due to the specifics of the
   /// Window Manager.
   /// - **Linux**: The top left corner of the window, the window's "outer" position.
+  /// - **Linux(Wayland)**: Unsupported.
   /// - **Others**: Ignored.
   ///
   /// See [`Window::set_outer_position`].
@@ -540,7 +541,7 @@ impl Window {
   ///
   /// - **iOS:** Can only be called on the main thread. Sets the top left coordinates of the
   ///   window in the screen space coordinate system.
-  /// - **Android:** Unsupported.
+  /// - **Android / Linux(Wayland):** Unsupported.
   #[inline]
   pub fn set_outer_position<P: Into<Position>>(&self, position: P) {
     self.window.set_outer_position(position.into())
