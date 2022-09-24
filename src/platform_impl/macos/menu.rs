@@ -308,10 +308,12 @@ impl Menu {
       )),
       MenuItem::Services => unsafe {
         let item = make_menu_item("Services", None, None, MenuType::MenuBar);
+        // we have to assign an empty menu as the app's services menu, and macOS will populate it
+        let services_menu = NSMenu::alloc(nil).autorelease();
         let app_class = class!(NSApplication);
         let app: id = msg_send![app_class, sharedApplication];
-        let services: id = msg_send![app, servicesMenu];
-        let _: () = msg_send![&*item, setSubmenu: services];
+        let () = msg_send![app, setServicesMenu: services_menu];
+        let () = msg_send![&*item, setSubmenu: services_menu];
         Some((None, item))
       },
     };
