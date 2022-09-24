@@ -46,7 +46,6 @@ impl SystemTrayBuilder {
       Self {
         system_tray: SystemTray {
           icon_is_template: false,
-          icon_aspect_ratio: false,
           icon,
           menu_on_left_click: true,
           tray_menu,
@@ -118,7 +117,6 @@ impl SystemTrayBuilder {
 pub struct SystemTray {
   pub(crate) icon: Icon,
   pub(crate) icon_is_template: bool,
-  pub(crate) icon_aspect_ratio: bool,
   pub(crate) menu_on_left_click: bool,
   pub(crate) tray_menu: Option<Menu>,
   pub(crate) ns_status_bar: id,
@@ -143,10 +141,6 @@ impl SystemTray {
 
   pub fn set_icon_as_template(mut self, is_template: bool) {
     self.icon_is_template = is_template;
-  }
-
-  pub fn set_icon_aspect_ratio(mut self, is_same: bool) {
-    self.icon_aspect_ratio = is_same;
   }
 
   pub fn set_menu(&mut self, tray_menu: &Menu) {
@@ -177,13 +171,10 @@ impl SystemTray {
 
     let icon = self.icon.inner.to_png();
 
-    let mut icon_width: f64 = 18.0;
-    let icon_height: f64 = 18.0;
+    let (width, height) = self.icon.inner.get_size();
 
-    if self.icon_aspect_ratio {
-      let (width, height) = self.icon.inner.get_size();
-      icon_width = (width as f64) / (height as f64) * icon_height;
-    }
+    let icon_height: f64 = 18.0;
+    let icon_width: f64 = (width as f64) / (height as f64 / icon_height);
 
     unsafe {
       let status_item = self.ns_status_bar;
