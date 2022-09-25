@@ -49,6 +49,8 @@ fn main() {
     },
   ));
 
+  first_menu.add_native_item(MenuItem::Services);
+
   // Create custom Copy menu with our clipboard object
   let custom_insert_clipboard = first_menu.add_item(MenuItemAttributes::new("Insert clipboard"));
   let custom_read_clipboard = first_menu.add_item(MenuItemAttributes::new("Read clipboard"));
