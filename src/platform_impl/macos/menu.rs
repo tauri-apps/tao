@@ -26,7 +26,7 @@ use crate::{
 use super::{
   app_state::AppState,
   event::EventWrapper,
-  util::{app_name, ns_string_to_rust},
+  util::{app_name_string, ns_string_to_rust},
   window::get_window_id,
 };
 
@@ -197,40 +197,24 @@ impl Menu {
           menu_type,
         ),
       )),
-      MenuItem::Quit => {
-        let label = unsafe {
-          match app_name() {
-            Some(app_name) => format!("Quit {}", ns_string_to_rust(app_name)),
-            None => "Quit".to_string(),
-          }
-        };
-        Some((
-          None,
-          make_menu_item(
-            label.as_str(),
-            Some(selector("terminate:")),
-            Some(Accelerator::new(RawMods::Meta, KeyCode::KeyQ)),
-            menu_type,
-          ),
-        ))
-      }
-      MenuItem::Hide => {
-        let label = unsafe {
-          match app_name() {
-            Some(app_name) => format!("Hide {}", ns_string_to_rust(app_name)),
-            None => "Hide".to_string(),
-          }
-        };
-        Some((
-          None,
-          make_menu_item(
-            label.as_str(),
-            Some(selector("hide:")),
-            Some(Accelerator::new(RawMods::Meta, KeyCode::KeyH)),
-            menu_type,
-          ),
-        ))
-      }
+      MenuItem::Quit => Some((
+        None,
+        make_menu_item(
+          format!("Quit {}", unsafe { app_name_string() }.unwrap_or_default()).trim(),
+          Some(selector("terminate:")),
+          Some(Accelerator::new(RawMods::Meta, KeyCode::KeyQ)),
+          menu_type,
+        ),
+      )),
+      MenuItem::Hide => Some((
+        None,
+        make_menu_item(
+          format!("Hide {}", unsafe { app_name_string() }.unwrap_or_default()).trim(),
+          Some(selector("hide:")),
+          Some(Accelerator::new(RawMods::Meta, KeyCode::KeyH)),
+          menu_type,
+        ),
+      )),
       MenuItem::HideOthers => Some((
         None,
         make_menu_item(

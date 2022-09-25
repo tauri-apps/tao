@@ -143,6 +143,11 @@ pub unsafe fn app_name() -> Option<id> {
   }
 }
 
+/// Gets the app's name as a `String` from the `localizedName` property of `NSRunningApplication`
+pub unsafe fn app_name_string() -> Option<String> {
+  app_name().map(|name| ns_string_to_rust(name))
+}
+
 pub unsafe fn superclass<'a>(this: &'a Object) -> &'a Class {
   let superclass: *const Class = msg_send![this, superclass];
   &*superclass
