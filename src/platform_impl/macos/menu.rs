@@ -210,7 +210,7 @@ impl Menu {
             menu_type,
           ),
         ))
-      },
+      }
       MenuItem::Hide => {
         let label = match get_app_name() {
           Some(name) => format!("Hide {}", name),
@@ -226,7 +226,7 @@ impl Menu {
             menu_type,
           ),
         ))
-      },
+      }
       MenuItem::HideOthers => Some((
         None,
         make_menu_item(
