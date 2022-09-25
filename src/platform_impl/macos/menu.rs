@@ -24,7 +24,10 @@ use crate::{
 };
 
 use super::{
-  app_state::AppState, event::EventWrapper, util::ns_string_to_rust, window::get_window_id,
+  app_state::AppState,
+  event::EventWrapper,
+  util::{app_name_string, ns_string_to_rust},
+  window::get_window_id,
 };
 
 static BLOCK_PTR: &str = "taoMenuItemBlockPtr";
@@ -197,7 +200,7 @@ impl Menu {
       MenuItem::Quit => Some((
         None,
         make_menu_item(
-          "Quit",
+          format!("Quit {}", unsafe { app_name_string() }.unwrap_or_default()).trim(),
           Some(selector("terminate:")),
           Some(Accelerator::new(RawMods::Meta, KeyCode::KeyQ)),
           menu_type,
@@ -206,7 +209,7 @@ impl Menu {
       MenuItem::Hide => Some((
         None,
         make_menu_item(
-          "Hide",
+          format!("Hide {}", unsafe { app_name_string() }.unwrap_or_default()).trim(),
           Some(selector("hide:")),
           Some(Accelerator::new(RawMods::Meta, KeyCode::KeyH)),
           menu_type,
