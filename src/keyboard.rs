@@ -323,6 +323,8 @@ pub enum KeyCode {
   KeyZ,
   /// <kbd>-</kbd> on a US keyboard.
   Minus,
+  /// <kbd>+</kbd> on a US keyboard.
+  Plus,
   /// <kbd>.</kbd> on a US keyboard.
   Period,
   /// <kbd>'</kbd> on a US keyboard.
@@ -698,6 +700,7 @@ impl FromStr for KeyCode {
       "NUM9" | "NUMPAD9" => KeyCode::Numpad9,
       "=" => KeyCode::Equal,
       "-" => KeyCode::Minus,
+      "PLUS" => KeyCode::Plus,
       "." | "PERIOD" => KeyCode::Period,
       "'" | "QUOTE" => KeyCode::Quote,
       "\\" => KeyCode::IntlBackslash,
