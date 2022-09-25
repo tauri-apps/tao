@@ -846,6 +846,7 @@ pub(crate) fn key_to_vk(key: &KeyCode) -> Option<VIRTUAL_KEY> {
     KeyCode::Digit9 => unsafe { VIRTUAL_KEY(VkKeyScanW('9' as u16) as u16) },
     KeyCode::Comma => VK_OEM_COMMA,
     KeyCode::Minus => VK_OEM_MINUS,
+    KeyCode::Plus => VK_OEM_PLUS,
     KeyCode::Period => VK_OEM_PERIOD,
     KeyCode::Equal => unsafe { VIRTUAL_KEY(VkKeyScanW('=' as u16) as u16) },
     KeyCode::Semicolon => unsafe { VIRTUAL_KEY(VkKeyScanW(';' as u16) as u16) },
