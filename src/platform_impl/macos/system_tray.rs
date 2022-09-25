@@ -166,12 +166,15 @@ impl SystemTray {
   }
 
   fn create_button_with_icon(&self) {
-    const ICON_WIDTH: f64 = 18.0;
-    const ICON_HEIGHT: f64 = 18.0;
     // The image is to the right of the title https://developer.apple.com/documentation/appkit/nscellimageposition/nsimageleft
     const NSIMAGE_LEFT: i32 = 2;
 
     let icon = self.icon.inner.to_png();
+
+    let (width, height) = self.icon.inner.get_size();
+
+    let icon_height: f64 = 18.0;
+    let icon_width: f64 = (width as f64) / (height as f64 / icon_height);
 
     unsafe {
       let status_item = self.ns_status_bar;
@@ -185,7 +188,7 @@ impl SystemTray {
       );
 
       let nsimage = NSImage::initWithData_(NSImage::alloc(nil), nsdata);
-      let new_size = NSSize::new(ICON_WIDTH, ICON_HEIGHT);
+      let new_size = NSSize::new(icon_width, icon_height);
 
       button.setImage_(nsimage);
       let _: () = msg_send![nsimage, setSize: new_size];
