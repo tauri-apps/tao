@@ -12,7 +12,7 @@ use objc::{
   runtime::{Class, Object, Sel, NO, YES},
 };
 
-use std::{os::raw::c_char, slice, str, sync::Once};
+use std::{str, sync::Once};
 
 use crate::{
   accelerator::{Accelerator, RawMods},
@@ -25,7 +25,10 @@ use crate::{
 };
 
 use super::{
-  app_state::AppState, event::EventWrapper, util::ns_string_to_rust, window::get_window_id,
+  app_state::AppState,
+  event::EventWrapper,
+  util::{app_name, ns_string_to_rust},
+  window::get_window_id,
 };
 
 static BLOCK_PTR: &str = "taoMenuItemBlockPtr";
@@ -195,38 +198,24 @@ impl Menu {
           menu_type,
         ),
       )),
-      MenuItem::Quit => {
-        let label = match get_app_name() {
-          Some(name) => format!("Quit {}", name),
-          _ => "Quit".to_string(),
-        };
-
-        Some((
-          None,
-          make_menu_item(
-            label.as_str(),
-            Some(selector("terminate:")),
-            Some(Accelerator::new(RawMods::Meta, KeyCode::KeyQ)),
-            menu_type,
-          ),
-        ))
-      }
-      MenuItem::Hide => {
-        let label = match get_app_name() {
-          Some(name) => format!("Hide {}", name),
-          _ => "Hide".to_string(),
-        };
-
-        Some((
-          None,
-          make_menu_item(
-            label.as_str(),
-            Some(selector("hide:")),
-            Some(Accelerator::new(RawMods::Meta, KeyCode::KeyH)),
-            menu_type,
-          ),
-        ))
-      }
+      MenuItem::Quit => Some((
+        None,
+        make_menu_item(
+          format!("Quit {}", app_name()).as_str(),
+          Some(selector("terminate:")),
+          Some(Accelerator::new(RawMods::Meta, KeyCode::KeyQ)),
+          menu_type,
+        ),
+      )),
+      MenuItem::Hide => Some((
+        None,
+        make_menu_item(
+          format!("Hide {}", app_name()).as_str(),
+          Some(selector("hide:")),
+          Some(Accelerator::new(RawMods::Meta, KeyCode::KeyH)),
+          menu_type,
+        ),
+      )),
       MenuItem::HideOthers => Some((
         None,
         make_menu_item(
@@ -620,20 +609,5 @@ impl Accelerator {
       flags.insert(NSEventModifierFlags::NSControlKeyMask);
     }
     flags
-  }
-}
-
-fn get_app_name() -> Option<&'static str> {
-  unsafe {
-    let app_class = class!(NSRunningApplication);
-    let app: id = msg_send![app_class, currentApplication];
-    let name: *const Object = msg_send![app, localizedName];
-    let size: usize = msg_send![name, lengthOfBytesUsingEncoding:4];
-    let bytes: *const c_char = msg_send!(name, UTF8String);
-    let c_str = str::from_utf8(slice::from_raw_parts(bytes as *const u8, size));
-    match c_str {
-      Ok(name) => Some(name),
-      _ => None,
-    }
   }
 }
