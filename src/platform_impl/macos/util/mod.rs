@@ -132,12 +132,14 @@ pub unsafe fn ns_string_to_rust(ns_string: id) -> String {
 }
 
 /// Gets the app's name from the `localizedName` property of `NSRunningApplication`
-pub fn app_name() -> String {
-  unsafe {
-    let app_class = class!(NSRunningApplication);
-    let app: id = msg_send![app_class, currentApplication];
-    let name: id = msg_send![app, localizedName];
-    ns_string_to_rust(name)
+pub unsafe fn app_name() -> Option<id> {
+  let app_class = class!(NSRunningApplication);
+  let app: id = msg_send![app_class, currentApplication];
+  let app_name: id = msg_send![app, localizedName];
+  if app_name != nil {
+    Some(app_name)
+  } else {
+    None
   }
 }
 
