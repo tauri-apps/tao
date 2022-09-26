@@ -65,14 +65,14 @@ pub trait WindowBuilderExtUnix {
 
   /// Whether to enable the rgba visual for the window.
   ///
-  /// Default is `false` but is always `true` if [WindowBuilder::transparent] is `true`
+  /// Default is `false` but is always `true` if [`WindowAttributes::transparent`](crate::window::WindowAttributes::transparent) is `true`
   fn with_rgba_visual(self, rgba_visual: bool) -> WindowBuilder;
 
   /// Wether to set this window as app paintable
   ///
-  /// https://docs.gtk.org/gtk3/method.Widget.set_app_paintable.html
+  /// <https://docs.gtk.org/gtk3/method.Widget.set_app_paintable.html>
   ///
-  /// Default is `false` but is always `true` if [WindowBuilder::transparent] is `true`
+  /// Default is `false` but is always `true` if [`WindowAttributes::transparent`](crate::window::WindowAttributes::transparent) is `true`
   fn with_app_paintable(self, app_paintable: bool) -> WindowBuilder;
 }
 
