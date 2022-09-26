@@ -74,8 +74,7 @@ fn main() {
 
   second_menu.add_native_item(MenuItem::Separator);
   let mut zoom_in_item = second_menu.add_item(
-    MenuItemAttributes::new("Zoom in")
-      .with_accelerators(&"CmdOrCtrl+Plus".parse().unwrap()),
+    MenuItemAttributes::new("Zoom in").with_accelerators(&"CmdOrCtrl+Plus".parse().unwrap()),
   );
 
   // add all our childs to menu_bar_menu (order is how they'll appear)
