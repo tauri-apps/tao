@@ -323,7 +323,14 @@ pub enum KeyCode {
   KeyZ,
   /// <kbd>-</kbd> on a US keyboard.
   Minus,
-  /// <kbd>+</kbd> on a US keyboard.
+  /// <kbd>Shift</kbd>+<kbd>=</kbd> on a US keyboard.
+  ///
+  /// When used as a menu accelerator this is displayed as <kbd>+</kbd>, and on macOS
+  /// and Windows the accelerator can be used without pressing the <kbd>Shift</kbd> key.
+  /// On Linux the <kbd>Shift</kbd> key is still required with a US keyboard layout.
+  ///
+  /// `Plus` does not work as a value for keyboard accelerators outside menus, on
+  /// US keyboards or others where <kbd>+</kbd> requires a modifier key.
   Plus,
   /// <kbd>.</kbd> on a US keyboard.
   Period,
