@@ -534,6 +534,7 @@ impl Accelerator {
       KeyCode::Digit9 => "9".into(),
       KeyCode::Comma => ",".into(),
       KeyCode::Minus => "-".into(),
+      KeyCode::Plus => "+".into(),
       KeyCode::Period => ".".into(),
       KeyCode::Space => "\u{0020}".into(),
       KeyCode::Equal => "=".into(),

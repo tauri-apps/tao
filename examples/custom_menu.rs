@@ -72,6 +72,11 @@ fn main() {
   // create custom item `Change menu` children of `second_menu`
   let change_menu = second_menu.add_item(MenuItemAttributes::new("Change menu"));
 
+  second_menu.add_native_item(MenuItem::Separator);
+  let mut zoom_in_item = second_menu.add_item(
+    MenuItemAttributes::new("Zoom in").with_accelerators(&"CmdOrCtrl+Plus".parse().unwrap()),
+  );
+
   // add all our childs to menu_bar_menu (order is how they'll appear)
   menu_bar_menu.add_submenu("My app", true, first_menu);
   menu_bar_menu.add_submenu("Other menu", true, second_menu);
@@ -135,6 +140,13 @@ fn main() {
         ..
       } if menu_id == custom_read_clipboard.clone().id() => {
         println!("Clipboard content: {:?}", cliboard.read_text());
+      }
+      Event::MenuEvent {
+        menu_id,
+        origin: MenuType::MenuBar,
+        ..
+      } if menu_id == zoom_in_item.clone().id() => {
+        println!("Zoom in!");
       }
       _ => (),
     }
