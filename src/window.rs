@@ -918,7 +918,7 @@ impl Window {
   /// ## Platform-specific
   ///
   /// - **iOS / Android / Linux:** Unsupported.
-  pub fn set_content_protection(&self, enabled: bool) {
+  pub fn set_content_protection(&self, #[allow(unused)] enabled: bool) {
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     self.window.set_content_protection(enabled);
   }

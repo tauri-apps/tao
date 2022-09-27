@@ -139,20 +139,27 @@ impl Window {
     }
 
     // Set GDK Visual
-    if let Some(screen) = window.screen() {
-      if let Some(visual) = screen.rgba_visual() {
-        window.set_visual(Some(&visual));
+    if pl_attribs.rgba_visual || attributes.transparent {
+      if let Some(screen) = window.screen() {
+        if let Some(visual) = screen.rgba_visual() {
+          window.set_visual(Some(&visual));
+        }
       }
     }
 
-    // Set a few attributes to make the window can be painted.
-    // See Gtk drawing model for more info:
-    // https://docs.gtk.org/gtk3/drawing-model.html
-    window.set_app_paintable(true);
-    let widget = window.upcast_ref::<gtk::Widget>();
-    if !event_loop_window_target.is_wayland() {
-      unsafe {
-        gtk::ffi::gtk_widget_set_double_buffered(widget.to_glib_none().0, 0);
+    if pl_attribs.app_paintable || attributes.transparent {
+      // Set a few attributes to make the window can be painted.
+      // See Gtk drawing model for more info:
+      // https://docs.gtk.org/gtk3/drawing-model.html
+      window.set_app_paintable(true);
+    }
+
+    if !pl_attribs.double_buffered {
+      let widget = window.upcast_ref::<gtk::Widget>();
+      if !event_loop_window_target.is_wayland() {
+        unsafe {
+          gtk::ffi::gtk_widget_set_double_buffered(widget.to_glib_none().0, 0);
+        }
       }
     }
 
