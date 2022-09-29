@@ -195,6 +195,14 @@ fn create_window(
       masks &= !NSWindowStyleMask::NSResizableWindowMask;
     }
 
+    if !attrs.minimizable {
+      masks &= !NSWindowStyleMask::NSMiniaturizableWindowMask;
+    }
+
+    if !attrs.closable {
+      masks &= !NSWindowStyleMask::NSClosableWindowMask;
+    }
+
     if pl_attrs.fullsize_content_view {
       masks |= NSWindowStyleMask::NSFullSizeContentViewWindowMask;
     }
@@ -693,6 +701,28 @@ impl UnownedWindow {
     } // Otherwise, we don't change the mask until we exit fullscreen.
   }
 
+  #[inline]
+  pub fn set_minimizable(&self, minimizable: bool) {
+    let mut mask = unsafe { self.ns_window.styleMask() };
+    if minimizable {
+      mask |= NSWindowStyleMask::NSMiniaturizableWindowMask;
+    } else {
+      mask &= !NSWindowStyleMask::NSMiniaturizableWindowMask;
+    }
+    self.set_style_mask_async(mask);
+  }
+
+  #[inline]
+  pub fn set_closable(&self, closable: bool) {
+    let mut mask = unsafe { self.ns_window.styleMask() };
+    if closable {
+      mask |= NSWindowStyleMask::NSClosableWindowMask;
+    } else {
+      mask &= !NSWindowStyleMask::NSClosableWindowMask;
+    }
+    self.set_style_mask_async(mask);
+  }
+
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
     let cursor = util::Cursor::from(cursor);
     if let Some(cursor_access) = self.cursor_state.upgrade() {
@@ -884,6 +914,18 @@ impl UnownedWindow {
   pub fn is_resizable(&self) -> bool {
     let is_resizable: BOOL = unsafe { msg_send![*self.ns_window, isResizable] };
     is_resizable == YES
+  }
+
+  #[inline]
+  pub fn is_minimizable(&self) -> bool {
+    let is_minimizable: BOOL = unsafe { msg_send![*self.ns_window, isMiniaturizable] };
+    is_minimizable == YES
+  }
+
+  #[inline]
+  pub fn is_closable(&self) -> bool {
+    let is_closable: BOOL = unsafe { msg_send![*self.ns_window, hasCloseBox] };
+    is_closable == YES
   }
 
   #[inline]
