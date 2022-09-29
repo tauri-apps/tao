@@ -5,7 +5,7 @@
 extern crate tao;
 
 use tao::{
-  event::{Event, WindowEvent, ElementState},
+  event::{ElementState, Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   keyboard::Key,
   window::WindowBuilder,
@@ -26,27 +26,27 @@ fn main() {
 
     match event {
       Event::WindowEvent {
-        event,
-        window_id,
-        ..
+        event, window_id, ..
       } if window_id == window.id() => match event {
         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
 
         // Keyboard input event to handle minimize via a hotkey
-        WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => match event.logical_key {
-          // Pressing the 'm' key will minimize the window
-          // WARNING: Consider using `key_without_modifers()` if available on your platform.
-          // See the `key_binding` example
-          Key::Character("m") => window.set_minimized(true),
-          Key::Space => {
-            let minimizable = !window.is_minimizable();
-            println!("Minimizable: {}", minimizable);
-            window.set_minimizable(minimizable);
+        WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
+          match event.logical_key {
+            // Pressing the 'm' key will minimize the window
+            // WARNING: Consider using `key_without_modifers()` if available on your platform.
+            // See the `key_binding` example
+            Key::Character("m") => window.set_minimized(true),
+            Key::Space => {
+              let minimizable = !window.is_minimizable();
+              println!("Minimizable: {}", minimizable);
+              window.set_minimizable(minimizable);
+            }
+            _ => (),
           }
-          _ => (),
         }
         _ => (),
-      }
+      },
       _ => (),
     }
   });
