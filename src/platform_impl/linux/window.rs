@@ -473,6 +473,14 @@ impl Window {
     }
   }
 
+  pub fn set_minimizable(&self, _minimizable: bool) {
+    warn!("`Window::set_minimizable` is ignored on Linux")
+  }
+
+  pub fn set_closable(&self, _closable: bool) {
+    warn!("`Window::set_closable` is ignored on Linux")
+  }
+
   pub fn set_minimized(&self, minimized: bool) {
     if let Err(e) = self
       .window_requests_tx
@@ -501,6 +509,16 @@ impl Window {
 
   pub fn is_resizable(&self) -> bool {
     self.window.is_resizable()
+  }
+
+  pub fn is_minimizable(&self) -> bool {
+    warn!("`Window::is_minimizable` is ignored on Linux");
+    false
+  }
+
+  pub fn is_closable(&self) -> bool {
+    warn!("`Window::is_closable` is ignored on Linux");
+    false
   }
 
   pub fn is_decorated(&self) -> bool {

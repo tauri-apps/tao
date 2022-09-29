@@ -309,6 +309,16 @@ impl Window {
     });
   }
 
+  #[inline]
+  pub fn set_minimizable(&self, _minimizable: bool) {
+    warn!("`Window::set_minimizable` is ignored on Windows")
+  }
+
+  #[inline]
+  pub fn set_closable(&self, _closable: bool) {
+    warn!("`Window::set_closable` is ignored on Windows")
+  }
+
   /// Returns the `hwnd` of this window.
   #[inline]
   pub fn hwnd(&self) -> HWND {
@@ -478,6 +488,18 @@ impl Window {
   pub fn is_resizable(&self) -> bool {
     let window_state = self.window_state.lock();
     window_state.window_flags.contains(WindowFlags::RESIZABLE)
+  }
+
+  #[inline]
+  pub fn is_minimizable(&self) -> bool {
+    warn!("`Window::is_minimizable` is ignored on Windows");
+    false
+  }
+
+  #[inline]
+  pub fn is_closable(&self) -> bool {
+    warn!("`Window::is_closable` is ignored on Windows");
+    false
   }
 
   #[inline]
