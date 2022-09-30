@@ -70,7 +70,10 @@ impl Window {
   ) -> Result<Self, RootOsError> {
     let app = &event_loop_window_target.app;
     let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
-    let window = gtk::ApplicationWindow::new(app);
+    let window = gtk::ApplicationWindow::builder()
+      .application(app)
+      .accepts_focus(attributes.focused)
+      .build();
     let window_id = WindowId(window.id());
     event_loop_window_target
       .windows
