@@ -526,9 +526,13 @@ impl UnownedWindow {
     // Setting the window as key has to happen *after* we set the fullscreen
     // state, since otherwise we'll briefly see the window at normal size
     // before it transitions.
-    if visible && focused {
-      // Tightly linked with `app_state::window_activation_hack`
-      unsafe { window.ns_window.makeKeyAndOrderFront_(nil) };
+    if visible {
+      if focused {
+        // Tightly linked with `app_state::window_activation_hack`
+        unsafe { window.ns_window.makeKeyAndOrderFront_(nil) };
+      } else {
+        unsafe { window.ns_window.orderFront_(nil) };
+      }
     }
 
     if maximized {
