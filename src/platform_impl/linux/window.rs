@@ -239,14 +239,20 @@ impl Window {
       }
     }
 
+    if let Parent::ChildOf(parent) = pl_attribs.parent {
+      window.set_transient_for(Some(&parent));
+    }
+
     if attributes.visible {
       window.show_all();
     } else {
       window.hide();
     }
-
-    if let Parent::ChildOf(parent) = pl_attribs.parent {
-      window.set_transient_for(Some(&parent));
+    
+    // restore accept-focus after the window has been visible
+    // if the window was initially created without focus
+    if !attributes.focused {
+      window.set_accept_focus(true);
     }
 
     let w_pos = window.position();
