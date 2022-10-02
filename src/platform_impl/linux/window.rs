@@ -94,6 +94,7 @@ impl Window {
     }
 
     window.set_resizable(attributes.resizable);
+    window.set_deletable(attributes.closable);
 
     // Set Min/Max Size
     let geom_mask = (if attributes.min_inner_size.is_some() {
@@ -477,8 +478,13 @@ impl Window {
     warn!("`Window::set_minimizable` is ignored on Linux")
   }
 
-  pub fn set_closable(&self, _closable: bool) {
-    warn!("`Window::set_closable` is ignored on Linux")
+  pub fn set_closable(&self, closable: bool) {
+    if let Err(e) = self
+      .window_requests_tx
+      .send((self.window_id, WindowRequest::Closable(closable)))
+    {
+      log::warn!("Fail to send closable request: {}", e);
+    }
   }
 
   pub fn set_minimized(&self, minimized: bool) {
@@ -517,8 +523,7 @@ impl Window {
   }
 
   pub fn is_closable(&self) -> bool {
-    warn!("`Window::is_closable` is ignored on Linux");
-    false
+    self.window.is_deletable()
   }
 
   pub fn is_decorated(&self) -> bool {
@@ -772,6 +777,7 @@ pub enum WindowRequest {
   Visible(bool),
   Focus,
   Resizable(bool),
+  Closable(bool),
   Minimized(bool),
   Maximized(bool),
   DragWindow,
