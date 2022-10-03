@@ -210,6 +210,10 @@ pub struct WindowAttributes {
   pub preferred_theme: Option<Theme>,
 
   /// Whether the window should be initially focused or not.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// **Android / iOS:** Unsupported.
   pub focused: bool,
 }
 
