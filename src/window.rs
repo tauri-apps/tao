@@ -208,6 +208,13 @@ pub struct WindowAttributes {
   pub window_menu: Option<platform_impl::Menu>,
 
   pub preferred_theme: Option<Theme>,
+
+  /// Whether the window should be initially focused or not.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// **Android / iOS:** Unsupported.
+  pub focused: bool,
 }
 
 impl Default for WindowAttributes {
@@ -230,6 +237,7 @@ impl Default for WindowAttributes {
       window_icon: None,
       window_menu: None,
       preferred_theme: None,
+      focused: false,
     }
   }
 }
@@ -408,6 +416,17 @@ impl WindowBuilder {
   #[inline]
   pub fn with_theme(mut self, theme: Option<Theme>) -> WindowBuilder {
     self.window.preferred_theme = theme;
+    self
+  }
+
+  /// Whether the window will be initially focused or not.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// **Android / iOS:** Unsupported.
+  #[inline]
+  pub fn with_focused(mut self, focused: bool) -> WindowBuilder {
+    self.window.focused = focused;
     self
   }
 

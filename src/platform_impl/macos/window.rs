@@ -488,6 +488,7 @@ impl UnownedWindow {
     let fullscreen = win_attribs.fullscreen.take();
     let maximized = win_attribs.maximized;
     let visible = win_attribs.visible;
+    let focused = win_attribs.focused;
     let decorations = win_attribs.decorations;
     let inner_rect = win_attribs
       .inner_size
@@ -526,8 +527,12 @@ impl UnownedWindow {
     // state, since otherwise we'll briefly see the window at normal size
     // before it transitions.
     if visible {
-      // Tightly linked with `app_state::window_activation_hack`
-      unsafe { window.ns_window.makeKeyAndOrderFront_(nil) };
+      if focused {
+        // Tightly linked with `app_state::window_activation_hack`
+        unsafe { window.ns_window.makeKeyAndOrderFront_(nil) };
+      } else {
+        unsafe { window.ns_window.orderFront_(nil) };
+      }
     }
 
     if maximized {
