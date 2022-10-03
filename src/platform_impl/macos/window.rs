@@ -1379,6 +1379,19 @@ impl WindowExtMacOS for UnownedWindow {
         .setHasShadow_(if has_shadow { YES } else { NO })
     }
   }
+
+  #[inline]
+  fn set_is_document_edited(&self, edited: bool) {
+    unsafe { self.ns_window.setDocumentEdited_(edited as i8) }
+  }
+
+  #[inline]
+  fn is_document_edited(&self) -> bool {
+    unsafe {
+      let is_document_edited: BOOL = msg_send![*self.ns_window, isDocumentEdited];
+      is_document_edited == YES
+    }
+  }
 }
 
 impl Drop for UnownedWindow {
