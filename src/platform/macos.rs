@@ -51,7 +51,7 @@ pub trait WindowExtMacOS {
 
   /// Put the window in a state which indicates a file save is required.
   ///
-  /// https://developer.apple.com/documentation/appkit/nswindow/1419311-isdocumentedited
+  /// <https://developer.apple.com/documentation/appkit/nswindow/1419311-isdocumentedited>
   fn set_is_document_edited(&self, edited: bool);
 
   /// Get the window's edit state
