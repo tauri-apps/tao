@@ -562,6 +562,13 @@ impl UnownedWindow {
     }
   }
 
+  pub fn title(&self) -> Option<String> {
+    unsafe {
+      let title = self.ns_window.title();
+      Some(ns_string_to_rust(title))
+    }
+  }
+
   pub fn set_menu(&self, menu: Option<Menu>) {
     // TODO if None we should set an empty menu
     // On windows we can remove it, in macOS we can't

@@ -53,6 +53,10 @@ impl Inner {
     debug!("`Window::set_title` is ignored on iOS")
   }
 
+  pub fn title(&self) -> Option<String> {
+    None
+  }
+
   pub fn set_menu(&self, _menu: Option<Menu>) {
     debug!("`Window::set_menu` is ignored on iOS")
   }

@@ -641,6 +641,16 @@ impl Window {
     self.window.set_title(title)
   }
 
+  /// Gets the current title of the window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported. Returns `None`
+  #[inline]
+  pub fn title(&self) -> Option<String> {
+    self.window.title()
+  }
+
   /// Modifies the menu of the window.
   ///
   /// ## Platform-specific

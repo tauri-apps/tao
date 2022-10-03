@@ -589,6 +589,9 @@ impl Window {
   pub fn set_max_inner_size(&self, _: Option<Size>) {}
 
   pub fn set_title(&self, _title: &str) {}
+  pub fn title(&self) -> Option<String> {
+    None
+  }
 
   pub fn set_menu(&self, _menu: Option<Menu>) {}
 
