@@ -248,10 +248,10 @@ impl Window {
       window.hide();
     }
 
-	if let Parent::ChildOf(parent) = pl_attribs.parent {
+    if let Parent::ChildOf(parent) = pl_attribs.parent {
       window.set_transient_for(Some(&parent));
     }
-    
+
     // restore accept-focus after the window has been drawn
     // if the window was initially created without focus
     if !attributes.focused {
