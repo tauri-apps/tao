@@ -6,7 +6,10 @@ use std::{
   cell::RefCell,
   collections::VecDeque,
   rc::Rc,
-  sync::atomic::{AtomicBool, AtomicI32, Ordering},
+  sync::{
+    atomic::{AtomicBool, AtomicI32, Ordering},
+    Arc,
+  },
 };
 
 use gdk::{WindowEdge, WindowState};
@@ -248,11 +251,20 @@ impl Window {
     } else {
       window.hide();
     }
-    
-    // restore accept-focus after the window has been visible
+
+    // restore accept-focus after the window has been drawn
     // if the window was initially created without focus
     if !attributes.focused {
-      window.set_accept_focus(true);
+      let signal_id = Arc::new(RefCell::new(None));
+      let signal_id_ = signal_id.clone();
+      let id = window.connect_draw(move |window, _| {
+        if let Some(id) = signal_id_.take() {
+          window.set_accept_focus(true);
+          window.disconnect(id);
+        }
+        Inhibit(false)
+      });
+      signal_id.borrow_mut().replace(id);
     }
 
     let w_pos = window.position();
