@@ -151,7 +151,7 @@ impl Window {
     let s = unsafe { GetWindowTextLengthW(self.window.0) };
     let mut buf = vec![0; s as usize];
     unsafe { GetWindowTextW(self.window.0, &mut buf) };
-    Ok(String::from_utf16_lossy(&buf[..(s - 1) as _]))
+    Some(String::from_utf16_lossy(&buf[..(s - 1) as _]))
   }
 
   // TODO (lemarier): allow menu update
