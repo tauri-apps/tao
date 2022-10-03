@@ -455,6 +455,7 @@ impl Window {
   pub fn title(&self) -> String {
     self
       .window
+      .title()
       .map(|t| t.as_str().to_string())
       .unwrap_or_default()
   }

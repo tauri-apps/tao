@@ -74,12 +74,6 @@ impl MenuItemAttributes {
       self.1.setTitle_(menu_title);
     }
   }
-  pub fn title(&mut self) -> String {
-    unsafe {
-      let title = self.1.title();
-      ns_string_to_rust(title)
-    }
-  }
   pub fn set_selected(&mut self, is_selected: bool) {
     unsafe {
       let state = match is_selected {
