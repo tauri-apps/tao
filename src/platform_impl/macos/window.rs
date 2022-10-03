@@ -562,10 +562,10 @@ impl UnownedWindow {
     }
   }
 
-  pub fn title(&self) -> String {
+  pub fn title(&self) -> Option<String> {
     unsafe {
       let title = self.ns_window.title();
-      ns_string_to_rust(title)
+      Ok(ns_string_to_rust(title))
     }
   }
 

@@ -147,11 +147,11 @@ impl Window {
     }
   }
 
-  pub fn title(&self) -> String {
+  pub fn title(&self) -> Option<String> {
     let s = unsafe { GetWindowTextLengthW(self.window.0) };
     let mut buf = vec![0; s as usize];
     unsafe { GetWindowTextW(self.window.0, &mut buf) };
-    String::from_utf16_lossy(&buf[..(s - 1) as _])
+    Ok(String::from_utf16_lossy(&buf[..(s - 1) as _]))
   }
 
   // TODO (lemarier): allow menu update

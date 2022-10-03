@@ -645,9 +645,9 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **iOS / Android:** Unsupported.
+  /// - **iOS / Android:** Unsupported. Returns `None`
   #[inline]
-  pub fn title(&self) -> String {
+  pub fn title(&self) -> Option<String> {
     self.window.title()
   }
 
