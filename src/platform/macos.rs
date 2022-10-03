@@ -90,7 +90,7 @@ impl WindowExtMacOS for Window {
   }
 
   #[inline]
-   fn set_is_document_edited(&self, edited: bool) {
+  fn set_is_document_edited(&self, edited: bool) {
     self.window.set_is_document_edited(edited)
   }
 
