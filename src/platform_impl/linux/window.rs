@@ -452,6 +452,13 @@ impl Window {
     }
   }
 
+  pub fn title(&self) -> String {
+    self
+      .window
+      .map(|t| t.as_str().to_string())
+      .unwrap_or_default()
+  }
+
   pub fn set_menu(&self, menu: Option<menu::Menu>) {
     if let Err(e) = self.window_requests_tx.send((
       self.window_id,
