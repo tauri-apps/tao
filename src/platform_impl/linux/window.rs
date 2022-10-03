@@ -29,7 +29,7 @@ use crate::{
 };
 
 use super::{
-  event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle, Parent,
+  event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle,
   PlatformSpecificWindowBuilderAttributes,
 };
 
@@ -240,10 +240,6 @@ impl Window {
           }
         }
       }
-    }
-
-    if let Parent::ChildOf(parent) = pl_attribs.parent {
-      window.set_transient_for(Some(&parent));
     }
 
     if attributes.visible {
