@@ -416,6 +416,10 @@ impl WindowBuilder {
   }
 
   /// Whether the window will be initially focused or not.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// **Android / iOS:** Unsupported.
   #[inline]
   pub fn with_focused(mut self, focused: bool) -> WindowBuilder {
     self.window.focused = focused;
