@@ -29,7 +29,7 @@ use crate::{
 };
 
 use super::{
-  event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle,
+  event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle, Parent,
   PlatformSpecificWindowBuilderAttributes,
 };
 
