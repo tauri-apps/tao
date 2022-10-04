@@ -315,6 +315,11 @@ impl Window {
   }
 
   #[inline]
+  pub fn set_maximizable(&self, _maximizable: bool) {
+    warn!("`Window::set_maximizable` is ignored on Windows")
+  }
+
+  #[inline]
   pub fn set_closable(&self, _closable: bool) {
     warn!("`Window::set_closable` is ignored on Windows")
   }
@@ -493,6 +498,12 @@ impl Window {
   #[inline]
   pub fn is_minimizable(&self) -> bool {
     warn!("`Window::is_minimizable` is ignored on Windows");
+    false
+  }
+
+  #[inline]
+  pub fn is_maximizable(&self) -> bool {
+    warn!("`Window::is_maximizable` is ignored on Windows");
     false
   }
 

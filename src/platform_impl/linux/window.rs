@@ -478,6 +478,10 @@ impl Window {
     warn!("`Window::set_minimizable` is ignored on Linux")
   }
 
+  pub fn set_maximizable(&self, _maximizable: bool) {
+    warn!("`Window::set_maximizable` is ignored on Linux")
+  }
+
   pub fn set_closable(&self, closable: bool) {
     if let Err(e) = self
       .window_requests_tx
@@ -519,6 +523,11 @@ impl Window {
 
   pub fn is_minimizable(&self) -> bool {
     warn!("`Window::is_minimizable` is ignored on Linux");
+    false
+  }
+
+  pub fn is_maximizable(&self) -> bool {
+    warn!("`Window::is_maximizable` is ignored on Linux");
     false
   }
 

@@ -255,6 +255,11 @@ fn create_window(
         ];
       }
 
+      if !attrs.maximizable {
+        let button = ns_window.standardWindowButton_(NSWindowButton::NSWindowZoomButton);
+        let _: () = msg_send![button, setEnabled: NO];
+      }
+
       if let Some(increments) = pl_attrs.resize_increments {
         let (x, y) = (increments.width, increments.height);
         if x >= 1.0 && y >= 1.0 {
@@ -713,6 +718,16 @@ impl UnownedWindow {
   }
 
   #[inline]
+  pub fn set_maximizable(&self, maximizable: bool) {
+    unsafe {
+      let button = self
+        .ns_window
+        .standardWindowButton_(NSWindowButton::NSWindowZoomButton);
+      let _: () = msg_send![button, setEnabled: maximizable];
+    }
+  }
+
+  #[inline]
   pub fn set_closable(&self, closable: bool) {
     let mut mask = unsafe { self.ns_window.styleMask() };
     if closable {
@@ -920,6 +935,18 @@ impl UnownedWindow {
   pub fn is_minimizable(&self) -> bool {
     let is_minimizable: BOOL = unsafe { msg_send![*self.ns_window, isMiniaturizable] };
     is_minimizable == YES
+  }
+
+  #[inline]
+  pub fn is_maximizable(&self) -> bool {
+    let is_maximizable: BOOL;
+    unsafe {
+      let button = self
+        .ns_window
+        .standardWindowButton_(NSWindowButton::NSWindowZoomButton);
+      is_maximizable = msg_send![button, isEnabled];
+    }
+    is_maximizable == YES
   }
 
   #[inline]

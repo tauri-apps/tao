@@ -161,6 +161,11 @@ pub struct WindowAttributes {
   /// The default is `true`.
   pub minimizable: bool,
 
+  /// Whether the window is maximizable or not.
+  ///
+  /// The default is `true`.
+  pub maximizable: bool,
+
   /// Whether the window is closable or not.
   ///
   /// The default is `true`.
@@ -230,6 +235,7 @@ impl Default for WindowAttributes {
       position: None,
       resizable: true,
       minimizable: true,
+      maximizable: true,
       closable: true,
       title: "tao window".to_owned(),
       maximized: false,
@@ -316,6 +322,17 @@ impl WindowBuilder {
   #[inline]
   pub fn with_minimizable(mut self, minimizable: bool) -> Self {
     self.window.minimizable = minimizable;
+    self
+  }
+
+  /// Sets whether the window is maximizable or not.
+  ///
+  /// See [`Window::set_maximizable`] for details.
+  ///
+  /// [`Window::set_maximizable`]: crate::window::Window::set_maximizable
+  #[inline]
+  pub fn with_maximizable(mut self, maximizable: bool) -> Self {
+    self.window.maximizable = maximizable;
     self
   }
 
@@ -740,6 +757,19 @@ impl Window {
     self.window.set_minimizable(minimizable)
   }
 
+  /// Sets whether the window is maximizable or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+  /// - **Windows:** Unsupported
+  /// - **Linux:** Unsupported
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_maximizable(&self, maximizable: bool) {
+    self.window.set_maximizable(maximizable)
+  }
+
   /// Sets whether the window is closable or not.
   ///
   /// ## Platform-specific
@@ -823,6 +853,18 @@ impl Window {
   #[inline]
   pub fn is_minimizable(&self) -> bool {
     self.window.is_minimizable()
+  }
+
+  /// Gets the window's current maximizable state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:** Unsupported.
+  /// - **Linux:** Unsupported.
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_maximizable(&self) -> bool {
+    self.window.is_maximizable()
   }
 
   /// Gets the window's current closable state.
