@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -15,7 +16,7 @@ use windows::Win32::{
   },
 };
 
-use crate::{event::ElementState, platform_impl::platform::util};
+use crate::{event::ElementState, event_loop::DeviceEventFilter, platform_impl::platform::util};
 
 #[allow(dead_code)]
 pub fn get_raw_input_device_list() -> Option<Vec<RAWINPUTDEVICELIST>> {
@@ -130,10 +131,21 @@ pub fn register_raw_input_devices(devices: &[RAWINPUTDEVICE]) -> bool {
   success.as_bool()
 }
 
-pub fn register_all_mice_and_keyboards_for_raw_input(window_handle: HWND) -> bool {
+pub fn register_all_mice_and_keyboards_for_raw_input(
+  mut window_handle: HWND,
+  filter: DeviceEventFilter,
+) -> bool {
   // RIDEV_DEVNOTIFY: receive hotplug events
   // RIDEV_INPUTSINK: receive events even if we're not in the foreground
-  let flags = RAWINPUTDEVICE_FLAGS(RIDEV_DEVNOTIFY.0 | RIDEV_INPUTSINK.0);
+  // RIDEV_REMOVE: don't receive device events (requires NULL hwndTarget)
+  let flags = match filter {
+    DeviceEventFilter::Always => {
+      window_handle = HWND(0);
+      RIDEV_REMOVE
+    }
+    DeviceEventFilter::Unfocused => RIDEV_DEVNOTIFY,
+    DeviceEventFilter::Never => RIDEV_DEVNOTIFY | RIDEV_INPUTSINK,
+  };
 
   let devices: [RAWINPUTDEVICE; 2] = [
     RAWINPUTDEVICE {

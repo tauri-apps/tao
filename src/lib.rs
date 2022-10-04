@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 //! Tao is a cross-platform application window creation and event loop management library.
@@ -146,6 +147,11 @@
 )]
 #![deny(rustdoc::broken_intra_doc_links)]
 
+use std::{
+  collections::hash_map::DefaultHasher,
+  hash::{Hash, Hasher},
+};
+
 #[allow(unused_imports)]
 #[macro_use]
 extern crate lazy_static;
@@ -160,6 +166,37 @@ extern crate bitflags;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 #[macro_use]
 extern crate objc;
+
+//// Identifier of a system tray.
+///
+/// Whenever you receive an event arising from a particular tray, this event contains a `TrayId` which
+/// identifies its origin.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct TrayId(pub u16);
+
+impl TrayId {
+  /// Return an empty `TrayId`.
+  pub const EMPTY: TrayId = TrayId(0);
+
+  /// Create new `TrayId` from a String.
+  pub fn new(unique_string: &str) -> TrayId {
+    TrayId(hash_string_to_u16(unique_string))
+  }
+
+  /// Whether this tray id is empty or not.
+  pub fn is_empty(self) -> bool {
+    Self::EMPTY == self
+  }
+}
+
+fn hash_string_to_u16(title: &str) -> u16 {
+  let mut s = DefaultHasher::new();
+  // we transform to uppercase to make sure
+  // if we write Shift instead of SHIFT it return
+  // the same ID
+  title.to_uppercase().hash(&mut s);
+  s.finish() as u16
+}
 
 pub mod clipboard;
 pub mod dpi;

@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -214,11 +215,7 @@ impl<T: 'static> EventLoop<T> {
           WindowRequest::Focus => {
             window.present_with_time(gdk_sys::GDK_CURRENT_TIME as _);
           }
-          WindowRequest::Resizable(resizable) => {
-            let (alloc, _) = window.allocated_size();
-            window.set_size_request(alloc.width(), alloc.height());
-            window.set_resizable(resizable)
-          }
+          WindowRequest::Resizable(resizable) => window.set_resizable(resizable),
           WindowRequest::Minimized(minimized) => {
             if minimized {
               window.iconify();
@@ -258,6 +255,9 @@ impl<T: 'static> EventLoop<T> {
             None => window.unfullscreen(),
           },
           WindowRequest::Decorations(decorations) => window.set_decorated(decorations),
+          WindowRequest::AlwaysOnBottom(always_on_bottom) => {
+            window.set_keep_below(always_on_bottom)
+          }
           WindowRequest::AlwaysOnTop(always_on_top) => window.set_keep_above(always_on_top),
           WindowRequest::WindowIcon(window_icon) => {
             if let Some(icon) = window_icon {

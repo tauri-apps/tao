@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(target_os = "macos")]
@@ -11,7 +12,7 @@ use crate::{
   menu::CustomMenuItem,
   monitor::MonitorHandle,
   platform_impl::{get_aux_state_mut, Parent},
-  window::{Icon, Window, WindowBuilder},
+  window::{Window, WindowBuilder},
 };
 
 #[cfg(feature = "tray")]
@@ -54,6 +55,14 @@ pub trait WindowExtMacOS {
 
   /// Sets whether or not the window has shadow.
   fn set_has_shadow(&self, has_shadow: bool);
+
+  /// Put the window in a state which indicates a file save is required.
+  ///
+  /// <https://developer.apple.com/documentation/appkit/nswindow/1419311-isdocumentedited>
+  fn set_is_document_edited(&self, edited: bool);
+
+  /// Get the window's edit state
+  fn is_document_edited(&self) -> bool;
 }
 
 impl WindowExtMacOS for Window {
@@ -85,6 +94,16 @@ impl WindowExtMacOS for Window {
   #[inline]
   fn set_has_shadow(&self, has_shadow: bool) {
     self.window.set_has_shadow(has_shadow)
+  }
+
+  #[inline]
+  fn set_is_document_edited(&self, edited: bool) {
+    self.window.set_is_document_edited(edited)
+  }
+
+  #[inline]
+  fn is_document_edited(&self) -> bool {
+    self.window.is_document_edited()
   }
 }
 
@@ -514,17 +533,25 @@ pub trait SystemTrayBuilderExtMacOS {
 
   /// Enables or disables showing the tray menu on left click, default is true.
   fn with_menu_on_left_click(self, enable: bool) -> Self;
+
+  /// Sets the tray icon title
+  fn with_title(self, title: &str) -> Self;
 }
 
 #[cfg(feature = "tray")]
 impl SystemTrayBuilderExtMacOS for SystemTrayBuilder {
   fn with_icon_as_template(mut self, is_template: bool) -> Self {
-    self.0.system_tray.icon_is_template = is_template;
+    self.platform_tray_builder.system_tray.icon_is_template = is_template;
     self
   }
 
   fn with_menu_on_left_click(mut self, enable: bool) -> Self {
-    self.0.system_tray.menu_on_left_click = enable;
+    self.platform_tray_builder.system_tray.menu_on_left_click = enable;
+    self
+  }
+
+  fn with_title(mut self, title: &str) -> Self {
+    self.platform_tray_builder.system_tray.title = Some(title.to_owned());
     self
   }
 }
@@ -539,6 +566,9 @@ pub trait SystemTrayExtMacOS {
 
   /// Enables or disables showing the tray menu on left click, default is true.
   fn enable_menu_on_left_click(&mut self, enable: bool);
+
+  /// Sets the tray icon title
+  fn set_title(&mut self, title: &str);
 }
 
 #[cfg(feature = "tray")]
@@ -549,5 +579,9 @@ impl SystemTrayExtMacOS for SystemTray {
 
   fn enable_menu_on_left_click(&mut self, enable: bool) {
     self.0.menu_on_left_click = enable
+  }
+
+  fn set_title(&mut self, title: &str) {
+    self.0.set_title(title)
   }
 }

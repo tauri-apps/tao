@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 // This example is used by developers to test various window functions.
@@ -31,9 +32,14 @@ fn main() {
   eprintln!("  (Q) Quit event loop");
   eprintln!("  (V) Toggle visibility");
   eprintln!("  (X) Toggle maximized");
+  eprintln!("  (T) Toggle always on top");
+  eprintln!("  (B) Toggle always on bottom");
+  eprintln!("  (C) Toggle content protection");
 
-  let mut minimized = false;
+  let mut always_on_bottom = false;
+  let mut always_on_top = false;
   let mut visible = true;
+  let mut content_protection = false;
 
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Wait;
@@ -51,9 +57,8 @@ fn main() {
         ..
       } => match physical_key {
         KeyCode::KeyM => {
-          if minimized {
-            minimized = !minimized;
-            window.set_minimized(minimized);
+          if window.is_minimized() {
+            window.set_minimized(false);
           }
         }
         KeyCode::KeyV => {
@@ -110,8 +115,7 @@ fn main() {
           }
         }
         "m" => {
-          minimized = !minimized;
-          window.set_minimized(minimized);
+          window.set_minimized(!window.is_minimized());
         }
         "q" => {
           *control_flow = ControlFlow::Exit;
@@ -121,8 +125,19 @@ fn main() {
           window.set_visible(visible);
         }
         "x" => {
-          let is_maximized = window.is_maximized();
-          window.set_maximized(!is_maximized);
+          window.set_maximized(!window.is_maximized());
+        }
+        "t" => {
+          always_on_top = !always_on_top;
+          window.set_always_on_top(always_on_top);
+        }
+        "b" => {
+          always_on_bottom = !always_on_bottom;
+          window.set_always_on_bottom(always_on_bottom);
+        }
+        "c" => {
+          content_protection = !content_protection;
+          window.set_content_protection(content_protection);
         }
         _ => (),
       },
@@ -131,6 +146,12 @@ fn main() {
         window_id,
         ..
       } if window_id == window.id() => *control_flow = ControlFlow::Exit,
+      Event::WindowEvent {
+        event: WindowEvent::Focused(focused),
+        ..
+      } => {
+        dbg!(focused, window.is_focused());
+      }
       _ => (),
     }
   });

@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use raw_window_handle::{RawDisplayHandle, RawWindowHandle, UiKitDisplayHandle, UiKitWindowHandle};
@@ -52,6 +53,10 @@ impl Inner {
     debug!("`Window::set_title` is ignored on iOS")
   }
 
+  pub fn title(&self) -> Option<String> {
+    None
+  }
+
   pub fn set_menu(&self, _menu: Option<Menu>) {
     debug!("`Window::set_menu` is ignored on iOS")
   }
@@ -70,6 +75,11 @@ impl Inner {
   pub fn set_focus(&self) {
     //FIXME: implementation goes here
     warn!("set_focus not yet implemented on iOS");
+  }
+
+  pub fn is_focused(&self) -> bool {
+    warn!("`Window::is_focused` is ignored on iOS");
+    false
   }
 
   pub fn request_redraw(&self) {
@@ -215,6 +225,11 @@ impl Inner {
     false
   }
 
+  pub fn is_minimized(&self) -> bool {
+    warn!("`Window::is_minimized` is ignored on iOS");
+    false
+  }
+
   pub fn is_visible(&self) -> bool {
     log::warn!("`Window::is_visible` is ignored on iOS");
     false
@@ -288,6 +303,10 @@ impl Inner {
 
   pub fn set_decorations(&self, _decorations: bool) {
     warn!("`Window::set_decorations` is ignored on iOS")
+  }
+
+  pub fn set_always_on_bottom(&self, _always_on_bottom: bool) {
+    warn!("`Window::set_always_on_bottom` is ignored on iOS")
   }
 
   pub fn set_always_on_top(&self, _always_on_top: bool) {

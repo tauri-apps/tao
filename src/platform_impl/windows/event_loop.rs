@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![allow(non_snake_case)]
@@ -19,7 +20,7 @@ use std::{
   time::{Duration, Instant},
 };
 use windows::{
-  core::PCWSTR,
+  core::{s, PCWSTR},
   Win32::{
     Devices::HumanInterfaceDevice::*,
     Foundation::{
@@ -45,7 +46,7 @@ use crate::{
   accelerator::AcceleratorId,
   dpi::{PhysicalPosition, PhysicalSize},
   event::{DeviceEvent, Event, Force, RawKeyEvent, Touch, TouchPhase, WindowEvent},
-  event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
+  event_loop::{ControlFlow, DeviceEventFilter, EventLoopClosed, EventLoopWindowTarget as RootELW},
   keyboard::{KeyCode, ModifiersState},
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{
@@ -188,7 +189,7 @@ impl<T: 'static> EventLoop<T> {
     let runner_shared = Rc::new(EventLoopRunner::new(thread_msg_target, wait_thread_id));
 
     let thread_msg_sender = subclass_event_target_window(thread_msg_target, runner_shared.clone());
-    raw_input::register_all_mice_and_keyboards_for_raw_input(thread_msg_target);
+    raw_input::register_all_mice_and_keyboards_for_raw_input(thread_msg_target, Default::default());
 
     EventLoop {
       thread_msg_sender,
@@ -309,6 +310,10 @@ impl<T> EventLoopWindowTarget<T> {
 
   pub fn raw_display_handle(&self) -> RawDisplayHandle {
     RawDisplayHandle::Windows(WindowsDisplayHandle::empty())
+  }
+
+  pub fn set_device_event_filter(&self, filter: DeviceEventFilter) {
+    raw_input::register_all_mice_and_keyboards_for_raw_input(self.thread_msg_target, filter);
   }
 }
 
@@ -550,7 +555,7 @@ lazy_static! {
     /// WPARAM and LPARAM are unused.
     static ref USER_EVENT_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA("Tao::WakeupMsg")
+            RegisterWindowMessageA(s!("Tao::WakeupMsg"))
         }
     };
     /// Message sent when we want to execute a closure in the thread.
@@ -558,48 +563,48 @@ lazy_static! {
     /// and LPARAM is unused.
     static ref EXEC_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA("Tao::ExecMsg")
+            RegisterWindowMessageA(s!("Tao::ExecMsg"))
         }
     };
     static ref PROCESS_NEW_EVENTS_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA("Tao::ProcessNewEvents")
+            RegisterWindowMessageA(s!("Tao::ProcessNewEvents"))
         }
     };
     /// lparam is the wait thread's message id.
     static ref SEND_WAIT_THREAD_ID_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA("Tao::SendWaitThreadId")
+            RegisterWindowMessageA(s!("Tao::SendWaitThreadId"))
         }
     };
     /// lparam points to a `Box<Instant>` signifying the time `PROCESS_NEW_EVENTS_MSG_ID` should
     /// be sent.
     static ref WAIT_UNTIL_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA("Tao::WaitUntil")
+            RegisterWindowMessageA(s!("Tao::WaitUntil"))
         }
     };
     static ref CANCEL_WAIT_UNTIL_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA("Tao::CancelWaitUntil")
+            RegisterWindowMessageA(s!("Tao::CancelWaitUntil"))
         }
     };
     /// Message sent by a `Window` when it wants to be destroyed by the main thread.
     /// WPARAM and LPARAM are unused.
     pub static ref DESTROY_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA("Tao::DestroyMsg")
+            RegisterWindowMessageA(s!("Tao::DestroyMsg"))
         }
     };
     /// WPARAM is a bool specifying the `WindowFlags::MARKER_RETAIN_STATE_ON_SIZE` flag. See the
     /// documentation in the `window_state` module for more information.
     pub static ref SET_RETAIN_STATE_ON_SIZE_MSG_ID: u32 = unsafe {
-        RegisterWindowMessageA("Tao::SetRetainMaximized")
+        RegisterWindowMessageA(s!("Tao::SetRetainMaximized"))
     };
     /// When the taskbar is created, it registers a message with the "TaskbarCreated" string and then broadcasts this message to all top-level windows
     /// When the application receives this message, it should assume that any taskbar icons it added have been removed and add them again.
     pub static ref S_U_TASKBAR_RESTART: u32 = unsafe {
-      RegisterWindowMessageA("TaskbarCreated")
+      RegisterWindowMessageA(s!("TaskbarCreated"))
     };
     static ref THREAD_EVENT_TARGET_WINDOW_CLASS: Vec<u16> = unsafe {
         let class_name= util::encode_wide("Tao Thread Event Target");
@@ -610,12 +615,12 @@ lazy_static! {
             lpfnWndProc: Some(util::call_default_window_proc),
             cbClsExtra: 0,
             cbWndExtra: 0,
-            hInstance: GetModuleHandleW(PCWSTR::default()).unwrap_or_default(),
+            hInstance: GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
             hIcon: HICON::default(),
             hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
             hbrBackground: HBRUSH::default(),
-            lpszMenuName: Default::default(),
-            lpszClassName: PCWSTR(class_name.as_ptr()),
+            lpszMenuName: PCWSTR::null(),
+            lpszClassName: PCWSTR::from_raw(class_name.as_ptr()),
             hIconSm: HICON::default(),
         };
 
@@ -637,8 +642,8 @@ fn create_event_target_window() -> HWND {
       // `explorer.exe` and then starting the process back up.
       // It is unclear why the bug is triggered by waiting for several hours.
       WS_EX_TOOLWINDOW,
-      PCWSTR(THREAD_EVENT_TARGET_WINDOW_CLASS.clone().as_ptr()),
-      PCWSTR::default(),
+      PCWSTR::from_raw(THREAD_EVENT_TARGET_WINDOW_CLASS.clone().as_ptr()),
+      PCWSTR::null(),
       WS_OVERLAPPED,
       0,
       0,
@@ -646,7 +651,7 @@ fn create_event_target_window() -> HWND {
       0,
       HWND::default(),
       HMENU::default(),
-      GetModuleHandleW(PCWSTR::default()).unwrap_or_default(),
+      GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
       ptr::null_mut(),
     )
   };
@@ -1072,6 +1077,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
     win32wm::WM_WINDOWPOSCHANGING => {
       let mut window_state = subclass_input.window_state.lock();
+
       if let Some(ref mut fullscreen) = window_state.fullscreen {
         let window_pos = &mut *(lparam.0 as *mut WINDOWPOS);
         let new_rect = RECT {
@@ -1145,6 +1151,12 @@ unsafe fn public_window_callback_inner<T: 'static>(
             }
           }
         }
+      }
+
+      let window_flags = window_state.window_flags;
+      if window_flags.contains(WindowFlags::ALWAYS_ON_BOTTOM) {
+        let window_pos = &mut *(lparam.0 as *mut WINDOWPOS);
+        window_pos.hwndInsertAfter = HWND_BOTTOM;
       }
 
       result = ProcResult::Value(LRESULT(0));
@@ -1694,7 +1706,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     win32wm::WM_NCACTIVATE => {
-      let is_active = wparam == WPARAM(1);
+      let is_active = wparam != WPARAM(0);
       let active_focus_changed = subclass_input.window_state.lock().set_active(is_active);
       if active_focus_changed {
         if is_active {
@@ -2100,10 +2112,6 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
 ) -> LRESULT {
   let subclass_input = Box::from_raw(subclass_input_ptr as *mut ThreadMsgTargetSubclassInput<T>);
 
-  if msg != WM_PAINT {
-    RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
-  }
-
   let mut subclass_removed = false;
 
   // I decided to bind the closure to `callback` and pass it to catch_unwind rather than passing
@@ -2113,6 +2121,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
     win32wm::WM_NCDESTROY => {
       remove_event_target_window_subclass::<T>(window);
       subclass_removed = true;
+      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
       LRESULT(0)
     }
     // Because WM_PAINT comes after all other messages, we use it during modal loops to detect
@@ -2154,6 +2163,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
         device_id: wrap_device_id(lparam.0),
         event,
       });
+      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
 
       LRESULT(0)
     }
@@ -2161,6 +2171,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
     win32wm::WM_INPUT => {
       if let Some(data) = raw_input::get_raw_input_data(HRAWINPUT(lparam.0)) {
         handle_raw_input(&subclass_input, data);
+        RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
       }
 
       DefSubclassProc(window, msg, wparam, lparam)
@@ -2170,11 +2181,13 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       if let Ok(event) = subclass_input.user_event_receiver.recv() {
         subclass_input.send_event(Event::UserEvent(event));
       }
+      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
       LRESULT(0)
     }
     _ if msg == *EXEC_MSG_ID => {
       let mut function: ThreadExecFn = Box::from_raw(wparam.0 as *mut _);
       function();
+      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
       LRESULT(0)
     }
     _ if msg == *PROCESS_NEW_EVENTS_MSG_ID => {
@@ -2209,6 +2222,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
         }
       }
       subclass_input.event_loop_runner.poll();
+      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
       LRESULT(0)
     }
     _ => DefSubclassProc(window, msg, wparam, lparam),

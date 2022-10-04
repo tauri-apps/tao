@@ -1,11 +1,15 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
   cell::RefCell,
   collections::VecDeque,
   rc::Rc,
-  sync::atomic::{AtomicBool, AtomicI32, Ordering},
+  sync::{
+    atomic::{AtomicBool, AtomicI32, Ordering},
+    Arc,
+  },
 };
 
 use gdk::{WindowEdge, WindowState};
@@ -38,6 +42,10 @@ impl WindowId {
   }
 }
 
+// Currently GTK doesn't provide feature for detect theme, so we need to check theme manually.
+// ref: https://github.com/WebKit/WebKit/blob/e44ffaa0d999a9807f76f1805943eea204cfdfbc/Source/WebKit/UIProcess/API/gtk/PageClientImpl.cpp#L587
+const GTK_THEME_SUFFIX_LIST: [&'static str; 3] = ["-dark", "-Dark", "-Darker"];
+
 pub struct Window {
   /// Window id.
   pub(crate) window_id: WindowId,
@@ -65,7 +73,10 @@ impl Window {
   ) -> Result<Self, RootOsError> {
     let app = &event_loop_window_target.app;
     let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
-    let window = gtk::ApplicationWindow::new(app);
+    let window = gtk::ApplicationWindow::builder()
+      .application(app)
+      .accept_focus(attributes.focused)
+      .build();
     let window_id = WindowId(window.id());
     event_loop_window_target
       .windows
@@ -81,21 +92,14 @@ impl Window {
       .inner_size
       .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
       .unwrap_or((800, 600));
-    if attributes.resizable {
-      window.set_resizable(attributes.resizable);
-      window.set_default_size(width, height);
-    } else {
-      if attributes.maximized {
-        // Set resizable true to maximize window.
-        window.set_resizable(true);
-        // Set minimum size to maximize window.
-        // Because if dimension is over window size, maximization does not work correct.
-        window.set_size_request(100, 100);
-      } else {
-        window.set_resizable(false);
-        window.set_size_request(width, height);
-      }
+    window.set_default_size(1, 1);
+    window.resize(width, height);
+
+    if attributes.maximized {
+      window.maximize();
     }
+
+    window.set_resizable(attributes.resizable);
 
     // Set Min/Max Size
     let geom_mask = (if attributes.min_inner_size.is_some() {
@@ -141,20 +145,27 @@ impl Window {
     }
 
     // Set GDK Visual
-    if let Some(screen) = window.screen() {
-      if let Some(visual) = screen.rgba_visual() {
-        window.set_visual(Some(&visual));
+    if pl_attribs.rgba_visual || attributes.transparent {
+      if let Some(screen) = window.screen() {
+        if let Some(visual) = screen.rgba_visual() {
+          window.set_visual(Some(&visual));
+        }
       }
     }
 
-    // Set a few attributes to make the window can be painted.
-    // See Gtk drawing model for more info:
-    // https://docs.gtk.org/gtk3/drawing-model.html
-    window.set_app_paintable(true);
-    let widget = window.upcast_ref::<gtk::Widget>();
-    if !event_loop_window_target.is_wayland() {
-      unsafe {
-        gtk::ffi::gtk_widget_set_double_buffered(widget.to_glib_none().0, 0);
+    if pl_attribs.app_paintable || attributes.transparent {
+      // Set a few attributes to make the window can be painted.
+      // See Gtk drawing model for more info:
+      // https://docs.gtk.org/gtk3/drawing-model.html
+      window.set_app_paintable(true);
+    }
+
+    if !pl_attribs.double_buffered {
+      let widget = window.upcast_ref::<gtk::Widget>();
+      if !event_loop_window_target.is_wayland() {
+        unsafe {
+          gtk::ffi::gtk_widget_set_double_buffered(widget.to_glib_none().0, 0);
+        }
       }
     }
 
@@ -193,25 +204,17 @@ impl Window {
         window.fullscreen();
       }
     }
-    if attributes.maximized {
-      // Set resizable to false after maximizing.
-      if !attributes.resizable {
-        let w = app.window_by_id(window.id()).unwrap();
-        glib::timeout_add_seconds_local(0, move || {
-          let (alloc, _) = w.allocated_size();
-          // Window is maximized and set resizable false then error is occurred,
-          // so we need to set aloccated size to window.
-          w.set_size_request(alloc.width(), alloc.height());
-          w.set_resizable(false);
-          glib::Continue(false)
-        });
-      }
-      window.maximize();
-    }
     window.set_visible(attributes.visible);
     window.set_decorated(attributes.decorations);
 
-    window.set_keep_above(attributes.always_on_top);
+    if attributes.always_on_bottom {
+      window.set_keep_below(attributes.always_on_bottom);
+    }
+
+    if attributes.always_on_top {
+      window.set_keep_above(attributes.always_on_top);
+    }
+
     if let Some(icon) = attributes.window_icon {
       window.set_icon(Some(&icon.inner.into()));
     }
@@ -226,9 +229,12 @@ impl Window {
             let theme_name = settings.gtk_theme_name().map(|t| t.as_str().to_owned());
             if let Some(theme) = theme_name {
               // Remove dark variant.
-              match (theme.strip_suffix("-dark"), theme.strip_suffix("-Dark")) {
-                (theme, None) | (None, theme) => settings.set_gtk_theme_name(theme),
-                _ => {}
+              if let Some(theme) = GTK_THEME_SUFFIX_LIST
+                .iter()
+                .find(|t| theme.ends_with(*t))
+                .map(|v| theme.strip_suffix(v))
+              {
+                settings.set_gtk_theme_name(theme);
               }
             }
           }
@@ -244,6 +250,21 @@ impl Window {
 
     if let Parent::ChildOf(parent) = pl_attribs.parent {
       window.set_transient_for(Some(&parent));
+    }
+
+    // restore accept-focus after the window has been drawn
+    // if the window was initially created without focus
+    if !attributes.focused {
+      let signal_id = Arc::new(RefCell::new(None));
+      let signal_id_ = signal_id.clone();
+      let id = window.connect_draw(move |window, _| {
+        if let Some(id) = signal_id_.take() {
+          window.set_accept_focus(true);
+          window.disconnect(id);
+        }
+        Inhibit(false)
+      });
+      signal_id.borrow_mut().replace(id);
     }
 
     let w_pos = window.position();
@@ -431,6 +452,10 @@ impl Window {
     }
   }
 
+  pub fn title(&self) -> Option<String> {
+    self.window.title().map(|t| t.as_str().to_string())
+  }
+
   pub fn set_menu(&self, menu: Option<menu::Menu>) {
     if let Err(e) = self.window_requests_tx.send((
       self.window_id,
@@ -458,6 +483,10 @@ impl Window {
         log::warn!("Fail to send visible request: {}", e);
       }
     }
+  }
+
+  pub fn is_focused(&self) -> bool {
+    self.window.is_active()
   }
 
   pub fn set_resizable(&self, resizable: bool) {
@@ -489,6 +518,10 @@ impl Window {
 
   pub fn is_maximized(&self) -> bool {
     self.maximized.load(Ordering::Acquire)
+  }
+
+  pub fn is_minimized(&self) -> bool {
+    self.minimized.load(Ordering::Acquire)
   }
 
   pub fn is_resizable(&self) -> bool {
@@ -534,6 +567,15 @@ impl Window {
       .send((self.window_id, WindowRequest::Decorations(decorations)))
     {
       log::warn!("Fail to send decorations request: {}", e);
+    }
+  }
+
+  pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
+    if let Err(e) = self.window_requests_tx.send((
+      self.window_id,
+      WindowRequest::AlwaysOnBottom(always_on_bottom),
+    )) {
+      log::warn!("Fail to send always on bottom request: {}", e);
     }
   }
 
@@ -713,9 +755,7 @@ impl Window {
     if let Some(settings) = Settings::default() {
       let theme_name = settings.gtk_theme_name().map(|s| s.as_str().to_owned());
       if let Some(theme) = theme_name {
-        // Currently GTK doesn't provide feature for detect theme, so we need to check theme manually.
-        // ref: https://github.com/WebKit/WebKit/blob/e44ffaa0d999a9807f76f1805943eea204cfdfbc/Source/WebKit/UIProcess/API/gtk/PageClientImpl.cpp#L587
-        if theme.ends_with("-dark") || theme.ends_with("-Dark") {
+        if GTK_THEME_SUFFIX_LIST.iter().any(|t| theme.ends_with(t)) {
           return Theme::Dark;
         }
       }
@@ -744,6 +784,7 @@ pub enum WindowRequest {
   DragWindow,
   Fullscreen(Option<Fullscreen>),
   Decorations(bool),
+  AlwaysOnBottom(bool),
   AlwaysOnTop(bool),
   WindowIcon(Option<Icon>),
   UserAttention(Option<UserAttentionType>),

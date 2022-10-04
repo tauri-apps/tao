@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(any(
@@ -56,6 +57,23 @@ pub trait WindowBuilderExtUnix {
   /// For anyone who wants to draw the background themselves, set this to `false`.
   /// Default is `true`.
   fn with_transparent_draw(self, draw: bool) -> WindowBuilder;
+
+  /// Whether to enable or disable the double buffered rendering of the window.
+  ///
+  /// Default is `true`.
+  fn with_double_buffered(self, double_buffered: bool) -> WindowBuilder;
+
+  /// Whether to enable the rgba visual for the window.
+  ///
+  /// Default is `false` but is always `true` if [`WindowAttributes::transparent`](crate::window::WindowAttributes::transparent) is `true`
+  fn with_rgba_visual(self, rgba_visual: bool) -> WindowBuilder;
+
+  /// Wether to set this window as app paintable
+  ///
+  /// <https://docs.gtk.org/gtk3/method.Widget.set_app_paintable.html>
+  ///
+  /// Default is `false` but is always `true` if [`WindowAttributes::transparent`](crate::window::WindowAttributes::transparent) is `true`
+  fn with_app_paintable(self, app_paintable: bool) -> WindowBuilder;
 }
 
 impl WindowBuilderExtUnix for WindowBuilder {
@@ -71,6 +89,21 @@ impl WindowBuilderExtUnix for WindowBuilder {
 
   fn with_transparent_draw(mut self, draw: bool) -> WindowBuilder {
     self.platform_specific.auto_transparent = draw;
+    self
+  }
+
+  fn with_double_buffered(mut self, double_buffered: bool) -> WindowBuilder {
+    self.platform_specific.double_buffered = double_buffered;
+    self
+  }
+
+  fn with_rgba_visual(mut self, rgba_visual: bool) -> WindowBuilder {
+    self.platform_specific.rgba_visual = rgba_visual;
+    self
+  }
+
+  fn with_app_paintable(mut self, app_paintable: bool) -> WindowBuilder {
+    self.platform_specific.app_paintable = app_paintable;
     self
   }
 }

@@ -1,10 +1,12 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
   error::OsError,
   event_loop::EventLoopWindowTarget,
   system_tray::{Icon, SystemTray as RootSystemTray},
+  TrayId,
 };
 
 use glib::Sender;
@@ -35,6 +37,8 @@ impl SystemTrayBuilder {
   pub fn build<T: 'static>(
     self,
     window_target: &EventLoopWindowTarget<T>,
+    _id: TrayId,
+    _tooltip: Option<String>,
   ) -> Result<RootSystemTray, OsError> {
     let mut app_indicator = AppIndicator::new("tao application", "");
 
@@ -88,6 +92,8 @@ impl SystemTray {
     self.path = icon_path;
   }
 
+  pub fn set_tooltip(&self, _tooltip: &str) {}
+
   pub fn set_menu(&mut self, tray_menu: &Menu) {
     let mut menu =
       tray_menu
@@ -101,6 +107,7 @@ impl SystemTray {
 
 impl Drop for SystemTray {
   fn drop(&mut self) {
+    self.app_indicator.set_status(AppIndicatorStatus::Passive);
     let _ = std::fs::remove_file(self.path.clone());
   }
 }

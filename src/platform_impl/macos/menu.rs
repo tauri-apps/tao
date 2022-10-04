@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use cocoa::{
@@ -23,7 +24,10 @@ use crate::{
 };
 
 use super::{
-  app_state::AppState, event::EventWrapper, util::ns_string_to_rust, window::get_window_id,
+  app_state::AppState,
+  event::EventWrapper,
+  util::{app_name_string, ns_string_to_rust},
+  window::get_window_id,
 };
 
 static BLOCK_PTR: &str = "taoMenuItemBlockPtr";
@@ -196,7 +200,7 @@ impl Menu {
       MenuItem::Quit => Some((
         None,
         make_menu_item(
-          "Quit",
+          format!("Quit {}", unsafe { app_name_string() }.unwrap_or_default()).trim(),
           Some(selector("terminate:")),
           Some(Accelerator::new(RawMods::Meta, KeyCode::KeyQ)),
           menu_type,
@@ -205,7 +209,7 @@ impl Menu {
       MenuItem::Hide => Some((
         None,
         make_menu_item(
-          "Hide",
+          format!("Hide {}", unsafe { app_name_string() }.unwrap_or_default()).trim(),
           Some(selector("hide:")),
           Some(Accelerator::new(RawMods::Meta, KeyCode::KeyH)),
           menu_type,
@@ -307,10 +311,12 @@ impl Menu {
       )),
       MenuItem::Services => unsafe {
         let item = make_menu_item("Services", None, None, MenuType::MenuBar);
+        // we have to assign an empty menu as the app's services menu, and macOS will populate it
+        let services_menu = NSMenu::alloc(nil).autorelease();
         let app_class = class!(NSApplication);
         let app: id = msg_send![app_class, sharedApplication];
-        let services: id = msg_send![app, servicesMenu];
-        let _: () = msg_send![&*item, setSubmenu: services];
+        let () = msg_send![app, setServicesMenu: services_menu];
+        let () = msg_send![&*item, setSubmenu: services_menu];
         Some((None, item))
       },
     };
@@ -528,6 +534,7 @@ impl Accelerator {
       KeyCode::Digit9 => "9".into(),
       KeyCode::Comma => ",".into(),
       KeyCode::Minus => "-".into(),
+      KeyCode::Plus => "+".into(),
       KeyCode::Period => ".".into(),
       KeyCode::Space => "\u{0020}".into(),
       KeyCode::Equal => "=".into(),

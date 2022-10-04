@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{
@@ -13,9 +14,10 @@ use crate::{
   event_loop::EventLoopWindowTarget,
   menu::MenuType,
   system_tray::{Icon, SystemTray as RootSystemTray},
+  TrayId,
 };
 use windows::{
-  core::{PCSTR, PCWSTR},
+  core::PCWSTR,
   Win32::{
     Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM},
     System::LibraryLoader::*,
@@ -26,17 +28,20 @@ use windows::{
   },
 };
 
-const WM_USER_TRAYICON: u32 = 6001;
-const WM_USER_UPDATE_TRAYMENU: u32 = 6002;
-const WM_USER_UPDATE_TRAYICON: u32 = 6003;
-const TRAYICON_UID: u32 = 6004;
-const TRAY_SUBCLASS_ID: usize = 6005;
-const TRAY_MENU_SUBCLASS_ID: usize = 6006;
+const TRAYICON_UID: u32 = 6001;
+const TRAY_SUBCLASS_ID: usize = 6002;
+const TRAY_MENU_SUBCLASS_ID: usize = 6003;
+const WM_USER_TRAYICON: u32 = 6004;
+const WM_USER_UPDATE_TRAYMENU: u32 = 6005;
+const WM_USER_UPDATE_TRAYICON: u32 = 6006;
+const WM_USER_UPDATE_TOOLTIP: u32 = 6007;
 
 struct TrayLoopData {
+  id: TrayId,
   hwnd: HWND,
   hmenu: Option<HMENU>,
   icon: Icon,
+  tooltip: Option<String>,
   sender: Box<dyn Fn(Event<'static, ()>)>,
 }
 
@@ -55,16 +60,18 @@ impl SystemTrayBuilder {
   pub fn build<T: 'static>(
     self,
     window_target: &EventLoopWindowTarget<T>,
+    tray_id: TrayId,
+    tooltip: Option<String>,
   ) -> Result<RootSystemTray, RootOsError> {
     let hmenu: Option<HMENU> = self.tray_menu.map(|m| m.hmenu());
 
     let class_name = util::encode_wide("tao_system_tray_app");
     unsafe {
-      let hinstance = GetModuleHandleA(PCSTR::default()).unwrap_or_default();
+      let hinstance = GetModuleHandleW(PCWSTR::null()).unwrap_or_default();
 
       let wnd_class = WNDCLASSW {
         lpfnWndProc: Some(util::call_default_window_proc),
-        lpszClassName: PCWSTR(class_name.as_ptr()),
+        lpszClassName: PCWSTR::from_raw(class_name.as_ptr()),
         hInstance: hinstance,
         ..Default::default()
       };
@@ -72,10 +79,18 @@ impl SystemTrayBuilder {
       RegisterClassW(&wnd_class);
 
       let hwnd = CreateWindowExW(
-        Default::default(),
-        PCWSTR(class_name.as_ptr()),
-        "tao_system_tray_window",
-        WS_OVERLAPPEDWINDOW,
+        WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_LAYERED |
+        // WS_EX_TOOLWINDOW prevents this window from ever showing up in the taskbar, which
+        // we want to avoid. If you remove this style, this window won't show up in the
+        // taskbar *initially*, but it can show up at some later point. This can sometimes
+        // happen on its own after several hours have passed, although this has proven
+        // difficult to reproduce. Alternatively, it can be manually triggered by killing
+        // `explorer.exe` and then starting the process back up.
+        // It is unclear why the bug is triggered by waiting for several hours.
+        WS_EX_TOOLWINDOW,
+        PCWSTR::from_raw(class_name.as_ptr()),
+        PCWSTR::null(),
+        WS_OVERLAPPED,
         CW_USEDEFAULT,
         0,
         CW_USEDEFAULT,
@@ -93,7 +108,7 @@ impl SystemTrayBuilder {
 
       let hicon = self.icon.inner.as_raw_handle();
 
-      if !register_tray_icon(hwnd, hicon) {
+      if !register_tray_icon(hwnd, hicon, tooltip.clone()) {
         return Err(os_error!(OsError::CreationError(
           "Error with shellapi::Shell_NotifyIconW"
         )));
@@ -104,9 +119,11 @@ impl SystemTrayBuilder {
       // system_tray event handler
       let event_loop_runner = window_target.p.runner_shared.clone();
       let traydata = TrayLoopData {
+        id: tray_id,
         hwnd,
         hmenu,
         icon: self.icon,
+        tooltip,
         sender: Box::new(move |event| {
           if let Ok(e) = event.map_nonuser_event() {
             event_loop_runner.send_event(e)
@@ -171,6 +188,32 @@ impl SystemTray {
     }
   }
 
+  pub fn set_tooltip(&self, tooltip: &str) {
+    unsafe {
+      let mut nid = NOTIFYICONDATAW {
+        uFlags: NIF_TIP,
+        hWnd: self.hwnd,
+        uID: TRAYICON_UID,
+        ..std::mem::zeroed()
+      };
+      let mut wide = util::encode_wide(tooltip);
+      wide.resize(128, 0);
+      nid.szTip.copy_from_slice(&wide);
+
+      if !Shell_NotifyIconW(NIM_MODIFY, &mut nid as _).as_bool() {
+        debug!("Error setting icon");
+      }
+
+      // send the new tooltip to the subclass proc to store it in the tray data
+      SendMessageW(
+        self.hwnd,
+        WM_USER_UPDATE_TOOLTIP,
+        WPARAM(Box::into_raw(Box::new(tooltip.to_string())) as _),
+        LPARAM(0),
+      );
+    }
+  }
+
   pub fn set_menu(&mut self, tray_menu: &Menu) {
     unsafe {
       // send the new menu to the subclass proc where we will update there
@@ -228,10 +271,16 @@ unsafe extern "system" fn tray_subclass_proc(
     subclass_input.icon = (*icon).clone();
   }
 
+  if msg == WM_USER_UPDATE_TOOLTIP {
+    let tooltip = wparam.0 as *mut String;
+    subclass_input.tooltip = Some((*tooltip).clone());
+  }
+
   if msg == *S_U_TASKBAR_RESTART {
     register_tray_icon(
       subclass_input.hwnd,
       subclass_input.icon.inner.as_raw_handle(),
+      subclass_input.tooltip.clone(),
     );
   }
 
@@ -264,6 +313,7 @@ unsafe extern "system" fn tray_subclass_proc(
     match lparam.0 as u32 {
       win32wm::WM_LBUTTONUP => {
         (subclass_input.sender)(Event::TrayEvent {
+          id: subclass_input.id,
           event: TrayEvent::LeftClick,
           position,
           bounds,
@@ -272,6 +322,7 @@ unsafe extern "system" fn tray_subclass_proc(
 
       win32wm::WM_RBUTTONUP => {
         (subclass_input.sender)(Event::TrayEvent {
+          id: subclass_input.id,
           event: TrayEvent::RightClick,
           position,
           bounds,
@@ -284,6 +335,7 @@ unsafe extern "system" fn tray_subclass_proc(
 
       win32wm::WM_LBUTTONDBLCLK => {
         (subclass_input.sender)(Event::TrayEvent {
+          id: subclass_input.id,
           event: TrayEvent::DoubleClick,
           position,
           bounds,
@@ -314,7 +366,7 @@ unsafe fn show_tray_menu(hwnd: HWND, menu: HMENU, x: i32, y: i32) {
   );
 }
 
-unsafe fn register_tray_icon(hwnd: HWND, hicon: HICON) -> bool {
+unsafe fn register_tray_icon(hwnd: HWND, hicon: HICON, tooltip: Option<String>) -> bool {
   let mut nid = NOTIFYICONDATAW {
     uFlags: NIF_MESSAGE | NIF_ICON,
     hWnd: hwnd,
@@ -323,6 +375,13 @@ unsafe fn register_tray_icon(hwnd: HWND, hicon: HICON) -> bool {
     uCallbackMessage: WM_USER_TRAYICON,
     ..std::mem::zeroed()
   };
+
+  if let Some(tooltip) = tooltip {
+    nid.uFlags |= NIF_TIP;
+    let mut tooltip_w = util::encode_wide(tooltip);
+    tooltip_w.resize(128, 0);
+    nid.szTip.copy_from_slice(&tooltip_w)
+  }
 
   Shell_NotifyIconW(NIM_ADD, &mut nid as _).as_bool()
 }

@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -236,6 +237,13 @@ fn create_window(
         let _: () = msg_send![
           *ns_window,
           setLevel: ffi::NSWindowLevel::NSFloatingWindowLevel
+        ];
+      }
+
+      if attrs.always_on_bottom {
+        let _: () = msg_send![
+          *ns_window,
+          setLevel: ffi::NSWindowLevel::BelowNormalWindowLevel
         ];
       }
 
@@ -480,6 +488,7 @@ impl UnownedWindow {
     let fullscreen = win_attribs.fullscreen.take();
     let maximized = win_attribs.maximized;
     let visible = win_attribs.visible;
+    let focused = win_attribs.focused;
     let decorations = win_attribs.decorations;
     let inner_rect = win_attribs
       .inner_size
@@ -518,8 +527,12 @@ impl UnownedWindow {
     // state, since otherwise we'll briefly see the window at normal size
     // before it transitions.
     if visible {
-      // Tightly linked with `app_state::window_activation_hack`
-      unsafe { window.ns_window.makeKeyAndOrderFront_(nil) };
+      if focused {
+        // Tightly linked with `app_state::window_activation_hack`
+        unsafe { window.ns_window.makeKeyAndOrderFront_(nil) };
+      } else {
+        unsafe { window.ns_window.orderFront_(nil) };
+      }
     }
 
     if maximized {
@@ -549,6 +562,13 @@ impl UnownedWindow {
     }
   }
 
+  pub fn title(&self) -> Option<String> {
+    unsafe {
+      let title = self.ns_window.title();
+      Some(ns_string_to_rust(title))
+    }
+  }
+
   pub fn set_menu(&self, menu: Option<Menu>) {
     // TODO if None we should set an empty menu
     // On windows we can remove it, in macOS we can't
@@ -572,6 +592,14 @@ impl UnownedWindow {
       if is_minimized == NO {
         util::set_focus(*self.ns_window);
       }
+    }
+  }
+
+  #[inline]
+  pub fn is_focused(&self) -> bool {
+    unsafe {
+      let is_key_window: BOOL = msg_send![*self.ns_window, isKeyWindow];
+      is_key_window == YES
     }
   }
 
@@ -854,6 +882,17 @@ impl UnownedWindow {
   }
 
   #[inline]
+  pub fn is_maximized(&self) -> bool {
+    self.is_zoomed()
+  }
+
+  #[inline]
+  pub fn is_minimized(&self) -> bool {
+    let is_minimized: BOOL = unsafe { msg_send![*self.ns_window, isMiniaturized] };
+    is_minimized == YES
+  }
+
+  #[inline]
   pub fn is_resizable(&self) -> bool {
     let is_resizable: BOOL = unsafe { msg_send![*self.ns_window, isResizable] };
     is_resizable == YES
@@ -861,13 +900,7 @@ impl UnownedWindow {
 
   #[inline]
   pub fn is_decorated(&self) -> bool {
-    let current_mask = unsafe { self.ns_window.styleMask() };
-    if current_mask
-      == NSWindowStyleMask::NSMiniaturizableWindowMask | NSWindowStyleMask::NSResizableWindowMask
-    {
-      return false;
-    }
-    true
+    self.decorations.load(Ordering::Acquire)
   }
 
   #[inline]
@@ -1113,6 +1146,16 @@ impl UnownedWindow {
   }
 
   #[inline]
+  pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
+    let level = if always_on_bottom {
+      ffi::NSWindowLevel::BelowNormalWindowLevel
+    } else {
+      ffi::NSWindowLevel::NSNormalWindowLevel
+    };
+    unsafe { util::set_level_async(*self.ns_window, level) };
+  }
+
+  #[inline]
   pub fn set_always_on_top(&self, always_on_top: bool) {
     let level = if always_on_top {
       ffi::NSWindowLevel::NSFloatingWindowLevel
@@ -1221,6 +1264,12 @@ impl UnownedWindow {
   pub fn theme(&self) -> Theme {
     let state = self.shared_state.lock().unwrap();
     state.current_theme
+  }
+
+  pub fn set_content_protection(&self, enabled: bool) {
+    unsafe {
+      let _: () = msg_send![*self.ns_window, setSharingType: !enabled as i32];
+    }
   }
 }
 
@@ -1335,6 +1384,19 @@ impl WindowExtMacOS for UnownedWindow {
       self
         .ns_window
         .setHasShadow_(if has_shadow { YES } else { NO })
+    }
+  }
+
+  #[inline]
+  fn set_is_document_edited(&self, edited: bool) {
+    unsafe { self.ns_window.setDocumentEdited_(edited as i8) }
+  }
+
+  #[inline]
+  fn is_document_edited(&self) -> bool {
+    unsafe {
+      let is_document_edited: BOOL = msg_send![*self.ns_window, isDocumentEdited];
+      is_document_edited == YES
     }
   }
 }

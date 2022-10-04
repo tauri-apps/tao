@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 //! **UNSTABLE** -- The `SystemTray` struct and associated types.
@@ -35,20 +36,45 @@ use crate::{
   platform_impl::{
     SystemTray as SystemTrayPlatform, SystemTrayBuilder as SystemTrayBuilderPlatform,
   },
+  TrayId,
 };
 
 pub use crate::icon::{BadIcon, Icon};
 
 /// Object that allows you to build SystemTray instance.
-pub struct SystemTrayBuilder(pub(crate) SystemTrayBuilderPlatform);
+pub struct SystemTrayBuilder {
+  pub(crate) platform_tray_builder: SystemTrayBuilderPlatform,
+  tooltip: Option<String>,
+  id: TrayId,
+}
 
 impl SystemTrayBuilder {
-  /// Creates a new SystemTray for platforms where this is appropriate.
+  /// Creates a new SystemTray with an empty identifier for platforms where this is appropriate.
   pub fn new(icon: Icon, tray_menu: Option<ContextMenu>) -> Self {
-    Self(SystemTrayBuilderPlatform::new(
-      icon,
-      tray_menu.map(|m| m.0.menu_platform),
-    ))
+    Self {
+      platform_tray_builder: SystemTrayBuilderPlatform::new(
+        icon,
+        tray_menu.map(|m| m.0.menu_platform),
+      ),
+      tooltip: None,
+      id: TrayId::EMPTY,
+    }
+  }
+
+  /// Sets the tray identifier.
+  pub fn with_id(mut self, id: TrayId) -> Self {
+    self.id = id;
+    self
+  }
+
+  /// Adds a tooltip for this tray icon.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Unsupported
+  pub fn with_tooltip(mut self, tooltip: &str) -> Self {
+    self.tooltip = Some(tooltip.to_string());
+    self
   }
 
   /// Builds the SystemTray.
@@ -58,7 +84,9 @@ impl SystemTrayBuilder {
     self,
     window_target: &EventLoopWindowTarget<T>,
   ) -> Result<SystemTray, OsError> {
-    self.0.build(window_target)
+    self
+      .platform_tray_builder
+      .build(window_target, self.id, self.tooltip)
   }
 }
 
@@ -68,8 +96,8 @@ impl SystemTrayBuilder {
 ///
 /// **Linux:**
 ///   - Dropping the tray too early could lead to a default icon.
-///   - Dropping the tray after the icon has been added to the system tray may not remove it.
-/// **Windows:** Dropping the tray will effectively remove the icon from the system tray.
+///   - Dropping the tray hides it.
+/// **Windows / macOS:** Dropping the tray will effectively remove the icon from the system tray.
 pub struct SystemTray(pub SystemTrayPlatform);
 
 impl SystemTray {
@@ -81,5 +109,14 @@ impl SystemTray {
   /// Set new tray menu.
   pub fn set_menu(&mut self, tray_menu: &ContextMenu) {
     self.0.set_menu(&tray_menu.0.menu_platform)
+  }
+
+  /// Sets the tooltip for this tray icon.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Unsupported
+  pub fn set_tooltip(&mut self, tooltip: &str) {
+    self.0.set_tooltip(tooltip);
   }
 }

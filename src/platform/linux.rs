@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(target_os = "linux")]
@@ -17,7 +18,7 @@ pub trait SystemTrayBuilderExtLinux {
 #[cfg(feature = "tray")]
 impl SystemTrayBuilderExtLinux for SystemTrayBuilder {
   fn with_temp_icon_dir<P: AsRef<Path>>(mut self, p: P) -> Self {
-    self.0.temp_icon_dir = Some(p.as_ref().to_path_buf());
+    self.platform_tray_builder.temp_icon_dir = Some(p.as_ref().to_path_buf());
     self
   }
 }
