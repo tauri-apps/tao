@@ -5,7 +5,7 @@
 use crate::{platform::macos::ActivationPolicy, platform_impl::platform::app_state::AppState};
 
 use cocoa::{
-  base::{id, YES, BOOL},
+  base::{id, BOOL, YES},
   foundation::NSString,
 };
 use objc::{
