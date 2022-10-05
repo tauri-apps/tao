@@ -104,7 +104,7 @@ pub enum Event<'a, T: 'static> {
 
   /// Emitted when the user wants to open the specified URLs with the app.
   #[cfg(target_os = "macos")]
-  OpenURLs(Vec<String>),
+  OpenURLs(Vec<url::Url>),
 
   /// Emitted when a global shortcut is triggered.
   ///

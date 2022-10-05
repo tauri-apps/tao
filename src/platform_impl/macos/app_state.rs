@@ -22,6 +22,7 @@ use cocoa::{
   foundation::{NSAutoreleasePool, NSSize},
 };
 use objc::runtime::{Object, BOOL, NO, YES};
+use url::Url;
 
 use crate::{
   dpi::LogicalSize,
@@ -298,7 +299,7 @@ impl AppState {
     HANDLER.set_in_callback(false);
   }
 
-  pub fn open_urls(urls: Vec<String>) {
+  pub fn open_urls(urls: Vec<Url>) {
     HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::OpenURLs(urls)));
   }
 

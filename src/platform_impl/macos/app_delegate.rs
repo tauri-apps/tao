@@ -17,6 +17,7 @@ use std::{
   ffi::CStr,
   os::raw::c_void,
 };
+use url::Url;
 
 static AUX_DELEGATE_STATE_NAME: &str = "auxState";
 
@@ -107,10 +108,10 @@ extern "C" fn application_open_urls(_: &Object, _: Sel, _: id, urls: id) -> () {
 
   let url_strings = unsafe {
     (0..urls.count())
-      .map(|i| {
-        CStr::from_ptr(urls.objectAtIndex(i).absoluteString().UTF8String())
-          .to_string_lossy()
-          .into_owned()
+      .flat_map(|i| {
+        Url::parse(
+          &CStr::from_ptr(urls.objectAtIndex(i).absoluteString().UTF8String()).to_string_lossy(),
+        )
       })
       .collect::<Vec<_>>()
   };
