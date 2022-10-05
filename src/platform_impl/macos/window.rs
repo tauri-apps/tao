@@ -1389,7 +1389,11 @@ impl WindowExtMacOS for UnownedWindow {
 
   #[inline]
   fn set_is_document_edited(&self, edited: bool) {
-    unsafe { self.ns_window.setDocumentEdited_(edited) }
+    unsafe {
+      self
+        .ns_window
+        .setDocumentEdited_(if edited { YES } else { NO })
+    }
   }
 
   #[inline]
