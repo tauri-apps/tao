@@ -2,4 +2,4 @@
 "tao": minor
 ---
 
-Support OpenFile on macOS.
+Add `Event::OpenFile` on macOS.
