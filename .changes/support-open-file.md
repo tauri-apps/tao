@@ -2,4 +2,4 @@
 "tao": minor
 ---
 
-Add `Event::OpenFile` on macOS.
+Add `Event::OpenURLs` on macOS.
