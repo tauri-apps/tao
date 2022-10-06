@@ -79,7 +79,6 @@ bitflags! {
         const TRANSPARENT      = 1 << 6;
         const CHILD            = 1 << 7;
         const MAXIMIZED        = 1 << 8;
-        const MINIMIZABLE      = 1 << 12;
         const POPUP            = 1 << 14;
         const ALWAYS_ON_BOTTOM = 1 << 16;
 
@@ -100,6 +99,8 @@ bitflags! {
         const MINIMIZED = 1 << 12;
 
         const IGNORE_CURSOR_EVENT = 1 << 15;
+
+        const MINIMIZABLE      = 1 << 18;
 
         const EXCLUSIVE_FULLSCREEN_OR_MASK = WindowFlags::ALWAYS_ON_TOP.bits;
     }
