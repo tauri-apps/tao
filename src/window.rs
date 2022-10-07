@@ -749,8 +749,7 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows:** Unsupported
-  /// - **Linux:** Unsupported
+  /// - **Linux:** Unsupported.
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_minimizable(&self, minimizable: bool) {
@@ -762,8 +761,7 @@ impl Window {
   /// ## Platform-specific
   ///
   /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
-  /// - **Windows:** Unsupported
-  /// - **Linux:** Unsupported
+  /// - **Linux:** Unsupported.
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_maximizable(&self, maximizable: bool) {
@@ -774,9 +772,9 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows:** Unsupported
   /// - **Linux:** "GTK+ will do its best to convince the window manager not to show a close button.
   ///   Depending on the system, this function may not have any effect when called on a window that is already visible"
+  /// - **Windows:** Unsupported.
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_closable(&self, closable: bool) {
@@ -847,7 +845,6 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows:** Unsupported.
   /// - **Linux:** Unsupported.
   /// - **iOS / Android:** Unsupported.
   #[inline]
@@ -859,7 +856,6 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows:** Unsupported.
   /// - **Linux:** Unsupported.
   /// - **iOS / Android:** Unsupported.
   #[inline]
