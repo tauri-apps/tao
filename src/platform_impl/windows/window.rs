@@ -919,6 +919,7 @@ unsafe fn init<T: 'static>(
   window_flags.set(WindowFlags::TRANSPARENT, attributes.transparent);
   // WindowFlags::VISIBLE and MAXIMIZED are set down below after the window has been configured.
   window_flags.set(WindowFlags::RESIZABLE, attributes.resizable);
+  window_flags.set(WindowFlags::MINIMIZABLE, attributes.minimizable);
 
   let parent = match pl_attribs.parent {
     Parent::ChildOf(parent) => {
