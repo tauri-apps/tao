@@ -100,7 +100,8 @@ bitflags! {
 
         const IGNORE_CURSOR_EVENT = 1 << 15;
 
-        const MINIMIZABLE      = 1 << 18;
+        const MINIMIZABLE = 1 << 18;
+        const MAXIMIZABLE = 1 << 19;
 
         const EXCLUSIVE_FULLSCREEN_OR_MASK = WindowFlags::ALWAYS_ON_TOP.bits;
     }
@@ -225,7 +226,10 @@ impl WindowFlags {
     style_ex |= WS_EX_ACCEPTFILES;
 
     if self.contains(WindowFlags::RESIZABLE) {
-      style |= WS_SIZEBOX | WS_MAXIMIZEBOX;
+      style |= WS_SIZEBOX;
+    }
+    if self.contains(WindowFlags::RESIZABLE | WindowFlags::MAXIMIZABLE) {
+      style |= WS_MAXIMIZEBOX;
     }
     if self.contains(WindowFlags::MINIMIZABLE) {
       style |= WS_MINIMIZEBOX;
