@@ -335,7 +335,7 @@ impl Window {
 
   #[inline]
   pub fn set_closable(&self, closable: bool) {
-    let enable = MF_BYCOMMAND;
+    let mut enable = MF_BYCOMMAND;
     if closable {
       enable |= MF_ENABLED;
     } else {
