@@ -102,6 +102,7 @@ bitflags! {
 
         const MINIMIZABLE = 1 << 18;
         const MAXIMIZABLE = 1 << 19;
+        const CLOSABLE    = 1 << 20;
 
         const EXCLUSIVE_FULLSCREEN_OR_MASK = WindowFlags::ALWAYS_ON_TOP.bits;
     }

@@ -867,7 +867,6 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows:** Unsupported.
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn is_closable(&self) -> bool {
