@@ -27,14 +27,17 @@ fn main() {
   eprintln!("debugging keys:");
   eprintln!("  (E) Enter exclusive fullscreen");
   eprintln!("  (F) Toggle borderless fullscreen");
-  eprintln!("  (P) Toggle borderless fullscreen on system's preffered monitor");
-  eprintln!("  (M) Toggle minimized");
-  eprintln!("  (Q) Quit event loop");
+  eprintln!("  (P) Toggle borderless fullscreen on system's preferred monitor");
   eprintln!("  (V) Toggle visibility");
-  eprintln!("  (X) Toggle maximized");
   eprintln!("  (T) Toggle always on top");
   eprintln!("  (B) Toggle always on bottom");
   eprintln!("  (C) Toggle content protection");
+  eprintln!("  (M) Toggle minimized");
+  eprintln!("  (X) Toggle maximized");
+  eprintln!("  (Q) Quit event loop");
+  eprintln!("  (Shift + M) Toggle minimizable");
+  eprintln!("  (Shift + X) Toggle maximizable");
+  eprintln!("  (Shift + Q) Toggle closable");
 
   let mut always_on_bottom = false;
   let mut always_on_top = false;
@@ -138,6 +141,21 @@ fn main() {
         "c" => {
           content_protection = !content_protection;
           window.set_content_protection(content_protection);
+        }
+        "M" => {
+          let minimizable = !window.is_minimizable();
+          println!("Minimizable: {}", minimizable);
+          window.set_minimizable(minimizable);
+        }
+        "X" => {
+          let maximizable = !window.is_maximizable();
+          println!("Maximizable: {}", maximizable);
+          window.set_maximizable(maximizable);
+        }
+        "Q" => {
+          let closable = !window.is_closable();
+          println!("Closable: {}", closable);
+          window.set_closable(closable);
         }
         _ => (),
       },
