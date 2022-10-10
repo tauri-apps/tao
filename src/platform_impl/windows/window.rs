@@ -335,16 +335,14 @@ impl Window {
 
   #[inline]
   pub fn set_closable(&self, closable: bool) {
-    let mut enable = MF_BYCOMMAND;
-    if closable {
-      enable |= MF_ENABLED;
-    } else {
-      enable |= MF_DISABLED | MF_GRAYED;
-    }
-    unsafe {
-      let window_menu = GetSystemMenu(self.hwnd(), false);
-      EnableMenuItem(window_menu, SC_CLOSE, enable);
-    }
+    let window = self.window.clone();
+    let window_state = Arc::clone(&self.window_state);
+
+    self.thread_executor.execute_in_thread(move || {
+      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+        f.set(WindowFlags::CLOSABLE, closable)
+      })
+    })
   }
 
   /// Returns the `hwnd` of this window.
@@ -532,12 +530,8 @@ impl Window {
 
   #[inline]
   pub fn is_closable(&self) -> bool {
-    let menu_state;
-    unsafe {
-      let window_menu = GetSystemMenu(self.hwnd(), false);
-      menu_state = GetMenuState(window_menu, SC_CLOSE, MF_BYCOMMAND);
-    }
-    (menu_state & (MF_DISABLED | MF_GRAYED).0) == 0
+    let window_state = self.window_state.lock();
+    window_state.window_flags.contains(WindowFlags::CLOSABLE)
   }
 
   #[inline]
@@ -941,6 +935,7 @@ unsafe fn init<T: 'static>(
   window_flags.set(WindowFlags::RESIZABLE, attributes.resizable);
   window_flags.set(WindowFlags::MINIMIZABLE, attributes.minimizable);
   window_flags.set(WindowFlags::MAXIMIZABLE, attributes.maximizable);
+  window_flags.set(WindowFlags::CLOSABLE, attributes.closable);
 
   let parent = match pl_attribs.parent {
     Parent::ChildOf(parent) => {
@@ -1066,8 +1061,6 @@ unsafe fn init<T: 'static>(
       win.set_maximized(true);
     }
   }
-
-  win.set_closable(attributes.closable);
 
   win.set_visible(attributes.visible);
 
