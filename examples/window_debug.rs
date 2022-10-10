@@ -144,17 +144,14 @@ fn main() {
         }
         "M" => {
           let minimizable = !window.is_minimizable();
-          println!("Minimizable: {}", minimizable);
           window.set_minimizable(minimizable);
         }
         "X" => {
           let maximizable = !window.is_maximizable();
-          println!("Maximizable: {}", maximizable);
           window.set_maximizable(maximizable);
         }
         "Q" => {
           let closable = !window.is_closable();
-          println!("Closable: {}", closable);
           window.set_closable(closable);
         }
         _ => (),
