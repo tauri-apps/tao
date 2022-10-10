@@ -159,16 +159,22 @@ pub struct WindowAttributes {
   /// Whether the window is minimizable or not.
   ///
   /// The default is `true`.
+  ///
+  /// See notes at [`Window::set_minimizable`].
   pub minimizable: bool,
 
   /// Whether the window is maximizable or not.
   ///
   /// The default is `true`.
+  ///
+  /// See notes at [`Window::set_maximizable`].
   pub maximizable: bool,
 
   /// Whether the window is closable or not.
   ///
   /// The default is `true`.
+  ///
+  /// See notes at [`Window::set_closable`].
   pub closable: bool,
 
   /// Whether the window should be set as fullscreen upon creation.
@@ -749,8 +755,7 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux:** Unsupported.
-  /// - **iOS / Android:** Unsupported.
+  /// - **Linux / iOS / Android:** Unsupported.
   #[inline]
   pub fn set_minimizable(&self, minimizable: bool) {
     self.window.set_minimizable(minimizable)
@@ -761,8 +766,7 @@ impl Window {
   /// ## Platform-specific
   ///
   /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
-  /// - **Linux:** Unsupported.
-  /// - **iOS / Android:** Unsupported.
+  /// - **Linux / iOS / Android:** Unsupported.
   #[inline]
   pub fn set_maximizable(&self, maximizable: bool) {
     self.window.set_maximizable(maximizable)
@@ -844,8 +848,7 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux:** Unsupported.
-  /// - **iOS / Android:** Unsupported.
+  /// - **Linux / iOS / Android:** Unsupported.
   #[inline]
   pub fn is_minimizable(&self) -> bool {
     self.window.is_minimizable()
@@ -855,8 +858,7 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux:** Unsupported.
-  /// - **iOS / Android:** Unsupported.
+  /// - **Linux / iOS / Android:** Unsupported.
   #[inline]
   pub fn is_maximizable(&self) -> bool {
     self.window.is_maximizable()
