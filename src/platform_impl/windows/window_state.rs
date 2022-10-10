@@ -371,7 +371,7 @@ impl WindowFlags {
       unsafe {
         let window_menu = GetSystemMenu(window, false);
         EnableMenuItem(window_menu, SC_CLOSE, close_item_flags);
-  
+
         SendMessageW(
           window,
           *event_loop::SET_RETAIN_STATE_ON_SIZE_MSG_ID,
