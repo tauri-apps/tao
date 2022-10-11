@@ -94,7 +94,14 @@ impl MenuItemAttributes {
         icon.len() as u64,
       );
 
+      let (width, height) = icon.inner.get_size();
+
+      let icon_height: f64 = 18.0;
+      let icon_width: f64 = (width as f64) / (height as f64 / icon_height);
+
       let nsimage = NSImage::initWithData_(NSImage::alloc(nil), nsdata);
+      let new_size = NSSize::new(icon_width, icon_height);
+      let _: () = msg_send![nsimage, setSize: new_size];
       let _: () = msg_send![self.1, setImage: nsimage];
     }
   }
