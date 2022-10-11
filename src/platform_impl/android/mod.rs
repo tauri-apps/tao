@@ -607,7 +607,21 @@ impl Window {
     false
   }
 
-  pub fn set_resizable(&self, _resizeable: bool) {}
+  pub fn set_resizable(&self, _resizeable: bool) {
+    warn!("`Window::set_resizable` is ignored on Android")
+  }
+
+  pub fn set_minimizable(&self, _minimizable: bool) {
+    warn!("`Window::set_minimizable` is ignored on Android")
+  }
+
+  pub fn set_maximizable(&self, _maximizable: bool) {
+    warn!("`Window::set_maximizable` is ignored on Android")
+  }
+
+  pub fn set_closable(&self, _closable: bool) {
+    warn!("`Window::set_closable` is ignored on Android")
+  }
 
   pub fn set_minimized(&self, _minimized: bool) {}
 
@@ -622,12 +636,27 @@ impl Window {
   }
 
   pub fn is_visible(&self) -> bool {
-    log::warn!("`Window::is_visible` is ignored on android");
+    log::warn!("`Window::is_visible` is ignored on Android");
     false
   }
 
   pub fn is_resizable(&self) -> bool {
-    warn!("`Window::is_resizable` is ignored on android");
+    warn!("`Window::is_resizable` is ignored on Android");
+    false
+  }
+
+  pub fn is_minimizable(&self) -> bool {
+    warn!("`Window::is_minimizable` is ignored on Android");
+    false
+  }
+
+  pub fn is_maximizable(&self) -> bool {
+    warn!("`Window::is_maximizable` is ignored on Android");
+    false
+  }
+
+  pub fn is_closable(&self) -> bool {
+    warn!("`Window::is_closable` is ignored on Android");
     false
   }
 

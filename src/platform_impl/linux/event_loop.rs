@@ -216,6 +216,7 @@ impl<T: 'static> EventLoop<T> {
             window.present_with_time(gdk_sys::GDK_CURRENT_TIME as _);
           }
           WindowRequest::Resizable(resizable) => window.set_resizable(resizable),
+          WindowRequest::Closable(closable) => window.set_deletable(closable),
           WindowRequest::Minimized(minimized) => {
             if minimized {
               window.iconify();

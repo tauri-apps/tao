@@ -316,6 +316,41 @@ impl Window {
     });
   }
 
+  #[inline]
+  pub fn set_minimizable(&self, minimizable: bool) {
+    let window = self.window.clone();
+    let window_state = Arc::clone(&self.window_state);
+
+    self.thread_executor.execute_in_thread(move || {
+      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+        f.set(WindowFlags::MINIMIZABLE, minimizable)
+      });
+    });
+  }
+
+  #[inline]
+  pub fn set_maximizable(&self, maximizable: bool) {
+    let window = self.window.clone();
+    let window_state = Arc::clone(&self.window_state);
+
+    self.thread_executor.execute_in_thread(move || {
+      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+        f.set(WindowFlags::MAXIMIZABLE, maximizable)
+      });
+    });
+  }
+
+  #[inline]
+  pub fn set_closable(&self, closable: bool) {
+    let window = self.window.clone();
+    let window_state = Arc::clone(&self.window_state);
+    self.thread_executor.execute_in_thread(move || {
+      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+        f.set(WindowFlags::CLOSABLE, closable)
+      });
+    });
+  }
+
   /// Returns the `hwnd` of this window.
   #[inline]
   pub fn hwnd(&self) -> HWND {
@@ -485,6 +520,24 @@ impl Window {
   pub fn is_resizable(&self) -> bool {
     let window_state = self.window_state.lock();
     window_state.window_flags.contains(WindowFlags::RESIZABLE)
+  }
+
+  #[inline]
+  pub fn is_minimizable(&self) -> bool {
+    let window_state = self.window_state.lock();
+    window_state.window_flags.contains(WindowFlags::MINIMIZABLE)
+  }
+
+  #[inline]
+  pub fn is_maximizable(&self) -> bool {
+    let window_state = self.window_state.lock();
+    window_state.window_flags.contains(WindowFlags::MAXIMIZABLE)
+  }
+
+  #[inline]
+  pub fn is_closable(&self) -> bool {
+    let window_state = self.window_state.lock();
+    window_state.window_flags.contains(WindowFlags::CLOSABLE)
   }
 
   #[inline]
@@ -886,6 +939,11 @@ unsafe fn init<T: 'static>(
   window_flags.set(WindowFlags::TRANSPARENT, attributes.transparent);
   // WindowFlags::VISIBLE and MAXIMIZED are set down below after the window has been configured.
   window_flags.set(WindowFlags::RESIZABLE, attributes.resizable);
+  window_flags.set(WindowFlags::MINIMIZABLE, attributes.minimizable);
+  window_flags.set(WindowFlags::MAXIMIZABLE, attributes.maximizable);
+  // will be changed later using `window.set_closable`
+  // but we need to have a default for the diffing to work
+  window_flags.set(WindowFlags::CLOSABLE, true);
 
   window_flags.set(WindowFlags::MARKER_DONT_FOCUS, !attributes.focused);
 
@@ -1015,6 +1073,7 @@ unsafe fn init<T: 'static>(
   }
 
   win.set_visible(attributes.visible);
+  win.set_closable(attributes.closable);
 
   if let Some(position) = attributes.position {
     win.set_outer_position(position);

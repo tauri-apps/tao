@@ -156,6 +156,27 @@ pub struct WindowAttributes {
   /// The default is `true`.
   pub resizable: bool,
 
+  /// Whether the window is minimizable or not.
+  ///
+  /// The default is `true`.
+  ///
+  /// See [`Window::set_minimizable`] for details.
+  pub minimizable: bool,
+
+  /// Whether the window is maximizable or not.
+  ///
+  /// The default is `true`.
+  ///
+  /// See [`Window::set_maximizable`] for details.
+  pub maximizable: bool,
+
+  /// Whether the window is closable or not.
+  ///
+  /// The default is `true`.
+  ///
+  /// See [`Window::set_closable`] for details.
+  pub closable: bool,
+
   /// Whether the window should be set as fullscreen upon creation.
   ///
   /// The default is `None`.
@@ -226,6 +247,9 @@ impl Default for WindowAttributes {
       max_inner_size: None,
       position: None,
       resizable: true,
+      minimizable: true,
+      maximizable: true,
+      closable: true,
       title: "tao window".to_owned(),
       maximized: false,
       fullscreen: None,
@@ -301,6 +325,39 @@ impl WindowBuilder {
   #[inline]
   pub fn with_resizable(mut self, resizable: bool) -> Self {
     self.window.resizable = resizable;
+    self
+  }
+
+  /// Sets whether the window is minimizable or not.
+  ///
+  /// See [`Window::set_minimizable`] for details.
+  ///
+  /// [`Window::set_minimizable`]: crate::window::Window::set_minimizable
+  #[inline]
+  pub fn with_minimizable(mut self, minimizable: bool) -> Self {
+    self.window.minimizable = minimizable;
+    self
+  }
+
+  /// Sets whether the window is maximizable or not.
+  ///
+  /// See [`Window::set_maximizable`] for details.
+  ///
+  /// [`Window::set_maximizable`]: crate::window::Window::set_maximizable
+  #[inline]
+  pub fn with_maximizable(mut self, maximizable: bool) -> Self {
+    self.window.maximizable = maximizable;
+    self
+  }
+
+  /// Sets whether the window is closable or not.
+  ///
+  /// See [`Window::set_closable`] for details.
+  ///
+  /// [`Window::set_closable`]: crate::window::Window::set_closable
+  #[inline]
+  pub fn with_closable(mut self, closable: bool) -> Self {
+    self.window.closable = closable;
     self
   }
 
@@ -723,6 +780,39 @@ impl Window {
     self.window.set_resizable(resizable)
   }
 
+  /// Sets whether the window is minimizable or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_minimizable(&self, minimizable: bool) {
+    self.window.set_minimizable(minimizable)
+  }
+
+  /// Sets whether the window is maximizable or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_maximizable(&self, maximizable: bool) {
+    self.window.set_maximizable(maximizable)
+  }
+
+  /// Sets whether the window is closable or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** "GTK+ will do its best to convince the window manager not to show a close button.
+  ///   Depending on the system, this function may not have any effect when called on a window that is already visible"
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_closable(&self, closable: bool) {
+    self.window.set_closable(closable)
+  }
+
   /// Sets the window to minimized or back
   ///
   /// ## Platform-specific
@@ -781,6 +871,36 @@ impl Window {
   #[inline]
   pub fn is_resizable(&self) -> bool {
     self.window.is_resizable()
+  }
+
+  /// Gets the window's current minimizable state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_minimizable(&self) -> bool {
+    self.window.is_minimizable()
+  }
+
+  /// Gets the window's current maximizable state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_maximizable(&self) -> bool {
+    self.window.is_maximizable()
+  }
+
+  /// Gets the window's current closable state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_closable(&self) -> bool {
+    self.window.is_closable()
   }
 
   /// Gets the window's current decoration state.
