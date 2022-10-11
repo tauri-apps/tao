@@ -375,6 +375,7 @@ pub trait WindowBuilderExtMacOS {
   fn with_resize_increments(self, increments: LogicalSize<f64>) -> WindowBuilder;
   fn with_disallow_hidpi(self, disallow_hidpi: bool) -> WindowBuilder;
   fn with_has_shadow(self, has_shadow: bool) -> WindowBuilder;
+  fn with_automatic_window_tabbing(self, automatic_tabbing: bool) -> WindowBuilder;
 }
 
 impl WindowBuilderExtMacOS for WindowBuilder {
@@ -438,6 +439,12 @@ impl WindowBuilderExtMacOS for WindowBuilder {
   #[inline]
   fn with_has_shadow(mut self, has_shadow: bool) -> WindowBuilder {
     self.platform_specific.has_shadow = has_shadow;
+    self
+  }
+
+  #[inline]
+  fn with_automatic_window_tabbing(mut self, automatic_tabbing: bool) -> WindowBuilder {
+    self.platform_specific.automatic_tabbing = automatic_tabbing;
     self
   }
 }
