@@ -161,12 +161,6 @@ fn main() {
         window_id,
         ..
       } if window_id == window.id() => *control_flow = ControlFlow::Exit,
-      Event::WindowEvent {
-        event: WindowEvent::Focused(focused),
-        ..
-      } => {
-        dbg!(focused, window.is_focused());
-      }
       _ => (),
     }
   });

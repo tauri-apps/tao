@@ -352,6 +352,22 @@ impl WindowFlags {
       }
     }
 
+    if diff.contains(WindowFlags::CLOSABLE) || new.contains(WindowFlags::CLOSABLE) {
+      unsafe {
+        let system_menu = GetSystemMenu(window, false);
+        EnableMenuItem(
+          system_menu,
+          SC_CLOSE,
+          MF_BYCOMMAND
+            | if new.contains(WindowFlags::CLOSABLE) {
+              MF_ENABLED
+            } else {
+              MF_DISABLED | MF_GRAYED
+            },
+        );
+      }
+    }
+
     if !new.contains(WindowFlags::VISIBLE) {
       unsafe {
         ShowWindow(window, SW_HIDE);
@@ -361,17 +377,7 @@ impl WindowFlags {
     if diff != WindowFlags::empty() {
       let (style, style_ex) = new.to_window_styles();
 
-      let mut close_item_flags = MF_BYCOMMAND;
-      if new.contains(WindowFlags::CLOSABLE) {
-        close_item_flags |= MF_ENABLED;
-      } else {
-        close_item_flags |= MF_DISABLED | MF_GRAYED;
-      }
-
       unsafe {
-        let window_menu = GetSystemMenu(window, false);
-        EnableMenuItem(window_menu, SC_CLOSE, close_item_flags);
-
         SendMessageW(
           window,
           *event_loop::SET_RETAIN_STATE_ON_SIZE_MSG_ID,
