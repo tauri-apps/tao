@@ -55,6 +55,14 @@ pub trait WindowExtMacOS {
 
   /// Sets whether or not the window has shadow.
   fn set_has_shadow(&self, has_shadow: bool);
+
+  /// Put the window in a state which indicates a file save is required.
+  ///
+  /// <https://developer.apple.com/documentation/appkit/nswindow/1419311-isdocumentedited>
+  fn set_is_document_edited(&self, edited: bool);
+
+  /// Get the window's edit state
+  fn is_document_edited(&self) -> bool;
 }
 
 impl WindowExtMacOS for Window {
@@ -86,6 +94,16 @@ impl WindowExtMacOS for Window {
   #[inline]
   fn set_has_shadow(&self, has_shadow: bool) {
     self.window.set_has_shadow(has_shadow)
+  }
+
+  #[inline]
+  fn set_is_document_edited(&self, edited: bool) {
+    self.window.set_is_document_edited(edited)
+  }
+
+  #[inline]
+  fn is_document_edited(&self) -> bool {
+    self.window.is_document_edited()
   }
 }
 

@@ -229,6 +229,13 @@ pub struct WindowAttributes {
   pub window_menu: Option<platform_impl::Menu>,
 
   pub preferred_theme: Option<Theme>,
+
+  /// Whether the window should be initially focused or not.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// **Android / iOS:** Unsupported.
+  pub focused: bool,
 }
 
 impl Default for WindowAttributes {
@@ -254,6 +261,7 @@ impl Default for WindowAttributes {
       window_icon: None,
       window_menu: None,
       preferred_theme: None,
+      focused: false,
     }
   }
 }
@@ -468,6 +476,17 @@ impl WindowBuilder {
     self
   }
 
+  /// Whether the window will be initially focused or not.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// **Android / iOS:** Unsupported.
+  #[inline]
+  pub fn with_focused(mut self, focused: bool) -> WindowBuilder {
+    self.window.focused = focused;
+    self
+  }
+
   /// Builds the window.
   ///
   /// Possible causes of error include denied permission, incompatible system, and lack of memory.
@@ -677,6 +696,16 @@ impl Window {
   #[inline]
   pub fn set_title(&self, title: &str) {
     self.window.set_title(title)
+  }
+
+  /// Gets the current title of the window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported. Returns `None`
+  #[inline]
+  pub fn title(&self) -> Option<String> {
+    self.window.title()
   }
 
   /// Modifies the menu of the window.

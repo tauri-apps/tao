@@ -6,7 +6,10 @@ use std::{
   cell::RefCell,
   collections::VecDeque,
   rc::Rc,
-  sync::atomic::{AtomicBool, AtomicI32, Ordering},
+  sync::{
+    atomic::{AtomicBool, AtomicI32, Ordering},
+    Arc,
+  },
 };
 
 use gdk::{WindowEdge, WindowState};
@@ -70,7 +73,10 @@ impl Window {
   ) -> Result<Self, RootOsError> {
     let app = &event_loop_window_target.app;
     let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
-    let window = gtk::ApplicationWindow::new(app);
+    let window = gtk::ApplicationWindow::builder()
+      .application(app)
+      .accept_focus(attributes.focused)
+      .build();
     let window_id = WindowId(window.id());
     event_loop_window_target
       .windows
@@ -245,6 +251,21 @@ impl Window {
 
     if let Parent::ChildOf(parent) = pl_attribs.parent {
       window.set_transient_for(Some(&parent));
+    }
+
+    // restore accept-focus after the window has been drawn
+    // if the window was initially created without focus
+    if !attributes.focused {
+      let signal_id = Arc::new(RefCell::new(None));
+      let signal_id_ = signal_id.clone();
+      let id = window.connect_draw(move |window, _| {
+        if let Some(id) = signal_id_.take() {
+          window.set_accept_focus(true);
+          window.disconnect(id);
+        }
+        Inhibit(false)
+      });
+      signal_id.borrow_mut().replace(id);
     }
 
     let w_pos = window.position();
@@ -430,6 +451,10 @@ impl Window {
     {
       log::warn!("Fail to send title request: {}", e);
     }
+  }
+
+  pub fn title(&self) -> Option<String> {
+    self.window.title().map(|t| t.as_str().to_string())
   }
 
   pub fn set_menu(&self, menu: Option<menu::Menu>) {
