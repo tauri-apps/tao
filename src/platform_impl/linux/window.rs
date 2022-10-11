@@ -474,13 +474,9 @@ impl Window {
     }
   }
 
-  pub fn set_minimizable(&self, _minimizable: bool) {
-    warn!("`Window::set_minimizable` is ignored on Linux")
-  }
+  pub fn set_minimizable(&self, _minimizable: bool) {}
 
-  pub fn set_maximizable(&self, _maximizable: bool) {
-    warn!("`Window::set_maximizable` is ignored on Linux")
-  }
+  pub fn set_maximizable(&self, _maximizable: bool) {}
 
   pub fn set_closable(&self, closable: bool) {
     if let Err(e) = self
