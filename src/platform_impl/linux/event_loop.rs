@@ -623,7 +623,7 @@ impl<T: 'static> EventLoop<T> {
                 window_id: RootWindowId(id),
                 event: WindowEvent::MouseWheel {
                   device_id: DEVICE_ID,
-                  delta: MouseScrollDelta::LineDelta(x as f32, y as f32),
+                  delta: MouseScrollDelta::LineDelta(-x as f32, -y as f32),
                   phase: match event.direction() {
                     ScrollDirection::Smooth => TouchPhase::Moved,
                     _ => TouchPhase::Ended,
