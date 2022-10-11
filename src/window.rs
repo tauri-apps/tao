@@ -160,21 +160,21 @@ pub struct WindowAttributes {
   ///
   /// The default is `true`.
   ///
-  /// See notes at [`Window::set_minimizable`].
+  /// See [`Window::set_minimizable`] for details.
   pub minimizable: bool,
 
   /// Whether the window is maximizable or not.
   ///
   /// The default is `true`.
   ///
-  /// See notes at [`Window::set_maximizable`].
+  /// See [`Window::set_maximizable`] for details.
   pub maximizable: bool,
 
   /// Whether the window is closable or not.
   ///
   /// The default is `true`.
   ///
-  /// See notes at [`Window::set_closable`].
+  /// See [`Window::set_closable`] for details.
   pub closable: bool,
 
   /// Whether the window should be set as fullscreen upon creation.
