@@ -63,6 +63,14 @@ pub trait WindowExtMacOS {
 
   /// Get the window's edit state
   fn is_document_edited(&self) -> bool;
+
+  /// Sets whether the system can automatically organize windows into tabs.
+  ///
+  /// <https://developer.apple.com/documentation/appkit/nswindow/1646657-allowsautomaticwindowtabbing>
+  fn set_allows_automatic_window_tabbing(&self, enabled: bool);
+
+  /// Returns whether the system can automatically organize windows into tabs.
+  fn allows_automatic_window_tabbing(&self) -> bool;
 }
 
 impl WindowExtMacOS for Window {
@@ -104,6 +112,16 @@ impl WindowExtMacOS for Window {
   #[inline]
   fn is_document_edited(&self) -> bool {
     self.window.is_document_edited()
+  }
+
+  #[inline]
+  fn set_allows_automatic_window_tabbing(&self, enabled: bool) {
+    self.window.set_allows_automatic_window_tabbing(enabled)
+  }
+
+  #[inline]
+  fn allows_automatic_window_tabbing(&self) -> bool {
+    self.window.allows_automatic_window_tabbing()
   }
 }
 

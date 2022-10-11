@@ -1472,6 +1472,21 @@ impl WindowExtMacOS for UnownedWindow {
       is_document_edited == YES
     }
   }
+
+  #[inline]
+  fn set_allows_automatic_window_tabbing(&self, enabled: bool) {
+    unsafe {
+      NSWindow::setAllowsAutomaticWindowTabbing_(*self.ns_window, if enabled { YES } else { NO })
+    }
+  }
+
+  #[inline]
+  fn allows_automatic_window_tabbing(&self) -> bool {
+    unsafe {
+      let allows_tabbing: BOOL = NSWindow::allowsAutomaticWindowTabbing(*self.ns_window);
+      allows_tabbing == YES
+    }
+  }
 }
 
 impl Drop for UnownedWindow {
