@@ -518,13 +518,11 @@ impl Window {
   }
 
   pub fn is_minimizable(&self) -> bool {
-    warn!("`Window::is_minimizable` is ignored on Linux");
-    false
+    true
   }
 
   pub fn is_maximizable(&self) -> bool {
-    warn!("`Window::is_maximizable` is ignored on Linux");
-    false
+    true
   }
 
   pub fn is_closable(&self) -> bool {
