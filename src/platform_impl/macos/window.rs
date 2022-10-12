@@ -91,6 +91,7 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub resize_increments: Option<LogicalSize<f64>>,
   pub disallow_hidpi: bool,
   pub has_shadow: bool,
+  pub automatic_tabbing: bool,
 }
 
 impl Default for PlatformSpecificWindowBuilderAttributes {
@@ -107,6 +108,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       resize_increments: None,
       disallow_hidpi: false,
       has_shadow: true,
+      automatic_tabbing: true,
     }
   }
 }
@@ -270,6 +272,10 @@ fn create_window(
 
       if let Parent::ChildOf(parent) = pl_attrs.parent {
         let _: () = msg_send![parent as id, addChildWindow: *ns_window ordered: NSWindowOrderingMode::NSWindowAbove];
+      }
+
+      if !pl_attrs.automatic_tabbing {
+        NSWindow::setAllowsAutomaticWindowTabbing_(*ns_window, NO);
       }
 
       if !pl_attrs.has_shadow {
@@ -1470,6 +1476,21 @@ impl WindowExtMacOS for UnownedWindow {
     unsafe {
       let is_document_edited: BOOL = msg_send![*self.ns_window, isDocumentEdited];
       is_document_edited == YES
+    }
+  }
+
+  #[inline]
+  fn set_allows_automatic_window_tabbing(&self, enabled: bool) {
+    unsafe {
+      NSWindow::setAllowsAutomaticWindowTabbing_(*self.ns_window, if enabled { YES } else { NO })
+    }
+  }
+
+  #[inline]
+  fn allows_automatic_window_tabbing(&self) -> bool {
+    unsafe {
+      let allows_tabbing: BOOL = NSWindow::allowsAutomaticWindowTabbing(*self.ns_window);
+      allows_tabbing == YES
     }
   }
 }
