@@ -949,7 +949,7 @@ impl<T: 'static> EventLoop<T> {
                 break code;
               }
               ControlFlow::Wait => {
-                if !events.is_empty() || !draws.is_empty() {
+                if !events.is_empty() {
                   callback(
                     Event::NewEvents(StartCause::WaitCancelled {
                       start: Instant::now(),
@@ -989,7 +989,7 @@ impl<T: 'static> EventLoop<T> {
                   blocking = true;
                 }
               }
-              ControlFlow::Poll => {
+              _ => {
                 callback(
                   Event::NewEvents(StartCause::Poll),
                   window_target,
@@ -1010,11 +1010,7 @@ impl<T: 'static> EventLoop<T> {
                 },
                 Err(_) => {
                   callback(Event::MainEventsCleared, window_target, &mut control_flow);
-                  if draws.is_empty() {
-                    state = EventState::NewStart;
-                  } else {
-                    state = EventState::DrawQueue;
-                  }
+                  state = EventState::DrawQueue;
                 }
               },
             },
