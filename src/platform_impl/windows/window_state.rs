@@ -372,7 +372,7 @@ impl WindowFlags {
             | if new.contains(WindowFlags::CLOSABLE) {
               MF_ENABLED
             } else {
-              MF_DISABLED | MF_GRAYED
+              MF_GRAYED
             },
         );
       }
