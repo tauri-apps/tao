@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -19,6 +20,7 @@ use cocoa::{
   foundation::{NSAutoreleasePool, NSInteger, NSPoint, NSTimeInterval},
 };
 use crossbeam_channel::{self as channel, Receiver, Sender};
+use raw_window_handle::{AppKitDisplayHandle, RawDisplayHandle};
 use scopeguard::defer;
 
 use crate::{
@@ -86,6 +88,11 @@ impl<T: 'static> EventLoopWindowTarget<T> {
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
     let monitor = monitor::primary_monitor();
     Some(RootMonitorHandle { inner: monitor })
+  }
+
+  #[inline]
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    RawDisplayHandle::AppKit(AppKitDisplayHandle::empty())
   }
 }
 

@@ -1,9 +1,10 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![allow(unused)]
 
-use std::{collections::HashMap, fmt, ptr, sync::Mutex};
+use std::{collections::HashMap, fmt, sync::Mutex};
 
 use windows::{
   core::{PCWSTR, PWSTR},
@@ -20,6 +21,7 @@ use windows::{
 use crate::{
   accelerator::Accelerator,
   event::{Event, WindowEvent},
+  icon::Icon,
   keyboard::{KeyCode, ModifiersState},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   window::WindowId as RootWindowId,
@@ -91,14 +93,14 @@ impl MenuItemAttributes {
       let mut mif = MENUITEMINFOW {
         cbSize: std::mem::size_of::<MENUITEMINFOW>() as _,
         fMask: MIIM_STRING,
-        dwTypeData: PWSTR(ptr::null_mut()),
+        dwTypeData: PWSTR::null(),
         ..Default::default()
       };
       GetMenuItemInfoW(self.1, self.0 as u32, false, &mut mif);
       mif.cch += 1;
-      mif.dwTypeData = PWSTR(Vec::with_capacity(mif.cch as usize).as_mut_ptr());
+      mif.dwTypeData = PWSTR::from_raw(Vec::with_capacity(mif.cch as usize).as_mut_ptr());
       GetMenuItemInfoW(self.1, self.0 as u32, false, &mut mif);
-      util::wchar_ptr_to_string(PCWSTR(mif.dwTypeData.0))
+      util::wchar_ptr_to_string(PCWSTR::from_raw(mif.dwTypeData.0))
         .split('\t')
         .next()
         .unwrap_or_default()
@@ -127,7 +129,7 @@ impl MenuItemAttributes {
       let info = MENUITEMINFOW {
         cbSize: std::mem::size_of::<MENUITEMINFOW>() as _,
         fMask: MIIM_STRING,
-        dwTypeData: PWSTR(util::encode_wide(title).as_mut_ptr()),
+        dwTypeData: PWSTR::from_raw(util::encode_wide(title).as_mut_ptr()),
         ..Default::default()
       };
 
@@ -148,7 +150,7 @@ impl MenuItemAttributes {
   }
 
   // todo: set custom icon to the menu item
-  pub fn set_icon(&mut self, _icon: Vec<u8>) {}
+  pub fn set_icon(&mut self, _icon: Icon) {}
 }
 
 #[derive(Debug, Clone)]
@@ -227,7 +229,7 @@ impl Menu {
         self.hmenu,
         flags,
         menu_id.0 as _,
-        PCWSTR(util::encode_wide(title).as_ptr()),
+        PCWSTR::from_raw(util::encode_wide(title).as_ptr()),
       );
 
       // add our accels
@@ -251,7 +253,13 @@ impl Menu {
         flags |= MF_DISABLED;
       }
 
-      AppendMenuW(self.hmenu, flags, submenu.hmenu().0 as usize, title);
+      let title = util::encode_wide(title);
+      AppendMenuW(
+        self.hmenu,
+        flags,
+        submenu.hmenu().0 as usize,
+        PCWSTR::from_raw(title.as_ptr()),
+      );
     }
   }
 
@@ -263,32 +271,72 @@ impl Menu {
     match item {
       MenuItem::Separator => {
         unsafe {
-          AppendMenuW(self.hmenu, MF_SEPARATOR, 0, PCWSTR::default());
+          AppendMenuW(self.hmenu, MF_SEPARATOR, 0, PCWSTR::null());
         };
       }
       MenuItem::Cut => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, CUT_ID, "&Cut\tCtrl+X");
+        AppendMenuW(
+          self.hmenu,
+          MF_STRING,
+          CUT_ID,
+          PCWSTR::from_raw(util::encode_wide("&Cut\tCtrl+X").as_ptr()),
+        );
       },
       MenuItem::Copy => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, COPY_ID, "&Copy\tCtrl+C");
+        AppendMenuW(
+          self.hmenu,
+          MF_STRING,
+          COPY_ID,
+          PCWSTR::from_raw(util::encode_wide("&Copy\tCtrl+C").as_ptr()),
+        );
       },
       MenuItem::Paste => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, PASTE_ID, "&Paste\tCtrl+V");
+        AppendMenuW(
+          self.hmenu,
+          MF_STRING,
+          PASTE_ID,
+          PCWSTR::from_raw(util::encode_wide("&Paste\tCtrl+V").as_ptr()),
+        );
       },
       MenuItem::SelectAll => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, SELECT_ALL_ID, "&Select all\tCtrl+A");
+        AppendMenuW(
+          self.hmenu,
+          MF_STRING,
+          SELECT_ALL_ID,
+          PCWSTR::from_raw(util::encode_wide("&Select all\tCtrl+A").as_ptr()),
+        );
       },
       MenuItem::Hide => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, HIDE_ID, "&Hide\tCtrl+H");
+        AppendMenuW(
+          self.hmenu,
+          MF_STRING,
+          HIDE_ID,
+          PCWSTR::from_raw(util::encode_wide("&Hide\tCtrl+H").as_ptr()),
+        );
       },
       MenuItem::CloseWindow => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, CLOSE_ID, "&Close\tAlt+F4");
+        AppendMenuW(
+          self.hmenu,
+          MF_STRING,
+          CLOSE_ID,
+          PCWSTR::from_raw(util::encode_wide("&Close\tAlt+F4").as_ptr()),
+        );
       },
       MenuItem::Quit => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, QUIT_ID, "&Quit");
+        AppendMenuW(
+          self.hmenu,
+          MF_STRING,
+          QUIT_ID,
+          PCWSTR::from_raw(util::encode_wide("&Quit").as_ptr()),
+        );
       },
       MenuItem::Minimize => unsafe {
-        AppendMenuW(self.hmenu, MF_STRING, MINIMIZE_ID, "&Minimize");
+        AppendMenuW(
+          self.hmenu,
+          MF_STRING,
+          MINIMIZE_ID,
+          PCWSTR::from_raw(util::encode_wide("&Minimize").as_ptr()),
+        );
       },
       // FIXME: create all shortcuts of MenuItem if possible...
       // like linux?
@@ -506,6 +554,7 @@ impl fmt::Display for Accelerator {
       KeyCode::Digit9 => write!(f, "9"),
       KeyCode::Comma => write!(f, ","),
       KeyCode::Minus => write!(f, "-"),
+      KeyCode::Plus => write!(f, "+"),
       KeyCode::Period => write!(f, "."),
       KeyCode::Space => write!(f, "Space"),
       KeyCode::Equal => write!(f, "="),

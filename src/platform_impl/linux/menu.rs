@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use glib::{Cast, Sender};
@@ -13,6 +14,7 @@ use super::{
 };
 use crate::{
   accelerator::Accelerator,
+  icon::Icon,
   keyboard::{KeyCode, ModifiersState},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
 };
@@ -99,7 +101,7 @@ impl MenuItemAttributes {
   }
 
   // TODO
-  pub fn set_icon(&mut self, _icon: Vec<u8>) {}
+  pub fn set_icon(&mut self, _icon: Icon) {}
 }
 
 impl Default for Menu {

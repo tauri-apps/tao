@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -124,7 +125,6 @@ impl<T> EventHandler for EventLoopHandler<T> {
 struct Handler {
   ready: AtomicBool,
   in_callback: AtomicBool,
-  dialog_is_closing: AtomicBool,
   control_flow: Mutex<ControlFlow>,
   control_flow_prev: Mutex<ControlFlow>,
   start_time: Mutex<Option<Instant>>,
@@ -256,8 +256,6 @@ impl Handler {
   }
 }
 
-pub static INTERRUPT_EVENT_LOOP_EXIT: AtomicBool = AtomicBool::new(false);
-
 pub enum AppState {}
 
 impl AppState {
@@ -304,7 +302,8 @@ impl AppState {
     let panic_info = panic_info
       .upgrade()
       .expect("The panic info must exist here. This failure indicates a developer error.");
-    if panic_info.is_panicking() || !HANDLER.is_ready() {
+    // Return when in callback due to https://github.com/rust-windowing/winit/issues/1779
+    if panic_info.is_panicking() || !HANDLER.is_ready() || HANDLER.get_in_callback() {
       return;
     }
     let start = HANDLER.get_start_time().unwrap();
@@ -370,56 +369,29 @@ impl AppState {
     let panic_info = panic_info
       .upgrade()
       .expect("The panic info must exist here. This failure indicates a developer error.");
-    if panic_info.is_panicking() || !HANDLER.is_ready() {
+    // Return when in callback due to https://github.com/rust-windowing/winit/issues/1779
+    if panic_info.is_panicking() || !HANDLER.is_ready() || HANDLER.get_in_callback() {
       return;
     }
-    if !HANDLER.get_in_callback() {
-      HANDLER.set_in_callback(true);
-      HANDLER.handle_user_events();
-      for event in HANDLER.take_events() {
-        HANDLER.handle_nonuser_event(event);
-      }
-      HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::MainEventsCleared));
-      for window_id in HANDLER.should_redraw() {
-        HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::RedrawRequested(window_id)));
-      }
-      HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::RedrawEventsCleared));
-      HANDLER.set_in_callback(false);
+    HANDLER.set_in_callback(true);
+    HANDLER.handle_user_events();
+    for event in HANDLER.take_events() {
+      HANDLER.handle_nonuser_event(event);
     }
+    HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::MainEventsCleared));
+    for window_id in HANDLER.should_redraw() {
+      HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::RedrawRequested(window_id)));
+    }
+    HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::RedrawEventsCleared));
+    HANDLER.set_in_callback(false);
     if HANDLER.should_exit() {
       unsafe {
         let app: id = NSApp();
-        let windows: id = msg_send![app, windows];
-        let window_count: usize = msg_send![windows, count];
-
-        let dialog_open = if window_count > 1 {
-          let dialog: id = msg_send![windows, lastObject];
-          let is_main_window: BOOL = msg_send![dialog, isMainWindow];
-          let is_visible: BOOL = msg_send![dialog, isVisible];
-          is_visible != NO && is_main_window == NO
-        } else {
-          false
-        };
-
-        let dialog_is_closing = HANDLER.dialog_is_closing.load(Ordering::SeqCst);
         let pool = NSAutoreleasePool::new(nil);
-        if !INTERRUPT_EVENT_LOOP_EXIT.load(Ordering::SeqCst) && !dialog_open && !dialog_is_closing {
-          let () = msg_send![app, stop: nil];
-          // To stop event loop immediately, we need to post some event here.
-          post_dummy_event(app);
-        }
+        let () = msg_send![app, stop: nil];
+        // To stop event loop immediately, we need to post some event here.
+        post_dummy_event(app);
         pool.drain();
-
-        if window_count > 0 {
-          let window: id = msg_send![windows, firstObject];
-          let window_has_focus: BOOL = msg_send![window, isKeyWindow];
-          if !dialog_open && window_has_focus != NO && dialog_is_closing {
-            HANDLER.dialog_is_closing.store(false, Ordering::SeqCst);
-          }
-          if dialog_open {
-            HANDLER.dialog_is_closing.store(true, Ordering::SeqCst);
-          }
-        }
       };
     }
     HANDLER.update_start_time();

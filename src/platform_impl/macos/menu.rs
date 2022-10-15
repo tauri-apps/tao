@@ -1,10 +1,11 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use cocoa::{
-  appkit::{NSApp, NSApplication, NSButton, NSEventModifierFlags, NSMenu, NSMenuItem},
+  appkit::{NSApp, NSApplication, NSButton, NSEventModifierFlags, NSImage, NSMenu, NSMenuItem},
   base::{id, nil, selector},
-  foundation::{NSAutoreleasePool, NSString},
+  foundation::{NSAutoreleasePool, NSData, NSSize, NSString},
 };
 use objc::{
   declare::ClassDecl,
@@ -15,6 +16,7 @@ use std::sync::Once;
 use crate::{
   accelerator::{Accelerator, RawMods},
   event::Event,
+  icon::Icon,
   keyboard::{KeyCode, ModifiersState},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   platform::macos::NativeImage,
@@ -22,7 +24,10 @@ use crate::{
 };
 
 use super::{
-  app_state::AppState, event::EventWrapper, util::ns_string_to_rust, window::get_window_id,
+  app_state::AppState,
+  event::EventWrapper,
+  util::{app_name_string, ns_string_to_rust},
+  window::get_window_id,
 };
 
 static BLOCK_PTR: &str = "taoMenuItemBlockPtr";
@@ -79,8 +84,26 @@ impl MenuItemAttributes {
     }
   }
 
-  // todo: set custom icon to the menu item
-  pub fn set_icon(&mut self, _icon: Vec<u8>) {}
+  pub fn set_icon(&mut self, icon: Icon) {
+    let (width, height) = icon.inner.get_size();
+    let icon = icon.inner.to_png();
+
+    let icon_height: f64 = 18.0;
+    let icon_width: f64 = (width as f64) / (height as f64 / icon_height);
+
+    unsafe {
+      let nsdata = NSData::dataWithBytes_length_(
+        nil,
+        icon.as_ptr() as *const std::os::raw::c_void,
+        icon.len() as u64,
+      );
+
+      let nsimage = NSImage::initWithData_(NSImage::alloc(nil), nsdata);
+      let new_size = NSSize::new(icon_width, icon_height);
+      let _: () = msg_send![nsimage, setSize: new_size];
+      let _: () = msg_send![self.1, setImage: nsimage];
+    }
+  }
 
   // Available only with CustomMenuItemExtMacOS
   pub fn set_native_image(&mut self, icon: NativeImage) {
@@ -183,7 +206,7 @@ impl Menu {
       MenuItem::Quit => Some((
         None,
         make_menu_item(
-          "Quit",
+          format!("Quit {}", unsafe { app_name_string() }.unwrap_or_default()).trim(),
           Some(selector("terminate:")),
           Some(Accelerator::new(RawMods::Meta, KeyCode::KeyQ)),
           menu_type,
@@ -192,7 +215,7 @@ impl Menu {
       MenuItem::Hide => Some((
         None,
         make_menu_item(
-          "Hide",
+          format!("Hide {}", unsafe { app_name_string() }.unwrap_or_default()).trim(),
           Some(selector("hide:")),
           Some(Accelerator::new(RawMods::Meta, KeyCode::KeyH)),
           menu_type,
@@ -203,7 +226,7 @@ impl Menu {
         make_menu_item(
           "Hide Others",
           Some(selector("hideOtherApplications:")),
-          Some(Accelerator::new(RawMods::AltMeta, KeyCode::KeyW)),
+          Some(Accelerator::new(RawMods::AltMeta, KeyCode::KeyH)),
           menu_type,
         ),
       )),
@@ -294,10 +317,12 @@ impl Menu {
       )),
       MenuItem::Services => unsafe {
         let item = make_menu_item("Services", None, None, MenuType::MenuBar);
+        // we have to assign an empty menu as the app's services menu, and macOS will populate it
+        let services_menu = NSMenu::alloc(nil).autorelease();
         let app_class = class!(NSApplication);
         let app: id = msg_send![app_class, sharedApplication];
-        let services: id = msg_send![app, servicesMenu];
-        let _: () = msg_send![&*item, setSubmenu: services];
+        let () = msg_send![app, setServicesMenu: services_menu];
+        let () = msg_send![&*item, setSubmenu: services_menu];
         Some((None, item))
       },
     };
@@ -515,6 +540,7 @@ impl Accelerator {
       KeyCode::Digit9 => "9".into(),
       KeyCode::Comma => ",".into(),
       KeyCode::Minus => "-".into(),
+      KeyCode::Plus => "+".into(),
       KeyCode::Period => ".".into(),
       KeyCode::Space => "\u{0020}".into(),
       KeyCode::Equal => "=".into(),

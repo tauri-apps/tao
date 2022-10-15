@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{collections::VecDeque, fmt};
@@ -19,10 +20,6 @@ use core_foundation::{
   string::CFString,
 };
 use core_graphics::display::{CGDirectDisplayID, CGDisplay, CGDisplayBounds};
-use core_video_sys::{
-  kCVReturnSuccess, kCVTimeIsIndefinite, CVDisplayLinkCreateWithCGDisplay,
-  CVDisplayLinkGetNominalOutputVideoRefreshPeriod, CVDisplayLinkRelease,
-};
 
 #[derive(Clone)]
 pub struct VideoMode {
@@ -231,16 +228,16 @@ impl MonitorHandle {
     let cv_refresh_rate = unsafe {
       let mut display_link = std::ptr::null_mut();
       assert_eq!(
-        CVDisplayLinkCreateWithCGDisplay(self.0, &mut display_link),
-        kCVReturnSuccess
+        ffi::CVDisplayLinkCreateWithCGDisplay(self.0, &mut display_link),
+        ffi::kCVReturnSuccess
       );
-      let time = CVDisplayLinkGetNominalOutputVideoRefreshPeriod(display_link);
-      CVDisplayLinkRelease(display_link);
+      let time = ffi::CVDisplayLinkGetNominalOutputVideoRefreshPeriod(display_link);
+      ffi::CVDisplayLinkRelease(display_link);
 
       // This value is indefinite if an invalid display link was specified
-      assert!(time.flags & kCVTimeIsIndefinite == 0);
+      assert!(time.flags & ffi::kCVTimeIsIndefinite == 0);
 
-      time.timeScale as i64 / time.timeValue
+      time.time_scale as i64 / time.time_value
     };
 
     let monitor = self.clone();

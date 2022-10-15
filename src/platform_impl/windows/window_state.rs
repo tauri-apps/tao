@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
@@ -30,6 +31,8 @@ pub struct WindowState {
   pub saved_window: Option<SavedWindow>,
   pub scale_factor: f64,
 
+  pub skip_taskbar: bool,
+
   pub modifiers_state: ModifiersState,
   pub fullscreen: Option<Fullscreen>,
   pub current_theme: Theme,
@@ -39,6 +42,10 @@ pub struct WindowState {
   pub ime_handler: MinimalIme,
 
   pub window_flags: WindowFlags,
+
+  // Used by WM_NCACTIVATE, WM_SETFOCUS and WM_KILLFOCUS
+  pub is_active: bool,
+  pub is_focused: bool,
 }
 
 #[derive(Clone)]
@@ -63,35 +70,43 @@ bitflags! {
 }
 bitflags! {
     pub struct WindowFlags: u32 {
-        const RESIZABLE      = 1 << 0;
-        const DECORATIONS    = 1 << 1;
-        const VISIBLE        = 1 << 2;
-        const ON_TASKBAR     = 1 << 3;
-        const ALWAYS_ON_TOP  = 1 << 4;
-        const NO_BACK_BUFFER = 1 << 5;
-        const TRANSPARENT    = 1 << 6;
-        const CHILD          = 1 << 7;
-        const MAXIMIZED      = 1 << 8;
-        const POPUP          = 1 << 14;
+        const RESIZABLE        = 1 << 0;
+        const DECORATIONS      = 1 << 1;
+        const VISIBLE          = 1 << 2;
+        const ON_TASKBAR       = 1 << 3;
+        const ALWAYS_ON_TOP    = 1 << 4;
+        const NO_BACK_BUFFER   = 1 << 5;
+        const TRANSPARENT      = 1 << 6;
+        const CHILD            = 1 << 7;
+        const MAXIMIZED        = 1 << 8;
+        const POPUP            = 1 << 9;
+        const ALWAYS_ON_BOTTOM = 1 << 10;
+        const MINIMIZABLE = 1 << 11;
+        const MAXIMIZABLE = 1 << 12;
+
+        const MINIMIZED = 1 << 13;
+
+        const IGNORE_CURSOR_EVENT = 1 << 14;
+
+        const CLOSABLE    = 1 << 15;
 
         /// Marker flag for fullscreen. Should always match `WindowState::fullscreen`, but is
         /// included here to make masking easier.
-        const MARKER_EXCLUSIVE_FULLSCREEN = 1 << 9;
-        const MARKER_BORDERLESS_FULLSCREEN = 1 << 13;
+        const MARKER_EXCLUSIVE_FULLSCREEN = 1 << 16;
+        const MARKER_BORDERLESS_FULLSCREEN = 1 << 17;
 
         /// The `WM_SIZE` event contains some parameters that can effect the state of `WindowFlags`.
         /// In most cases, it's okay to let those parameters change the state. However, when we're
         /// running the `WindowFlags::apply_diff` function, we *don't* want those parameters to
         /// effect our stored state, because the purpose of `apply_diff` is to update the actual
         /// window's state to match our stored state. This controls whether to accept those changes.
-        const MARKER_RETAIN_STATE_ON_SIZE = 1 << 10;
+        const MARKER_RETAIN_STATE_ON_SIZE = 1 << 18;
 
-        const MARKER_IN_SIZE_MOVE = 1 << 11;
+        const MARKER_IN_SIZE_MOVE = 1 << 19;
 
-        const MINIMIZED = 1 << 12;
+        const MARKER_DONT_FOCUS = 1 << 20;
 
         const EXCLUSIVE_FULLSCREEN_OR_MASK = WindowFlags::ALWAYS_ON_TOP.bits;
-        const INVISIBLE_AND_MASK = !WindowFlags::MAXIMIZED.bits;
     }
 }
 
@@ -120,6 +135,8 @@ impl WindowState {
       saved_window: None,
       scale_factor,
 
+      skip_taskbar: false,
+
       modifiers_state: ModifiersState::default(),
       fullscreen: None,
       current_theme,
@@ -127,6 +144,8 @@ impl WindowState {
       high_surrogate: None,
       ime_handler: MinimalIme::default(),
       window_flags: WindowFlags::empty(),
+      is_active: false,
+      is_focused: false,
     }
   }
 
@@ -151,6 +170,24 @@ impl WindowState {
     F: FnOnce(&mut WindowFlags),
   {
     f(&mut self.window_flags);
+  }
+
+  pub fn has_active_focus(&self) -> bool {
+    self.is_active && self.is_focused
+  }
+
+  // Updates is_active and returns whether active-focus state has changed
+  pub fn set_active(&mut self, is_active: bool) -> bool {
+    let old = self.has_active_focus();
+    self.is_active = is_active;
+    old != self.has_active_focus()
+  }
+
+  // Updates is_focused and returns whether active-focus state has changed
+  pub fn set_focused(&mut self, is_focused: bool) -> bool {
+    let old = self.has_active_focus();
+    self.is_focused = is_focused;
+    old != self.has_active_focus()
   }
 }
 
@@ -183,20 +220,22 @@ impl WindowFlags {
       self |= WindowFlags::EXCLUSIVE_FULLSCREEN_OR_MASK;
     }
 
-    if !self.contains(WindowFlags::VISIBLE) {
-      self &= WindowFlags::INVISIBLE_AND_MASK;
-    }
-
     self
   }
 
   pub fn to_window_styles(self) -> (WINDOW_STYLE, WINDOW_EX_STYLE) {
     let (mut style, mut style_ex) = (Default::default(), Default::default());
-    style |= WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_SYSMENU | WS_CAPTION | WS_MINIMIZEBOX;
+    style |= WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_SYSMENU | WS_CAPTION;
     style_ex |= WS_EX_ACCEPTFILES;
 
     if self.contains(WindowFlags::RESIZABLE) {
-      style |= WS_SIZEBOX | WS_MAXIMIZEBOX;
+      style |= WS_SIZEBOX;
+    }
+    if self.contains(WindowFlags::RESIZABLE | WindowFlags::MAXIMIZABLE) {
+      style |= WS_MAXIMIZEBOX;
+    }
+    if self.contains(WindowFlags::MINIMIZABLE) {
+      style |= WS_MINIMIZEBOX;
     }
     if self.contains(WindowFlags::DECORATIONS) {
       style_ex |= WS_EX_WINDOWEDGE;
@@ -225,6 +264,9 @@ impl WindowFlags {
     if self.contains(WindowFlags::MAXIMIZED) {
       style |= WS_MAXIMIZE;
     }
+    if self.contains(WindowFlags::IGNORE_CURSOR_EVENT) {
+      style_ex |= WS_EX_TRANSPARENT | WS_EX_LAYERED;
+    }
     if self.intersects(
       WindowFlags::MARKER_EXCLUSIVE_FULLSCREEN | WindowFlags::MARKER_BORDERLESS_FULLSCREEN,
     ) {
@@ -240,27 +282,49 @@ impl WindowFlags {
     new = new.mask();
 
     let diff = self ^ new;
+
     if diff == WindowFlags::empty() {
       return;
     }
 
-    if diff.contains(WindowFlags::VISIBLE) {
+    if new.contains(WindowFlags::VISIBLE) {
       unsafe {
         ShowWindow(
           window,
-          match new.contains(WindowFlags::VISIBLE) {
-            true => SW_SHOW,
-            false => SW_HIDE,
+          if self.contains(WindowFlags::MARKER_DONT_FOCUS) {
+            self.set(WindowFlags::MARKER_DONT_FOCUS, false);
+            SW_SHOWNOACTIVATE
+          } else {
+            SW_SHOW
           },
         );
       }
     }
+
     if diff.contains(WindowFlags::ALWAYS_ON_TOP) {
       unsafe {
         SetWindowPos(
           window,
           match new.contains(WindowFlags::ALWAYS_ON_TOP) {
             true => HWND_TOPMOST,
+            false => HWND_NOTOPMOST,
+          },
+          0,
+          0,
+          0,
+          0,
+          SWP_ASYNCWINDOWPOS | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+        );
+        InvalidateRgn(window, HRGN::default(), false);
+      }
+    }
+
+    if diff.contains(WindowFlags::ALWAYS_ON_BOTTOM) {
+      unsafe {
+        SetWindowPos(
+          window,
+          match new.contains(WindowFlags::ALWAYS_ON_BOTTOM) {
+            true => HWND_BOTTOM,
             false => HWND_NOTOPMOST,
           },
           0,
@@ -295,6 +359,28 @@ impl WindowFlags {
             false => SW_RESTORE,
           },
         );
+      }
+    }
+
+    if diff.contains(WindowFlags::CLOSABLE) || new.contains(WindowFlags::CLOSABLE) {
+      unsafe {
+        let system_menu = GetSystemMenu(window, false);
+        EnableMenuItem(
+          system_menu,
+          SC_CLOSE,
+          MF_BYCOMMAND
+            | if new.contains(WindowFlags::CLOSABLE) {
+              MF_ENABLED
+            } else {
+              MF_GRAYED
+            },
+        );
+      }
+    }
+
+    if !new.contains(WindowFlags::VISIBLE) {
+      unsafe {
+        ShowWindow(window, SW_HIDE);
       }
     }
 

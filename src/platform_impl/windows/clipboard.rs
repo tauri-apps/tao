@@ -1,15 +1,17 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
+use super::util;
 use crate::clipboard::{ClipboardFormat, FormatId};
 use std::{ffi::OsStr, os::windows::ffi::OsStrExt, ptr};
 use windows::{
-  core::PWSTR,
+  core::{PCWSTR, PWSTR},
   Win32::{
     Foundation::{HANDLE, HWND},
     System::{
       DataExchange::{
-        CloseClipboard, EmptyClipboard, GetClipboardData, OpenClipboard, RegisterClipboardFormatA,
+        CloseClipboard, EmptyClipboard, GetClipboardData, OpenClipboard, RegisterClipboardFormatW,
         SetClipboardData,
       },
       Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE},
@@ -34,7 +36,7 @@ impl Clipboard {
       if handle.is_invalid() {
         None
       } else {
-        let unic_str = PWSTR(GlobalLock(handle.0) as *mut _);
+        let unic_str = PWSTR::from_raw(GlobalLock(handle.0) as *mut _);
         let mut len = 0;
         while *unic_str.0.offset(len) != 0 {
           len += 1;
@@ -90,7 +92,9 @@ fn get_format_id(format: FormatId) -> Option<u32> {
 
 fn register_identifier(ident: &str) -> Option<u32> {
   unsafe {
-    let pb_format = RegisterClipboardFormatA(ident);
+    let clipboard_format = util::encode_wide(ident);
+
+    let pb_format = RegisterClipboardFormatW(PCWSTR::from_raw(clipboard_format.as_ptr()));
     if pb_format == 0 {
       #[cfg(debug_assertions)]
       println!(

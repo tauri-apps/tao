@@ -1,8 +1,11 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 //! The `Window` struct and associated types.
 use std::fmt;
+
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
@@ -139,6 +142,7 @@ pub struct WindowAttributes {
   /// There may be a small gap between this position and the window due to the specifics of the
   /// Window Manager.
   /// - **Linux**: The top left corner of the window, the window's "outer" position.
+  /// - **Linux(Wayland)**: Unsupported.
   /// - **Others**: Ignored.
   ///
   /// See [`Window::set_outer_position`].
@@ -150,6 +154,27 @@ pub struct WindowAttributes {
   ///
   /// The default is `true`.
   pub resizable: bool,
+
+  /// Whether the window is minimizable or not.
+  ///
+  /// The default is `true`.
+  ///
+  /// See [`Window::set_minimizable`] for details.
+  pub minimizable: bool,
+
+  /// Whether the window is maximizable or not.
+  ///
+  /// The default is `true`.
+  ///
+  /// See [`Window::set_maximizable`] for details.
+  pub maximizable: bool,
+
+  /// Whether the window is closable or not.
+  ///
+  /// The default is `true`.
+  ///
+  /// See [`Window::set_closable`] for details.
+  pub closable: bool,
 
   /// Whether the window should be set as fullscreen upon creation.
   ///
@@ -187,10 +212,24 @@ pub struct WindowAttributes {
   /// The default is `false`.
   pub always_on_top: bool,
 
+  /// Whether the window should always be on bottom of other windows.
+  ///
+  /// The default is `false`.
+  pub always_on_bottom: bool,
+
   /// The window icon.
   ///
   /// The default is `None`.
   pub window_icon: Option<Icon>,
+
+  pub preferred_theme: Option<Theme>,
+
+  /// Whether the window should be initially focused or not.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// **Android / iOS:** Unsupported.
+  pub focused: bool,
 }
 
 impl Default for WindowAttributes {
@@ -202,6 +241,9 @@ impl Default for WindowAttributes {
       max_inner_size: None,
       position: None,
       resizable: true,
+      minimizable: true,
+      maximizable: true,
+      closable: true,
       title: "tao window".to_owned(),
       maximized: false,
       fullscreen: None,
@@ -209,7 +251,10 @@ impl Default for WindowAttributes {
       transparent: false,
       decorations: true,
       always_on_top: false,
+      always_on_bottom: false,
       window_icon: None,
+      preferred_theme: None,
+      focused: false,
     }
   }
 }
@@ -276,6 +321,39 @@ impl WindowBuilder {
     self
   }
 
+  /// Sets whether the window is minimizable or not.
+  ///
+  /// See [`Window::set_minimizable`] for details.
+  ///
+  /// [`Window::set_minimizable`]: crate::window::Window::set_minimizable
+  #[inline]
+  pub fn with_minimizable(mut self, minimizable: bool) -> Self {
+    self.window.minimizable = minimizable;
+    self
+  }
+
+  /// Sets whether the window is maximizable or not.
+  ///
+  /// See [`Window::set_maximizable`] for details.
+  ///
+  /// [`Window::set_maximizable`]: crate::window::Window::set_maximizable
+  #[inline]
+  pub fn with_maximizable(mut self, maximizable: bool) -> Self {
+    self.window.maximizable = maximizable;
+    self
+  }
+
+  /// Sets whether the window is closable or not.
+  ///
+  /// See [`Window::set_closable`] for details.
+  ///
+  /// [`Window::set_closable`]: crate::window::Window::set_closable
+  #[inline]
+  pub fn with_closable(mut self, closable: bool) -> Self {
+    self.window.closable = closable;
+    self
+  }
+
   /// Requests a specific title for the window.
   ///
   /// See [`Window::set_title`] for details.
@@ -338,6 +416,18 @@ impl WindowBuilder {
     self
   }
 
+  /// Sets whether or not the window will always be below other windows.
+  ///
+  /// See [`Window::set_always_on_bottom`] for details.
+  ///
+  /// [`Window::set_always_on_bottom`]: crate::window::Window::set_always_on_bottom
+  #[inline]
+  pub fn with_always_on_bottom(mut self, always_on_bottom: bool) -> Self {
+    self.window.always_on_top = false;
+    self.window.always_on_bottom = always_on_bottom;
+    self
+  }
+
   /// Sets whether or not the window will always be on top of other windows.
   ///
   /// See [`Window::set_always_on_top`] for details.
@@ -345,6 +435,7 @@ impl WindowBuilder {
   /// [`Window::set_always_on_top`]: crate::window::Window::set_always_on_top
   #[inline]
   pub fn with_always_on_top(mut self, always_on_top: bool) -> Self {
+    self.window.always_on_bottom = false;
     self.window.always_on_top = always_on_top;
     self
   }
@@ -357,6 +448,24 @@ impl WindowBuilder {
   #[inline]
   pub fn with_window_icon(mut self, window_icon: Option<Icon>) -> Self {
     self.window.window_icon = window_icon;
+    self
+  }
+
+  /// Forces a theme or uses the system settings if `None` was provided.
+  #[inline]
+  pub fn with_theme(mut self, theme: Option<Theme>) -> WindowBuilder {
+    self.window.preferred_theme = theme;
+    self
+  }
+
+  /// Whether the window will be initially focused or not.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// **Android / iOS:** Unsupported.
+  #[inline]
+  pub fn with_focused(mut self, focused: bool) -> WindowBuilder {
+    self.window.focused = focused;
     self
   }
 
@@ -490,7 +599,7 @@ impl Window {
   ///
   /// - **iOS:** Can only be called on the main thread. Sets the top left coordinates of the
   ///   window in the screen space coordinate system.
-  /// - **Android:** Unsupported.
+  /// - **Android / Linux(Wayland):** Unsupported.
   #[inline]
   pub fn set_outer_position<P: Into<Position>>(&self, position: P) {
     self.window.set_outer_position(position.into())
@@ -571,6 +680,16 @@ impl Window {
     self.window.set_title(title)
   }
 
+  /// Gets the current title of the window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported. Returns `None`
+  #[inline]
+  pub fn title(&self) -> Option<String> {
+    self.window.title()
+  }
+
   /// Modifies the window's visibility.
   ///
   /// If `false`, this will hide the window. If `true`, this will show the window.
@@ -593,6 +712,16 @@ impl Window {
     self.window.set_focus()
   }
 
+  /// Is window active and focused?
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_focused(&self) -> bool {
+    self.window.is_focused()
+  }
+
   /// Sets whether the window is resizable or not.
   ///
   /// Note that making the window unresizable doesn't exempt you from handling `Resized`, as that event can still be
@@ -606,10 +735,49 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
+  /// - **Linux:** Most size methods like maximized are async and do not work well with calling
+  /// sequentailly. For setting inner or outer size, you don't need to set resizable to true before
+  /// it. It can resize no matter what. But if you insist to do so, it has a `100, 100` minimum
+  /// limitation somehow. For maximizing, it requires resizable is true. If you really want to set
+  /// resizable to false after it. You might need a mechanism to check the window is really
+  /// maximized.
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_resizable(&self, resizable: bool) {
     self.window.set_resizable(resizable)
+  }
+
+  /// Sets whether the window is minimizable or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_minimizable(&self, minimizable: bool) {
+    self.window.set_minimizable(minimizable)
+  }
+
+  /// Sets whether the window is maximizable or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_maximizable(&self, maximizable: bool) {
+    self.window.set_maximizable(maximizable)
+  }
+
+  /// Sets whether the window is closable or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** "GTK+ will do its best to convince the window manager not to show a close button.
+  ///   Depending on the system, this function may not have any effect when called on a window that is already visible"
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_closable(&self, closable: bool) {
+    self.window.set_closable(closable)
   }
 
   /// Sets the window to minimized or back
@@ -642,7 +810,17 @@ impl Window {
     self.window.is_maximized()
   }
 
-  /// Gets the window's current vibility state.
+  /// Gets the window's current minimized state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_minimized(&self) -> bool {
+    self.window.is_minimized()
+  }
+
+  /// Gets the window's current visibility state.
   ///
   /// ## Platform-specific
   ///
@@ -660,6 +838,36 @@ impl Window {
   #[inline]
   pub fn is_resizable(&self) -> bool {
     self.window.is_resizable()
+  }
+
+  /// Gets the window's current minimizable state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_minimizable(&self) -> bool {
+    self.window.is_minimizable()
+  }
+
+  /// Gets the window's current maximizable state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_maximizable(&self) -> bool {
+    self.window.is_maximizable()
+  }
+
+  /// Gets the window's current closable state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_closable(&self) -> bool {
+    self.window.is_closable()
   }
 
   /// Gets the window's current decoration state.
@@ -719,6 +927,17 @@ impl Window {
     self.window.set_decorations(decorations)
   }
 
+  /// Change whether or not the window will always be below other windows.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: There is no guarantee that the window will be the bottom most but it will try to be.
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
+    self.window.set_always_on_bottom(always_on_bottom)
+  }
+
   /// Change whether or not the window will always be on top of other windows.
   ///
   /// ## Platform-specific
@@ -768,6 +987,26 @@ impl Window {
   #[inline]
   pub fn request_user_attention(&self, request_type: Option<UserAttentionType>) {
     self.window.request_user_attention(request_type)
+  }
+
+  /// Returns the current window theme.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn theme(&self) -> Theme {
+    self.window.theme()
+  }
+
+  /// Prevents the window contents from being captured by other apps.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Linux:** Unsupported.
+  pub fn set_content_protection(&self, #[allow(unused)] enabled: bool) {
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    self.window.set_content_protection(enabled);
   }
 }
 
@@ -835,6 +1074,19 @@ impl Window {
   pub fn drag_window(&self) -> Result<(), ExternalError> {
     self.window.drag_window()
   }
+
+  /// Modifies whether the window catches cursor events.
+  ///
+  /// If `true`, the events are passed through the window such that any other window behind it receives them.
+  /// If `false` the window will catch the cursor events. By default cursor events are not ignored.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Always returns an [`ExternalError::NotSupported`]
+  #[inline]
+  pub fn set_ignore_cursor_events(&self, ignore: bool) -> Result<(), ExternalError> {
+    self.window.set_ignore_cursor_events(ignore)
+  }
 }
 
 /// Monitor info functions.
@@ -883,7 +1135,7 @@ impl Window {
 }
 
 // Safety: objc runtime calls are unsafe
-unsafe impl raw_window_handle::HasRawWindowHandle for Window {
+unsafe impl HasRawWindowHandle for Window {
   /// Returns a `raw_window_handle::RawWindowHandle` for the Window
   ///
   /// ## Platform-specific
@@ -895,6 +1147,15 @@ unsafe impl raw_window_handle::HasRawWindowHandle for Window {
   }
 }
 
+unsafe impl HasRawDisplayHandle for Window {
+  /// Returns a [`raw_window_handle::RawDisplayHandle`] used by the [`EventLoop`] that
+  /// created a window.
+  ///
+  /// [`EventLoop`]: crate::event_loop::EventLoop
+  fn raw_display_handle(&self) -> RawDisplayHandle {
+    self.window.raw_display_handle()
+  }
+}
 /// Describes the appearance of the mouse cursor.
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]

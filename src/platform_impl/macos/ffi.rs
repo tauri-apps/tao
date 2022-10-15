@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 // TODO: Upstream these
@@ -9,6 +10,8 @@
   non_upper_case_globals,
   clippy::enum_variant_names
 )]
+
+use std::ffi::c_void;
 
 use cocoa::{
   base::id,
@@ -114,6 +117,7 @@ pub const kCGNumberOfWindowLevelKeys: NSInteger = 20;
 #[derive(Debug, Clone, Copy)]
 #[repr(isize)]
 pub enum NSWindowLevel {
+  BelowNormalWindowLevel = (kCGBaseWindowLevelKey - 1) as _,
   NSNormalWindowLevel = kCGBaseWindowLevelKey as _,
   NSFloatingWindowLevel = kCGFloatingWindowLevelKey as _,
   NSTornOffMenuWindowLevel = kCGTornOffMenuWindowLevelKey as _,
@@ -281,3 +285,44 @@ extern "C" {
     unicodeString: *mut UniChar,
   ) -> OSStatus;
 }
+
+mod core_video {
+  use super::*;
+
+  #[link(name = "CoreVideo", kind = "framework")]
+  extern "C" {}
+
+  // CVBase.h
+
+  pub type CVTimeFlags = i32; // int32_t
+  pub const kCVTimeIsIndefinite: CVTimeFlags = 1 << 0;
+
+  #[repr(C)]
+  #[derive(Debug, Clone)]
+  pub struct CVTime {
+    pub time_value: i64, // int64_t
+    pub time_scale: i32, // int32_t
+    pub flags: i32,      // int32_t
+  }
+
+  // CVReturn.h
+
+  pub type CVReturn = i32; // int32_t
+  pub const kCVReturnSuccess: CVReturn = 0;
+
+  // CVDisplayLink.h
+
+  pub type CVDisplayLinkRef = *mut c_void;
+
+  extern "C" {
+    pub fn CVDisplayLinkCreateWithCGDisplay(
+      displayID: CGDirectDisplayID,
+      displayLinkOut: *mut CVDisplayLinkRef,
+    ) -> CVReturn;
+    pub fn CVDisplayLinkGetNominalOutputVideoRefreshPeriod(displayLink: CVDisplayLinkRef)
+      -> CVTime;
+    pub fn CVDisplayLinkRelease(displayLink: CVDisplayLinkRef);
+  }
+}
+
+pub use core_video::*;

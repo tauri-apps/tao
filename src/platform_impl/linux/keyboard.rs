@@ -1,3 +1,7 @@
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 use super::KeyEventExtra;
 use crate::{
   event::{ElementState, KeyEvent},
@@ -326,6 +330,7 @@ pub fn key_to_raw_key(src: &KeyCode) -> Option<RawKey> {
     KeyCode::PageDown => Page_Down,
 
     KeyCode::NumLock => Num_Lock,
+    KeyCode::Plus => plus,
 
     KeyCode::ArrowUp => Up,
     KeyCode::ArrowDown => Down,

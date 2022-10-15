@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(target_os = "macos")]
@@ -11,7 +12,7 @@ use crate::{
   menu::CustomMenuItem,
   monitor::MonitorHandle,
   platform_impl::{get_aux_state_mut, Parent},
-  window::{Theme, Window, WindowBuilder},
+  window::{Window, WindowBuilder},
 };
 
 #[cfg(feature = "tray")]
@@ -55,8 +56,21 @@ pub trait WindowExtMacOS {
   /// Sets whether or not the window has shadow.
   fn set_has_shadow(&self, has_shadow: bool);
 
-  /// Returns the current window theme.
-  fn theme(&self) -> Theme;
+  /// Put the window in a state which indicates a file save is required.
+  ///
+  /// <https://developer.apple.com/documentation/appkit/nswindow/1419311-isdocumentedited>
+  fn set_is_document_edited(&self, edited: bool);
+
+  /// Get the window's edit state
+  fn is_document_edited(&self) -> bool;
+
+  /// Sets whether the system can automatically organize windows into tabs.
+  ///
+  /// <https://developer.apple.com/documentation/appkit/nswindow/1646657-allowsautomaticwindowtabbing>
+  fn set_allows_automatic_window_tabbing(&self, enabled: bool);
+
+  /// Returns whether the system can automatically organize windows into tabs.
+  fn allows_automatic_window_tabbing(&self) -> bool;
 }
 
 impl WindowExtMacOS for Window {
@@ -91,8 +105,23 @@ impl WindowExtMacOS for Window {
   }
 
   #[inline]
-  fn theme(&self) -> Theme {
-    self.window.theme()
+  fn set_is_document_edited(&self, edited: bool) {
+    self.window.set_is_document_edited(edited)
+  }
+
+  #[inline]
+  fn is_document_edited(&self) -> bool {
+    self.window.is_document_edited()
+  }
+
+  #[inline]
+  fn set_allows_automatic_window_tabbing(&self, enabled: bool) {
+    self.window.set_allows_automatic_window_tabbing(enabled)
+  }
+
+  #[inline]
+  fn allows_automatic_window_tabbing(&self) -> bool {
+    self.window.allows_automatic_window_tabbing()
   }
 }
 
@@ -346,8 +375,7 @@ pub trait WindowBuilderExtMacOS {
   fn with_resize_increments(self, increments: LogicalSize<f64>) -> WindowBuilder;
   fn with_disallow_hidpi(self, disallow_hidpi: bool) -> WindowBuilder;
   fn with_has_shadow(self, has_shadow: bool) -> WindowBuilder;
-  /// Forces a theme or uses the system settings if `None` was provided.
-  fn with_theme(self, theme: Option<Theme>) -> WindowBuilder;
+  fn with_automatic_window_tabbing(self, automatic_tabbing: bool) -> WindowBuilder;
 }
 
 impl WindowBuilderExtMacOS for WindowBuilder {
@@ -415,8 +443,8 @@ impl WindowBuilderExtMacOS for WindowBuilder {
   }
 
   #[inline]
-  fn with_theme(mut self, theme: Option<Theme>) -> WindowBuilder {
-    self.platform_specific.preferred_theme = theme;
+  fn with_automatic_window_tabbing(mut self, automatic_tabbing: bool) -> WindowBuilder {
+    self.platform_specific.automatic_tabbing = automatic_tabbing;
     self
   }
 }
@@ -527,12 +555,28 @@ pub trait SystemTrayBuilderExtMacOS {
   /// You can use the alpha channel in the image to adjust the opacity of black content.
   ///
   fn with_icon_as_template(self, is_template: bool) -> Self;
+
+  /// Enables or disables showing the tray menu on left click, default is true.
+  fn with_menu_on_left_click(self, enable: bool) -> Self;
+
+  /// Sets the tray icon title
+  fn with_title(self, title: &str) -> Self;
 }
 
 #[cfg(feature = "tray")]
 impl SystemTrayBuilderExtMacOS for SystemTrayBuilder {
   fn with_icon_as_template(mut self, is_template: bool) -> Self {
-    self.0.system_tray.icon_is_template = is_template;
+    self.platform_tray_builder.system_tray.icon_is_template = is_template;
+    self
+  }
+
+  fn with_menu_on_left_click(mut self, enable: bool) -> Self {
+    self.platform_tray_builder.system_tray.menu_on_left_click = enable;
+    self
+  }
+
+  fn with_title(mut self, title: &str) -> Self {
+    self.platform_tray_builder.system_tray.title = Some(title.to_owned());
     self
   }
 }
@@ -544,11 +588,25 @@ pub trait SystemTrayExtMacOS {
   /// You need to update this value before changing the icon.
   ///
   fn set_icon_as_template(&mut self, is_template: bool);
+
+  /// Enables or disables showing the tray menu on left click, default is true.
+  fn enable_menu_on_left_click(&mut self, enable: bool);
+
+  /// Sets the tray icon title
+  fn set_title(&mut self, title: &str);
 }
 
 #[cfg(feature = "tray")]
 impl SystemTrayExtMacOS for SystemTray {
   fn set_icon_as_template(&mut self, is_template: bool) {
     self.0.icon_is_template = is_template
+  }
+
+  fn enable_menu_on_left_click(&mut self, enable: bool) {
+    self.0.menu_on_left_click = enable
+  }
+
+  fn set_title(&mut self, title: &str) {
+    self.0.set_title(title)
   }
 }

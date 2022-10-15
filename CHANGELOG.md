@@ -1,5 +1,176 @@
 # Changelog
 
+## \[0.14.0]
+
+- Implement "always on bottom" as contrary to "always on top".
+  - [a2a7b726](https://github.com/tauri-apps/tao/commit/a2a7b7262cc55e4c6defb79d5f77efce9d7e386d) Always on bottom ([#522](https://github.com/tauri-apps/tao/pull/522)) on 2022-08-22
+- Fix calling android functions when package name contained escaped underscore.
+  - [6d8cc7e3](https://github.com/tauri-apps/tao/commit/6d8cc7e3e4091462a741ee748112a3ea4aa4f12f) fix(android): unescape escaped underscore in package name ([#531](https://github.com/tauri-apps/tao/pull/531)) on 2022-08-16
+- Add `Window::set_content_protection` for macOS and Windows.
+  - [802146fb](https://github.com/tauri-apps/tao/commit/802146fb8692a46185846a64163c174520450c43) feat: implement set_content_protection, closes [#550](https://github.com/tauri-apps/tao/pull/550) ([#551](https://github.com/tauri-apps/tao/pull/551)) on 2022-09-04
+- - Add DeviceEventFilter on Windows.
+- **Breaking**: On Windows, device events are now ignored for unfocused windows by default, use `EventLoopWindowTarget::set_device_event_filter` to set the filter level.
+- [5bbd4f8f](https://github.com/tauri-apps/tao/commit/5bbd4f8f72901425432a35915d79d0bee0c96cce) Add DeviceEventFilter on Windows ([#465](https://github.com/tauri-apps/tao/pull/465)) on 2022-08-17
+- Fix system tray creation after event loop starts on macOS.
+  - [759b7db3](https://github.com/tauri-apps/tao/commit/759b7db37b8188ea38fa2919f9a0e504d4d2edca) fix(macos): retain tray to prevent segfault when event loop is running ([#539](https://github.com/tauri-apps/tao/pull/539)) on 2022-08-20
+- Fix resize doesn't work when calling with resizable. Also add platform specific note to `set_resizable`.
+  On Linux, most size methods like maximized are async and do not work well with calling
+  sequentailly. For setting inner or outer size, you don't need to set resizable to true before
+  it. It can resize no matter what. But if you insist to do so, it has a `100, 100` minimum
+  limitation somehow. For maximizing, it requires resizable is true. If you really want to set
+  resizable to false after it. You might need a mechanism to check the window is really
+  maximized.
+  - [4524d5d3](https://github.com/tauri-apps/tao/commit/4524d5d399c8bf01d22b160a9f9a04d5b074b466) fix(Linux): resize doesn't work when calling with resizable, fix [#545](https://github.com/tauri-apps/tao/pull/545) ([#553](https://github.com/tauri-apps/tao/pull/553)) on 2022-09-08
+- Add `Window::is_focused`.
+  - [7d2eeeeb](https://github.com/tauri-apps/tao/commit/7d2eeeebb4da15e9aeda9bf17e80ebdf23c95cee) feat: Window::is_focused ([#533](https://github.com/tauri-apps/tao/pull/533)) on 2022-08-17
+- On Linux, fix global shortcut are never triggered when a Lock key is ON, eg. NumLock, CapsLock.
+  - [07e3c1f5](https://github.com/tauri-apps/tao/commit/07e3c1f55d18537dc5c776b2706490676bba7cde) fix(linux/globalShorcut): extract needed mods from event state, closes [#307](https://github.com/tauri-apps/tao/pull/307), closes [#537](https://github.com/tauri-apps/tao/pull/537) ([#538](https://github.com/tauri-apps/tao/pull/538)) on 2022-08-19
+  - [871ad037](https://github.com/tauri-apps/tao/commit/871ad037b02b8ab4d650ba390664386e195c0bc7) chore: remove changefile, bug still exists on 2022-08-20
+  - [7e5556e0](https://github.com/tauri-apps/tao/commit/7e5556e0f247076e8f547fca313d957eeca46366) fix(linux/globalShortcut): grab the shortcut with extra mods, closes [#307](https://github.com/tauri-apps/tao/pull/307) ([#540](https://github.com/tauri-apps/tao/pull/540)) on 2022-08-20
+- Disables the global shortcut manager on wayland as its X11-specific.
+  - [27ab6f4d](https://github.com/tauri-apps/tao/commit/27ab6f4dcef19c052b0434873e34b54447b70860) fix(linux/globalShortcut): disable on wayland ([#543](https://github.com/tauri-apps/tao/pull/543)) on 2022-08-26
+- Added `SystemTrayExtMacOS::set_title` to `SystemTray` and `SystemTrayBuilderExtMacOS::with_title` to set the tray icon title on MacOS
+  - [972307dd](https://github.com/tauri-apps/tao/commit/972307ddf088b0f941be2ea66bded2473222aed5) feat: added text support to system tray for macos, closes [#65](https://github.com/tauri-apps/tao/pull/65) ([#554](https://github.com/tauri-apps/tao/pull/554)) on 2022-09-10
+- Update `windows-rs` to the latest 0.39.0 release.
+
+The `alloc` feature has been removed, which means it no longer accepts Rust `String` or `&str` parameters and implicitly converts them to `PWSTR` or `PSTR`.
+
+For string literals, that feature was replaced with `s!()` and `w!()` macros which null terminate the string literal at compile time and convert to UTF-16 if necessary. The `s!()` macro is fine, however the `w!()` macro uses `HSTRING` types from WinRT for maximum compatibility with WinRT types. Since Tao only uses Win32 APIs, this change relies on `util::encode_wide` to convert to a `Vec<u16>` instead.
+
+- [84e1a9f9](https://github.com/tauri-apps/tao/commit/84e1a9f93fa7e9e83f1ed92320ab9d7998673c60) Update windows to 0.39.0 ([#544](https://github.com/tauri-apps/tao/pull/544)) on 2022-08-31
+
+## \[0.13.3]
+
+- Implement custom protocol on Android.
+  - [b464b8ae](https://github.com/tauri-apps/tao/commit/b464b8ae296cf2b545cd0a98a1506f83779e94ff) feat(android): implement custom protocol ([#527](https://github.com/tauri-apps/tao/pull/527)) on 2022-08-13
+- Changed `WebViewMessage::Eval` to evaluate an specific script.
+  - [903c7e7f](https://github.com/tauri-apps/tao/commit/903c7e7f5b8c7984515697865fc7c74b496a64dc) feat(android): change WebViewMessage::Eval to run specific script ([#529](https://github.com/tauri-apps/tao/pull/529)) on 2022-08-13
+- Fix webview initialization scripts implementation on Android.
+  - [3d66ad0b](https://github.com/tauri-apps/tao/commit/3d66ad0b5548ed40da6e954fb5a911c3fb5a13e8) fix(android): run initialization scripts before page loads ([#528](https://github.com/tauri-apps/tao/pull/528)) on 2022-08-13
+- Removed the webview logic from the Android glue.
+  - [152aaa44](https://github.com/tauri-apps/tao/commit/152aaa4481ff8e44fc32ea3fe93a74c7fecd5be5) refactor(android): remove WebView logic, allow wry to hook into it ([#530](https://github.com/tauri-apps/tao/pull/530)) on 2022-08-14
+- Implement `SystemTray::set_tooltip` and `SystemTrayBuilder::with_tooltip` on Windows.
+  - [06949a79](https://github.com/tauri-apps/tao/commit/06949a7948100a51e98008c9e6f4ac73e069433a) feat(windows): implement `with_tooltip`&`set_tooltip`, closes [#205](https://github.com/tauri-apps/tao/pull/205) ([#524](https://github.com/tauri-apps/tao/pull/524)) on 2022-08-10
+
+## \[0.13.2]
+
+- Remove the NSStatusItem from the menu bar when the `SystemTray` instance is dropped.
+  - [aca4d3fb](https://github.com/tauri-apps/tao/commit/aca4d3fb2619d8bd38e4514583e921227cba6a04) feat(tray): remove from tray on `Drop` on macOS ([#520](https://github.com/tauri-apps/tao/pull/520)) on 2022-08-04
+- Fixes `Window::is_decorated` always returning `true` on macOS.
+  - [c3e076e9](https://github.com/tauri-apps/tao/commit/c3e076e9345ad33183426f5ef4bd936305254e15) fix(window): `is_decorated` wrong return value, closes [#518](https://github.com/tauri-apps/tao/pull/518) ([#519](https://github.com/tauri-apps/tao/pull/519)) on 2022-08-04
+- Fix theme feature to support Darker theme on Linux.
+  - [c6d6c011](https://github.com/tauri-apps/tao/commit/c6d6c0115c2facd488e8fab73c8f8b92e172771c) fix: support Darker theme on Linux ([#511](https://github.com/tauri-apps/tao/pull/511)) on 2022-08-03
+- Add `Window::is_minimized()`.
+  - [9c348154](https://github.com/tauri-apps/tao/commit/9c3481548b05de1d56c2efe8a1951fd014006b27) feat: add `Window::is_minimized()`, closes [#257](https://github.com/tauri-apps/tao/pull/257) ([#486](https://github.com/tauri-apps/tao/pull/486)) on 2022-08-06
+- Implement `SystemTrayBuilder::with_tooltip` and `SystemTray::set_tooltip` on macOS.
+  - [14e26568](https://github.com/tauri-apps/tao/commit/14e265682fab87502d59a718c9607aaf146c4d3e) feat(macos): add `SystemTray::set_tooltip`, ref [#409](https://github.com/tauri-apps/tao/pull/409) ([#410](https://github.com/tauri-apps/tao/pull/410)) on 2022-08-03
+- On Windows, fix a ghost window appearing occasionally when clicking the tray icon.
+  - [ad1f641f](https://github.com/tauri-apps/tao/commit/ad1f641f496c21a02c8d173167d77f1b31849273) fix(windows): fix tray event window showing up on click, closes [#506](https://github.com/tauri-apps/tao/pull/506) ([#507](https://github.com/tauri-apps/tao/pull/507)) on 2022-08-02
+- Added `SystemTrayBuilder::with_id` and the `id` field to `Event::TrayEvent` for better multitray support.
+  - [4ea78bcb](https://github.com/tauri-apps/tao/commit/4ea78bcb577f36ebd4f6b7ce4fcd31d7c02cafdb) feat(tray): add identifier to allow multiple tray setup ([#514](https://github.com/tauri-apps/tao/pull/514)) on 2022-08-04
+- Hide the app indicator when dropping `SystemTray` on Linux
+  - [9c6a543c](https://github.com/tauri-apps/tao/commit/9c6a543c1a748ed53ae408780a65043f6a9448f9) feat(tray): hide indicator on drop on Linux ([#521](https://github.com/tauri-apps/tao/pull/521)) on 2022-08-04
+
+## \[0.13.1]
+
+- On Linux, fix Window can't be displayed on wayland.
+  - [eb880f48](https://github.com/tauri-apps/tao/commit/eb880f48932adb96bc428efdf69e2256fe989b6b) Fix window can't be displayed on wayland ([#504](https://github.com/tauri-apps/tao/pull/504)) on 2022-07-28
+
+## \[0.13.0]
+
+- On Linux, receive only one draw event per cycle to prevent receiving infinite draw events.
+  - [b86ada73](https://github.com/tauri-apps/tao/commit/b86ada73ccc493340f4cee35d884867623287111) Receive only one draw event per cycle ([#500](https://github.com/tauri-apps/tao/pull/500)) on 2022-07-25
+- - On Linux, add `EventLoopWindowTargetExtUnix` for methods to determine if the backend is x11 or wayland.
+- On Linux, add `x11` module for glutin internal use. This is basically just x11-dl, but winit secretly exports it.
+- On Linux, add `WindowBuilder::with_transparent_draw` to disable the internal draw for transparent window and allows users to draw it manually.
+- [db7e5cb4](https://github.com/tauri-apps/tao/commit/db7e5cb4466133869f512487e605b061a6610560) feat(linux): Add necessary features for creating GL windows ([#495](https://github.com/tauri-apps/tao/pull/495)) on 2022-07-25
+- **Breaking** Updated `raw-window-handle` to `0.5` and added `Window::raw_display_handle` and `EventLoopWindowTarget::raw_display_handle`.
+  - [b905852d](https://github.com/tauri-apps/tao/commit/b905852d2e76dafaadc8c0ca5785328981628bf0) chore(deps): update `raw-window-handle` to `0.5` ([#493](https://github.com/tauri-apps/tao/pull/493)) on 2022-07-24
+- On Windows, respect min/max inner sizes when creating the window.
+  - [c1c6822e](https://github.com/tauri-apps/tao/commit/c1c6822e8bb4708857225491b939f076b120dec1) fix(windows): respect min/max sizes when creating window, closes [#498](https://github.com/tauri-apps/tao/pull/498) ([#499](https://github.com/tauri-apps/tao/pull/499)) on 2022-07-25
+
+## \[0.12.2]
+
+- On Windows, fix assigning the wrong mintor rect to undecorated maximized window. This caused a blank window downstream in wry and tauri.
+  - [9d97e4a6](https://github.com/tauri-apps/tao/commit/9d97e4a646ce8a4372d3ed2c22d227d8a33ba8ba) fix(windows): get correct monitor in `WM_NCCALCSIZE`, closes [#471](https://github.com/tauri-apps/tao/pull/471) ([#472](https://github.com/tauri-apps/tao/pull/472)) on 2022-07-12
+- Fixed set_inner_size is reset when resizable is set to false.
+  - [17203d08](https://github.com/tauri-apps/tao/commit/17203d08a4ee49c8fa8decb24bcf76fe4c264ca7) fix: fixed inner_size even if resizable is set to false ([#461](https://github.com/tauri-apps/tao/pull/461)) on 2022-07-05
+- On Windows, prevent ghost window from showing up in the taskbar after either several hours of use or restarting `explorer.exe`.
+  - [feb21272](https://github.com/tauri-apps/tao/commit/feb212726da553397beda6428666092b0561fd12) fix(windows): prevent ghost window from showing up on taskbar ([#489](https://github.com/tauri-apps/tao/pull/489)) on 2022-07-21
+- Add theme feature on Linux.
+  - [74425e8e](https://github.com/tauri-apps/tao/commit/74425e8e5b032299cec99f8278d9a05ae650013c) feat: add theme feature on Linux ([#468](https://github.com/tauri-apps/tao/pull/468)) on 2022-07-10
+- Fix maximizing window on Linux.
+  - [01fb1d6c](https://github.com/tauri-apps/tao/commit/01fb1d6cdf17f01ebe5757f4a66a0d8e40222490) fix: maximizing window on linux, closes [#442](https://github.com/tauri-apps/tao/pull/442) ([#456](https://github.com/tauri-apps/tao/pull/456)) on 2022-07-12
+- On macOS, fallback resize event for NSWindow to handle.
+  - [ab2e57e9](https://github.com/tauri-apps/tao/commit/ab2e57e9ec056861fa772262a2128c2ac2e16d1b) On macOS, fallback resize event for NSWindow to handle on 2022-07-12
+- Add `CustomMenuItem::set_icon`. Only implemented on macOS for now.
+  - [13f9f182](https://github.com/tauri-apps/tao/commit/13f9f182754b0bfbaa9163330aed4d444b1e007a) feat(macos): implement CustomMenuItem::set_icon() ([#459](https://github.com/tauri-apps/tao/pull/459)) on 2022-07-07
+- On Windows, subscribe to taskbar restart event and re-add the system tray icon.
+  Also skip the window from the taskbar if it was already skipped.
+  - [9450329e](https://github.com/tauri-apps/tao/commit/9450329e3ab70aa3608ef44207df19cfdddf45a0) fix(windows): subscribe to taskbar restart event, closes [#476](https://github.com/tauri-apps/tao/pull/476) ([#487](https://github.com/tauri-apps/tao/pull/487)) on 2022-07-21
+- On Windows, fix focus events being sent to inactive windows.
+  - [23ae71b7](https://github.com/tauri-apps/tao/commit/23ae71b717184e2eb0f2da0c683b7c8f0b5cd216) fix(windows): fix focus events being sent to inactive windows. ([#488](https://github.com/tauri-apps/tao/pull/488)) on 2022-07-21
+
+## \[0.12.1]
+
+- Revert #427 due to random crash caused by it.
+  - [38f9a587](https://github.com/tauri-apps/tao/commit/38f9a587c5a394a88c767b28e1bf2ae40f990bae) Revert "Remove most RedrawWindow to event target window" ([#457](https://github.com/tauri-apps/tao/pull/457)) on 2022-07-01
+
+## \[0.12.0]
+
+- On macOS, fix native file dialogs hanging the event loop and
+  having multiple windows would prevent `run_return` from ever returning.
+  - [5c9cc21a](https://github.com/tauri-apps/tao/commit/5c9cc21a394b3d6b32c794453344263457f7d223) Fix native file dialogs freezing the event loop ([#440](https://github.com/tauri-apps/tao/pull/440)) on 2022-06-22
+- Fix maximizing window.
+- On Windows, fix wrong fullscreen monitors being recognized when handling `WM_WINDOWPOSCHANGING` messages
+  - [054a34ec](https://github.com/tauri-apps/tao/commit/054a34ec504dc98235d1fafc9b1cdede7727193e) fix: fix assigning the wrong monitor when receiving Windows move events ([#438](https://github.com/tauri-apps/tao/pull/438)) on 2022-06-22
+- Fix global hide others shortcut.
+  - [dfae373e](https://github.com/tauri-apps/tao/commit/dfae373e58da44ab6adc977ffe24e3d55ed51de0) fix: global hide others shortcut ([#447](https://github.com/tauri-apps/tao/pull/447)) on 2022-06-25
+- Fix window can't be hidden when maximized.
+  - [cd9ad33a](https://github.com/tauri-apps/tao/commit/cd9ad33a088b3ab5dbcf3ff1681ebce323c5c61d) Fix window can't be hidden when maximized ([#384](https://github.com/tauri-apps/tao/pull/384)) on 2022-06-15
+- On macOS, `WindowEvent::Resized` is now emitted in `frameDidChange` instead of `windowDidResize`.
+  - [54062ca1](https://github.com/tauri-apps/tao/commit/54062ca1a96e3637acee771e9657ef0267933352) fix: emit resize event on frame_did_change on macOS, closes [#436](https://github.com/tauri-apps/tao/pull/436) ([#439](https://github.com/tauri-apps/tao/pull/439)) on 2022-06-22
+- On Linux, adds `SystemTrayBuilderExtLinux::with_temp_icon_dir` which sets a custom temp icon dir to store generated icon files.
+  This may be useful when the application requires icons to be stored in a specific location, such as when running in a Flatpak sandbox.
+  - [ce209d39](https://github.com/tauri-apps/tao/commit/ce209d39ab21e493ba98bab83aa7827fa05d7050) feat(linux) add `with_temp_icon_dir` builder extension ([#452](https://github.com/tauri-apps/tao/pull/452)) on 2022-06-26
+- On Linux, store tray icons in `$XDG_RUNTIME_DIR`.
+  This is preferred over `/tmp`, because this directory (typically `/run/user/{uid}`)
+  is only readable for the current user. While `/tmp` is shared with all users.
+  - [01253829](https://github.com/tauri-apps/tao/commit/01253829dc23b7316db8941ed8c302d479890186) feat(linux): store tray icons in `XDG_RUNTIME_DIR` ([#449](https://github.com/tauri-apps/tao/pull/449)) on 2022-06-25
+- Do not emit the `ThemeChanged` event when the window theme is set and the system theme changes (the window keeps its theme in this scenario).
+  - [aae6bec9](https://github.com/tauri-apps/tao/commit/aae6bec9110c19ed0b6618f08e6ce48f483bbfd0) fix(macos): do not emit ThemeChanged event if window theme didn't change ([#430](https://github.com/tauri-apps/tao/pull/430)) on 2022-06-20
+- Remvoe `core-video-sys` dependency.
+  - [3bb09aa6](https://github.com/tauri-apps/tao/commit/3bb09aa6a03c39bb78378fb85e977c37d8a47a79) fix: remove core-video-sys dependency, closes [#435](https://github.com/tauri-apps/tao/pull/435) ([#441](https://github.com/tauri-apps/tao/pull/441)) on 2022-06-22
+- The `theme` function now `Theme::Light` on macOS older than 10.14 and the initial theme setter has no effect instead of crashing the application.
+  - [ba9c5571](https://github.com/tauri-apps/tao/commit/ba9c5571f408bdca8584b1b44cc1b95a927d8e34) fix(macos): guard theme APIs to not crash when running on 10.13 or older ([#429](https://github.com/tauri-apps/tao/pull/429)) on 2022-06-20
+- Reduce `WM_PAINT` singal on event target window to prevent from webview2 delay.
+  - [5ca39af1](https://github.com/tauri-apps/tao/commit/5ca39af1117677b469f92a8094769610c01419ad) Remove most RedrawWindow to event target window ([#427](https://github.com/tauri-apps/tao/pull/427)) on 2022-06-28
+
+## \[0.11.2]
+
+- Fixes the `Ivar menu_on_left_click not found on class TaoTrayHandler` panic on macOS.
+  - [2cc163d2](https://github.com/tauri-apps/tao/commit/2cc163d2debba48457a63f4a839f1371b572e121) fix(macos): crash on tray class usage on 2022-06-14
+
+## \[0.11.1]
+
+- Fix macOS `SystemTrayExtMacOS` implementation.
+  - [f42c1be1](https://github.com/tauri-apps/tao/commit/f42c1be13ce949a3ca47c9126c2c1e914dee179a) fix: fix wrong macOS trait implementation on 2022-06-14
+
+## \[0.11.0]
+
+- **Breaking change** `SystemTrayBuilder::new` and `SystemTray::set_icon` now takes `system_tray::Icon` on all platforms.
+  - [0a98eb39](https://github.com/tauri-apps/tao/commit/0a98eb3993d9f24323f71520426712009bd9e272) refactor: system tray icons ([#328](https://github.com/tauri-apps/tao/pull/328)) on 2022-06-06
+- Allow to disable system tray menu only on Left Click.
+  - [0858356f](https://github.com/tauri-apps/tao/commit/0858356f3a14fcb6e1e1dfc8d2d35482388ccb43) feat(macos): allow to disable system tray menu on left click, closes [#317](https://github.com/tauri-apps/tao/pull/317) ([#329](https://github.com/tauri-apps/tao/pull/329)) on 2022-06-09
+- Connect mouse wheel event with GTK window.
+  - [f9e0b734](https://github.com/tauri-apps/tao/commit/f9e0b734c6a3737174d63a0ec8cb2ebc130f35f8) connect mouse wheel event with GTK window ([#412](https://github.com/tauri-apps/tao/pull/412)) on 2022-06-08
+- Support child window on Linux.
+  - [f1e8d755](https://github.com/tauri-apps/tao/commit/f1e8d7556eb9aea89769a9b38407e8fcd12675af) feat: support child window on linux, closes [#273](https://github.com/tauri-apps/tao/pull/273) ([#415](https://github.com/tauri-apps/tao/pull/415)) on 2022-06-13
+- Support theme on macOS.
+  - [8af4d8f0](https://github.com/tauri-apps/tao/commit/8af4d8f02149f08093cc348e278f5792dab4a423) feat: support theme on macOS ([#408](https://github.com/tauri-apps/tao/pull/408)) on 2022-06-01
+- Add `Window::set_ignore_cursor_events`
+  - [4fa87617](https://github.com/tauri-apps/tao/commit/4fa8761776d546ee3b1b0bb1a02a31d72eedfa80) feat: `Window::set_ignore_cursor_events`, closes [#184](https://github.com/tauri-apps/tao/pull/184) ([#421](https://github.com/tauri-apps/tao/pull/421)) on 2022-06-13
+
 ## \[0.10.0]
 
 - Fix movable window background on macOS.

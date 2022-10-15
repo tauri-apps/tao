@@ -1,7 +1,8 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use raw_window_handle::{RawWindowHandle, UiKitHandle};
+use raw_window_handle::{RawDisplayHandle, RawWindowHandle, UiKitDisplayHandle, UiKitWindowHandle};
 use std::{
   collections::VecDeque,
   ops::{Deref, DerefMut},
@@ -25,7 +26,9 @@ use crate::{
     },
     monitor, view, EventLoopWindowTarget, MonitorHandle,
   },
-  window::{CursorIcon, Fullscreen, UserAttentionType, WindowAttributes, WindowId as RootWindowId},
+  window::{
+    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
+  },
 };
 
 pub struct Inner {
@@ -50,6 +53,9 @@ impl Inner {
     debug!("`Window::set_title` is ignored on iOS")
   }
 
+  pub fn title(&self) -> Option<String> {
+    None
+  }
   pub fn set_visible(&self, visible: bool) {
     match visible {
       true => unsafe {
@@ -64,6 +70,11 @@ impl Inner {
   pub fn set_focus(&self) {
     //FIXME: implementation goes here
     warn!("set_focus not yet implemented on iOS");
+  }
+
+  pub fn is_focused(&self) -> bool {
+    warn!("`Window::is_focused` is ignored on iOS");
+    false
   }
 
   pub fn request_redraw(&self) {
@@ -165,6 +176,18 @@ impl Inner {
     warn!("`Window::set_resizable` is ignored on iOS")
   }
 
+  pub fn set_minimizable(&self, _minimizable: bool) {
+    warn!("`Window::set_minimizable` is ignored on iOS")
+  }
+
+  pub fn set_maximizable(&self, _maximizable: bool) {
+    warn!("`Window::set_maximizable` is ignored on iOS")
+  }
+
+  pub fn set_closable(&self, _closable: bool) {
+    warn!("`Window::set_closable` is ignored on iOS")
+  }
+
   pub fn scale_factor(&self) -> f64 {
     unsafe {
       let hidpi: CGFloat = msg_send![self.view, contentScaleFactor];
@@ -192,6 +215,10 @@ impl Inner {
     Err(ExternalError::NotSupported(NotSupportedError::new()))
   }
 
+  pub fn set_ignore_cursor_events(&self, _ignore: bool) -> Result<(), ExternalError> {
+    Err(ExternalError::NotSupported(NotSupportedError::new()))
+  }
+
   pub fn set_minimized(&self, _minimized: bool) {
     warn!("`Window::set_minimized` is ignored on iOS")
   }
@@ -205,6 +232,11 @@ impl Inner {
     false
   }
 
+  pub fn is_minimized(&self) -> bool {
+    warn!("`Window::is_minimized` is ignored on iOS");
+    false
+  }
+
   pub fn is_visible(&self) -> bool {
     log::warn!("`Window::is_visible` is ignored on iOS");
     false
@@ -212,6 +244,21 @@ impl Inner {
 
   pub fn is_resizable(&self) -> bool {
     warn!("`Window::is_resizable` is ignored on iOS");
+    false
+  }
+
+  pub fn is_minimizable(&self) -> bool {
+    warn!("`Window::is_minimizable` is ignored on iOS");
+    false
+  }
+
+  pub fn is_maximizable(&self) -> bool {
+    warn!("`Window::is_maximizable` is ignored on iOS");
+    false
+  }
+
+  pub fn is_closable(&self) -> bool {
+    warn!("`Window::is_closable` is ignored on iOS");
     false
   }
 
@@ -280,6 +327,10 @@ impl Inner {
     warn!("`Window::set_decorations` is ignored on iOS")
   }
 
+  pub fn set_always_on_bottom(&self, _always_on_bottom: bool) {
+    warn!("`Window::set_always_on_bottom` is ignored on iOS")
+  }
+
   pub fn set_always_on_top(&self, _always_on_top: bool) {
     warn!("`Window::set_always_on_top` is ignored on iOS")
   }
@@ -324,11 +375,19 @@ impl Inner {
   }
 
   pub fn raw_window_handle(&self) -> RawWindowHandle {
-    let mut handle = UiKitHandle::empty();
-    handle.ui_window = self.window as _;
-    handle.ui_view = self.view as _;
-    handle.ui_view_controller = self.view_controller as _;
-    RawWindowHandle::UiKit(handle)
+    let mut window_handle = UiKitWindowHandle::empty();
+    window_handle.ui_window = self.window as _;
+    window_handle.ui_view = self.view as _;
+    window_handle.ui_view_controller = self.view_controller as _;
+    RawWindowHandle::UiKit(window_handle)
+  }
+
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    RawDisplayHandle::UiKit(UiKitDisplayHandle::empty())
+  }
+
+  pub fn theme(&self) -> Theme {
+    Theme::Light
   }
 }
 

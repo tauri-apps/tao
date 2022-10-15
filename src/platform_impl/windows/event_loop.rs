@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![allow(non_snake_case)]
@@ -7,6 +8,7 @@ mod runner;
 
 use crossbeam_channel::{self as channel, Receiver, Sender};
 use parking_lot::Mutex;
+use raw_window_handle::{RawDisplayHandle, WindowsDisplayHandle};
 use std::{
   cell::Cell,
   collections::VecDeque,
@@ -19,7 +21,7 @@ use std::{
   time::{Duration, Instant},
 };
 use windows::{
-  core::PCWSTR,
+  core::{s, PCWSTR},
   Win32::{
     Devices::HumanInterfaceDevice::*,
     Foundation::{
@@ -44,7 +46,7 @@ use windows::{
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize},
   event::{DeviceEvent, Event, Force, RawKeyEvent, Touch, TouchPhase, WindowEvent},
-  event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
+  event_loop::{ControlFlow, DeviceEventFilter, EventLoopClosed, EventLoopWindowTarget as RootELW},
   keyboard::{KeyCode, ModifiersState},
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{
@@ -55,6 +57,7 @@ use crate::{
     minimal_ime::is_msg_ime_related,
     monitor::{self, MonitorHandle},
     raw_input, util,
+    window::set_skip_taskbar,
     window_state::{CursorFlags, WindowFlags, WindowState},
     wrap_device_id, WindowId, DEVICE_ID,
   },
@@ -183,7 +186,7 @@ impl<T: 'static> EventLoop<T> {
     let runner_shared = Rc::new(EventLoopRunner::new(thread_msg_target, wait_thread_id));
 
     let thread_msg_sender = subclass_event_target_window(thread_msg_target, runner_shared.clone());
-    raw_input::register_all_mice_and_keyboards_for_raw_input(thread_msg_target);
+    raw_input::register_all_mice_and_keyboards_for_raw_input(thread_msg_target, Default::default());
 
     EventLoop {
       thread_msg_sender,
@@ -293,6 +296,14 @@ impl<T> EventLoopWindowTarget<T> {
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
     let monitor = monitor::primary_monitor();
     Some(RootMonitorHandle { inner: monitor })
+  }
+
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    RawDisplayHandle::Windows(WindowsDisplayHandle::empty())
+  }
+
+  pub fn set_device_event_filter(&self, filter: DeviceEventFilter) {
+    raw_input::register_all_mice_and_keyboards_for_raw_input(self.thread_msg_target, filter);
   }
 }
 
@@ -530,55 +541,60 @@ impl<T: 'static> EventLoopProxy<T> {
 type WaitUntilInstantBox = Box<Instant>;
 
 lazy_static! {
-    // Message sent by the `EventLoopProxy` when we want to wake up the thread.
-    // WPARAM and LPARAM are unused.
+    /// Message sent by the `EventLoopProxy` when we want to wake up the thread.
+    /// WPARAM and LPARAM are unused.
     static ref USER_EVENT_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA("Tao::WakeupMsg")
+            RegisterWindowMessageA(s!("Tao::WakeupMsg"))
         }
     };
-    // Message sent when we want to execute a closure in the thread.
-    // WPARAM contains a Box<Box<dyn FnMut()>> that must be retrieved with `Box::from_raw`,
-    // and LPARAM is unused.
+    /// Message sent when we want to execute a closure in the thread.
+    /// WPARAM contains a Box<Box<dyn FnMut()>> that must be retrieved with `Box::from_raw`,
+    /// and LPARAM is unused.
     static ref EXEC_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA("Tao::ExecMsg")
+            RegisterWindowMessageA(s!("Tao::ExecMsg"))
         }
     };
     static ref PROCESS_NEW_EVENTS_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA("Tao::ProcessNewEvents")
+            RegisterWindowMessageA(s!("Tao::ProcessNewEvents"))
         }
     };
     /// lparam is the wait thread's message id.
     static ref SEND_WAIT_THREAD_ID_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA("Tao::SendWaitThreadId")
+            RegisterWindowMessageA(s!("Tao::SendWaitThreadId"))
         }
     };
     /// lparam points to a `Box<Instant>` signifying the time `PROCESS_NEW_EVENTS_MSG_ID` should
     /// be sent.
     static ref WAIT_UNTIL_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA("Tao::WaitUntil")
+            RegisterWindowMessageA(s!("Tao::WaitUntil"))
         }
     };
     static ref CANCEL_WAIT_UNTIL_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA("Tao::CancelWaitUntil")
+            RegisterWindowMessageA(s!("Tao::CancelWaitUntil"))
         }
     };
-    // Message sent by a `Window` when it wants to be destroyed by the main thread.
-    // WPARAM and LPARAM are unused.
+    /// Message sent by a `Window` when it wants to be destroyed by the main thread.
+    /// WPARAM and LPARAM are unused.
     pub static ref DESTROY_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA("Tao::DestroyMsg")
+            RegisterWindowMessageA(s!("Tao::DestroyMsg"))
         }
     };
-    // WPARAM is a bool specifying the `WindowFlags::MARKER_RETAIN_STATE_ON_SIZE` flag. See the
-    // documentation in the `window_state` module for more information.
+    /// WPARAM is a bool specifying the `WindowFlags::MARKER_RETAIN_STATE_ON_SIZE` flag. See the
+    /// documentation in the `window_state` module for more information.
     pub static ref SET_RETAIN_STATE_ON_SIZE_MSG_ID: u32 = unsafe {
-        RegisterWindowMessageA("Tao::SetRetainMaximized")
+        RegisterWindowMessageA(s!("Tao::SetRetainMaximized"))
+    };
+    /// When the taskbar is created, it registers a message with the "TaskbarCreated" string and then broadcasts this message to all top-level windows
+    /// When the application receives this message, it should assume that any taskbar icons it added have been removed and add them again.
+    pub static ref S_U_TASKBAR_RESTART: u32 = unsafe {
+      RegisterWindowMessageA(s!("TaskbarCreated"))
     };
     static ref THREAD_EVENT_TARGET_WINDOW_CLASS: Vec<u16> = unsafe {
         let class_name= util::encode_wide("Tao Thread Event Target");
@@ -589,12 +605,12 @@ lazy_static! {
             lpfnWndProc: Some(util::call_default_window_proc),
             cbClsExtra: 0,
             cbWndExtra: 0,
-            hInstance: GetModuleHandleW(PCWSTR::default()).unwrap_or_default(),
+            hInstance: GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
             hIcon: HICON::default(),
             hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
             hbrBackground: HBRUSH::default(),
-            lpszMenuName: Default::default(),
-            lpszClassName: PCWSTR(class_name.as_ptr()),
+            lpszMenuName: PCWSTR::null(),
+            lpszClassName: PCWSTR::from_raw(class_name.as_ptr()),
             hIconSm: HICON::default(),
         };
 
@@ -607,17 +623,25 @@ lazy_static! {
 fn create_event_target_window() -> HWND {
   let window = unsafe {
     CreateWindowExW(
-      WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_LAYERED,
-      PCWSTR(THREAD_EVENT_TARGET_WINDOW_CLASS.clone().as_ptr()),
-      PCWSTR::default(),
-      Default::default(),
+      WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_LAYERED |
+      // WS_EX_TOOLWINDOW prevents this window from ever showing up in the taskbar, which
+      // we want to avoid. If you remove this style, this window won't show up in the
+      // taskbar *initially*, but it can show up at some later point. This can sometimes
+      // happen on its own after several hours have passed, although this has proven
+      // difficult to reproduce. Alternatively, it can be manually triggered by killing
+      // `explorer.exe` and then starting the process back up.
+      // It is unclear why the bug is triggered by waiting for several hours.
+      WS_EX_TOOLWINDOW,
+      PCWSTR::from_raw(THREAD_EVENT_TARGET_WINDOW_CLASS.clone().as_ptr()),
+      PCWSTR::null(),
+      WS_OVERLAPPED,
       0,
       0,
       0,
       0,
       HWND::default(),
       HMENU::default(),
-      GetModuleHandleW(PCWSTR::default()).unwrap_or_default(),
+      GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
       ptr::null_mut(),
     )
   };
@@ -809,6 +833,31 @@ fn update_modifiers<T>(window: HWND, subclass_input: &SubclassInput<T>) -> Modif
     }
   }
   modifiers
+}
+
+unsafe fn gain_active_focus<T>(window: HWND, subclass_input: &SubclassInput<T>) {
+  use crate::event::WindowEvent::Focused;
+  update_modifiers(window, subclass_input);
+
+  subclass_input.send_event(Event::WindowEvent {
+    window_id: RootWindowId(WindowId(window.0)),
+    event: Focused(true),
+  });
+}
+
+unsafe fn lose_active_focus<T>(window: HWND, subclass_input: &SubclassInput<T>) {
+  use crate::event::WindowEvent::{Focused, ModifiersChanged};
+
+  subclass_input.window_state.lock().modifiers_state = ModifiersState::empty();
+  subclass_input.send_event(Event::WindowEvent {
+    window_id: RootWindowId(WindowId(window.0)),
+    event: ModifiersChanged(ModifiersState::empty()),
+  });
+
+  subclass_input.send_event(Event::WindowEvent {
+    window_id: RootWindowId(WindowId(window.0)),
+    event: Focused(false),
+  });
 }
 
 /// Any window whose callback is configured to this function will have its events propagated
@@ -1018,6 +1067,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
     win32wm::WM_WINDOWPOSCHANGING => {
       let mut window_state = subclass_input.window_state.lock();
+
       if let Some(ref mut fullscreen) = window_state.fullscreen {
         let window_pos = &mut *(lparam.0 as *mut WINDOWPOS);
         let new_rect = RECT {
@@ -1026,38 +1076,77 @@ unsafe fn public_window_callback_inner<T: 'static>(
           right: window_pos.x + window_pos.cx,
           bottom: window_pos.y + window_pos.cy,
         };
-        let new_monitor = MonitorFromRect(&new_rect, MONITOR_DEFAULTTONULL);
-        match fullscreen {
-          Fullscreen::Borderless(ref mut fullscreen_monitor) => {
-            if !new_monitor.is_invalid()
-              && fullscreen_monitor
-                .as_ref()
-                .map(|monitor| new_monitor != monitor.inner.hmonitor())
-                .unwrap_or(true)
-            {
-              if let Ok(new_monitor_info) = monitor::get_monitor_info(new_monitor) {
-                let new_monitor_rect = new_monitor_info.monitorInfo.rcMonitor;
-                window_pos.x = new_monitor_rect.left;
-                window_pos.y = new_monitor_rect.top;
-                window_pos.cx = new_monitor_rect.right - new_monitor_rect.left;
-                window_pos.cy = new_monitor_rect.bottom - new_monitor_rect.top;
-              }
-              *fullscreen_monitor = Some(crate::monitor::MonitorHandle {
-                inner: MonitorHandle::new(new_monitor),
-              });
-            }
+
+        const NOMOVE_OR_NOSIZE: SET_WINDOW_POS_FLAGS =
+          SET_WINDOW_POS_FLAGS(SWP_NOMOVE.0 | SWP_NOSIZE.0);
+
+        let new_rect = if (window_pos.flags & NOMOVE_OR_NOSIZE) != SET_WINDOW_POS_FLAGS::default() {
+          let cur_rect = util::get_window_rect(window)
+                        .expect("Unexpected GetWindowRect failure; please report this error to https://github.com/rust-windowing/tao");
+
+          match window_pos.flags & NOMOVE_OR_NOSIZE {
+            NOMOVE_OR_NOSIZE => None,
+
+            SWP_NOMOVE => Some(RECT {
+              left: cur_rect.left,
+              top: cur_rect.top,
+              right: cur_rect.left + window_pos.cx,
+              bottom: cur_rect.top + window_pos.cy,
+            }),
+
+            SWP_NOSIZE => Some(RECT {
+              left: window_pos.x,
+              top: window_pos.y,
+              right: window_pos.x - cur_rect.left + cur_rect.right,
+              bottom: window_pos.y - cur_rect.top + cur_rect.bottom,
+            }),
+
+            _ => unreachable!(),
           }
-          Fullscreen::Exclusive(ref video_mode) => {
-            let old_monitor = video_mode.video_mode.monitor.hmonitor();
-            if let Ok(old_monitor_info) = monitor::get_monitor_info(old_monitor) {
-              let old_monitor_rect = old_monitor_info.monitorInfo.rcMonitor;
-              window_pos.x = old_monitor_rect.left;
-              window_pos.y = old_monitor_rect.top;
-              window_pos.cx = old_monitor_rect.right - old_monitor_rect.left;
-              window_pos.cy = old_monitor_rect.bottom - old_monitor_rect.top;
+        } else {
+          Some(new_rect)
+        };
+
+        if let Some(new_rect) = new_rect {
+          let new_monitor = MonitorFromRect(&new_rect, MONITOR_DEFAULTTONULL);
+          match fullscreen {
+            Fullscreen::Borderless(ref mut fullscreen_monitor) => {
+              if !new_monitor.is_invalid()
+                && fullscreen_monitor
+                  .as_ref()
+                  .map(|monitor| new_monitor != monitor.inner.hmonitor())
+                  .unwrap_or(true)
+              {
+                if let Ok(new_monitor_info) = monitor::get_monitor_info(new_monitor) {
+                  let new_monitor_rect = new_monitor_info.monitorInfo.rcMonitor;
+                  window_pos.x = new_monitor_rect.left;
+                  window_pos.y = new_monitor_rect.top;
+                  window_pos.cx = new_monitor_rect.right - new_monitor_rect.left;
+                  window_pos.cy = new_monitor_rect.bottom - new_monitor_rect.top;
+                }
+                *fullscreen_monitor = Some(crate::monitor::MonitorHandle {
+                  inner: MonitorHandle::new(new_monitor),
+                });
+              }
+            }
+            Fullscreen::Exclusive(ref video_mode) => {
+              let old_monitor = video_mode.video_mode.monitor.hmonitor();
+              if let Ok(old_monitor_info) = monitor::get_monitor_info(old_monitor) {
+                let old_monitor_rect = old_monitor_info.monitorInfo.rcMonitor;
+                window_pos.x = old_monitor_rect.left;
+                window_pos.y = old_monitor_rect.top;
+                window_pos.cx = old_monitor_rect.right - old_monitor_rect.left;
+                window_pos.cy = old_monitor_rect.bottom - old_monitor_rect.top;
+              }
             }
           }
         }
+      }
+
+      let window_flags = window_state.window_flags;
+      if window_flags.contains(WindowFlags::ALWAYS_ON_BOTTOM) {
+        let window_pos = &mut *(lparam.0 as *mut WINDOWPOS);
+        window_pos.hwndInsertAfter = HWND_BOTTOM;
       }
 
       result = ProcResult::Value(LRESULT(0));
@@ -1606,31 +1695,32 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(LRESULT(0));
     }
 
+    win32wm::WM_NCACTIVATE => {
+      let is_active = wparam != WPARAM(0);
+      let active_focus_changed = subclass_input.window_state.lock().set_active(is_active);
+      if active_focus_changed {
+        if is_active {
+          gain_active_focus(window, subclass_input);
+        } else {
+          lose_active_focus(window, subclass_input);
+        }
+      }
+      result = ProcResult::DefWindowProc;
+    }
+
     win32wm::WM_SETFOCUS => {
-      use crate::event::WindowEvent::Focused;
-      update_modifiers(window, subclass_input);
-
-      subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
-        event: Focused(true),
-      });
-
+      let active_focus_changed = subclass_input.window_state.lock().set_focused(true);
+      if active_focus_changed {
+        gain_active_focus(window, subclass_input);
+      }
       result = ProcResult::Value(LRESULT(0));
     }
 
     win32wm::WM_KILLFOCUS => {
-      use crate::event::WindowEvent::{Focused, ModifiersChanged};
-
-      subclass_input.window_state.lock().modifiers_state = ModifiersState::empty();
-      subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
-        event: ModifiersChanged(ModifiersState::empty()),
-      });
-
-      subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
-        event: Focused(false),
-      });
+      let active_focus_changed = subclass_input.window_state.lock().set_focused(false);
+      if active_focus_changed {
+        lose_active_focus(window, subclass_input);
+      }
       result = ProcResult::Value(LRESULT(0));
     }
 
@@ -1939,9 +2029,10 @@ unsafe fn public_window_callback_inner<T: 'static>(
       if !win_flags.contains(WindowFlags::DECORATIONS) {
         // adjust the maximized borderless window so it doesn't cover the taskbar
         if util::is_maximized(window) {
-          let monitor = monitor::current_monitor(window);
-          if let Ok(monitor_info) = monitor::get_monitor_info(monitor.hmonitor()) {
-            let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
+          let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
+          if let Ok(monitor_info) =
+            monitor::get_monitor_info(MonitorFromRect(&params.rgrc[0], MONITOR_DEFAULTTONULL))
+          {
             params.rgrc[0] = monitor_info.monitorInfo.rcWork;
           }
         }
@@ -1982,6 +2073,9 @@ unsafe fn public_window_callback_inner<T: 'static>(
           f.set(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE, wparam.0 != 0)
         });
         result = ProcResult::Value(LRESULT(0));
+      } else if msg == *S_U_TASKBAR_RESTART {
+        let window_state = subclass_input.window_state.lock();
+        set_skip_taskbar(window, window_state.skip_taskbar);
       }
     }
   };
@@ -2008,10 +2102,6 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
 ) -> LRESULT {
   let subclass_input = Box::from_raw(subclass_input_ptr as *mut ThreadMsgTargetSubclassInput<T>);
 
-  if msg != WM_PAINT {
-    RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
-  }
-
   let mut subclass_removed = false;
 
   // I decided to bind the closure to `callback` and pass it to catch_unwind rather than passing
@@ -2021,6 +2111,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
     win32wm::WM_NCDESTROY => {
       remove_event_target_window_subclass::<T>(window);
       subclass_removed = true;
+      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
       LRESULT(0)
     }
     // Because WM_PAINT comes after all other messages, we use it during modal loops to detect
@@ -2062,6 +2153,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
         device_id: wrap_device_id(lparam.0),
         event,
       });
+      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
 
       LRESULT(0)
     }
@@ -2069,6 +2161,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
     win32wm::WM_INPUT => {
       if let Some(data) = raw_input::get_raw_input_data(HRAWINPUT(lparam.0)) {
         handle_raw_input(&subclass_input, data);
+        RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
       }
 
       DefSubclassProc(window, msg, wparam, lparam)
@@ -2078,11 +2171,13 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       if let Ok(event) = subclass_input.user_event_receiver.recv() {
         subclass_input.send_event(Event::UserEvent(event));
       }
+      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
       LRESULT(0)
     }
     _ if msg == *EXEC_MSG_ID => {
       let mut function: ThreadExecFn = Box::from_raw(wparam.0 as *mut _);
       function();
+      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
       LRESULT(0)
     }
     _ if msg == *PROCESS_NEW_EVENTS_MSG_ID => {
@@ -2117,6 +2212,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
         }
       }
       subclass_input.event_loop_runner.poll();
+      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
       LRESULT(0)
     }
     _ => DefSubclassProc(window, msg, wparam, lparam),

@@ -1,16 +1,21 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
   cell::RefCell,
   collections::VecDeque,
   rc::Rc,
-  sync::atomic::{AtomicBool, AtomicI32, Ordering},
+  sync::{
+    atomic::{AtomicBool, AtomicI32, Ordering},
+    Arc,
+  },
 };
 
 use gdk::{WindowEdge, WindowState};
-use gtk::{prelude::*, AccelGroup};
-use raw_window_handle::{RawWindowHandle, XlibHandle};
+use glib::translate::ToGlibPtr;
+use gtk::prelude::*;
+use raw_window_handle::{RawDisplayHandle, RawWindowHandle, XlibDisplayHandle, XlibWindowHandle};
 
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
@@ -18,11 +23,13 @@ use crate::{
   icon::Icon,
   menu::{MenuId, MenuItem},
   monitor::MonitorHandle as RootMonitorHandle,
-  window::{CursorIcon, Fullscreen, UserAttentionType, WindowAttributes, BORDERLESS_RESIZE_INSET},
+  window::{
+    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, BORDERLESS_RESIZE_INSET,
+  },
 };
 
 use super::{
-  event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle,
+  event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle, Parent,
   PlatformSpecificWindowBuilderAttributes,
 };
 
@@ -34,6 +41,10 @@ impl WindowId {
     WindowId(u32::MAX)
   }
 }
+
+// Currently GTK doesn't provide feature for detect theme, so we need to check theme manually.
+// ref: https://github.com/WebKit/WebKit/blob/e44ffaa0d999a9807f76f1805943eea204cfdfbc/Source/WebKit/UIProcess/API/gtk/PageClientImpl.cpp#L587
+const GTK_THEME_SUFFIX_LIST: [&'static str; 3] = ["-dark", "-Dark", "-Darker"];
 
 pub struct Window {
   /// Window id.
@@ -58,7 +69,10 @@ impl Window {
   ) -> Result<Self, RootOsError> {
     let app = &event_loop_window_target.app;
     let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
-    let window = gtk::ApplicationWindow::new(app);
+    let window = gtk::ApplicationWindow::builder()
+      .application(app)
+      .accept_focus(attributes.focused)
+      .build();
     let window_id = WindowId(window.id());
     event_loop_window_target
       .windows
@@ -71,12 +85,15 @@ impl Window {
       .inner_size
       .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
       .unwrap_or((800, 600));
-    window.set_resizable(attributes.resizable);
-    if attributes.resizable {
-      window.set_default_size(width, height);
-    } else {
-      window.set_size_request(width, height);
+    window.set_default_size(1, 1);
+    window.resize(width, height);
+
+    if attributes.maximized {
+      window.maximize();
     }
+
+    window.set_resizable(attributes.resizable);
+    window.set_deletable(attributes.closable);
 
     // Set Min/Max Size
     let geom_mask = (if attributes.min_inner_size.is_some() {
@@ -121,22 +138,29 @@ impl Window {
       window.move_(x, y);
     }
 
-    // Set Transparent
-    if attributes.transparent {
+    // Set GDK Visual
+    if pl_attribs.rgba_visual || attributes.transparent {
       if let Some(screen) = window.screen() {
         if let Some(visual) = screen.rgba_visual() {
           window.set_visual(Some(&visual));
         }
       }
+    }
 
-      window.connect_draw(|_, cr| {
-        cr.set_source_rgba(0., 0., 0., 0.);
-        cr.set_operator(cairo::Operator::Source);
-        let _ = cr.paint();
-        cr.set_operator(cairo::Operator::Over);
-        Inhibit(false)
-      });
+    if pl_attribs.app_paintable || attributes.transparent {
+      // Set a few attributes to make the window can be painted.
+      // See Gtk drawing model for more info:
+      // https://docs.gtk.org/gtk3/drawing-model.html
       window.set_app_paintable(true);
+    }
+
+    if !pl_attribs.double_buffered {
+      let widget = window.upcast_ref::<gtk::Widget>();
+      if !event_loop_window_target.is_wayland() {
+        unsafe {
+          gtk::ffi::gtk_widget_set_double_buffered(widget.to_glib_none().0, 0);
+        }
+      }
     }
 
     // Rest attributes
@@ -150,21 +174,67 @@ impl Window {
         window.fullscreen();
       }
     }
-    if attributes.maximized {
-      window.maximize();
-    }
     window.set_visible(attributes.visible);
     window.set_decorated(attributes.decorations);
 
-    window.set_keep_above(attributes.always_on_top);
+    if attributes.always_on_bottom {
+      window.set_keep_below(attributes.always_on_bottom);
+    }
+
+    if attributes.always_on_top {
+      window.set_keep_above(attributes.always_on_top);
+    }
+
     if let Some(icon) = attributes.window_icon {
       window.set_icon(Some(&icon.inner.into()));
+    }
+
+    let settings = Settings::default();
+
+    if let Some(settings) = settings {
+      if let Some(preferred_theme) = attributes.preferred_theme {
+        match preferred_theme {
+          Theme::Dark => settings.set_gtk_application_prefer_dark_theme(true),
+          Theme::Light => {
+            let theme_name = settings.gtk_theme_name().map(|t| t.as_str().to_owned());
+            if let Some(theme) = theme_name {
+              // Remove dark variant.
+              if let Some(theme) = GTK_THEME_SUFFIX_LIST
+                .iter()
+                .find(|t| theme.ends_with(*t))
+                .map(|v| theme.strip_suffix(v))
+              {
+                settings.set_gtk_theme_name(theme);
+              }
+            }
+          }
+        }
+      }
     }
 
     if attributes.visible {
       window.show_all();
     } else {
       window.hide();
+    }
+
+    if let Parent::ChildOf(parent) = pl_attribs.parent {
+      window.set_transient_for(Some(&parent));
+    }
+
+    // restore accept-focus after the window has been drawn
+    // if the window was initially created without focus
+    if !attributes.focused {
+      let signal_id = Arc::new(RefCell::new(None));
+      let signal_id_ = signal_id.clone();
+      let id = window.connect_draw(move |window, _| {
+        if let Some(id) = signal_id_.take() {
+          window.set_accept_focus(true);
+          window.disconnect(id);
+        }
+        Inhibit(false)
+      });
+      signal_id.borrow_mut().replace(id);
     }
 
     let w_pos = window.position();
@@ -206,7 +276,14 @@ impl Window {
       scale_factor_clone.store(window.scale_factor(), Ordering::Release);
     });
 
-    if let Err(e) = window_requests_tx.send((window_id, WindowRequest::WireUpEvents)) {
+    // Check if we should paint the transparent background ourselves.
+    let mut transparent = false;
+    if attributes.transparent && pl_attribs.auto_transparent {
+      transparent = true;
+    }
+    if let Err(e) =
+      window_requests_tx.send((window_id, WindowRequest::WireUpEvents { transparent }))
+    {
       log::warn!("Fail to send wire up events request: {}", e);
     }
 
@@ -343,6 +420,10 @@ impl Window {
     }
   }
 
+  pub fn title(&self) -> Option<String> {
+    self.window.title().map(|t| t.as_str().to_string())
+  }
+
   pub fn set_visible(&self, visible: bool) {
     if let Err(e) = self
       .window_requests_tx
@@ -363,12 +444,29 @@ impl Window {
     }
   }
 
+  pub fn is_focused(&self) -> bool {
+    self.window.is_active()
+  }
+
   pub fn set_resizable(&self, resizable: bool) {
     if let Err(e) = self
       .window_requests_tx
       .send((self.window_id, WindowRequest::Resizable(resizable)))
     {
       log::warn!("Fail to send resizable request: {}", e);
+    }
+  }
+
+  pub fn set_minimizable(&self, _minimizable: bool) {}
+
+  pub fn set_maximizable(&self, _maximizable: bool) {}
+
+  pub fn set_closable(&self, closable: bool) {
+    if let Err(e) = self
+      .window_requests_tx
+      .send((self.window_id, WindowRequest::Closable(closable)))
+    {
+      log::warn!("Fail to send closable request: {}", e);
     }
   }
 
@@ -394,8 +492,24 @@ impl Window {
     self.maximized.load(Ordering::Acquire)
   }
 
+  pub fn is_minimized(&self) -> bool {
+    self.minimized.load(Ordering::Acquire)
+  }
+
   pub fn is_resizable(&self) -> bool {
     self.window.is_resizable()
+  }
+
+  pub fn is_minimizable(&self) -> bool {
+    true
+  }
+
+  pub fn is_maximizable(&self) -> bool {
+    true
+  }
+
+  pub fn is_closable(&self) -> bool {
+    self.window.is_deletable()
   }
 
   pub fn is_decorated(&self) -> bool {
@@ -437,6 +551,15 @@ impl Window {
       .send((self.window_id, WindowRequest::Decorations(decorations)))
     {
       log::warn!("Fail to send decorations request: {}", e);
+    }
+  }
+
+  pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
+    if let Err(e) = self.window_requests_tx.send((
+      self.window_id,
+      WindowRequest::AlwaysOnBottom(always_on_bottom),
+    )) {
+      log::warn!("Fail to send always on bottom request: {}", e);
     }
   }
 
@@ -501,6 +624,17 @@ impl Window {
     Ok(())
   }
 
+  pub fn set_ignore_cursor_events(&self, ignore: bool) -> Result<(), ExternalError> {
+    if let Err(e) = self
+      .window_requests_tx
+      .send((self.window_id, WindowRequest::CursorIgnoreEvents(ignore)))
+    {
+      log::warn!("Fail to send cursor position request: {}", e);
+    }
+
+    Ok(())
+  }
+
   pub fn set_cursor_visible(&self, visible: bool) {
     let cursor = if visible {
       Some(CursorIcon::Default)
@@ -558,16 +692,26 @@ impl Window {
 
   pub fn raw_window_handle(&self) -> RawWindowHandle {
     // TODO: add wayland support
-    let mut handle = XlibHandle::empty();
+    let mut window_handle = XlibWindowHandle::empty();
     unsafe {
       if let Some(window) = self.window.window() {
-        handle.window = gdk_x11_sys::gdk_x11_window_get_xid(window.as_ptr() as *mut _);
-      }
-      if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
-        handle.display = (xlib.XOpenDisplay)(std::ptr::null()) as _;
+        window_handle.window = gdk_x11_sys::gdk_x11_window_get_xid(window.as_ptr() as *mut _);
       }
     }
-    RawWindowHandle::Xlib(handle)
+    RawWindowHandle::Xlib(window_handle)
+  }
+
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    let mut display_handle = XlibDisplayHandle::empty();
+    unsafe {
+      if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
+        let display = (xlib.XOpenDisplay)(std::ptr::null());
+        display_handle.display = display as _;
+        display_handle.screen = (xlib.XDefaultScreen)(display) as _;
+      }
+    }
+
+    RawDisplayHandle::Xlib(display_handle)
   }
 
   pub(crate) fn set_skip_taskbar(&self, skip: bool) {
@@ -577,6 +721,18 @@ impl Window {
     {
       log::warn!("Fail to send skip taskbar request: {}", e);
     }
+  }
+
+  pub fn theme(&self) -> Theme {
+    if let Some(settings) = Settings::default() {
+      let theme_name = settings.gtk_theme_name().map(|s| s.as_str().to_owned());
+      if let Some(theme) = theme_name {
+        if GTK_THEME_SUFFIX_LIST.iter().any(|t| theme.ends_with(t)) {
+          return Theme::Dark;
+        }
+      }
+    }
+    return Theme::Light;
   }
 }
 
@@ -595,21 +751,24 @@ pub enum WindowRequest {
   Visible(bool),
   Focus,
   Resizable(bool),
+  Closable(bool),
   Minimized(bool),
   Maximized(bool),
   DragWindow,
   Fullscreen(Option<Fullscreen>),
   Decorations(bool),
+  AlwaysOnBottom(bool),
   AlwaysOnTop(bool),
   WindowIcon(Option<Icon>),
   UserAttention(Option<UserAttentionType>),
   SetSkipTaskbar(bool),
   CursorIcon(Option<CursorIcon>),
   CursorPosition((i32, i32)),
-  Menu((Option<MenuItem>, Option<MenuId>)),
-  SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
-  WireUpEvents,
+  CursorIgnoreEvents(bool),
+  WireUpEvents { transparent: bool },
   Redraw,
+  Menu((Option<MenuItem>, Option<MenuId>)),
+  SetMenu((Option<menu::Menu>, gtk::AccelGroup, gtk::MenuBar)),
   GlobalHotKey(u16),
 }
 

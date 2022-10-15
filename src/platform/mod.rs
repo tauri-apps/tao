@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 //! Contains traits with platform-specific methods in them.
@@ -9,6 +10,7 @@
 //!  - `ios`
 //!  - `macos`
 //!  - `unix`
+//!  - `linux`
 //!  - `windows`
 //!
 //! And the following platform-specific module:
@@ -20,6 +22,7 @@
 
 pub mod android;
 pub mod ios;
+pub mod linux;
 pub mod macos;
 pub mod run_return;
 pub mod unix;

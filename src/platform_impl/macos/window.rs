@@ -1,7 +1,7 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use raw_window_handle::{AppKitHandle, RawWindowHandle};
 use std::{
   collections::VecDeque,
   convert::TryInto,
@@ -13,6 +13,10 @@ use std::{
   },
 };
 
+use raw_window_handle::{
+  AppKitDisplayHandle, AppKitWindowHandle, RawDisplayHandle, RawWindowHandle,
+};
+
 use crate::{
   dpi::{
     LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size, Size::Logical,
@@ -22,7 +26,7 @@ use crate::{
   monitor::{MonitorHandle as RootMonitorHandle, VideoMode as RootVideoMode},
   platform::macos::WindowExtMacOS,
   platform_impl::platform::{
-    app_state::{AppState, INTERRUPT_EVENT_LOOP_EXIT},
+    app_state::AppState,
     ffi,
     monitor::{self, MonitorHandle, VideoMode},
     util::{self, IdRef},
@@ -87,7 +91,7 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub resize_increments: Option<LogicalSize<f64>>,
   pub disallow_hidpi: bool,
   pub has_shadow: bool,
-  pub preferred_theme: Option<Theme>,
+  pub automatic_tabbing: bool,
 }
 
 impl Default for PlatformSpecificWindowBuilderAttributes {
@@ -104,7 +108,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       resize_increments: None,
       disallow_hidpi: false,
       has_shadow: true,
-      preferred_theme: None,
+      automatic_tabbing: true,
     }
   }
 }
@@ -193,6 +197,14 @@ fn create_window(
       masks &= !NSWindowStyleMask::NSResizableWindowMask;
     }
 
+    if !attrs.minimizable {
+      masks &= !NSWindowStyleMask::NSMiniaturizableWindowMask;
+    }
+
+    if !attrs.closable {
+      masks &= !NSWindowStyleMask::NSClosableWindowMask;
+    }
+
     if pl_attrs.fullsize_content_view {
       masks |= NSWindowStyleMask::NSFullSizeContentViewWindowMask;
     }
@@ -238,6 +250,18 @@ fn create_window(
         ];
       }
 
+      if attrs.always_on_bottom {
+        let _: () = msg_send![
+          *ns_window,
+          setLevel: ffi::NSWindowLevel::BelowNormalWindowLevel
+        ];
+      }
+
+      if !attrs.maximizable {
+        let button = ns_window.standardWindowButton_(NSWindowButton::NSWindowZoomButton);
+        let _: () = msg_send![button, setEnabled: NO];
+      }
+
       if let Some(increments) = pl_attrs.resize_increments {
         let (x, y) = (increments.width, increments.height);
         if x >= 1.0 && y >= 1.0 {
@@ -248,6 +272,10 @@ fn create_window(
 
       if let Parent::ChildOf(parent) = pl_attrs.parent {
         let _: () = msg_send![parent as id, addChildWindow: *ns_window ordered: NSWindowOrderingMode::NSWindowAbove];
+      }
+
+      if !pl_attrs.automatic_tabbing {
+        NSWindow::setAllowsAutomaticWindowTabbing_(*ns_window, NO);
       }
 
       if !pl_attrs.has_shadow {
@@ -271,6 +299,10 @@ pub(super) fn get_ns_theme() -> Theme {
     appearances.push(NSString::alloc(nil).init_str("NSAppearanceNameDarkAqua"));
     let app_class = class!(NSApplication);
     let app: id = msg_send![app_class, sharedApplication];
+    let has_theme: BOOL = msg_send![app, respondsToSelector: sel!(effectiveAppearance)];
+    if has_theme == NO {
+      return Theme::Light;
+    }
     let appearance: id = msg_send![app, effectiveAppearance];
     let name: id = msg_send![
       appearance,
@@ -290,11 +322,14 @@ pub(super) fn set_ns_theme(theme: Theme) {
     Theme::Light => "NSAppearanceNameAqua",
   };
   unsafe {
-    let name = NSString::alloc(nil).init_str(name);
-    let appearance: id = msg_send![class!(NSAppearance), appearanceNamed: name];
     let app_class = class!(NSApplication);
     let app: id = msg_send![app_class, sharedApplication];
-    let _: () = msg_send![app, setAppearance: appearance];
+    let has_theme: BOOL = msg_send![app, respondsToSelector: sel!(effectiveAppearance)];
+    if has_theme == YES {
+      let name = NSString::alloc(nil).init_str(name);
+      let appearance: id = msg_send![class!(NSAppearance), appearanceNamed: name];
+      let _: () = msg_send![app, setAppearance: appearance];
+    }
   }
 }
 
@@ -363,7 +398,7 @@ pub struct SharedState {
   /// transitioning back to borderless fullscreen.
   save_presentation_opts: Option<NSApplicationPresentationOptions>,
   pub saved_desktop_display_mode: Option<(CGDisplay, CGDisplayMode)>,
-  current_theme: Theme,
+  pub current_theme: Theme,
 }
 
 impl SharedState {
@@ -469,10 +504,13 @@ impl UnownedWindow {
     let fullscreen = win_attribs.fullscreen.take();
     let maximized = win_attribs.maximized;
     let visible = win_attribs.visible;
+    let focused = win_attribs.focused;
     let decorations = win_attribs.decorations;
     let inner_rect = win_attribs
       .inner_size
       .map(|size| size.to_physical(scale_factor));
+
+    let cloned_preferred_theme = win_attribs.preferred_theme.clone();
 
     let window = Arc::new(UnownedWindow {
       ns_view,
@@ -484,11 +522,11 @@ impl UnownedWindow {
       inner_rect,
     });
 
-    match pl_attribs.preferred_theme {
+    match cloned_preferred_theme {
       Some(theme) => {
         set_ns_theme(theme);
         let mut state = window.shared_state.lock().unwrap();
-        state.current_theme = theme;
+        state.current_theme = theme.clone();
       }
       None => {
         let mut state = window.shared_state.lock().unwrap();
@@ -505,8 +543,12 @@ impl UnownedWindow {
     // state, since otherwise we'll briefly see the window at normal size
     // before it transitions.
     if visible {
-      // Tightly linked with `app_state::window_activation_hack`
-      unsafe { window.ns_window.makeKeyAndOrderFront_(nil) };
+      if focused {
+        // Tightly linked with `app_state::window_activation_hack`
+        unsafe { window.ns_window.makeKeyAndOrderFront_(nil) };
+      } else {
+        unsafe { window.ns_window.orderFront_(nil) };
+      }
     }
 
     if maximized {
@@ -536,6 +578,13 @@ impl UnownedWindow {
     }
   }
 
+  pub fn title(&self) -> Option<String> {
+    unsafe {
+      let title = self.ns_window.title();
+      Some(ns_string_to_rust(title))
+    }
+  }
+
   pub fn set_visible(&self, visible: bool) {
     match visible {
       true => unsafe { util::make_key_and_order_front_async(*self.ns_window) },
@@ -551,6 +600,14 @@ impl UnownedWindow {
       if is_minimized == NO {
         util::set_focus(*self.ns_window);
       }
+    }
+  }
+
+  #[inline]
+  pub fn is_focused(&self) -> bool {
+    unsafe {
+      let is_key_window: BOOL = msg_send![*self.ns_window, isKeyWindow];
+      is_key_window == YES
     }
   }
 
@@ -656,6 +713,38 @@ impl UnownedWindow {
     } // Otherwise, we don't change the mask until we exit fullscreen.
   }
 
+  #[inline]
+  pub fn set_minimizable(&self, minimizable: bool) {
+    let mut mask = unsafe { self.ns_window.styleMask() };
+    if minimizable {
+      mask |= NSWindowStyleMask::NSMiniaturizableWindowMask;
+    } else {
+      mask &= !NSWindowStyleMask::NSMiniaturizableWindowMask;
+    }
+    self.set_style_mask_async(mask);
+  }
+
+  #[inline]
+  pub fn set_maximizable(&self, maximizable: bool) {
+    unsafe {
+      let button = self
+        .ns_window
+        .standardWindowButton_(NSWindowButton::NSWindowZoomButton);
+      let _: () = msg_send![button, setEnabled: maximizable];
+    }
+  }
+
+  #[inline]
+  pub fn set_closable(&self, closable: bool) {
+    let mut mask = unsafe { self.ns_window.styleMask() };
+    if closable {
+      mask |= NSWindowStyleMask::NSClosableWindowMask;
+    } else {
+      mask &= !NSWindowStyleMask::NSClosableWindowMask;
+    }
+    self.set_style_mask_async(mask);
+  }
+
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
     let cursor = util::Cursor::from(cursor);
     if let Some(cursor_access) = self.cursor_state.upgrade() {
@@ -719,6 +808,15 @@ impl UnownedWindow {
     unsafe {
       let event: id = msg_send![NSApp(), currentEvent];
       let _: () = msg_send![*self.ns_window, performWindowDragWithEvent: event];
+    }
+
+    Ok(())
+  }
+
+  #[inline]
+  pub fn set_ignore_cursor_events(&self, ignore: bool) -> Result<(), ExternalError> {
+    unsafe {
+      util::set_ignore_mouse_events(*self.ns_window, ignore);
     }
 
     Ok(())
@@ -824,20 +922,49 @@ impl UnownedWindow {
   }
 
   #[inline]
+  pub fn is_maximized(&self) -> bool {
+    self.is_zoomed()
+  }
+
+  #[inline]
+  pub fn is_minimized(&self) -> bool {
+    let is_minimized: BOOL = unsafe { msg_send![*self.ns_window, isMiniaturized] };
+    is_minimized == YES
+  }
+
+  #[inline]
   pub fn is_resizable(&self) -> bool {
     let is_resizable: BOOL = unsafe { msg_send![*self.ns_window, isResizable] };
     is_resizable == YES
   }
 
   #[inline]
-  pub fn is_decorated(&self) -> bool {
-    let current_mask = unsafe { self.ns_window.styleMask() };
-    if current_mask
-      == NSWindowStyleMask::NSMiniaturizableWindowMask | NSWindowStyleMask::NSResizableWindowMask
-    {
-      return false;
+  pub fn is_minimizable(&self) -> bool {
+    let is_minimizable: BOOL = unsafe { msg_send![*self.ns_window, isMiniaturizable] };
+    is_minimizable == YES
+  }
+
+  #[inline]
+  pub fn is_maximizable(&self) -> bool {
+    let is_maximizable: BOOL;
+    unsafe {
+      let button = self
+        .ns_window
+        .standardWindowButton_(NSWindowButton::NSWindowZoomButton);
+      is_maximizable = msg_send![button, isEnabled];
     }
-    true
+    is_maximizable == YES
+  }
+
+  #[inline]
+  pub fn is_closable(&self) -> bool {
+    let is_closable: BOOL = unsafe { msg_send![*self.ns_window, hasCloseBox] };
+    is_closable == YES
+  }
+
+  #[inline]
+  pub fn is_decorated(&self) -> bool {
+    self.decorations.load(Ordering::Acquire)
   }
 
   #[inline]
@@ -969,8 +1096,6 @@ impl UnownedWindow {
     shared_state_lock.fullscreen = fullscreen.clone();
     trace!("Unlocked shared state in `set_fullscreen`");
 
-    INTERRUPT_EVENT_LOOP_EXIT.store(true, Ordering::SeqCst);
-
     match (&old_fullscreen, &fullscreen) {
       (&None, &Some(_)) => unsafe {
         util::toggle_full_screen_async(
@@ -1040,7 +1165,7 @@ impl UnownedWindow {
           setLevel: ffi::NSWindowLevel::NSNormalWindowLevel
         ];
       },
-      _ => INTERRUPT_EVENT_LOOP_EXIT.store(false, Ordering::SeqCst),
+      _ => {}
     }
     trace!("Unlocked shared state in `set_fullscreen`");
   }
@@ -1082,6 +1207,16 @@ impl UnownedWindow {
       };
       self.set_style_mask_async(new_mask);
     }
+  }
+
+  #[inline]
+  pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
+    let level = if always_on_bottom {
+      ffi::NSWindowLevel::BelowNormalWindowLevel
+    } else {
+      ffi::NSWindowLevel::NSNormalWindowLevel
+    };
+    unsafe { util::set_level_async(*self.ns_window, level) };
   }
 
   #[inline]
@@ -1166,10 +1301,27 @@ impl UnownedWindow {
 
   #[inline]
   pub fn raw_window_handle(&self) -> RawWindowHandle {
-    let mut handle = AppKitHandle::empty();
-    handle.ns_window = *self.ns_window as *mut _;
-    handle.ns_view = *self.ns_view as *mut _;
-    RawWindowHandle::AppKit(handle)
+    let mut window_handle = AppKitWindowHandle::empty();
+    window_handle.ns_window = *self.ns_window as *mut _;
+    window_handle.ns_view = *self.ns_view as *mut _;
+    RawWindowHandle::AppKit(window_handle)
+  }
+
+  #[inline]
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    RawDisplayHandle::AppKit(AppKitDisplayHandle::empty())
+  }
+
+  #[inline]
+  pub fn theme(&self) -> Theme {
+    let state = self.shared_state.lock().unwrap();
+    state.current_theme
+  }
+
+  pub fn set_content_protection(&self, enabled: bool) {
+    unsafe {
+      let _: () = msg_send![*self.ns_window, setSharingType: !enabled as i32];
+    }
   }
 }
 
@@ -1288,9 +1440,35 @@ impl WindowExtMacOS for UnownedWindow {
   }
 
   #[inline]
-  fn theme(&self) -> Theme {
-    let state = self.shared_state.lock().unwrap();
-    state.current_theme
+  fn set_is_document_edited(&self, edited: bool) {
+    unsafe {
+      self
+        .ns_window
+        .setDocumentEdited_(if edited { YES } else { NO })
+    }
+  }
+
+  #[inline]
+  fn is_document_edited(&self) -> bool {
+    unsafe {
+      let is_document_edited: BOOL = msg_send![*self.ns_window, isDocumentEdited];
+      is_document_edited == YES
+    }
+  }
+
+  #[inline]
+  fn set_allows_automatic_window_tabbing(&self, enabled: bool) {
+    unsafe {
+      NSWindow::setAllowsAutomaticWindowTabbing_(*self.ns_window, if enabled { YES } else { NO })
+    }
+  }
+
+  #[inline]
+  fn allows_automatic_window_tabbing(&self) -> bool {
+    unsafe {
+      let allows_tabbing: BOOL = NSWindow::allowsAutomaticWindowTabbing(*self.ns_window);
+      allows_tabbing == YES
+    }
   }
 }
 

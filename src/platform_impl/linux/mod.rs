@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(any(
@@ -20,6 +21,7 @@ mod monitor;
 #[cfg(feature = "tray")]
 mod system_tray;
 mod window;
+pub mod x11;
 
 #[cfg(feature = "tray")]
 pub use self::system_tray::{SystemTray, SystemTrayBuilder};
@@ -43,9 +45,40 @@ pub struct KeyEventExtra {
   pub key_without_modifiers: Key<'static>,
 }
 
-#[derive(Clone, Default)]
+#[non_exhaustive]
+#[derive(Clone)]
+pub enum Parent {
+  None,
+  ChildOf(gtk::ApplicationWindow),
+}
+
+impl Default for Parent {
+  fn default() -> Self {
+    Parent::None
+  }
+}
+
+#[derive(Clone)]
 pub struct PlatformSpecificWindowBuilderAttributes {
+  pub parent: Parent,
   pub skip_taskbar: bool,
+  pub auto_transparent: bool,
+  pub double_buffered: bool,
+  pub app_paintable: bool,
+  pub rgba_visual: bool,
+}
+
+impl Default for PlatformSpecificWindowBuilderAttributes {
+  fn default() -> Self {
+    Self {
+      parent: Default::default(),
+      skip_taskbar: Default::default(),
+      auto_transparent: true,
+      double_buffered: true,
+      app_paintable: false,
+      rgba_visual: false,
+    }
+  }
 }
 
 unsafe impl Send for PlatformSpecificWindowBuilderAttributes {}

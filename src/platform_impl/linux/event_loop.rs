@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -11,15 +12,20 @@ use std::{
   time::Instant,
 };
 
-use gdk::{Cursor, CursorType, EventKey, EventMask, WindowEdge, WindowState};
+use cairo::{RectangleInt, Region};
+use gdk::{Cursor, CursorType, EventKey, EventMask, ScrollDirection, WindowEdge, WindowState};
 use gio::{prelude::*, Cancellable};
 use glib::{source::Priority, Continue, MainContext};
 use gtk::{builders::AboutDialogBuilder, prelude::*, Inhibit};
 
+use raw_window_handle::{RawDisplayHandle, XlibDisplayHandle};
+
 use crate::{
   accelerator::AcceleratorId,
   dpi::{LogicalPosition, LogicalSize},
-  event::{ElementState, Event, MouseButton, StartCause, WindowEvent},
+  event::{
+    ElementState, Event, MouseButton, MouseScrollDelta, StartCause, TouchPhase, WindowEvent,
+  },
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
   keyboard::ModifiersState,
   menu::{MenuItem, MenuType},
@@ -69,6 +75,22 @@ impl<T> EventLoopWindowTarget<T> {
     let number = screen.primary_monitor();
     let handle = MonitorHandle::new(&self.display, number);
     Some(RootMonitorHandle { inner: handle })
+  }
+
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    let mut display_handle = XlibDisplayHandle::empty();
+    unsafe {
+      if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
+        let display = (xlib.XOpenDisplay)(std::ptr::null());
+        display_handle.display = display as _;
+        display_handle.screen = (xlib.XDefaultScreen)(display) as _;
+      }
+    }
+    RawDisplayHandle::Xlib(display_handle)
+  }
+
+  pub fn is_wayland(&self) -> bool {
+    self.display.backend().is_wayland()
   }
 }
 
@@ -197,6 +219,7 @@ impl<T: 'static> EventLoop<T> {
             window.present_with_time(gdk_sys::GDK_CURRENT_TIME as _);
           }
           WindowRequest::Resizable(resizable) => window.set_resizable(resizable),
+          WindowRequest::Closable(closable) => window.set_deletable(closable),
           WindowRequest::Minimized(minimized) => {
             if minimized {
               window.iconify();
@@ -236,6 +259,9 @@ impl<T: 'static> EventLoop<T> {
             None => window.unfullscreen(),
           },
           WindowRequest::Decorations(decorations) => window.set_decorated(decorations),
+          WindowRequest::AlwaysOnBottom(always_on_bottom) => {
+            window.set_keep_below(always_on_bottom)
+          }
           WindowRequest::AlwaysOnTop(always_on_top) => window.set_keep_above(always_on_top),
           WindowRequest::WindowIcon(window_icon) => {
             if let Some(icon) = window_icon {
@@ -312,14 +338,31 @@ impl<T: 'static> EventLoop<T> {
               }
             }
           }
-          WindowRequest::WireUpEvents => {
+          WindowRequest::CursorIgnoreEvents(ignore) => {
+            if ignore {
+              let empty_region = Region::create_rectangle(&RectangleInt {
+                x: 0,
+                y: 0,
+                width: 1,
+                height: 1,
+              });
+              window
+                .window()
+                .unwrap()
+                .input_shape_combine_region(&empty_region, 0, 0);
+            } else {
+              window.input_shape_combine_region(None)
+            };
+          }
+          WindowRequest::WireUpEvents { transparent } => {
             window.add_events(
               EventMask::POINTER_MOTION_MASK
                 | EventMask::BUTTON1_MOTION_MASK
                 | EventMask::BUTTON_PRESS_MASK
                 | EventMask::TOUCH_MASK
                 | EventMask::STRUCTURE_MASK
-                | EventMask::FOCUS_CHANGE_MASK,
+                | EventMask::FOCUS_CHANGE_MASK
+                | EventMask::SCROLL_MASK,
             );
 
             // Allow resizing unmaximized borderless window
@@ -578,6 +621,26 @@ impl<T: 'static> EventLoop<T> {
             });
 
             let tx_clone = event_tx.clone();
+            window.connect_scroll_event(move |_, event| {
+              let (x, y) = event.delta();
+              if let Err(e) = tx_clone.send(Event::WindowEvent {
+                window_id: RootWindowId(id),
+                event: WindowEvent::MouseWheel {
+                  device_id: DEVICE_ID,
+                  delta: MouseScrollDelta::LineDelta(-x as f32, -y as f32),
+                  phase: match event.direction() {
+                    ScrollDirection::Smooth => TouchPhase::Moved,
+                    _ => TouchPhase::Ended,
+                  },
+                  modifiers: ModifiersState::empty(),
+                },
+              }) {
+                log::warn!("Failed to send scroll event to event channel: {}", e);
+              }
+              Inhibit(false)
+            });
+
+            let tx_clone = event_tx.clone();
             let keyboard_handler = Rc::new(move |event_key: EventKey, element_state| {
               // if we have a modifier lets send it
               let mut mods = keyboard::get_modifiers(event_key.clone());
@@ -680,6 +743,23 @@ impl<T: 'static> EventLoop<T> {
                   );
                 }
               }
+              Inhibit(false)
+            });
+
+            // Receive draw events of the window.
+            let draw_clone = draw_tx.clone();
+            window.connect_draw(move |_, cr| {
+              if let Err(e) = draw_clone.send(id) {
+                log::warn!("Failed to send redraw event to event channel: {}", e);
+              }
+
+              if transparent {
+                cr.set_source_rgba(0., 0., 0., 0.);
+                cr.set_operator(cairo::Operator::Source);
+                let _ = cr.paint();
+                cr.set_operator(cairo::Operator::Over);
+              }
+
               Inhibit(false)
             });
           }
@@ -872,7 +952,7 @@ impl<T: 'static> EventLoop<T> {
                 break code;
               }
               ControlFlow::Wait => {
-                if !events.is_empty() || !draws.is_empty() {
+                if !events.is_empty() {
                   callback(
                     Event::NewEvents(StartCause::WaitCancelled {
                       start: Instant::now(),
@@ -912,7 +992,7 @@ impl<T: 'static> EventLoop<T> {
                   blocking = true;
                 }
               }
-              ControlFlow::Poll => {
+              _ => {
                 callback(
                   Event::NewEvents(StartCause::Poll),
                   window_target,
@@ -933,11 +1013,7 @@ impl<T: 'static> EventLoop<T> {
                 },
                 Err(_) => {
                   callback(Event::MainEventsCleared, window_target, &mut control_flow);
-                  if draws.is_empty() {
-                    state = EventState::NewStart;
-                  } else {
-                    state = EventState::DrawQueue;
-                  }
+                  state = EventState::DrawQueue;
                 }
               },
             },
@@ -946,17 +1022,17 @@ impl<T: 'static> EventLoop<T> {
                 callback(Event::LoopDestroyed, window_target, &mut control_flow);
                 break code;
               }
-              _ => match draws.try_recv() {
-                Ok(id) => callback(
-                  Event::RedrawRequested(RootWindowId(id)),
-                  window_target,
-                  &mut control_flow,
-                ),
-                Err(_) => {
-                  callback(Event::RedrawEventsCleared, window_target, &mut control_flow);
-                  state = EventState::NewStart;
+              _ => {
+                if let Ok(id) = draws.try_recv() {
+                  callback(
+                    Event::RedrawRequested(RootWindowId(id)),
+                    window_target,
+                    &mut control_flow,
+                  );
                 }
-              },
+                callback(Event::RedrawEventsCleared, window_target, &mut control_flow);
+                state = EventState::NewStart;
+              }
             },
           }
           gtk::main_iteration_do(blocking);

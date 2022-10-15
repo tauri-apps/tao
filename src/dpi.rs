@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 //! UI scaling is important, so read the docs for this module if you don't want to be confused.
@@ -432,6 +433,29 @@ impl Size {
       Size::Physical(size) => size.cast(),
       Size::Logical(size) => size.to_physical(scale_factor),
     }
+  }
+
+  pub fn clamp<S: Into<Size>>(input: S, min: S, max: S, scale_factor: f64) -> Size {
+    let (input, min, max) = (
+      input.into().to_physical::<f64>(scale_factor),
+      min.into().to_physical::<f64>(scale_factor),
+      max.into().to_physical::<f64>(scale_factor),
+    );
+
+    let clamp = |input: f64, min: f64, max: f64| {
+      if input < min {
+        min
+      } else if input > max {
+        max
+      } else {
+        input
+      }
+    };
+
+    let width = clamp(input.width, min.width, max.width);
+    let height = clamp(input.height, min.height, max.height);
+
+    PhysicalSize::new(width, height).into()
   }
 }
 

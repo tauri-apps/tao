@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -10,6 +11,8 @@ use std::{
 };
 
 use crossbeam_channel::{self as channel, Receiver, Sender};
+
+use raw_window_handle::{RawDisplayHandle, UiKitDisplayHandle};
 
 use crate::{
   dpi::LogicalSize,
@@ -66,6 +69,10 @@ impl<T: 'static> EventLoopWindowTarget<T> {
     let monitor = unsafe { monitor::main_uiscreen() };
 
     Some(RootMonitorHandle { inner: monitor })
+  }
+
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    RawDisplayHandle::UiKit(UiKitDisplayHandle::empty())
   }
 }
 

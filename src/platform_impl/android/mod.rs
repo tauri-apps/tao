@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(target_os = "android")]
@@ -7,9 +8,11 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error, event,
   event_loop::{self, ControlFlow},
+  icon::Icon,
   keyboard::{Key, KeyCode, KeyLocation, NativeKeyCode},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
-  monitor, window,
+  monitor,
+  window::{self, Theme},
 };
 use ndk::{
   configuration::Configuration,
@@ -17,7 +20,9 @@ use ndk::{
   looper::{ForeignLooper, Poll, ThreadLooper},
 };
 use ndk_sys::AKeyEvent_getKeyCode;
-use raw_window_handle::{AndroidNdkHandle, RawWindowHandle};
+use raw_window_handle::{
+  AndroidDisplayHandle, AndroidNdkWindowHandle, RawDisplayHandle, RawWindowHandle,
+};
 use std::{
   collections::VecDeque,
   convert::TryInto,
@@ -107,7 +112,7 @@ impl MenuItemAttributes {
   pub fn set_enabled(&mut self, _is_enabled: bool) {}
   pub fn set_title(&mut self, _title: &str) {}
   pub fn set_selected(&mut self, _is_selected: bool) {}
-  pub fn set_icon(&mut self, _icon: Vec<u8>) {}
+  pub fn set_icon(&mut self, _icon: Icon) {}
 }
 
 pub struct EventLoop<T: 'static> {
@@ -489,6 +494,10 @@ impl<T: 'static> EventLoopWindowTarget<T> {
     v.push_back(MonitorHandle);
     v
   }
+
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    RawDisplayHandle::Android(AndroidDisplayHandle::empty())
+  }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -583,6 +592,9 @@ impl Window {
   pub fn set_max_inner_size(&self, _: Option<Size>) {}
 
   pub fn set_title(&self, _title: &str) {}
+  pub fn title(&self) -> Option<String> {
+    None
+  }
 
   pub fn set_visible(&self, _visibility: bool) {}
 
@@ -591,7 +603,26 @@ impl Window {
     warn!("set_focus not yet implemented on Android");
   }
 
-  pub fn set_resizable(&self, _resizeable: bool) {}
+  pub fn is_focused(&self) -> bool {
+    log::warn!("`Window::is_focused` is ignored on Android");
+    false
+  }
+
+  pub fn set_resizable(&self, _resizeable: bool) {
+    warn!("`Window::set_resizable` is ignored on Android")
+  }
+
+  pub fn set_minimizable(&self, _minimizable: bool) {
+    warn!("`Window::set_minimizable` is ignored on Android")
+  }
+
+  pub fn set_maximizable(&self, _maximizable: bool) {
+    warn!("`Window::set_maximizable` is ignored on Android")
+  }
+
+  pub fn set_closable(&self, _closable: bool) {
+    warn!("`Window::set_closable` is ignored on Android")
+  }
 
   pub fn set_minimized(&self, _minimized: bool) {}
 
@@ -601,13 +632,32 @@ impl Window {
     false
   }
 
+  pub fn is_minimized(&self) -> bool {
+    false
+  }
+
   pub fn is_visible(&self) -> bool {
-    log::warn!("`Window::is_visible` is ignored on android");
+    log::warn!("`Window::is_visible` is ignored on Android");
     false
   }
 
   pub fn is_resizable(&self) -> bool {
-    warn!("`Window::is_resizable` is ignored on android");
+    warn!("`Window::is_resizable` is ignored on Android");
+    false
+  }
+
+  pub fn is_minimizable(&self) -> bool {
+    warn!("`Window::is_minimizable` is ignored on Android");
+    false
+  }
+
+  pub fn is_maximizable(&self) -> bool {
+    warn!("`Window::is_maximizable` is ignored on Android");
+    false
+  }
+
+  pub fn is_closable(&self) -> bool {
+    warn!("`Window::is_closable` is ignored on Android");
     false
   }
 
@@ -625,6 +675,8 @@ impl Window {
   }
 
   pub fn set_decorations(&self, _decorations: bool) {}
+
+  pub fn set_always_on_bottom(&self, _always_on_bottom: bool) {}
 
   pub fn set_always_on_top(&self, _always_on_top: bool) {}
 
@@ -656,9 +708,15 @@ impl Window {
     ))
   }
 
+  pub fn set_ignore_cursor_events(&self, _ignore: bool) -> Result<(), error::ExternalError> {
+    Err(error::ExternalError::NotSupported(
+      error::NotSupportedError::new(),
+    ))
+  }
+
   pub fn raw_window_handle(&self) -> RawWindowHandle {
     // TODO: Use main activity instead?
-    let mut handle = AndroidNdkHandle::empty();
+    let mut handle = AndroidNdkWindowHandle::empty();
     if let Some(w) = ndk_glue::window_manager() {
       handle.a_native_window = w.as_obj().into_inner() as *mut _;
     } else {
@@ -667,12 +725,20 @@ impl Window {
     RawWindowHandle::AndroidNdk(handle)
   }
 
+  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+    RawDisplayHandle::Android(AndroidDisplayHandle::empty())
+  }
+
   pub fn config(&self) -> Configuration {
     CONFIG.read().unwrap().clone()
   }
 
   pub fn content_rect(&self) -> Rect {
     ndk_glue::content_rect()
+  }
+
+  pub fn theme(&self) -> Theme {
+    Theme::Light
   }
 }
 

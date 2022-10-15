@@ -1,10 +1,11 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
   f64,
   os::raw::c_void,
-  sync::{atomic::Ordering, Arc, Weak},
+  sync::{Arc, Weak},
 };
 
 use cocoa::{
@@ -22,7 +23,7 @@ use crate::{
   event::{Event, WindowEvent},
   keyboard::ModifiersState,
   platform_impl::platform::{
-    app_state::{AppState, INTERRUPT_EVENT_LOOP_EXIT},
+    app_state::AppState,
     event::{EventProxy, EventWrapper},
     util::{self, IdRef},
     view::ViewState,
@@ -480,8 +481,6 @@ extern "C" fn dragging_exited(this: &Object, _: Sel, _: id) {
 extern "C" fn window_will_enter_fullscreen(this: &Object, _: Sel, _: id) {
   trace!("Triggered `windowWillEnterFullscreen:`");
 
-  INTERRUPT_EVENT_LOOP_EXIT.store(true, Ordering::SeqCst);
-
   with_state(this, |state| {
     state.with_window(|window| {
       trace!("Locked shared state in `window_will_enter_fullscreen`");
@@ -513,8 +512,6 @@ extern "C" fn window_will_enter_fullscreen(this: &Object, _: Sel, _: id) {
 /// Invoked when before exit fullscreen
 extern "C" fn window_will_exit_fullscreen(this: &Object, _: Sel, _: id) {
   trace!("Triggered `windowWillExitFullScreen:`");
-
-  INTERRUPT_EVENT_LOOP_EXIT.store(true, Ordering::SeqCst);
 
   with_state(this, |state| {
     state.with_window(|window| {
@@ -561,8 +558,6 @@ extern "C" fn window_will_use_fullscreen_presentation_options(
 
 /// Invoked when entered fullscreen
 extern "C" fn window_did_enter_fullscreen(this: &Object, _: Sel, _: id) {
-  INTERRUPT_EVENT_LOOP_EXIT.store(false, Ordering::SeqCst);
-
   trace!("Triggered `windowDidEnterFullscreen:`");
   with_state(this, |state| {
     state.initial_fullscreen = false;
@@ -583,8 +578,6 @@ extern "C" fn window_did_enter_fullscreen(this: &Object, _: Sel, _: id) {
 
 /// Invoked when exited fullscreen
 extern "C" fn window_did_exit_fullscreen(this: &Object, _: Sel, _: id) {
-  INTERRUPT_EVENT_LOOP_EXIT.store(false, Ordering::SeqCst);
-
   trace!("Triggered `windowDidExitFullscreen:`");
   with_state(this, |state| {
     state.with_window(|window| {
@@ -653,7 +646,16 @@ extern "C" fn effective_appearance_did_change(this: &Object, _: Sel, _: id) {
 }
 extern "C" fn effective_appearance_did_changed_on_main_thread(this: &Object, _: Sel, _: id) {
   with_state(this, |state| {
-    state.emit_event(WindowEvent::ThemeChanged(get_ns_theme()));
+    let theme = get_ns_theme();
+    let current_theme = state.window.upgrade().map(|w| {
+      let mut state = w.shared_state.lock().unwrap();
+      let current_theme = state.current_theme;
+      state.current_theme = theme;
+      current_theme
+    });
+    if current_theme != Some(theme) {
+      state.emit_event(WindowEvent::ThemeChanged(theme));
+    }
   });
   trace!("Completed `effectiveAppearDidChange:`");
 }

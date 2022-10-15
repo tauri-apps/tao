@@ -1,22 +1,22 @@
 <img src=".github/splash.png" alt="TAO - Window Creation Library" />
 
-[![](https://img.shields.io/crates/v/tao?style=flat-square)](https://crates.io/crates/tao) [![](https://img.shields.io/docsrs/tao?style=flat-square)](https://docs.rs/tao/) ![](https://img.shields.io/crates/l/tao?style=flat-square)
-
-[![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)
-[![devto](https://img.shields.io/badge/blog-dev.to-black.svg)](https://dev.to/tauri)
-[![devto](https://img.shields.io/badge/documentation-tauri.studio-purple.svg)](https://tauri.studio/docs/getting-started/intro)
+[![](https://img.shields.io/crates/v/tao?style=flat-square)](https://crates.io/crates/tao)
+[![](https://img.shields.io/docsrs/tao?style=flat-square)](https://docs.rs/tao/)
+[![License](https://img.shields.io/badge/License-Apache%202-green.svg)](https://opencollective.com/tauri)
+[![Chat Server](https://img.shields.io/badge/chat-discord-7289da.svg)](https://discord.gg/SpmNs4S)
+[![website](https://img.shields.io/badge/website-tauri.app-purple.svg)](https://tauri.app)
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
-[![support](https://img.shields.io/badge/sponsor-open%20collective-blue.svg)](https://opencollective.com/tauri)
+[![support](https://img.shields.io/badge/sponsor-Open%20Collective-blue.svg)](https://opencollective.com/tauri)
 
-
-Cross-platform application window creation library in Rust that supports all major platforms like 
+Cross-platform application window creation library in Rust that supports all major platforms like
 Windows, macOS, Linux, iOS and Android. Built for you, maintained for Tauri.
 
 ### Cargo Features
 
-Tao provides the following features, which can be enabled in your `Cargo.toml` file:
-* `serde`: Enables serialization/deserialization of certain types with [Serde](https://crates.io/crates/serde).
-* `tray`: Enables system tray and more menu item variants on **Linux**.
+TAO provides the following features, which can be enabled in your `Cargo.toml` file:
+
+- `serde`: Enables serialization/deserialization of certain types with [Serde](https://crates.io/crates/serde).
+- `tray`: Enables system tray and more menu item variants on **Linux**.
   This feature requires either `libayatana-appindicator` or `libappindicator` package installed.
   You can still create those types if you disable it. They just don't create the actual objects. We set this flag because some implementations require more installed packages.
 
@@ -27,6 +27,7 @@ Tao provides the following features, which can be enabled in your `Cargo.toml` f
 This library makes use of the [ndk-rs](https://github.com/rust-windowing/android-ndk-rs) crates, refer to that repo for more documentation.
 
 Running on an Android device needs a dynamic system library, add this to Cargo.toml:
+
 ```toml
 [[example]]
 name = "request_redraw_threaded"
@@ -76,12 +77,12 @@ sudo apt install libappindicator3-dev
 sudo apt install libayatana-appindicator3-dev
 ```
 
-#### MacOS
+#### macOS
 
-To ensure compatibility with older MacOS systems, tao links to
+To ensure compatibility with older macOS systems, TAO links to
 CGDisplayCreateUUIDFromDisplayID through the CoreGraphics framework.
 However, under certain setups this function is only available to be linked
-through the newer ColorSync framework. So, tao provides the
+through the newer ColorSync framework. So, TAO provides the
 `TAO_LINK_COLORSYNC` environment variable which can be set to `1` or `true`
 while compiling to enable linking via ColorSync.
 

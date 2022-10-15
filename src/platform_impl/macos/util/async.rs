@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -171,7 +172,9 @@ pub unsafe fn set_maximized_async(
       if shared_state_lock.fullscreen.is_some() {
         // Handle it in window_did_exit_fullscreen
         return;
-      } else if curr_mask.contains(NSWindowStyleMask::NSResizableWindowMask) {
+      } else if curr_mask.contains(NSWindowStyleMask::NSResizableWindowMask)
+        && curr_mask.contains(NSWindowStyleMask::NSTitledWindowMask)
+      {
         // Just use the native zoom if resizable
         ns_window.zoom_(nil);
       } else {
@@ -182,7 +185,7 @@ pub unsafe fn set_maximized_async(
         } else {
           shared_state_lock.saved_standard_frame()
         };
-        ns_window.setFrame_display_(new_rect, NO);
+        let _: () = msg_send![*ns_window, setFrame:new_rect display:NO animate: YES];
       }
 
       trace!("Unlocked shared state in `set_maximized`");
@@ -245,5 +248,13 @@ pub unsafe fn close_async(ns_window: IdRef) {
       };
       AppState::queue_event(EventWrapper::StaticEvent(event));
     });
+  });
+}
+
+// `setIgnoresMouseEvents_:` isn't thread-safe, and fails silently.
+pub unsafe fn set_ignore_mouse_events(ns_window: id, ignore: bool) {
+  let ns_window = MainThreadSafe(ns_window);
+  Queue::main().exec_async(move || {
+    ns_window.setIgnoresMouseEvents_(if ignore { YES } else { NO });
   });
 }

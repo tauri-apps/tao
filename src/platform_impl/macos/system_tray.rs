@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{
@@ -13,14 +14,15 @@ use crate::{
   event::{Event, Rectangle, TrayEvent},
   event_loop::EventLoopWindowTarget,
   system_tray::{Icon, SystemTray as RootSystemTray},
+  TrayId,
 };
 use cocoa::{
   appkit::{
-    NSButton, NSEventMask, NSEventModifierFlags, NSEventType, NSImage, NSSquareStatusItemLength,
-    NSStatusBar, NSStatusItem, NSWindow,
+    NSButton, NSEventMask, NSEventModifierFlags, NSEventType, NSImage, NSStatusBar, NSStatusItem,
+    NSVariableStatusItemLength, NSWindow,
   },
   base::{id, nil, NO, YES},
-  foundation::{NSAutoreleasePool, NSData, NSPoint, NSSize},
+  foundation::{NSData, NSPoint, NSSize, NSString},
 };
 use objc::{
   declare::ClassDecl,
@@ -37,16 +39,18 @@ impl SystemTrayBuilder {
   #[inline]
   pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
     unsafe {
-      let ns_status_bar = NSStatusBar::systemStatusBar(nil)
-        .statusItemWithLength_(NSSquareStatusItemLength)
-        .autorelease();
+      let ns_status_bar =
+        NSStatusBar::systemStatusBar(nil).statusItemWithLength_(NSVariableStatusItemLength);
+      let _: () = msg_send![ns_status_bar, retain];
 
       Self {
         system_tray: SystemTray {
           icon_is_template: false,
           icon,
+          menu_on_left_click: true,
           tray_menu,
           ns_status_bar,
+          title: None,
         },
       }
     }
@@ -57,6 +61,8 @@ impl SystemTrayBuilder {
   pub fn build<T: 'static>(
     self,
     _window_target: &EventLoopWindowTarget<T>,
+    tray_id: TrayId,
+    tooltip: Option<String>,
   ) -> Result<RootSystemTray, OsError> {
     unsafe {
       // use our existing status bar
@@ -69,8 +75,10 @@ impl SystemTrayBuilder {
       let button = status_bar.button();
       let tray_target: id = msg_send![make_tray_class(), alloc];
       let tray_target: id = msg_send![tray_target, init];
+      (*tray_target).set_ivar("id", tray_id.0);
       (*tray_target).set_ivar("status_bar", status_bar);
       (*tray_target).set_ivar("menu", nil);
+      (*tray_target).set_ivar("menu_on_left_click", self.system_tray.menu_on_left_click);
       let _: () = msg_send![button, setAction: sel!(click:)];
       let _: () = msg_send![button, setTarget: tray_target];
       let _: () = msg_send![
@@ -88,6 +96,16 @@ impl SystemTrayBuilder {
         (*tray_target).set_ivar("menu", menu.menu);
         let () = msg_send![menu.menu, setDelegate: tray_target];
       }
+
+      // attach tool_tip if provided
+      if let Some(tooltip) = tooltip {
+        self.system_tray.set_tooltip(&tooltip);
+      }
+
+      // set up title if provided
+      if let Some(title) = &self.system_tray.title {
+        self.system_tray.set_title(title);
+      }
     }
 
     Ok(RootSystemTray(self.system_tray))
@@ -99,8 +117,19 @@ impl SystemTrayBuilder {
 pub struct SystemTray {
   pub(crate) icon: Icon,
   pub(crate) icon_is_template: bool,
+  pub(crate) menu_on_left_click: bool,
   pub(crate) tray_menu: Option<Menu>,
   pub(crate) ns_status_bar: id,
+  pub(crate) title: Option<String>,
+}
+
+impl Drop for SystemTray {
+  fn drop(&mut self) {
+    unsafe {
+      NSStatusBar::systemStatusBar(nil).removeStatusItem_(self.ns_status_bar);
+      let _: () = msg_send![self.ns_status_bar, release];
+    }
+  }
 }
 
 impl SystemTray {
@@ -120,11 +149,32 @@ impl SystemTray {
     }
   }
 
+  pub fn set_tooltip(&self, tooltip: &str) {
+    unsafe {
+      let tooltip = NSString::alloc(nil).init_str(tooltip);
+      let _: () = msg_send![self.ns_status_bar.button(), setToolTip: tooltip];
+    }
+  }
+
+  pub fn set_title(&self, title: &str) {
+    unsafe {
+      NSButton::setTitle_(
+        self.ns_status_bar.button(),
+        NSString::alloc(nil).init_str(title),
+      );
+    }
+  }
+
   fn create_button_with_icon(&self) {
-    const ICON_WIDTH: f64 = 18.0;
-    const ICON_HEIGHT: f64 = 18.0;
+    // The image is to the right of the title https://developer.apple.com/documentation/appkit/nscellimageposition/nsimageleft
+    const NSIMAGE_LEFT: i32 = 2;
 
     let icon = self.icon.inner.to_png();
+
+    let (width, height) = self.icon.inner.get_size();
+
+    let icon_height: f64 = 18.0;
+    let icon_width: f64 = (width as f64) / (height as f64 / icon_height);
 
     unsafe {
       let status_item = self.ns_status_bar;
@@ -138,10 +188,11 @@ impl SystemTray {
       );
 
       let nsimage = NSImage::initWithData_(NSImage::alloc(nil), nsdata);
-      let new_size = NSSize::new(ICON_WIDTH, ICON_HEIGHT);
+      let new_size = NSSize::new(icon_width, icon_height);
 
       button.setImage_(nsimage);
       let _: () = msg_send![nsimage, setSize: new_size];
+      let _: () = msg_send![button, setImagePosition: NSIMAGE_LEFT];
       let is_template = match self.icon_is_template {
         true => YES,
         false => NO,
@@ -166,6 +217,8 @@ fn make_tray_class() -> *const Class {
     let mut decl = ClassDecl::new("TaoTrayHandler", superclass).unwrap();
     decl.add_ivar::<id>("status_bar");
     decl.add_ivar::<id>("menu");
+    decl.add_ivar::<bool>("menu_on_left_click");
+    decl.add_ivar::<u16>("id");
     decl.add_method(
       sel!(click:),
       perform_tray_click as extern "C" fn(&mut Object, _, id),
@@ -187,6 +240,7 @@ fn make_tray_class() -> *const Class {
 /// This will fire for an NSButton callback.
 extern "C" fn perform_tray_click(this: &mut Object, _: Sel, button: id) {
   unsafe {
+    let id = this.get_ivar::<u16>("id");
     let app: id = msg_send![class!(NSApplication), sharedApplication];
     let current_event: id = msg_send![app, currentEvent];
 
@@ -220,23 +274,29 @@ extern "C" fn perform_tray_click(this: &mut Object, _: Sel, button: id) {
       _ => None,
     };
 
-    if let Some(event) = click_type {
+    if let Some(click_event) = click_type {
       let event = Event::TrayEvent {
+        id: TrayId(*id as u16),
         bounds: Rectangle { position, size },
         position: PhysicalPosition::new(
           mouse_location.x,
           bottom_left_to_top_left_for_cursor(mouse_location),
         ),
-        event,
+        event: click_event,
       };
 
       AppState::queue_event(EventWrapper::StaticEvent(event));
 
       let menu = this.get_ivar::<id>("menu");
       if *menu != nil {
-        let status_bar = this.get_ivar::<id>("status_bar");
-        status_bar.setMenu_(*menu);
-        let () = msg_send![button, performClick: nil];
+        let menu_on_left_click = this.get_ivar::<bool>("menu_on_left_click");
+        if click_event == TrayEvent::RightClick
+          || (*menu_on_left_click && click_event == TrayEvent::LeftClick)
+        {
+          let status_bar = this.get_ivar::<id>("status_bar");
+          status_bar.setMenu_(*menu);
+          let () = msg_send![button, performClick: nil];
+        }
       }
     }
   }
