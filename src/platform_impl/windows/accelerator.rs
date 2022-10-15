@@ -60,8 +60,3 @@ impl Drop for AccelTable {
     }
   }
 }
-
-pub(crate) fn find_accels(hwnd: HWND) -> Option<Arc<AccelTable>> {
-  let table = ACCEL_TABLES.lock().unwrap();
-  table.get(&WindowHandle(hwnd.0)).cloned()
-}

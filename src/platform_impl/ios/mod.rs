@@ -89,7 +89,9 @@ use std::fmt;
 
 pub use self::{
   clipboard::Clipboard,
-  event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
+  event_loop::{
+    EventLoop, EventLoopProxy, EventLoopWindowTarget, PlatformSpecificEventLoopAttributes,
+  },
   keycode::{keycode_from_scancode, keycode_to_scancode},
   monitor::{MonitorHandle, VideoMode},
   window::{PlatformSpecificWindowBuilderAttributes, Window, WindowId},

@@ -32,7 +32,9 @@ pub use self::{
   app_delegate::{get_aux_state_mut, AuxDelegateState},
   clipboard::Clipboard,
   event::KeyEventExtra,
-  event_loop::{EventLoop, EventLoopWindowTarget, Proxy as EventLoopProxy},
+  event_loop::{
+    EventLoop, EventLoopWindowTarget, PlatformSpecificEventLoopAttributes, Proxy as EventLoopProxy,
+  },
   global_shortcut::{GlobalShortcut, ShortcutManager},
   keycode::{keycode_from_scancode, keycode_to_scancode},
   menu::{Menu, MenuItemAttributes},

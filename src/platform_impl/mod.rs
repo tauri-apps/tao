@@ -1,8 +1,6 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-pub use self::platform::*;
-
 #[cfg(target_os = "windows")]
 #[path = "windows/mod.rs"]
 mod platform;
@@ -24,6 +22,8 @@ mod platform;
 #[cfg(target_os = "ios")]
 #[path = "ios/mod.rs"]
 mod platform;
+
+pub use platform::*;
 
 #[cfg(all(
   not(target_os = "ios"),

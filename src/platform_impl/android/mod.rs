@@ -119,6 +119,9 @@ pub struct EventLoop<T: 'static> {
   running: bool,
 }
 
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct PlatformSpecificEventLoopAttributes {}
+
 macro_rules! call_event_handler {
   ( $event_handler:expr, $window_target:expr, $cf:expr, $event:expr ) => {{
     if let ControlFlow::ExitWithCode(code) = $cf {
@@ -130,7 +133,7 @@ macro_rules! call_event_handler {
 }
 
 impl<T: 'static> EventLoop<T> {
-  pub fn new() -> Self {
+  pub fn new(_: &PlatformSpecificEventLoopAttributes) -> Self {
     Self {
       window_target: event_loop::EventLoopWindowTarget {
         p: EventLoopWindowTarget {

@@ -29,7 +29,9 @@ pub use self::{
   keycode::{keycode_from_scancode, keycode_to_scancode},
   menu::{Menu, MenuItemAttributes},
 };
-pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
+pub use event_loop::{
+  EventLoop, EventLoopProxy, EventLoopWindowTarget, PlatformSpecificEventLoopAttributes,
+};
 pub use icon::PlatformIcon;
 pub use monitor::{MonitorHandle, VideoMode};
 pub use window::{hit_test, Window, WindowId};

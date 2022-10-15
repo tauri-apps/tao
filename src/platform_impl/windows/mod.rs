@@ -8,16 +8,20 @@ use windows::Win32::{
   UI::WindowsAndMessaging::HMENU,
 };
 
-pub use self::{
+pub(crate) use self::{
   clipboard::Clipboard,
-  event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
+  event_loop::{
+    EventLoop, EventLoopProxy, EventLoopWindowTarget, PlatformSpecificEventLoopAttributes,
+  },
   global_shortcut::{GlobalShortcut, ShortcutManager},
   icon::WinIcon,
   keycode::{keycode_from_scancode, keycode_to_scancode},
   menu::{Menu, MenuItemAttributes},
   monitor::{MonitorHandle, VideoMode},
-  window::{hit_test, Window},
+  window::Window,
 };
+
+pub use self::window::hit_test;
 
 pub use self::icon::WinIcon as PlatformIcon;
 
@@ -96,6 +100,7 @@ impl DeviceId {
 #[non_exhaustive]
 #[derive(Debug)]
 pub enum OsError {
+  #[allow(unused)]
   CreationError(&'static str),
   IoError(std::io::Error),
 }

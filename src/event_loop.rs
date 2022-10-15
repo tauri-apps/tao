@@ -13,7 +13,7 @@
 //! [event_loop_proxy]: crate::event_loop::EventLoopProxy
 //! [send_event]: crate::event_loop::EventLoopProxy::send_event
 use instant::Instant;
-use std::{error, fmt, ops::Deref};
+use std::{error, fmt, marker::PhantomData, ops::Deref};
 
 use crate::{event::Event, monitor::MonitorHandle, platform_impl};
 
@@ -56,6 +56,58 @@ impl<T> fmt::Debug for EventLoop<T> {
 impl<T> fmt::Debug for EventLoopWindowTarget<T> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.pad("EventLoopWindowTarget { .. }")
+  }
+}
+
+/// Object that allows building the event loop.
+///
+/// This is used to make specifying options that affect the whole application
+/// easier. But note that constructing multiple event loops is not supported.
+#[derive(Default)]
+pub struct EventLoopBuilder<T: 'static> {
+  pub(crate) platform_specific: platform_impl::PlatformSpecificEventLoopAttributes,
+  _p: PhantomData<T>,
+}
+impl EventLoopBuilder<()> {
+  /// Start building a new event loop.
+  #[inline]
+  pub fn new() -> Self {
+    Self::with_user_event()
+  }
+}
+impl<T> EventLoopBuilder<T> {
+  /// Start building a new event loop, with the given type as the user event
+  /// type.
+  #[inline]
+  pub fn with_user_event() -> Self {
+    Self {
+      platform_specific: Default::default(),
+      _p: PhantomData,
+    }
+  }
+  /// Builds a new event loop.
+  ///
+  /// ***For cross-platform compatibility, the `EventLoop` must be created on the main thread.***
+  /// Attempting to create the event loop on a different thread will panic. This restriction isn't
+  /// strictly necessary on all platforms, but is imposed to eliminate any nasty surprises when
+  /// porting to platforms that require it. `EventLoopBuilderExt::any_thread` functions are exposed
+  /// in the relevant `platform` module if the target platform supports creating an event loop on
+  /// any thread.
+  ///
+  /// Usage will result in display backend initialisation, this can be controlled on linux
+  /// using an environment variable `WINIT_UNIX_BACKEND`. Legal values are `x11` and `wayland`.
+  /// If it is not set, winit will try to connect to a wayland connection, and if it fails will
+  /// fallback on x11. If this variable is set with any other value, winit will panic.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS:** Can only be called on the main thread.
+  #[inline]
+  pub fn build(&mut self) -> EventLoop<T> {
+    EventLoop {
+      event_loop: platform_impl::EventLoop::new(&mut self.platform_specific),
+      _marker: PhantomData,
+    }
   }
 }
 
@@ -116,42 +168,25 @@ impl Default for ControlFlow {
 }
 
 impl EventLoop<()> {
-  /// Builds a new event loop with a `()` as the user event type.
+  /// Alias for [`EventLoopBuilder::new().build()`].
   ///
-  /// ***For cross-platform compatibility, the `EventLoop` must be created on the main thread.***
-  /// Attempting to create the event loop on a different thread will panic. This restriction isn't
-  /// strictly necessary on all platforms, but is imposed to eliminate any nasty surprises when
-  /// porting to platforms that require it. `EventLoopExt::new_any_thread` functions are exposed
-  /// in the relevant `platform` module if the target platform supports creating an event loop on
-  /// any thread.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **iOS:** Can only be called on the main thread.
+  /// [`EventLoopBuilder::new().build()`]: EventLoopBuilder::build
+  #[inline]
   pub fn new() -> EventLoop<()> {
-    EventLoop::<()>::with_user_event()
+    EventLoopBuilder::new().build()
   }
 }
 
 impl Default for EventLoop<()> {
   fn default() -> Self {
-    EventLoop::<()>::new()
+    Self::new()
   }
 }
 
 impl<T> EventLoop<T> {
-  /// Builds a new event loop.
-  ///
-  /// All caveats documented in [`EventLoop::new`] apply to this function.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **iOS:** Can only be called on the main thread.
+  #[deprecated = "Use `EventLoopBuilder::<T>::with_user_event().build()` instead."]
   pub fn with_user_event() -> EventLoop<T> {
-    EventLoop {
-      event_loop: platform_impl::EventLoop::new(),
-      _marker: ::std::marker::PhantomData,
-    }
+    EventLoopBuilder::<T>::with_user_event().build()
   }
 
   /// Hijacks the calling thread and initializes the tao event loop with the provided

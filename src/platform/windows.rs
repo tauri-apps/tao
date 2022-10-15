@@ -9,16 +9,107 @@ pub use crate::platform_impl::hit_test;
 use crate::{
   dpi::PhysicalSize,
   event::DeviceId,
-  event_loop::EventLoop,
+  event_loop::EventLoopBuilder,
   monitor::MonitorHandle,
-  platform_impl::{EventLoop as WindowsEventLoop, Parent, WinIcon},
+  platform_impl::{Parent, WinIcon},
   window::{BadIcon, Icon, Theme, Window, WindowBuilder},
 };
-use libc;
+use std::ffi::c_void;
 use windows::Win32::{
   Foundation::HWND,
   UI::{Input::KeyboardAndMouse::*, WindowsAndMessaging::*},
 };
+
+/// Additional methods on `EventLoop` that are specific to Windows.
+pub trait EventLoopBuilderExtWindows {
+  /// Whether to allow the event loop to be created off of the main thread.
+  ///
+  /// By default, the window is only allowed to be created on the main
+  /// thread, to make platform compatibility easier.
+  ///
+  /// # `Window` caveats
+  ///
+  /// Note that any `Window` created on the new thread will be destroyed when the thread
+  /// terminates. Attempting to use a `Window` after its parent thread terminates has
+  /// unspecified, although explicitly not undefined, behavior.
+  fn with_any_thread(&mut self, any_thread: bool) -> &mut Self;
+
+  /// Whether to enable process-wide DPI awareness.
+  ///
+  /// By default, `winit` will attempt to enable process-wide DPI awareness. If
+  /// that's undesirable, you can disable it with this function.
+  ///
+  /// # Example
+  ///
+  /// Disable process-wide DPI awareness.
+  ///
+  /// ```
+  /// use winit::event_loop::EventLoopBuilder;
+  /// #[cfg(target_os = "windows")]
+  /// use winit::platform::windows::EventLoopBuilderExtWindows;
+  ///
+  /// let mut builder = EventLoopBuilder::new();
+  /// #[cfg(target_os = "windows")]
+  /// builder.with_dpi_aware(false);
+  /// # if false { // We can't test this part
+  /// let event_loop = builder.build();
+  /// # }
+  /// ```
+  fn with_dpi_aware(&mut self, dpi_aware: bool) -> &mut Self;
+
+  /// A callback to be executed before dispatching a win32 message to the window procedure.
+  /// Return true to disable winit's internal message dispatching.
+  ///
+  /// # Example
+  ///
+  /// ```
+  /// # use windows::Win32::UI::WindowsAndMessaging::{ACCEL, CreateAcceleratorTableW, TranslateAcceleratorW, DispatchMessageW, TranslateMessage, MSG};
+  /// use winit::event_loop::EventLoopBuilder;
+  /// #[cfg(target_os = "windows")]
+  /// use winit::platform::windows::EventLoopBuilderExtWindows;
+  ///
+  /// let mut builder = EventLoopBuilder::new();
+  /// #[cfg(target_os = "windows")]
+  /// builder.with_msg_hook(|msg|{
+  ///     let msg = msg as *const MSG;
+  /// #   let accels: Vec<ACCEL> = Vec::new();
+  ///     let translated = unsafe {
+  ///         TranslateAcceleratorW(
+  ///             (*msg).hwnd,
+  ///             CreateAcceleratorTableW(accels.as_ptr() as _, 1),
+  ///             msg,
+  ///         ) == 1
+  ///     };
+  ///     translated
+  /// });
+  /// ```
+  fn with_msg_hook<F>(&mut self, callback: F) -> &mut Self
+  where
+    F: FnMut(*const c_void) -> bool + 'static;
+}
+
+impl<T> EventLoopBuilderExtWindows for EventLoopBuilder<T> {
+  #[inline]
+  fn with_any_thread(&mut self, any_thread: bool) -> &mut Self {
+    self.platform_specific.any_thread = any_thread;
+    self
+  }
+
+  #[inline]
+  fn with_dpi_aware(&mut self, dpi_aware: bool) -> &mut Self {
+    self.platform_specific.dpi_aware = dpi_aware;
+    self
+  }
+
+  #[inline]
+  fn with_msg_hook<F>(&mut self, callback: F) -> &mut Self
+  where
+    F: FnMut(*const c_void) -> bool + 'static,
+  {
+    self.platform_specific.msg_hook = Some(Box::new(callback));
+    self
+  }
+}
 
 /// Additional methods on `EventLoop` that are specific to Windows.
 pub trait EventLoopExtWindows {
@@ -45,32 +136,6 @@ pub trait EventLoopExtWindows {
   fn new_dpi_unaware_any_thread() -> Self
   where
     Self: Sized;
-}
-
-impl<T> EventLoopExtWindows for EventLoop<T> {
-  #[inline]
-  fn new_any_thread() -> Self {
-    EventLoop {
-      event_loop: WindowsEventLoop::new_any_thread(),
-      _marker: ::std::marker::PhantomData,
-    }
-  }
-
-  #[inline]
-  fn new_dpi_unaware() -> Self {
-    EventLoop {
-      event_loop: WindowsEventLoop::new_dpi_unaware(),
-      _marker: ::std::marker::PhantomData,
-    }
-  }
-
-  #[inline]
-  fn new_dpi_unaware_any_thread() -> Self {
-    EventLoop {
-      event_loop: WindowsEventLoop::new_dpi_unaware_any_thread(),
-      _marker: ::std::marker::PhantomData,
-    }
-  }
 }
 
 /// Additional methods on `Window` that are specific to Windows.
