@@ -5,7 +5,7 @@
 use cocoa::{
   appkit::{NSApp, NSApplication, NSButton, NSEventModifierFlags, NSImage, NSMenu, NSMenuItem},
   base::{id, nil, selector},
-  foundation::{NSAutoreleasePool, NSData, NSString},
+  foundation::{NSAutoreleasePool, NSData, NSSize, NSString},
 };
 use objc::{
   declare::ClassDecl,
@@ -85,19 +85,18 @@ impl MenuItemAttributes {
   }
 
   pub fn set_icon(&mut self, icon: Icon) {
-    unsafe {
-      let icon = icon.inner.to_png();
+    let (width, height) = icon.inner.get_size();
+    let icon = icon.inner.to_png();
 
+    let icon_height: f64 = 18.0;
+    let icon_width: f64 = (width as f64) / (height as f64 / icon_height);
+
+    unsafe {
       let nsdata = NSData::dataWithBytes_length_(
         nil,
         icon.as_ptr() as *const std::os::raw::c_void,
         icon.len() as u64,
       );
-
-      let (width, height) = icon.inner.get_size();
-
-      let icon_height: f64 = 18.0;
-      let icon_width: f64 = (width as f64) / (height as f64 / icon_height);
 
       let nsimage = NSImage::initWithData_(NSImage::alloc(nil), nsdata);
       let new_size = NSSize::new(icon_width, icon_height);
