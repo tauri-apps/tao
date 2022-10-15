@@ -108,7 +108,7 @@ pub struct EventLoop<T: 'static> {
 pub(crate) struct PlatformSpecificEventLoopAttributes {}
 
 impl<T> EventLoop<T> {
-  pub fn new(_: &PlatformSpecificEventLoopAttributes) -> Self {
+  pub(crate) fn new(_: &PlatformSpecificEventLoopAttributes) -> Self {
     let delegate = unsafe {
       let is_main_thread: BOOL = msg_send!(class!(NSThread), isMainThread);
       if is_main_thread == NO {
