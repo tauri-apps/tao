@@ -1,6 +1,8 @@
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(unused)]
+
 use std::{collections::HashMap, fmt, ptr, sync::Mutex};
 
 use windows::{

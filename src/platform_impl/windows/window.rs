@@ -37,7 +37,6 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
-  menu::MenuType,
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{
     dark_mode::try_theme,
@@ -45,21 +44,16 @@ use crate::{
     drop_handler::FileDropHandler,
     event_loop::{self, EventLoopWindowTarget, DESTROY_MSG_ID},
     icon::{self, IconType},
-    menu, monitor, util,
+    monitor, util,
     window_state::{CursorFlags, SavedWindow, WindowFlags, WindowState},
     OsError, Parent, PlatformSpecificWindowBuilderAttributes, WindowId,
   },
   window::{
-    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
-    BORDERLESS_RESIZE_INSET,
+    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, BORDERLESS_RESIZE_INSET,
   },
 };
 
 use super::keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS};
-
-struct HMenuWrapper(HMENU);
-unsafe impl Send for HMenuWrapper {}
-unsafe impl Sync for HMenuWrapper {}
 
 /// The Win32 implementation of the main `Window` object.
 pub struct Window {
@@ -71,9 +65,6 @@ pub struct Window {
 
   // The events loop proxy.
   thread_executor: event_loop::EventLoopThreadExecutor,
-
-  // The menu associated with the window
-  menu: Option<HMenuWrapper>,
 }
 
 impl Window {
@@ -142,9 +133,6 @@ impl Window {
       SetWindowTextW(self.window.0, text);
     }
   }
-
-  // TODO (lemarier): allow menu update
-  pub fn set_menu(&self, _new_menu: Option<menu::Menu>) {}
 
   #[inline]
   pub fn set_visible(&self, visible: bool) {
@@ -720,27 +708,6 @@ impl Window {
   }
 
   #[inline]
-  pub fn hide_menu(&self) {
-    unsafe {
-      SetMenu(self.hwnd(), HMENU::default());
-    }
-  }
-
-  #[inline]
-  pub fn show_menu(&self) {
-    if let Some(menu) = &self.menu {
-      unsafe {
-        SetMenu(self.hwnd(), menu.0);
-      }
-    }
-  }
-
-  #[inline]
-  pub fn is_menu_visible(&self) -> bool {
-    unsafe { !GetMenu(self.hwnd()).is_invalid() }
-  }
-
-  #[inline]
   pub fn reset_dead_keys(&self) {
     // `ToUnicode` consumes the dead-key by default, so we are constructing a fake (but valid)
     // key input which we can call `ToUnicode` with.
@@ -918,11 +885,10 @@ unsafe fn init<T: 'static>(
     window_state
   };
 
-  let mut win = Window {
+  let win = Window {
     window: real_window,
     window_state,
     thread_executor: event_loop.create_thread_executor(),
-    menu: None,
   };
 
   KEY_EVENT_BUILDERS
@@ -949,26 +915,6 @@ unsafe fn init<T: 'static>(
 
   if let Some(position) = attributes.position {
     win.set_outer_position(position);
-  }
-
-  if let Some(window_menu) = attributes.window_menu {
-    let event_loop_runner = event_loop.runner_shared.clone();
-    let window_id = RootWindowId(win.id());
-    let menu_handler = menu::MenuHandler::new(
-      Box::new(move |event| {
-        if let Ok(e) = event.map_nonuser_event() {
-          event_loop_runner.send_event(e)
-        }
-      }),
-      MenuType::MenuBar,
-      Some(window_id),
-    );
-
-    win.menu = Some(HMenuWrapper(menu::initialize(
-      window_menu,
-      win.hwnd(),
-      menu_handler,
-    )));
   }
 
   Ok(win)

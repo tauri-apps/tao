@@ -581,8 +581,6 @@ impl Window {
 
   pub fn set_title(&self, _title: &str) {}
 
-  pub fn set_menu(&self, _menu: Option<Menu>) {}
-
   pub fn set_visible(&self, _visibility: bool) {}
 
   pub fn set_focus(&self) {
@@ -632,15 +630,6 @@ impl Window {
   pub fn set_ime_position(&self, _position: Position) {}
 
   pub fn request_user_attention(&self, _request_type: Option<window::UserAttentionType>) {}
-
-  pub fn hide_menu(&self) {}
-
-  pub fn show_menu(&self) {}
-
-  pub fn is_menu_visible(&self) -> bool {
-    warn!("`Window::is_menu_visible` is ignored on Android");
-    false
-  }
 
   pub fn set_cursor_icon(&self, _: window::CursorIcon) {}
 

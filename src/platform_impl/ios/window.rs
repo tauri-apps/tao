@@ -23,7 +23,7 @@ use crate::{
       id, CGFloat, CGPoint, CGRect, CGSize, UIEdgeInsets, UIInterfaceOrientationMask, UIRectEdge,
       UIScreenOverscanCompensation,
     },
-    monitor, view, EventLoopWindowTarget, Menu, MonitorHandle,
+    monitor, view, EventLoopWindowTarget, MonitorHandle,
   },
   window::{CursorIcon, Fullscreen, UserAttentionType, WindowAttributes, WindowId as RootWindowId},
 };
@@ -48,10 +48,6 @@ impl Drop for Inner {
 impl Inner {
   pub fn set_title(&self, _title: &str) {
     debug!("`Window::set_title` is ignored on iOS")
-  }
-
-  pub fn set_menu(&self, _menu: Option<Menu>) {
-    debug!("`Window::set_menu` is ignored on iOS")
   }
 
   pub fn set_visible(&self, visible: bool) {
@@ -298,19 +294,6 @@ impl Inner {
 
   pub fn request_user_attention(&self, _request_type: Option<UserAttentionType>) {
     warn!("`Window::request_user_attention` is ignored on iOS")
-  }
-
-  pub fn hide_menu(&self) {
-    warn!("`Window::hide_menu` is ignored on iOS")
-  }
-
-  pub fn show_menu(&self) {
-    warn!("`Window::show_menu` is ignored on iOS")
-  }
-
-  pub fn is_menu_visible(&self) -> bool {
-    warn!("`Window::is_menu_visible` is ignored on iOS");
-    false
   }
 
   // Allow directly accessing the current monitor internally without unwrapping.

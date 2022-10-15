@@ -8,7 +8,6 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError},
   event_loop::EventLoopWindowTarget,
-  menu::MenuBar,
   monitor::{MonitorHandle, VideoMode},
   platform_impl,
 };
@@ -192,11 +191,6 @@ pub struct WindowAttributes {
   ///
   /// The default is `None`.
   pub window_icon: Option<Icon>,
-
-  /// The window menu.
-  ///
-  /// The default is `None`.
-  pub window_menu: Option<platform_impl::Menu>,
 }
 
 impl Default for WindowAttributes {
@@ -216,7 +210,6 @@ impl Default for WindowAttributes {
       decorations: true,
       always_on_top: false,
       window_icon: None,
-      window_menu: None,
     }
   }
 }
@@ -291,17 +284,6 @@ impl WindowBuilder {
   #[inline]
   pub fn with_title<T: Into<String>>(mut self, title: T) -> Self {
     self.window.title = title.into();
-    self
-  }
-
-  /// Requests a specific menu for the window.
-  ///
-  /// See [`Window::set_menu`] for details.
-  ///
-  /// [`Window::set_menu`]: crate::window::Window::set_menu
-  #[inline]
-  pub fn with_menu(mut self, menu: MenuBar) -> Self {
-    self.window.window_menu = Some(menu.0.menu_platform);
     self
   }
 
@@ -589,21 +571,6 @@ impl Window {
     self.window.set_title(title)
   }
 
-  /// Modifies the menu of the window.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows:** Unsupported.
-
-  #[inline]
-  pub fn set_menu(&self, menu: Option<MenuBar>) {
-    if let Some(menu) = menu {
-      self.window.set_menu(Some(menu.0.menu_platform))
-    } else {
-      self.window.set_menu(None)
-    }
-  }
-
   /// Modifies the window's visibility.
   ///
   /// If `false`, this will hide the window. If `true`, this will show the window.
@@ -801,36 +768,6 @@ impl Window {
   #[inline]
   pub fn request_user_attention(&self, request_type: Option<UserAttentionType>) {
     self.window.request_user_attention(request_type)
-  }
-
-  /// Hides the menu associated with the window
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **macOs/ iOS / Android:** Unsupported.
-  #[inline]
-  pub fn hide_menu(&self) {
-    self.window.hide_menu();
-  }
-
-  /// Shows the menu associated with the window
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **macOs/ iOS / Android:** Unsupported.
-  #[inline]
-  pub fn show_menu(&self) {
-    self.window.show_menu();
-  }
-
-  /// Gets the visibilty of the window menu.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **iOS / Android:** Unsupported.
-  /// - **macOS:** Always return true, as the menu is always visible.
-  pub fn is_menu_visible(&self) -> bool {
-    self.window.is_menu_visible()
   }
 }
 

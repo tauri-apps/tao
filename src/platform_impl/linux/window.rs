@@ -16,13 +16,12 @@ use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
-  menu::{MenuId, MenuItem},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{CursorIcon, Fullscreen, UserAttentionType, WindowAttributes, BORDERLESS_RESIZE_INSET},
 };
 
 use super::{
-  event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle,
+  event_loop::EventLoopWindowTarget, monitor::MonitorHandle,
   PlatformSpecificWindowBuilderAttributes,
 };
 
@@ -44,8 +43,6 @@ pub struct Window {
   pub(crate) window_requests_tx: glib::Sender<(WindowId, WindowRequest)>,
   /// Gtk Acceleration Group
   pub(crate) accel_group: AccelGroup,
-  // Gtk MenuBar allocation -- always available
-  menu_bar: gtk::MenuBar,
   scale_factor: Rc<AtomicI32>,
   position: Rc<(AtomicI32, AtomicI32)>,
   size: Rc<(AtomicI32, AtomicI32)>,
@@ -146,30 +143,6 @@ impl Window {
       window.set_app_paintable(true);
     }
 
-    // We always create a box and allocate menubar, so if they set_menu after creation
-    // we can inject the menubar without re-redendering the whole window
-    let window_box = gtk::Box::new(Orientation::Vertical, 0);
-    // window.add(&window_box);
-
-    let mut menu_bar = gtk::MenuBar::new();
-
-    if attributes.transparent {
-      let style_context = menu_bar.style_context();
-      let css_provider = gtk::CssProvider::new();
-      let theme = r#"
-          menubar {
-            background-color: transparent;
-            box-shadow: none;
-          }
-        "#;
-      let _ = css_provider.load_from_data(theme.as_bytes());
-      style_context.add_provider(&css_provider, 600);
-    }
-    window_box.pack_start(&menu_bar, false, false, 0);
-    if let Some(window_menu) = attributes.window_menu {
-      window_menu.generate_menu(&mut menu_bar, &window_requests_tx, &accel_group, window_id);
-    }
-
     // Rest attributes
     window.set_title(&attributes.title);
     if let Some(Fullscreen::Borderless(m)) = &attributes.fullscreen {
@@ -250,7 +223,6 @@ impl Window {
       window,
       window_requests_tx,
       accel_group,
-      menu_bar,
       scale_factor,
       position,
       size,
@@ -373,15 +345,6 @@ impl Window {
       .send((self.window_id, WindowRequest::Title(title.to_string())))
     {
       log::warn!("Fail to send title request: {}", e);
-    }
-  }
-
-  pub fn set_menu(&self, menu: Option<menu::Menu>) {
-    if let Err(e) = self.window_requests_tx.send((
-      self.window_id,
-      WindowRequest::SetMenu((menu, self.accel_group.clone(), self.menu_bar.clone())),
-    )) {
-      log::warn!("Fail to send menu request: {}", e);
     }
   }
 
@@ -511,18 +474,6 @@ impl Window {
     {
       log::warn!("Fail to send user attention request: {}", e);
     }
-  }
-
-  pub fn hide_menu(&self) {
-    self.menu_bar.hide();
-  }
-
-  pub fn show_menu(&self) {
-    self.menu_bar.show_all();
-  }
-
-  pub fn is_menu_visible(&self) -> bool {
-    self.menu_bar.get_visible()
   }
 
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
@@ -662,8 +613,6 @@ pub enum WindowRequest {
   CursorPosition((i32, i32)),
   WireUpEvents,
   Redraw,
-  Menu((Option<MenuItem>, Option<MenuId>)),
-  SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
   GlobalHotKey(u16),
 }
 
