@@ -9,19 +9,20 @@ use std::{
 };
 
 use gdk::{WindowEdge, WindowState};
-use gtk::{prelude::*, AccelGroup, Orientation};
+use gtk::{prelude::*, AccelGroup};
 use raw_window_handle::{RawWindowHandle, XlibHandle};
 
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
+  menu::{MenuId, MenuItem},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{CursorIcon, Fullscreen, UserAttentionType, WindowAttributes, BORDERLESS_RESIZE_INSET},
 };
 
 use super::{
-  event_loop::EventLoopWindowTarget, monitor::MonitorHandle,
+  event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle,
   PlatformSpecificWindowBuilderAttributes,
 };
 
@@ -41,8 +42,6 @@ pub struct Window {
   pub(crate) window: gtk::ApplicationWindow,
   /// Window requests sender
   pub(crate) window_requests_tx: glib::Sender<(WindowId, WindowRequest)>,
-  /// Gtk Acceleration Group
-  pub(crate) accel_group: AccelGroup,
   scale_factor: Rc<AtomicI32>,
   position: Rc<(AtomicI32, AtomicI32)>,
   size: Rc<(AtomicI32, AtomicI32)>,
@@ -65,9 +64,6 @@ impl Window {
       .windows
       .borrow_mut()
       .insert(window_id);
-
-    let accel_group = AccelGroup::new();
-    window.add_accel_group(&accel_group);
 
     // Set Width/Height & Resizable
     let win_scale_factor = window.scale_factor();
@@ -222,7 +218,6 @@ impl Window {
       window_id,
       window,
       window_requests_tx,
-      accel_group,
       scale_factor,
       position,
       size,
@@ -611,6 +606,8 @@ pub enum WindowRequest {
   SetSkipTaskbar(bool),
   CursorIcon(Option<CursorIcon>),
   CursorPosition((i32, i32)),
+  Menu((Option<MenuItem>, Option<MenuId>)),
+  SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
   WireUpEvents,
   Redraw,
   GlobalHotKey(u16),

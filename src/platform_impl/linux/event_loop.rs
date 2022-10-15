@@ -87,7 +87,7 @@ pub struct EventLoop<T: 'static> {
 pub(crate) struct PlatformSpecificEventLoopAttributes {}
 
 impl<T: 'static> EventLoop<T> {
-  pub fn new(_: &PlatformSpecificEventLoopAttributes) -> EventLoop<T> {
+  pub(crate) fn new(_: &PlatformSpecificEventLoopAttributes) -> EventLoop<T> {
     assert_is_main_thread("new_any_thread");
     EventLoop::new_any_thread()
   }
