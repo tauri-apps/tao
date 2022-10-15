@@ -141,11 +141,11 @@ pub trait EventLoopExtWindows {
 /// Additional methods on `Window` that are specific to Windows.
 pub trait WindowExtWindows {
   /// Returns the HINSTANCE of the window
-  fn hinstance(&self) -> *mut libc::c_void;
+  fn hinstance(&self) -> *mut c_void;
   /// Returns the native handle that is used by this window.
   ///
   /// The pointer will become invalid when the native window was destroyed.
-  fn hwnd(&self) -> *mut libc::c_void;
+  fn hwnd(&self) -> *mut c_void;
 
   /// Enables or disables mouse and keyboard input to the specified window.
   ///
@@ -184,12 +184,12 @@ pub trait WindowExtWindows {
 
 impl WindowExtWindows for Window {
   #[inline]
-  fn hinstance(&self) -> *mut libc::c_void {
+  fn hinstance(&self) -> *mut c_void {
     self.window.hinstance().0 as _
   }
 
   #[inline]
-  fn hwnd(&self) -> *mut libc::c_void {
+  fn hwnd(&self) -> *mut c_void {
     self.window.hwnd().0 as _
   }
 
@@ -335,7 +335,7 @@ pub trait MonitorHandleExtWindows {
   fn native_id(&self) -> String;
 
   /// Returns the handle of the monitor - `HMONITOR`.
-  fn hmonitor(&self) -> *mut libc::c_void;
+  fn hmonitor(&self) -> *mut c_void;
 }
 
 impl MonitorHandleExtWindows for MonitorHandle {
@@ -345,7 +345,7 @@ impl MonitorHandleExtWindows for MonitorHandle {
   }
 
   #[inline]
-  fn hmonitor(&self) -> *mut libc::c_void {
+  fn hmonitor(&self) -> *mut c_void {
     self.inner.hmonitor().0 as _
   }
 }
