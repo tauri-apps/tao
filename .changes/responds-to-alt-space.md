@@ -2,4 +2,4 @@
 "tao": "patch"
 ---
 
-On Windows, show window menu in response to Alt+Space.
+On Windows, show Window menu (also known as the System menu or Control menu) in response to <kbd>Alt+Space</kbd>.
