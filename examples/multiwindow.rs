@@ -7,7 +7,9 @@ use std::collections::HashMap;
 use tao::{
   event::{ElementState, Event, KeyEvent, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
-  window::Window,
+  menu::*,
+  platform::macos::{WindowBuilderExtMacOS, WindowExtMacOS},
+  window::{Window, WindowBuilder},
 };
 
 fn main() {
@@ -15,8 +17,17 @@ fn main() {
   let event_loop = EventLoop::new();
 
   let mut windows = HashMap::new();
-  for _ in 0..3 {
-    let window = Window::new(&event_loop).unwrap();
+
+  for i in 0..2 {
+    let window = WindowBuilder::new()
+      .with_tabbing_identifier(if i % 2 == 0 { "0" } else { "1" })
+      .build(&event_loop)
+      .unwrap();
+    let mut menu = MenuBar::new();
+    menu.add_submenu("View", true, MenuBar::new());
+    window.set_menu(Some(menu));
+
+    println!("{:?}", window.tabbing_identifier());
     windows.insert(window.id(), window);
   }
 
@@ -45,7 +56,12 @@ fn main() {
           },
           ..
         } => {
-          let window = Window::new(event_loop).unwrap();
+          let window = WindowBuilder::new()
+            .with_tabbing_identifier("1")
+            .build(event_loop)
+            .unwrap();
+          //window.set_tabbing_identifier("TaoWindow-TaoWindowDelegate-(null)-VT-1");
+          println!("{:?}", window.tabbing_identifier());
           windows.insert(window.id(), window);
         }
         _ => (),
