@@ -2073,6 +2073,11 @@ unsafe fn public_window_callback_inner<T: 'static>(
       }
     }
 
+    win32wm::WM_SYSCHAR => {
+      // Handle system shortcut e.g. Alt+Space for window menu
+      result = ProcResult::DefWindowProc;
+    }
+
     _ => {
       if msg == *DESTROY_MSG_ID {
         DestroyWindow(window);
