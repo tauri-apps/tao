@@ -92,6 +92,7 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub disallow_hidpi: bool,
   pub has_shadow: bool,
   pub automatic_tabbing: bool,
+  pub tabbing_identifier: Option<String>,
 }
 
 impl Default for PlatformSpecificWindowBuilderAttributes {
@@ -109,6 +110,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       disallow_hidpi: false,
       has_shadow: true,
       automatic_tabbing: true,
+      tabbing_identifier: None,
     }
   }
 }
@@ -276,6 +278,10 @@ fn create_window(
 
       if !pl_attrs.automatic_tabbing {
         NSWindow::setAllowsAutomaticWindowTabbing_(*ns_window, NO);
+      }
+
+      if let Some(tabbing_identifier) = &pl_attrs.tabbing_identifier {
+        let _: () = msg_send![*ns_window, setTabbingIdentifier: NSString::alloc(nil).init_str(tabbing_identifier)];
       }
 
       if !pl_attrs.has_shadow {
@@ -1468,6 +1474,22 @@ impl WindowExtMacOS for UnownedWindow {
     unsafe {
       let allows_tabbing: BOOL = NSWindow::allowsAutomaticWindowTabbing(*self.ns_window);
       allows_tabbing == YES
+    }
+  }
+
+  #[inline]
+  fn set_tabbing_identifier(&self, identifier: &str) {
+    unsafe {
+      let _: () =
+        msg_send![*self.ns_window, setTabbingIdentifier: NSString::alloc(nil).init_str(identifier)];
+    }
+  }
+
+  #[inline]
+  fn tabbing_identifier(&self) -> String {
+    unsafe {
+      let tabbing_identifier = NSWindow::tabbingIdentifier(*self.ns_window);
+      ns_string_to_rust(tabbing_identifier)
     }
   }
 }

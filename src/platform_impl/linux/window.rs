@@ -59,6 +59,8 @@ pub struct Window {
   maximized: Rc<AtomicBool>,
   minimized: Rc<AtomicBool>,
   fullscreen: RefCell<Option<Fullscreen>>,
+  /// Draw event Sender
+  draw_tx: crossbeam_channel::Sender<WindowId>,
 }
 
 impl Window {
@@ -69,6 +71,7 @@ impl Window {
   ) -> Result<Self, RootOsError> {
     let app = &event_loop_window_target.app;
     let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
+    let draw_tx = event_loop_window_target.draw_tx.clone();
     let window = gtk::ApplicationWindow::builder()
       .application(app)
       .accept_focus(attributes.focused)
@@ -287,14 +290,15 @@ impl Window {
       log::warn!("Fail to send wire up events request: {}", e);
     }
 
-    if let Err(e) = window_requests_tx.send((window_id, WindowRequest::Redraw)) {
-      log::warn!("Fail to send redraw request: {}", e);
+    if let Err(e) = draw_tx.send(window_id) {
+      log::warn!("Failed to send redraw event to event channel: {}", e);
     }
 
     let win = Self {
       window_id,
       window,
       window_requests_tx,
+      draw_tx,
       scale_factor,
       position,
       size,
@@ -317,11 +321,8 @@ impl Window {
   }
 
   pub fn request_redraw(&self) {
-    if let Err(e) = self
-      .window_requests_tx
-      .send((self.window_id, WindowRequest::Redraw))
-    {
-      log::warn!("Fail to send redraw request: {}", e);
+    if let Err(e) = self.draw_tx.send(self.window_id) {
+      log::warn!("Failed to send redraw event to event channel: {}", e);
     }
   }
 
@@ -766,7 +767,6 @@ pub enum WindowRequest {
   CursorPosition((i32, i32)),
   CursorIgnoreEvents(bool),
   WireUpEvents { transparent: bool },
-  Redraw,
   Menu((Option<MenuItem>, Option<MenuId>)),
   SetMenu((Option<menu::Menu>, gtk::AccelGroup, gtk::MenuBar)),
   GlobalHotKey(u16),

@@ -8,11 +8,11 @@ use std::{
   error::Error,
   process,
   rc::Rc,
-  sync::mpsc::SendError,
   time::Instant,
 };
 
 use cairo::{RectangleInt, Region};
+use crossbeam_channel::SendError;
 use gdk::{Cursor, CursorType, EventKey, EventMask, ScrollDirection, WindowEdge, WindowState};
 use gio::{prelude::*, Cancellable};
 use glib::{source::Priority, Continue, MainContext};
@@ -50,6 +50,8 @@ pub struct EventLoopWindowTarget<T> {
   pub(crate) windows: Rc<RefCell<HashSet<WindowId>>>,
   /// Window requests sender
   pub(crate) window_requests_tx: glib::Sender<(WindowId, WindowRequest)>,
+  /// Draw event sender
+  pub(crate) draw_tx: crossbeam_channel::Sender<WindowId>,
   _marker: std::marker::PhantomData<T>,
 }
 
@@ -98,7 +100,7 @@ pub struct EventLoop<T: 'static> {
   /// Window target.
   window_target: RootELW<T>,
   /// User event sender for EventLoopProxy
-  user_event_tx: glib::Sender<T>,
+  user_event_tx: crossbeam_channel::Sender<Event<'static, T>>,
   /// Event queue of EventLoop
   events: crossbeam_channel::Receiver<Event<'static, T>>,
   /// Draw queue of EventLoop
@@ -137,6 +139,8 @@ impl<T: 'static> EventLoop<T> {
         log::warn!("Failed to send init event to event channel: {}", e);
       }
     });
+    let draw_tx_ = draw_tx.clone();
+    let user_event_tx = event_tx.clone();
 
     // Create event loop window target.
     let (window_requests_tx, window_requests_rx) = glib::MainContext::channel(Priority::default());
@@ -148,18 +152,9 @@ impl<T: 'static> EventLoop<T> {
       app,
       windows: Rc::new(RefCell::new(HashSet::new())),
       window_requests_tx,
+      draw_tx: draw_tx_,
       _marker: std::marker::PhantomData,
     };
-
-    // Create user event channel
-    let (user_event_tx, user_event_rx) = glib::MainContext::channel(Priority::default());
-    let event_tx_ = event_tx.clone();
-    user_event_rx.attach(Some(&context), move |event| {
-      if let Err(e) = event_tx_.send(Event::UserEvent(event)) {
-        log::warn!("Failed to send user event to event channel: {}", e);
-      }
-      Continue(true)
-    });
 
     // Window Request
     window_requests_rx.attach(Some(&context), move |(id, request)| {
@@ -763,13 +758,6 @@ impl<T: 'static> EventLoop<T> {
               Inhibit(false)
             });
           }
-          WindowRequest::Redraw => {
-            if let Err(e) = draw_tx.send(id) {
-              log::warn!("Failed to send redraw event to event channel: {}", e);
-            }
-
-            window.queue_draw();
-          }
           WindowRequest::Menu(m) => match m {
             (None, Some(menu_id)) => {
               if let Err(e) = event_tx.send(Event::MenuEvent {
@@ -1058,7 +1046,7 @@ impl<T: 'static> EventLoop<T> {
 /// Used to send custom events to `EventLoop`.
 #[derive(Debug)]
 pub struct EventLoopProxy<T: 'static> {
-  user_event_tx: glib::Sender<T>,
+  user_event_tx: crossbeam_channel::Sender<Event<'static, T>>,
 }
 
 impl<T: 'static> Clone for EventLoopProxy<T> {
@@ -1078,8 +1066,14 @@ impl<T: 'static> EventLoopProxy<T> {
   pub fn send_event(&self, event: T) -> Result<(), EventLoopClosed<T>> {
     self
       .user_event_tx
-      .send(event)
-      .map_err(|SendError(error)| EventLoopClosed(error))
+      .send(Event::UserEvent(event))
+      .map_err(|SendError(event)| {
+        if let Event::UserEvent(error) = event {
+          EventLoopClosed(error)
+        } else {
+          unreachable!();
+        }
+      })
   }
 }
 
