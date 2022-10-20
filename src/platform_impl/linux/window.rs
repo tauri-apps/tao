@@ -14,8 +14,7 @@ use std::{
 
 use gdk::{WindowEdge, WindowState};
 use glib::translate::ToGlibPtr;
-use gtk::prelude::*;
-use gtk::Settings;
+use gtk::{prelude::*, traits::SettingsExt, Settings};
 use raw_window_handle::{RawDisplayHandle, RawWindowHandle, XlibDisplayHandle, XlibWindowHandle};
 
 use crate::{
