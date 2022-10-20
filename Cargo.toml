@@ -117,6 +117,6 @@ gdk-pixbuf = { version = "0.15", features = [ "v2_36_8" ] }
 libappindicator = { version = "0.7.1", optional = true }
 dirs-next = { version = "2.0.0", optional = true }
 x11-dl = "2.20"
-uuid = { version = "1.1", features = [ "v4" ] }
+uuid = { version = "1.2", features = [ "v4" ] }
 png = "0.17"
 parking_lot = "0.12"

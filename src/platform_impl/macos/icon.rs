@@ -13,6 +13,10 @@ impl PlatformIcon {
     Ok(PlatformIcon(RgbaIcon::from_rgba(rgba, width, height)?))
   }
 
+  pub fn get_size(&self) -> (u32, u32) {
+    (self.0.width, self.0.height)
+  }
+
   pub fn to_png(&self) -> Vec<u8> {
     let mut png = Vec::new();
 

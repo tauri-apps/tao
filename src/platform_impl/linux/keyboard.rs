@@ -330,6 +330,7 @@ pub fn key_to_raw_key(src: &KeyCode) -> Option<RawKey> {
     KeyCode::PageDown => Page_Down,
 
     KeyCode::NumLock => Num_Lock,
+    KeyCode::Plus => plus,
 
     KeyCode::ArrowUp => Up,
     KeyCode::ArrowDown => Down,

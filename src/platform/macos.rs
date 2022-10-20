@@ -55,6 +55,30 @@ pub trait WindowExtMacOS {
 
   /// Sets whether or not the window has shadow.
   fn set_has_shadow(&self, has_shadow: bool);
+
+  /// Put the window in a state which indicates a file save is required.
+  ///
+  /// <https://developer.apple.com/documentation/appkit/nswindow/1419311-isdocumentedited>
+  fn set_is_document_edited(&self, edited: bool);
+
+  /// Get the window's edit state
+  fn is_document_edited(&self) -> bool;
+
+  /// Sets whether the system can automatically organize windows into tabs.
+  ///
+  /// <https://developer.apple.com/documentation/appkit/nswindow/1646657-allowsautomaticwindowtabbing>
+  fn set_allows_automatic_window_tabbing(&self, enabled: bool);
+
+  /// Returns whether the system can automatically organize windows into tabs.
+  fn allows_automatic_window_tabbing(&self) -> bool;
+
+  /// Group windows together by using the same tabbing identifier.
+  ///
+  /// <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
+  fn set_tabbing_identifier(&self, identifier: &str);
+
+  /// Returns the window's tabbing identifier.
+  fn tabbing_identifier(&self) -> String;
 }
 
 impl WindowExtMacOS for Window {
@@ -86,6 +110,36 @@ impl WindowExtMacOS for Window {
   #[inline]
   fn set_has_shadow(&self, has_shadow: bool) {
     self.window.set_has_shadow(has_shadow)
+  }
+
+  #[inline]
+  fn set_is_document_edited(&self, edited: bool) {
+    self.window.set_is_document_edited(edited)
+  }
+
+  #[inline]
+  fn is_document_edited(&self) -> bool {
+    self.window.is_document_edited()
+  }
+
+  #[inline]
+  fn set_allows_automatic_window_tabbing(&self, enabled: bool) {
+    self.window.set_allows_automatic_window_tabbing(enabled)
+  }
+
+  #[inline]
+  fn allows_automatic_window_tabbing(&self) -> bool {
+    self.window.allows_automatic_window_tabbing()
+  }
+
+  #[inline]
+  fn set_tabbing_identifier(&self, identifier: &str) {
+    self.window.set_tabbing_identifier(identifier)
+  }
+
+  #[inline]
+  fn tabbing_identifier(&self) -> String {
+    self.window.tabbing_identifier()
   }
 }
 
@@ -338,7 +392,14 @@ pub trait WindowBuilderExtMacOS {
   /// Build window with `resizeIncrements` property. Values must not be 0.
   fn with_resize_increments(self, increments: LogicalSize<f64>) -> WindowBuilder;
   fn with_disallow_hidpi(self, disallow_hidpi: bool) -> WindowBuilder;
+  /// Sets whether or not the window has shadow.
   fn with_has_shadow(self, has_shadow: bool) -> WindowBuilder;
+  /// Sets whether the system can automatically organize windows into tabs.
+  fn with_automatic_window_tabbing(self, automatic_tabbing: bool) -> WindowBuilder;
+  /// Defines the window [tabbing identifier].
+  ///
+  /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
+  fn with_tabbing_identifier(self, identifier: &str) -> WindowBuilder;
 }
 
 impl WindowBuilderExtMacOS for WindowBuilder {
@@ -402,6 +463,21 @@ impl WindowBuilderExtMacOS for WindowBuilder {
   #[inline]
   fn with_has_shadow(mut self, has_shadow: bool) -> WindowBuilder {
     self.platform_specific.has_shadow = has_shadow;
+    self
+  }
+
+  #[inline]
+  fn with_automatic_window_tabbing(mut self, automatic_tabbing: bool) -> WindowBuilder {
+    self.platform_specific.automatic_tabbing = automatic_tabbing;
+    self
+  }
+
+  #[inline]
+  fn with_tabbing_identifier(mut self, tabbing_identifier: &str) -> WindowBuilder {
+    self
+      .platform_specific
+      .tabbing_identifier
+      .replace(tabbing_identifier.into());
     self
   }
 }

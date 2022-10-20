@@ -6,7 +6,10 @@ use std::{
   cell::RefCell,
   collections::VecDeque,
   rc::Rc,
-  sync::atomic::{AtomicBool, AtomicI32, Ordering},
+  sync::{
+    atomic::{AtomicBool, AtomicI32, Ordering},
+    Arc,
+  },
 };
 
 use gdk::{WindowEdge, WindowState};
@@ -60,6 +63,8 @@ pub struct Window {
   maximized: Rc<AtomicBool>,
   minimized: Rc<AtomicBool>,
   fullscreen: RefCell<Option<Fullscreen>>,
+  /// Draw event Sender
+  draw_tx: crossbeam_channel::Sender<WindowId>,
 }
 
 impl Window {
@@ -70,7 +75,11 @@ impl Window {
   ) -> Result<Self, RootOsError> {
     let app = &event_loop_window_target.app;
     let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
-    let window = gtk::ApplicationWindow::new(app);
+    let draw_tx = event_loop_window_target.draw_tx.clone();
+    let window = gtk::ApplicationWindow::builder()
+      .application(app)
+      .accept_focus(attributes.focused)
+      .build();
     let window_id = WindowId(window.id());
     event_loop_window_target
       .windows
@@ -94,6 +103,7 @@ impl Window {
     }
 
     window.set_resizable(attributes.resizable);
+    window.set_deletable(attributes.closable);
 
     // Set Min/Max Size
     let geom_mask = (if attributes.min_inner_size.is_some() {
@@ -139,20 +149,27 @@ impl Window {
     }
 
     // Set GDK Visual
-    if let Some(screen) = window.screen() {
-      if let Some(visual) = screen.rgba_visual() {
-        window.set_visual(Some(&visual));
+    if pl_attribs.rgba_visual || attributes.transparent {
+      if let Some(screen) = window.screen() {
+        if let Some(visual) = screen.rgba_visual() {
+          window.set_visual(Some(&visual));
+        }
       }
     }
 
-    // Set a few attributes to make the window can be painted.
-    // See Gtk drawing model for more info:
-    // https://docs.gtk.org/gtk3/drawing-model.html
-    window.set_app_paintable(true);
-    let widget = window.upcast_ref::<gtk::Widget>();
-    if !event_loop_window_target.is_wayland() {
-      unsafe {
-        gtk::ffi::gtk_widget_set_double_buffered(widget.to_glib_none().0, 0);
+    if pl_attribs.app_paintable || attributes.transparent {
+      // Set a few attributes to make the window can be painted.
+      // See Gtk drawing model for more info:
+      // https://docs.gtk.org/gtk3/drawing-model.html
+      window.set_app_paintable(true);
+    }
+
+    if !pl_attribs.double_buffered {
+      let widget = window.upcast_ref::<gtk::Widget>();
+      if !event_loop_window_target.is_wayland() {
+        unsafe {
+          gtk::ffi::gtk_widget_set_double_buffered(widget.to_glib_none().0, 0);
+        }
       }
     }
 
@@ -239,6 +256,21 @@ impl Window {
       window.set_transient_for(Some(&parent));
     }
 
+    // restore accept-focus after the window has been drawn
+    // if the window was initially created without focus
+    if !attributes.focused {
+      let signal_id = Arc::new(RefCell::new(None));
+      let signal_id_ = signal_id.clone();
+      let id = window.connect_draw(move |window, _| {
+        if let Some(id) = signal_id_.take() {
+          window.set_accept_focus(true);
+          window.disconnect(id);
+        }
+        Inhibit(false)
+      });
+      signal_id.borrow_mut().replace(id);
+    }
+
     let w_pos = window.position();
     let position: Rc<(AtomicI32, AtomicI32)> = Rc::new((w_pos.0.into(), w_pos.1.into()));
     let position_clone = position.clone();
@@ -289,14 +321,15 @@ impl Window {
       log::warn!("Fail to send wire up events request: {}", e);
     }
 
-    if let Err(e) = window_requests_tx.send((window_id, WindowRequest::Redraw)) {
-      log::warn!("Fail to send redraw request: {}", e);
+    if let Err(e) = draw_tx.send(window_id) {
+      log::warn!("Failed to send redraw event to event channel: {}", e);
     }
 
     let win = Self {
       window_id,
       window,
       window_requests_tx,
+      draw_tx,
       accel_group,
       menu_bar,
       scale_factor,
@@ -321,11 +354,8 @@ impl Window {
   }
 
   pub fn request_redraw(&self) {
-    if let Err(e) = self
-      .window_requests_tx
-      .send((self.window_id, WindowRequest::Redraw))
-    {
-      log::warn!("Fail to send redraw request: {}", e);
+    if let Err(e) = self.draw_tx.send(self.window_id) {
+      log::warn!("Failed to send redraw event to event channel: {}", e);
     }
   }
 
@@ -424,6 +454,10 @@ impl Window {
     }
   }
 
+  pub fn title(&self) -> Option<String> {
+    self.window.title().map(|t| t.as_str().to_string())
+  }
+
   pub fn set_menu(&self, menu: Option<menu::Menu>) {
     if let Err(e) = self.window_requests_tx.send((
       self.window_id,
@@ -466,6 +500,19 @@ impl Window {
     }
   }
 
+  pub fn set_minimizable(&self, _minimizable: bool) {}
+
+  pub fn set_maximizable(&self, _maximizable: bool) {}
+
+  pub fn set_closable(&self, closable: bool) {
+    if let Err(e) = self
+      .window_requests_tx
+      .send((self.window_id, WindowRequest::Closable(closable)))
+    {
+      log::warn!("Fail to send closable request: {}", e);
+    }
+  }
+
   pub fn set_minimized(&self, minimized: bool) {
     if let Err(e) = self
       .window_requests_tx
@@ -494,6 +541,18 @@ impl Window {
 
   pub fn is_resizable(&self) -> bool {
     self.window.is_resizable()
+  }
+
+  pub fn is_minimizable(&self) -> bool {
+    true
+  }
+
+  pub fn is_maximizable(&self) -> bool {
+    true
+  }
+
+  pub fn is_closable(&self) -> bool {
+    self.window.is_deletable()
   }
 
   pub fn is_decorated(&self) -> bool {
@@ -747,6 +806,7 @@ pub enum WindowRequest {
   Visible(bool),
   Focus,
   Resizable(bool),
+  Closable(bool),
   Minimized(bool),
   Maximized(bool),
   DragWindow,
@@ -761,7 +821,6 @@ pub enum WindowRequest {
   CursorPosition((i32, i32)),
   CursorIgnoreEvents(bool),
   WireUpEvents { transparent: bool },
-  Redraw,
   Menu((Option<MenuItem>, Option<MenuId>)),
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
   GlobalHotKey(u16),

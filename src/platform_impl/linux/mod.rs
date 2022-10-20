@@ -62,6 +62,9 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub parent: Parent,
   pub skip_taskbar: bool,
   pub auto_transparent: bool,
+  pub double_buffered: bool,
+  pub app_paintable: bool,
+  pub rgba_visual: bool,
 }
 
 impl Default for PlatformSpecificWindowBuilderAttributes {
@@ -70,6 +73,9 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       parent: Default::default(),
       skip_taskbar: Default::default(),
       auto_transparent: true,
+      double_buffered: true,
+      app_paintable: false,
+      rgba_visual: false,
     }
   }
 }

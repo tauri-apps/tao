@@ -552,6 +552,7 @@ impl fmt::Display for Accelerator {
       KeyCode::Digit9 => write!(f, "9"),
       KeyCode::Comma => write!(f, ","),
       KeyCode::Minus => write!(f, "-"),
+      KeyCode::Plus => write!(f, "+"),
       KeyCode::Period => write!(f, "."),
       KeyCode::Space => write!(f, "Space"),
       KeyCode::Equal => write!(f, "="),
