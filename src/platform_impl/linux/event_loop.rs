@@ -8,6 +8,7 @@ use std::{
   error::Error,
   process,
   rc::Rc,
+  sync::atomic::{AtomicBool, Ordering},
   time::Instant,
 };
 
@@ -30,7 +31,7 @@ use crate::{
   keyboard::ModifiersState,
   menu::{MenuItem, MenuType},
   monitor::MonitorHandle as RootMonitorHandle,
-  platform_impl::platform::{window::hit_test, DEVICE_ID},
+  platform_impl::platform::{device, window::hit_test, DEVICE_ID},
   window::{CursorIcon, Fullscreen, WindowId as RootWindowId},
 };
 
@@ -100,7 +101,7 @@ pub struct EventLoop<T: 'static> {
   /// Window target.
   window_target: RootELW<T>,
   /// User event sender for EventLoopProxy
-  user_event_tx: crossbeam_channel::Sender<Event<'static, T>>,
+  pub(crate) user_event_tx: crossbeam_channel::Sender<Event<'static, T>>,
   /// Event queue of EventLoop
   events: crossbeam_channel::Receiver<Event<'static, T>>,
   /// Draw queue of EventLoop
@@ -917,7 +918,23 @@ impl<T: 'static> EventLoop<T> {
       DrawQueue,
     }
 
+    // Spawn x11 thread to receive Device events.
     let context = MainContext::default();
+    let user_event_tx = self.user_event_tx.clone();
+    let (device_tx, device_rx) = glib::MainContext::channel(glib::Priority::default());
+    let run_device_thread = Rc::new(AtomicBool::new(true));
+    let run = run_device_thread.clone();
+    device::spawn(&self.window_target, device_tx);
+    device_rx.attach(Some(&context), move |event| {
+      if let Err(e) = user_event_tx.send(Event::DeviceEvent {
+        device_id: DEVICE_ID,
+        event,
+      }) {
+        log::warn!("Fail to send device event to event channel: {}", e);
+      }
+      Continue(run.load(Ordering::Relaxed))
+    });
+
     context
       .with_thread_default(|| {
         let mut control_flow = ControlFlow::default();
@@ -1022,6 +1039,7 @@ impl<T: 'static> EventLoop<T> {
           }
           gtk::main_iteration_do(blocking);
         };
+        run_device_thread.store(false, Ordering::Relaxed);
         exit_code
       })
       .unwrap_or(1)
