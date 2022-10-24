@@ -108,7 +108,12 @@ impl KeyEventBuilder {
           // This is handled in `event_loop.rs`
           return vec![];
         }
-        *result = ProcResult::Value(LRESULT(0));
+
+        if msg_kind == win32wm::WM_SYSKEYDOWN {
+          *result = ProcResult::DefSubclassProc;
+        } else {
+          *result = ProcResult::Value(LRESULT(0));
+        }
 
         let mut layouts = LAYOUT_CACHE.lock();
         let event_info =
@@ -268,7 +273,11 @@ impl KeyEventBuilder {
         }
       }
       win32wm::WM_KEYUP | win32wm::WM_SYSKEYUP => {
-        *result = ProcResult::Value(LRESULT(0));
+        if msg_kind == win32wm::WM_SYSKEYUP {
+          *result = ProcResult::DefSubclassProc;
+        } else {
+          *result = ProcResult::Value(LRESULT(0));
+        }
 
         let mut layouts = LAYOUT_CACHE.lock();
         let event_info =
