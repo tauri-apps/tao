@@ -31,6 +31,9 @@ default = [ ]
 dox = [ "gtk/dox" ]
 tray = [ "libappindicator", "dirs-next" ]
 
+[build-dependencies]
+cc = "1"
+
 [dependencies]
 instant = "0.1"
 lazy_static = "1"
@@ -63,9 +66,6 @@ core-graphics = "0.22"
 dispatch = "0.2"
 scopeguard = "1.1"
 png = "0.17"
-
-[target."cfg(target_os = \"macos\")".build-dependencies]
-cc = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 parking_lot = "0.12"
