@@ -259,6 +259,10 @@ fn create_window(
         ];
       }
 
+      if attrs.content_protection {
+        let _: () = msg_send![*ns_window, setSharingType: 0];
+      }
+
       if !attrs.maximizable {
         let button = ns_window.standardWindowButton_(NSWindowButton::NSWindowZoomButton);
         let _: () = msg_send![button, setEnabled: NO];
