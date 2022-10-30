@@ -73,7 +73,7 @@ fn main() {
   let change_menu = second_menu.add_item(MenuItemAttributes::new("Change menu"));
 
   second_menu.add_native_item(MenuItem::Separator);
-  let mut zoom_in_item = second_menu.add_item(
+  let zoom_in_item = second_menu.add_item(
     MenuItemAttributes::new("Zoom in").with_accelerators(&"CmdOrCtrl+Plus".parse().unwrap()),
   );
 
