@@ -726,7 +726,7 @@ impl Window {
     // TODO: Use main activity instead?
     let mut handle = AndroidNdkWindowHandle::empty();
     if let Some(w) = ndk_glue::window_manager() {
-      handle.a_native_window = w.as_obj().into_inner() as *mut _;
+      handle.a_native_window = w.as_obj().into_raw() as *mut _;
     } else {
       panic!("Cannot get the native window, it's null and will always be null before Event::Resumed and after Event::Suspended. Make sure you only call this function between those events.");
     };
