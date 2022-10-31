@@ -49,7 +49,7 @@ image = "0.24"
 env_logger = "0.9"
 
 [target."cfg(target_os = \"android\")".dependencies]
-jni = "0.19"
+jni = "0.20"
 ndk = "0.6"
 ndk-sys = "0.3"
 ndk-context = "0.1"
