@@ -1184,6 +1184,11 @@ impl Window {
     self.window.current_monitor()
   }
 
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
+    self.window.monitor_from_point(x, y)
+  }
+
   /// Returns the list of all the monitors available on the system.
   ///
   /// This is the same as `EventLoopWindowTarget::available_monitors`, and is provided for convenience.

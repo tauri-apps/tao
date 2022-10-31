@@ -158,6 +158,27 @@ pub fn primary_monitor() -> MonitorHandle {
   MonitorHandle(CGDisplay::main().id)
 }
 
+// `from_point` get a monitor handle which contains the given point.
+pub fn from_point(x: f64, y: f64) -> Option<MonitorHandle> {
+  unsafe {
+    for monitor in available_monitors() {
+      let bound = CGDisplayBounds(monitor.0);
+      // dumb way. a better way is to use [CGRectContainsPoint](https://developer.apple.com/documentation/coregraphics/1456316-cgrectcontainspoint)
+      // which is not supported by core-graphics binding yet.
+      // Once the [PR](https://github.com/servo/core-foundation-rs/pull/526) is accepted
+      // we can use that method.
+      if x >= bound.origin.x
+        && x <= bound.origin.x + bound.size.width
+        && y >= bound.origin.y
+        && y <= bound.origin.y + bound.size.height
+      {
+        return Some(monitor);
+      }
+    }
+  }
+  return None;
+}
+
 impl fmt::Debug for MonitorHandle {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     // TODO: Do this using the proper fmt API
