@@ -501,6 +501,16 @@ pub trait EventLoopExtMacOS {
   /// [`run`](crate::event_loop::EventLoop::run) or
   /// [`run_return`](crate::platform::run_return::EventLoopExtRunReturn::run_return)
   fn enable_default_menu_creation(&mut self, enable: bool);
+
+  /// Used to prevent the application from automatically activating when launched if
+  /// another application is already active
+  ///
+  /// The default behavior is to ignore other applications and activate when launched.
+  ///
+  /// This function only takes effect if it's called before calling
+  /// [`run`](crate::event_loop::EventLoop::run) or
+  /// [`run_return`](crate::platform::run_return::EventLoopExtRunReturn::run_return)
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool);
 }
 impl<T> EventLoopExtMacOS for EventLoop<T> {
   #[inline]
@@ -514,6 +524,13 @@ impl<T> EventLoopExtMacOS for EventLoop<T> {
   fn enable_default_menu_creation(&mut self, enable: bool) {
     unsafe {
       get_aux_state_mut(&**self.event_loop.delegate).create_default_menu = enable;
+    }
+  }
+
+  #[inline]
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool) {
+    unsafe {
+      get_aux_state_mut(&**self.event_loop.delegate).activate_ignoring_other_apps = ignore;
     }
   }
 }
