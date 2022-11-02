@@ -37,7 +37,7 @@ use crate::{
 
 use super::{
   keyboard,
-  monitor::MonitorHandle,
+  monitor::{self, MonitorHandle},
   window::{WindowId, WindowRequest},
 };
 
@@ -57,6 +57,11 @@ pub struct EventLoopWindowTarget<T> {
 }
 
 impl<T> EventLoopWindowTarget<T> {
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
+    let display = &self.display;
+    monitor::from_point(display, x, y)
+  }
   #[inline]
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
     let mut handles = VecDeque::new();

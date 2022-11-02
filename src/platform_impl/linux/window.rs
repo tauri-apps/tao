@@ -29,8 +29,10 @@ use crate::{
 };
 
 use super::{
-  event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle, Parent,
-  PlatformSpecificWindowBuilderAttributes,
+  event_loop::EventLoopWindowTarget,
+  menu,
+  monitor::{self, MonitorHandle},
+  Parent, PlatformSpecificWindowBuilderAttributes,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -747,6 +749,12 @@ impl Window {
     let number = screen.primary_monitor();
     let handle = MonitorHandle::new(&self.window.display(), number);
     Some(RootMonitorHandle { inner: handle })
+  }
+
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<RootMonitorHandle> {
+    let display = &self.window.display();
+    monitor::from_point(display, x, y).map(|inner| RootMonitorHandle { inner })
   }
 
   pub fn raw_window_handle(&self) -> RawWindowHandle {
