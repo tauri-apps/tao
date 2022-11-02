@@ -754,10 +754,10 @@ impl FromStr for KeyCode {
       "PAGEDOWN" => KeyCode::PageDown,
       "PAGEUP" => KeyCode::PageUp,
 
-      "DOWN" => KeyCode::ArrowDown,
-      "UP" => KeyCode::ArrowUp,
-      "LEFT" => KeyCode::ArrowLeft,
-      "RIGHT" => KeyCode::ArrowRight,
+      "DOWN" | "ARROWDOWN" => KeyCode::ArrowDown,
+      "UP" | "ARROWUP" => KeyCode::ArrowUp,
+      "LEFT" | "ARROWLEFT" => KeyCode::ArrowLeft,
+      "RIGHT" | "ARROWRIGHT" => KeyCode::ArrowRight,
 
       "NUMLOCK" => KeyCode::NumLock,
       "NUMADD" | "NUMPADADD" => KeyCode::NumpadAdd,
