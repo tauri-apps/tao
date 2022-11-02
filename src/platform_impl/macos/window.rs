@@ -1515,6 +1515,17 @@ impl WindowExtMacOS for UnownedWindow {
       ns_string_to_rust(tabbing_identifier)
     }
   }
+
+  #[inline]
+  fn reset_cursor_rect(&self, reset: bool) {
+    if let Some(cursor_access) = self.cursor_state.upgrade() {
+      let mut cursor_state = cursor_access.lock().unwrap();
+      if reset != cursor_state.reset_cursor_rect {
+        cursor_state.reset_cursor_rect = reset;
+        drop(cursor_state);
+      }
+    }
+  }
 }
 
 impl Drop for UnownedWindow {

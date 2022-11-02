@@ -38,6 +38,7 @@ use crate::{
 };
 
 pub struct CursorState {
+  pub reset_cursor_rect: bool,
   pub visible: bool,
   pub cursor: util::Cursor,
 }
@@ -45,6 +46,7 @@ pub struct CursorState {
 impl Default for CursorState {
   fn default() -> Self {
     Self {
+      reset_cursor_rect: true,
       visible: true,
       cursor: Default::default(),
     }
@@ -407,17 +409,19 @@ extern "C" fn reset_cursor_rects(this: &Object, _sel: Sel) {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
-    let bounds: NSRect = msg_send![this, bounds];
     let cursor_state = state.cursor_state.lock().unwrap();
-    let cursor = if cursor_state.visible {
-      cursor_state.cursor.load()
-    } else {
-      util::invisible_cursor()
-    };
-    let _: () = msg_send![this,
-        addCursorRect:bounds
-        cursor:cursor
-    ];
+    if cursor_state.reset_cursor_rect {
+      let bounds: NSRect = msg_send![this, bounds];
+      let cursor = if cursor_state.visible {
+        cursor_state.cursor.load()
+      } else {
+        util::invisible_cursor()
+      };
+      let _: () = msg_send![this,
+          addCursorRect:bounds
+          cursor:cursor
+      ];
+    }
   }
 }
 

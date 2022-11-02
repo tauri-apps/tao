@@ -79,6 +79,10 @@ pub trait WindowExtMacOS {
 
   /// Returns the window's tabbing identifier.
   fn tabbing_identifier(&self) -> String;
+
+  /// Load cursor icon set by tao when `resetCursorRect` is called. Default is ture. Set it to
+  /// false will diable methods of cursor icon setting and hidding.
+  fn reset_cursor_rect(&self, reset: bool);
 }
 
 impl WindowExtMacOS for Window {
@@ -140,6 +144,10 @@ impl WindowExtMacOS for Window {
   #[inline]
   fn tabbing_identifier(&self) -> String {
     self.window.tabbing_identifier()
+  }
+
+  fn reset_cursor_rect(&self, reset: bool) {
+    self.window.reset_cursor_rect(reset)
   }
 }
 
