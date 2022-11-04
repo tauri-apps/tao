@@ -123,7 +123,7 @@ pub fn current_monitor(hwnd: HWND) -> MonitorHandle {
   MonitorHandle::new(hmonitor)
 }
 
-pub fn from_points(x: f64, y: f64) -> Option<MonitorHandle> {
+pub fn from_point(x: f64, y: f64) -> Option<MonitorHandle> {
   let hmonitor = unsafe {
     MonitorFromPoint(
       POINT {
