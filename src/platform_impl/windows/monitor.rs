@@ -151,7 +151,7 @@ impl Window {
   }
 
   pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<RootMonitorHandle> {
-    from_points(x, y).map(|inner| RootMonitorHandle { inner })
+    from_point(x, y).map(|inner| RootMonitorHandle { inner })
   }
 }
 
