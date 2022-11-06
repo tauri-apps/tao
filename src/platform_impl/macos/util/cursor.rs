@@ -83,9 +83,7 @@ impl Default for Cursor {
 impl Cursor {
   pub unsafe fn load(&self) -> id {
     match self {
-      Cursor::Default => {
-          null_mut()
-      }
+      Cursor::Default => null_mut(),
       Cursor::Native(cursor_name) => {
         let sel = Sel::register(cursor_name);
         msg_send![class!(NSCursor), performSelector: sel]

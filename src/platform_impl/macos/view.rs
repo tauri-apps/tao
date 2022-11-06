@@ -416,10 +416,10 @@ extern "C" fn reset_cursor_rects(this: &Object, _sel: Sel) {
     };
 
     if !cursor.is_null() {
-        let _: () = msg_send![this,
-            addCursorRect:bounds
-            cursor:cursor
-        ];
+      let _: () = msg_send![this,
+          addCursorRect:bounds
+          cursor:cursor
+      ];
     }
   }
 }
