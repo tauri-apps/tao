@@ -8,11 +8,12 @@ use cocoa::{
   foundation::{NSDictionary, NSPoint, NSString},
 };
 use objc::runtime::{Sel, NO};
-use std::cell::RefCell;
+use std::{cell::RefCell, ptr::null_mut};
 
 use crate::window::CursorIcon;
 
 pub enum Cursor {
+  Default,
   Native(&'static str),
   Undocumented(&'static str),
   WebKit(&'static str),
@@ -74,13 +75,16 @@ impl From<CursorIcon> for Cursor {
 
 impl Default for Cursor {
   fn default() -> Self {
-    Cursor::Native("arrowCursor")
+    Cursor::Default
   }
 }
 
 impl Cursor {
   pub unsafe fn load(&self) -> id {
     match self {
+      Cursor::Default => {
+          null_mut()
+      }
       Cursor::Native(cursor_name) => {
         let sel = Sel::register(cursor_name);
         msg_send![class!(NSCursor), performSelector: sel]
