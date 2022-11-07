@@ -119,7 +119,7 @@ impl Drop for SystemTray {
 fn temp_icon_path(temp_icon_dir: Option<&PathBuf>) -> std::io::Result<(PathBuf, PathBuf)> {
   let parent_path = match temp_icon_dir.as_ref() {
     Some(path) => path.to_path_buf(),
-    None => dirs_next::runtime_dir()
+    None => dirs::runtime_dir()
       .unwrap_or_else(|| std::env::temp_dir())
       .join("tao"),
   };
