@@ -1,7 +1,9 @@
 {
   "gitSiteUrl": "https://github.com/tauri-apps/tao/",
   "timeout": 3600000,
-  "additionalBumpTypes": ["housekeeping"],
+  "additionalBumpTypes": [
+    "housekeeping"
+  ],
   "pkgManagers": {
     "rust": {
       "version": true,
@@ -35,7 +37,7 @@
       ],
       "publish": [
         {
-          "command": "cargo package --allow-dirty",
+          "command": "cargo package --allow-dirty --features tray",
           "dryRunCommand": true
         },
         {
