@@ -1074,9 +1074,12 @@ unsafe fn init<T: 'static>(
     }
   }
 
+  if attributes.content_protection {
+    win.set_content_protection(true);
+  }
+
   win.set_visible(attributes.visible);
   win.set_closable(attributes.closable);
-  win.set_content_protection(attributes.content_protection);
 
   if let Some(position) = attributes.position {
     win.set_outer_position(position);

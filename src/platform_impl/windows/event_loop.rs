@@ -906,7 +906,7 @@ unsafe extern "system" fn public_window_callback<T: 'static>(
   };
 
   if subclass_removed && recurse_depth == 0 {
-    Box::from_raw(subclass_input_ptr);
+    drop(Box::from_raw(subclass_input_ptr))
   }
 
   result
