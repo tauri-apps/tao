@@ -11,6 +11,7 @@
 ))]
 
 mod clipboard;
+mod device;
 mod event_loop;
 mod global_shortcut;
 mod icon;

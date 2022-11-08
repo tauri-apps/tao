@@ -454,8 +454,12 @@ impl Window {
     }
   }
 
-  pub fn title(&self) -> Option<String> {
-    self.window.title().map(|t| t.as_str().to_string())
+  pub fn title(&self) -> String {
+    self
+      .window
+      .title()
+      .map(|t| t.as_str().to_string())
+      .unwrap_or_default()
   }
 
   pub fn set_menu(&self, menu: Option<menu::Menu>) {

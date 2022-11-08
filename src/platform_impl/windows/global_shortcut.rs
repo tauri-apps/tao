@@ -24,7 +24,7 @@ impl ShortcutManager {
     accelerator: Accelerator,
   ) -> Result<RootGlobalShortcut, ShortcutManagerError> {
     unsafe {
-      let mut converted_modifiers = Default::default();
+      let mut converted_modifiers = MOD_NOREPEAT;
       let modifiers: ModifiersState = accelerator.mods;
       if modifiers.shift_key() {
         converted_modifiers |= MOD_SHIFT;

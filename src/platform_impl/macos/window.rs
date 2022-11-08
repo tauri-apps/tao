@@ -259,6 +259,10 @@ fn create_window(
         ];
       }
 
+      if attrs.content_protection {
+        let _: () = msg_send![*ns_window, setSharingType: 0];
+      }
+
       if !attrs.maximizable {
         let button = ns_window.standardWindowButton_(NSWindowButton::NSWindowZoomButton);
         let _: () = msg_send![button, setEnabled: NO];
@@ -587,10 +591,10 @@ impl UnownedWindow {
     }
   }
 
-  pub fn title(&self) -> Option<String> {
+  pub fn title(&self) -> String {
     unsafe {
       let title = self.ns_window.title();
-      Some(ns_string_to_rust(title))
+      ns_string_to_rust(title)
     }
   }
 

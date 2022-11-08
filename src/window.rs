@@ -236,6 +236,13 @@ pub struct WindowAttributes {
   ///
   /// **Android / iOS:** Unsupported.
   pub focused: bool,
+
+  /// Prevents the window contents from being captured by other apps.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Linux:** Unsupported.
+  pub content_protection: bool,
 }
 
 impl Default for WindowAttributes {
@@ -262,6 +269,7 @@ impl Default for WindowAttributes {
       window_menu: None,
       preferred_theme: None,
       focused: false,
+      content_protection: false,
     }
   }
 }
@@ -486,6 +494,16 @@ impl WindowBuilder {
     self.window.focused = focused;
     self
   }
+  /// Prevents the window contents from being captured by other apps.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Linux:** Unsupported.
+  #[inline]
+  pub fn with_content_protection(mut self, protected: bool) -> WindowBuilder {
+    self.window.content_protection = protected;
+    self
+  }
 
   /// Builds the window.
   ///
@@ -702,9 +720,9 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **iOS / Android:** Unsupported. Returns `None`
+  /// - **iOS / Android:** Unsupported. Returns ane empty string.
   #[inline]
-  pub fn title(&self) -> Option<String> {
+  pub fn title(&self) -> String {
     self.window.title()
   }
 
