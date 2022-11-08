@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.15.1]
+
+- On Windows, fix window always visible initially.
+  - [ae06c3e2](https://github.com/tauri-apps/tao/commit/ae06c3e2806b85a9baa10b84c898cd0c15af7de4) fix(Windows): fix windows always visible initially on 2022-11-08
+
 ## \[0.15.0]
 
 - Add support for parsing `ArrowUp`, `ArrowDown`, `ArrowLeft` and `ArrowRight` in a str as valid key. Previously only `Up`, `Down`, `Left` and `Right` worked.
