@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.15.2]
+
+- On Windows, fix compliation regression introduced in 0.15.1 when `tray` feature is active
+  - [081664dc](https://github.com/tauri-apps/tao/commit/081664dc6b12c7765b667072dfbfbc089e50c5a3) fix(Windows): fix build regression when tray feature is used ([#618](https://github.com/tauri-apps/tao/pull/618)) on 2022-11-09
+
 ## \[0.15.1]
 
 - On Windows, fix window always visible initially.
