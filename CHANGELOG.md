@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.15.3]
+
+- On macOS, remove `doCommandBySelector` in view since this will block the key event to responder chain.
+  - [516e5fcd](https://github.com/tauri-apps/tao/commit/516e5fcd50de601330f3434ecd00bf5889f1a5cc) On macOS, remove `doCommandBySelector` in view ([#620](https://github.com/tauri-apps/tao/pull/620)) on 2022-11-09
+
 ## \[0.15.2]
 
 - On Windows, fix compliation regression introduced in 0.15.1 when `tray` feature is active
