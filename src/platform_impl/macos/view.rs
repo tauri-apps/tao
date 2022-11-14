@@ -206,6 +206,10 @@ lazy_static! {
       first_rect_for_character_range as extern "C" fn(&Object, Sel, NSRange, *mut c_void) -> NSRect,
     );
     decl.add_method(
+      sel!(doCommandBySelector:),
+      do_command_by_selector as extern "C" fn(&Object, Sel, Sel),
+    );
+    decl.add_method(
       sel!(keyDown:),
       key_down as extern "C" fn(&mut Object, Sel, id),
     );
@@ -569,6 +573,54 @@ extern "C" fn insert_text(this: &Object, _sel: Sel, string: id, _replacement_ran
   trace!("Completed `insertText`");
 }
 
+extern "C" fn do_command_by_selector(this: &Object, _sel: Sel, command: Sel) {
+  trace!("Triggered `doCommandBySelector`");
+  // TODO: (Artur) all these inputs seem to trigger a key event with the correct text
+  // content so this is not needed anymore, it seems.
+
+  // Basically, we're sent this message whenever a keyboard event that doesn't generate a "human readable" character
+  // happens, i.e. newlines, tabs, and Ctrl+C.
+
+  // unsafe {
+  //     let state_ptr: *mut c_void = *this.get_ivar("taoState");
+  //     let state = &mut *(state_ptr as *mut ViewState);
+
+  //     let mut events = VecDeque::with_capacity(1);
+  //     if command == sel!(insertNewline:) {
+  //         // The `else` condition would emit the same character, but I'm keeping this here both...
+  //         // 1) as a reminder for how `doCommandBySelector` works
+  //         // 2) to make our use of carriage return explicit
+  //         events.push_back(EventWrapper::StaticEvent(Event::WindowEvent {
+  //             window_id: WindowId(get_window_id(state.ns_window)),
+  //             event: WindowEvent::ReceivedCharacter('\r'),
+  //         }));
+  //     } else {
+  //         let raw_characters = state.raw_characters.take();
+  //         if let Some(raw_characters) = raw_characters {
+  //             for character in raw_characters
+  //                 .chars()
+  //                 .filter(|c| !is_corporate_character(*c))
+  //             {
+  //                 events.push_back(EventWrapper::StaticEvent(Event::WindowEvent {
+  //                     window_id: WindowId(get_window_id(state.ns_window)),
+  //                     event: WindowEvent::ReceivedCharacter(character),
+  //                 }));
+  //             }
+  //         }
+  //     };
+  //     AppState::queue_events(events);
+  // }
+
+  unsafe {
+    let responder: id = msg_send![this, nextResponder];
+    if !responder.is_null() {
+      let () = msg_send![responder, doCommandBySelector: command];
+    }
+  }
+
+  trace!("Completed `doCommandBySelector`");
+}
+
 // Get characters
 // fn get_characters(event: id, ignore_modifiers: bool) -> String {
 //   unsafe {
@@ -695,6 +747,11 @@ extern "C" fn key_down(this: &mut Object, _sel: Sel, event: id) {
       },
     };
     AppState::queue_event(EventWrapper::StaticEvent(window_event));
+
+    let responder: id = msg_send![this, nextResponder];
+    if !responder.is_null() {
+      let () = msg_send![responder, keyDown: event];
+    }
   }
   trace!("Completed `keyDown`");
 }
