@@ -1,5 +1,12 @@
 # Changelog
 
+## \[0.15.4]
+
+- On macOS, call next responder in view's keyDown and doCommandbySelector.
+  - [516e5fcd](https://github.com/tauri-apps/tao/commit/516e5fcd50de601330f3434ecd00bf5889f1a5cc) On macOS, remove `doCommandBySelector` in view ([#620](https://github.com/tauri-apps/tao/pull/620)) on 2022-11-09
+  - [e9d6dadb](https://github.com/tauri-apps/tao/commit/e9d6dadb59fd8d5d32704a5d80d8d587f5d581ca) Publish New Versions ([#621](https://github.com/tauri-apps/tao/pull/621)) on 2022-11-09
+  - [045b768e](https://github.com/tauri-apps/tao/commit/045b768e30b4dc261edcaba4b8ed8ec9fee8305e) On macOS, call next responder in view's keyDown and doCommandbySelector ([#623](https://github.com/tauri-apps/tao/pull/623)) on 2022-11-14
+
 ## \[0.15.3]
 
 - On macOS, remove `doCommandBySelector` in view since this will block the key event to responder chain.
