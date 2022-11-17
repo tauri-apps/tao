@@ -1090,10 +1090,10 @@ impl<T: 'static> EventLoopProxy<T> {
         }
       })?;
 
-      let context = MainContext::default();
-      context.wakeup();
+    let context = MainContext::default();
+    context.wakeup();
 
-      Ok(())
+    Ok(())
   }
 }
 
