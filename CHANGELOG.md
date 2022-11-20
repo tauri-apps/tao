@@ -1,5 +1,12 @@
 # Changelog
 
+## \[0.15.5]
+
+- Change `WebviewAttributes::focused` default to `true`.
+  - [ece3e8f6](https://github.com/tauri-apps/tao/commit/ece3e8f6a34de21ec4c19944f668edd47ecc8ce0) fix: default `focused` to true on 2022-11-20
+- On Linux, wake the main context in `EventLoopProxy::send_event()`.
+  - [b7b5f04d](https://github.com/tauri-apps/tao/commit/b7b5f04d4b4c2f58146aca1b7e03223cdae74f7c) Gtk: wake the main context in EventLoopProxy::send_event(), closes [#625](https://github.com/tauri-apps/tao/pull/625) ([#626](https://github.com/tauri-apps/tao/pull/626)) on 2022-11-16
+
 ## \[0.15.4]
 
 - On macOS, call next responder in view's keyDown and doCommandbySelector.
