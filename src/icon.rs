@@ -3,9 +3,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::platform_impl::PlatformIcon;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::{error::Error, fmt, io, mem};
 
 #[repr(C)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug)]
 pub(crate) struct Pixel {
   pub(crate) r: u8,
@@ -64,14 +67,17 @@ impl Error for BadIcon {
   }
 }
 
+/// Persistent icon format available for serialization
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct RgbaIcon {
+pub struct RgbaIcon {
   pub(crate) rgba: Vec<u8>,
   pub(crate) width: u32,
   pub(crate) height: u32,
 }
 
 /// For platforms which don't have window icons (e.g. web)
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct NoIcon;
 
@@ -137,6 +143,16 @@ impl Icon {
   pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
     Ok(Icon {
       inner: PlatformIcon::from_rgba(rgba, width, height)?,
+    })
+  }
+}
+
+impl TryFrom<RgbaIcon> for Icon {
+  type Error = BadIcon;
+
+  fn try_from(rgba: RgbaIcon) -> Result<Self, Self::Error> {
+    Ok(Icon {
+      inner: PlatformIcon::from_rgba(rgba.rgba, rgba.width, rgba.height)?,
     })
   }
 }

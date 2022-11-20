@@ -6,6 +6,7 @@ Cargo.lock
 target/
 rls/
 .vscode/
+.idea/
 *~
 *.ts
 *.js
