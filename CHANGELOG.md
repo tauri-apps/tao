@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.15.6]
+
+- Revert `nextResponder` call because this will bring key beep sound regression. We'll call the key equivalent in wry instead.
+  - [a59b69b2](https://github.com/tauri-apps/tao/commit/a59b69b2733b273d86dc200ba90065be3db871a6) On macOS, revert nextResponder calls ([#628](https://github.com/tauri-apps/tao/pull/628)) on 2022-11-21
+
 ## \[0.15.5]
 
 - Change `WebviewAttributes::focused` default to `true`.
