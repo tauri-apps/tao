@@ -611,13 +611,6 @@ extern "C" fn do_command_by_selector(this: &Object, _sel: Sel, command: Sel) {
   //     AppState::queue_events(events);
   // }
 
-  unsafe {
-    let responder: id = msg_send![this, nextResponder];
-    if !responder.is_null() {
-      let () = msg_send![responder, doCommandBySelector: command];
-    }
-  }
-
   trace!("Completed `doCommandBySelector`");
 }
 
@@ -747,11 +740,6 @@ extern "C" fn key_down(this: &mut Object, _sel: Sel, event: id) {
       },
     };
     AppState::queue_event(EventWrapper::StaticEvent(window_event));
-
-    let responder: id = msg_send![this, nextResponder];
-    if !responder.is_null() {
-      let () = msg_send![responder, keyDown: event];
-    }
   }
   trace!("Completed `keyDown`");
 }
