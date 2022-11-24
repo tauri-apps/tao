@@ -268,7 +268,7 @@ impl Default for WindowAttributes {
       window_icon: None,
       window_menu: None,
       preferred_theme: None,
-      focused: false,
+      focused: true,
       content_protection: false,
     }
   }

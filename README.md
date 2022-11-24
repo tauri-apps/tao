@@ -67,7 +67,7 @@ sudo pacman -S libappindicator-gtk3
 sudo apt install libgtk-3-dev
 ```
 
-For `tray` feature, choose one of following pachages:
+For `tray` feature, choose one of following packages:
 
 ```bash
 sudo apt install libappindicator3-dev

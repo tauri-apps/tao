@@ -573,7 +573,7 @@ extern "C" fn insert_text(this: &Object, _sel: Sel, string: id, _replacement_ran
   trace!("Completed `insertText`");
 }
 
-extern "C" fn do_command_by_selector(_this: &Object, _sel: Sel, _command: Sel) {
+extern "C" fn do_command_by_selector(this: &Object, _sel: Sel, command: Sel) {
   trace!("Triggered `doCommandBySelector`");
   // TODO: (Artur) all these inputs seem to trigger a key event with the correct text
   // content so this is not needed anymore, it seems.
@@ -610,6 +610,7 @@ extern "C" fn do_command_by_selector(_this: &Object, _sel: Sel, _command: Sel) {
   //     };
   //     AppState::queue_events(events);
   // }
+
   trace!("Completed `doCommandBySelector`");
 }
 
