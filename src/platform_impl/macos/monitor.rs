@@ -4,13 +4,16 @@
 
 use std::{collections::VecDeque, fmt};
 
-use super::{ffi, util};
+use super::{
+  ffi::{self, CGRectContainsPoint},
+  util,
+};
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize},
   monitor::{MonitorHandle as RootMonitorHandle, VideoMode as RootVideoMode},
 };
 use cocoa::{
-  appkit::NSScreen,
+  appkit::{CGPoint, NSScreen},
   base::{id, nil},
   foundation::NSUInteger,
 };
@@ -163,15 +166,7 @@ pub fn from_point(x: f64, y: f64) -> Option<MonitorHandle> {
   unsafe {
     for monitor in available_monitors() {
       let bound = CGDisplayBounds(monitor.0);
-      // dumb way. a better way is to use [CGRectContainsPoint](https://developer.apple.com/documentation/coregraphics/1456316-cgrectcontainspoint)
-      // which is not supported by core-graphics binding yet.
-      // Once the [PR](https://github.com/servo/core-foundation-rs/pull/526) is accepted
-      // we can use that method.
-      if x >= bound.origin.x
-        && x <= bound.origin.x + bound.size.width
-        && y >= bound.origin.y
-        && y <= bound.origin.y + bound.size.height
-      {
+      if CGRectContainsPoint(bound, CGPoint::new(x, y)) > 0 {
         return Some(monitor);
       }
     }
