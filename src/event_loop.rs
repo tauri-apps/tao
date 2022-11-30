@@ -214,6 +214,10 @@ impl<T> EventLoopWindowTarget<T> {
   }
 
   /// Returns the monitor that contains the given point.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Android / iOS:** Unsupported.
   #[inline]
   pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
     self
