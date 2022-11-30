@@ -1185,6 +1185,11 @@ impl Window {
   }
 
   #[inline]
+  /// Returns the monitor that contains the given point.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Android / iOS:** Unsupported.
   pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
     self.window.monitor_from_point(x, y)
   }
