@@ -384,7 +384,7 @@ impl Inner {
   }
 
   #[inline]
-  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<RootMonitorHandle> {
     warn!("`Window::monitor_from_point` is ignored on iOS");
     None
   }
