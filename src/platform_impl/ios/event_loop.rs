@@ -64,6 +64,14 @@ impl<T: 'static> EventLoopWindowTarget<T> {
     unsafe { monitor::uiscreens() }
   }
 
+
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
+    warn!("`Window::monitor_from_point` is ignored on iOS");
+    return None
+  }
+
+
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
     // guaranteed to be on main thread
     let monitor = unsafe { monitor::main_uiscreen() };
