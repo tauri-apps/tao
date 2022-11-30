@@ -309,7 +309,7 @@ impl<T> EventLoopWindowTarget<T> {
   }
 
   pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
-    monitor::from_points(x, y)
+    monitor::from_point(x, y)
   }
 
   pub fn raw_display_handle(&self) -> RawDisplayHandle {
