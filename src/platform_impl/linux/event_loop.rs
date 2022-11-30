@@ -59,8 +59,7 @@ pub struct EventLoopWindowTarget<T> {
 impl<T> EventLoopWindowTarget<T> {
   #[inline]
   pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
-    let display = &self.display;
-    monitor::from_point(display, x, y)
+    monitor::from_point(&self.display, x, y)
   }
   #[inline]
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
