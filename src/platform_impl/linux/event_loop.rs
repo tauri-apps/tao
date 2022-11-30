@@ -1093,7 +1093,12 @@ impl<T: 'static> EventLoopProxy<T> {
         } else {
           unreachable!();
         }
-      })
+      })?;
+
+    let context = MainContext::default();
+    context.wakeup();
+
+    Ok(())
   }
 }
 
