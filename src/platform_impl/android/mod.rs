@@ -486,6 +486,12 @@ impl<T: 'static> EventLoopWindowTarget<T> {
     })
   }
 
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
+    warn!("`Window::monitor_from_point` is ignored on Android");
+    return None;
+  }
+
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
     let mut v = VecDeque::with_capacity(1);
     v.push_back(MonitorHandle);
@@ -544,6 +550,12 @@ impl Window {
     let mut v = VecDeque::with_capacity(1);
     v.push_back(MonitorHandle);
     v
+  }
+
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<monitor::MonitorHandle> {
+    warn!("`Window::monitor_from_point` is ignored on Android");
+    None
   }
 
   pub fn current_monitor(&self) -> Option<monitor::MonitorHandle> {
