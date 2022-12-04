@@ -1197,12 +1197,16 @@ unsafe fn public_window_callback_inner<T: 'static>(
       {
         let mut w = subclass_input.window_state.lock();
         // See WindowFlags::MARKER_RETAIN_STATE_ON_SIZE docs for info on why this `if` check exists.
-        if !w
-          .window_flags()
-          .contains(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE)
-        {
+        let window_flags = w.window_flags();
+        if !window_flags.contains(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE) {
           let maximized = wparam.0 == win32wm::SIZE_MAXIMIZED as _;
-          w.set_window_flags_in_place(|f| f.set(WindowFlags::MAXIMIZED, maximized));
+          let minimized = wparam.0 == win32wm::SIZE_MINIMIZED as _;
+          let was_maximized = window_flags.contains(WindowFlags::MAXIMIZED);
+
+          w.set_window_flags_in_place(|f| {
+            f.set(WindowFlags::MAXIMIZED, maximized);
+            f.set(WindowFlags::MARKER_WAS_MAXIMIZED, minimized & was_maximized)
+          });
         }
       }
 
