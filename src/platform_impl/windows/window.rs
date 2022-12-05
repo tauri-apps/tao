@@ -138,11 +138,11 @@ impl Window {
     }
   }
 
-  pub fn title(&self) -> Option<String> {
-    let s = unsafe { GetWindowTextLengthW(self.window.0) };
-    let mut buf = vec![0; s as usize];
+  pub fn title(&self) -> String {
+    let len = unsafe { GetWindowTextLengthW(self.window.0) };
+    let mut buf = vec![0; (len + 1) as usize];
     unsafe { GetWindowTextW(self.window.0, &mut buf) };
-    Some(String::from_utf16_lossy(&buf[..(s - 1) as _]))
+    String::from_utf16_lossy(&buf[..len as _])
   }
   #[inline]
   pub fn set_visible(&self, visible: bool) {
@@ -892,7 +892,7 @@ unsafe fn init<T: 'static>(
   event_loop: &EventLoopWindowTarget<T>,
 ) -> Result<Window, RootOsError> {
   // registering the window class
-  let class_name = register_window_class(&attributes.window_icon, &pl_attribs.taskbar_icon);
+  let class_name = register_window_class();
 
   let mut window_flags = WindowFlags::empty();
   window_flags.set(WindowFlags::DECORATIONS, attributes.decorations);
@@ -992,7 +992,7 @@ unsafe fn init<T: 'static>(
   let window_state = {
     let window_state = WindowState::new(
       &attributes,
-      pl_attribs.taskbar_icon,
+      None,
       scale_factor,
       current_theme,
       pl_attribs.preferred_theme,
@@ -1013,6 +1013,8 @@ unsafe fn init<T: 'static>(
     .insert(win.id(), KeyEventBuilder::default());
 
   win.set_skip_taskbar(pl_attribs.skip_taskbar);
+  win.set_window_icon(attributes.window_icon);
+  win.set_taskbar_icon(pl_attribs.taskbar_icon);
 
   if attributes.fullscreen.is_some() {
     win.set_fullscreen(attributes.fullscreen);
@@ -1037,6 +1039,10 @@ unsafe fn init<T: 'static>(
     }
   }
 
+  if attributes.content_protection {
+    win.set_content_protection(true);
+  }
+
   win.set_visible(attributes.visible);
   win.set_closable(attributes.closable);
 
@@ -1047,20 +1053,8 @@ unsafe fn init<T: 'static>(
   Ok(win)
 }
 
-unsafe fn register_window_class(
-  window_icon: &Option<Icon>,
-  taskbar_icon: &Option<Icon>,
-) -> Vec<u16> {
+unsafe fn register_window_class() -> Vec<u16> {
   let class_name = util::encode_wide("Window Class");
-
-  let h_icon = taskbar_icon
-    .as_ref()
-    .map(|icon| icon.inner.as_raw_handle())
-    .unwrap_or_default();
-  let h_icon_small = window_icon
-    .as_ref()
-    .map(|icon| icon.inner.as_raw_handle())
-    .unwrap_or_default();
 
   let class = WNDCLASSEXW {
     cbSize: mem::size_of::<WNDCLASSEXW>() as u32,
@@ -1069,12 +1063,12 @@ unsafe fn register_window_class(
     cbClsExtra: 0,
     cbWndExtra: 0,
     hInstance: GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
-    hIcon: h_icon,
+    hIcon: HICON::default(),
     hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
     hbrBackground: HBRUSH::default(),
     lpszMenuName: PCWSTR::null(),
     lpszClassName: PCWSTR::from_raw(class_name.as_ptr()),
-    hIconSm: h_icon_small,
+    hIconSm: HICON::default(),
   };
 
   // We ignore errors because registering the same window class twice would trigger

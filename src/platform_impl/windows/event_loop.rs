@@ -298,6 +298,10 @@ impl<T> EventLoopWindowTarget<T> {
     Some(RootMonitorHandle { inner: monitor })
   }
 
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
+    monitor::from_point(x, y)
+  }
+
   pub fn raw_display_handle(&self) -> RawDisplayHandle {
     RawDisplayHandle::Windows(WindowsDisplayHandle::empty())
   }
@@ -896,7 +900,7 @@ unsafe extern "system" fn public_window_callback<T: 'static>(
   };
 
   if subclass_removed && recurse_depth == 0 {
-    Box::from_raw(subclass_input_ptr);
+    drop(Box::from_raw(subclass_input_ptr))
   }
 
   result
@@ -1183,12 +1187,16 @@ unsafe fn public_window_callback_inner<T: 'static>(
       {
         let mut w = subclass_input.window_state.lock();
         // See WindowFlags::MARKER_RETAIN_STATE_ON_SIZE docs for info on why this `if` check exists.
-        if !w
-          .window_flags()
-          .contains(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE)
-        {
+        let window_flags = w.window_flags();
+        if !window_flags.contains(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE) {
           let maximized = wparam.0 == win32wm::SIZE_MAXIMIZED as _;
-          w.set_window_flags_in_place(|f| f.set(WindowFlags::MAXIMIZED, maximized));
+          let minimized = wparam.0 == win32wm::SIZE_MINIMIZED as _;
+          let was_maximized = window_flags.contains(WindowFlags::MAXIMIZED);
+
+          w.set_window_flags_in_place(|f| {
+            f.set(WindowFlags::MAXIMIZED, maximized);
+            f.set(WindowFlags::MARKER_WAS_MAXIMIZED, minimized & was_maximized)
+          });
         }
       }
 

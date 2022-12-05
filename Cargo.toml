@@ -1,6 +1,6 @@
 [package]
 name = "tao"
-version = "0.14.0"
+version = "0.15.6"
 description = "Cross-platform window manager library."
 authors = [
   "Tauri Programme within The Commons Conservancy",
@@ -31,6 +31,9 @@ default = [ ]
 dox = [ "gtk/dox" ]
 tray = [ "libappindicator", "dirs-next" ]
 
+[build-dependencies]
+cc = "1"
+
 [dependencies]
 instant = "0.1"
 lazy_static = "1"
@@ -46,7 +49,7 @@ image = "0.24"
 env_logger = "0.9"
 
 [target."cfg(target_os = \"android\")".dependencies]
-jni = "0.19"
+jni = "0.20"
 ndk = "0.6"
 ndk-sys = "0.3"
 ndk-context = "0.1"
@@ -63,9 +66,6 @@ core-graphics = "0.22"
 dispatch = "0.2"
 scopeguard = "1.1"
 png = "0.17"
-
-[target."cfg(target_os = \"macos\")".build-dependencies]
-cc = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 parking_lot = "0.12"

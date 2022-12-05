@@ -23,6 +23,8 @@ pub struct AuxDelegateState {
   pub activation_policy: ActivationPolicy,
 
   pub create_default_menu: bool,
+
+  pub activate_ignoring_other_apps: bool,
 }
 
 pub struct AppDelegateClass(pub *const Class);
@@ -67,6 +69,7 @@ extern "C" fn new(class: &Class, _: Sel) -> id {
       Box::into_raw(Box::new(RefCell::new(AuxDelegateState {
         activation_policy: ActivationPolicy::Regular,
         create_default_menu: true,
+        activate_ignoring_other_apps: true,
       }))) as *mut c_void,
     );
     this

@@ -377,7 +377,7 @@ pub(crate) unsafe extern "system" fn subclass_proc(
   let subclass_input = &*(subclass_input_ptr);
 
   if msg == WM_DESTROY {
-    Box::from_raw(subclass_input_ptr);
+    drop(Box::from_raw(subclass_input_ptr));
   }
 
   match msg {

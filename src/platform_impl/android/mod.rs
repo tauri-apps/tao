@@ -489,6 +489,12 @@ impl<T: 'static> EventLoopWindowTarget<T> {
     })
   }
 
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
+    warn!("`Window::monitor_from_point` is ignored on Android");
+    return None;
+  }
+
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
     let mut v = VecDeque::with_capacity(1);
     v.push_back(MonitorHandle);
@@ -549,6 +555,12 @@ impl Window {
     v
   }
 
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<monitor::MonitorHandle> {
+    warn!("`Window::monitor_from_point` is ignored on Android");
+    None
+  }
+
   pub fn current_monitor(&self) -> Option<monitor::MonitorHandle> {
     Some(monitor::MonitorHandle {
       inner: MonitorHandle,
@@ -592,8 +604,8 @@ impl Window {
   pub fn set_max_inner_size(&self, _: Option<Size>) {}
 
   pub fn set_title(&self, _title: &str) {}
-  pub fn title(&self) -> Option<String> {
-    None
+  pub fn title(&self) -> String {
+    String::new()
   }
 
   pub fn set_visible(&self, _visibility: bool) {}
@@ -718,7 +730,7 @@ impl Window {
     // TODO: Use main activity instead?
     let mut handle = AndroidNdkWindowHandle::empty();
     if let Some(w) = ndk_glue::window_manager() {
-      handle.a_native_window = w.as_obj().into_inner() as *mut _;
+      handle.a_native_window = w.as_obj().into_raw() as *mut _;
     } else {
       panic!("Cannot get the native window, it's null and will always be null before Event::Resumed and after Event::Suspended. Make sure you only call this function between those events.");
     };

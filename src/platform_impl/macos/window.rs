@@ -259,6 +259,10 @@ fn create_window(
         ];
       }
 
+      if attrs.content_protection {
+        let _: () = msg_send![*ns_window, setSharingType: 0];
+      }
+
       if !attrs.maximizable {
         let button = ns_window.standardWindowButton_(NSWindowButton::NSWindowZoomButton);
         let _: () = msg_send![button, setEnabled: NO];
@@ -584,10 +588,10 @@ impl UnownedWindow {
     }
   }
 
-  pub fn title(&self) -> Option<String> {
+  pub fn title(&self) -> String {
     unsafe {
       let title = self.ns_window.title();
-      Some(ns_string_to_rust(title))
+      ns_string_to_rust(title)
     }
   }
 
@@ -1292,6 +1296,10 @@ impl UnownedWindow {
   #[inline]
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
     Some(self.current_monitor_inner())
+  }
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<RootMonitorHandle> {
+    monitor::from_point(x, y).map(|inner| RootMonitorHandle { inner })
   }
 
   #[inline]

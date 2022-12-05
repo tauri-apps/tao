@@ -53,8 +53,8 @@ impl Inner {
     debug!("`Window::set_title` is ignored on iOS")
   }
 
-  pub fn title(&self) -> Option<String> {
-    None
+  pub fn title(&self) -> String {
+    String::new()
   }
   pub fn set_visible(&self, visible: bool) {
     match visible {
@@ -363,6 +363,12 @@ impl Inner {
 
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
     unsafe { monitor::uiscreens() }
+  }
+
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<RootMonitorHandle> {
+    warn!("`Window::monitor_from_point` is ignored on iOS");
+    None
   }
 
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {

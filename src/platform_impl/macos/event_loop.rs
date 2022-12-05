@@ -85,6 +85,11 @@ impl<T: 'static> EventLoopWindowTarget<T> {
   }
 
   #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
+    monitor::from_point(x, y)
+  }
+
+  #[inline]
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
     let monitor = monitor::primary_monitor();
     Some(RootMonitorHandle { inner: monitor })
