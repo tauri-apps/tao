@@ -208,22 +208,8 @@ pub mod event_loop;
 pub mod global_shortcut;
 mod icon;
 pub mod keyboard;
-pub mod menu;
 pub mod monitor;
 mod platform_impl;
-
-#[cfg(any(target_os = "windows", target_os = "macos",))]
-#[cfg(feature = "tray")]
-pub mod system_tray;
-#[cfg(any(
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
-))]
-#[cfg(feature = "tray")]
-pub mod system_tray;
 
 pub mod window;
 

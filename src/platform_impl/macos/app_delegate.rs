@@ -22,8 +22,6 @@ pub struct AuxDelegateState {
   /// menubar is initially unresponsive on macOS 10.15 for example.
   pub activation_policy: ActivationPolicy,
 
-  pub create_default_menu: bool,
-
   pub activate_ignoring_other_apps: bool,
 }
 
@@ -68,7 +66,6 @@ extern "C" fn new(class: &Class, _: Sel) -> id {
       AUX_DELEGATE_STATE_NAME,
       Box::into_raw(Box::new(RefCell::new(AuxDelegateState {
         activation_policy: ActivationPolicy::Regular,
-        create_default_menu: true,
         activate_ignoring_other_apps: true,
       }))) as *mut c_void,
     );
@@ -81,7 +78,7 @@ extern "C" fn dealloc(this: &Object, _: Sel) {
     let state_ptr: *mut c_void = *(this.get_ivar(AUX_DELEGATE_STATE_NAME));
     // As soon as the box is constructed it is immediately dropped, releasing the underlying
     // memory
-    Box::from_raw(state_ptr as *mut RefCell<AuxDelegateState>);
+    drop(Box::from_raw(state_ptr as *mut RefCell<AuxDelegateState>));
   }
 }
 

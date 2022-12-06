@@ -308,7 +308,7 @@ extern "C" fn dealloc(this: &Object, _sel: Sel) {
     let state: *mut c_void = *this.get_ivar("taoState");
     let marked_text: id = *this.get_ivar("markedText");
     let _: () = msg_send![marked_text, release];
-    Box::from_raw(state as *mut ViewState);
+    drop(Box::from_raw(state as *mut ViewState));
   }
 }
 
@@ -573,7 +573,7 @@ extern "C" fn insert_text(this: &Object, _sel: Sel, string: id, _replacement_ran
   trace!("Completed `insertText`");
 }
 
-extern "C" fn do_command_by_selector(this: &Object, _sel: Sel, command: Sel) {
+extern "C" fn do_command_by_selector(_this: &Object, _sel: Sel, _command: Sel) {
   trace!("Triggered `doCommandBySelector`");
   // TODO: (Artur) all these inputs seem to trigger a key event with the correct text
   // content so this is not needed anymore, it seems.

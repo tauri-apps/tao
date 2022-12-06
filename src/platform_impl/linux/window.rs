@@ -21,7 +21,6 @@ use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
-  menu::{MenuId, MenuItem},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{
     CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, BORDERLESS_RESIZE_INSET,
@@ -30,7 +29,6 @@ use crate::{
 
 use super::{
   event_loop::EventLoopWindowTarget,
-  menu,
   monitor::{self, MonitorHandle},
   Parent, PlatformSpecificWindowBuilderAttributes,
 };
@@ -779,8 +777,6 @@ pub enum WindowRequest {
   CursorPosition((i32, i32)),
   CursorIgnoreEvents(bool),
   WireUpEvents { transparent: bool },
-  Menu((Option<MenuItem>, Option<MenuId>)),
-  SetMenu((Option<menu::Menu>, gtk::AccelGroup, gtk::MenuBar)),
   GlobalHotKey(u16),
 }
 

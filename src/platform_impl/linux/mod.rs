@@ -17,20 +17,14 @@ mod global_shortcut;
 mod icon;
 mod keyboard;
 mod keycode;
-mod menu;
 mod monitor;
-#[cfg(feature = "tray")]
-mod system_tray;
 mod window;
 pub mod x11;
 
-#[cfg(feature = "tray")]
-pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 pub use self::{
   clipboard::Clipboard,
   global_shortcut::{GlobalShortcut, ShortcutManager},
   keycode::{keycode_from_scancode, keycode_to_scancode},
-  menu::{Menu, MenuItemAttributes},
 };
 pub(crate) use event_loop::PlatformSpecificEventLoopAttributes;
 pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};

@@ -255,10 +255,9 @@ impl From<SysMods> for RawMods {
 
 /// Identifier of an Accelerator.
 ///
-/// Whenever you receive an event arising from a [GlobalShortcutEvent], [MenuEvent]
-/// or [KeyboardInput] , this event contains a `AcceleratorId` which identifies its origin.
+/// Whenever you receive an event arising from a [GlobalShortcutEvent] or [KeyboardInput],
+/// this event contains a `AcceleratorId` which identifies its origin.
 ///
-/// [MenuEvent]: crate::event::Event::MenuEvent
 /// [KeyboardInput]: crate::event::WindowEvent::KeyboardInput
 /// [GlobalShortcutEvent]: crate::event::Event::GlobalShortcutEvent
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -291,7 +290,7 @@ impl AcceleratorId {
     AcceleratorId(hash_string_to_u16(accelerator_string))
   }
 
-  /// Whenever this menu is empty.
+  /// Whether this accelerator is empty.
   pub fn is_empty(self) -> bool {
     Self::EMPTY == self
   }

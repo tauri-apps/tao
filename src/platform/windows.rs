@@ -16,10 +16,7 @@ use crate::{
   window::{BadIcon, Icon, Theme, Window, WindowBuilder},
 };
 use std::ffi::c_void;
-use windows::Win32::{
-  Foundation::HWND,
-  UI::{Input::KeyboardAndMouse::*, WindowsAndMessaging::*},
-};
+use windows::Win32::{Foundation::HWND, UI::Input::KeyboardAndMouse::*};
 
 /// Additional methods on `EventLoop` that are specific to Windows.
 pub trait EventLoopBuilderExtWindows {
@@ -248,17 +245,6 @@ pub trait WindowBuilderExtWindows {
   /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
   fn with_owner_window(self, parent: HWND) -> WindowBuilder;
 
-  /// Sets a menu on the window to be created.
-  ///
-  /// Parent and menu are mutually exclusive; a child window cannot have a menu!
-  ///
-  /// The menu must have been manually created beforehand with [`windows::Win32::UI::WindowsAndMessaging::CreateMenu`]
-  /// or similar.
-  ///
-  /// Note: Dark mode cannot be supported for win32 menus, it's simply not possible to change how the menus look.
-  /// If you use this, it is recommended that you combine it with `with_theme(Some(Theme::Light))` to avoid a jarring effect.
-  fn with_menu(self, menu: HMENU) -> WindowBuilder;
-
   /// This sets `ICON_BIG`. A good ceiling here is 256x256.
   fn with_taskbar_icon(self, taskbar_icon: Option<Icon>) -> WindowBuilder;
 
@@ -287,12 +273,6 @@ impl WindowBuilderExtWindows for WindowBuilder {
   #[inline]
   fn with_owner_window(mut self, parent: HWND) -> WindowBuilder {
     self.platform_specific.parent = Parent::OwnedBy(parent);
-    self
-  }
-
-  #[inline]
-  fn with_menu(mut self, menu: HMENU) -> WindowBuilder {
-    self.platform_specific.menu = Some(menu);
     self
   }
 

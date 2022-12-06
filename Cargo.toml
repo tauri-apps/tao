@@ -29,7 +29,6 @@ targets = [
 [features]
 default = [ ]
 dox = [ "gtk/dox" ]
-tray = [ "libappindicator", "dirs-next" ]
 
 [build-dependencies]
 cc = "1"
@@ -114,8 +113,6 @@ gdk = { version = "0.15", features = [ "v3_22" ] }
 gdk-sys = "0.15"
 gdkx11-sys = "0.15"
 gdk-pixbuf = { version = "0.15", features = [ "v2_36_8" ] }
-libappindicator = { version = "0.7.1", optional = true }
-dirs-next = { version = "2.0.0", optional = true }
 x11-dl = "2.20"
 uuid = { version = "1.2", features = [ "v4" ] }
 png = "0.17"
