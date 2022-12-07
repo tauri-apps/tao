@@ -3,12 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
-  cell::RefCell,
+  cell::{RefCell, Cell},
   collections::{HashSet, VecDeque},
   error::Error,
   process,
   rc::Rc,
-  sync::atomic::{AtomicBool, Ordering},
   time::Instant,
 };
 
@@ -103,7 +102,7 @@ impl<T> EventLoopWindowTarget<T> {
 
 pub struct EventLoop<T: 'static> {
   /// Window target.
-  window_target: RootELW<T>,
+  window_target: Rc<RootELW<T>>,
   /// User event sender for EventLoopProxy
   pub(crate) user_event_tx: crossbeam_channel::Sender<Event<'static, T>>,
   /// Event queue of EventLoop
@@ -862,10 +861,10 @@ impl<T: 'static> EventLoop<T> {
 
     // Create event loop itself.
     let event_loop = Self {
-      window_target: RootELW {
+      window_target: Rc::new(RootELW {
         p: window_target,
         _marker: std::marker::PhantomData,
-      },
+      }),
       user_event_tx,
       events: event_rx,
       draws: draw_rx,
@@ -883,7 +882,7 @@ impl<T: 'static> EventLoop<T> {
     process::exit(exit_code)
   }
 
-  /// This is the core event loop logic. It basically loops on `gtk_main_iteration` and processes one
+  /// This is the core event loop logic. It basically loops on `glib::idle_add_local` and processes one
   /// event along with that iteration. Depends on current control flow and what it should do, an
   /// event state is defined. The whole state flow chart runs like following:
   ///
@@ -914,7 +913,7 @@ impl<T: 'static> EventLoop<T> {
   /// - On `DrawQueue` back to `NewStart`, a `RedrawEventsCleared` event is sent.
   pub(crate) fn run_return<F>(&mut self, mut callback: F) -> i32
   where
-    F: FnMut(Event<'_, T>, &RootELW<T>, &mut ControlFlow),
+    F: FnMut(Event<'_, T>, &RootELW<T>, &mut ControlFlow) + 'static,
   {
     enum EventState {
       NewStart,
@@ -922,12 +921,12 @@ impl<T: 'static> EventLoop<T> {
       DrawQueue,
     }
 
-    // Spawn x11 thread to receive Device events.
     let context = MainContext::default();
     let user_event_tx = self.user_event_tx.clone();
     let (device_tx, device_rx) = glib::MainContext::channel(glib::Priority::default());
-    let run_device_thread = Rc::new(AtomicBool::new(true));
-    let run = run_device_thread.clone();
+    let run_signal = Rc::new(Cell::new(true));
+    let run = run_signal.clone();
+    // Spawn x11 thread to receive Device events.
     device::spawn(&self.window_target, device_tx);
     device_rx.attach(Some(&context), move |event| {
       if let Err(e) = user_event_tx.send(Event::DeviceEvent {
@@ -936,26 +935,26 @@ impl<T: 'static> EventLoop<T> {
       }) {
         log::warn!("Fail to send device event to event channel: {}", e);
       }
-      Continue(run.load(Ordering::Relaxed))
+      Continue(run.get())
     });
 
-    context
-      .with_thread_default(|| {
         let mut control_flow = ControlFlow::default();
-        let window_target = &self.window_target;
-        let events = &self.events;
-        let draws = &self.draws;
+        let window_target = self.window_target.clone();
+        let events = self.events.clone();
+        let draws = self.draws.clone();
 
         window_target.p.app.activate();
 
         let mut state = EventState::NewStart;
-        let exit_code = loop {
-          let mut blocking = false;
+        let code = Rc::new(Cell::new(0));
+        let exit_code = code.clone();
+        glib::idle_add_local(move ||{
           match state {
             EventState::NewStart => match control_flow {
               ControlFlow::ExitWithCode(code) => {
-                callback(Event::LoopDestroyed, window_target, &mut control_flow);
-                break code;
+                callback(Event::LoopDestroyed, &window_target, &mut control_flow);
+                run_signal.set(false);
+                exit_code.set(code);
               }
               ControlFlow::Wait => {
                 if !events.is_empty() {
@@ -964,12 +963,10 @@ impl<T: 'static> EventLoop<T> {
                       start: Instant::now(),
                       requested_resume: None,
                     }),
-                    window_target,
+                    &window_target,
                     &mut control_flow,
                   );
                   state = EventState::EventQueue;
-                } else {
-                  blocking = true;
                 }
               }
               ControlFlow::WaitUntil(requested_resume) => {
@@ -980,7 +977,7 @@ impl<T: 'static> EventLoop<T> {
                       start,
                       requested_resume,
                     }),
-                    window_target,
+                    &window_target,
                     &mut control_flow,
                   );
                   state = EventState::EventQueue;
@@ -990,18 +987,16 @@ impl<T: 'static> EventLoop<T> {
                       start,
                       requested_resume: Some(requested_resume),
                     }),
-                    window_target,
+                    &window_target,
                     &mut control_flow,
                   );
                   state = EventState::EventQueue;
-                } else {
-                  blocking = true;
                 }
               }
               _ => {
                 callback(
                   Event::NewEvents(StartCause::Poll),
-                  window_target,
+                  &window_target,
                   &mut control_flow,
                 );
                 state = EventState::EventQueue;
@@ -1009,44 +1004,48 @@ impl<T: 'static> EventLoop<T> {
             },
             EventState::EventQueue => match control_flow {
               ControlFlow::ExitWithCode(code) => {
-                callback(Event::LoopDestroyed, window_target, &mut control_flow);
-                break (code);
+                callback(Event::LoopDestroyed, &window_target, &mut control_flow);
+                run_signal.set(false);
+                exit_code.set(code);
               }
               _ => match events.try_recv() {
                 Ok(event) => match event {
                   Event::LoopDestroyed => control_flow = ControlFlow::ExitWithCode(1),
-                  _ => callback(event, window_target, &mut control_flow),
+                  _ => callback(event, &window_target, &mut control_flow),
                 },
                 Err(_) => {
-                  callback(Event::MainEventsCleared, window_target, &mut control_flow);
+                  callback(Event::MainEventsCleared, &window_target, &mut control_flow);
                   state = EventState::DrawQueue;
                 }
               },
             },
             EventState::DrawQueue => match control_flow {
               ControlFlow::ExitWithCode(code) => {
-                callback(Event::LoopDestroyed, window_target, &mut control_flow);
-                break code;
+                callback(Event::LoopDestroyed, &window_target, &mut control_flow);
+                run_signal.set(false);
+                exit_code.set(code);
               }
               _ => {
                 if let Ok(id) = draws.try_recv() {
                   callback(
                     Event::RedrawRequested(RootWindowId(id)),
-                    window_target,
+                    &window_target,
                     &mut control_flow,
                   );
                 }
-                callback(Event::RedrawEventsCleared, window_target, &mut control_flow);
+                callback(Event::RedrawEventsCleared, &window_target, &mut control_flow);
                 state = EventState::NewStart;
               }
             },
           }
-          gtk::main_iteration_do(blocking);
-        };
-        run_device_thread.store(false, Ordering::Relaxed);
-        exit_code
-      })
-      .unwrap_or(1)
+
+          let run = run_signal.get();
+          if !run { gtk::main_quit(); }
+          Continue(run)
+          
+        });
+        gtk::main();
+        code.get()
   }
 
   #[inline]

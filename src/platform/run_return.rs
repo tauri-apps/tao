@@ -35,7 +35,7 @@ pub trait EventLoopExtRunReturn {
   ///   the display server.
   fn run_return<F>(&mut self, event_handler: F) -> i32
   where
-    F: FnMut(Event<'_, Self::UserEvent>, &EventLoopWindowTarget<Self::UserEvent>, &mut ControlFlow);
+    F: FnMut(Event<'_, Self::UserEvent>, &EventLoopWindowTarget<Self::UserEvent>, &mut ControlFlow) + 'static,;
 }
 
 impl<T> EventLoopExtRunReturn for EventLoop<T> {
@@ -43,7 +43,7 @@ impl<T> EventLoopExtRunReturn for EventLoop<T> {
 
   fn run_return<F>(&mut self, event_handler: F) -> i32
   where
-    F: FnMut(Event<'_, Self::UserEvent>, &EventLoopWindowTarget<Self::UserEvent>, &mut ControlFlow),
+    F: FnMut(Event<'_, Self::UserEvent>, &EventLoopWindowTarget<Self::UserEvent>, &mut ControlFlow) + 'static,
   {
     self.event_loop.run_return(event_handler)
   }
