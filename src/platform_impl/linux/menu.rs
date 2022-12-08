@@ -85,13 +85,14 @@ impl MenuItemAttributes {
       .gtk_item
       .label()
       .map(|gstr| gstr.as_str().to_owned())
-      .unwrap_or("".to_owned())
+      .map(|label| from_gtk_mnemonic(&label))
+      .unwrap_or_default()
   }
   pub fn set_enabled(&mut self, is_enabled: bool) {
     self.gtk_item.set_sensitive(is_enabled);
   }
   pub fn set_title(&mut self, title: &str) {
-    self.gtk_item.set_label(title);
+    self.gtk_item.set_label(&to_gtk_mnemonic(title));
   }
 
   pub fn set_selected(&mut self, is_selected: bool) {
@@ -129,12 +130,13 @@ impl Menu {
     selected: bool,
     menu_type: MenuType,
   ) -> CustomMenuItem {
+    let title = to_gtk_mnemonic(&title);
     let gtk_item = if selected {
-      let item = CheckMenuItem::with_label(title);
+      let item = CheckMenuItem::with_label(&title);
       item.set_active(true);
       item.upcast::<GtkMenuItem>()
     } else {
-      GtkMenuItem::with_label(title)
+      GtkMenuItem::with_label(&title)
     };
     let custom_menu = MenuItemAttributes {
       id: menu_id,
@@ -402,4 +404,21 @@ fn modifiers_to_gdk_modifier_type(modifiers: ModifiersState) -> gdk::ModifierTyp
   result.set(gdk::ModifierType::META_MASK, modifiers.super_key());
 
   result
+}
+
+pub fn to_gtk_mnemonic<S: AsRef<str>>(string: S) -> String {
+  string
+    .as_ref()
+    .replace("&&", "[~~]")
+    .replace('&', "_")
+    .replace("[~~]", "&&")
+    .replace("[~~]", "&")
+}
+
+pub fn from_gtk_mnemonic<S: AsRef<str>>(string: S) -> String {
+  string
+    .as_ref()
+    .replace("__", "[~~]")
+    .replace('_', "&")
+    .replace("[~~]", "__")
 }
