@@ -1,5 +1,20 @@
 # Changelog
 
+## \[0.15.7]
+
+- On Linux, fix menu item mnemonics.
+  - [86a439ed](https://github.com/tauri-apps/tao/commit/86a439edc5da2bd1baa1067831dde2408fd14fbf) fix: fix menu mnemonics ([#640](https://github.com/tauri-apps/tao/pull/640)) on 2022-12-08
+  - [e623efdc](https://github.com/tauri-apps/tao/commit/e623efdc9ab797b3d9e104f34ba5bc1a4648b32c) publish new versions ([#639](https://github.com/tauri-apps/tao/pull/639)) on 2022-12-10
+  - [bdce0a4c](https://github.com/tauri-apps/tao/commit/bdce0a4c816bb63b9e52114924ee4a66d353a019) Revert "publish new versions ([#639](https://github.com/tauri-apps/tao/pull/639))" on 2022-12-10
+- On Windows, retain `WS_MAXIMIZE` window style when unminimizing a maximized window.
+  - [ca844a2e](https://github.com/tauri-apps/tao/commit/ca844a2ebb171f676962bd0bebd65243b9239347) fix(Windows): retain `WS_MAXIMIZE` when unminimizing a maximized window, closes [#622](https://github.com/tauri-apps/tao/pull/622) ([#638](https://github.com/tauri-apps/tao/pull/638)) on 2022-12-04
+  - [e623efdc](https://github.com/tauri-apps/tao/commit/e623efdc9ab797b3d9e104f34ba5bc1a4648b32c) publish new versions ([#639](https://github.com/tauri-apps/tao/pull/639)) on 2022-12-10
+  - [bdce0a4c](https://github.com/tauri-apps/tao/commit/bdce0a4c816bb63b9e52114924ee4a66d353a019) Revert "publish new versions ([#639](https://github.com/tauri-apps/tao/pull/639))" on 2022-12-10
+- On macOS, strip menu mnemonics for consistency with other platforms.
+  - [86a439ed](https://github.com/tauri-apps/tao/commit/86a439edc5da2bd1baa1067831dde2408fd14fbf) fix: fix menu mnemonics ([#640](https://github.com/tauri-apps/tao/pull/640)) on 2022-12-08
+  - [e623efdc](https://github.com/tauri-apps/tao/commit/e623efdc9ab797b3d9e104f34ba5bc1a4648b32c) publish new versions ([#639](https://github.com/tauri-apps/tao/pull/639)) on 2022-12-10
+  - [bdce0a4c](https://github.com/tauri-apps/tao/commit/bdce0a4c816bb63b9e52114924ee4a66d353a019) Revert "publish new versions ([#639](https://github.com/tauri-apps/tao/pull/639))" on 2022-12-10
+
 ## \[0.15.6]
 
 - Revert `nextResponder` call because this will bring key beep sound regression. We'll call the key equivalent in wry instead.
