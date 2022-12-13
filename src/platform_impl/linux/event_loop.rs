@@ -77,10 +77,8 @@ impl<T> EventLoopWindowTarget<T> {
 
   #[inline]
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
-    let screen = self.display.default_screen();
-    #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
-    let number = screen.primary_monitor();
-    let handle = MonitorHandle::new(&self.display, number);
+    let monitor = self.display.primary_monitor().unwrap();
+    let handle = MonitorHandle { monitor };
     Some(RootMonitorHandle { inner: handle })
   }
 
@@ -245,9 +243,17 @@ impl<T: 'static> EventLoop<T> {
             Some(f) => {
               if let Fullscreen::Borderless(m) = f {
                 if let Some(monitor) = m {
-                  let number = monitor.inner.number;
-                  let screen = window.display().default_screen();
-                  window.fullscreen_on_monitor(&screen, number);
+                  let display = window.display();
+                  let monitor = monitor.inner;
+                  let monitors = display.n_monitors();
+                  for i in 0..monitors {
+                      let m = display.monitor(i).unwrap();
+                      if m == monitor.monitor {
+                        let screen = display.default_screen();
+                        window.fullscreen_on_monitor(&screen, i);
+
+                      }
+                  }
                 } else {
                   window.fullscreen();
                 }
@@ -330,19 +336,14 @@ impl<T: 'static> EventLoop<T> {
               .default_seat()
               .and_then(|seat| seat.pointer())
             {
-              if let Some(screen) = window.screen() {
+              if let Some(screen) = GtkWindowExt::screen(&window) {
                 cursor.warp(&screen, x, y);
               }
             }
           }
           WindowRequest::CursorIgnoreEvents(ignore) => {
             if ignore {
-              let empty_region = Region::create_rectangle(&RectangleInt {
-                x: 0,
-                y: 0,
-                width: 1,
-                height: 1,
-              });
+              let empty_region = Region::create_rectangle(&RectangleInt::new(0, 0, 1, 1));
               window
                 .window()
                 .unwrap()
