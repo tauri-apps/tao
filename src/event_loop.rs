@@ -228,8 +228,8 @@ impl<T> EventLoopWindowTarget<T> {
 
   /// Change [`DeviceEvent`] filter mode.
   ///
-  /// Since the [`DeviceEvent`] capture can lead to high CPU usage for unfocused windows, winit
-  /// will ignore them by default for unfocused windows on Linux/BSD. This method allows changing
+  /// Since the [`DeviceEvent`] capture can lead to high CPU usage for unfocused windows, tao
+  /// will ignore them by default for unfocused windows. This method allows changing
   /// this filter at runtime to explicitly capture them again.
   ///
   /// ## Platform-specific
