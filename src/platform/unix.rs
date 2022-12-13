@@ -76,7 +76,7 @@ pub trait WindowBuilderExtUnix {
   fn with_app_paintable(self, app_paintable: bool) -> WindowBuilder;
 
   /// Whether to set cursor moved event. Cursor event is suited for native GUI frameworks and
-  /// games. But it can block gtk's own pipeline ocationally. Turn this off can help Gtk looks
+  /// games. But it can block gtk's own pipeline occasionally. Turn this off can help Gtk looks
   /// smoother.
   ///
   /// Default is `true`.
