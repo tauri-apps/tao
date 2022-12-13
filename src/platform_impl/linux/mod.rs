@@ -78,7 +78,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       double_buffered: true,
       app_paintable: false,
       rgba_visual: false,
-      cursor_moved: false,
+      cursor_moved: true,
     }
   }
 }
