@@ -317,9 +317,14 @@ impl Window {
     if attributes.transparent && pl_attribs.auto_transparent {
       transparent = true;
     }
-    if let Err(e) =
-      window_requests_tx.send((window_id, WindowRequest::WireUpEvents { transparent }))
-    {
+    let cursor_moved = pl_attribs.cursor_moved;
+    if let Err(e) = window_requests_tx.send((
+      window_id,
+      WindowRequest::WireUpEvents {
+        transparent,
+        cursor_moved,
+      },
+    )) {
       log::warn!("Fail to send wire up events request: {}", e);
     }
 
@@ -832,7 +837,10 @@ pub enum WindowRequest {
   CursorIcon(Option<CursorIcon>),
   CursorPosition((i32, i32)),
   CursorIgnoreEvents(bool),
-  WireUpEvents { transparent: bool },
+  WireUpEvents {
+    transparent: bool,
+    cursor_moved: bool,
+  },
   Menu((Option<MenuItem>, Option<MenuId>)),
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
   GlobalHotKey(u16),
