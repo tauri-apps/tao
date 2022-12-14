@@ -42,7 +42,7 @@ fn main() {
       }
       Event::MainEventsCleared => {
         if let Some(w) = &window {
-          w.request_redraw();
+          // w.request_redraw();
         }
       }
       _ => (),
