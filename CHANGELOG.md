@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.15.8]
+
+- Add `with_cursor_moved` Unix extension trait method.
+  - [8c6b2d05](https://github.com/tauri-apps/tao/commit/8c6b2d05ae55cefe72bd63d1adfeca6c20058879) Add `with_cursor_moved` unix extension method ([#644](https://github.com/tauri-apps/tao/pull/644)) on 2022-12-14
+
 ## \[0.15.7]
 
 - On Linux, fix menu item mnemonics.
