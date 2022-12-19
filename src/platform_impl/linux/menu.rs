@@ -93,7 +93,7 @@ impl MenuItemAttributes {
     self.gtk_item.set_sensitive(is_enabled);
   }
   pub fn set_title(&mut self, title: &str) {
-    self.gtk_item.set_label(&&(title));
+    self.gtk_item.set_label(&to_gtk_mnemonic(title));
   }
 
   pub fn set_selected(&mut self, is_selected: bool) {
