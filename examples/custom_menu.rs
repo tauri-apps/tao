@@ -52,18 +52,18 @@ fn main() {
   first_menu.add_native_item(MenuItem::Services);
 
   // Create custom Copy menu with our clipboard object
-  let custom_insert_clipboard = first_menu.add_item(MenuItemAttributes::new("Insert clipboard"));
-  let custom_read_clipboard = first_menu.add_item(MenuItemAttributes::new("Read clipboard"));
+  let custom_insert_clipboard = first_menu.add_item(MenuItemAttributes::new("&Insert clipboard"));
+  let custom_read_clipboard = first_menu.add_item(MenuItemAttributes::new("&Read clipboard"));
 
   // add `my_sub_menu` children of `first_menu` with `Sub menu` title
-  first_menu.add_submenu("Sub menu", true, my_sub_menu);
+  first_menu.add_submenu("&Sub menu", true, my_sub_menu);
   first_menu.add_native_item(MenuItem::CloseWindow);
   first_menu.add_native_item(MenuItem::Hide);
   first_menu.add_native_item(MenuItem::Quit);
 
   // create custom item `Selected and disabled` children of `second_menu`
   second_menu.add_item(
-    MenuItemAttributes::new("Selected and disabled")
+    MenuItemAttributes::new("Selected &and disabled")
       .with_selected(true)
       .with_enabled(false),
   );
@@ -78,8 +78,8 @@ fn main() {
   );
 
   // add all our childs to menu_bar_menu (order is how they'll appear)
-  menu_bar_menu.add_submenu("My app", true, first_menu);
-  menu_bar_menu.add_submenu("Other menu", true, second_menu);
+  menu_bar_menu.add_submenu("&My app", true, first_menu);
+  menu_bar_menu.add_submenu("&Other menu", true, second_menu);
 
   let window = WindowBuilder::new()
     .with_title("A fantastic window!")

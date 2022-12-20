@@ -21,7 +21,8 @@ use crate::{
 
 macro_rules! menuitem {
   ( $description:expr, $key:expr, $accel_group:ident, $window_id:expr, $native_menu_item:expr, $tx:ident ) => {{
-    let item = GtkMenuItem::with_label($description);
+    let title = to_gtk_mnemonic($description);
+    let item = GtkMenuItem::with_mnemonic(&title);
     if !$key.is_empty() {
       let (key, mods) = gtk::accelerator_parse($key);
       item.add_accelerator("activate", $accel_group, key, mods, AccelFlags::VISIBLE);
@@ -132,11 +133,11 @@ impl Menu {
   ) -> CustomMenuItem {
     let title = to_gtk_mnemonic(&title);
     let gtk_item = if selected {
-      let item = CheckMenuItem::with_label(&title);
+      let item = CheckMenuItem::with_mnemonic(&title);
       item.set_active(true);
       item.upcast::<GtkMenuItem>()
     } else {
-      GtkMenuItem::with_label(&title)
+      GtkMenuItem::with_mnemonic(&title)
     };
     let custom_menu = MenuItemAttributes {
       id: menu_id,
@@ -215,7 +216,7 @@ impl Menu {
             }),
           ..
         } => {
-          let item = GtkMenuItem::with_label(&title);
+          let item = GtkMenuItem::with_mnemonic(&to_gtk_mnemonic(title));
           item.set_sensitive(enabled);
           item.set_submenu(Some(&menu.into_gtkmenu(tx, accel_group, window_id)));
           Some(item)
