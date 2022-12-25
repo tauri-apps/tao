@@ -193,7 +193,7 @@ pub fn set_cursor_clip(rect: Option<RECT>) -> Result<(), io::Error> {
       .as_ref()
       .map(|r| r as *const RECT)
       .unwrap_or(ptr::null());
-    win_to_err(|| ClipCursor(rect_ptr))
+    win_to_err(|| ClipCursor(Some(rect_ptr)))
   }
 }
 

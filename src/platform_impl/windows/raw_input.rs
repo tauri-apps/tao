@@ -23,7 +23,7 @@ pub fn get_raw_input_device_list() -> Option<Vec<RAWINPUTDEVICELIST>> {
   let list_size = size_of::<RAWINPUTDEVICELIST>() as u32;
 
   let mut num_devices = 0;
-  let status = unsafe { GetRawInputDeviceList(ptr::null_mut(), &mut num_devices, list_size) };
+  let status = unsafe { GetRawInputDeviceList(Some(ptr::null_mut()), &mut num_devices, list_size) };
 
   if status == u32::max_value() {
     return None;
@@ -32,7 +32,7 @@ pub fn get_raw_input_device_list() -> Option<Vec<RAWINPUTDEVICELIST>> {
   let mut buffer = Vec::with_capacity(num_devices as _);
 
   let num_stored =
-    unsafe { GetRawInputDeviceList(buffer.as_ptr() as _, &mut num_devices, list_size) };
+    unsafe { GetRawInputDeviceList(Some(buffer.as_mut_ptr() as _), &mut num_devices, list_size) };
 
   if num_stored == u32::max_value() {
     return None;
@@ -78,7 +78,7 @@ pub fn get_raw_input_device_info(handle: HANDLE) -> Option<RawDeviceInfo> {
     GetRawInputDeviceInfoW(
       handle,
       RIDI_DEVICEINFO,
-      &mut info as *mut _ as _,
+      Some(&mut info as *mut _ as _),
       &mut minimum_size,
     )
   };
@@ -94,8 +94,14 @@ pub fn get_raw_input_device_info(handle: HANDLE) -> Option<RawDeviceInfo> {
 
 pub fn get_raw_input_device_name(handle: HANDLE) -> Option<String> {
   let mut minimum_size = 0;
-  let status =
-    unsafe { GetRawInputDeviceInfoW(handle, RIDI_DEVICENAME, ptr::null_mut(), &mut minimum_size) };
+  let status = unsafe {
+    GetRawInputDeviceInfoW(
+      handle,
+      RIDI_DEVICENAME,
+      Some(ptr::null_mut()),
+      &mut minimum_size,
+    )
+  };
 
   if status != 0 {
     return None;
@@ -107,7 +113,7 @@ pub fn get_raw_input_device_name(handle: HANDLE) -> Option<String> {
     GetRawInputDeviceInfoW(
       handle,
       RIDI_DEVICENAME,
-      name.as_ptr() as _,
+      Some(name.as_mut_ptr() as _),
       &mut minimum_size,
     )
   };
@@ -174,7 +180,7 @@ pub fn get_raw_input_data(handle: HRAWINPUT) -> Option<RAWINPUT> {
     GetRawInputData(
       handle,
       RID_INPUT,
-      &mut data as *mut _ as _,
+      Some(&mut data as *mut _ as _),
       &mut data_size,
       header_size,
     )

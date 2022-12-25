@@ -193,7 +193,7 @@ impl Window {
     unsafe {
       RedrawWindow(
         self.window.0,
-        ptr::null(),
+        Some(ptr::null()),
         HRGN::default(),
         RDW_INTERNALPAINT,
       );
@@ -592,10 +592,10 @@ impl Window {
           let res = unsafe {
             ChangeDisplaySettingsExW(
               PCWSTR::from_raw(display_name.as_ptr()),
-              &native_video_mode,
+              Some(&native_video_mode),
               HWND::default(),
               CDS_FULLSCREEN,
-              std::ptr::null_mut(),
+              Some(std::ptr::null()),
             )
           };
 
@@ -610,10 +610,10 @@ impl Window {
           let res = unsafe {
             ChangeDisplaySettingsExW(
               PCWSTR::null(),
-              std::ptr::null_mut(),
+              Some(std::ptr::null()),
               HWND::default(),
               CDS_FULLSCREEN,
-              std::ptr::null_mut(),
+              Some(std::ptr::null()),
             )
           };
 
@@ -858,7 +858,7 @@ impl Window {
       ToUnicode(
         vk,
         scancode,
-        &kbd_state,
+        Some(&kbd_state),
         mem::transmute(char_buff.as_mut()),
         0,
       );
@@ -981,7 +981,7 @@ unsafe fn init<T: 'static>(
       parent.unwrap_or_default(),
       pl_attribs.menu.unwrap_or_default(),
       GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
-      Box::into_raw(Box::new(window_flags)) as _,
+      Some(Box::into_raw(Box::new(window_flags)) as _),
     );
 
     if !IsWindow(handle).as_bool() {
@@ -1189,7 +1189,7 @@ impl Drop for ComInitialized {
 thread_local! {
     static COM_INITIALIZED: ComInitialized = {
         unsafe {
-            ComInitialized(match CoInitializeEx(ptr::null_mut(), COINIT_APARTMENTTHREADED) {
+            ComInitialized(match CoInitializeEx(Some(ptr::null()), COINIT_APARTMENTTHREADED) {
               Ok(()) => Some(()),
               Err(_) => None,
             })

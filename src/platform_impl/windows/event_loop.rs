@@ -398,7 +398,7 @@ fn wait_thread(parent_thread_id: u32, msg_window_id: HWND) {
           // 1 millisecond from the requested time and spinlock for the remainder to
           // compensate for that.
           let resume_reason = MsgWaitForMultipleObjectsEx(
-            &[],
+            Some(&[]),
             dur2timeout(wait_until - now).saturating_sub(1),
             QS_ALLEVENTS,
             MWMO_INPUTAVAILABLE,
@@ -656,7 +656,7 @@ fn create_event_target_window() -> HWND {
       HWND::default(),
       HMENU::default(),
       GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
-      ptr::null_mut(),
+      Some(ptr::null()),
     )
   };
   util::SetWindowLongPtrW(
@@ -926,7 +926,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 ) -> LRESULT {
   RedrawWindow(
     subclass_input.event_loop_runner.thread_msg_target(),
-    ptr::null(),
+    Some(ptr::null()),
     HRGN::default(),
     RDW_INTERNALPAINT,
   );
@@ -1068,7 +1068,12 @@ unsafe fn public_window_callback_inner<T: 'static>(
       if subclass_input.event_loop_runner.should_buffer() {
         // this branch can happen in response to `UpdateWindow`, if win32 decides to
         // redraw the window outside the normal flow of the event loop.
-        RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
+        RedrawWindow(
+          window,
+          Some(ptr::null()),
+          HRGN::default(),
+          RDW_INTERNALPAINT,
+        );
       } else {
         let managing_redraw = flush_paint_messages(Some(window), &subclass_input.event_loop_runner);
         subclass_input.send_event(Event::RedrawRequested(RootWindowId(WindowId(window.0))));
@@ -2134,13 +2139,18 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
     win32wm::WM_NCDESTROY => {
       remove_event_target_window_subclass::<T>(window);
       subclass_removed = true;
-      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
+      RedrawWindow(
+        window,
+        Some(ptr::null()),
+        HRGN::default(),
+        RDW_INTERNALPAINT,
+      );
       LRESULT(0)
     }
     // Because WM_PAINT comes after all other messages, we use it during modal loops to detect
     // when the event queue has been emptied. See `process_event` for more details.
     win32wm::WM_PAINT => {
-      ValidateRect(window, ptr::null());
+      ValidateRect(window, Some(ptr::null()));
       // If the WM_PAINT handler in `public_window_callback` has already flushed the redraw
       // events, `handling_events` will return false and we won't emit a second
       // `RedrawEventsCleared` event.
@@ -2148,7 +2158,12 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
         if subclass_input.event_loop_runner.should_buffer() {
           // This branch can be triggered when a nested win32 event loop is triggered
           // inside of the `event_handler` callback.
-          RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
+          RedrawWindow(
+            window,
+            Some(ptr::null()),
+            HRGN::default(),
+            RDW_INTERNALPAINT,
+          );
         } else {
           // This WM_PAINT handler will never be re-entrant because `flush_paint_messages`
           // doesn't call WM_PAINT for the thread event target (i.e. this window).
@@ -2176,7 +2191,12 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
         device_id: wrap_device_id(lparam.0),
         event,
       });
-      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
+      RedrawWindow(
+        window,
+        Some(ptr::null()),
+        HRGN::default(),
+        RDW_INTERNALPAINT,
+      );
 
       LRESULT(0)
     }
@@ -2184,7 +2204,12 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
     win32wm::WM_INPUT => {
       if let Some(data) = raw_input::get_raw_input_data(HRAWINPUT(lparam.0)) {
         handle_raw_input(&subclass_input, data);
-        RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
+        RedrawWindow(
+          window,
+          Some(ptr::null()),
+          HRGN::default(),
+          RDW_INTERNALPAINT,
+        );
       }
 
       DefSubclassProc(window, msg, wparam, lparam)
@@ -2194,13 +2219,23 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       if let Ok(event) = subclass_input.user_event_receiver.recv() {
         subclass_input.send_event(Event::UserEvent(event));
       }
-      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
+      RedrawWindow(
+        window,
+        Some(ptr::null()),
+        HRGN::default(),
+        RDW_INTERNALPAINT,
+      );
       LRESULT(0)
     }
     _ if msg == *EXEC_MSG_ID => {
       let mut function: ThreadExecFn = Box::from_raw(wparam.0 as *mut _);
       function();
-      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
+      RedrawWindow(
+        window,
+        Some(ptr::null()),
+        HRGN::default(),
+        RDW_INTERNALPAINT,
+      );
       LRESULT(0)
     }
     _ if msg == *PROCESS_NEW_EVENTS_MSG_ID => {
@@ -2225,8 +2260,13 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
             // window.
             if msg.message == WM_PAINT {
               let mut rect = RECT::default();
-              if !GetUpdateRect(msg.hwnd, &mut rect, false).as_bool() {
-                RedrawWindow(msg.hwnd, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
+              if !GetUpdateRect(msg.hwnd, Some(&mut rect), false).as_bool() {
+                RedrawWindow(
+                  msg.hwnd,
+                  Some(ptr::null()),
+                  HRGN::default(),
+                  RDW_INTERNALPAINT,
+                );
               }
             }
 
@@ -2235,7 +2275,12 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
         }
       }
       subclass_input.event_loop_runner.poll();
-      RedrawWindow(window, ptr::null(), HRGN::default(), RDW_INTERNALPAINT);
+      RedrawWindow(
+        window,
+        Some(ptr::null()),
+        HRGN::default(),
+        RDW_INTERNALPAINT,
+      );
       LRESULT(0)
     }
     _ => DefSubclassProc(window, msg, wparam, lparam),

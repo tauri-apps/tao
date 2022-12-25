@@ -104,7 +104,7 @@ pub fn available_monitors() -> VecDeque<MonitorHandle> {
   unsafe {
     EnumDisplayMonitors(
       HDC::default(),
-      ptr::null_mut(),
+      Some(ptr::null()),
       Some(monitor_enum_proc),
       LPARAM(&mut monitors as *mut _ as _),
     );
@@ -240,9 +240,9 @@ impl MonitorHandle {
         }
         i += 1;
 
-        const REQUIRED_FIELDS: u32 =
-          (DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY) as u32;
-        assert!(mode.dmFields & REQUIRED_FIELDS == REQUIRED_FIELDS);
+        let required_fields: DEVMODE_FIELD_FLAGS =
+          DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
+        assert!(mode.dmFields & required_fields == required_fields);
 
         modes.insert(RootVideoMode {
           video_mode: VideoMode {

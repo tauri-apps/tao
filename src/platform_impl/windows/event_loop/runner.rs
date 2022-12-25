@@ -397,7 +397,7 @@ impl<T> EventLoopRunner<T> {
     self.dispatch_buffered_events();
     RedrawWindow(
       self.thread_msg_target,
-      ptr::null(),
+      Some(ptr::null()),
       HRGN::default(),
       RDW_INTERNALPAINT,
     );

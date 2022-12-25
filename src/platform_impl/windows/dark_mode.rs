@@ -194,7 +194,7 @@ fn is_high_contrast() -> bool {
     SystemParametersInfoA(
       SPI_GETHIGHCONTRAST,
       std::mem::size_of_val(&hc) as _,
-      &mut hc as *mut _ as _,
+      Some(&mut hc as *mut _ as _),
       Default::default(),
     )
   };
