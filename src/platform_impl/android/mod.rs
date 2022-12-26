@@ -487,7 +487,7 @@ impl<T: 'static> EventLoopWindowTarget<T> {
   }
 
   #[inline]
-  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
+  pub fn monitor_from_point(&self, _x: f64, _y: f64) -> Option<MonitorHandle> {
     warn!("`Window::monitor_from_point` is ignored on Android");
     return None;
   }
@@ -553,7 +553,7 @@ impl Window {
   }
 
   #[inline]
-  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<monitor::MonitorHandle> {
+  pub fn monitor_from_point(&self, _x: f64, _y: f64) -> Option<monitor::MonitorHandle> {
     warn!("`Window::monitor_from_point` is ignored on Android");
     None
   }

@@ -78,6 +78,10 @@
     "tao": {
       "path": "./",
       "manager": "rust"
+    },
+    "tao-macros": {
+      "path": "./tao-macros",
+      "manager": "rust"
     }
   }
 }
