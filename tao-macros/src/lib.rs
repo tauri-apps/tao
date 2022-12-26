@@ -90,6 +90,51 @@ impl Parse for AndroidFnInput {
   }
 }
 
+/// Generates a JNI binding for a Rust function so you can use it as the extern for Java/Kotlin class methods in your android app.
+///
+/// - The first parameter is a snake_case representation of the reversed domain of the app.
+/// - The second parameter is a snake_case representation of the package name.
+/// - The third parameter is the Java/Kotlin class name.
+/// - The fourth parameter is the rust function name (`ident`).
+/// - The fifth parameter is a list of extra types your Rust function expects
+/// (Note that all rust functions should expect the first two parameters to be [`JNIEnv`](https://docs.rs/jni/latest/jni/struct.JNIEnv.html) and [`JClass`](https://docs.rs/jni/latest/jni/objects/struct.JClass.html)).
+/// - The fifth parameter is the return type of your rust function.
+/// This is optional but if you want to use the next parameter you need to provide a type
+/// or just pass `__VOID__` if the function doesn't return anything.
+/// - The sixth paramter is a list of `ident`s to pass to the rust function when invoked (This mostly exists for internal usages).
+/// - The seventh paramater is a function to be invoked right before invoking the rust function (This mostly exists for internal usages).
+///
+/// ## Example
+///
+/// ```
+/// android_fn![com_example, tao, OperationsClass, add, [i32, i32], i32];
+/// unsafe fn add(_env: JNIEnv, _class: JClass, a: i32, b: i32) -> i32 {
+///   a + b
+/// }
+/// ```
+/// which will expand into:
+/// ```
+/// #[no_mangle]
+/// unsafe extern "C" fn Java_com_example_tao_OperationsClass_add(
+///   env: JNIEnv,
+///   class: JClass,
+///   a_1: i32,
+///   a_2: i32
+/// )  -> i32 {
+///   add(env, class, a_1, a_2)
+/// }
+///
+/// unsafe fn add(_env: JNIEnv, _class: JClass, a: i32, b: i32) -> i32 {
+///   a + b
+/// }
+/// ```
+/// and now you can extern the function in your Java/kotlin:
+///
+/// ```kotlin
+/// class OperationsClass {
+///   external fun add(a: Int, b: Int): Int;
+/// }
+/// ```
 #[proc_macro]
 pub fn android_fn(tokens: TokenStream) -> TokenStream {
   let tokens = parse_macro_input!(tokens as AndroidFnInput);
@@ -168,6 +213,24 @@ impl Parse for GeneratePackageNameInput {
   }
 }
 
+/// Generate the package name used for invoking Java/Kotlin methods at compile-time
+///
+/// - The first parameter is a snake_case representation of the reversed domain of the app.
+/// - The second parameter is a snake_case representation of the package name.
+///
+/// ## Example
+///
+/// ```
+/// const PACKAGE_NAME: &str = generate_package_name!(com_example, tao_app);
+/// ```
+/// which can be used later on with JNI:
+/// ```
+/// # find_my_class(env: i32, activity: i32, package: String) {}
+/// # let env = 0;
+/// # let activity = 0;
+/// const PACKAGE_NAME: &str = generate_package_name!(com_example, tao_app); // constructs `com/example/tao_app`
+/// let ipc_class = find_my_class(env, activity, format!("{}/Ipc", PACKAGE_NAME))?;
+/// ```
 #[proc_macro]
 pub fn generate_package_name(tokens: TokenStream) -> TokenStream {
   let tokens = parse_macro_input!(tokens as GeneratePackageNameInput);
