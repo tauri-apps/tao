@@ -97,7 +97,7 @@ impl Parse for AndroidFnInput {
 /// - The third parameter is the Java/Kotlin class name.
 /// - The fourth parameter is the rust function name (`ident`).
 /// - The fifth parameter is a list of extra types your Rust function expects
-/// (Note that all rust functions should expect the first two parameters to be [`JNIEnv`](https://docs.rs/jni/latest/jni/struct.JNIEnv.html) and [`JClass`](https://docs.rs/jni/latest/jni/objects/struct.JClass.html)).
+/// (Note that all rust functions should expect the first two parameters to be [`JNIEnv`](https://docs.rs/jni/latest/jni/struct.JNIEnv.html) and [`JClass`](https://docs.rs/jni/latest/jni/objects/struct.JClass.html) so make sure they are imported into scope).
 /// - The fifth parameter is the return type of your rust function.
 /// This is optional but if you want to use the next parameter you need to provide a type
 /// or just pass `__VOID__` if the function doesn't return anything.
@@ -107,6 +107,10 @@ impl Parse for AndroidFnInput {
 /// ## Example
 ///
 /// ```
+/// # use tao_macros::android_fn;
+/// # struct JNIEnv;
+/// # struct JClass;
+///
 /// android_fn![com_example, tao, OperationsClass, add, [i32, i32], i32];
 /// unsafe fn add(_env: JNIEnv, _class: JClass, a: i32, b: i32) -> i32 {
 ///   a + b
@@ -114,6 +118,8 @@ impl Parse for AndroidFnInput {
 /// ```
 /// which will expand into:
 /// ```
+/// # struct JNIEnv;
+/// # struct JClass;
 /// #[no_mangle]
 /// unsafe extern "C" fn Java_com_example_tao_OperationsClass_add(
 ///   env: JNIEnv,
@@ -221,15 +227,19 @@ impl Parse for GeneratePackageNameInput {
 /// ## Example
 ///
 /// ```
+/// # use tao_macros::generate_package_name;
+///
 /// const PACKAGE_NAME: &str = generate_package_name!(com_example, tao_app);
 /// ```
 /// which can be used later on with JNI:
 /// ```
-/// # find_my_class(env: i32, activity: i32, package: String) {}
+/// # use tao_macros::generate_package_name;
+/// # fn find_my_class(env: i32, activity: i32, package: String) -> Result<(), ()> { Ok(()) }
 /// # let env = 0;
 /// # let activity = 0;
+///
 /// const PACKAGE_NAME: &str = generate_package_name!(com_example, tao_app); // constructs `com/example/tao_app`
-/// let ipc_class = find_my_class(env, activity, format!("{}/Ipc", PACKAGE_NAME))?;
+/// let ipc_class = find_my_class(env, activity, format!("{}/Ipc", PACKAGE_NAME)).unwrap();
 /// ```
 #[proc_macro]
 pub fn generate_package_name(tokens: TokenStream) -> TokenStream {

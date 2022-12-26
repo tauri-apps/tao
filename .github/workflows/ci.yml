@@ -98,6 +98,26 @@ jobs:
           !contains(matrix.platform.target, 'ios'))
         run: cargo $CMD test --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,tray,$FEATURES
 
+  test_tao_macros:
+    runs-on: ${{ matrix.platform.os }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Cache cargo folder
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo
+          key: ${{ matrix.platform.target }}-cargo-${{ matrix.rust_version }}
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          target: ${{ matrix.platform.target }}
+          toolchain: ${{ matrix.rust_version }}
+
+      - name: Run tests
+        shell: bash
+        run: cargo test
+
   fmt:
     name: fmt check
     runs-on: ubuntu-latest
