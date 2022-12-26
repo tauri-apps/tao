@@ -111,8 +111,7 @@ jobs:
 
       - uses: actions-rs/toolchain@v1
         with:
-          target: ${{ matrix.platform.target }}
-          toolchain: ${{ matrix.rust_version }}
+          toolchain: stable
 
       - name: Run tests
         shell: bash
