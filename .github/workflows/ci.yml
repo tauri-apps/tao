@@ -115,7 +115,7 @@ jobs:
 
       - name: Run tests
         shell: bash
-        run: cargo test
+        run: cargo test --package tao-macros
 
   fmt:
     name: fmt check
