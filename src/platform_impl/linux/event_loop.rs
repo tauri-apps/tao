@@ -37,7 +37,7 @@ use crate::{
 
 use super::{
   keyboard,
-  monitor::MonitorHandle,
+  monitor::{self, MonitorHandle},
   window::{WindowId, WindowRequest},
 };
 
@@ -57,6 +57,10 @@ pub struct EventLoopWindowTarget<T> {
 }
 
 impl<T> EventLoopWindowTarget<T> {
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
+    monitor::from_point(&self.display, x, y)
+  }
   #[inline]
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
     let mut handles = VecDeque::new();
@@ -347,7 +351,10 @@ impl<T: 'static> EventLoop<T> {
               window.input_shape_combine_region(None)
             };
           }
-          WindowRequest::WireUpEvents { transparent } => {
+          WindowRequest::WireUpEvents {
+            transparent,
+            cursor_moved,
+          } => {
             window.add_events(
               EventMask::POINTER_MOTION_MASK
                 | EventMask::BUTTON1_MOTION_MASK
@@ -530,19 +537,21 @@ impl<T: 'static> EventLoop<T> {
 
             let tx_clone = event_tx.clone();
             window.connect_motion_notify_event(move |window, motion| {
-              if let Some(cursor) = motion.device() {
-                let scale_factor = window.scale_factor();
-                let (_, x, y) = cursor.window_at_position();
-                if let Err(e) = tx_clone.send(Event::WindowEvent {
-                  window_id: RootWindowId(id),
-                  event: WindowEvent::CursorMoved {
-                    position: LogicalPosition::new(x, y).to_physical(scale_factor as f64),
-                    device_id: DEVICE_ID,
-                    // this field is depracted so it is fine to pass empty state
-                    modifiers: ModifiersState::empty(),
-                  },
-                }) {
-                  log::warn!("Failed to send cursor moved event to event channel: {}", e);
+              if cursor_moved {
+                if let Some(cursor) = motion.device() {
+                  let scale_factor = window.scale_factor();
+                  let (_, x, y) = cursor.window_at_position();
+                  if let Err(e) = tx_clone.send(Event::WindowEvent {
+                    window_id: RootWindowId(id),
+                    event: WindowEvent::CursorMoved {
+                      position: LogicalPosition::new(x, y).to_physical(scale_factor as f64),
+                      device_id: DEVICE_ID,
+                      // this field is depracted so it is fine to pass empty state
+                      modifiers: ModifiersState::empty(),
+                    },
+                  }) {
+                    log::warn!("Failed to send cursor moved event to event channel: {}", e);
+                  }
                 }
               }
               Inhibit(false)

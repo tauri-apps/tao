@@ -66,6 +66,7 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub double_buffered: bool,
   pub app_paintable: bool,
   pub rgba_visual: bool,
+  pub cursor_moved: bool,
 }
 
 impl Default for PlatformSpecificWindowBuilderAttributes {
@@ -77,6 +78,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       double_buffered: true,
       app_paintable: false,
       rgba_visual: false,
+      cursor_moved: true,
     }
   }
 }

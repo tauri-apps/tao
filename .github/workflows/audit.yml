@@ -6,8 +6,8 @@ on:
     - cron: '0 0 * * *'
   push:
     paths:
-      - "Cargo.lock"
-      - "Cargo.toml"
+      - "**/Cargo.lock"
+      - "**/Cargo.toml"
 
 jobs:
   audit-rust:

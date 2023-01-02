@@ -29,8 +29,10 @@ use crate::{
 };
 
 use super::{
-  event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle, Parent,
-  PlatformSpecificWindowBuilderAttributes,
+  event_loop::EventLoopWindowTarget,
+  menu,
+  monitor::{self, MonitorHandle},
+  Parent, PlatformSpecificWindowBuilderAttributes,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -315,9 +317,14 @@ impl Window {
     if attributes.transparent && pl_attribs.auto_transparent {
       transparent = true;
     }
-    if let Err(e) =
-      window_requests_tx.send((window_id, WindowRequest::WireUpEvents { transparent }))
-    {
+    let cursor_moved = pl_attribs.cursor_moved;
+    if let Err(e) = window_requests_tx.send((
+      window_id,
+      WindowRequest::WireUpEvents {
+        transparent,
+        cursor_moved,
+      },
+    )) {
       log::warn!("Fail to send wire up events request: {}", e);
     }
 
@@ -749,6 +756,12 @@ impl Window {
     Some(RootMonitorHandle { inner: handle })
   }
 
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<RootMonitorHandle> {
+    let display = &self.window.display();
+    monitor::from_point(display, x, y).map(|inner| RootMonitorHandle { inner })
+  }
+
   pub fn raw_window_handle(&self) -> RawWindowHandle {
     // TODO: add wayland support
     let mut window_handle = XlibWindowHandle::empty();
@@ -824,7 +837,10 @@ pub enum WindowRequest {
   CursorIcon(Option<CursorIcon>),
   CursorPosition((i32, i32)),
   CursorIgnoreEvents(bool),
-  WireUpEvents { transparent: bool },
+  WireUpEvents {
+    transparent: bool,
+    cursor_moved: bool,
+  },
   Menu((Option<MenuItem>, Option<MenuId>)),
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
   GlobalHotKey(u16),

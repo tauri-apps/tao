@@ -383,6 +383,12 @@ impl Inner {
     unsafe { monitor::uiscreens() }
   }
 
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<RootMonitorHandle> {
+    warn!("`Window::monitor_from_point` is ignored on iOS");
+    None
+  }
+
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
     let monitor = unsafe { monitor::main_uiscreen() };
     Some(RootMonitorHandle { inner: monitor })

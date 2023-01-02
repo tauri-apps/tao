@@ -147,6 +147,9 @@
 )]
 #![deny(rustdoc::broken_intra_doc_links)]
 
+#[cfg(target_os = "android")]
+pub use tao_macros::{android_fn, generate_package_name};
+
 use std::{
   collections::hash_map::DefaultHasher,
   hash::{Hash, Hasher},

@@ -7,7 +7,7 @@
 use tao::{
   dpi::{LogicalSize, PhysicalSize},
   event::{DeviceEvent, ElementState, Event, KeyEvent, RawKeyEvent, WindowEvent},
-  event_loop::{ControlFlow, EventLoop},
+  event_loop::{ControlFlow, DeviceEventFilter, EventLoop},
   keyboard::{Key, KeyCode},
   window::{Fullscreen, WindowBuilder},
 };
@@ -17,6 +17,7 @@ use tao::{
 fn main() {
   env_logger::init();
   let event_loop = EventLoop::new();
+  event_loop.set_device_event_filter(DeviceEventFilter::Never);
 
   let window = WindowBuilder::new()
     .with_title("A fantastic window!")
@@ -62,6 +63,7 @@ fn main() {
         KeyCode::KeyM => {
           if window.is_minimized() {
             window.set_minimized(false);
+            window.set_focus()
           }
         }
         KeyCode::KeyV => {
