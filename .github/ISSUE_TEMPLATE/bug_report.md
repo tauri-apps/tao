@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a report to help us improve Tauri
+about: Create a report to help us improve tao
 title: ''
 labels: bug
 assignees: ''
