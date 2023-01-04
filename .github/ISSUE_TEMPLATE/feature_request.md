@@ -2,7 +2,7 @@
 name: Feature request
 about: Suggest an idea for tao
 title: ''
-labels: feature request
+labels: 'type: feature request'
 assignees: ''
 
 ---
