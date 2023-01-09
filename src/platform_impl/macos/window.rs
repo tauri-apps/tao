@@ -263,13 +263,6 @@ fn create_window(
         let _: () = msg_send![*ns_window, setSharingType: 0];
       }
 
-      if attrs.visible_on_all_workspaces {
-        (*ns_window).setCollectionBehavior_(
-          NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces
-            | NSWindowCollectionBehavior::NSWindowCollectionBehaviorMoveToActiveSpace,
-        );
-      }
-
       if !attrs.maximizable {
         let button = ns_window.standardWindowButton_(NSWindowButton::NSWindowZoomButton);
         let _: () = msg_send![button, setEnabled: NO];
@@ -526,6 +519,7 @@ impl UnownedWindow {
     let visible = win_attribs.visible;
     let focused = win_attribs.focused;
     let decorations = win_attribs.decorations;
+    let visible_on_all_workspaces = win_attribs.visible_on_all_workspaces;
     let inner_rect = win_attribs
       .inner_size
       .map(|size| size.to_physical(scale_factor));
@@ -558,6 +552,7 @@ impl UnownedWindow {
 
     // Set fullscreen mode after we setup everything
     window.set_fullscreen(fullscreen);
+    window.set_visible_on_all_workspaces(visible_on_all_workspaces);
 
     // Setting the window as key has to happen *after* we set the fullscreen
     // state, since otherwise we'll briefly see the window at normal size
@@ -1369,11 +1364,18 @@ impl UnownedWindow {
   }
 
   pub fn set_visible_on_all_workspaces(&self, visible: bool) {
+    use NSWindowCollectionBehavior::*;
+
     unsafe {
-      self.ns_window.setCollectionBehavior_(
-        NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces
-          | NSWindowCollectionBehavior::NSWindowCollectionBehaviorMoveToActiveSpace,
-      )
+      let mut collection_behavior = self.ns_window.collectionBehavior();
+      if visible {
+        collection_behavior |=
+          NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorMoveToActiveSpace;
+      } else {
+        collection_behavior &= !(NSWindowCollectionBehaviorCanJoinAllSpaces
+          | NSWindowCollectionBehaviorMoveToActiveSpace);
+      };
+      self.ns_window.setCollectionBehavior_(collection_behavior)
     }
   }
 }
