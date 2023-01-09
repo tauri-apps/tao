@@ -5,7 +5,6 @@
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
-  platform::windows::WindowBuilderExtWindows,
   window::WindowBuilder,
 };
 
@@ -17,8 +16,6 @@ fn main() {
     WindowBuilder::new()
       .with_title("A fantastic window!")
       .with_inner_size(tao::dpi::LogicalSize::new(128.0, 128.0))
-      .with_undecorated_shadow(true)
-      .with_decorations(false)
       .build(&event_loop)
       .unwrap(),
   );
