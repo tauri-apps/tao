@@ -1364,16 +1364,16 @@ impl UnownedWindow {
   }
 
   pub fn set_visible_on_all_workspaces(&self, visible: bool) {
-    use NSWindowCollectionBehavior::*;
-
     unsafe {
       let mut collection_behavior = self.ns_window.collectionBehavior();
       if visible {
         collection_behavior |=
-          NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorMoveToActiveSpace;
+          NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces
+            | NSWindowCollectionBehavior::NSWindowCollectionBehaviorMoveToActiveSpace;
       } else {
-        collection_behavior &= !(NSWindowCollectionBehaviorCanJoinAllSpaces
-          | NSWindowCollectionBehaviorMoveToActiveSpace);
+        collection_behavior &=
+          !(NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces
+            | NSWindowCollectionBehavior::NSWindowCollectionBehaviorMoveToActiveSpace);
       };
       self.ns_window.setCollectionBehavior_(collection_behavior)
     }
