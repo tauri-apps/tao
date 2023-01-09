@@ -221,6 +221,10 @@ impl Window {
       window.set_keep_above(attributes.always_on_top);
     }
 
+    if attributes.visible_on_all_workspaces {
+      window.stick();
+    }
+
     if let Some(icon) = attributes.window_icon {
       window.set_icon(Some(&icon.inner.into()));
     }
@@ -660,6 +664,15 @@ impl Window {
     self.menu_bar.get_visible()
   }
 
+  pub fn set_visible_on_all_workspaces(&self, visible: bool) {
+    if let Err(e) = self.window_requests_tx.send((
+      self.window_id,
+      WindowRequest::SetVisibleOnAllWorkspaces(visible),
+    )) {
+      log::warn!("Fail to send visible on all workspaces request: {}", e);
+    }
+  }
+
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
     if let Err(e) = self
       .window_requests_tx
@@ -844,6 +857,7 @@ pub enum WindowRequest {
   Menu((Option<MenuItem>, Option<MenuId>)),
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
   GlobalHotKey(u16),
+  SetVisibleOnAllWorkspaces(bool),
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {

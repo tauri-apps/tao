@@ -41,8 +41,8 @@ use crate::{
 use cocoa::{
   appkit::{
     self, CGFloat, NSApp, NSApplication, NSApplicationPresentationOptions, NSColor, NSEvent,
-    NSRequestUserAttentionType, NSScreen, NSView, NSWindow, NSWindowButton, NSWindowOrderingMode,
-    NSWindowStyleMask,
+    NSRequestUserAttentionType, NSScreen, NSView, NSWindow, NSWindowButton,
+    NSWindowCollectionBehavior, NSWindowOrderingMode, NSWindowStyleMask,
   },
   base::{id, nil},
   foundation::{
@@ -261,6 +261,13 @@ fn create_window(
 
       if attrs.content_protection {
         let _: () = msg_send![*ns_window, setSharingType: 0];
+      }
+
+      if attrs.visible_on_all_workspaces {
+        (*ns_window).setCollectionBehavior_(
+          NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces
+            | NSWindowCollectionBehavior::NSWindowCollectionBehaviorMoveToActiveSpace,
+        );
       }
 
       if !attrs.maximizable {
@@ -1358,6 +1365,15 @@ impl UnownedWindow {
   pub fn set_content_protection(&self, enabled: bool) {
     unsafe {
       let _: () = msg_send![*self.ns_window, setSharingType: !enabled as i32];
+    }
+  }
+
+  pub fn set_visible_on_all_workspaces(&self, visible: bool) {
+    unsafe {
+      self.ns_window.setCollectionBehavior_(
+        NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces
+          | NSWindowCollectionBehavior::NSWindowCollectionBehaviorMoveToActiveSpace,
+      )
     }
   }
 }
