@@ -1,14 +1,5 @@
 # Changelog
 
-## \[0.15.9]
-
-- On Linux, Fix mnemonics for submenus.
-  - [77569c89](https://github.com/tauri-apps/tao/commit/77569c893f9835717a79bf445fa3a7f433e0fb3f) fix(linux): fix mnemonics for submenus ([#650](https://github.com/tauri-apps/tao/pull/650)) on 2022-12-20
-- On iOS, add Sync trait to `EventLoopProxy` when `T` has Send trait.
-  - [651137ce](https://github.com/tauri-apps/tao/commit/651137ce9ec5bf37593e6641d8f6ab79fc9d6f3c) On iOS, add Sync trait on `EventLoopProxy` when `T` has Send trait ([#658](https://github.com/tauri-apps/tao/pull/658)) on 2023-01-04
-- Fix resize event emits before fullscreen actually exit.
-  - [3867e7b7](https://github.com/tauri-apps/tao/commit/3867e7b783cd0d1bf00ce81214cbfe53354466cd) On macOS, fix resize event emits before fullscreen actually exit ([#662](https://github.com/tauri-apps/tao/pull/662)) on 2023-01-09
-
 ## \[0.15.8]
 
 - Add `with_cursor_moved` Unix extension trait method.
