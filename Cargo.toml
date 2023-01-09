@@ -1,6 +1,6 @@
 [package]
 name = "tao"
-version = "0.15.8"
+version = "0.15.9"
 description = "Cross-platform window manager library."
 authors = [
   "Tauri Programme within The Commons Conservancy",
@@ -15,9 +15,6 @@ repository = "https://github.com/tauri-apps/tao"
 documentation = "https://docs.rs/tao"
 categories = [ "gui" ]
 
-[workspace]
-members = [ "tao-macros" ]
-
 [package.metadata.docs.rs]
 features = [ "serde", "tray", "dox" ]
 default-target = "x86_64-unknown-linux-gnu"
@@ -28,6 +25,9 @@ targets = [
   "x86_64-unknown-linux-gnu",
   "x86_64-apple-darwin"
 ]
+
+[workspace]
+members = [ "tao-macros" ]
 
 [features]
 default = [ ]
