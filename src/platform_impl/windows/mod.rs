@@ -50,6 +50,7 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub no_redirection_bitmap: bool,
   pub drag_and_drop: bool,
   pub preferred_theme: Option<Theme>,
+  pub decoration_shadow: bool,
 }
 
 impl Default for PlatformSpecificWindowBuilderAttributes {
@@ -62,6 +63,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       drag_and_drop: true,
       preferred_theme: None,
       skip_taskbar: false,
+      decoration_shadow: true,
     }
   }
 }
