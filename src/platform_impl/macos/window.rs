@@ -1368,12 +1368,10 @@ impl UnownedWindow {
       let mut collection_behavior = self.ns_window.collectionBehavior();
       if visible {
         collection_behavior |=
-          NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces
-            | NSWindowCollectionBehavior::NSWindowCollectionBehaviorMoveToActiveSpace;
+          NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces;
       } else {
         collection_behavior &=
-          !(NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces
-            | NSWindowCollectionBehavior::NSWindowCollectionBehaviorMoveToActiveSpace);
+          !NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces;
       };
       self.ns_window.setCollectionBehavior_(collection_behavior)
     }
