@@ -738,7 +738,7 @@ impl Window {
     ))
   }
 
-  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, error::ExternalError> {
     Ok((0, 0).into())
   }
 
