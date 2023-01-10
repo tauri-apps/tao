@@ -501,6 +501,10 @@ impl<T: 'static> EventLoopWindowTarget<T> {
   pub fn raw_display_handle(&self) -> RawDisplayHandle {
     RawDisplayHandle::Android(AndroidDisplayHandle::empty())
   }
+
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    Ok((0, 0).into())
+  }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -732,6 +736,10 @@ impl Window {
     Err(error::ExternalError::NotSupported(
       error::NotSupportedError::new(),
     ))
+  }
+
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    Ok((0, 0).into())
   }
 
   pub fn raw_window_handle(&self) -> RawWindowHandle {

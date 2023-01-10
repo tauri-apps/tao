@@ -244,6 +244,11 @@ impl<T> EventLoopWindowTarget<T> {
     self.p.set_device_event_filter(_filter);
   }
 
+  /// Returns the current cursor position
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android**: Unsupported.
   #[inline]
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
     self.p.cursor_position()

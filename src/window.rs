@@ -1169,6 +1169,11 @@ impl Window {
     self.window.set_ignore_cursor_events(ignore)
   }
 
+  /// Returns the current cursor position
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android**: Unsupported, returns `0,0`.
   #[inline]
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
     self.window.cursor_position()

@@ -80,6 +80,10 @@ impl<T: 'static> EventLoopWindowTarget<T> {
   pub fn raw_display_handle(&self) -> RawDisplayHandle {
     RawDisplayHandle::UiKit(UiKitDisplayHandle::empty())
   }
+
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    Ok((0, 0).into())
+  }
 }
 
 pub struct EventLoop<T: 'static> {
