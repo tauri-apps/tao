@@ -108,12 +108,6 @@ bitflags! {
         /// Drop shadow for undecorated windows.
         const MARKER_UNDECORATED_SHADOW = 1 << 21;
 
-         /// When minmizing a maximized Windows, `WM_SIZE` which we use to update the `MAXIMIZED` bit
-        /// is fired with `wparam` set to `SIZE_MINIMIZED` and thus the `MAXIMIZED` bit will be unset
-        /// and when un-minimizing the window, the `MAXIMIZED` bit will still be unset and later on
-        /// in `apply_diff` when `new.to_window_styles()` is called, it will not add `WS_MAXIMIZE` window style.
-        const MARKER_WAS_MAXIMIZED = 1 << 22;
-
         const EXCLUSIVE_FULLSCREEN_OR_MASK = WindowFlags::ALWAYS_ON_TOP.bits;
     }
 }
@@ -286,7 +280,7 @@ impl WindowFlags {
     self = self.mask();
     new = new.mask();
 
-    let diff = self ^ new;
+    let mut diff = self ^ new;
 
     if diff == WindowFlags::empty() {
       return;
@@ -365,6 +359,8 @@ impl WindowFlags {
           },
         );
       }
+
+      diff.remove(WindowFlags::MINIMIZED);
     }
 
     if diff.contains(WindowFlags::CLOSABLE) || new.contains(WindowFlags::CLOSABLE) {
@@ -390,7 +386,7 @@ impl WindowFlags {
     }
 
     if diff != WindowFlags::empty() {
-      let (mut style, style_ex) = new.to_window_styles();
+      let (style, style_ex) = new.to_window_styles();
 
       unsafe {
         SendMessageW(
@@ -402,10 +398,6 @@ impl WindowFlags {
 
         // This condition is necessary to avoid having an unrestorable window
         if !new.contains(WindowFlags::MINIMIZED) {
-          if self.contains(WindowFlags::MARKER_WAS_MAXIMIZED) {
-            style |= WS_MAXIMIZE;
-          }
-
           SetWindowLongW(window, GWL_STYLE, style.0 as i32);
           SetWindowLongW(window, GWL_EXSTYLE, style_ex.0 as i32);
         }
