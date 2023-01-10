@@ -35,7 +35,7 @@ use crate::{
     app_state::AppState,
     monitor::{self, MonitorHandle},
     observer::*,
-    util::IdRef,
+    util::{self, IdRef},
   },
 };
 

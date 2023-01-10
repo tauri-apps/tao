@@ -126,7 +126,7 @@ pub fn window_position(position: LogicalPosition<f64>) -> NSPoint {
 
 pub fn cursor_position() -> Result<PhysicalPosition<f64>, ExternalError> {
   unsafe {
-    let pt = msg_send![class!(NSEvent), mouseLocation];
+    let pt: NSPoint = msg_send![class!(NSEvent), mouseLocation];
     Ok((pt.x, pt.y).into())
   }
 }
