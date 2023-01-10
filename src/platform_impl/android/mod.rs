@@ -502,7 +502,7 @@ impl<T: 'static> EventLoopWindowTarget<T> {
     RawDisplayHandle::Android(AndroidDisplayHandle::empty())
   }
 
-  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, error::ExternalError> {
     Ok((0, 0).into())
   }
 }

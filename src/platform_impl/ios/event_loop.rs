@@ -15,7 +15,8 @@ use crossbeam_channel::{self as channel, Receiver, Sender};
 use raw_window_handle::{RawDisplayHandle, UiKitDisplayHandle};
 
 use crate::{
-  dpi::LogicalSize,
+  dpi::{LogicalSize, PhysicalPosition},
+  error::ExternalError,
   event::Event,
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootEventLoopWindowTarget},
   monitor::MonitorHandle as RootMonitorHandle,
