@@ -32,7 +32,7 @@ use super::{
   event_loop::EventLoopWindowTarget,
   menu,
   monitor::{self, MonitorHandle},
-  Parent, PlatformSpecificWindowBuilderAttributes,
+  util, Parent, PlatformSpecificWindowBuilderAttributes,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -713,6 +713,11 @@ impl Window {
     {
       log::warn!("Fail to send cursor visibility request: {}", e);
     }
+  }
+
+  #[inline]
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    util::cursor_position()
   }
 
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {

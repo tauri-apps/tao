@@ -1168,6 +1168,11 @@ impl Window {
   pub fn set_ignore_cursor_events(&self, ignore: bool) -> Result<(), ExternalError> {
     self.window.set_ignore_cursor_events(ignore)
   }
+
+  #[inline]
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    self.window.cursor_position()
+  }
 }
 
 /// Monitor info functions.
