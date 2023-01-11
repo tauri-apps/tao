@@ -262,6 +262,13 @@ impl<T: 'static> EventLoop<T> {
             window.set_skip_taskbar_hint(skip);
             window.set_skip_pager_hint(skip)
           }
+          WindowRequest::SetVisibleOnAllWorkspaces(visible) => {
+            if visible {
+              window.stick();
+            } else {
+              window.unstick();
+            }
+          }
           WindowRequest::CursorIcon(cursor) => {
             if let Some(gdk_window) = window.window() {
               let display = window.display();
