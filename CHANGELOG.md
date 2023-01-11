@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.16.0]
+
+- Yanked `0.15.9` and publish a new minor as `0.15.9` included breaking changes by depending on `tao-macros`.
+  - [5397b8f6](https://github.com/tauri-apps/tao/commit/5397b8f6177f01418f1e56b60c9777395607278c) chore: bump minor on 2023-01-11
+
 ## \[0.15.9]
 
 - On Linux, Fix mnemonics for submenus.
