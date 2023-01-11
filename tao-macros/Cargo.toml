@@ -13,6 +13,10 @@ documentation = "https://docs.rs/tao-macros"
 [lib]
 proc-macro = true
 
+[features]
+default = [ ]
+tray = [ ]
+
 [dependencies]
 proc-macro2 = "1"
 quote = "1"
