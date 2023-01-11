@@ -1,9 +1,9 @@
 [package]
 name = "tao-macros"
 description = "Proc macros for tao"
-version = "0.0.0"
+version = "0.1.0"
 edition = "2021"
-authors = ["Tauri Programme within The Commons Conservancy"]
+authors = [ "Tauri Programme within The Commons Conservancy" ]
 rust-version = "1.56"
 license = "MIT OR Apache-2.0"
 readme = "../README.md"
@@ -16,4 +16,4 @@ proc-macro = true
 [dependencies]
 proc-macro2 = "1"
 quote = "1"
-syn = { version = "1", features = ["full"] }
+syn = { version = "1", features = [ "full" ] }
