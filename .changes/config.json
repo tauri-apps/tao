@@ -75,12 +75,12 @@
     }
   },
   "packages": {
-    "tao": {
-      "path": "./",
-      "manager": "rust"
-    },
     "tao-macros": {
       "path": "./tao-macros",
+      "manager": "rust"
+    },
+    "tao": {
+      "path": "./",
       "manager": "rust"
     }
   }
