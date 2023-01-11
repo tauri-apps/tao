@@ -4,7 +4,6 @@ use crate::{dpi::PhysicalPosition, error::ExternalError};
 
 #[inline]
 pub fn cursor_position() -> Result<PhysicalPosition<f64>, ExternalError> {
-  dbg!(1);
   Display::default()
     .and_then(|d| d.default_seat())
     .and_then(|s| s.pointer())

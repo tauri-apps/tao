@@ -503,6 +503,7 @@ impl<T: 'static> EventLoopWindowTarget<T> {
   }
 
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, error::ExternalError> {
+    debug!("`EventLoopWindowTarget::cursor_position` is ignored on Android");
     Ok((0, 0).into())
   }
 }
@@ -739,6 +740,7 @@ impl Window {
   }
 
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, error::ExternalError> {
+    debug!("`Window::cursor_position` is ignored on Android");
     Ok((0, 0).into())
   }
 

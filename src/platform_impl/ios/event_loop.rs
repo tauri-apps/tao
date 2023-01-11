@@ -83,6 +83,7 @@ impl<T: 'static> EventLoopWindowTarget<T> {
   }
 
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    debug!("`EventLoopWindowTarget::cursor_position` is ignored on iOS");
     Ok((0, 0).into())
   }
 }
