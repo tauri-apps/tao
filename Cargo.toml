@@ -31,8 +31,10 @@ members = [ "tao-macros" ]
 
 [features]
 default = [ ]
-dox = [ "gtk/dox" ]
+dox = [ "gtk/dox", "macos-open-files" ]
 tray = [ "libappindicator", "dirs-next" ]
+macos-open-urls = []
+macos-open-files = []
 
 [build-dependencies]
 cc = "1"
@@ -69,7 +71,6 @@ core-graphics = "0.22"
 dispatch = "0.2"
 scopeguard = "1.1"
 png = "0.17"
-url = "2"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 parking_lot = "0.12"

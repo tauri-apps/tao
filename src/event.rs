@@ -102,9 +102,45 @@ pub enum Event<'a, T: 'static> {
     position: PhysicalPosition<f64>,
   },
 
-  /// Emitted when the user wants to open the specified URLs with the app.
-  #[cfg(target_os = "macos")]
-  OpenURLs(Vec<url::Url>),
+  /// Emitted when the app is requested to open a URL.
+  ///
+  /// ## Platform-specific
+  ///
+  /// This event is only relevant on macOS.
+  ///
+  /// ## Note
+  ///
+  /// Needs `macos-open-urls` feature flag.
+  OpenURLs(Vec<String>),
+
+  /// Emitted when the app is requested to open a file.
+  ///
+  /// After this event is processed, the app will respond to the OS
+  /// using the value pointed at by `success`.
+  ///
+  /// ## Platform-specific
+  ///
+  /// This event is only relevant on macOS.
+  ///
+  /// ## Note
+  ///
+  /// Needs `macos-open-files` feature flag.
+  OpenFile {
+    filename: String,
+    /// An indicator to the OS of the success or faile of opening the file.
+    success: &'a mut bool,
+  },
+
+  /// Emitted when the app is requested to open files.
+  ///
+  /// ## Platform-specific
+  ///
+  /// This event is only relevant on macOS.
+  ///
+  /// ## Note
+  ///
+  /// Needs `macos-open-files` feature flag.
+  OpenFiles(Vec<String>),
 
   /// Emitted when a global shortcut is triggered.
   ///
@@ -211,8 +247,9 @@ impl<T: Clone> Clone for Event<'static, T> {
         position: *position,
       },
       GlobalShortcutEvent(accelerator_id) => GlobalShortcutEvent(*accelerator_id),
-      #[cfg(target_os = "macos")]
       OpenURLs(urls) => OpenURLs(urls.clone()),
+      OpenFile { .. } => unreachable!("Static event can't be about open file"),
+      OpenFiles(filenames) => OpenFiles(filenames.clone()),
     }
   }
 }
@@ -252,8 +289,9 @@ impl<'a, T> Event<'a, T> {
         position,
       }),
       GlobalShortcutEvent(accelerator_id) => Ok(GlobalShortcutEvent(accelerator_id)),
-      #[cfg(target_os = "macos")]
       OpenURLs(urls) => Ok(OpenURLs(urls)),
+      OpenFile { filename, success } => Ok(OpenFile { filename, success }),
+      OpenFiles(filenames) => Ok(OpenFiles(filenames)),
     }
   }
 
@@ -295,8 +333,9 @@ impl<'a, T> Event<'a, T> {
         position,
       }),
       GlobalShortcutEvent(accelerator_id) => Some(GlobalShortcutEvent(accelerator_id)),
-      #[cfg(target_os = "macos")]
       OpenURLs(urls) => Some(OpenURLs(urls)),
+      OpenFile { .. } => None,
+      OpenFiles(filenames) => Some(OpenFiles(filenames)),
     }
   }
 }

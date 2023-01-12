@@ -22,7 +22,6 @@ use cocoa::{
   foundation::{NSAutoreleasePool, NSSize},
 };
 use objc::runtime::{Object, BOOL, NO, YES};
-use url::Url;
 
 use crate::{
   dpi::LogicalSize,
@@ -303,8 +302,22 @@ impl AppState {
     HANDLER.set_in_callback(false);
   }
 
-  pub fn open_urls(urls: Vec<Url>) {
+  #[cfg(all(feature = "macos-open-urls", not(feature = "macos-open-files")))]
+  pub fn open_urls(urls: Vec<String>) {
     HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::OpenURLs(urls)));
+  }
+  #[cfg(all(feature = "macos-open-files", not(feature = "macos-open-urls")))]
+  pub fn open_file(filename: String, success: &mut bool) {
+    if let Some(ref mut callback) = *HANDLER.callback.lock().unwrap() {
+      callback.handle_nonuser_event(
+        Event::OpenFile { filename, success },
+        &mut HANDLER.control_flow.lock().unwrap(),
+      )
+    }
+  }
+  #[cfg(all(feature = "macos-open-files", not(feature = "macos-open-urls")))]
+  pub fn open_files(files: Vec<String>) {
+    HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::OpenFiles(files)));
   }
 
   pub fn wakeup(panic_info: Weak<PanicInfo>) {

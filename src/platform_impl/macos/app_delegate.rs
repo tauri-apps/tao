@@ -4,20 +4,26 @@
 
 use crate::{platform::macos::ActivationPolicy, platform_impl::platform::app_state::AppState};
 
-use cocoa::{
-  base::id,
-  foundation::{NSArray, NSString, NSURL},
-};
+use cocoa::base::id;
+use cocoa::foundation::NSString;
 use objc::{
   declare::ClassDecl,
   runtime::{Class, Object, Sel},
 };
 use std::{
   cell::{RefCell, RefMut},
-  ffi::CStr,
   os::raw::c_void,
 };
-use url::Url;
+
+#[cfg(any(feature = "macos-open-urls", feature = "macos-open-files"))]
+use cocoa::foundation::NSArray;
+#[cfg(all(feature = "macos-open-urls", not(feature = "macos-open-files")))]
+use cocoa::foundation::NSURL;
+#[cfg(any(feature = "macos-open-urls", feature = "macos-open-files"))]
+use std::ffi::CStr;
+
+#[cfg(all(feature = "macos-open-files", feature = "macos-open-urls"))]
+compile_error!("`macos-open-files` and `macos-open-urls` feature flags can't be used at the same time, please choose only one of them.");
 
 static AUX_DELEGATE_STATE_NAME: &str = "auxState";
 
@@ -52,9 +58,20 @@ lazy_static! {
       sel!(applicationWillTerminate:),
       application_will_terminate as extern "C" fn(&Object, Sel, id),
     );
+    #[cfg(all(feature = "macos-open-urls", not(feature = "macos-open-files")))]
     decl.add_method(
       sel!(application:openURLs:),
       application_open_urls as extern "C" fn(&Object, Sel, id, id),
+    );
+    #[cfg(all(feature = "macos-open-files", not(feature = "macos-open-urls")))]
+    decl.add_method(
+      sel!(application:openFile:),
+      application_open_file as extern "C" fn(&Object, Sel, id, id) -> cocoa::base::BOOL,
+    );
+    #[cfg(all(feature = "macos-open-files", not(feature = "macos-open-urls")))]
+    decl.add_method(
+      sel!(application:openFiles:),
+      application_open_files as extern "C" fn(&Object, Sel, id, id),
     );
     decl.add_ivar::<*mut c_void>(AUX_DELEGATE_STATE_NAME);
 
@@ -90,7 +107,7 @@ extern "C" fn dealloc(this: &Object, _: Sel) {
     let state_ptr: *mut c_void = *(this.get_ivar(AUX_DELEGATE_STATE_NAME));
     // As soon as the box is constructed it is immediately dropped, releasing the underlying
     // memory
-    Box::from_raw(state_ptr as *mut RefCell<AuxDelegateState>);
+    drop(Box::from_raw(state_ptr as *mut RefCell<AuxDelegateState>));
   }
 }
 
@@ -106,19 +123,54 @@ extern "C" fn application_will_terminate(_: &Object, _: Sel, _: id) {
   trace!("Completed `applicationWillTerminate`");
 }
 
+#[cfg(all(feature = "macos-open-urls", not(feature = "macos-open-files")))]
 extern "C" fn application_open_urls(_: &Object, _: Sel, _: id, urls: id) -> () {
   trace!("Trigger `application:openURLs:`");
 
   let url_strings = unsafe {
     (0..urls.count())
-      .flat_map(|i| {
-        Url::parse(
-          &CStr::from_ptr(urls.objectAtIndex(i).absoluteString().UTF8String()).to_string_lossy(),
-        )
+      .map(|i| {
+        CStr::from_ptr(urls.objectAtIndex(i).absoluteString().UTF8String())
+          .to_string_lossy()
+          .to_string()
       })
       .collect::<Vec<_>>()
   };
   trace!("Get `application:openURLs:` URLs: {:?}", url_strings);
   AppState::open_urls(url_strings);
   trace!("Completed `application:openURLs:`");
+}
+
+#[cfg(all(feature = "macos-open-files", not(feature = "macos-open-urls")))]
+extern "C" fn application_open_file(_: &Object, _: Sel, _: id, file: id) -> cocoa::base::BOOL {
+  trace!("Trigger `application:openFile:`");
+
+  let filename = unsafe { CStr::from_ptr(file.UTF8String()) }
+    .to_string_lossy()
+    .to_string();
+  let mut success = true;
+
+  trace!("Get `application:openFile:` URLs: {:?}", filename);
+  AppState::open_file(filename, &mut success);
+  trace!("Completed `application:openFile:`");
+
+  success as i8
+}
+
+#[cfg(all(feature = "macos-open-files", not(feature = "macos-open-urls")))]
+extern "C" fn application_open_files(_: &Object, _: Sel, _: id, files: id) -> () {
+  trace!("Trigger `application:openFiles:`");
+
+  let filenames = unsafe {
+    (0..files.count())
+      .map(|i| {
+        CStr::from_ptr(files.objectAtIndex(i).UTF8String())
+          .to_string_lossy()
+          .to_string()
+      })
+      .collect::<Vec<_>>()
+  };
+  trace!("Get `application:openFiles:` URLs: {:?}", filenames);
+  AppState::open_files(filenames);
+  trace!("Completed `application:openFiles:`");
 }
