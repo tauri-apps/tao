@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 mod r#async;
@@ -180,4 +180,15 @@ pub unsafe fn toggle_style_mask(window: id, view: id, mask: NSWindowStyleMask, o
 
   // If we don't do this, key handling will break. Therefore, never call `setStyleMask` directly!
   window.makeFirstResponder_(view);
+}
+
+/// Strips single `&` characters from the string.
+///
+/// `&` can be escaped as `&&` to prevent stripping, in which case a single `&` will be output.
+pub fn strip_mnemonic<S: AsRef<str>>(string: S) -> String {
+  string
+    .as_ref()
+    .replace("&&", "[~~]")
+    .replace('&', "")
+    .replace("[~~]", "&")
 }

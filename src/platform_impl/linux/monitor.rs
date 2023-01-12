@@ -1,6 +1,8 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
+
+use gdk::Display;
 
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize},
@@ -83,5 +85,16 @@ impl VideoMode {
   #[inline]
   pub fn monitor(&self) -> RootMonitorHandle {
     panic!("VideoMode is unsupported on Linux.")
+  }
+}
+
+pub fn from_point(display: &Display, x: f64, y: f64) -> Option<MonitorHandle> {
+  if let Some(monitor) = display.monitor_at_point(x as i32, y as i32) {
+    (0..display.n_monitors())
+      .map(|i| (i, display.monitor(i).unwrap()))
+      .find(|cur| cur.1.geometry() == monitor.geometry())
+      .map(|x| MonitorHandle::new(display, x.0))
+  } else {
+    None
   }
 }

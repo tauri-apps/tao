@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 pub use jni::{
@@ -24,57 +24,36 @@ use std::{
   thread,
 };
 
+// pub static PACKAGE: OnceCell<&str> = OnceCell::new();
+pub static PACKAGE: OnceCell<&str> = OnceCell::new();
+
 #[macro_export]
 macro_rules! android_binding {
   ($domain:ident, $package:ident, $setup: ident, $main: ident) => {
-    paste::paste! {
-        #[no_mangle]
-        unsafe extern "C" fn [< Java_ $domain _ $package _ TauriActivity_create >](
-          env: JNIEnv,
-          class: JClass,
-          object: JObject,
-        ) {
-            let domain = stringify!($domain).replace("_", "/");
-            let package = format!("{}/{}", domain, stringify!($package).replace("_1","_"));
-            PACKAGE.get_or_init(move || package);
-            create(env, class, object, $setup, $main)
-        }
-
-        android_fn!($domain, $package, TauriActivity, start);
-        android_fn!($domain, $package, TauriActivity, stop);
-        android_fn!($domain, $package, TauriActivity, resume);
-        android_fn!($domain, $package, TauriActivity, pause);
-        android_fn!($domain, $package, TauriActivity, save);
-        android_fn!($domain, $package, TauriActivity, destroy);
-        android_fn!($domain, $package, TauriActivity, memory);
-        android_fn!($domain, $package, TauriActivity, focus, i32);
+    fn __store_package_name__() {
+      PACKAGE.get_or_init(move || generate_package_name!($domain, $package));
     }
+
+    android_fn!(
+      $domain,
+      $package,
+      TauriActivity,
+      create,
+      [JObject],
+      __VOID__,
+      [$setup, $main],
+      __store_package_name__,
+    );
+    android_fn!($domain, $package, TauriActivity, start, [JObject]);
+    android_fn!($domain, $package, TauriActivity, stop, [JObject]);
+    android_fn!($domain, $package, TauriActivity, resume, [JObject]);
+    android_fn!($domain, $package, TauriActivity, pause, [JObject]);
+    android_fn!($domain, $package, TauriActivity, save, [JObject]);
+    android_fn!($domain, $package, TauriActivity, destroy, [JObject]);
+    android_fn!($domain, $package, TauriActivity, memory, [JObject]);
+    android_fn!($domain, $package, TauriActivity, focus, [i32]);
   };
 }
-
-#[macro_export]
-macro_rules! android_fn {
-  ($domain:ident, $package:ident, $class:ident, $function:ident) => {
-    android_fn!($domain, $package, $class, $function, JObject)
-  };
-  ($domain:ident, $package:ident, $class:ident, $function:ident, $arg:ty) => {
-    android_fn!($domain, $package, $class, $function, $arg, ())
-  };
-  ($domain:ident, $package:ident, $class:ident, $function:ident, $arg:ty, $ret: ty) => {
-    paste::paste! {
-        #[no_mangle]
-        unsafe extern "C" fn [< Java_ $domain _ $package _ $class _ $function >](
-          env: JNIEnv,
-          class: JClass,
-          object: $arg,
-        ) -> $ret {
-            $function(env, class, object)
-        }
-    }
-  };
-}
-
-pub static PACKAGE: OnceCell<String> = OnceCell::new();
 
 /// `ndk-glue` macros register the reading end of an event pipe with the
 /// main [`ThreadLooper`] under this `ident`.
@@ -199,7 +178,7 @@ pub unsafe fn create(
   let env = vm.attach_current_thread_as_daemon().unwrap();
   ndk_context::initialize_android_context(
     vm.get_java_vm_pointer() as *mut _,
-    activity.as_obj().into_inner() as *mut _,
+    activity.as_obj().into_raw() as *mut _,
   );
 
   let looper = ThreadLooper::for_thread().unwrap().into_foreign();

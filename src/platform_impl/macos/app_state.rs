@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -287,8 +287,12 @@ impl AppState {
     unsafe {
       let ns_app = NSApp();
       window_activation_hack(ns_app);
-      // TODO: Consider allowing the user to specify they don't want their application activated
-      ns_app.activateIgnoringOtherApps_(YES);
+      let ignore = if get_aux_state_mut(app_delegate).activate_ignoring_other_apps {
+        YES
+      } else {
+        NO
+      };
+      ns_app.activateIgnoringOtherApps_(ignore);
     };
     HANDLER.set_ready();
     HANDLER.waker().start();

@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -29,8 +29,10 @@ use crate::{
 };
 
 use super::{
-  event_loop::EventLoopWindowTarget, menu, monitor::MonitorHandle, Parent,
-  PlatformSpecificWindowBuilderAttributes,
+  event_loop::EventLoopWindowTarget,
+  menu,
+  monitor::{self, MonitorHandle},
+  Parent, PlatformSpecificWindowBuilderAttributes,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -63,6 +65,10 @@ pub struct Window {
   maximized: Rc<AtomicBool>,
   minimized: Rc<AtomicBool>,
   fullscreen: RefCell<Option<Fullscreen>>,
+  min_inner_size: RefCell<Option<Size>>,
+  max_inner_size: RefCell<Option<Size>>,
+  /// Draw event Sender
+  draw_tx: crossbeam_channel::Sender<WindowId>,
 }
 
 impl Window {
@@ -73,6 +79,7 @@ impl Window {
   ) -> Result<Self, RootOsError> {
     let app = &event_loop_window_target.app;
     let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
+    let draw_tx = event_loop_window_target.draw_tx.clone();
     let window = gtk::ApplicationWindow::builder()
       .application(app)
       .accept_focus(attributes.focused)
@@ -100,17 +107,17 @@ impl Window {
     }
 
     window.set_resizable(attributes.resizable);
+    window.set_deletable(attributes.closable);
 
     // Set Min/Max Size
-    let geom_mask = (if attributes.min_inner_size.is_some() {
-      gdk::WindowHints::MIN_SIZE
-    } else {
-      gdk::WindowHints::empty()
-    }) | (if attributes.max_inner_size.is_some() {
-      gdk::WindowHints::MAX_SIZE
-    } else {
-      gdk::WindowHints::empty()
-    });
+    let geom_mask = attributes
+      .min_inner_size
+      .map(|_| gdk::WindowHints::MIN_SIZE)
+      .unwrap_or(gdk::WindowHints::empty())
+      | attributes
+        .max_inner_size
+        .map(|_| gdk::WindowHints::MAX_SIZE)
+        .unwrap_or(gdk::WindowHints::empty());
     let (min_width, min_height) = attributes
       .min_inner_size
       .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
@@ -215,6 +222,10 @@ impl Window {
       window.set_keep_above(attributes.always_on_top);
     }
 
+    if attributes.visible_on_all_workspaces {
+      window.stick();
+    }
+
     if let Some(icon) = attributes.window_icon {
       window.set_icon(Some(&icon.inner.into()));
     }
@@ -311,20 +322,26 @@ impl Window {
     if attributes.transparent && pl_attribs.auto_transparent {
       transparent = true;
     }
-    if let Err(e) =
-      window_requests_tx.send((window_id, WindowRequest::WireUpEvents { transparent }))
-    {
+    let cursor_moved = pl_attribs.cursor_moved;
+    if let Err(e) = window_requests_tx.send((
+      window_id,
+      WindowRequest::WireUpEvents {
+        transparent,
+        cursor_moved,
+      },
+    )) {
       log::warn!("Fail to send wire up events request: {}", e);
     }
 
-    if let Err(e) = window_requests_tx.send((window_id, WindowRequest::Redraw)) {
-      log::warn!("Fail to send redraw request: {}", e);
+    if let Err(e) = draw_tx.send(window_id) {
+      log::warn!("Failed to send redraw event to event channel: {}", e);
     }
 
     let win = Self {
       window_id,
       window,
       window_requests_tx,
+      draw_tx,
       accel_group,
       menu_bar,
       scale_factor,
@@ -333,6 +350,8 @@ impl Window {
       maximized,
       minimized,
       fullscreen: RefCell::new(attributes.fullscreen),
+      min_inner_size: RefCell::new(attributes.min_inner_size),
+      max_inner_size: RefCell::new(attributes.max_inner_size),
     };
 
     win.set_skip_taskbar(pl_attribs.skip_taskbar);
@@ -349,11 +368,8 @@ impl Window {
   }
 
   pub fn request_redraw(&self) {
-    if let Err(e) = self
-      .window_requests_tx
-      .send((self.window_id, WindowRequest::Redraw))
-    {
-      log::warn!("Fail to send redraw request: {}", e);
+    if let Err(e) = self.draw_tx.send(self.window_id) {
+      log::warn!("Failed to send redraw event to event channel: {}", e);
     }
   }
 
@@ -419,27 +435,45 @@ impl Window {
   }
 
   pub fn set_min_inner_size<S: Into<Size>>(&self, min_size: Option<S>) {
-    if let Some(size) = min_size {
-      let (min_width, min_height) = size.into().to_logical::<i32>(self.scale_factor()).into();
+    *self.min_inner_size.borrow_mut() = min_size.map(Into::into);
 
-      if let Err(e) = self.window_requests_tx.send((
-        self.window_id,
-        WindowRequest::MinSize((min_width, min_height)),
-      )) {
-        log::warn!("Fail to send min size request: {}", e);
-      }
+    let scale_factor = self.scale_factor();
+
+    let min = self
+      .min_inner_size
+      .borrow()
+      .map(|s| s.to_logical::<i32>(scale_factor));
+    let max = self
+      .max_inner_size
+      .borrow()
+      .map(|s| s.to_logical::<i32>(scale_factor));
+
+    if let Err(e) = self
+      .window_requests_tx
+      .send((self.window_id, WindowRequest::SizeConstraint { min, max }))
+    {
+      log::warn!("Fail to send min size request: {}", e);
     }
   }
   pub fn set_max_inner_size<S: Into<Size>>(&self, max_size: Option<S>) {
-    if let Some(size) = max_size {
-      let (max_width, max_height) = size.into().to_logical::<i32>(self.scale_factor()).into();
+    *self.max_inner_size.borrow_mut() = max_size.map(Into::into);
 
-      if let Err(e) = self.window_requests_tx.send((
-        self.window_id,
-        WindowRequest::MaxSize((max_width, max_height)),
-      )) {
-        log::warn!("Fail to send max size request: {}", e);
-      }
+    let scale_factor = self.scale_factor();
+
+    let min = self
+      .min_inner_size
+      .borrow()
+      .map(|s| s.to_logical::<i32>(scale_factor));
+    let max = self
+      .max_inner_size
+      .borrow()
+      .map(|s| s.to_logical::<i32>(scale_factor));
+
+    if let Err(e) = self
+      .window_requests_tx
+      .send((self.window_id, WindowRequest::SizeConstraint { min, max }))
+    {
+      log::warn!("Fail to send max size request: {}", e);
     }
   }
 
@@ -452,8 +486,12 @@ impl Window {
     }
   }
 
-  pub fn title(&self) -> Option<String> {
-    self.window.title().map(|t| t.as_str().to_string())
+  pub fn title(&self) -> String {
+    self
+      .window
+      .title()
+      .map(|t| t.as_str().to_string())
+      .unwrap_or_default()
   }
 
   pub fn set_menu(&self, menu: Option<menu::Menu>) {
@@ -498,6 +536,19 @@ impl Window {
     }
   }
 
+  pub fn set_minimizable(&self, _minimizable: bool) {}
+
+  pub fn set_maximizable(&self, _maximizable: bool) {}
+
+  pub fn set_closable(&self, closable: bool) {
+    if let Err(e) = self
+      .window_requests_tx
+      .send((self.window_id, WindowRequest::Closable(closable)))
+    {
+      log::warn!("Fail to send closable request: {}", e);
+    }
+  }
+
   pub fn set_minimized(&self, minimized: bool) {
     if let Err(e) = self
       .window_requests_tx
@@ -526,6 +577,18 @@ impl Window {
 
   pub fn is_resizable(&self) -> bool {
     self.window.is_resizable()
+  }
+
+  pub fn is_minimizable(&self) -> bool {
+    true
+  }
+
+  pub fn is_maximizable(&self) -> bool {
+    true
+  }
+
+  pub fn is_closable(&self) -> bool {
+    self.window.is_deletable()
   }
 
   pub fn is_decorated(&self) -> bool {
@@ -620,6 +683,15 @@ impl Window {
 
   pub fn is_menu_visible(&self) -> bool {
     self.menu_bar.get_visible()
+  }
+
+  pub fn set_visible_on_all_workspaces(&self, visible: bool) {
+    if let Err(e) = self.window_requests_tx.send((
+      self.window_id,
+      WindowRequest::SetVisibleOnAllWorkspaces(visible),
+    )) {
+      log::warn!("Fail to send visible on all workspaces request: {}", e);
+    }
   }
 
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
@@ -718,6 +790,12 @@ impl Window {
     Some(RootMonitorHandle { inner: handle })
   }
 
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<RootMonitorHandle> {
+    let display = &self.window.display();
+    monitor::from_point(display, x, y).map(|inner| RootMonitorHandle { inner })
+  }
+
   pub fn raw_window_handle(&self) -> RawWindowHandle {
     // TODO: add wayland support
     let mut window_handle = XlibWindowHandle::empty();
@@ -774,11 +852,14 @@ pub enum WindowRequest {
   Title(String),
   Position((i32, i32)),
   Size((i32, i32)),
-  MinSize((i32, i32)),
-  MaxSize((i32, i32)),
+  SizeConstraint {
+    min: Option<LogicalSize<i32>>,
+    max: Option<LogicalSize<i32>>,
+  },
   Visible(bool),
   Focus,
   Resizable(bool),
+  Closable(bool),
   Minimized(bool),
   Maximized(bool),
   DragWindow,
@@ -792,11 +873,14 @@ pub enum WindowRequest {
   CursorIcon(Option<CursorIcon>),
   CursorPosition((i32, i32)),
   CursorIgnoreEvents(bool),
-  WireUpEvents { transparent: bool },
-  Redraw,
+  WireUpEvents {
+    transparent: bool,
+    cursor_moved: bool,
+  },
   Menu((Option<MenuItem>, Option<MenuId>)),
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
   GlobalHotKey(u16),
+  SetVisibleOnAllWorkspaces(bool),
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {

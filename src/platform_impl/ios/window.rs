@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use raw_window_handle::{RawDisplayHandle, RawWindowHandle, UiKitDisplayHandle, UiKitWindowHandle};
@@ -53,8 +53,8 @@ impl Inner {
     debug!("`Window::set_title` is ignored on iOS")
   }
 
-  pub fn title(&self) -> Option<String> {
-    None
+  pub fn title(&self) -> String {
+    String::new()
   }
 
   pub fn set_menu(&self, _menu: Option<Menu>) {
@@ -181,6 +181,18 @@ impl Inner {
     warn!("`Window::set_resizable` is ignored on iOS")
   }
 
+  pub fn set_minimizable(&self, _minimizable: bool) {
+    warn!("`Window::set_minimizable` is ignored on iOS")
+  }
+
+  pub fn set_maximizable(&self, _maximizable: bool) {
+    warn!("`Window::set_maximizable` is ignored on iOS")
+  }
+
+  pub fn set_closable(&self, _closable: bool) {
+    warn!("`Window::set_closable` is ignored on iOS")
+  }
+
   pub fn scale_factor(&self) -> f64 {
     unsafe {
       let hidpi: CGFloat = msg_send![self.view, contentScaleFactor];
@@ -237,6 +249,21 @@ impl Inner {
 
   pub fn is_resizable(&self) -> bool {
     warn!("`Window::is_resizable` is ignored on iOS");
+    false
+  }
+
+  pub fn is_minimizable(&self) -> bool {
+    warn!("`Window::is_minimizable` is ignored on iOS");
+    false
+  }
+
+  pub fn is_maximizable(&self) -> bool {
+    warn!("`Window::is_maximizable` is ignored on iOS");
+    false
+  }
+
+  pub fn is_closable(&self) -> bool {
+    warn!("`Window::is_closable` is ignored on iOS");
     false
   }
 
@@ -354,6 +381,12 @@ impl Inner {
 
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
     unsafe { monitor::uiscreens() }
+  }
+
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<RootMonitorHandle> {
+    warn!("`Window::monitor_from_point` is ignored on iOS");
+    None
   }
 
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {

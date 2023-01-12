@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 // This example is used by developers to test various window functions.
@@ -7,7 +7,7 @@
 use tao::{
   dpi::{LogicalSize, PhysicalSize},
   event::{DeviceEvent, ElementState, Event, KeyEvent, RawKeyEvent, WindowEvent},
-  event_loop::{ControlFlow, EventLoop},
+  event_loop::{ControlFlow, DeviceEventFilter, EventLoop},
   keyboard::{Key, KeyCode},
   window::{Fullscreen, WindowBuilder},
 };
@@ -17,6 +17,7 @@ use tao::{
 fn main() {
   env_logger::init();
   let event_loop = EventLoop::new();
+  event_loop.set_device_event_filter(DeviceEventFilter::Never);
 
   let window = WindowBuilder::new()
     .with_title("A fantastic window!")
@@ -27,14 +28,17 @@ fn main() {
   eprintln!("debugging keys:");
   eprintln!("  (E) Enter exclusive fullscreen");
   eprintln!("  (F) Toggle borderless fullscreen");
-  eprintln!("  (P) Toggle borderless fullscreen on system's preffered monitor");
-  eprintln!("  (M) Toggle minimized");
-  eprintln!("  (Q) Quit event loop");
+  eprintln!("  (P) Toggle borderless fullscreen on system's preferred monitor");
   eprintln!("  (V) Toggle visibility");
-  eprintln!("  (X) Toggle maximized");
   eprintln!("  (T) Toggle always on top");
   eprintln!("  (B) Toggle always on bottom");
   eprintln!("  (C) Toggle content protection");
+  eprintln!("  (M) Toggle minimized");
+  eprintln!("  (X) Toggle maximized");
+  eprintln!("  (Q) Quit event loop");
+  eprintln!("  (Shift + M) Toggle minimizable");
+  eprintln!("  (Shift + X) Toggle maximizable");
+  eprintln!("  (Shift + Q) Toggle closable");
 
   let mut always_on_bottom = false;
   let mut always_on_top = false;
@@ -59,6 +63,7 @@ fn main() {
         KeyCode::KeyM => {
           if window.is_minimized() {
             window.set_minimized(false);
+            window.set_focus()
           }
         }
         KeyCode::KeyV => {
@@ -139,6 +144,18 @@ fn main() {
           content_protection = !content_protection;
           window.set_content_protection(content_protection);
         }
+        "M" => {
+          let minimizable = !window.is_minimizable();
+          window.set_minimizable(minimizable);
+        }
+        "X" => {
+          let maximizable = !window.is_maximizable();
+          window.set_maximizable(maximizable);
+        }
+        "Q" => {
+          let closable = !window.is_closable();
+          window.set_closable(closable);
+        }
         _ => (),
       },
       Event::WindowEvent {
@@ -146,12 +163,6 @@ fn main() {
         window_id,
         ..
       } if window_id == window.id() => *control_flow = ControlFlow::Exit,
-      Event::WindowEvent {
-        event: WindowEvent::Focused(focused),
-        ..
-      } => {
-        dbg!(focused, window.is_focused());
-      }
       _ => (),
     }
   });

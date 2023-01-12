@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{platform::macos::ActivationPolicy, platform_impl::platform::app_state::AppState};
@@ -28,6 +28,8 @@ pub struct AuxDelegateState {
   pub activation_policy: ActivationPolicy,
 
   pub create_default_menu: bool,
+
+  pub activate_ignoring_other_apps: bool,
 }
 
 pub struct AppDelegateClass(pub *const Class);
@@ -76,6 +78,7 @@ extern "C" fn new(class: &Class, _: Sel) -> id {
       Box::into_raw(Box::new(RefCell::new(AuxDelegateState {
         activation_policy: ActivationPolicy::Regular,
         create_default_menu: true,
+        activate_ignoring_other_apps: true,
       }))) as *mut c_void,
     );
     this

@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use cocoa::{
@@ -8,11 +8,12 @@ use cocoa::{
   foundation::{NSDictionary, NSPoint, NSString},
 };
 use objc::runtime::{Sel, NO};
-use std::cell::RefCell;
+use std::{cell::RefCell, ptr::null_mut};
 
 use crate::window::CursorIcon;
 
 pub enum Cursor {
+  Default,
   Native(&'static str),
   Undocumented(&'static str),
   WebKit(&'static str),
@@ -22,7 +23,8 @@ impl From<CursorIcon> for Cursor {
   fn from(cursor: CursorIcon) -> Self {
     // See native cursors at https://developer.apple.com/documentation/appkit/nscursor?language=objc.
     match cursor {
-      CursorIcon::Arrow | CursorIcon::Default => Cursor::Native("arrowCursor"),
+      CursorIcon::Default => Cursor::Default,
+      CursorIcon::Arrow => Cursor::Native("arrowCursor"),
       CursorIcon::Hand => Cursor::Native("pointingHandCursor"),
       CursorIcon::Grab => Cursor::Native("openHandCursor"),
       CursorIcon::Grabbing => Cursor::Native("closedHandCursor"),
@@ -74,13 +76,14 @@ impl From<CursorIcon> for Cursor {
 
 impl Default for Cursor {
   fn default() -> Self {
-    Cursor::Native("arrowCursor")
+    Cursor::Default
   }
 }
 
 impl Cursor {
   pub unsafe fn load(&self) -> id {
     match self {
+      Cursor::Default => null_mut(),
       Cursor::Native(cursor_name) => {
         let sel = Sel::register(cursor_name);
         msg_send![class!(NSCursor), performSelector: sel]

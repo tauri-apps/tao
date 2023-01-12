@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -62,6 +62,12 @@ impl<T: 'static> EventLoopWindowTarget<T> {
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
     // guaranteed to be on main thread
     unsafe { monitor::uiscreens() }
+  }
+
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
+    warn!("`Window::monitor_from_point` is ignored on iOS");
+    return None;
   }
 
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
@@ -161,6 +167,7 @@ pub struct EventLoopProxy<T> {
 }
 
 unsafe impl<T: Send> Send for EventLoopProxy<T> {}
+unsafe impl<T: Send> Sync for EventLoopProxy<T> {}
 
 impl<T> Clone for EventLoopProxy<T> {
   fn clone(&self) -> EventLoopProxy<T> {

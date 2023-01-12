@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(target_os = "windows")]
@@ -147,11 +147,11 @@ impl Window {
     }
   }
 
-  pub fn title(&self) -> Option<String> {
-    let s = unsafe { GetWindowTextLengthW(self.window.0) };
-    let mut buf = vec![0; s as usize];
+  pub fn title(&self) -> String {
+    let len = unsafe { GetWindowTextLengthW(self.window.0) };
+    let mut buf = vec![0; (len + 1) as usize];
     unsafe { GetWindowTextW(self.window.0, &mut buf) };
-    Some(String::from_utf16_lossy(&buf[..(s - 1) as _]))
+    String::from_utf16_lossy(&buf[..len as _])
   }
 
   // TODO (lemarier): allow menu update
@@ -276,7 +276,7 @@ impl Window {
     let is_decorated = window_state
       .lock()
       .window_flags
-      .contains(WindowFlags::DECORATIONS);
+      .contains(WindowFlags::MARKER_DECORATIONS);
 
     let window = self.window.clone();
     self.thread_executor.execute_in_thread(move || {
@@ -312,6 +312,41 @@ impl Window {
     self.thread_executor.execute_in_thread(move || {
       WindowState::set_window_flags(window_state.lock(), window.0, |f| {
         f.set(WindowFlags::RESIZABLE, resizable)
+      });
+    });
+  }
+
+  #[inline]
+  pub fn set_minimizable(&self, minimizable: bool) {
+    let window = self.window.clone();
+    let window_state = Arc::clone(&self.window_state);
+
+    self.thread_executor.execute_in_thread(move || {
+      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+        f.set(WindowFlags::MINIMIZABLE, minimizable)
+      });
+    });
+  }
+
+  #[inline]
+  pub fn set_maximizable(&self, maximizable: bool) {
+    let window = self.window.clone();
+    let window_state = Arc::clone(&self.window_state);
+
+    self.thread_executor.execute_in_thread(move || {
+      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+        f.set(WindowFlags::MAXIMIZABLE, maximizable)
+      });
+    });
+  }
+
+  #[inline]
+  pub fn set_closable(&self, closable: bool) {
+    let window = self.window.clone();
+    let window_state = Arc::clone(&self.window_state);
+    self.thread_executor.execute_in_thread(move || {
+      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+        f.set(WindowFlags::CLOSABLE, closable)
       });
     });
   }
@@ -488,9 +523,29 @@ impl Window {
   }
 
   #[inline]
+  pub fn is_minimizable(&self) -> bool {
+    let window_state = self.window_state.lock();
+    window_state.window_flags.contains(WindowFlags::MINIMIZABLE)
+  }
+
+  #[inline]
+  pub fn is_maximizable(&self) -> bool {
+    let window_state = self.window_state.lock();
+    window_state.window_flags.contains(WindowFlags::MAXIMIZABLE)
+  }
+
+  #[inline]
+  pub fn is_closable(&self) -> bool {
+    let window_state = self.window_state.lock();
+    window_state.window_flags.contains(WindowFlags::CLOSABLE)
+  }
+
+  #[inline]
   pub fn is_decorated(&self) -> bool {
     let window_state = self.window_state.lock();
-    window_state.window_flags.contains(WindowFlags::DECORATIONS)
+    window_state
+      .window_flags
+      .contains(WindowFlags::MARKER_DECORATIONS)
   }
 
   #[inline]
@@ -659,7 +714,7 @@ impl Window {
 
     self.thread_executor.execute_in_thread(move || {
       WindowState::set_window_flags(window_state.lock(), window.0, |f| {
-        f.set(WindowFlags::DECORATIONS, decorations)
+        f.set(WindowFlags::MARKER_DECORATIONS, decorations)
       });
     });
   }
@@ -829,6 +884,19 @@ impl Window {
     unsafe { set_skip_taskbar(self.hwnd(), skip) };
   }
 
+  #[inline]
+  pub fn set_undecorated_shadow(&self, shadow: bool) {
+    let window = self.window.clone();
+    let window_state = Arc::clone(&self.window_state);
+
+    self.thread_executor.execute_in_thread(move || {
+      let _ = &window;
+      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+        f.set(WindowFlags::MARKER_UNDECORATED_SHADOW, shadow)
+      });
+    });
+  }
+
   pub fn set_content_protection(&self, enabled: bool) {
     unsafe {
       SetWindowDisplayAffinity(
@@ -873,10 +941,14 @@ unsafe fn init<T: 'static>(
   event_loop: &EventLoopWindowTarget<T>,
 ) -> Result<Window, RootOsError> {
   // registering the window class
-  let class_name = register_window_class(&attributes.window_icon, &pl_attribs.taskbar_icon);
+  let class_name = register_window_class();
 
   let mut window_flags = WindowFlags::empty();
-  window_flags.set(WindowFlags::DECORATIONS, attributes.decorations);
+  window_flags.set(WindowFlags::MARKER_DECORATIONS, attributes.decorations);
+  window_flags.set(
+    WindowFlags::MARKER_UNDECORATED_SHADOW,
+    pl_attribs.decoration_shadow,
+  );
   window_flags.set(WindowFlags::ALWAYS_ON_BOTTOM, attributes.always_on_bottom);
   window_flags.set(WindowFlags::ALWAYS_ON_TOP, attributes.always_on_top);
   window_flags.set(
@@ -886,6 +958,11 @@ unsafe fn init<T: 'static>(
   window_flags.set(WindowFlags::TRANSPARENT, attributes.transparent);
   // WindowFlags::VISIBLE and MAXIMIZED are set down below after the window has been configured.
   window_flags.set(WindowFlags::RESIZABLE, attributes.resizable);
+  window_flags.set(WindowFlags::MINIMIZABLE, attributes.minimizable);
+  window_flags.set(WindowFlags::MAXIMIZABLE, attributes.maximizable);
+  // will be changed later using `window.set_closable`
+  // but we need to have a default for the diffing to work
+  window_flags.set(WindowFlags::CLOSABLE, true);
 
   window_flags.set(WindowFlags::MARKER_DONT_FOCUS, !attributes.focused);
 
@@ -968,7 +1045,7 @@ unsafe fn init<T: 'static>(
   let window_state = {
     let window_state = WindowState::new(
       &attributes,
-      pl_attribs.taskbar_icon,
+      None,
       scale_factor,
       current_theme,
       pl_attribs.preferred_theme,
@@ -990,6 +1067,8 @@ unsafe fn init<T: 'static>(
     .insert(win.id(), KeyEventBuilder::default());
 
   win.set_skip_taskbar(pl_attribs.skip_taskbar);
+  win.set_window_icon(attributes.window_icon);
+  win.set_taskbar_icon(pl_attribs.taskbar_icon);
 
   if attributes.fullscreen.is_some() {
     win.set_fullscreen(attributes.fullscreen);
@@ -1014,7 +1093,12 @@ unsafe fn init<T: 'static>(
     }
   }
 
+  if attributes.content_protection {
+    win.set_content_protection(true);
+  }
+
   win.set_visible(attributes.visible);
+  win.set_closable(attributes.closable);
 
   if let Some(position) = attributes.position {
     win.set_outer_position(position);
@@ -1043,20 +1127,8 @@ unsafe fn init<T: 'static>(
   Ok(win)
 }
 
-unsafe fn register_window_class(
-  window_icon: &Option<Icon>,
-  taskbar_icon: &Option<Icon>,
-) -> Vec<u16> {
+unsafe fn register_window_class() -> Vec<u16> {
   let class_name = util::encode_wide("Window Class");
-
-  let h_icon = taskbar_icon
-    .as_ref()
-    .map(|icon| icon.inner.as_raw_handle())
-    .unwrap_or_default();
-  let h_icon_small = window_icon
-    .as_ref()
-    .map(|icon| icon.inner.as_raw_handle())
-    .unwrap_or_default();
 
   let class = WNDCLASSEXW {
     cbSize: mem::size_of::<WNDCLASSEXW>() as u32,
@@ -1065,12 +1137,12 @@ unsafe fn register_window_class(
     cbClsExtra: 0,
     cbWndExtra: 0,
     hInstance: GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
-    hIcon: h_icon,
+    hIcon: HICON::default(),
     hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
     hbrBackground: HBRUSH::default(),
     lpszMenuName: PCWSTR::null(),
     lpszClassName: PCWSTR::from_raw(class_name.as_ptr()),
-    hIconSm: h_icon_small,
+    hIconSm: HICON::default(),
   };
 
   // We ignore errors because registering the same window class twice would trigger
@@ -1095,19 +1167,28 @@ unsafe extern "system" fn window_proc(
     win32wm::WM_NCCALCSIZE => {
       let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
       if userdata != 0 {
-        let win_flags = WindowFlags::from_bits_unchecked(userdata as _);
-        if !win_flags.contains(WindowFlags::DECORATIONS) {
-          // adjust the maximized borderless window so it doesn't cover the taskbar
-          if util::is_maximized(window) {
-            let monitor = monitor::current_monitor(window);
-            if let Ok(monitor_info) = monitor::get_monitor_info(monitor.hmonitor()) {
-              let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
-              params.rgrc[0] = monitor_info.monitorInfo.rcWork;
-            }
-          }
-          return LRESULT(0); // return 0 here to make the window borderless
+        let window_flags = WindowFlags::from_bits_unchecked(userdata as _);
+
+        if wparam == WPARAM(0) || window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
+          return DefWindowProcW(window, msg, wparam, lparam);
         }
+
+        // adjust the maximized borderless window so it doesn't cover the taskbar
+        if util::is_maximized(window) {
+          let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
+          if let Ok(monitor_info) =
+            monitor::get_monitor_info(MonitorFromRect(&params.rgrc[0], MONITOR_DEFAULTTONULL))
+          {
+            params.rgrc[0] = monitor_info.monitorInfo.rcWork;
+          }
+        } else if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) {
+          let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
+          params.rgrc[0].top += 1;
+          params.rgrc[0].bottom += 1;
+        }
+        return LRESULT(0); // return 0 here to make the window borderless
       }
+
       DefWindowProcW(window, msg, wparam, lparam)
     }
     win32wm::WM_NCCREATE => {

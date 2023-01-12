@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 //! The `EventLoop` struct and assorted supporting types, including `ControlFlow`.
@@ -213,15 +213,28 @@ impl<T> EventLoopWindowTarget<T> {
     self.p.primary_monitor()
   }
 
+  /// Returns the monitor that contains the given point.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Android / iOS:** Unsupported.
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
+    self
+      .p
+      .monitor_from_point(x, y)
+      .map(|inner| MonitorHandle { inner })
+  }
+
   /// Change [`DeviceEvent`] filter mode.
   ///
-  /// Since the [`DeviceEvent`] capture can lead to high CPU usage for unfocused windows, winit
-  /// will ignore them by default for unfocused windows on Linux/BSD. This method allows changing
+  /// Since the [`DeviceEvent`] capture can lead to high CPU usage for unfocused windows, tao
+  /// will ignore them by default for unfocused windows. This method allows changing
   /// this filter at runtime to explicitly capture them again.
   ///
   /// ## Platform-specific
   ///
-  /// - ** Linux / macOS / iOS / Android / Web**: Unsupported.
+  /// - **Linux / macOS / iOS / Android:** Unsupported.
   ///
   /// [`DeviceEvent`]: crate::event::DeviceEvent
   pub fn set_device_event_filter(&self, _filter: DeviceEventFilter) {

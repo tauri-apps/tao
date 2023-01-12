@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
@@ -71,36 +71,42 @@ bitflags! {
 bitflags! {
     pub struct WindowFlags: u32 {
         const RESIZABLE        = 1 << 0;
-        const DECORATIONS      = 1 << 1;
-        const VISIBLE          = 1 << 2;
-        const ON_TASKBAR       = 1 << 3;
-        const ALWAYS_ON_TOP    = 1 << 4;
-        const NO_BACK_BUFFER   = 1 << 5;
-        const TRANSPARENT      = 1 << 6;
-        const CHILD            = 1 << 7;
-        const MAXIMIZED        = 1 << 8;
-        const POPUP            = 1 << 9;
-        const ALWAYS_ON_BOTTOM = 1 << 10;
+        const VISIBLE          = 1 << 1;
+        const ON_TASKBAR       = 1 << 2;
+        const ALWAYS_ON_TOP    = 1 << 3;
+        const NO_BACK_BUFFER   = 1 << 4;
+        const TRANSPARENT      = 1 << 5;
+        const CHILD            = 1 << 6;
+        const MAXIMIZED        = 1 << 7;
+        const POPUP            = 1 << 8;
+        const ALWAYS_ON_BOTTOM = 1 << 9;
+        const MINIMIZABLE      = 1 << 10;
+        const MAXIMIZABLE      = 1 << 11;
+        const CLOSABLE         = 1 << 12;
+        const MINIMIZED        = 1 << 13;
+
+        const IGNORE_CURSOR_EVENT = 1 << 14;
 
         /// Marker flag for fullscreen. Should always match `WindowState::fullscreen`, but is
         /// included here to make masking easier.
-        const MARKER_EXCLUSIVE_FULLSCREEN = 1 << 11;
-        const MARKER_BORDERLESS_FULLSCREEN = 1 << 12;
+        const MARKER_EXCLUSIVE_FULLSCREEN = 1 << 15;
+        const MARKER_BORDERLESS_FULLSCREEN = 1 << 16;
 
         /// The `WM_SIZE` event contains some parameters that can effect the state of `WindowFlags`.
         /// In most cases, it's okay to let those parameters change the state. However, when we're
         /// running the `WindowFlags::apply_diff` function, we *don't* want those parameters to
         /// effect our stored state, because the purpose of `apply_diff` is to update the actual
         /// window's state to match our stored state. This controls whether to accept those changes.
-        const MARKER_RETAIN_STATE_ON_SIZE = 1 << 13;
+        const MARKER_RETAIN_STATE_ON_SIZE = 1 << 17;
 
-        const MARKER_IN_SIZE_MOVE = 1 << 14;
+        const MARKER_IN_SIZE_MOVE = 1 << 18;
 
-        const MARKER_DONT_FOCUS = 1 << 15;
+        const MARKER_DONT_FOCUS = 1 << 19;
 
-        const MINIMIZED = 1 << 16;
-
-        const IGNORE_CURSOR_EVENT = 1 << 17;
+        /// Fully decorated window (incl. caption, border and drop shadow).
+        const MARKER_DECORATIONS = 1 << 20;
+        /// Drop shadow for undecorated windows.
+        const MARKER_UNDECORATED_SHADOW = 1 << 21;
 
         const EXCLUSIVE_FULLSCREEN_OR_MASK = WindowFlags::ALWAYS_ON_TOP.bits;
     }
@@ -221,14 +227,17 @@ impl WindowFlags {
 
   pub fn to_window_styles(self) -> (WINDOW_STYLE, WINDOW_EX_STYLE) {
     let (mut style, mut style_ex) = (Default::default(), Default::default());
-    style |= WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_SYSMENU | WS_CAPTION | WS_MINIMIZEBOX;
-    style_ex |= WS_EX_ACCEPTFILES;
+    style |= WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_SYSMENU | WS_CAPTION;
+    style_ex |= WS_EX_ACCEPTFILES | WS_EX_WINDOWEDGE;
 
     if self.contains(WindowFlags::RESIZABLE) {
-      style |= WS_SIZEBOX | WS_MAXIMIZEBOX;
+      style |= WS_SIZEBOX;
     }
-    if self.contains(WindowFlags::DECORATIONS) {
-      style_ex |= WS_EX_WINDOWEDGE;
+    if self.contains(WindowFlags::RESIZABLE | WindowFlags::MAXIMIZABLE) {
+      style |= WS_MAXIMIZEBOX;
+    }
+    if self.contains(WindowFlags::MINIMIZABLE) {
+      style |= WS_MINIMIZEBOX;
     }
     if self.contains(WindowFlags::VISIBLE) {
       style |= WS_VISIBLE;
@@ -271,7 +280,7 @@ impl WindowFlags {
     self = self.mask();
     new = new.mask();
 
-    let diff = self ^ new;
+    let mut diff = self ^ new;
 
     if diff == WindowFlags::empty() {
       return;
@@ -348,6 +357,24 @@ impl WindowFlags {
             true => SW_MINIMIZE,
             false => SW_RESTORE,
           },
+        );
+      }
+
+      diff.remove(WindowFlags::MINIMIZED);
+    }
+
+    if diff.contains(WindowFlags::CLOSABLE) || new.contains(WindowFlags::CLOSABLE) {
+      unsafe {
+        let system_menu = GetSystemMenu(window, false);
+        EnableMenuItem(
+          system_menu,
+          SC_CLOSE,
+          MF_BYCOMMAND
+            | if new.contains(WindowFlags::CLOSABLE) {
+              MF_ENABLED
+            } else {
+              MF_GRAYED
+            },
         );
       }
     }

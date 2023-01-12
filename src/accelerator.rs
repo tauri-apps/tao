@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 //! Accelerators describe keyboard shortcuts defined by the application.
@@ -310,7 +310,7 @@ fn parse_accelerator(accelerator_string: &str) -> Result<Accelerator, Accelerato
   let mut mods = ModifiersState::empty();
   let mut key = KeyCode::Unidentified(NativeKeyCode::Unidentified);
 
-  for raw in accelerator_string.to_uppercase().split('+') {
+  for raw in accelerator_string.split('+') {
     let token = raw.trim().to_string();
     if token.is_empty() {
       return Err(AcceleratorParseError(
@@ -330,7 +330,7 @@ fn parse_accelerator(accelerator_string: &str) -> Result<Accelerator, Accelerato
       )));
     }
 
-    match token.as_str() {
+    match token.to_uppercase().as_str() {
       "OPTION" | "ALT" => {
         mods.set(ModifiersState::ALT, true);
       }
@@ -350,7 +350,7 @@ fn parse_accelerator(accelerator_string: &str) -> Result<Accelerator, Accelerato
         mods.set(ModifiersState::CONTROL, true);
       }
       _ => {
-        if let Ok(keycode) = KeyCode::from_str(token.to_uppercase().as_str()) {
+        if let Ok(keycode) = KeyCode::from_str(&token) {
           match keycode {
             KeyCode::Unidentified(_) => {
               return Err(AcceleratorParseError(format!(

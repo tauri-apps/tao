@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use windows::{
@@ -123,6 +123,23 @@ pub fn current_monitor(hwnd: HWND) -> MonitorHandle {
   MonitorHandle::new(hmonitor)
 }
 
+pub fn from_point(x: f64, y: f64) -> Option<MonitorHandle> {
+  let hmonitor = unsafe {
+    MonitorFromPoint(
+      POINT {
+        x: x as i32,
+        y: y as i32,
+      },
+      MONITOR_DEFAULTTONULL,
+    )
+  };
+  if hmonitor.is_invalid() {
+    Some(MonitorHandle::new(hmonitor))
+  } else {
+    None
+  }
+}
+
 impl Window {
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
     available_monitors()
@@ -131,6 +148,10 @@ impl Window {
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
     let monitor = primary_monitor();
     Some(RootMonitorHandle { inner: monitor })
+  }
+
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<RootMonitorHandle> {
+    from_point(x, y).map(|inner| RootMonitorHandle { inner })
   }
 }
 

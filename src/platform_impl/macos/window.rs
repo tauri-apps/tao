@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -41,8 +41,8 @@ use crate::{
 use cocoa::{
   appkit::{
     self, CGFloat, NSApp, NSApplication, NSApplicationPresentationOptions, NSColor, NSEvent,
-    NSRequestUserAttentionType, NSScreen, NSView, NSWindow, NSWindowButton, NSWindowOrderingMode,
-    NSWindowStyleMask,
+    NSRequestUserAttentionType, NSScreen, NSView, NSWindow, NSWindowButton,
+    NSWindowCollectionBehavior, NSWindowOrderingMode, NSWindowStyleMask,
   },
   base::{id, nil},
   foundation::{
@@ -91,6 +91,8 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub resize_increments: Option<LogicalSize<f64>>,
   pub disallow_hidpi: bool,
   pub has_shadow: bool,
+  pub automatic_tabbing: bool,
+  pub tabbing_identifier: Option<String>,
 }
 
 impl Default for PlatformSpecificWindowBuilderAttributes {
@@ -107,6 +109,8 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       resize_increments: None,
       disallow_hidpi: false,
       has_shadow: true,
+      automatic_tabbing: true,
+      tabbing_identifier: None,
     }
   }
 }
@@ -195,6 +199,14 @@ fn create_window(
       masks &= !NSWindowStyleMask::NSResizableWindowMask;
     }
 
+    if !attrs.minimizable {
+      masks &= !NSWindowStyleMask::NSMiniaturizableWindowMask;
+    }
+
+    if !attrs.closable {
+      masks &= !NSWindowStyleMask::NSClosableWindowMask;
+    }
+
     if pl_attrs.fullsize_content_view {
       masks |= NSWindowStyleMask::NSFullSizeContentViewWindowMask;
     }
@@ -247,6 +259,15 @@ fn create_window(
         ];
       }
 
+      if attrs.content_protection {
+        let _: () = msg_send![*ns_window, setSharingType: 0];
+      }
+
+      if !attrs.maximizable {
+        let button = ns_window.standardWindowButton_(NSWindowButton::NSWindowZoomButton);
+        let _: () = msg_send![button, setEnabled: NO];
+      }
+
       if let Some(increments) = pl_attrs.resize_increments {
         let (x, y) = (increments.width, increments.height);
         if x >= 1.0 && y >= 1.0 {
@@ -257,6 +278,14 @@ fn create_window(
 
       if let Parent::ChildOf(parent) = pl_attrs.parent {
         let _: () = msg_send![parent as id, addChildWindow: *ns_window ordered: NSWindowOrderingMode::NSWindowAbove];
+      }
+
+      if !pl_attrs.automatic_tabbing {
+        NSWindow::setAllowsAutomaticWindowTabbing_(*ns_window, NO);
+      }
+
+      if let Some(tabbing_identifier) = &pl_attrs.tabbing_identifier {
+        let _: () = msg_send![*ns_window, setTabbingIdentifier: NSString::alloc(nil).init_str(tabbing_identifier)];
       }
 
       if !pl_attrs.has_shadow {
@@ -490,6 +519,7 @@ impl UnownedWindow {
     let visible = win_attribs.visible;
     let focused = win_attribs.focused;
     let decorations = win_attribs.decorations;
+    let visible_on_all_workspaces = win_attribs.visible_on_all_workspaces;
     let inner_rect = win_attribs
       .inner_size
       .map(|size| size.to_physical(scale_factor));
@@ -522,6 +552,7 @@ impl UnownedWindow {
 
     // Set fullscreen mode after we setup everything
     window.set_fullscreen(fullscreen);
+    window.set_visible_on_all_workspaces(visible_on_all_workspaces);
 
     // Setting the window as key has to happen *after* we set the fullscreen
     // state, since otherwise we'll briefly see the window at normal size
@@ -562,10 +593,10 @@ impl UnownedWindow {
     }
   }
 
-  pub fn title(&self) -> Option<String> {
+  pub fn title(&self) -> String {
     unsafe {
       let title = self.ns_window.title();
-      Some(ns_string_to_rust(title))
+      ns_string_to_rust(title)
     }
   }
 
@@ -703,6 +734,38 @@ impl UnownedWindow {
       }
       self.set_style_mask_async(mask);
     } // Otherwise, we don't change the mask until we exit fullscreen.
+  }
+
+  #[inline]
+  pub fn set_minimizable(&self, minimizable: bool) {
+    let mut mask = unsafe { self.ns_window.styleMask() };
+    if minimizable {
+      mask |= NSWindowStyleMask::NSMiniaturizableWindowMask;
+    } else {
+      mask &= !NSWindowStyleMask::NSMiniaturizableWindowMask;
+    }
+    self.set_style_mask_async(mask);
+  }
+
+  #[inline]
+  pub fn set_maximizable(&self, maximizable: bool) {
+    unsafe {
+      let button = self
+        .ns_window
+        .standardWindowButton_(NSWindowButton::NSWindowZoomButton);
+      let _: () = msg_send![button, setEnabled: maximizable];
+    }
+  }
+
+  #[inline]
+  pub fn set_closable(&self, closable: bool) {
+    let mut mask = unsafe { self.ns_window.styleMask() };
+    if closable {
+      mask |= NSWindowStyleMask::NSClosableWindowMask;
+    } else {
+      mask &= !NSWindowStyleMask::NSClosableWindowMask;
+    }
+    self.set_style_mask_async(mask);
   }
 
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
@@ -896,6 +959,30 @@ impl UnownedWindow {
   pub fn is_resizable(&self) -> bool {
     let is_resizable: BOOL = unsafe { msg_send![*self.ns_window, isResizable] };
     is_resizable == YES
+  }
+
+  #[inline]
+  pub fn is_minimizable(&self) -> bool {
+    let is_minimizable: BOOL = unsafe { msg_send![*self.ns_window, isMiniaturizable] };
+    is_minimizable == YES
+  }
+
+  #[inline]
+  pub fn is_maximizable(&self) -> bool {
+    let is_maximizable: BOOL;
+    unsafe {
+      let button = self
+        .ns_window
+        .standardWindowButton_(NSWindowButton::NSWindowZoomButton);
+      is_maximizable = msg_send![button, isEnabled];
+    }
+    is_maximizable == YES
+  }
+
+  #[inline]
+  pub fn is_closable(&self) -> bool {
+    let is_closable: BOOL = unsafe { msg_send![*self.ns_window, hasCloseBox] };
+    is_closable == YES
   }
 
   #[inline]
@@ -1235,6 +1322,10 @@ impl UnownedWindow {
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
     Some(self.current_monitor_inner())
   }
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<RootMonitorHandle> {
+    monitor::from_point(x, y).map(|inner| RootMonitorHandle { inner })
+  }
 
   #[inline]
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
@@ -1269,6 +1360,20 @@ impl UnownedWindow {
   pub fn set_content_protection(&self, enabled: bool) {
     unsafe {
       let _: () = msg_send![*self.ns_window, setSharingType: !enabled as i32];
+    }
+  }
+
+  pub fn set_visible_on_all_workspaces(&self, visible: bool) {
+    unsafe {
+      let mut collection_behavior = self.ns_window.collectionBehavior();
+      if visible {
+        collection_behavior |=
+          NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces;
+      } else {
+        collection_behavior &=
+          !NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces;
+      };
+      self.ns_window.setCollectionBehavior_(collection_behavior)
     }
   }
 }
@@ -1401,6 +1506,37 @@ impl WindowExtMacOS for UnownedWindow {
     unsafe {
       let is_document_edited: BOOL = msg_send![*self.ns_window, isDocumentEdited];
       is_document_edited == YES
+    }
+  }
+
+  #[inline]
+  fn set_allows_automatic_window_tabbing(&self, enabled: bool) {
+    unsafe {
+      NSWindow::setAllowsAutomaticWindowTabbing_(*self.ns_window, if enabled { YES } else { NO })
+    }
+  }
+
+  #[inline]
+  fn allows_automatic_window_tabbing(&self) -> bool {
+    unsafe {
+      let allows_tabbing: BOOL = NSWindow::allowsAutomaticWindowTabbing(*self.ns_window);
+      allows_tabbing == YES
+    }
+  }
+
+  #[inline]
+  fn set_tabbing_identifier(&self, identifier: &str) {
+    unsafe {
+      let _: () =
+        msg_send![*self.ns_window, setTabbingIdentifier: NSString::alloc(nil).init_str(identifier)];
+    }
+  }
+
+  #[inline]
+  fn tabbing_identifier(&self) -> String {
+    unsafe {
+      let tabbing_identifier = NSWindow::tabbingIdentifier(*self.ns_window);
+      ns_string_to_rust(tabbing_identifier)
     }
   }
 }

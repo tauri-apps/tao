@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{collections::HashMap, fmt, sync::Mutex};
@@ -375,7 +375,7 @@ pub(crate) unsafe extern "system" fn subclass_proc(
   let subclass_input = &*(subclass_input_ptr);
 
   if msg == WM_DESTROY {
-    Box::from_raw(subclass_input_ptr);
+    drop(Box::from_raw(subclass_input_ptr));
   }
 
   match msg {

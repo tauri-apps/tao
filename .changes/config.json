@@ -1,14 +1,16 @@
 {
   "gitSiteUrl": "https://github.com/tauri-apps/tao/",
   "timeout": 3600000,
-  "additionalBumpTypes": ["housekeeping"],
+  "additionalBumpTypes": [
+    "housekeeping"
+  ],
   "pkgManagers": {
     "rust": {
       "version": true,
       "getPublishedVersion": "cargo search ${ pkg.pkg } --limit 1 | sed -nE 's/^[^\"]*\"//; s/\".*//1p'",
       "prepublish": [
         "sudo apt-get update",
-        "sudo apt-get install -y libgtk-3-dev libgtksourceview-3.0-dev libappindicator3-dev libayatana-appindicator3-dev",
+        "sudo apt-get install -y libgtk-3-dev libayatana-appindicator3-dev",
         "cargo install cargo-audit --features=fix",
         {
           "command": "cargo generate-lockfile",
@@ -35,7 +37,7 @@
       ],
       "publish": [
         {
-          "command": "cargo package --allow-dirty",
+          "command": "cargo package --allow-dirty --features tray",
           "dryRunCommand": true
         },
         {
@@ -73,6 +75,10 @@
     }
   },
   "packages": {
+    "tao-macros": {
+      "path": "./tao-macros",
+      "manager": "rust"
+    },
     "tao": {
       "path": "./",
       "manager": "rust"

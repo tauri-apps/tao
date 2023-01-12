@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 //! The `Window` struct and associated types.
@@ -156,6 +156,27 @@ pub struct WindowAttributes {
   /// The default is `true`.
   pub resizable: bool,
 
+  /// Whether the window is minimizable or not.
+  ///
+  /// The default is `true`.
+  ///
+  /// See [`Window::set_minimizable`] for details.
+  pub minimizable: bool,
+
+  /// Whether the window is maximizable or not.
+  ///
+  /// The default is `true`.
+  ///
+  /// See [`Window::set_maximizable`] for details.
+  pub maximizable: bool,
+
+  /// Whether the window is closable or not.
+  ///
+  /// The default is `true`.
+  ///
+  /// See [`Window::set_closable`] for details.
+  pub closable: bool,
+
   /// Whether the window should be set as fullscreen upon creation.
   ///
   /// The default is `None`.
@@ -215,6 +236,20 @@ pub struct WindowAttributes {
   ///
   /// **Android / iOS:** Unsupported.
   pub focused: bool,
+
+  /// Prevents the window contents from being captured by other apps.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Linux:** Unsupported.
+  pub content_protection: bool,
+
+  /// Sets whether the window should be visible on all workspaces.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Windows:** Unsupported.
+  pub visible_on_all_workspaces: bool,
 }
 
 impl Default for WindowAttributes {
@@ -226,6 +261,9 @@ impl Default for WindowAttributes {
       max_inner_size: None,
       position: None,
       resizable: true,
+      minimizable: true,
+      maximizable: true,
+      closable: true,
       title: "tao window".to_owned(),
       maximized: false,
       fullscreen: None,
@@ -237,7 +275,9 @@ impl Default for WindowAttributes {
       window_icon: None,
       window_menu: None,
       preferred_theme: None,
-      focused: false,
+      focused: true,
+      content_protection: false,
+      visible_on_all_workspaces: false,
     }
   }
 }
@@ -301,6 +341,39 @@ impl WindowBuilder {
   #[inline]
   pub fn with_resizable(mut self, resizable: bool) -> Self {
     self.window.resizable = resizable;
+    self
+  }
+
+  /// Sets whether the window is minimizable or not.
+  ///
+  /// See [`Window::set_minimizable`] for details.
+  ///
+  /// [`Window::set_minimizable`]: crate::window::Window::set_minimizable
+  #[inline]
+  pub fn with_minimizable(mut self, minimizable: bool) -> Self {
+    self.window.minimizable = minimizable;
+    self
+  }
+
+  /// Sets whether the window is maximizable or not.
+  ///
+  /// See [`Window::set_maximizable`] for details.
+  ///
+  /// [`Window::set_maximizable`]: crate::window::Window::set_maximizable
+  #[inline]
+  pub fn with_maximizable(mut self, maximizable: bool) -> Self {
+    self.window.maximizable = maximizable;
+    self
+  }
+
+  /// Sets whether the window is closable or not.
+  ///
+  /// See [`Window::set_closable`] for details.
+  ///
+  /// [`Window::set_closable`]: crate::window::Window::set_closable
+  #[inline]
+  pub fn with_closable(mut self, closable: bool) -> Self {
+    self.window.closable = closable;
     self
   }
 
@@ -427,6 +500,27 @@ impl WindowBuilder {
   #[inline]
   pub fn with_focused(mut self, focused: bool) -> WindowBuilder {
     self.window.focused = focused;
+    self
+  }
+  /// Prevents the window contents from being captured by other apps.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Linux:** Unsupported.
+  #[inline]
+  pub fn with_content_protection(mut self, protected: bool) -> WindowBuilder {
+    self.window.content_protection = protected;
+    self
+  }
+
+  /// Sets whether the window should be visible on all workspaces.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Windows:** Unsupported.
+  #[inline]
+  pub fn with_visible_on_all_workspaces(mut self, visible: bool) -> WindowBuilder {
+    self.window.visible_on_all_workspaces = visible;
     self
   }
 
@@ -645,9 +739,9 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **iOS / Android:** Unsupported. Returns `None`
+  /// - **iOS / Android:** Unsupported. Returns ane empty string.
   #[inline]
-  pub fn title(&self) -> Option<String> {
+  pub fn title(&self) -> String {
     self.window.title()
   }
 
@@ -723,6 +817,39 @@ impl Window {
     self.window.set_resizable(resizable)
   }
 
+  /// Sets whether the window is minimizable or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_minimizable(&self, minimizable: bool) {
+    self.window.set_minimizable(minimizable)
+  }
+
+  /// Sets whether the window is maximizable or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_maximizable(&self, maximizable: bool) {
+    self.window.set_maximizable(maximizable)
+  }
+
+  /// Sets whether the window is closable or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** "GTK+ will do its best to convince the window manager not to show a close button.
+  ///   Depending on the system, this function may not have any effect when called on a window that is already visible"
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_closable(&self, closable: bool) {
+    self.window.set_closable(closable)
+  }
+
   /// Sets the window to minimized or back
   ///
   /// ## Platform-specific
@@ -781,6 +908,36 @@ impl Window {
   #[inline]
   pub fn is_resizable(&self) -> bool {
     self.window.is_resizable()
+  }
+
+  /// Gets the window's current minimizable state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_minimizable(&self) -> bool {
+    self.window.is_minimizable()
+  }
+
+  /// Gets the window's current maximizable state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_maximizable(&self) -> bool {
+    self.window.is_maximizable()
+  }
+
+  /// Gets the window's current closable state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_closable(&self) -> bool {
+    self.window.is_closable()
   }
 
   /// Gets the window's current decoration state.
@@ -951,6 +1108,16 @@ impl Window {
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     self.window.set_content_protection(enabled);
   }
+
+  /// Sets whether the window should be visible on all workspaces.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Windows:** Unsupported.
+  pub fn set_visible_on_all_workspaces(&self, #[allow(unused)] visible: bool) {
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    self.window.set_visible_on_all_workspaces(visible)
+  }
 }
 
 /// Cursor functions.
@@ -1044,6 +1211,16 @@ impl Window {
   #[inline]
   pub fn current_monitor(&self) -> Option<MonitorHandle> {
     self.window.current_monitor()
+  }
+
+  #[inline]
+  /// Returns the monitor that contains the given point.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Android / iOS:** Unsupported.
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
+    self.window.monitor_from_point(x, y)
   }
 
   /// Returns the list of all the monitors available on the system.

@@ -1,5 +1,136 @@
 # Changelog
 
+## \[0.15.9]
+
+- On Linux, Fix mnemonics for submenus.
+  - [77569c89](https://github.com/tauri-apps/tao/commit/77569c893f9835717a79bf445fa3a7f433e0fb3f) fix(linux): fix mnemonics for submenus ([#650](https://github.com/tauri-apps/tao/pull/650)) on 2022-12-20
+  - [e313ef69](https://github.com/tauri-apps/tao/commit/e313ef69d2b3849fa7f5d43effad7c1e76c73748) publish new versions ([#651](https://github.com/tauri-apps/tao/pull/651)) on 2023-01-09
+  - [3cd851d1](https://github.com/tauri-apps/tao/commit/3cd851d14126c305964b957eeb4f9ed0011d96cb) Revert "Publish New Versions" ([#663](https://github.com/tauri-apps/tao/pull/663)) on 2023-01-09
+- On iOS, add Sync trait to `EventLoopProxy` when `T` has Send trait.
+  - [651137ce](https://github.com/tauri-apps/tao/commit/651137ce9ec5bf37593e6641d8f6ab79fc9d6f3c) On iOS, add Sync trait on `EventLoopProxy` when `T` has Send trait ([#658](https://github.com/tauri-apps/tao/pull/658)) on 2023-01-04
+  - [e313ef69](https://github.com/tauri-apps/tao/commit/e313ef69d2b3849fa7f5d43effad7c1e76c73748) publish new versions ([#651](https://github.com/tauri-apps/tao/pull/651)) on 2023-01-09
+  - [3cd851d1](https://github.com/tauri-apps/tao/commit/3cd851d14126c305964b957eeb4f9ed0011d96cb) Revert "Publish New Versions" ([#663](https://github.com/tauri-apps/tao/pull/663)) on 2023-01-09
+- On Linux, fix setting min/max size clears the other.
+  - [9927c3a5](https://github.com/tauri-apps/tao/commit/9927c3a5815bbc581d35ca7dc4e7ded834ef5f51) fix(linux): fix setting min/max size, clears the other ([#669](https://github.com/tauri-apps/tao/pull/669)) on 2023-01-11
+- Fix resize event emits before fullscreen actually exit.
+  - [3867e7b7](https://github.com/tauri-apps/tao/commit/3867e7b783cd0d1bf00ce81214cbfe53354466cd) On macOS, fix resize event emits before fullscreen actually exit ([#662](https://github.com/tauri-apps/tao/pull/662)) on 2023-01-09
+  - [e313ef69](https://github.com/tauri-apps/tao/commit/e313ef69d2b3849fa7f5d43effad7c1e76c73748) publish new versions ([#651](https://github.com/tauri-apps/tao/pull/651)) on 2023-01-09
+  - [3cd851d1](https://github.com/tauri-apps/tao/commit/3cd851d14126c305964b957eeb4f9ed0011d96cb) Revert "Publish New Versions" ([#663](https://github.com/tauri-apps/tao/pull/663)) on 2023-01-09
+- Add `WindowBuilder::with_visible_on_all_workspaces` and `Window::set_visible_on_all_workspaces`.
+  - [0aa2176c](https://github.com/tauri-apps/tao/commit/0aa2176c31fbc76cdc7746601c9bc3d0da449a88) feat: add `set_visible_on_all_workspaces`, closes [#185](https://github.com/tauri-apps/tao/pull/185) ([#666](https://github.com/tauri-apps/tao/pull/666)) on 2023-01-11
+- Add `WindowExtWindows::set_undecorated_shadow` and `WindowBuilderExtWindows::with_undecorated_shadow` to draw the drop shadow behind a borderless window.
+  - [f832ca99](https://github.com/tauri-apps/tao/commit/f832ca99abbaf93e6ce67a87da710b4f4efe6e6e) feat(Windows): undecorated shadows ([#664](https://github.com/tauri-apps/tao/pull/664)) on 2023-01-10
+
+## \[0.15.8]
+
+- Add `with_cursor_moved` Unix extension trait method.
+  - [8c6b2d05](https://github.com/tauri-apps/tao/commit/8c6b2d05ae55cefe72bd63d1adfeca6c20058879) Add `with_cursor_moved` unix extension method ([#644](https://github.com/tauri-apps/tao/pull/644)) on 2022-12-14
+
+## \[0.15.7]
+
+- On Linux, fix menu item mnemonics.
+  - [86a439ed](https://github.com/tauri-apps/tao/commit/86a439edc5da2bd1baa1067831dde2408fd14fbf) fix: fix menu mnemonics ([#640](https://github.com/tauri-apps/tao/pull/640)) on 2022-12-08
+  - [e623efdc](https://github.com/tauri-apps/tao/commit/e623efdc9ab797b3d9e104f34ba5bc1a4648b32c) publish new versions ([#639](https://github.com/tauri-apps/tao/pull/639)) on 2022-12-10
+  - [bdce0a4c](https://github.com/tauri-apps/tao/commit/bdce0a4c816bb63b9e52114924ee4a66d353a019) Revert "publish new versions ([#639](https://github.com/tauri-apps/tao/pull/639))" on 2022-12-10
+- On Windows, retain `WS_MAXIMIZE` window style when unminimizing a maximized window.
+  - [ca844a2e](https://github.com/tauri-apps/tao/commit/ca844a2ebb171f676962bd0bebd65243b9239347) fix(Windows): retain `WS_MAXIMIZE` when unminimizing a maximized window, closes [#622](https://github.com/tauri-apps/tao/pull/622) ([#638](https://github.com/tauri-apps/tao/pull/638)) on 2022-12-04
+  - [e623efdc](https://github.com/tauri-apps/tao/commit/e623efdc9ab797b3d9e104f34ba5bc1a4648b32c) publish new versions ([#639](https://github.com/tauri-apps/tao/pull/639)) on 2022-12-10
+  - [bdce0a4c](https://github.com/tauri-apps/tao/commit/bdce0a4c816bb63b9e52114924ee4a66d353a019) Revert "publish new versions ([#639](https://github.com/tauri-apps/tao/pull/639))" on 2022-12-10
+- On macOS, strip menu mnemonics for consistency with other platforms.
+  - [86a439ed](https://github.com/tauri-apps/tao/commit/86a439edc5da2bd1baa1067831dde2408fd14fbf) fix: fix menu mnemonics ([#640](https://github.com/tauri-apps/tao/pull/640)) on 2022-12-08
+  - [e623efdc](https://github.com/tauri-apps/tao/commit/e623efdc9ab797b3d9e104f34ba5bc1a4648b32c) publish new versions ([#639](https://github.com/tauri-apps/tao/pull/639)) on 2022-12-10
+  - [bdce0a4c](https://github.com/tauri-apps/tao/commit/bdce0a4c816bb63b9e52114924ee4a66d353a019) Revert "publish new versions ([#639](https://github.com/tauri-apps/tao/pull/639))" on 2022-12-10
+
+## \[0.15.6]
+
+- Revert `nextResponder` call because this will bring key beep sound regression. We'll call the key equivalent in wry instead.
+  - [a59b69b2](https://github.com/tauri-apps/tao/commit/a59b69b2733b273d86dc200ba90065be3db871a6) On macOS, revert nextResponder calls ([#628](https://github.com/tauri-apps/tao/pull/628)) on 2022-11-21
+
+## \[0.15.5]
+
+- Change `WebviewAttributes::focused` default to `true`.
+  - [ece3e8f6](https://github.com/tauri-apps/tao/commit/ece3e8f6a34de21ec4c19944f668edd47ecc8ce0) fix: default `focused` to true on 2022-11-20
+- On Linux, wake the main context in `EventLoopProxy::send_event()`.
+  - [b7b5f04d](https://github.com/tauri-apps/tao/commit/b7b5f04d4b4c2f58146aca1b7e03223cdae74f7c) Gtk: wake the main context in EventLoopProxy::send_event(), closes [#625](https://github.com/tauri-apps/tao/pull/625) ([#626](https://github.com/tauri-apps/tao/pull/626)) on 2022-11-16
+
+## \[0.15.4]
+
+- On macOS, call next responder in view's keyDown and doCommandbySelector.
+  - [516e5fcd](https://github.com/tauri-apps/tao/commit/516e5fcd50de601330f3434ecd00bf5889f1a5cc) On macOS, remove `doCommandBySelector` in view ([#620](https://github.com/tauri-apps/tao/pull/620)) on 2022-11-09
+  - [e9d6dadb](https://github.com/tauri-apps/tao/commit/e9d6dadb59fd8d5d32704a5d80d8d587f5d581ca) Publish New Versions ([#621](https://github.com/tauri-apps/tao/pull/621)) on 2022-11-09
+  - [045b768e](https://github.com/tauri-apps/tao/commit/045b768e30b4dc261edcaba4b8ed8ec9fee8305e) On macOS, call next responder in view's keyDown and doCommandbySelector ([#623](https://github.com/tauri-apps/tao/pull/623)) on 2022-11-14
+
+## \[0.15.3]
+
+- On macOS, remove `doCommandBySelector` in view since this will block the key event to responder chain.
+  - [516e5fcd](https://github.com/tauri-apps/tao/commit/516e5fcd50de601330f3434ecd00bf5889f1a5cc) On macOS, remove `doCommandBySelector` in view ([#620](https://github.com/tauri-apps/tao/pull/620)) on 2022-11-09
+
+## \[0.15.2]
+
+- On Windows, fix compliation regression introduced in 0.15.1 when `tray` feature is active
+  - [081664dc](https://github.com/tauri-apps/tao/commit/081664dc6b12c7765b667072dfbfbc089e50c5a3) fix(Windows): fix build regression when tray feature is used ([#618](https://github.com/tauri-apps/tao/pull/618)) on 2022-11-09
+
+## \[0.15.1]
+
+- On Windows, fix window always visible initially.
+  - [ae06c3e2](https://github.com/tauri-apps/tao/commit/ae06c3e2806b85a9baa10b84c898cd0c15af7de4) fix(Windows): fix windows always visible initially on 2022-11-08
+
+## \[0.15.0]
+
+- Add support for parsing `ArrowUp`, `ArrowDown`, `ArrowLeft` and `ArrowRight` in a str as valid key. Previously only `Up`, `Down`, `Left` and `Right` worked.
+  - [5e85dbef](https://github.com/tauri-apps/tao/commit/5e85dbef325fd8050b5cc26079627a3b645285c7) fix: parse `Arrow*` in a accelerator string ([#609](https://github.com/tauri-apps/tao/pull/609)) on 2022-10-31
+- Add `WindowBuilder::with_content_protection`.
+  - [8084c800](https://github.com/tauri-apps/tao/commit/8084c8001c2b8aa00abe7305765c19ce4e8ffc66) feat: add `WindowBuilder::with_content_protection` ([#605](https://github.com/tauri-apps/tao/pull/605)) on 2022-10-30
+- On macOS, fix default cursor always being arrow cursor
+  - [1359fccf](https://github.com/tauri-apps/tao/commit/1359fccfe5b95de9a28afb92e9ac3adfc331fb3c) On macOS, fix default cursor always being arrow cursor ([#614](https://github.com/tauri-apps/tao/pull/614)) on 2022-11-06
+- On Windows, fixed focus event emission on minimize.
+  - [37bca310](https://github.com/tauri-apps/tao/commit/37bca310be977f8922eb13e35d0e53b925a6039d) fix(windows): fix focus event emission on minimize ([#559](https://github.com/tauri-apps/tao/pull/559)) on 2022-09-21
+- Update jni to 0.20.
+  - [38fef108](https://github.com/tauri-apps/tao/commit/38fef1087d217874aee016e237b6c15eedbd0250) feat(android): update to jni 0.20 ([#610](https://github.com/tauri-apps/tao/pull/610)) on 2022-10-31
+- On Linux, add DeviceEvent::Key.
+  - [775974d7](https://github.com/tauri-apps/tao/commit/775974d7084185b80afe76c5acf3727687b0fd02) feat(linux): add DeviceEvent::Key ([#600](https://github.com/tauri-apps/tao/pull/600)) on 2022-10-21
+- fix(linux): Improve event loop process on Linux a bit. This changes only a few check and should make dragging windows on egui smoother.
+  - [b529eec9](https://github.com/tauri-apps/tao/commit/b529eec9ba32d8d3195e1866bdb26b93beba7e13) fix(linux): improve event loop process on Linux ([#587](https://github.com/tauri-apps/tao/pull/587)) on 2022-10-12
+- Fix inverted delta in `WindowEvent::MouseWheel` on Linux
+  - [8451f754](https://github.com/tauri-apps/tao/commit/8451f754a97ddfc5f9cb3d81ed3ea4ae38c173f3) fix: Inverse mouse scroll wheel on Linux ([#585](https://github.com/tauri-apps/tao/pull/585)) on 2022-10-11
+- Add `EventLoopExtMacOS::set_activate_ignoring_other_apps` on macOS.
+  - [d2c6a91c](https://github.com/tauri-apps/tao/commit/d2c6a91c4588bab460ef5924b10cfb224c1336c6) feat: add `EventLoopExtMacOS::set_activate_ignoring_other_apps` ([#612](https://github.com/tauri-apps/tao/pull/612)) on 2022-11-01
+- Add `WindowExtMacOS::set_allows_automatic_window_tabbing`, `WindowExtMacOS::allows_automatic_window_tabbing`, and `WindowBuilderExtMacOS::with_automatic_window_tabbing` on macOS.
+  - [7c7ce8ab](https://github.com/tauri-apps/tao/commit/7c7ce8ab2d838a79ecdf83df00124c418a6a51f6) feat(macos): add `allows_automatic_window_tabbing` APIs ([#586](https://github.com/tauri-apps/tao/pull/586)) on 2022-10-12
+- Support cross compiling for macos from a non macos host.
+  - [2edc7418](https://github.com/tauri-apps/tao/commit/2edc74182378c09eddae22de9fb77a301f2cbbf4) Fix cross compilation. ([#601](https://github.com/tauri-apps/tao/pull/601)) on 2022-10-25
+- Add `WindowExtMacOS::is_doucmented_edited` and `WindowExtMacOS::set_is_doucmented_edited` on macOS.
+  - [33fdeab6](https://github.com/tauri-apps/tao/commit/33fdeab6291d4aef8ea9facb58fe9583f6c1aaf3) feat(macos): add document edited apis, closes [#268](https://github.com/tauri-apps/tao/pull/268) ([#287](https://github.com/tauri-apps/tao/pull/287)) on 2022-10-03
+- On macOS, scale menu item icons height to 18.
+  - [5e3d344c](https://github.com/tauri-apps/tao/commit/5e3d344c77006fce03459a851e30cb798e568756) fix(macos): scale menu item icon height to 18, closes [#584](https://github.com/tauri-apps/tao/pull/584) ([#590](https://github.com/tauri-apps/tao/pull/590)) on 2022-10-15
+- Add support for the "+" key in menu accelerators using `KeyCode::Plus` or the "Plus" keyword.
+  See documentation for `KeyCode::Plus` for notes on platform-dependent behaviour.
+  - [937aba7b](https://github.com/tauri-apps/tao/commit/937aba7b7faba04e8d154f7681f97985f0b8ca76) feat(menus): add support for Plus key in accelerators, closes [#227](https://github.com/tauri-apps/tao/pull/227) ([#573](https://github.com/tauri-apps/tao/pull/573)) on 2022-09-27
+- Add the application name to the "Quit" and "Hide" native menu items on macOS.
+  - [65f768e5](https://github.com/tauri-apps/tao/commit/65f768e55fb1eb53642246c63194ef75e84f908a) fix(menus): add app name to native Quit and Hide items on macOS, closes [#536](https://github.com/tauri-apps/tao/pull/536) ([#570](https://github.com/tauri-apps/tao/pull/570)) on 2022-09-25
+- Fix the native Services menu on macOS.
+  - [d343abf8](https://github.com/tauri-apps/tao/commit/d343abf8ccc67dff8bc6db2b370a652683360f64) fix(menus): fix macOS Services menu not working, closes [#243](https://github.com/tauri-apps/tao/pull/243) ([#569](https://github.com/tauri-apps/tao/pull/569)) on 2022-09-25
+- Scale the tray icon according to its aspect ratio on macOS.
+  - [dbbfd97c](https://github.com/tauri-apps/tao/commit/dbbfd97c615ba0eec582b484e06608b87f34ef7a) feat(macos): support to change tray icon aspect ratio, close [#564](https://github.com/tauri-apps/tao/pull/564) ([#565](https://github.com/tauri-apps/tao/pull/565)) on 2022-09-25
+- Add builder methods on Linux to control the drawing behavior of the window. `WindowBuilderExtUnix::with_double_buffered`, `WindowBuilderExtUnix::with_rgba_visual` and `WindowBuilderExtUnix::with_app_paintable`
+  - [0637c605](https://github.com/tauri-apps/tao/commit/0637c605bd74eaf6ac9995a340bcc650a46664e8) feat(linux): add drawing behavior builder methods, closes [#567](https://github.com/tauri-apps/tao/pull/567) ([#572](https://github.com/tauri-apps/tao/pull/572)) on 2022-09-27
+- On Windows, show Window menu (also known as the System menu or Control menu) in response to <kbd>Alt+Space</kbd>.
+  - [0d76094e](https://github.com/tauri-apps/tao/commit/0d76094e90252285002a63cb4d889c6c8c485bdf) fix(Windows): show window menu on alt+space, closes 547 ([#593](https://github.com/tauri-apps/tao/pull/593)) on 2022-10-19
+- On Windows, fix icons specified on `WindowBuilder` not taking effect for windows created after the firt one.
+  - [d72b1e1a](https://github.com/tauri-apps/tao/commit/d72b1e1a0cb7757bdc67008d70c8d25596ad393d) fix(Windows): fix icons specified on `WindowBuilder` not taking effect for windows created after the first one ([#604](https://github.com/tauri-apps/tao/pull/604)) on 2022-10-27
+- Added tabbing identifier APIs on macOS.
+  - [8815291e](https://github.com/tauri-apps/tao/commit/8815291e8cf4ac855ae4b9ad93183a27d6da5bb7) feat(macos): add tabbing identifier APIs ([#592](https://github.com/tauri-apps/tao/pull/592)) on 2022-10-18
+- On Linux, reduce channel redirect. Now sending user events and redraw request will send to event loops directly.
+  - [dd86a9eb](https://github.com/tauri-apps/tao/commit/dd86a9ebec67bf103e79bdfd1a2377cbe832bc03) refactor(linux): reduce channel redirect ([#588](https://github.com/tauri-apps/tao/pull/588)) on 2022-10-16
+- Add `WindowBuilder::with_focused` to specify whether to initially focus the window or not.
+  - [e42ff071](https://github.com/tauri-apps/tao/commit/e42ff07190c37b6b8a7808900133838247a730df) feat: add `WindowBuilder::with_focused` ([#576](https://github.com/tauri-apps/tao/pull/576)) on 2022-10-03
+- Add APIs for disabling the individual window controls on desktop platforms, `Window::set_closable`, `Window::is_closable`, `WindowBuilder::with_closable`, `Window::set_minimizable`, `Window::is_minimizable`, `WindowBuilder::with_minimizable`, `Window::set_maximizable`, `Window::is_maximizable`, `WindowBuilder::with_maximizable`. See the docs for platform-specific notes, especially regarding Linux.
+  - [a50fd867](https://github.com/tauri-apps/tao/commit/a50fd867b3df033dff077f5320b4b7037b04e454) feat: options to disable individual window controls, closes [#116](https://github.com/tauri-apps/tao/pull/116) ([#574](https://github.com/tauri-apps/tao/pull/574)) on 2022-10-11
+- Add `Window::title` to get the current window title.
+  - [c50529b3](https://github.com/tauri-apps/tao/commit/c50529b3ee453c73acf36bd7e1cd7c14669951f3) feat: add `Window::title` getter, closes [#546](https://github.com/tauri-apps/tao/pull/546) ([#579](https://github.com/tauri-apps/tao/pull/579)) on 2022-10-04
+- Default to MOD_NOREPEAT for registering global shortcuts / hotkeys via win32 RegisterHotKey on Windows. This prevents shortcuts from repeatedly activating when the accelerator is pressed and held down, and ensures that we maintain platform-agnostic consistency.
+  - [d15a756c](https://github.com/tauri-apps/tao/commit/d15a756cfca5d7ec7b4a526edd68c3576f308d9a) Prevent global shortcut activation from repeating on Windows ([#602](https://github.com/tauri-apps/tao/pull/602)) on 2022-10-23
+
 ## \[0.14.0]
 
 - Implement "always on bottom" as contrary to "always on top".

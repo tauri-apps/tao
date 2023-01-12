@@ -1,6 +1,6 @@
 [package]
 name = "tao"
-version = "0.14.0"
+version = "0.15.9"
 description = "Cross-platform window manager library."
 authors = [
   "Tauri Programme within The Commons Conservancy",
@@ -26,10 +26,16 @@ targets = [
   "x86_64-apple-darwin"
 ]
 
+[workspace]
+members = [ "tao-macros" ]
+
 [features]
 default = [ ]
 dox = [ "gtk/dox" ]
 tray = [ "libappindicator", "dirs-next" ]
+
+[build-dependencies]
+cc = "1"
 
 [dependencies]
 instant = "0.1"
@@ -46,12 +52,12 @@ image = "0.24"
 env_logger = "0.9"
 
 [target."cfg(target_os = \"android\")".dependencies]
-jni = "0.19"
+jni = "0.20"
 ndk = "0.6"
 ndk-sys = "0.3"
 ndk-context = "0.1"
 once_cell = "1"
-paste = "1.0"
+tao-macros = { version = "0.1.0", path = "./tao-macros" }
 
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
 objc = "0.2"
@@ -64,9 +70,6 @@ dispatch = "0.2"
 scopeguard = "1.1"
 png = "0.17"
 url = "2"
-
-[target."cfg(target_os = \"macos\")".build-dependencies]
-cc = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 parking_lot = "0.12"
@@ -118,6 +121,6 @@ gdk-pixbuf = { version = "0.15", features = [ "v2_36_8" ] }
 libappindicator = { version = "0.7.1", optional = true }
 dirs-next = { version = "2.0.0", optional = true }
 x11-dl = "2.20"
-uuid = { version = "1.1", features = [ "v4" ] }
+uuid = { version = "1.2", features = [ "v4" ] }
 png = "0.17"
 parking_lot = "0.12"

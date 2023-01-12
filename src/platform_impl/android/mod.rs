@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(target_os = "android")]
@@ -486,6 +486,12 @@ impl<T: 'static> EventLoopWindowTarget<T> {
     })
   }
 
+  #[inline]
+  pub fn monitor_from_point(&self, _x: f64, _y: f64) -> Option<MonitorHandle> {
+    warn!("`Window::monitor_from_point` is ignored on Android");
+    return None;
+  }
+
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
     let mut v = VecDeque::with_capacity(1);
     v.push_back(MonitorHandle);
@@ -546,6 +552,12 @@ impl Window {
     v
   }
 
+  #[inline]
+  pub fn monitor_from_point(&self, _x: f64, _y: f64) -> Option<monitor::MonitorHandle> {
+    warn!("`Window::monitor_from_point` is ignored on Android");
+    None
+  }
+
   pub fn current_monitor(&self) -> Option<monitor::MonitorHandle> {
     Some(monitor::MonitorHandle {
       inner: MonitorHandle,
@@ -589,8 +601,8 @@ impl Window {
   pub fn set_max_inner_size(&self, _: Option<Size>) {}
 
   pub fn set_title(&self, _title: &str) {}
-  pub fn title(&self) -> Option<String> {
-    None
+  pub fn title(&self) -> String {
+    String::new()
   }
 
   pub fn set_menu(&self, _menu: Option<Menu>) {}
@@ -607,7 +619,21 @@ impl Window {
     false
   }
 
-  pub fn set_resizable(&self, _resizeable: bool) {}
+  pub fn set_resizable(&self, _resizeable: bool) {
+    warn!("`Window::set_resizable` is ignored on Android")
+  }
+
+  pub fn set_minimizable(&self, _minimizable: bool) {
+    warn!("`Window::set_minimizable` is ignored on Android")
+  }
+
+  pub fn set_maximizable(&self, _maximizable: bool) {
+    warn!("`Window::set_maximizable` is ignored on Android")
+  }
+
+  pub fn set_closable(&self, _closable: bool) {
+    warn!("`Window::set_closable` is ignored on Android")
+  }
 
   pub fn set_minimized(&self, _minimized: bool) {}
 
@@ -622,12 +648,27 @@ impl Window {
   }
 
   pub fn is_visible(&self) -> bool {
-    log::warn!("`Window::is_visible` is ignored on android");
+    log::warn!("`Window::is_visible` is ignored on Android");
     false
   }
 
   pub fn is_resizable(&self) -> bool {
-    warn!("`Window::is_resizable` is ignored on android");
+    warn!("`Window::is_resizable` is ignored on Android");
+    false
+  }
+
+  pub fn is_minimizable(&self) -> bool {
+    warn!("`Window::is_minimizable` is ignored on Android");
+    false
+  }
+
+  pub fn is_maximizable(&self) -> bool {
+    warn!("`Window::is_maximizable` is ignored on Android");
+    false
+  }
+
+  pub fn is_closable(&self) -> bool {
+    warn!("`Window::is_closable` is ignored on Android");
     false
   }
 
@@ -697,7 +738,7 @@ impl Window {
     // TODO: Use main activity instead?
     let mut handle = AndroidNdkWindowHandle::empty();
     if let Some(w) = ndk_glue::window_manager() {
-      handle.a_native_window = w.as_obj().into_inner() as *mut _;
+      handle.a_native_window = w.as_obj().into_raw() as *mut _;
     } else {
       panic!("Cannot get the native window, it's null and will always be null before Event::Resumed and after Event::Suspended. Make sure you only call this function between those events.");
     };

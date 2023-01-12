@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -8,11 +8,12 @@ use std::{
   error::Error,
   process,
   rc::Rc,
-  sync::mpsc::SendError,
+  sync::atomic::{AtomicBool, Ordering},
   time::Instant,
 };
 
 use cairo::{RectangleInt, Region};
+use crossbeam_channel::SendError;
 use gdk::{Cursor, CursorType, EventKey, EventMask, ScrollDirection, WindowEdge, WindowState};
 use gio::{prelude::*, Cancellable};
 use glib::{source::Priority, Continue, MainContext};
@@ -30,13 +31,13 @@ use crate::{
   keyboard::ModifiersState,
   menu::{MenuItem, MenuType},
   monitor::MonitorHandle as RootMonitorHandle,
-  platform_impl::platform::{window::hit_test, DEVICE_ID},
+  platform_impl::platform::{device, window::hit_test, DEVICE_ID},
   window::{CursorIcon, Fullscreen, WindowId as RootWindowId},
 };
 
 use super::{
   keyboard,
-  monitor::MonitorHandle,
+  monitor::{self, MonitorHandle},
   window::{WindowId, WindowRequest},
 };
 
@@ -50,10 +51,16 @@ pub struct EventLoopWindowTarget<T> {
   pub(crate) windows: Rc<RefCell<HashSet<WindowId>>>,
   /// Window requests sender
   pub(crate) window_requests_tx: glib::Sender<(WindowId, WindowRequest)>,
+  /// Draw event sender
+  pub(crate) draw_tx: crossbeam_channel::Sender<WindowId>,
   _marker: std::marker::PhantomData<T>,
 }
 
 impl<T> EventLoopWindowTarget<T> {
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
+    monitor::from_point(&self.display, x, y)
+  }
   #[inline]
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
     let mut handles = VecDeque::new();
@@ -98,7 +105,7 @@ pub struct EventLoop<T: 'static> {
   /// Window target.
   window_target: RootELW<T>,
   /// User event sender for EventLoopProxy
-  user_event_tx: glib::Sender<T>,
+  pub(crate) user_event_tx: crossbeam_channel::Sender<Event<'static, T>>,
   /// Event queue of EventLoop
   events: crossbeam_channel::Receiver<Event<'static, T>>,
   /// Draw queue of EventLoop
@@ -134,6 +141,8 @@ impl<T: 'static> EventLoop<T> {
         log::warn!("Failed to send init event to event channel: {}", e);
       }
     });
+    let draw_tx_ = draw_tx.clone();
+    let user_event_tx = event_tx.clone();
 
     // Create event loop window target.
     let (window_requests_tx, window_requests_rx) = glib::MainContext::channel(Priority::default());
@@ -145,18 +154,9 @@ impl<T: 'static> EventLoop<T> {
       app,
       windows: Rc::new(RefCell::new(HashSet::new())),
       window_requests_tx,
+      draw_tx: draw_tx_,
       _marker: std::marker::PhantomData,
     };
-
-    // Create user event channel
-    let (user_event_tx, user_event_rx) = glib::MainContext::channel(Priority::default());
-    let event_tx_ = event_tx.clone();
-    user_event_rx.attach(Some(&context), move |event| {
-      if let Err(e) = event_tx_.send(Event::UserEvent(event)) {
-        log::warn!("Failed to send user event to event channel: {}", e);
-      }
-      Continue(true)
-    });
 
     // Window Request
     window_requests_rx.attach(Some(&context), move |(id, request)| {
@@ -165,33 +165,23 @@ impl<T: 'static> EventLoop<T> {
           WindowRequest::Title(title) => window.set_title(&title),
           WindowRequest::Position((x, y)) => window.move_(x, y),
           WindowRequest::Size((w, h)) => window.resize(w, h),
-          WindowRequest::MinSize((min_width, min_height)) => {
+          WindowRequest::SizeConstraint { min, max } => {
+            let geom_mask = min
+              .map(|_| gdk::WindowHints::MIN_SIZE)
+              .unwrap_or(gdk::WindowHints::empty())
+              | max
+                .map(|_| gdk::WindowHints::MAX_SIZE)
+                .unwrap_or(gdk::WindowHints::empty());
+
+            let (min_width, min_height) = min.map(Into::into).unwrap_or_default();
+            let (max_width, max_height) = max.map(Into::into).unwrap_or_default();
+
             let picky_none: Option<&gtk::Window> = None;
             window.set_geometry_hints(
               picky_none,
               Some(&gdk::Geometry::new(
                 min_width,
                 min_height,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0f64,
-                0f64,
-                gdk::Gravity::Center,
-              )),
-              gdk::WindowHints::MIN_SIZE,
-            )
-          }
-          WindowRequest::MaxSize((max_width, max_height)) => {
-            let picky_none: Option<&gtk::Window> = None;
-            window.set_geometry_hints(
-              picky_none,
-              Some(&gdk::Geometry::new(
-                0,
-                0,
                 max_width,
                 max_height,
                 0,
@@ -202,7 +192,7 @@ impl<T: 'static> EventLoop<T> {
                 0f64,
                 gdk::Gravity::Center,
               )),
-              gdk::WindowHints::MAX_SIZE,
+              geom_mask,
             )
           }
           WindowRequest::Visible(visible) => {
@@ -216,6 +206,7 @@ impl<T: 'static> EventLoop<T> {
             window.present_with_time(gdk_sys::GDK_CURRENT_TIME as _);
           }
           WindowRequest::Resizable(resizable) => window.set_resizable(resizable),
+          WindowRequest::Closable(closable) => window.set_deletable(closable),
           WindowRequest::Minimized(minimized) => {
             if minimized {
               window.iconify();
@@ -270,6 +261,13 @@ impl<T: 'static> EventLoop<T> {
           WindowRequest::SetSkipTaskbar(skip) => {
             window.set_skip_taskbar_hint(skip);
             window.set_skip_pager_hint(skip)
+          }
+          WindowRequest::SetVisibleOnAllWorkspaces(visible) => {
+            if visible {
+              window.stick();
+            } else {
+              window.unstick();
+            }
           }
           WindowRequest::CursorIcon(cursor) => {
             if let Some(gdk_window) = window.window() {
@@ -350,7 +348,10 @@ impl<T: 'static> EventLoop<T> {
               window.input_shape_combine_region(None)
             };
           }
-          WindowRequest::WireUpEvents { transparent } => {
+          WindowRequest::WireUpEvents {
+            transparent,
+            cursor_moved,
+          } => {
             window.add_events(
               EventMask::POINTER_MOTION_MASK
                 | EventMask::BUTTON1_MOTION_MASK
@@ -533,19 +534,21 @@ impl<T: 'static> EventLoop<T> {
 
             let tx_clone = event_tx.clone();
             window.connect_motion_notify_event(move |window, motion| {
-              if let Some(cursor) = motion.device() {
-                let scale_factor = window.scale_factor();
-                let (_, x, y) = cursor.window_at_position();
-                if let Err(e) = tx_clone.send(Event::WindowEvent {
-                  window_id: RootWindowId(id),
-                  event: WindowEvent::CursorMoved {
-                    position: LogicalPosition::new(x, y).to_physical(scale_factor as f64),
-                    device_id: DEVICE_ID,
-                    // this field is depracted so it is fine to pass empty state
-                    modifiers: ModifiersState::empty(),
-                  },
-                }) {
-                  log::warn!("Failed to send cursor moved event to event channel: {}", e);
+              if cursor_moved {
+                if let Some(cursor) = motion.device() {
+                  let scale_factor = window.scale_factor();
+                  let (_, x, y) = cursor.window_at_position();
+                  if let Err(e) = tx_clone.send(Event::WindowEvent {
+                    window_id: RootWindowId(id),
+                    event: WindowEvent::CursorMoved {
+                      position: LogicalPosition::new(x, y).to_physical(scale_factor as f64),
+                      device_id: DEVICE_ID,
+                      // this field is depracted so it is fine to pass empty state
+                      modifiers: ModifiersState::empty(),
+                    },
+                  }) {
+                    log::warn!("Failed to send cursor moved event to event channel: {}", e);
+                  }
                 }
               }
               Inhibit(false)
@@ -623,7 +626,7 @@ impl<T: 'static> EventLoop<T> {
                 window_id: RootWindowId(id),
                 event: WindowEvent::MouseWheel {
                   device_id: DEVICE_ID,
-                  delta: MouseScrollDelta::LineDelta(x as f32, y as f32),
+                  delta: MouseScrollDelta::LineDelta(-x as f32, -y as f32),
                   phase: match event.direction() {
                     ScrollDirection::Smooth => TouchPhase::Moved,
                     _ => TouchPhase::Ended,
@@ -758,13 +761,6 @@ impl<T: 'static> EventLoop<T> {
 
               Inhibit(false)
             });
-          }
-          WindowRequest::Redraw => {
-            if let Err(e) = draw_tx.send(id) {
-              log::warn!("Failed to send redraw event to event channel: {}", e);
-            }
-
-            window.queue_draw();
           }
           WindowRequest::Menu(m) => match m {
             (None, Some(menu_id)) => {
@@ -928,7 +924,23 @@ impl<T: 'static> EventLoop<T> {
       DrawQueue,
     }
 
+    // Spawn x11 thread to receive Device events.
     let context = MainContext::default();
+    let user_event_tx = self.user_event_tx.clone();
+    let (device_tx, device_rx) = glib::MainContext::channel(glib::Priority::default());
+    let run_device_thread = Rc::new(AtomicBool::new(true));
+    let run = run_device_thread.clone();
+    device::spawn(&self.window_target, device_tx);
+    device_rx.attach(Some(&context), move |event| {
+      if let Err(e) = user_event_tx.send(Event::DeviceEvent {
+        device_id: DEVICE_ID,
+        event,
+      }) {
+        log::warn!("Fail to send device event to event channel: {}", e);
+      }
+      Continue(run.load(Ordering::Relaxed))
+    });
+
     context
       .with_thread_default(|| {
         let mut control_flow = ControlFlow::default();
@@ -948,7 +960,7 @@ impl<T: 'static> EventLoop<T> {
                 break code;
               }
               ControlFlow::Wait => {
-                if !events.is_empty() || !draws.is_empty() {
+                if !events.is_empty() {
                   callback(
                     Event::NewEvents(StartCause::WaitCancelled {
                       start: Instant::now(),
@@ -988,7 +1000,7 @@ impl<T: 'static> EventLoop<T> {
                   blocking = true;
                 }
               }
-              ControlFlow::Poll => {
+              _ => {
                 callback(
                   Event::NewEvents(StartCause::Poll),
                   window_target,
@@ -1009,11 +1021,7 @@ impl<T: 'static> EventLoop<T> {
                 },
                 Err(_) => {
                   callback(Event::MainEventsCleared, window_target, &mut control_flow);
-                  if draws.is_empty() {
-                    state = EventState::NewStart;
-                  } else {
-                    state = EventState::DrawQueue;
-                  }
+                  state = EventState::DrawQueue;
                 }
               },
             },
@@ -1037,6 +1045,7 @@ impl<T: 'static> EventLoop<T> {
           }
           gtk::main_iteration_do(blocking);
         };
+        run_device_thread.store(false, Ordering::Relaxed);
         exit_code
       })
       .unwrap_or(1)
@@ -1058,7 +1067,7 @@ impl<T: 'static> EventLoop<T> {
 /// Used to send custom events to `EventLoop`.
 #[derive(Debug)]
 pub struct EventLoopProxy<T: 'static> {
-  user_event_tx: glib::Sender<T>,
+  user_event_tx: crossbeam_channel::Sender<Event<'static, T>>,
 }
 
 impl<T: 'static> Clone for EventLoopProxy<T> {
@@ -1078,8 +1087,19 @@ impl<T: 'static> EventLoopProxy<T> {
   pub fn send_event(&self, event: T) -> Result<(), EventLoopClosed<T>> {
     self
       .user_event_tx
-      .send(event)
-      .map_err(|SendError(error)| EventLoopClosed(error))
+      .send(Event::UserEvent(event))
+      .map_err(|SendError(event)| {
+        if let Event::UserEvent(error) = event {
+          EventLoopClosed(error)
+        } else {
+          unreachable!();
+        }
+      })?;
+
+    let context = MainContext::default();
+    context.wakeup();
+
+    Ok(())
   }
 }
 

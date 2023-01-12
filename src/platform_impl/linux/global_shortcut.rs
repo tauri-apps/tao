@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use super::window::{WindowId, WindowRequest};
@@ -53,8 +53,7 @@ impl ShortcutManager {
           let root = (xlib.XDefaultRootWindow)(display);
 
           // Only trigger key release at end of repeated keys
-          #[allow(clippy::uninit_assumed_init)]
-          let mut supported_rtrn: i32 = std::mem::MaybeUninit::uninit().assume_init();
+          let mut supported_rtrn: i32 = 0;
           (xlib.XkbSetDetectableAutoRepeat)(display, 1, &mut supported_rtrn);
 
           (xlib.XSelectInput)(display, root, xlib::KeyReleaseMask);

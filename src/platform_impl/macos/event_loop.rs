@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -82,6 +82,11 @@ impl<T: 'static> EventLoopWindowTarget<T> {
   #[inline]
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
     monitor::available_monitors()
+  }
+
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
+    monitor::from_point(x, y)
   }
 
   #[inline]
