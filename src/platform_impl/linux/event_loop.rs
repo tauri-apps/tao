@@ -23,7 +23,8 @@ use raw_window_handle::{RawDisplayHandle, XlibDisplayHandle};
 
 use crate::{
   accelerator::AcceleratorId,
-  dpi::{LogicalPosition, LogicalSize},
+  dpi::{LogicalPosition, LogicalSize, PhysicalPosition},
+  error::ExternalError,
   event::{
     ElementState, Event, MouseButton, MouseScrollDelta, StartCause, TouchPhase, WindowEvent,
   },
@@ -38,6 +39,7 @@ use crate::{
 use super::{
   keyboard,
   monitor::{self, MonitorHandle},
+  util,
   window::{WindowId, WindowRequest},
 };
 
@@ -98,6 +100,11 @@ impl<T> EventLoopWindowTarget<T> {
 
   pub fn is_wayland(&self) -> bool {
     self.display.backend().is_wayland()
+  }
+
+  #[inline]
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    util::cursor_position()
   }
 }
 

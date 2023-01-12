@@ -216,6 +216,11 @@ impl Inner {
     debug!("`Window::set_cursor_visible` is ignored on iOS")
   }
 
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    debug!("`Window::cursor_position` is ignored on iOS");
+    Ok((0, 0).into())
+  }
+
   pub fn drag_window(&self) -> Result<(), ExternalError> {
     Err(ExternalError::NotSupported(NotSupportedError::new()))
   }

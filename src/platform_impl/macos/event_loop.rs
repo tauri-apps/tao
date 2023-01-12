@@ -24,6 +24,8 @@ use raw_window_handle::{AppKitDisplayHandle, RawDisplayHandle};
 use scopeguard::defer;
 
 use crate::{
+  dpi::PhysicalPosition,
+  error::ExternalError,
   event::Event,
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootWindowTarget},
   monitor::MonitorHandle as RootMonitorHandle,
@@ -33,7 +35,7 @@ use crate::{
     app_state::AppState,
     monitor::{self, MonitorHandle},
     observer::*,
-    util::IdRef,
+    util::{self, IdRef},
   },
 };
 
@@ -98,6 +100,11 @@ impl<T: 'static> EventLoopWindowTarget<T> {
   #[inline]
   pub fn raw_display_handle(&self) -> RawDisplayHandle {
     RawDisplayHandle::AppKit(AppKitDisplayHandle::empty())
+  }
+
+  #[inline]
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    util::cursor_position()
   }
 }
 

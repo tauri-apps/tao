@@ -45,6 +45,7 @@ use windows::{
 use crate::{
   accelerator::AcceleratorId,
   dpi::{PhysicalPosition, PhysicalSize},
+  error::ExternalError,
   event::{DeviceEvent, Event, Force, RawKeyEvent, Touch, TouchPhase, WindowEvent},
   event_loop::{ControlFlow, DeviceEventFilter, EventLoopClosed, EventLoopWindowTarget as RootELW},
   keyboard::{KeyCode, ModifiersState},
@@ -318,6 +319,11 @@ impl<T> EventLoopWindowTarget<T> {
 
   pub fn set_device_event_filter(&self, filter: DeviceEventFilter) {
     raw_input::register_all_mice_and_keyboards_for_raw_input(self.thread_msg_target, filter);
+  }
+
+  #[inline]
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    util::cursor_position()
   }
 }
 

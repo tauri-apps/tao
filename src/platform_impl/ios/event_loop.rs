@@ -15,7 +15,8 @@ use crossbeam_channel::{self as channel, Receiver, Sender};
 use raw_window_handle::{RawDisplayHandle, UiKitDisplayHandle};
 
 use crate::{
-  dpi::LogicalSize,
+  dpi::{LogicalSize, PhysicalPosition},
+  error::ExternalError,
   event::Event,
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootEventLoopWindowTarget},
   monitor::MonitorHandle as RootMonitorHandle,
@@ -79,6 +80,11 @@ impl<T: 'static> EventLoopWindowTarget<T> {
 
   pub fn raw_display_handle(&self) -> RawDisplayHandle {
     RawDisplayHandle::UiKit(UiKitDisplayHandle::empty())
+  }
+
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    debug!("`EventLoopWindowTarget::cursor_position` is ignored on iOS");
+    Ok((0, 0).into())
   }
 }
 
