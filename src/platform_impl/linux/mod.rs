@@ -13,7 +13,6 @@
 mod clipboard;
 mod device;
 mod event_loop;
-mod global_shortcut;
 mod icon;
 mod keyboard;
 mod keycode;
@@ -24,7 +23,6 @@ pub mod x11;
 
 pub use self::{
   clipboard::Clipboard,
-  global_shortcut::{GlobalShortcut, ShortcutManager},
   keycode::{keycode_from_scancode, keycode_to_scancode},
 };
 pub(crate) use event_loop::PlatformSpecificEventLoopAttributes;

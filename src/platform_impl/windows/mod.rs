@@ -14,7 +14,6 @@ pub(crate) use self::{
   event_loop::{
     EventLoop, EventLoopProxy, EventLoopWindowTarget, PlatformSpecificEventLoopAttributes,
   },
-  global_shortcut::{GlobalShortcut, ShortcutManager},
   icon::WinIcon,
   keycode::{keycode_from_scancode, keycode_to_scancode},
   monitor::{MonitorHandle, VideoMode},
@@ -26,7 +25,6 @@ pub use self::window::hit_test;
 pub use self::icon::WinIcon as PlatformIcon;
 
 use crate::{event::DeviceId as RootDeviceId, icon::Icon, keyboard::Key, window::Theme};
-mod global_shortcut;
 mod keycode;
 
 #[non_exhaustive]

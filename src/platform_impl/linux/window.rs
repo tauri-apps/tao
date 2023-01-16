@@ -825,7 +825,6 @@ pub enum WindowRequest {
     transparent: bool,
     cursor_moved: bool,
   },
-  GlobalHotKey(u16),
   SetVisibleOnAllWorkspaces(bool),
 }
 

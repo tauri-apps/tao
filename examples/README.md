@@ -4,7 +4,6 @@ Run the `cargo run --example <file_name>` to see how each example works.
 - `control_flow`: tell event loop what to do in the next iteration, after the current one's finished.
 - `custom_events`: user can create custom events and emit or listen to them through tao.
 - `fullscreen`: example for configuring different screen sizes, and video modes.
-- `global_shortcut`: listen to hotkeys (shortcuts) stored in a hotkey manager.
 - `handling_close`: close window with a warning.
 - `request_redraw_threaded`: same as request_redraw but multithreaded.
 - `request_redraw`: an event emitted when it's needed to redraw (when resizing window for example).

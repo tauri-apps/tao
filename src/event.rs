@@ -41,7 +41,6 @@ use instant::Instant;
 use std::path::PathBuf;
 
 use crate::{
-  accelerator::AcceleratorId,
   dpi::{PhysicalPosition, PhysicalSize},
   keyboard::{self, ModifiersState},
   platform_impl,
@@ -78,13 +77,6 @@ pub enum Event<'a, T: 'static> {
 
   /// Emitted when an event is sent from [`EventLoopProxy::send_event`](crate::event_loop::EventLoopProxy::send_event)
   UserEvent(T),
-
-  /// Emitted when a global shortcut is triggered.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **iOS / Android:** Unsupported.
-  GlobalShortcutEvent(AcceleratorId),
 
   /// Emitted when the application has been suspended.
   Suspended,
@@ -163,7 +155,6 @@ impl<T: Clone> Clone for Event<'static, T> {
       LoopDestroyed => LoopDestroyed,
       Suspended => Suspended,
       Resumed => Resumed,
-      GlobalShortcutEvent(accelerator_id) => GlobalShortcutEvent(*accelerator_id),
     }
   }
 }
@@ -182,7 +173,6 @@ impl<'a, T> Event<'a, T> {
       LoopDestroyed => Ok(LoopDestroyed),
       Suspended => Ok(Suspended),
       Resumed => Ok(Resumed),
-      GlobalShortcutEvent(accelerator_id) => Ok(GlobalShortcutEvent(accelerator_id)),
     }
   }
 
@@ -203,7 +193,6 @@ impl<'a, T> Event<'a, T> {
       LoopDestroyed => Some(LoopDestroyed),
       Suspended => Some(Suspended),
       Resumed => Some(Resumed),
-      GlobalShortcutEvent(accelerator_id) => Some(GlobalShortcutEvent(accelerator_id)),
     }
   }
 }

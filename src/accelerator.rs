@@ -254,12 +254,6 @@ impl From<SysMods> for RawMods {
 }
 
 /// Identifier of an Accelerator.
-///
-/// Whenever you receive an event arising from a [GlobalShortcutEvent] or [KeyboardInput],
-/// this event contains a `AcceleratorId` which identifies its origin.
-///
-/// [KeyboardInput]: crate::event::WindowEvent::KeyboardInput
-/// [GlobalShortcutEvent]: crate::event::Event::GlobalShortcutEvent
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct AcceleratorId(pub u16);
 

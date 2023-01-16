@@ -11,7 +11,6 @@ mod clipboard;
 mod event;
 mod event_loop;
 mod ffi;
-mod global_shortcut;
 mod icon;
 mod keycode;
 mod monitor;
@@ -29,7 +28,6 @@ pub use self::{
   clipboard::Clipboard,
   event::KeyEventExtra,
   event_loop::{EventLoop, EventLoopWindowTarget, Proxy as EventLoopProxy},
-  global_shortcut::{GlobalShortcut, ShortcutManager},
   keycode::{keycode_from_scancode, keycode_to_scancode},
   monitor::{MonitorHandle, VideoMode},
   window::{Id as WindowId, Parent, PlatformSpecificWindowBuilderAttributes, UnownedWindow},
