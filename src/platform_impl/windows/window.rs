@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(target_os = "windows")]
@@ -263,7 +263,7 @@ impl Window {
     let is_decorated = window_state
       .lock()
       .window_flags
-      .contains(WindowFlags::DECORATIONS);
+      .contains(WindowFlags::MARKER_DECORATIONS);
 
     let window = self.window.clone();
     self.thread_executor.execute_in_thread(move || {
@@ -407,6 +407,11 @@ impl Window {
   }
 
   #[inline]
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    util::cursor_position()
+  }
+
+  #[inline]
   pub fn scale_factor(&self) -> f64 {
     self.window_state.lock().scale_factor
   }
@@ -530,7 +535,9 @@ impl Window {
   #[inline]
   pub fn is_decorated(&self) -> bool {
     let window_state = self.window_state.lock();
-    window_state.window_flags.contains(WindowFlags::DECORATIONS)
+    window_state
+      .window_flags
+      .contains(WindowFlags::MARKER_DECORATIONS)
   }
 
   #[inline]
@@ -699,7 +706,7 @@ impl Window {
 
     self.thread_executor.execute_in_thread(move || {
       WindowState::set_window_flags(window_state.lock(), window.0, |f| {
-        f.set(WindowFlags::DECORATIONS, decorations)
+        f.set(WindowFlags::MARKER_DECORATIONS, decorations)
       });
     });
   }
@@ -848,6 +855,19 @@ impl Window {
     unsafe { set_skip_taskbar(self.hwnd(), skip) };
   }
 
+  #[inline]
+  pub fn set_undecorated_shadow(&self, shadow: bool) {
+    let window = self.window.clone();
+    let window_state = Arc::clone(&self.window_state);
+
+    self.thread_executor.execute_in_thread(move || {
+      let _ = &window;
+      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+        f.set(WindowFlags::MARKER_UNDECORATED_SHADOW, shadow)
+      });
+    });
+  }
+
   pub fn set_content_protection(&self, enabled: bool) {
     unsafe {
       SetWindowDisplayAffinity(
@@ -895,7 +915,11 @@ unsafe fn init<T: 'static>(
   let class_name = register_window_class();
 
   let mut window_flags = WindowFlags::empty();
-  window_flags.set(WindowFlags::DECORATIONS, attributes.decorations);
+  window_flags.set(WindowFlags::MARKER_DECORATIONS, attributes.decorations);
+  window_flags.set(
+    WindowFlags::MARKER_UNDECORATED_SHADOW,
+    pl_attribs.decoration_shadow,
+  );
   window_flags.set(WindowFlags::ALWAYS_ON_BOTTOM, attributes.always_on_bottom);
   window_flags.set(WindowFlags::ALWAYS_ON_TOP, attributes.always_on_top);
   window_flags.set(
@@ -1093,19 +1117,28 @@ unsafe extern "system" fn window_proc(
     win32wm::WM_NCCALCSIZE => {
       let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
       if userdata != 0 {
-        let win_flags = WindowFlags::from_bits_unchecked(userdata as _);
-        if !win_flags.contains(WindowFlags::DECORATIONS) {
-          // adjust the maximized borderless window so it doesn't cover the taskbar
-          if util::is_maximized(window) {
-            let monitor = monitor::current_monitor(window);
-            if let Ok(monitor_info) = monitor::get_monitor_info(monitor.hmonitor()) {
-              let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
-              params.rgrc[0] = monitor_info.monitorInfo.rcWork;
-            }
-          }
-          return LRESULT(0); // return 0 here to make the window borderless
+        let window_flags = WindowFlags::from_bits_unchecked(userdata as _);
+
+        if wparam == WPARAM(0) || window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
+          return DefWindowProcW(window, msg, wparam, lparam);
         }
+
+        // adjust the maximized borderless window so it doesn't cover the taskbar
+        if util::is_maximized(window) {
+          let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
+          if let Ok(monitor_info) =
+            monitor::get_monitor_info(MonitorFromRect(&params.rgrc[0], MONITOR_DEFAULTTONULL))
+          {
+            params.rgrc[0] = monitor_info.monitorInfo.rcWork;
+          }
+        } else if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) {
+          let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
+          params.rgrc[0].top += 1;
+          params.rgrc[0].bottom += 1;
+        }
+        return LRESULT(0); // return 0 here to make the window borderless
       }
+
       DefWindowProcW(window, msg, wparam, lparam)
     }
     win32wm::WM_NCCREATE => {

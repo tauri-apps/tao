@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 //! Tao is a cross-platform application window creation and event loop management library.
@@ -146,6 +146,9 @@
   clippy::non_send_fields_in_send_ty
 )]
 #![deny(rustdoc::broken_intra_doc_links)]
+
+#[cfg(target_os = "android")]
+pub use tao_macros::{android_fn, generate_package_name};
 
 use std::{
   collections::hash_map::DefaultHasher,

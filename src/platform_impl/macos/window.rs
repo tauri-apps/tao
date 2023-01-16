@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -41,8 +41,8 @@ use crate::{
 use cocoa::{
   appkit::{
     self, CGFloat, NSApp, NSApplication, NSApplicationPresentationOptions, NSColor, NSEvent,
-    NSRequestUserAttentionType, NSScreen, NSView, NSWindow, NSWindowButton, NSWindowOrderingMode,
-    NSWindowStyleMask,
+    NSRequestUserAttentionType, NSScreen, NSView, NSWindow, NSWindowButton,
+    NSWindowCollectionBehavior, NSWindowOrderingMode, NSWindowStyleMask,
   },
   base::{id, nil},
   foundation::{
@@ -516,6 +516,7 @@ impl UnownedWindow {
     let visible = win_attribs.visible;
     let focused = win_attribs.focused;
     let decorations = win_attribs.decorations;
+    let visible_on_all_workspaces = win_attribs.visible_on_all_workspaces;
     let inner_rect = win_attribs
       .inner_size
       .map(|size| size.to_physical(scale_factor));
@@ -548,6 +549,7 @@ impl UnownedWindow {
 
     // Set fullscreen mode after we setup everything
     window.set_fullscreen(fullscreen);
+    window.set_visible_on_all_workspaces(visible_on_all_workspaces);
 
     // Setting the window as key has to happen *after* we set the fullscreen
     // state, since otherwise we'll briefly see the window at normal size
@@ -788,6 +790,11 @@ impl UnownedWindow {
         }
       }
     }
+  }
+
+  #[inline]
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    util::cursor_position()
   }
 
   #[inline]
@@ -1335,6 +1342,20 @@ impl UnownedWindow {
   pub fn set_content_protection(&self, enabled: bool) {
     unsafe {
       let _: () = msg_send![*self.ns_window, setSharingType: !enabled as i32];
+    }
+  }
+
+  pub fn set_visible_on_all_workspaces(&self, visible: bool) {
+    unsafe {
+      let mut collection_behavior = self.ns_window.collectionBehavior();
+      if visible {
+        collection_behavior |=
+          NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces;
+      } else {
+        collection_behavior &=
+          !NSWindowCollectionBehavior::NSWindowCollectionBehaviorCanJoinAllSpaces;
+      };
+      self.ns_window.setCollectionBehavior_(collection_behavior)
     }
   }
 }

@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -23,7 +23,8 @@ use raw_window_handle::{RawDisplayHandle, XlibDisplayHandle};
 
 use crate::{
   accelerator::AcceleratorId,
-  dpi::{LogicalPosition, LogicalSize},
+  dpi::{LogicalPosition, LogicalSize, PhysicalPosition},
+  error::ExternalError,
   event::{
     ElementState, Event, MouseButton, MouseScrollDelta, StartCause, TouchPhase, WindowEvent,
   },
@@ -37,6 +38,7 @@ use crate::{
 use super::{
   keyboard,
   monitor::{self, MonitorHandle},
+  util,
   window::{WindowId, WindowRequest},
 };
 
@@ -97,6 +99,11 @@ impl<T> EventLoopWindowTarget<T> {
 
   pub fn is_wayland(&self) -> bool {
     self.display.backend().is_wayland()
+  }
+
+  #[inline]
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    util::cursor_position()
   }
 }
 
@@ -166,33 +173,23 @@ impl<T: 'static> EventLoop<T> {
           WindowRequest::Title(title) => window.set_title(&title),
           WindowRequest::Position((x, y)) => window.move_(x, y),
           WindowRequest::Size((w, h)) => window.resize(w, h),
-          WindowRequest::MinSize((min_width, min_height)) => {
+          WindowRequest::SizeConstraint { min, max } => {
+            let geom_mask = min
+              .map(|_| gdk::WindowHints::MIN_SIZE)
+              .unwrap_or(gdk::WindowHints::empty())
+              | max
+                .map(|_| gdk::WindowHints::MAX_SIZE)
+                .unwrap_or(gdk::WindowHints::empty());
+
+            let (min_width, min_height) = min.map(Into::into).unwrap_or_default();
+            let (max_width, max_height) = max.map(Into::into).unwrap_or_default();
+
             let picky_none: Option<&gtk::Window> = None;
             window.set_geometry_hints(
               picky_none,
               Some(&gdk::Geometry::new(
                 min_width,
                 min_height,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0f64,
-                0f64,
-                gdk::Gravity::Center,
-              )),
-              gdk::WindowHints::MIN_SIZE,
-            )
-          }
-          WindowRequest::MaxSize((max_width, max_height)) => {
-            let picky_none: Option<&gtk::Window> = None;
-            window.set_geometry_hints(
-              picky_none,
-              Some(&gdk::Geometry::new(
-                0,
-                0,
                 max_width,
                 max_height,
                 0,
@@ -203,7 +200,7 @@ impl<T: 'static> EventLoop<T> {
                 0f64,
                 gdk::Gravity::Center,
               )),
-              gdk::WindowHints::MAX_SIZE,
+              geom_mask,
             )
           }
           WindowRequest::Visible(visible) => {
@@ -272,6 +269,13 @@ impl<T: 'static> EventLoop<T> {
           WindowRequest::SetSkipTaskbar(skip) => {
             window.set_skip_taskbar_hint(skip);
             window.set_skip_pager_hint(skip)
+          }
+          WindowRequest::SetVisibleOnAllWorkspaces(visible) => {
+            if visible {
+              window.stick();
+            } else {
+              window.unstick();
+            }
           }
           WindowRequest::CursorIcon(cursor) => {
             if let Some(gdk_window) = window.window() {
@@ -352,7 +356,10 @@ impl<T: 'static> EventLoop<T> {
               window.input_shape_combine_region(None)
             };
           }
-          WindowRequest::WireUpEvents { transparent } => {
+          WindowRequest::WireUpEvents {
+            transparent,
+            cursor_moved,
+          } => {
             window.add_events(
               EventMask::POINTER_MOTION_MASK
                 | EventMask::BUTTON1_MOTION_MASK
@@ -535,19 +542,21 @@ impl<T: 'static> EventLoop<T> {
 
             let tx_clone = event_tx.clone();
             window.connect_motion_notify_event(move |window, motion| {
-              if let Some(cursor) = motion.device() {
-                let scale_factor = window.scale_factor();
-                let (_, x, y) = cursor.window_at_position();
-                if let Err(e) = tx_clone.send(Event::WindowEvent {
-                  window_id: RootWindowId(id),
-                  event: WindowEvent::CursorMoved {
-                    position: LogicalPosition::new(x, y).to_physical(scale_factor as f64),
-                    device_id: DEVICE_ID,
-                    // this field is depracted so it is fine to pass empty state
-                    modifiers: ModifiersState::empty(),
-                  },
-                }) {
-                  log::warn!("Failed to send cursor moved event to event channel: {}", e);
+              if cursor_moved {
+                if let Some(cursor) = motion.device() {
+                  let scale_factor = window.scale_factor();
+                  let (_, x, y) = cursor.window_at_position();
+                  if let Err(e) = tx_clone.send(Event::WindowEvent {
+                    window_id: RootWindowId(id),
+                    event: WindowEvent::CursorMoved {
+                      position: LogicalPosition::new(x, y).to_physical(scale_factor as f64),
+                      device_id: DEVICE_ID,
+                      // this field is depracted so it is fine to pass empty state
+                      modifiers: ModifiersState::empty(),
+                    },
+                  }) {
+                    log::warn!("Failed to send cursor moved event to event channel: {}", e);
+                  }
                 }
               }
               Inhibit(false)

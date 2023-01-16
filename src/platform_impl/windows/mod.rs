@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(target_os = "windows")]
@@ -46,6 +46,7 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub no_redirection_bitmap: bool,
   pub drag_and_drop: bool,
   pub preferred_theme: Option<Theme>,
+  pub decoration_shadow: bool,
 }
 
 impl Default for PlatformSpecificWindowBuilderAttributes {
@@ -58,6 +59,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       drag_and_drop: true,
       preferred_theme: None,
       skip_taskbar: false,
+      decoration_shadow: true,
     }
   }
 }

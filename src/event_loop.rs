@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 //! The `EventLoop` struct and assorted supporting types, including `ControlFlow`.
@@ -17,7 +17,9 @@ use instant::Instant;
 use raw_window_handle::{HasRawDisplayHandle, RawDisplayHandle};
 use std::{error, fmt, marker::PhantomData, ops::Deref};
 
-use crate::{event::Event, monitor::MonitorHandle, platform_impl};
+use crate::{
+  dpi::PhysicalPosition, error::ExternalError, event::Event, monitor::MonitorHandle, platform_impl,
+};
 
 /// Provides a way to retrieve events from the system and from the windows that were registered to
 /// the events loop.
@@ -263,18 +265,28 @@ impl<T> EventLoopWindowTarget<T> {
 
   /// Change [`DeviceEvent`] filter mode.
   ///
-  /// Since the [`DeviceEvent`] capture can lead to high CPU usage for unfocused windows, winit
-  /// will ignore them by default for unfocused windows on Linux/BSD. This method allows changing
+  /// Since the [`DeviceEvent`] capture can lead to high CPU usage for unfocused windows, tao
+  /// will ignore them by default for unfocused windows. This method allows changing
   /// this filter at runtime to explicitly capture them again.
   ///
   /// ## Platform-specific
   ///
-  /// - ** Linux / macOS / iOS / Android / Web**: Unsupported.
+  /// - **Linux / macOS / iOS / Android:** Unsupported.
   ///
   /// [`DeviceEvent`]: crate::event::DeviceEvent
   pub fn set_device_event_filter(&self, _filter: DeviceEventFilter) {
     #[cfg(target_os = "windows")]
     self.p.set_device_event_filter(_filter);
+  }
+
+  /// Returns the current cursor position
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android**: Unsupported.
+  #[inline]
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    self.p.cursor_position()
   }
 }
 

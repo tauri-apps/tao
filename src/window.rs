@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 //! The `Window` struct and associated types.
@@ -237,6 +237,13 @@ pub struct WindowAttributes {
   ///
   /// - **iOS / Android / Linux:** Unsupported.
   pub content_protection: bool,
+
+  /// Sets whether the window should be visible on all workspaces.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Windows:** Unsupported.
+  pub visible_on_all_workspaces: bool,
 }
 
 impl Default for WindowAttributes {
@@ -263,6 +270,7 @@ impl Default for WindowAttributes {
       preferred_theme: None,
       focused: true,
       content_protection: false,
+      visible_on_all_workspaces: false,
     }
   }
 }
@@ -484,6 +492,17 @@ impl WindowBuilder {
   #[inline]
   pub fn with_content_protection(mut self, protected: bool) -> WindowBuilder {
     self.window.content_protection = protected;
+    self
+  }
+
+  /// Sets whether the window should be visible on all workspaces.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Windows:** Unsupported.
+  #[inline]
+  pub fn with_visible_on_all_workspaces(mut self, visible: bool) -> WindowBuilder {
+    self.window.visible_on_all_workspaces = visible;
     self
   }
 
@@ -1026,6 +1045,16 @@ impl Window {
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     self.window.set_content_protection(enabled);
   }
+
+  /// Sets whether the window should be visible on all workspaces.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Windows:** Unsupported.
+  pub fn set_visible_on_all_workspaces(&self, #[allow(unused)] visible: bool) {
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    self.window.set_visible_on_all_workspaces(visible)
+  }
 }
 
 /// Cursor functions.
@@ -1104,6 +1133,16 @@ impl Window {
   #[inline]
   pub fn set_ignore_cursor_events(&self, ignore: bool) -> Result<(), ExternalError> {
     self.window.set_ignore_cursor_events(ignore)
+  }
+
+  /// Returns the current cursor position
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android**: Unsupported, returns `0,0`.
+  #[inline]
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    self.window.cursor_position()
   }
 }
 
