@@ -114,7 +114,7 @@ glib = "0.15"
 glib-sys = "0.15"
 gtk = { version = "0.15", features = [ "v3_22" ] }
 gdk = { version = "0.15", features = [ "v3_22" ] }
-gdk-sys = "0.15"
+gdk-sys = "0.16"
 gdkx11-sys = "0.15"
 gdk-pixbuf = { version = "0.15", features = [ "v2_36_8" ] }
 libappindicator = { version = "0.7.1", optional = true }
