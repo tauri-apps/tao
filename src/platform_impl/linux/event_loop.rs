@@ -99,6 +99,10 @@ impl<T> EventLoopWindowTarget<T> {
   pub fn is_wayland(&self) -> bool {
     self.display.backend().is_wayland()
   }
+
+  pub fn is_x11(&self) -> bool {
+    self.display.backend().is_x11()
+  }
 }
 
 pub struct EventLoop<T: 'static> {
@@ -110,6 +114,8 @@ pub struct EventLoop<T: 'static> {
   events: crossbeam_channel::Receiver<Event<'static, T>>,
   /// Draw queue of EventLoop
   draws: crossbeam_channel::Receiver<WindowId>,
+  /// Boolean to control device event thread
+  run_device_thread: Option<Rc<AtomicBool>>,
 }
 
 impl<T: 'static> EventLoop<T> {
@@ -156,6 +162,27 @@ impl<T: 'static> EventLoop<T> {
       window_requests_tx,
       draw_tx: draw_tx_,
       _marker: std::marker::PhantomData,
+    };
+
+    // Spawn x11 thread to receive Device events.
+    let run_device_thread = if window_target.is_x11() {
+      let (device_tx, device_rx) = glib::MainContext::channel(glib::Priority::default());
+      let user_event_tx = user_event_tx.clone();
+      let run_device_thread = Rc::new(AtomicBool::new(true));
+      let run = run_device_thread.clone();
+      device::spawn(device_tx);
+      device_rx.attach(Some(&context), move |event| {
+        if let Err(e) = user_event_tx.send(Event::DeviceEvent {
+          device_id: DEVICE_ID,
+          event,
+        }) {
+          log::warn!("Fail to send device event to event channel: {}", e);
+        }
+        Continue(run.load(Ordering::Relaxed))
+      });
+      Some(run_device_thread)
+    } else {
+      None
     };
 
     // Window Request
@@ -871,6 +898,7 @@ impl<T: 'static> EventLoop<T> {
       user_event_tx,
       events: event_rx,
       draws: draw_rx,
+      run_device_thread,
     };
 
     Ok(event_loop)
@@ -924,22 +952,8 @@ impl<T: 'static> EventLoop<T> {
       DrawQueue,
     }
 
-    // Spawn x11 thread to receive Device events.
     let context = MainContext::default();
-    let user_event_tx = self.user_event_tx.clone();
-    let (device_tx, device_rx) = glib::MainContext::channel(glib::Priority::default());
-    let run_device_thread = Rc::new(AtomicBool::new(true));
-    let run = run_device_thread.clone();
-    device::spawn(&self.window_target, device_tx);
-    device_rx.attach(Some(&context), move |event| {
-      if let Err(e) = user_event_tx.send(Event::DeviceEvent {
-        device_id: DEVICE_ID,
-        event,
-      }) {
-        log::warn!("Fail to send device event to event channel: {}", e);
-      }
-      Continue(run.load(Ordering::Relaxed))
-    });
+    let run_device_thread = self.run_device_thread.clone();
 
     context
       .with_thread_default(|| {
@@ -1045,7 +1059,9 @@ impl<T: 'static> EventLoop<T> {
           }
           gtk::main_iteration_do(blocking);
         };
-        run_device_thread.store(false, Ordering::Relaxed);
+        if let Some(run_device_thread) = run_device_thread {
+          run_device_thread.store(false, Ordering::Relaxed);
+        }
         exit_code
       })
       .unwrap_or(1)
