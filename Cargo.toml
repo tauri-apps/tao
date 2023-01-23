@@ -113,7 +113,7 @@ gio = "0.15"
 glib = "0.15"
 glib-sys = "0.15"
 gtk = { version = "0.15", features = [ "v3_22" ] }
-gdk = { version = "0.15", features = [ "v3_22" ] }
+gdk = { version = "0.16", features = [ "v3_22" ] }
 gdk-sys = "0.15"
 gdkx11-sys = "0.15"
 gdk-pixbuf = { version = "0.15", features = [ "v2_36_8" ] }
