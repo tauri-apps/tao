@@ -108,7 +108,7 @@ windows-implement = "0.39.0"
 ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-cairo-rs = "0.15"
+cairo-rs = "0.16"
 gio = "0.15"
 glib = "0.15"
 glib-sys = "0.15"
