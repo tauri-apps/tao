@@ -11,17 +11,13 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MonitorHandle {
-  monitor: gdk::Monitor,
-  // We have to store the monitor number in GdkScreen despite
-  // it's deprecated. Otherwise, there's no way to set it in
-  // GtkWindow in Gtk3.
-  pub(crate) number: i32,
+  pub(crate) monitor: gdk::Monitor,
 }
 
 impl MonitorHandle {
   pub fn new(display: &gdk::Display, number: i32) -> Self {
     let monitor = display.monitor(number).unwrap();
-    Self { monitor, number }
+    Self { monitor }
   }
 
   #[inline]

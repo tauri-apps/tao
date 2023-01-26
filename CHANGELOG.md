@@ -1,5 +1,16 @@
 # Changelog
 
+## \[0.17.0]
+
+- Bump gtk version: 0.15 -> 0.16
+  - [b59f1b49](https://github.com/tauri-apps/tao/commit/b59f1b4922533c7b3bd14516de8da1c6467061ea) Bump gtk version 0.15 -> 0.16 ([#679](https://github.com/tauri-apps/tao/pull/679)) on 2023-01-26
+- Add `Window::cursor_position` and `EventLoopWindowTarget::cursor_position` to get the current mouse position.
+  - [5d8bf51d](https://github.com/tauri-apps/tao/commit/5d8bf51d7ea2ea89feb4e8b003e583fed69bf300) feat: add `cursor_position` ([#668](https://github.com/tauri-apps/tao/pull/668)) on 2023-01-12
+- On Linux, spawn device event thread only once instead of a new thread on each iteration of the event loop.
+  - [ca1ed5de](https://github.com/tauri-apps/tao/commit/ca1ed5decf516dc674b5e26815aa98346fca11ff) fix(linux): spawn device thread only once ([#678](https://github.com/tauri-apps/tao/pull/678)) on 2023-01-23
+- On Windows, fix `Window::set_minimized(false)` not working when the window was minimized using `Win + D` hotkey.
+  - [e1149563](https://github.com/tauri-apps/tao/commit/e1149563b85eb6187f5aa78d53cab9c5d7b87025) fix(Windows): fix `set_minimized` with `Win + D` ([#676](https://github.com/tauri-apps/tao/pull/676)) on 2023-01-21
+
 ## \[0.16.0]
 
 - Yanked `0.15.9` and publish a new minor as `0.15.9` included breaking changes by depending on `tao-macros`.

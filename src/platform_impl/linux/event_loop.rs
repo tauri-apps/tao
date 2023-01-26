@@ -78,10 +78,8 @@ impl<T> EventLoopWindowTarget<T> {
 
   #[inline]
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
-    let screen = self.display.default_screen();
-    #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
-    let number = screen.primary_monitor();
-    let handle = MonitorHandle::new(&self.display, number);
+    let monitor = self.display.primary_monitor().unwrap();
+    let handle = MonitorHandle { monitor };
     Some(RootMonitorHandle { inner: handle })
   }
 
@@ -101,6 +99,10 @@ impl<T> EventLoopWindowTarget<T> {
     self.display.backend().is_wayland()
   }
 
+  pub fn is_x11(&self) -> bool {
+    self.display.backend().is_x11()
+  }
+
   #[inline]
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
     util::cursor_position()
@@ -116,6 +118,8 @@ pub struct EventLoop<T: 'static> {
   events: crossbeam_channel::Receiver<Event<'static, T>>,
   /// Draw queue of EventLoop
   draws: crossbeam_channel::Receiver<WindowId>,
+  /// Boolean to control device event thread
+  run_device_thread: Option<Rc<AtomicBool>>,
 }
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -164,6 +168,27 @@ impl<T: 'static> EventLoop<T> {
       window_requests_tx,
       draw_tx: draw_tx_,
       _marker: std::marker::PhantomData,
+    };
+
+    // Spawn x11 thread to receive Device events.
+    let run_device_thread = if window_target.is_x11() {
+      let (device_tx, device_rx) = glib::MainContext::channel(glib::Priority::default());
+      let user_event_tx = user_event_tx.clone();
+      let run_device_thread = Rc::new(AtomicBool::new(true));
+      let run = run_device_thread.clone();
+      device::spawn(device_tx);
+      device_rx.attach(Some(&context), move |event| {
+        if let Err(e) = user_event_tx.send(Event::DeviceEvent {
+          device_id: DEVICE_ID,
+          event,
+        }) {
+          log::warn!("Fail to send device event to event channel: {}", e);
+        }
+        Continue(run.load(Ordering::Relaxed))
+      });
+      Some(run_device_thread)
+    } else {
+      None
     };
 
     // Window Request
@@ -243,9 +268,16 @@ impl<T: 'static> EventLoop<T> {
             Some(f) => {
               if let Fullscreen::Borderless(m) = f {
                 if let Some(monitor) = m {
-                  let number = monitor.inner.number;
-                  let screen = window.display().default_screen();
-                  window.fullscreen_on_monitor(&screen, number);
+                  let display = window.display();
+                  let monitor = monitor.inner;
+                  let monitors = display.n_monitors();
+                  for i in 0..monitors {
+                    let m = display.monitor(i).unwrap();
+                    if m == monitor.monitor {
+                      let screen = display.default_screen();
+                      window.fullscreen_on_monitor(&screen, i);
+                    }
+                  }
                 } else {
                   window.fullscreen();
                 }
@@ -335,19 +367,14 @@ impl<T: 'static> EventLoop<T> {
               .default_seat()
               .and_then(|seat| seat.pointer())
             {
-              if let Some(screen) = window.screen() {
+              if let Some(screen) = GtkWindowExt::screen(&window) {
                 cursor.warp(&screen, x, y);
               }
             }
           }
           WindowRequest::CursorIgnoreEvents(ignore) => {
             if ignore {
-              let empty_region = Region::create_rectangle(&RectangleInt {
-                x: 0,
-                y: 0,
-                width: 1,
-                height: 1,
-              });
+              let empty_region = Region::create_rectangle(&RectangleInt::new(0, 0, 1, 1));
               window
                 .window()
                 .unwrap()
@@ -784,6 +811,7 @@ impl<T: 'static> EventLoop<T> {
       user_event_tx,
       events: event_rx,
       draws: draw_rx,
+      run_device_thread,
     };
 
     Ok(event_loop)
@@ -837,22 +865,8 @@ impl<T: 'static> EventLoop<T> {
       DrawQueue,
     }
 
-    // Spawn x11 thread to receive Device events.
     let context = MainContext::default();
-    let user_event_tx = self.user_event_tx.clone();
-    let (device_tx, device_rx) = glib::MainContext::channel(glib::Priority::default());
-    let run_device_thread = Rc::new(AtomicBool::new(true));
-    let run = run_device_thread.clone();
-    device::spawn(&self.window_target, device_tx);
-    device_rx.attach(Some(&context), move |event| {
-      if let Err(e) = user_event_tx.send(Event::DeviceEvent {
-        device_id: DEVICE_ID,
-        event,
-      }) {
-        log::warn!("Fail to send device event to event channel: {}", e);
-      }
-      Continue(run.load(Ordering::Relaxed))
-    });
+    let run_device_thread = self.run_device_thread.clone();
 
     context
       .with_thread_default(|| {
@@ -958,7 +972,9 @@ impl<T: 'static> EventLoop<T> {
           }
           gtk::main_iteration_do(blocking);
         };
-        run_device_thread.store(false, Ordering::Relaxed);
+        if let Some(run_device_thread) = run_device_thread {
+          run_device_thread.store(false, Ordering::Relaxed);
+        }
         exit_code
       })
       .unwrap_or(1)

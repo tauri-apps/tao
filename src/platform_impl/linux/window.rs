@@ -144,7 +144,7 @@ impl Window {
 
     // Set GDK Visual
     if pl_attribs.rgba_visual || attributes.transparent {
-      if let Some(screen) = window.screen() {
+      if let Some(screen) = GtkWindowExt::screen(&window) {
         if let Some(visual) = screen.rgba_visual() {
           window.set_visual(Some(&visual));
         }
@@ -171,9 +171,16 @@ impl Window {
     window.set_title(&attributes.title);
     if let Some(Fullscreen::Borderless(m)) = &attributes.fullscreen {
       if let Some(monitor) = m {
-        let number = monitor.inner.number;
-        let screen = window.display().default_screen();
-        window.fullscreen_on_monitor(&screen, number);
+        let display = window.display();
+        let monitor = &monitor.inner;
+        let monitors = display.n_monitors();
+        for i in 0..monitors {
+          let m = display.monitor(i).unwrap();
+          if m == monitor.monitor {
+            let screen = display.default_screen();
+            window.fullscreen_on_monitor(&screen, i);
+          }
+        }
       } else {
         window.fullscreen();
       }
@@ -698,21 +705,16 @@ impl Window {
   }
 
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
-    let screen = self.window.display().default_screen();
+    let display = self.window.display();
     // `.window()` returns `None` if the window is invisible;
     // we fallback to the primary monitor
-    let number = self
+    let monitor = self
       .window
       .window()
-      .map(|window| {
-        #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
-        screen.monitor_at_window(&window)
-      })
-      .unwrap_or_else(|| {
-        #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
-        screen.primary_monitor()
-      });
-    let handle = MonitorHandle::new(&self.window.display(), number);
+      .map(|window| display.monitor_at_window(&window))
+      .unwrap_or_else(|| display.primary_monitor())
+      .unwrap();
+    let handle = MonitorHandle { monitor };
     Some(RootMonitorHandle { inner: handle })
   }
 
@@ -731,10 +733,9 @@ impl Window {
   }
 
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
-    let screen = self.window.display().default_screen();
-    #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
-    let number = screen.primary_monitor();
-    let handle = MonitorHandle::new(&self.window.display(), number);
+    let display = self.window.display();
+    let monitor = display.primary_monitor().unwrap();
+    let handle = MonitorHandle { monitor };
     Some(RootMonitorHandle { inner: handle })
   }
 
