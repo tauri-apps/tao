@@ -271,12 +271,11 @@ impl<T: 'static> EventLoop<T> {
                   let monitor = monitor.inner;
                   let monitors = display.n_monitors();
                   for i in 0..monitors {
-                      let m = display.monitor(i).unwrap();
-                      if m == monitor.monitor {
-                        let screen = display.default_screen();
-                        window.fullscreen_on_monitor(&screen, i);
-
-                      }
+                    let m = display.monitor(i).unwrap();
+                    if m == monitor.monitor {
+                      let screen = display.default_screen();
+                      window.fullscreen_on_monitor(&screen, i);
+                    }
                   }
                 } else {
                   window.fullscreen();

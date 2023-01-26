@@ -203,18 +203,17 @@ impl Window {
     // Rest attributes
     window.set_title(&attributes.title);
     if let Some(Fullscreen::Borderless(m)) = &attributes.fullscreen {
-        if let Some(monitor) = m {
-          let display = window.display();
-          let monitor = &monitor.inner;
-          let monitors = display.n_monitors();
-          for i in 0..monitors {
-              let m = display.monitor(i).unwrap();
-              if m == monitor.monitor {
-                let screen = display.default_screen();
-                window.fullscreen_on_monitor(&screen, i);
-
-              }
+      if let Some(monitor) = m {
+        let display = window.display();
+        let monitor = &monitor.inner;
+        let monitors = display.n_monitors();
+        for i in 0..monitors {
+          let m = display.monitor(i).unwrap();
+          if m == monitor.monitor {
+            let screen = display.default_screen();
+            window.fullscreen_on_monitor(&screen, i);
           }
+        }
       } else {
         window.fullscreen();
       }
@@ -769,12 +768,9 @@ impl Window {
     let monitor = self
       .window
       .window()
-      .map(|window| {
-        display.monitor_at_window(&window)
-      })
-      .unwrap_or_else(|| {
-        display.primary_monitor()
-      }).unwrap();
+      .map(|window| display.monitor_at_window(&window))
+      .unwrap_or_else(|| display.primary_monitor())
+      .unwrap();
     let handle = MonitorHandle { monitor };
     Some(RootMonitorHandle { inner: handle })
   }
