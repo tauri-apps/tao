@@ -1,5 +1,51 @@
 # Changelog
 
+## \[0.16.0]
+
+- Yanked `0.15.9` and publish a new minor as `0.15.9` included breaking changes by depending on `tao-macros`.
+  - [5397b8f6](https://github.com/tauri-apps/tao/commit/5397b8f6177f01418f1e56b60c9777395607278c) chore: bump minor on 2023-01-11
+
+## \[0.15.9]
+
+- On Linux, Fix mnemonics for submenus.
+  - [77569c89](https://github.com/tauri-apps/tao/commit/77569c893f9835717a79bf445fa3a7f433e0fb3f) fix(linux): fix mnemonics for submenus ([#650](https://github.com/tauri-apps/tao/pull/650)) on 2022-12-20
+  - [e313ef69](https://github.com/tauri-apps/tao/commit/e313ef69d2b3849fa7f5d43effad7c1e76c73748) publish new versions ([#651](https://github.com/tauri-apps/tao/pull/651)) on 2023-01-09
+  - [3cd851d1](https://github.com/tauri-apps/tao/commit/3cd851d14126c305964b957eeb4f9ed0011d96cb) Revert "Publish New Versions" ([#663](https://github.com/tauri-apps/tao/pull/663)) on 2023-01-09
+- On iOS, add Sync trait to `EventLoopProxy` when `T` has Send trait.
+  - [651137ce](https://github.com/tauri-apps/tao/commit/651137ce9ec5bf37593e6641d8f6ab79fc9d6f3c) On iOS, add Sync trait on `EventLoopProxy` when `T` has Send trait ([#658](https://github.com/tauri-apps/tao/pull/658)) on 2023-01-04
+  - [e313ef69](https://github.com/tauri-apps/tao/commit/e313ef69d2b3849fa7f5d43effad7c1e76c73748) publish new versions ([#651](https://github.com/tauri-apps/tao/pull/651)) on 2023-01-09
+  - [3cd851d1](https://github.com/tauri-apps/tao/commit/3cd851d14126c305964b957eeb4f9ed0011d96cb) Revert "Publish New Versions" ([#663](https://github.com/tauri-apps/tao/pull/663)) on 2023-01-09
+- On Linux, fix setting min/max size clears the other.
+  - [9927c3a5](https://github.com/tauri-apps/tao/commit/9927c3a5815bbc581d35ca7dc4e7ded834ef5f51) fix(linux): fix setting min/max size, clears the other ([#669](https://github.com/tauri-apps/tao/pull/669)) on 2023-01-11
+- Fix resize event emits before fullscreen actually exit.
+  - [3867e7b7](https://github.com/tauri-apps/tao/commit/3867e7b783cd0d1bf00ce81214cbfe53354466cd) On macOS, fix resize event emits before fullscreen actually exit ([#662](https://github.com/tauri-apps/tao/pull/662)) on 2023-01-09
+  - [e313ef69](https://github.com/tauri-apps/tao/commit/e313ef69d2b3849fa7f5d43effad7c1e76c73748) publish new versions ([#651](https://github.com/tauri-apps/tao/pull/651)) on 2023-01-09
+  - [3cd851d1](https://github.com/tauri-apps/tao/commit/3cd851d14126c305964b957eeb4f9ed0011d96cb) Revert "Publish New Versions" ([#663](https://github.com/tauri-apps/tao/pull/663)) on 2023-01-09
+- Add `WindowBuilder::with_visible_on_all_workspaces` and `Window::set_visible_on_all_workspaces`.
+  - [0aa2176c](https://github.com/tauri-apps/tao/commit/0aa2176c31fbc76cdc7746601c9bc3d0da449a88) feat: add `set_visible_on_all_workspaces`, closes [#185](https://github.com/tauri-apps/tao/pull/185) ([#666](https://github.com/tauri-apps/tao/pull/666)) on 2023-01-11
+- Add `WindowExtWindows::set_undecorated_shadow` and `WindowBuilderExtWindows::with_undecorated_shadow` to draw the drop shadow behind a borderless window.
+  - [f832ca99](https://github.com/tauri-apps/tao/commit/f832ca99abbaf93e6ce67a87da710b4f4efe6e6e) feat(Windows): undecorated shadows ([#664](https://github.com/tauri-apps/tao/pull/664)) on 2023-01-10
+
+## \[0.15.8]
+
+- Add `with_cursor_moved` Unix extension trait method.
+  - [8c6b2d05](https://github.com/tauri-apps/tao/commit/8c6b2d05ae55cefe72bd63d1adfeca6c20058879) Add `with_cursor_moved` unix extension method ([#644](https://github.com/tauri-apps/tao/pull/644)) on 2022-12-14
+
+## \[0.15.7]
+
+- On Linux, fix menu item mnemonics.
+  - [86a439ed](https://github.com/tauri-apps/tao/commit/86a439edc5da2bd1baa1067831dde2408fd14fbf) fix: fix menu mnemonics ([#640](https://github.com/tauri-apps/tao/pull/640)) on 2022-12-08
+  - [e623efdc](https://github.com/tauri-apps/tao/commit/e623efdc9ab797b3d9e104f34ba5bc1a4648b32c) publish new versions ([#639](https://github.com/tauri-apps/tao/pull/639)) on 2022-12-10
+  - [bdce0a4c](https://github.com/tauri-apps/tao/commit/bdce0a4c816bb63b9e52114924ee4a66d353a019) Revert "publish new versions ([#639](https://github.com/tauri-apps/tao/pull/639))" on 2022-12-10
+- On Windows, retain `WS_MAXIMIZE` window style when unminimizing a maximized window.
+  - [ca844a2e](https://github.com/tauri-apps/tao/commit/ca844a2ebb171f676962bd0bebd65243b9239347) fix(Windows): retain `WS_MAXIMIZE` when unminimizing a maximized window, closes [#622](https://github.com/tauri-apps/tao/pull/622) ([#638](https://github.com/tauri-apps/tao/pull/638)) on 2022-12-04
+  - [e623efdc](https://github.com/tauri-apps/tao/commit/e623efdc9ab797b3d9e104f34ba5bc1a4648b32c) publish new versions ([#639](https://github.com/tauri-apps/tao/pull/639)) on 2022-12-10
+  - [bdce0a4c](https://github.com/tauri-apps/tao/commit/bdce0a4c816bb63b9e52114924ee4a66d353a019) Revert "publish new versions ([#639](https://github.com/tauri-apps/tao/pull/639))" on 2022-12-10
+- On macOS, strip menu mnemonics for consistency with other platforms.
+  - [86a439ed](https://github.com/tauri-apps/tao/commit/86a439edc5da2bd1baa1067831dde2408fd14fbf) fix: fix menu mnemonics ([#640](https://github.com/tauri-apps/tao/pull/640)) on 2022-12-08
+  - [e623efdc](https://github.com/tauri-apps/tao/commit/e623efdc9ab797b3d9e104f34ba5bc1a4648b32c) publish new versions ([#639](https://github.com/tauri-apps/tao/pull/639)) on 2022-12-10
+  - [bdce0a4c](https://github.com/tauri-apps/tao/commit/bdce0a4c816bb63b9e52114924ee4a66d353a019) Revert "publish new versions ([#639](https://github.com/tauri-apps/tao/pull/639))" on 2022-12-10
+
 ## \[0.15.6]
 
 - Revert `nextResponder` call because this will bring key beep sound regression. We'll call the key equivalent in wry instead.

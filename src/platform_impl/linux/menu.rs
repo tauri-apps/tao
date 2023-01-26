@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use glib::{Cast, Sender};
@@ -21,7 +21,8 @@ use crate::{
 
 macro_rules! menuitem {
   ( $description:expr, $key:expr, $accel_group:ident, $window_id:expr, $native_menu_item:expr, $tx:ident ) => {{
-    let item = GtkMenuItem::with_label($description);
+    let title = to_gtk_mnemonic($description);
+    let item = GtkMenuItem::with_mnemonic(&title);
     if !$key.is_empty() {
       let (key, mods) = gtk::accelerator_parse($key);
       item.add_accelerator("activate", $accel_group, key, mods, AccelFlags::VISIBLE);
@@ -85,13 +86,14 @@ impl MenuItemAttributes {
       .gtk_item
       .label()
       .map(|gstr| gstr.as_str().to_owned())
-      .unwrap_or("".to_owned())
+      .map(|label| from_gtk_mnemonic(&label))
+      .unwrap_or_default()
   }
   pub fn set_enabled(&mut self, is_enabled: bool) {
     self.gtk_item.set_sensitive(is_enabled);
   }
   pub fn set_title(&mut self, title: &str) {
-    self.gtk_item.set_label(title);
+    self.gtk_item.set_label(&to_gtk_mnemonic(title));
   }
 
   pub fn set_selected(&mut self, is_selected: bool) {
@@ -129,12 +131,13 @@ impl Menu {
     selected: bool,
     menu_type: MenuType,
   ) -> CustomMenuItem {
+    let title = to_gtk_mnemonic(&title);
     let gtk_item = if selected {
-      let item = CheckMenuItem::with_label(title);
+      let item = CheckMenuItem::with_mnemonic(&title);
       item.set_active(true);
       item.upcast::<GtkMenuItem>()
     } else {
-      GtkMenuItem::with_label(title)
+      GtkMenuItem::with_mnemonic(&title)
     };
     let custom_menu = MenuItemAttributes {
       id: menu_id,
@@ -213,7 +216,7 @@ impl Menu {
             }),
           ..
         } => {
-          let item = GtkMenuItem::with_label(&title);
+          let item = GtkMenuItem::with_mnemonic(&to_gtk_mnemonic(title));
           item.set_sensitive(enabled);
           item.set_submenu(Some(&menu.into_gtkmenu(tx, accel_group, window_id)));
           Some(item)
@@ -402,4 +405,21 @@ fn modifiers_to_gdk_modifier_type(modifiers: ModifiersState) -> gdk::ModifierTyp
   result.set(gdk::ModifierType::META_MASK, modifiers.super_key());
 
   result
+}
+
+pub fn to_gtk_mnemonic<S: AsRef<str>>(string: S) -> String {
+  string
+    .as_ref()
+    .replace("&&", "[~~]")
+    .replace('&', "_")
+    .replace("[~~]", "&&")
+    .replace("[~~]", "&")
+}
+
+pub fn from_gtk_mnemonic<S: AsRef<str>>(string: S) -> String {
+  string
+    .as_ref()
+    .replace("__", "[~~]")
+    .replace('_', "&")
+    .replace("[~~]", "__")
 }

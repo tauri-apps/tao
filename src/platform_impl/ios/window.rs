@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use raw_window_handle::{RawDisplayHandle, RawWindowHandle, UiKitDisplayHandle, UiKitWindowHandle};
@@ -214,6 +214,11 @@ impl Inner {
 
   pub fn set_cursor_visible(&self, _visible: bool) {
     debug!("`Window::set_cursor_visible` is ignored on iOS")
+  }
+
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    debug!("`Window::cursor_position` is ignored on iOS");
+    Ok((0, 0).into())
   }
 
   pub fn drag_window(&self) -> Result<(), ExternalError> {

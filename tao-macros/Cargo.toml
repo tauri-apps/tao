@@ -1,0 +1,23 @@
+[package]
+name = "tao-macros"
+description = "Proc macros for tao"
+version = "0.1.0"
+edition = "2021"
+authors = [ "Tauri Programme within The Commons Conservancy" ]
+rust-version = "1.56"
+license = "MIT OR Apache-2.0"
+readme = "../README.md"
+repository = "https://github.com/tauri-apps/tao"
+documentation = "https://docs.rs/tao-macros"
+
+[lib]
+proc-macro = true
+
+[features]
+default = [ ]
+tray = [ ]
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "1", features = [ "full" ] }

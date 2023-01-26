@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![allow(non_snake_case)]
@@ -45,6 +45,7 @@ use windows::{
 use crate::{
   accelerator::AcceleratorId,
   dpi::{PhysicalPosition, PhysicalSize},
+  error::ExternalError,
   event::{DeviceEvent, Event, Force, RawKeyEvent, Touch, TouchPhase, WindowEvent},
   event_loop::{ControlFlow, DeviceEventFilter, EventLoopClosed, EventLoopWindowTarget as RootELW},
   keyboard::{KeyCode, ModifiersState},
@@ -318,6 +319,11 @@ impl<T> EventLoopWindowTarget<T> {
 
   pub fn set_device_event_filter(&self, filter: DeviceEventFilter) {
     raw_input::register_all_mice_and_keyboards_for_raw_input(self.thread_msg_target, filter);
+  }
+
+  #[inline]
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    util::cursor_position()
   }
 }
 
@@ -1197,16 +1203,12 @@ unsafe fn public_window_callback_inner<T: 'static>(
       {
         let mut w = subclass_input.window_state.lock();
         // See WindowFlags::MARKER_RETAIN_STATE_ON_SIZE docs for info on why this `if` check exists.
-        let window_flags = w.window_flags();
-        if !window_flags.contains(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE) {
+        if !w
+          .window_flags()
+          .contains(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE)
+        {
           let maximized = wparam.0 == win32wm::SIZE_MAXIMIZED as _;
-          let minimized = wparam.0 == win32wm::SIZE_MINIMIZED as _;
-          let was_maximized = window_flags.contains(WindowFlags::MAXIMIZED);
-
-          w.set_window_flags_in_place(|f| {
-            f.set(WindowFlags::MAXIMIZED, maximized);
-            f.set(WindowFlags::MARKER_WAS_MAXIMIZED, minimized & was_maximized)
-          });
+          w.set_window_flags_in_place(|f| f.set(WindowFlags::MAXIMIZED, maximized));
         }
       }
 
@@ -1775,7 +1777,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       if window_state.min_size.is_some() || window_state.max_size.is_some() {
         let is_decorated = window_state
           .window_flags()
-          .contains(WindowFlags::DECORATIONS);
+          .contains(WindowFlags::MARKER_DECORATIONS);
         if let Some(min_size) = window_state.min_size {
           let min_size = min_size.to_physical(window_state.scale_factor);
           let (width, height): (u32, u32) =
@@ -1825,7 +1827,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         let window_flags = window_state.window_flags();
         (
           window_state.fullscreen.is_none() && !window_flags.contains(WindowFlags::MAXIMIZED),
-          window_flags.contains(WindowFlags::DECORATIONS),
+          window_flags.contains(WindowFlags::MARKER_DECORATIONS),
         )
       };
 
@@ -2042,9 +2044,11 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     win32wm::WM_NCCALCSIZE => {
-      let win_flags = subclass_input.window_state.lock().window_flags();
+      let window_flags = subclass_input.window_state.lock().window_flags();
 
-      if !win_flags.contains(WindowFlags::DECORATIONS) {
+      if wparam == WPARAM(0) || window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
+        result = ProcResult::DefSubclassProc;
+      } else {
         // adjust the maximized borderless window so it doesn't cover the taskbar
         if util::is_maximized(window) {
           let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
@@ -2053,10 +2057,12 @@ unsafe fn public_window_callback_inner<T: 'static>(
           {
             params.rgrc[0] = monitor_info.monitorInfo.rcWork;
           }
+        } else if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) {
+          let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
+          params.rgrc[0].top += 1;
+          params.rgrc[0].bottom += 1;
         }
         result = ProcResult::Value(LRESULT(0)); // return 0 here to make the window borderless
-      } else {
-        result = ProcResult::DefSubclassProc;
       }
     }
 
@@ -2067,7 +2073,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           .window_state
           .lock()
           .window_flags()
-          .contains(WindowFlags::DECORATIONS)
+          .contains(WindowFlags::MARKER_DECORATIONS)
       {
         // cursor location
         let (cx, cy) = (

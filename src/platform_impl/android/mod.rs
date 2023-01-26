@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(target_os = "android")]
@@ -487,7 +487,7 @@ impl<T: 'static> EventLoopWindowTarget<T> {
   }
 
   #[inline]
-  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
+  pub fn monitor_from_point(&self, _x: f64, _y: f64) -> Option<MonitorHandle> {
     warn!("`Window::monitor_from_point` is ignored on Android");
     return None;
   }
@@ -500,6 +500,11 @@ impl<T: 'static> EventLoopWindowTarget<T> {
 
   pub fn raw_display_handle(&self) -> RawDisplayHandle {
     RawDisplayHandle::Android(AndroidDisplayHandle::empty())
+  }
+
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, error::ExternalError> {
+    debug!("`EventLoopWindowTarget::cursor_position` is ignored on Android");
+    Ok((0, 0).into())
   }
 }
 
@@ -553,7 +558,7 @@ impl Window {
   }
 
   #[inline]
-  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<monitor::MonitorHandle> {
+  pub fn monitor_from_point(&self, _x: f64, _y: f64) -> Option<monitor::MonitorHandle> {
     warn!("`Window::monitor_from_point` is ignored on Android");
     None
   }
@@ -732,6 +737,11 @@ impl Window {
     Err(error::ExternalError::NotSupported(
       error::NotSupportedError::new(),
     ))
+  }
+
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, error::ExternalError> {
+    debug!("`Window::cursor_position` is ignored on Android");
+    Ok((0, 0).into())
   }
 
   pub fn raw_window_handle(&self) -> RawWindowHandle {

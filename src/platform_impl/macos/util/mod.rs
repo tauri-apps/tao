@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 mod r#async;
@@ -20,7 +20,11 @@ use cocoa::{
 use core_graphics::display::CGDisplay;
 use objc::runtime::{Class, Object, Sel, BOOL, YES};
 
-use crate::{dpi::LogicalPosition, platform_impl::platform::ffi};
+use crate::{
+  dpi::{LogicalPosition, PhysicalPosition},
+  error::ExternalError,
+  platform_impl::platform::ffi,
+};
 
 // Replace with `!` once stable
 #[derive(Debug)]
@@ -120,6 +124,13 @@ pub fn window_position(position: LogicalPosition<f64>) -> NSPoint {
   )
 }
 
+pub fn cursor_position() -> Result<PhysicalPosition<f64>, ExternalError> {
+  unsafe {
+    let pt: NSPoint = msg_send![class!(NSEvent), mouseLocation];
+    Ok((pt.x, pt.y).into())
+  }
+}
+
 pub unsafe fn ns_string_id_ref(s: &str) -> IdRef {
   IdRef::new(NSString::alloc(nil).init_str(s))
 }
@@ -180,4 +191,15 @@ pub unsafe fn toggle_style_mask(window: id, view: id, mask: NSWindowStyleMask, o
 
   // If we don't do this, key handling will break. Therefore, never call `setStyleMask` directly!
   window.makeFirstResponder_(view);
+}
+
+/// Strips single `&` characters from the string.
+///
+/// `&` can be escaped as `&&` to prevent stripping, in which case a single `&` will be output.
+pub fn strip_mnemonic<S: AsRef<str>>(string: S) -> String {
+  string
+    .as_ref()
+    .replace("&&", "[~~]")
+    .replace('&', "")
+    .replace("[~~]", "&")
 }

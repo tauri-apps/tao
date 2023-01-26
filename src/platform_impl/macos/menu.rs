@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use cocoa::{
@@ -69,8 +69,9 @@ impl MenuItemAttributes {
     }
   }
   pub fn set_title(&mut self, title: &str) {
+    let title = super::util::strip_mnemonic(title);
     unsafe {
-      let menu_title = NSString::alloc(nil).init_str(title);
+      let menu_title = NSString::alloc(nil).init_str(&title);
       self.1.setTitle_(menu_title);
     }
   }
@@ -160,7 +161,8 @@ impl Menu {
 
   pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: Menu) {
     unsafe {
-      let menu_title = NSString::alloc(nil).init_str(title);
+      let title = super::util::strip_mnemonic(title);
+      let menu_title = NSString::alloc(nil).init_str(&title);
       let menu_item = NSMenuItem::alloc(nil).autorelease();
       let () = msg_send![submenu.menu, setTitle: menu_title];
       let () = msg_send![menu_item, setTitle: menu_title];
@@ -360,6 +362,8 @@ pub(crate) fn make_custom_menu_item(
   accelerators: Option<Accelerator>,
   menu_type: MenuType,
 ) -> *mut Object {
+  let title = super::util::strip_mnemonic(title);
+
   let alloc = make_menu_alloc();
   let menu_id = Box::new(Action(Box::new(id.0)));
   let ptr = Box::into_raw(menu_id);
@@ -367,7 +371,7 @@ pub(crate) fn make_custom_menu_item(
   unsafe {
     (&mut *alloc).set_ivar(BLOCK_PTR, ptr as usize);
     let _: () = msg_send![&*alloc, setTarget:&*alloc];
-    let title = NSString::alloc(nil).init_str(title);
+    let title = NSString::alloc(nil).init_str(&title);
     make_menu_item_from_alloc(alloc, title, selector, accelerators, menu_type)
   }
 }

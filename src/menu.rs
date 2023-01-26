@@ -1,5 +1,5 @@
 // Copyright 2014-2021 The winit contributors
-// Copyright 2021-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 //! **UNSTABLE** -- The `Menu` struct and associated types.
@@ -55,9 +55,12 @@ pub struct MenuItemAttributes<'a> {
 impl<'a> MenuItemAttributes<'a> {
   /// Creates a new custom menu item.
   ///
-  /// ## Platform-specific
+  /// `title` could optionally contain an `&` before a character to assign this character as the mnemonic
+  /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`
   ///
-  /// - **Linux:** `selected` render a regular item
+  /// ## Platform-specific:
+  ///
+  /// - **macOS**: mnemonics are not supported but single `&` will be rmeoved anyways for consistency with other platforms.
   pub fn new(title: &'a str) -> Self {
     Self {
       id: MenuId::new(title),
@@ -92,6 +95,10 @@ impl<'a> MenuItemAttributes<'a> {
   }
 
   /// Assign default checkbox style.
+  ///
+  /// Default is `false`
+  ///
+  /// If `selected` is `false`, renders a regular menu item.
   pub fn with_selected(mut self, selected: bool) -> Self {
     self.selected = selected;
     self
@@ -117,6 +124,13 @@ impl ContextMenu {
   }
 
   /// Add a submenu.
+  ///
+  /// `title` could optionally contain an `&` before a character to assign this character as the mnemonic
+  /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS**: mnemonics are not supported but single `&` will be rmeoved anyways for consistency with other platforms.
   pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: ContextMenu) {
     self
       .0
@@ -158,6 +172,13 @@ impl MenuBar {
   }
 
   /// Add a submenu.
+  ///
+  /// `title` could optionally contain an `&` before a character to assign this character as the mnemonic
+  /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS**: mnemonics are not supported but single `&` will be rmeoved anyways for consistency with other platforms.
   pub fn add_submenu(&mut self, title: &str, enabled: bool, submenu: MenuBar) {
     self
       .0
