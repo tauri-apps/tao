@@ -15,7 +15,10 @@ use std::{
 use gdk::{WindowEdge, WindowState};
 use glib::translate::ToGlibPtr;
 use gtk::{prelude::*, traits::SettingsExt, AccelGroup, Orientation, Settings};
-use raw_window_handle::{RawDisplayHandle, RawWindowHandle, XlibDisplayHandle, XlibWindowHandle};
+use raw_window_handle::{
+  RawDisplayHandle, RawWindowHandle, WaylandDisplayHandle, WaylandWindowHandle, XlibDisplayHandle,
+  XlibWindowHandle,
+};
 
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
@@ -797,28 +800,49 @@ impl Window {
     monitor::from_point(display, x, y).map(|inner| RootMonitorHandle { inner })
   }
 
+  fn is_wayland(&self) -> bool {
+    self.window.display().backend().is_wayland()
+  }
+
   pub fn raw_window_handle(&self) -> RawWindowHandle {
-    // TODO: add wayland support
-    let mut window_handle = XlibWindowHandle::empty();
-    unsafe {
+    if self.is_wayland() {
+      let mut window_handle = WaylandWindowHandle::empty();
       if let Some(window) = self.window.window() {
-        window_handle.window = gdk_x11_sys::gdk_x11_window_get_xid(window.as_ptr() as *mut _);
+        window_handle.surface =
+          unsafe { gdk_wayland_sys::gdk_wayland_window_get_wl_surface(window.as_ptr() as *mut _) };
       }
+
+      RawWindowHandle::Wayland(window_handle)
+    } else {
+      let mut window_handle = XlibWindowHandle::empty();
+      unsafe {
+        if let Some(window) = self.window.window() {
+          window_handle.window = gdk_x11_sys::gdk_x11_window_get_xid(window.as_ptr() as *mut _);
+        }
+      }
+      RawWindowHandle::Xlib(window_handle)
     }
-    RawWindowHandle::Xlib(window_handle)
   }
 
   pub fn raw_display_handle(&self) -> RawDisplayHandle {
-    let mut display_handle = XlibDisplayHandle::empty();
-    unsafe {
-      if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
-        let display = (xlib.XOpenDisplay)(std::ptr::null());
-        display_handle.display = display as _;
-        display_handle.screen = (xlib.XDefaultScreen)(display) as _;
+    if self.is_wayland() {
+      let mut display_handle = WaylandDisplayHandle::empty();
+      display_handle.display = unsafe {
+        gdk_wayland_sys::gdk_wayland_display_get_wl_display(self.window.display().as_ptr() as *mut _)
+      };
+      RawDisplayHandle::Wayland(display_handle)
+    } else {
+      let mut display_handle = XlibDisplayHandle::empty();
+      unsafe {
+        if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
+          let display = (xlib.XOpenDisplay)(std::ptr::null());
+          display_handle.display = display as _;
+          display_handle.screen = (xlib.XDefaultScreen)(display) as _;
+        }
       }
-    }
 
-    RawDisplayHandle::Xlib(display_handle)
+      RawDisplayHandle::Xlib(display_handle)
+    }
   }
 
   pub(crate) fn set_skip_taskbar(&self, skip: bool) {
