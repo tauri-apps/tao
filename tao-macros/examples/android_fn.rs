@@ -13,8 +13,8 @@ unsafe fn add2(_env: JNIEnv, _class: JClass, a: i32, b: i32) {
   let _ = a + b;
 }
 
+fn __setup__() {}
 fn __store_package_name__() {}
-
 android_fn!(
   com_example,
   tao_app,
@@ -22,12 +22,14 @@ android_fn!(
   add3,
   [i32, i32],
   __VOID__,
-  [setup, main],
+  [__setup__, main],
   __store_package_name__,
 );
 unsafe fn add3(_env: JNIEnv, _class: JClass, a: i32, b: i32, _setup: fn(), _main: fn()) {
   let _ = a + b;
 }
 
-fn setup() {}
+android_fn!(com_example, tao_app, SomeClass, add4, [], i32);
+unsafe fn add4(_env: JNIEnv, _class: JClass) {}
+
 fn main() {}

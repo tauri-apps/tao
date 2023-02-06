@@ -43,10 +43,12 @@ impl Parse for AndroidFnInput {
     let _: Comma = input.parse()?;
     let function: Ident = input.parse()?;
     let _: Comma = input.parse()?;
+
     let args;
     let _: syn::token::Bracket = bracketed!(args in input);
     let args = args.parse_terminated::<Type, Token![,]>(Type::parse)?;
     let _: syn::Result<Comma> = input.parse();
+
     let ret = if input.peek(Ident) {
       let ret = input.parse::<Type>()?;
       if ret.to_token_stream().to_string() == "__VOID__" {
@@ -156,11 +158,7 @@ pub fn android_fn(tokens: TokenStream) -> TokenStream {
   } = tokens;
 
   let domain = domain.to_string();
-  let package = package
-    .to_string()
-    .replace("_", "_1")
-    //  TODO: is this what we want? should we remove it instead?
-    .replace("-", "_1");
+  let package = package.to_string().replace("_", "_1").replace("-", "_1");
   let class = class.to_string();
   let args = args
     .into_iter()
@@ -196,7 +194,7 @@ pub fn android_fn(tokens: TokenStream) -> TokenStream {
       #(#args),*
     )  #ret {
       #function_before();
-      #function(env, class, #(#args_),*, #(#non_jni_args),*)
+      #function(env, class, #(#args_),* #(#non_jni_args),*)
     }
 
   }
@@ -247,10 +245,7 @@ pub fn generate_package_name(tokens: TokenStream) -> TokenStream {
   let GeneratePackageNameInput { domain, package } = tokens;
 
   let domain = domain.to_string().replace("_", "/");
-  let package = package
-    .to_string()
-    //  TODO: is this what we want? should we remove it instead?
-    .replace("-", "_");
+  let package = package.to_string().replace("-", "_");
 
   let path = format!("{}/{}", domain, package);
   let litstr = LitStr::new(&path, proc_macro2::Span::call_site());
