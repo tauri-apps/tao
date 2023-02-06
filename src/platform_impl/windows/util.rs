@@ -8,7 +8,7 @@ use std::{
   mem,
   ops::BitAnd,
   os::windows::prelude::OsStrExt,
-  ptr, slice,
+  slice,
   sync::atomic::{AtomicBool, Ordering},
 };
 
@@ -195,10 +195,7 @@ pub fn get_cursor_clip() -> Result<RECT, io::Error> {
 /// Note that calling this will automatically dispatch a `WM_MOUSEMOVE` event.
 pub fn set_cursor_clip(rect: Option<RECT>) -> Result<(), io::Error> {
   unsafe {
-    let rect_ptr = rect
-      .as_ref()
-      .map(|r| r as *const RECT)
-      .unwrap_or(ptr::null());
+    let rect_ptr = rect.as_ref().map(|r| r as *const RECT);
     win_to_err(|| ClipCursor(rect_ptr))
   }
 }

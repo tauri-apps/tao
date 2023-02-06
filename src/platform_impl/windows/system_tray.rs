@@ -98,7 +98,7 @@ impl SystemTrayBuilder {
         HWND::default(),
         HMENU::default(),
         hinstance,
-        std::ptr::null_mut(),
+        None,
       );
       if !IsWindow(hwnd).as_bool() {
         return Err(os_error!(OsError::CreationError(
@@ -362,7 +362,7 @@ unsafe fn show_tray_menu(hwnd: HWND, menu: HMENU, x: i32, y: i32) {
     y,
     0,
     hwnd,
-    std::ptr::null_mut(),
+    None,
   );
 }
 

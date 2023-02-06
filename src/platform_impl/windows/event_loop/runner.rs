@@ -6,7 +6,7 @@ use std::{
   any::Any,
   cell::{Cell, RefCell},
   collections::{HashSet, VecDeque},
-  mem, panic, ptr,
+  mem, panic,
   rc::Rc,
   time::Instant,
 };
@@ -397,7 +397,7 @@ impl<T> EventLoopRunner<T> {
     self.dispatch_buffered_events();
     RedrawWindow(
       self.thread_msg_target,
-      ptr::null(),
+      None,
       HRGN::default(),
       RDW_INTERNALPAINT,
     );
