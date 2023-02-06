@@ -15,7 +15,7 @@ struct AndroidFnInput {
   class: Ident,
   function: Ident,
   args: Punctuated<Type, Comma>,
-  non_jni_args: Punctuated<Ident, Comma>,
+  non_jni_args: Punctuated<Type, Comma>,
   ret: Option<Type>,
   function_before: Option<Ident>,
 }
@@ -51,6 +51,7 @@ impl Parse for AndroidFnInput {
 
     let ret = if input.peek(Ident) {
       let ret = input.parse::<Type>()?;
+      let _: syn::Result<Comma> = input.parse();
       if ret.to_token_stream().to_string() == "__VOID__" {
         None
       } else {
@@ -60,12 +61,10 @@ impl Parse for AndroidFnInput {
       None
     };
 
-    let non_jni_args = if input.peek2(syn::token::Bracket) {
-      let _: syn::Result<Comma> = input.parse();
-
+    let non_jni_args = if input.peek(syn::token::Bracket) {
       let non_jni_args;
       let _: syn::token::Bracket = bracketed!(non_jni_args in input);
-      let non_jni_args = non_jni_args.parse_terminated::<Ident, Token![,]>(Ident::parse)?;
+      let non_jni_args = non_jni_args.parse_terminated::<Type, Token![,]>(Type::parse)?;
       let _: syn::Result<Comma> = input.parse();
       non_jni_args
     } else {
@@ -189,6 +188,12 @@ pub fn android_fn(tokens: TokenStream) -> TokenStream {
     syn::ReturnType::Default
   };
 
+  let comma_before_non_jni_args = if non_jni_args.is_empty() {
+    None
+  } else {
+    Some(syn::token::Comma(proc_macro2::Span::call_site()))
+  };
+
   quote! {
     #[no_mangle]
     unsafe extern "C" fn #java_fn_name(
@@ -197,7 +202,7 @@ pub fn android_fn(tokens: TokenStream) -> TokenStream {
       #(#args),*
     )  #ret {
       #function_before();
-      #function(env, class, #(#args_),* #(#non_jni_args),*)
+      #function(env, class, #(#args_),*  #comma_before_non_jni_args #(#non_jni_args),*)
     }
 
   }
