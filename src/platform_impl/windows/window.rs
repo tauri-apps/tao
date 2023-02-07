@@ -178,12 +178,7 @@ impl Window {
   #[inline]
   pub fn request_redraw(&self) {
     unsafe {
-      RedrawWindow(
-        self.window.0,
-        ptr::null(),
-        HRGN::default(),
-        RDW_INTERNALPAINT,
-      );
+      RedrawWindow(self.window.0, None, HRGN::default(), RDW_INTERNALPAINT);
     }
   }
 
@@ -590,10 +585,10 @@ impl Window {
           let res = unsafe {
             ChangeDisplaySettingsExW(
               PCWSTR::from_raw(display_name.as_ptr()),
-              &native_video_mode,
+              Some(&native_video_mode),
               HWND::default(),
               CDS_FULLSCREEN,
-              std::ptr::null_mut(),
+              None,
             )
           };
 
@@ -606,13 +601,7 @@ impl Window {
         (&Some(Fullscreen::Exclusive(_)), &None)
         | (&Some(Fullscreen::Exclusive(_)), &Some(Fullscreen::Borderless(_))) => {
           let res = unsafe {
-            ChangeDisplaySettingsExW(
-              PCWSTR::null(),
-              std::ptr::null_mut(),
-              HWND::default(),
-              CDS_FULLSCREEN,
-              std::ptr::null_mut(),
-            )
+            ChangeDisplaySettingsExW(PCWSTR::null(), None, HWND::default(), CDS_FULLSCREEN, None)
           };
 
           debug_assert!(res != DISP_CHANGE_BADFLAGS);
@@ -835,7 +824,7 @@ impl Window {
       ToUnicode(
         vk,
         scancode,
-        &kbd_state,
+        Some(&kbd_state),
         mem::transmute(char_buff.as_mut()),
         0,
       );
@@ -975,7 +964,7 @@ unsafe fn init<T: 'static>(
       parent.unwrap_or_default(),
       pl_attribs.menu.unwrap_or_default(),
       GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
-      Box::into_raw(Box::new(window_flags)) as _,
+      Some(Box::into_raw(Box::new(window_flags)) as _),
     );
 
     if !IsWindow(handle).as_bool() {
@@ -1171,7 +1160,7 @@ impl Drop for ComInitialized {
 thread_local! {
     static COM_INITIALIZED: ComInitialized = {
         unsafe {
-            ComInitialized(match CoInitializeEx(ptr::null_mut(), COINIT_APARTMENTTHREADED) {
+            ComInitialized(match CoInitializeEx(None, COINIT_APARTMENTTHREADED) {
               Ok(()) => Some(()),
               Err(_) => None,
             })

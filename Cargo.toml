@@ -71,12 +71,12 @@ png = "0.17"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 parking_lot = "0.12"
-unicode-segmentation = "1.10.0"
+unicode-segmentation = "1.10"
 image = { version = "0.24", default-features = false }
-windows-implement = "0.39.0"
+windows-implement = "0.44.0"
 
 [target."cfg(target_os = \"windows\")".dependencies.windows]
-version = "0.39.0"
+version = "0.44.0"
 features = [
   "implement",
   "Win32_Devices_HumanInterfaceDevice",
@@ -115,8 +115,9 @@ gtk = "0.16"
 gdk = "0.16"
 gdk-sys = "0.16"
 gdkx11-sys = "0.16"
+gdkwayland-sys = "0.16.0"
 gdk-pixbuf = "0.16"
-x11-dl = "2.20"
-uuid = { version = "1.2", features = ["v4"] }
+x11-dl = "2.21"
+uuid = { version = "1.3", features = [ "v4" ] }
 png = "0.17"
 parking_lot = "0.12"
