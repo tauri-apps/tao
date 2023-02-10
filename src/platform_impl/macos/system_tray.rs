@@ -141,6 +141,7 @@ impl SystemTray {
 
   pub fn set_icon_as_template(mut self, is_template: bool) {
     self.icon_is_template = is_template;
+    self.create_button_with_icon();
   }
 
   pub fn set_menu(&mut self, tray_menu: &Menu) {
