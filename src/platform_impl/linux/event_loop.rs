@@ -279,7 +279,7 @@ impl<T: 'static> EventLoop<T> {
                     match cr {
                       CursorIcon::Crosshair => "crosshair",
                       CursorIcon::Hand => "pointer",
-                      CursorIcon::Arrow => "crosshair",
+                      CursorIcon::Arrow => "arrow",
                       CursorIcon::Move => "move",
                       CursorIcon::Text => "text",
                       CursorIcon::Wait => "wait",
