@@ -122,10 +122,19 @@ impl Default for Menu {
   }
 }
 
+impl Drop for Menu {
+  fn drop(&mut self) {
+    unsafe {
+      let _: () = msg_send![self.menu, release];
+    }
+  }
+}
+
 impl Menu {
   pub fn new() -> Self {
     unsafe {
-      let menu = NSMenu::alloc(nil).autorelease();
+      let menu = NSMenu::alloc(nil);
+      let _: () = msg_send![menu, retain];
       let () = msg_send![menu, setAutoenablesItems: NO];
       Self { menu }
     }
