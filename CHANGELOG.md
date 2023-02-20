@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.18.1]
+
+- Retain NSMenu reference instead of autoreleasing it.
+  - [5c37a54a](https://github.com/tauri-apps/tao/commit/5c37a54ab577e74730052658c9ed2e9b85462be8) fix(macos): retain and release NSMenu manually ([#699](https://github.com/tauri-apps/tao/pull/699)) on 2023-02-20
+
 ## \[0.18.0]
 
 - Fix undecorated window shadow enabled by default on Windows.
