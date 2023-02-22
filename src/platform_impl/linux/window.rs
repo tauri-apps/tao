@@ -764,8 +764,8 @@ impl Window {
         #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
         screen.primary_monitor()
       });
-    let handle = MonitorHandle::new(&self.window.display(), number);
-    Some(RootMonitorHandle { inner: handle })
+    MonitorHandle::new(&self.window.display(), number)
+      .map(|handle| RootMonitorHandle { inner: handle })
   }
 
   #[inline]
@@ -775,8 +775,9 @@ impl Window {
     let numbers = display.n_monitors();
 
     for i in 0..numbers {
-      let monitor = MonitorHandle::new(&display, i);
-      handles.push_back(monitor);
+      if let Some(monitor) = MonitorHandle::new(&display, i) {
+        handles.push_back(monitor);
+      }
     }
 
     handles
@@ -786,8 +787,8 @@ impl Window {
     let screen = self.window.display().default_screen();
     #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
     let number = screen.primary_monitor();
-    let handle = MonitorHandle::new(&self.window.display(), number);
-    Some(RootMonitorHandle { inner: handle })
+    MonitorHandle::new(&self.window.display(), number)
+      .map(|handle| RootMonitorHandle { inner: handle })
   }
 
   #[inline]

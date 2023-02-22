@@ -68,8 +68,9 @@ impl<T> EventLoopWindowTarget<T> {
     let numbers = display.n_monitors();
 
     for i in 0..numbers {
-      let monitor = MonitorHandle::new(display, i);
-      handles.push_back(monitor);
+      if let Some(monitor) = MonitorHandle::new(display, i) {
+        handles.push_back(monitor);
+      }
     }
 
     handles
@@ -80,8 +81,7 @@ impl<T> EventLoopWindowTarget<T> {
     let screen = self.display.default_screen();
     #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
     let number = screen.primary_monitor();
-    let handle = MonitorHandle::new(&self.display, number);
-    Some(RootMonitorHandle { inner: handle })
+    MonitorHandle::new(&self.display, number).map(|handle| RootMonitorHandle { inner: handle })
   }
 
   pub fn raw_display_handle(&self) -> RawDisplayHandle {

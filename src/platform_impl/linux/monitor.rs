@@ -19,9 +19,10 @@ pub struct MonitorHandle {
 }
 
 impl MonitorHandle {
-  pub fn new(display: &gdk::Display, number: i32) -> Self {
-    let monitor = display.monitor(number).unwrap();
-    Self { monitor, number }
+  pub fn new(display: &gdk::Display, number: i32) -> Option<Self> {
+    display
+      .monitor(number)
+      .map(|monitor| Self { monitor, number })
   }
 
   #[inline]
@@ -94,6 +95,7 @@ pub fn from_point(display: &Display, x: f64, y: f64) -> Option<MonitorHandle> {
       .map(|i| (i, display.monitor(i).unwrap()))
       .find(|cur| cur.1.geometry() == monitor.geometry())
       .map(|x| MonitorHandle::new(display, x.0))
+      .flatten()
   } else {
     None
   }
