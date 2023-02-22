@@ -79,9 +79,11 @@ impl<T> EventLoopWindowTarget<T> {
 
   #[inline]
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
-    let monitor = self.display.primary_monitor().unwrap();
-    let handle = MonitorHandle { monitor };
-    Some(RootMonitorHandle { inner: handle })
+    let monitor = self.display.primary_monitor();
+    monitor.and_then(|monitor| {
+      let handle = MonitorHandle { monitor };
+      Some(RootMonitorHandle { inner: handle })
+    })
   }
 
   pub fn raw_display_handle(&self) -> RawDisplayHandle {
