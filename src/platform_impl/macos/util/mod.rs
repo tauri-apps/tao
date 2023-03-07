@@ -128,11 +128,17 @@ pub fn window_position(position: LogicalPosition<f64>) -> NSPoint {
   )
 }
 
+// FIXME: This is actually logical position.
 pub fn cursor_position() -> Result<PhysicalPosition<f64>, ExternalError> {
-  let s = CGEventSource::new(CGEventSourceStateID::CombinedSessionState).unwrap();
-  let e = CGEvent::new(s).unwrap();
-  let pt = e.location();
-  Ok((pt.x, pt.y).into())
+  if let Ok(s) = CGEventSource::new(CGEventSourceStateID::CombinedSessionState) {
+    if let Ok(e) = CGEvent::new(s) {
+      let pt = e.location();
+      let pos = PhysicalPosition::new(pt.x, pt.y);
+      return Ok(pos);
+    }
+  }
+
+  return Err(ExternalError::Os(os_error!(super::OsError::CGError(0))));
 }
 
 pub unsafe fn ns_string_id_ref(s: &str) -> IdRef {
