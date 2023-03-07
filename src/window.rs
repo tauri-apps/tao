@@ -1202,7 +1202,7 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **iOS / Android**: Unsupported, returns `0,0`.
+  /// - **iOS / Android / Linux(Wayland)**: Unsupported, returns `0,0`.
   #[inline]
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
     self.window.cursor_position()
