@@ -20,9 +20,10 @@ fn main() {
       .unwrap(),
   );
 
-  event_loop.run(move |event, _, control_flow| {
+  event_loop.run(move |event, e, control_flow| {
     *control_flow = ControlFlow::Wait;
-    println!("{:?}", event);
+    let cursor = e.cursor_position().unwrap();
+    println!("{:?}", cursor);
 
     match event {
       Event::WindowEvent {
@@ -42,7 +43,9 @@ fn main() {
       }
       Event::MainEventsCleared => {
         if let Some(w) = &window {
-          w.request_redraw();
+          println!("{:?}", w.cursor_position());
+          println!("{:?}", w.monitor_from_point(cursor.x, cursor.y));
+          // w.request_redraw();
         }
       }
       _ => (),

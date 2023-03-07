@@ -17,7 +17,11 @@ use cocoa::{
   base::{id, nil},
   foundation::{NSAutoreleasePool, NSPoint, NSRect, NSString, NSUInteger},
 };
-use core_graphics::display::CGDisplay;
+use core_graphics::{
+  display::CGDisplay,
+  event::CGEvent,
+  event_source::{CGEventSource, CGEventSourceStateID},
+};
 use objc::runtime::{Class, Object, Sel, BOOL, YES};
 
 use crate::{
@@ -125,10 +129,10 @@ pub fn window_position(position: LogicalPosition<f64>) -> NSPoint {
 }
 
 pub fn cursor_position() -> Result<PhysicalPosition<f64>, ExternalError> {
-  unsafe {
-    let pt: NSPoint = msg_send![class!(NSEvent), mouseLocation];
-    Ok((pt.x, pt.y).into())
-  }
+  let s = CGEventSource::new(CGEventSourceStateID::CombinedSessionState).unwrap();
+  let e = CGEvent::new(s).unwrap();
+  let pt = e.location();
+  Ok((pt.x, pt.y).into())
 }
 
 pub unsafe fn ns_string_id_ref(s: &str) -> IdRef {
