@@ -761,7 +761,7 @@ impl Window {
 
   #[inline]
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
-    util::cursor_position(self.window.display().backend().is_wayland())
+    util::cursor_position(self.is_wayland())
   }
 
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
