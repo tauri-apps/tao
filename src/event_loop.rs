@@ -283,7 +283,7 @@ impl<T> EventLoopWindowTarget<T> {
   ///
   /// ## Platform-specific
   ///
-  /// - **iOS / Android**: Unsupported.
+  /// - **iOS / Android / Linux(Wayland)**: Unsupported, returns `0,0`.
   #[inline]
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
     self.p.cursor_position()

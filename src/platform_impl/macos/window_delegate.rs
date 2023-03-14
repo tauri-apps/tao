@@ -34,7 +34,6 @@ use crate::{
 
 pub struct WindowDelegateState {
   ns_window: IdRef, // never changes
-  ns_view: IdRef,   // never changes
 
   window: Weak<UnownedWindow>,
 
@@ -61,7 +60,6 @@ impl WindowDelegateState {
     let scale_factor = window.scale_factor();
     let mut delegate_state = WindowDelegateState {
       ns_window: window.ns_window.clone(),
-      ns_view: window.ns_view.clone(),
       window: Arc::downgrade(window),
       initial_fullscreen,
       previous_position: None,
@@ -73,6 +71,10 @@ impl WindowDelegateState {
     }
 
     delegate_state
+  }
+
+  fn ns_view(&self) -> id {
+    unsafe { (*self.ns_window).contentView() }
   }
 
   fn with_window<F, T>(&mut self, callback: F) -> Option<T>
@@ -106,7 +108,7 @@ impl WindowDelegateState {
   }
 
   pub fn emit_resize_event(&mut self) {
-    let rect = unsafe { NSView::frame(*self.ns_view) };
+    let rect = unsafe { NSView::frame(self.ns_view()) };
     let scale_factor = self.get_scale_factor();
     let logical_size = LogicalSize::new(rect.size.width as f64, rect.size.height as f64);
     let size = logical_size.to_physical(scale_factor);
@@ -131,7 +133,7 @@ impl WindowDelegateState {
   }
 
   fn view_size(&self) -> LogicalSize<f64> {
-    let ns_size = unsafe { NSView::frame(*self.ns_view).size };
+    let ns_size = unsafe { NSView::frame(self.ns_view()).size };
     LogicalSize::new(ns_size.width as f64, ns_size.height as f64)
   }
 }
@@ -396,7 +398,7 @@ extern "C" fn window_did_resign_key(this: &Object, _: Sel, _: id) {
     // Object referenced by state.ns_view (an IdRef, which is dereferenced
     // to an id)
     let view_state: &mut ViewState = unsafe {
-      let ns_view: &Object = (*state.ns_view).as_ref().expect("failed to deref");
+      let ns_view: &Object = state.ns_view().as_ref().expect("failed to deref");
       let state_ptr: *mut c_void = *ns_view.get_ivar("taoState");
       &mut *(state_ptr as *mut ViewState)
     };

@@ -15,7 +15,7 @@ struct AndroidFnInput {
   class: Ident,
   function: Ident,
   args: Punctuated<Type, Comma>,
-  non_jni_args: Punctuated<Ident, Comma>,
+  non_jni_args: Punctuated<Type, Comma>,
   ret: Option<Type>,
   function_before: Option<Ident>,
 }
@@ -43,12 +43,15 @@ impl Parse for AndroidFnInput {
     let _: Comma = input.parse()?;
     let function: Ident = input.parse()?;
     let _: Comma = input.parse()?;
+
     let args;
     let _: syn::token::Bracket = bracketed!(args in input);
     let args = args.parse_terminated::<Type, Token![,]>(Type::parse)?;
     let _: syn::Result<Comma> = input.parse();
+
     let ret = if input.peek(Ident) {
       let ret = input.parse::<Type>()?;
+      let _: syn::Result<Comma> = input.parse();
       if ret.to_token_stream().to_string() == "__VOID__" {
         None
       } else {
@@ -58,12 +61,10 @@ impl Parse for AndroidFnInput {
       None
     };
 
-    let non_jni_args = if input.peek2(syn::token::Bracket) {
-      let _: syn::Result<Comma> = input.parse();
-
+    let non_jni_args = if input.peek(syn::token::Bracket) {
       let non_jni_args;
       let _: syn::token::Bracket = bracketed!(non_jni_args in input);
-      let non_jni_args = non_jni_args.parse_terminated::<Ident, Token![,]>(Ident::parse)?;
+      let non_jni_args = non_jni_args.parse_terminated::<Type, Token![,]>(Type::parse)?;
       let _: syn::Result<Comma> = input.parse();
       non_jni_args
     } else {
@@ -92,17 +93,17 @@ impl Parse for AndroidFnInput {
 
 /// Generates a JNI binding for a Rust function so you can use it as the extern for Java/Kotlin class methods in your android app.
 ///
-/// - The first parameter is a snake_case representation of the reversed domain of the app.
-/// - The second parameter is a snake_case representation of the package name.
-/// - The third parameter is the Java/Kotlin class name.
-/// - The fourth parameter is the rust function name (`ident`).
-/// - The fifth parameter is a list of extra types your Rust function expects
-/// (Note that all rust functions should expect the first two parameters to be [`JNIEnv`](https://docs.rs/jni/latest/jni/struct.JNIEnv.html) and [`JClass`](https://docs.rs/jni/latest/jni/objects/struct.JClass.html) so make sure they are imported into scope).
-/// - The fifth parameter is the return type of your rust function.
-/// This is optional but if you want to use the next parameter you need to provide a type
-/// or just pass `__VOID__` if the function doesn't return anything.
-/// - The sixth paramter is a list of `ident`s to pass to the rust function when invoked (This mostly exists for internal usages).
-/// - The seventh paramater is a function to be invoked right before invoking the rust function (This mostly exists for internal usages).
+/// This macro expects 5 mandatory parameters and 3 optional:
+/// 1. snake_case representation of the reversed domain of the app. for example: com_tao
+/// 2. snake_case representation of the package name. for example: tao_app
+/// 3. Java/Kotlin class name.
+/// 4. Rust function name (`ident`).
+/// 5. List of extra types your Rust function expects. Pass empty array if the function doesn't need any arugments.
+/// Note that all rust functions should expect the first two parameters to be [`JNIEnv`] and [`JClass`] so make sure they are imported into scope).
+/// 6. (Optional) Return type of your rust function.
+/// if you want to use the next parameter you need to provide a type or just pass `__VOID__` if the function doesn't return anything.
+/// 7. (Optional) List of `ident`s to pass to the rust function when invoked (This mostly exists for internal usages).
+/// 8. (Optional) Function to be invoked right before invoking the rust function (This mostly exists for internal usages).
 ///
 /// ## Example
 ///
@@ -141,6 +142,9 @@ impl Parse for AndroidFnInput {
 ///   external fun add(a: Int, b: Int): Int;
 /// }
 /// ```
+///
+/// - [`JNIEnv`]: https://docs.rs/jni/latest/jni/struct.JNIEnv.html
+/// - [`JClass`]: https://docs.rs/jni/latest/jni/objects/struct.JClass.html
 #[proc_macro]
 pub fn android_fn(tokens: TokenStream) -> TokenStream {
   let tokens = parse_macro_input!(tokens as AndroidFnInput);
@@ -156,11 +160,7 @@ pub fn android_fn(tokens: TokenStream) -> TokenStream {
   } = tokens;
 
   let domain = domain.to_string();
-  let package = package
-    .to_string()
-    .replace("_", "_1")
-    //  TODO: is this what we want? should we remove it instead?
-    .replace("-", "_1");
+  let package = package.to_string().replace("_", "_1").replace("-", "_1");
   let class = class.to_string();
   let args = args
     .into_iter()
@@ -188,6 +188,12 @@ pub fn android_fn(tokens: TokenStream) -> TokenStream {
     syn::ReturnType::Default
   };
 
+  let comma_before_non_jni_args = if non_jni_args.is_empty() {
+    None
+  } else {
+    Some(syn::token::Comma(proc_macro2::Span::call_site()))
+  };
+
   quote! {
     #[no_mangle]
     unsafe extern "C" fn #java_fn_name(
@@ -196,7 +202,7 @@ pub fn android_fn(tokens: TokenStream) -> TokenStream {
       #(#args),*
     )  #ret {
       #function_before();
-      #function(env, class, #(#args_),*, #(#non_jni_args),*)
+      #function(env, class, #(#args_),*  #comma_before_non_jni_args #(#non_jni_args),*)
     }
 
   }
@@ -221,8 +227,9 @@ impl Parse for GeneratePackageNameInput {
 
 /// Generate the package name used for invoking Java/Kotlin methods at compile-time
 ///
-/// - The first parameter is a snake_case representation of the reversed domain of the app.
-/// - The second parameter is a snake_case representation of the package name.
+/// This macro expects 2 parameters:
+/// 1. snake_case representation of the reversed domain of the app.
+/// 2. snake_case representation of the package name.
 ///
 /// ## Example
 ///
@@ -247,10 +254,7 @@ pub fn generate_package_name(tokens: TokenStream) -> TokenStream {
   let GeneratePackageNameInput { domain, package } = tokens;
 
   let domain = domain.to_string().replace("_", "/");
-  let package = package
-    .to_string()
-    //  TODO: is this what we want? should we remove it instead?
-    .replace("-", "_");
+  let package = package.to_string().replace("-", "_");
 
   let path = format!("{}/{}", domain, package);
   let litstr = LitStr::new(&path, proc_macro2::Span::call_site());

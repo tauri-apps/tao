@@ -78,9 +78,11 @@ impl<T> EventLoopWindowTarget<T> {
 
   #[inline]
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
-    let monitor = self.display.primary_monitor().unwrap();
-    let handle = MonitorHandle { monitor };
-    Some(RootMonitorHandle { inner: handle })
+    let monitor = self.display.primary_monitor();
+    monitor.and_then(|monitor| {
+      let handle = MonitorHandle { monitor };
+      Some(RootMonitorHandle { inner: handle })
+    })
   }
 
   pub fn raw_display_handle(&self) -> RawDisplayHandle {
@@ -105,7 +107,7 @@ impl<T> EventLoopWindowTarget<T> {
 
   #[inline]
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
-    util::cursor_position()
+    util::cursor_position(self.is_wayland())
   }
 }
 
@@ -319,7 +321,7 @@ impl<T: 'static> EventLoop<T> {
                     match cr {
                       CursorIcon::Crosshair => "crosshair",
                       CursorIcon::Hand => "pointer",
-                      CursorIcon::Arrow => "crosshair",
+                      CursorIcon::Arrow => "arrow",
                       CursorIcon::Move => "move",
                       CursorIcon::Text => "text",
                       CursorIcon::Wait => "wait",

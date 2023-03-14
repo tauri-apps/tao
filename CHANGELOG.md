@@ -1,5 +1,19 @@
 # Changelog
 
+## \[0.18.1]
+
+- Retain NSMenu reference instead of autoreleasing it.
+  - [5c37a54a](https://github.com/tauri-apps/tao/commit/5c37a54ab577e74730052658c9ed2e9b85462be8) fix(macos): retain and release NSMenu manually ([#699](https://github.com/tauri-apps/tao/pull/699)) on 2023-02-20
+
+## \[0.18.0]
+
+- Fix undecorated window shadow enabled by default on Windows.
+  - [1011b688](https://github.com/tauri-apps/tao/commit/1011b688ab67ffe898e24a3fa9c4566e91ab7359) fix(windows): default undecorated shadow to false ([#689](https://github.com/tauri-apps/tao/pull/689)) on 2023-02-07
+- On Linux, Add wayland raw handle methods. (#685)
+  - [3ce71295](https://github.com/tauri-apps/tao/commit/3ce71295c1a55134e77bb461c0fd49347b782403) Add missing change file in [#685](https://github.com/tauri-apps/tao/pull/685) on 2023-02-04
+- Update `windows-rs` to `0.44` which bumps the MSRV of this crate on Windows to `1.64`.
+  - [8971d731](https://github.com/tauri-apps/tao/commit/8971d731b02ec61a1665351c9bae11f5e4058dc4) chore(deps): update to windows-rs 0.44 ([#687](https://github.com/tauri-apps/tao/pull/687)) on 2023-02-06
+
 ## \[0.17.0]
 
 - Bump gtk version: 0.15 -> 0.16
