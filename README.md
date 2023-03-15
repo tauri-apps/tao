@@ -77,15 +77,6 @@ sudo apt install libappindicator3-dev
 sudo apt install libayatana-appindicator3-dev
 ```
 
-#### macOS
-
-To ensure compatibility with older macOS systems, TAO links to
-CGDisplayCreateUUIDFromDisplayID through the CoreGraphics framework.
-However, under certain setups this function is only available to be linked
-through the newer ColorSync framework. So, TAO provides the
-`TAO_LINK_COLORSYNC` environment variable which can be set to `1` or `true`
-while compiling to enable linking via ColorSync.
-
 ### Acknowledgement
 
 This is a fork of [winit](https://crates.io/crates/winit) which replaces Linux's port to Gtk.
