@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.18.3]
+
+- On macOS, fix wry window will crash if unfocused.
+  - [6a03847f](https://github.com/tauri-apps/tao/commit/6a03847f6d1343315174c9cd41b58a4cd2798657) On macOS, fix wry window can crash if unfocused ([#714](https://github.com/tauri-apps/tao/pull/714)) on 2023-03-24
+
 ## \[0.18.2]
 
 - fix not get actual ns_view when it's replace by setContentView
