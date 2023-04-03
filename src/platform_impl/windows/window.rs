@@ -1266,10 +1266,13 @@ unsafe fn taskbar_mark_fullscreen(handle: HWND, fullscreen: bool) {
 }
 
 unsafe fn force_window_active(handle: HWND) {
-  // In some situation, calling SetForegroundWindow could not bring up the window,
-  // This is a little hack which can "steal" the foreground window permission
+  // Try to focus the window without the hack first.
+  SetForegroundWindow(handle);
+
+  // In some situations, calling SetForegroundWindow could not bring up the window,
+  // This is a little hack which can "steal" the foreground window permission.
   // We only call this function in the window creation, so it should be fine.
-  // See : https://stackoverflow.com/questions/10740346/setforegroundwindow-only-working-while-visual-studio-is-open
+  // See: https://stackoverflow.com/questions/10740346/setforegroundwindow-only-working-while-visual-studio-is-open
   let alt_sc = MapVirtualKeyW(u32::from(VK_MENU.0), MAPVK_VK_TO_VSC);
 
   let mut inputs: [INPUT; 2] = mem::zeroed();
