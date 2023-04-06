@@ -1424,7 +1424,7 @@ pub(crate) unsafe fn position_traffic_lights<V: NSWindow + Copy>(window: V, x: f
   let _: () = msg_send![title_bar_container_view, setFrame: title_bar_rect];
 
   let window_buttons = vec![close, miniaturize, zoom];
-  let space_between = NSView::frame(miniaturize).origin.x - NSView::frame(close).origin.x;
+  let space_between = miniaturize.frame().origin.x - close_rect.origin.x;
 
   for (i, button) in window_buttons.into_iter().enumerate() {
     let mut rect = button.frame();
