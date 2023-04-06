@@ -265,7 +265,6 @@ fn create_window(
       }
 
       if let Some((offset_x, offset_y)) = pl_attrs.traffic_light_inset {
-        println!("{} {}", offset_x, offset_y);
         position_traffic_lights(*ns_window, offset_x, offset_y);
       }
 
