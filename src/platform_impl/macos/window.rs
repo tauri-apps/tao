@@ -1409,7 +1409,7 @@ unsafe fn set_max_inner_size<V: NSWindow + Copy>(window: V, mut max_size: Logica
   }
 }
 
-pub(crate) unsafe fn position_traffic_lights<V: NSWindow + Copy>(window: V, x: f64, y: f64) {
+unsafe fn position_traffic_lights<W: NSWindow + Copy>(window: W, x: f64, y: f64) {
   let close = window.standardWindowButton_(NSWindowButton::NSWindowCloseButton);
   let miniaturize = window.standardWindowButton_(NSWindowButton::NSWindowMiniaturizeButton);
   let zoom = window.standardWindowButton_(NSWindowButton::NSWindowZoomButton);
