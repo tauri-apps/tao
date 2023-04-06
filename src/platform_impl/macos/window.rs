@@ -1429,7 +1429,7 @@ pub(crate) unsafe fn position_traffic_lights<V: NSWindow + Copy>(window: V, x: f
   let space_between = NSView::frame(miniaturize).origin.x - NSView::frame(close).origin.x;
 
   for (i, button) in window_buttons.into_iter().enumerate() {
-    let mut rect: NSRect = NSView::frame(button);
+    let mut rect = button.frame();
     rect.origin.x = x + (i as f64 * space_between);
     button.setFrameOrigin(rect.origin);
   }
