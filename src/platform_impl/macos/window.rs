@@ -1417,9 +1417,7 @@ pub(crate) unsafe fn position_traffic_lights<V: NSWindow + Copy>(window: V, x: f
   let title_bar_container_view = close.superview().superview();
 
   let close_rect: NSRect = msg_send![close, frame];
-  let button_height = close_rect.size.height;
-
-  let title_bar_frame_height = button_height + y;
+  let title_bar_frame_height = close_rect.size.height + y;
   let mut title_bar_rect = NSView::frame(title_bar_container_view);
   title_bar_rect.size.height = title_bar_frame_height;
   title_bar_rect.origin.y = NSWindow::frame(window).size.height - title_bar_frame_height;
