@@ -1267,8 +1267,7 @@ unsafe fn taskbar_mark_fullscreen(handle: HWND, fullscreen: bool) {
 
 unsafe fn force_window_active(handle: HWND) {
   // Try to focus the window without the hack first.
-  let initial_try_succeeded = SetForegroundWindow(handle).as_bool();
-  if initial_try_succeeded {
+  if SetForegroundWindow(handle).as_bool() {
     return;
   }
 
