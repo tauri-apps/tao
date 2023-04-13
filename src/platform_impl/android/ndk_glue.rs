@@ -29,7 +29,7 @@ pub static PACKAGE: OnceCell<&str> = OnceCell::new();
 
 #[macro_export]
 macro_rules! android_binding {
-  ($domain:ident, $package:ident, $setup: ident, $main: ident) => {
+  ($domain:ident, $package:ident, $activity:ident, $setup:ident, $main:ident) => {
     fn __store_package_name__() {
       PACKAGE.get_or_init(move || generate_package_name!($domain, $package));
     }
@@ -37,21 +37,21 @@ macro_rules! android_binding {
     android_fn!(
       $domain,
       $package,
-      TauriActivity,
+      $activity,
       create,
       [JObject],
       __VOID__,
       [$setup, $main],
       __store_package_name__,
     );
-    android_fn!($domain, $package, TauriActivity, start, [JObject]);
-    android_fn!($domain, $package, TauriActivity, stop, [JObject]);
-    android_fn!($domain, $package, TauriActivity, resume, [JObject]);
-    android_fn!($domain, $package, TauriActivity, pause, [JObject]);
-    android_fn!($domain, $package, TauriActivity, save, [JObject]);
-    android_fn!($domain, $package, TauriActivity, destroy, [JObject]);
-    android_fn!($domain, $package, TauriActivity, memory, [JObject]);
-    android_fn!($domain, $package, TauriActivity, focus, [i32]);
+    android_fn!($domain, $package, $activity, start, [JObject]);
+    android_fn!($domain, $package, $activity, stop, [JObject]);
+    android_fn!($domain, $package, $activity, resume, [JObject]);
+    android_fn!($domain, $package, $activity, pause, [JObject]);
+    android_fn!($domain, $package, $activity, save, [JObject]);
+    android_fn!($domain, $package, $activity, destroy, [JObject]);
+    android_fn!($domain, $package, $activity, memory, [JObject]);
+    android_fn!($domain, $package, $activity, focus, [i32]);
   };
 }
 
