@@ -1,5 +1,12 @@
 # Changelog
 
+## \[0.19.0]
+
+- **Breaking change**: All ow specifying the android activity in `android_binding` macro, instead of hard-coded `TauriActivity`.
+  - [b78b9616](https://github.com/tauri-apps/tao/commit/b78b961621e9cde355c8de2cb9fc168efcae4313) feat!: allow specifying android activity in binding macro ([#723](https://github.com/tauri-apps/tao/pull/723)) on 2023-04-14
+- Fix set_focus not working on Windows in some situations like interactive notifications.
+  - [62db4313](https://github.com/tauri-apps/tao/commit/62db431338636dd0adafca15d636c08f68941984) fix(windows): Use SetForegroundWindow before focus hack ([#719](https://github.com/tauri-apps/tao/pull/719)) on 2023-04-04
+
 ## \[0.18.3]
 
 - On macOS, fix wry window will crash if unfocused.
