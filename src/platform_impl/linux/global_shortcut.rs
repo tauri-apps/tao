@@ -231,13 +231,14 @@ impl ShortcutManager {
   }
 
   pub(crate) fn unregister_all(&mut self) -> Result<(), ShortcutManagerError> {
-    for (found_id, _) in self.shortcuts.lock().unwrap().iter() {
+    let mut shortcuts = self.shortcuts.lock().unwrap();
+    for (found_id, _) in shortcuts.iter() {
       self
         .method_sender
         .send(HotkeyMessage::UnregisterHotkey(*found_id))
         .map_err(|_| ShortcutManagerError::InvalidAccelerator("Channel error".into()))?;
     }
-    self.shortcuts = ListenerMap::default();
+    shortcuts.clear();
     Ok(())
   }
 
