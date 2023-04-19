@@ -36,7 +36,10 @@ use windows::{
     UI::{
       Controls::{self as win32c, HOVER_DEFAULT},
       Input::{KeyboardAndMouse::*, Pointer::*, Touch::*, *},
-      Shell::{DefSubclassProc, RemoveWindowSubclass, SetWindowSubclass},
+      Shell::{
+        DefSubclassProc, RemoveWindowSubclass, SHAppBarMessage, SetWindowSubclass, ABE_BOTTOM,
+        ABE_LEFT, ABE_RIGHT, ABE_TOP, ABM_GETAUTOHIDEBAR, APPBARDATA,
+      },
       WindowsAndMessaging::{self as win32wm, *},
     },
   },
@@ -1962,7 +1965,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
             let get_monitor_rect = |monitor| {
               let mut monitor_info = MONITORINFO {
                 cbSize: mem::size_of::<MONITORINFO>() as _,
-                ..MONITORINFO::default()
+                ..Default::default()
               };
               GetMonitorInfoW(monitor, &mut monitor_info);
               monitor_info.rcMonitor
@@ -2055,7 +2058,35 @@ unsafe fn public_window_callback_inner<T: 'static>(
           if let Ok(monitor_info) =
             monitor::get_monitor_info(MonitorFromRect(&params.rgrc[0], MONITOR_DEFAULTTONULL))
           {
-            params.rgrc[0] = monitor_info.monitorInfo.rcWork;
+            let mut rect = monitor_info.monitorInfo.rcWork;
+
+            let mut edges = 0;
+            for edge in [ABE_BOTTOM, ABE_LEFT, ABE_TOP, ABE_RIGHT] {
+              let mut app_data = APPBARDATA {
+                cbSize: std::mem::size_of::<APPBARDATA>() as _,
+                uEdge: edge,
+                ..Default::default()
+              };
+              if SHAppBarMessage(ABM_GETAUTOHIDEBAR, &mut app_data) != 0 {
+                edges |= edge;
+              }
+            }
+
+            // keep a 1px for taskbar auto-hide to work
+            if edges & ABE_BOTTOM != 0 {
+              rect.bottom -= 1;
+            }
+            if edges & ABE_LEFT != 0 {
+              rect.left += 1;
+            }
+            if edges & ABE_TOP != 0 {
+              rect.top += 1;
+            }
+            if edges & ABE_RIGHT != 0 {
+              rect.right -= 1;
+            }
+
+            params.rgrc[0] = rect;
           }
         } else if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) {
           let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
