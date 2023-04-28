@@ -135,7 +135,6 @@ unsafe fn create_view(
   })
 }
 
-// TODO: Modify this
 fn create_window(
   attrs: &WindowAttributes,
   pl_attrs: &PlatformSpecificWindowBuilderAttributes,
