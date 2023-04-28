@@ -1330,8 +1330,9 @@ impl WindowExtMacOS for UnownedWindow {
     }
   }
 
-  fn set_traffic_light_inset(&self, inset: (f64, f64)) {
-    unsafe { position_traffic_lights(*self.ns_window, inset.0, inset.1) }
+  #[inline]
+  fn set_traffic_light_inset(&self, inset: LogicalSize<f64>) {
+    unsafe { position_traffic_lights(*self.ns_window, inset.width, inset.height) }
   }
 
   #[inline]
