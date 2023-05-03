@@ -1332,7 +1332,7 @@ impl WindowExtMacOS for UnownedWindow {
 
   #[inline]
   fn set_traffic_light_inset(&self, inset: LogicalSize<f64>) {
-    unsafe { position_traffic_lights(*self.ns_window, inset.width, inset.height) }
+    unsafe { position_traffic_lights(*self.ns_window, inset.width, inset.height) };
   }
 
   #[inline]
@@ -1415,18 +1415,18 @@ unsafe fn position_traffic_lights<W: NSWindow + Copy>(window: W, x: f64, y: f64)
 
   let title_bar_container_view = close.superview().superview();
 
-  let close_rect = close.frame();
+  let close_rect = NSView::frame(close);
   let title_bar_frame_height = close_rect.size.height + y;
-  let mut title_bar_rect = title_bar_container_view.frame();
+  let mut title_bar_rect = NSView::frame(title_bar_container_view);
   title_bar_rect.size.height = title_bar_frame_height;
   title_bar_rect.origin.y = window.frame().size.height - title_bar_frame_height;
   let _: () = msg_send![title_bar_container_view, setFrame: title_bar_rect];
 
   let window_buttons = vec![close, miniaturize, zoom];
-  let space_between = miniaturize.frame().origin.x - close_rect.origin.x;
+  let space_between = NSView::frame(miniaturize).origin.x - close_rect.origin.x;
 
   for (i, button) in window_buttons.into_iter().enumerate() {
-    let mut rect = button.frame();
+    let mut rect = NSView::frame(button);
     rect.origin.x = x + (i as f64 * space_between);
     button.setFrameOrigin(rect.origin);
   }

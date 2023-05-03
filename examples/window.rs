@@ -4,8 +4,9 @@
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
-  window::WindowBuilder,
+  window::WindowBuilder, dpi::LogicalSize,
 };
+use tao::platform::macos::WindowBuilderExtMacOS;
 
 #[allow(clippy::single_match)]
 fn main() {
@@ -14,7 +15,10 @@ fn main() {
   let mut window = Some(
     WindowBuilder::new()
       .with_title("A fantastic window!")
-      .with_inner_size(tao::dpi::LogicalSize::new(128.0, 128.0))
+      .with_inner_size(tao::dpi::LogicalSize::new(428.0, 428.0))
+      .with_closable(false)
+      .with_titlebar_buttons_hidden(true)
+      .with_traffic_light_inset(LogicalSize { width: 100.0, height: 100.0 })
       .build(&event_loop)
       .unwrap(),
   );
