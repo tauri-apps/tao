@@ -1,5 +1,14 @@
 # Changelog
 
+## \[0.19.1]
+
+- On Windows, fix auto-hide taskbar can't be shown when maximizing undecorated window.
+  - [c5d606df](https://github.com/tauri-apps/tao/commit/c5d606dffeb1733ab06fd8c43eb3b9e7b2f553fe) fix(windows): leave space for auto-hidden taskbar for undecorated windows ([#726](https://github.com/tauri-apps/tao/pull/726)) on 2023-04-19
+- On Linux, fix `ShortcutManager::unregister_all` making `ShortcutManager::register` succeed but no events are triggered.
+  - [ee5dc41f](https://github.com/tauri-apps/tao/commit/ee5dc41f0071c9177304b3697d5b4c21c5734fd4) fix(linux): clear shortcuts instead of replacing it ([#724](https://github.com/tauri-apps/tao/pull/724)) on 2023-04-18
+- On macOS, fix window frozed when starting with fullscreen.
+  - [71594667](https://github.com/tauri-apps/tao/commit/71594667432c554f46dad06bfce87ba8edf18605) fix(macOS): windows frozen when starting in fullscreen ([#727](https://github.com/tauri-apps/tao/pull/727)) on 2023-05-04
+
 ## \[0.19.0]
 
 - **Breaking change**: All ow specifying the android activity in `android_binding` macro, instead of hard-coded `TauriActivity`.
