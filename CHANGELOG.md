@@ -1,5 +1,30 @@
 # Changelog
 
+## \[0.16.1]
+
+- On Windows, fix auto-hide taskbar can't be shown when maximizing undecorated window.
+  - [554f41d1](https://github.com/tauri-apps/tao/commit/554f41d107e0fa00773663a9e04bb51d720968c7) fix(windows): leave space for auto-hidden taskbar for undecorated windows ([#726](https://github.com/tauri-apps/tao/pull/726)) on 2023-04-19
+- fix not get actual ns_view when it's replace by setContentView
+  - [c52c2841](https://github.com/tauri-apps/tao/commit/c52c28417d4048dabefdb0fe51e3557700c893d2) fix: not get actual ns_view when it's replace by setContentView ([#710](https://github.com/tauri-apps/tao/pull/710)) on 2023-03-07
+- On Linux, fix `ShortcutManager::unregister_all` making `ShortcutManager::register` succeed but no events are triggered.
+  - [70d06cbe](https://github.com/tauri-apps/tao/commit/70d06cbeee7c2c8b8719d821aed499e203589bcb) fix(linux): clear shortcuts instead of replacing it ([#724](https://github.com/tauri-apps/tao/pull/724)) on 2023-04-18
+- Fix set_focus not working on Windows in some situations like interactive notifications.
+  - [e00b4e54](https://github.com/tauri-apps/tao/commit/e00b4e5409b8dd2b4a116c2fe54352cc7bdacef8) fix(windows): backport "Use SetForegroundWindow before focus hack ([#719](https://github.com/tauri-apps/tao/pull/719))" ([#721](https://github.com/tauri-apps/tao/pull/721)) on 2023-04-04
+- On macOS, fix window frozed when starting with fullscreen.
+  - [ed6aab6b](https://github.com/tauri-apps/tao/commit/ed6aab6b1226e56683798732ad01bf3f4658097e) fix(macOS): backport fix about windows frozen when starting in fullscreen to v0.16 ([#729](https://github.com/tauri-apps/tao/pull/729)) on 2023-05-04
+- On Linux, spawn device event thread only once instead of a new thread on each iteration of the event loop.
+  - [6bc391d7](https://github.com/tauri-apps/tao/commit/6bc391d73bc195adb2c2589c59c8b5517fe25f77) fix: don't panic if primary monitor not discoverable. ([#705](https://github.com/tauri-apps/tao/pull/705)) on 2023-01-23
+- Attempt to get primary monitor on linux will now return None rather than panicking if monitor not found.
+  - [f3544f49](https://github.com/tauri-apps/tao/commit/f3544f4901987cb4ce58f47e53b822376274e126) fix: don't panic if primary monitor not discoverable. ([#705](https://github.com/tauri-apps/tao/pull/705)) on 2023-02-22
+- Retain NSMenu reference instead of autoreleasing it.
+  - [303d8baa](https://github.com/tauri-apps/tao/commit/303d8baa6d91005f2e713e5d8225cd42d4f125ac) fix(macos): retain and release NSMenu manually ([#699](https://github.com/tauri-apps/tao/pull/699)) on 2023-02-20
+- On macOS, Remove linking to `ColorSync`
+  - [7dc59096](https://github.com/tauri-apps/tao/commit/7dc590960efc8c74e0af35ec74ff7cd76521b5ec) feat: remove linking to `ColorSync` ([#713](https://github.com/tauri-apps/tao/pull/713)) on 2023-03-15
+- Fix undecorated window shadow enabled by default on Windows.
+  - [2eab4654](https://github.com/tauri-apps/tao/commit/2eab4654dfb284ae1fcdb1a7d0b258f1ae30428e) fix(windows): backport default undecorated shadow to false ([#690](https://github.com/tauri-apps/tao/pull/690)) ([#701](https://github.com/tauri-apps/tao/pull/701)) on 2023-02-16
+- On Windows, fix `Window::set_minimized(false)` not working when the window was minimized using `Win + D` hotkey.
+  - [373ca432](https://github.com/tauri-apps/tao/commit/373ca432169a468ebbe026e2c7a9170bcf9014bd) fix(Windows): fix `set_minimized` with `Win + D` ([#676](https://github.com/tauri-apps/tao/pull/676)) on 2023-01-21
+
 ## \[0.16.0]
 
 - Yanked `0.15.9` and publish a new minor as `0.15.9` included breaking changes by depending on `tao-macros`.
