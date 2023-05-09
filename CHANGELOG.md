@@ -1,5 +1,41 @@
 # Changelog
 
+## \[0.19.1]
+
+- On Windows, fix auto-hide taskbar can't be shown when maximizing undecorated window.
+  - [c5d606df](https://github.com/tauri-apps/tao/commit/c5d606dffeb1733ab06fd8c43eb3b9e7b2f553fe) fix(windows): leave space for auto-hidden taskbar for undecorated windows ([#726](https://github.com/tauri-apps/tao/pull/726)) on 2023-04-19
+- On Linux, fix `ShortcutManager::unregister_all` making `ShortcutManager::register` succeed but no events are triggered.
+  - [ee5dc41f](https://github.com/tauri-apps/tao/commit/ee5dc41f0071c9177304b3697d5b4c21c5734fd4) fix(linux): clear shortcuts instead of replacing it ([#724](https://github.com/tauri-apps/tao/pull/724)) on 2023-04-18
+- On macOS, fix window frozed when starting with fullscreen.
+  - [71594667](https://github.com/tauri-apps/tao/commit/71594667432c554f46dad06bfce87ba8edf18605) fix(macOS): windows frozen when starting in fullscreen ([#727](https://github.com/tauri-apps/tao/pull/727)) on 2023-05-04
+
+## \[0.19.0]
+
+- **Breaking change**: All ow specifying the android activity in `android_binding` macro, instead of hard-coded `TauriActivity`.
+  - [b78b9616](https://github.com/tauri-apps/tao/commit/b78b961621e9cde355c8de2cb9fc168efcae4313) feat!: allow specifying android activity in binding macro ([#723](https://github.com/tauri-apps/tao/pull/723)) on 2023-04-14
+- Fix set_focus not working on Windows in some situations like interactive notifications.
+  - [62db4313](https://github.com/tauri-apps/tao/commit/62db431338636dd0adafca15d636c08f68941984) fix(windows): Use SetForegroundWindow before focus hack ([#719](https://github.com/tauri-apps/tao/pull/719)) on 2023-04-04
+
+## \[0.18.3]
+
+- On macOS, fix wry window will crash if unfocused.
+  - [6a03847f](https://github.com/tauri-apps/tao/commit/6a03847f6d1343315174c9cd41b58a4cd2798657) On macOS, fix wry window can crash if unfocused ([#714](https://github.com/tauri-apps/tao/pull/714)) on 2023-03-24
+
+## \[0.18.2]
+
+- fix not get actual ns_view when it's replace by setContentView
+  - [76ae625b](https://github.com/tauri-apps/tao/commit/76ae625bae429148f295fc3eaf3e90984cf0c7ad) fix: not get actual ns_view when it's replace by setContentView ([#710](https://github.com/tauri-apps/tao/pull/710)) on 2023-03-07
+- Fix `Window::cursor_position` and `EventLoopWindowTarget::cursor_position` scale on Linux and macOS.
+  - [dc913cd5](https://github.com/tauri-apps/tao/commit/dc913cd5fe72f098a3545288eeed9b68f5e320ef) fix: scale cursor_position ([#712](https://github.com/tauri-apps/tao/pull/712)) on 2023-03-08
+- On macOS, Fix `cursor_position` return incorrect position.
+  - [ea2e60d9](https://github.com/tauri-apps/tao/commit/ea2e60d9df719a3abc335dc22078f72bbff1d3ef) fix(macOS): `cursor_position` returns incorrect position ([#711](https://github.com/tauri-apps/tao/pull/711)) on 2023-03-07
+- Fix arrow cursor icon on Linux
+  - [e9eba855](https://github.com/tauri-apps/tao/commit/e9eba8555b2bff1080d75d3386ce990c04576cde) chore: rename change file on 2023-02-22
+- Attempt to get primary monitor on linux will now return None rather than panicking if monitor not found.
+  - [28b53f80](https://github.com/tauri-apps/tao/commit/28b53f80c49bbf2ae8902b98a2e28f6451a5a8f1) fix: don't panic if primary monitor not discoverable. ([#705](https://github.com/tauri-apps/tao/pull/705)) on 2023-02-22
+- On macOS, Remove linking to `ColorSync`
+  - [a1e96d1b](https://github.com/tauri-apps/tao/commit/a1e96d1b1284a76576da0de7cba4730df9776bb5) feat: remove linking to `ColorSync` ([#713](https://github.com/tauri-apps/tao/pull/713)) on 2023-03-15
+
 ## \[0.18.1]
 
 - Retain NSMenu reference instead of autoreleasing it.

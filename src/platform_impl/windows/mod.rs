@@ -57,7 +57,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       drag_and_drop: true,
       preferred_theme: None,
       skip_taskbar: false,
-      decoration_shadow: false,
+      decoration_shadow: true,
     }
   }
 }

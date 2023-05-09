@@ -34,6 +34,9 @@ use crate::{
 
 pub struct WindowDelegateState {
   ns_window: IdRef, // never changes
+  // We keep this ns_view because we still need its view state for some extern function
+  // like didResignKey
+  ns_view: IdRef, // never changes
 
   window: Weak<UnownedWindow>,
 
@@ -60,6 +63,7 @@ impl WindowDelegateState {
     let scale_factor = window.scale_factor();
     let mut delegate_state = WindowDelegateState {
       ns_window: window.ns_window.clone(),
+      ns_view: window.ns_view.clone(),
       window: Arc::downgrade(window),
       initial_fullscreen,
       previous_position: None,
@@ -337,18 +341,7 @@ extern "C" fn window_will_close(this: &Object, _: Sel, _: id) {
 extern "C" fn window_did_resize(this: &Object, _: Sel, _: id) {
   trace!("Triggered `windowDidResize:`");
   with_state(this, |state| {
-    // If window is entering/exiting, resize and move event will be emitted in
-    // window_did_enter_fullscreen & window_did_exit_fullscreen.
-    let in_fullscreen_transition = state
-      .with_window(|window| {
-        trace!("Locked shared state in `window_did_resize`");
-        let shared_state = window.shared_state.lock().unwrap();
-        trace!("Unlocked shared state in `window_did_resize`");
-        shared_state.in_fullscreen_transition
-      })
-      .unwrap_or(false);
-
-    if !state.is_checking_zoomed_in && !in_fullscreen_transition {
+    if !state.is_checking_zoomed_in {
       state.emit_resize_event();
       state.emit_move_event();
     }
@@ -398,7 +391,7 @@ extern "C" fn window_did_resign_key(this: &Object, _: Sel, _: id) {
     // Object referenced by state.ns_view (an IdRef, which is dereferenced
     // to an id)
     let view_state: &mut ViewState = unsafe {
-      let ns_view: &Object = state.ns_view().as_ref().expect("failed to deref");
+      let ns_view: &Object = (*state.ns_view).as_ref().expect("failed to deref");
       let state_ptr: *mut c_void = *ns_view.get_ivar("taoState");
       &mut *(state_ptr as *mut ViewState)
     };
