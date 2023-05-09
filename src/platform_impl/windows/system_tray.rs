@@ -189,6 +189,11 @@ impl SystemTray {
   }
 
   pub fn set_tooltip(&self, tooltip: &str) {
+    let mut tip = util::encode_wide(tooltip);
+    tip.resize(128, 0);
+
+    let mut sz_tip: [u16; 128] = [0; 128];
+    sz_tip.copy_from_slice(&tip);
     unsafe {
       let mut tip = util::encode_wide(tooltip);
       tip.resize(128, 0);
@@ -197,7 +202,7 @@ impl SystemTray {
         uFlags: NIF_TIP,
         hWnd: self.hwnd,
         uID: TRAYICON_UID,
-        szTip: tip.try_into().unwrap(),
+        szTip: sz_tip,
         ..std::mem::zeroed()
       };
 
@@ -368,21 +373,24 @@ unsafe fn show_tray_menu(hwnd: HWND, menu: HMENU, x: i32, y: i32) {
 }
 
 unsafe fn register_tray_icon(hwnd: HWND, hicon: HICON, tooltip: Option<String>) -> bool {
-  let (flags, tip) = if let Some(tooltip) = tooltip {
+  let mut flags = NIF_MESSAGE | NIF_ICON;
+  let mut sz_tip: [u16; 128] = [0; 128];
+
+  if let Some(tooltip) = tooltip {
     let mut tip = util::encode_wide(tooltip);
     tip.resize(128, 0);
-    (NIF_TIP, tip)
-  } else {
-    (NOTIFY_ICON_DATA_FLAGS::default(), vec![0u16, 128])
-  };
+
+    flags |= NIF_TIP;
+    sz_tip.copy_from_slice(&tip);
+  }
 
   let mut nid = NOTIFYICONDATAW {
-    uFlags: NIF_MESSAGE | NIF_ICON | flags,
+    uFlags: flags,
     hWnd: hwnd,
     hIcon: hicon,
     uID: TRAYICON_UID,
     uCallbackMessage: WM_USER_TRAYICON,
-    szTip: tip.try_into().unwrap(),
+    szTip: sz_tip,
     ..std::mem::zeroed()
   };
 
