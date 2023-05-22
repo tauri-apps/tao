@@ -244,7 +244,7 @@ impl<T: 'static> EventLoop<T> {
         },
         Some(EventSource::InputQueue) => {
           if let Some(input_queue) = ndk_glue::input_queue().as_ref() {
-            while let Some(event) = input_queue.get_event() {
+            while let Ok(Some(event)) = input_queue.get_event() {
               if let Some(event) = input_queue.pre_dispatch(event) {
                 let mut handled = true;
                 let window_id = window::WindowId(WindowId);
