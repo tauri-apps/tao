@@ -233,8 +233,13 @@ impl MonitorHandle {
         let device_name = PCWSTR::from_raw(monitor_info.szDevice.as_ptr());
         let mut mode: DEVMODEW = mem::zeroed();
         mode.dmSize = mem::size_of_val(&mode) as u16;
-        if !EnumDisplaySettingsExW(device_name, ENUM_DISPLAY_SETTINGS_MODE(i), &mut mode, 0)
-          .as_bool()
+        if !EnumDisplaySettingsExW(
+          device_name,
+          ENUM_DISPLAY_SETTINGS_MODE(i),
+          &mut mode,
+          ENUM_DISPLAY_SETTINGS_FLAGS(0),
+        )
+        .as_bool()
         {
           break;
         }
