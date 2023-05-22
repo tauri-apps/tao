@@ -1,6 +1,6 @@
 [package]
 name = "tao"
-version = "0.19.1"
+version = "0.20.0"
 description = "Cross-platform window manager library."
 authors = [
   "Tauri Programme within The Commons Conservancy",
@@ -76,9 +76,9 @@ unicode-segmentation = "1.10"
 image = { version = "0.24", default-features = false }
 windows-implement = "0.48.0"
 
-[target."cfg(target_os = \"windows\")".dependencies.windows]
-version = "0.48.0"
-features = [
+  [target."cfg(target_os = \"windows\")".dependencies.windows]
+  version = "0.48.0"
+  features = [
   "implement",
   "Win32_Devices_HumanInterfaceDevice",
   "Win32_Foundation",
