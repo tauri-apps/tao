@@ -23,15 +23,12 @@ use windows::{
   core::{s, PCWSTR},
   Win32::{
     Devices::HumanInterfaceDevice::*,
-    Foundation::{
-      BOOL, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_TIMEOUT, WPARAM,
-    },
+    Foundation::{BOOL, HANDLE, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_TIMEOUT, WPARAM},
     Graphics::Gdi::*,
     System::{
       LibraryLoader::GetModuleHandleW,
       Ole::{IDropTarget, RevokeDragDrop},
-      Threading::GetCurrentThreadId,
-      WindowsProgramming::INFINITE,
+      Threading::{GetCurrentThreadId, INFINITE},
     },
     UI::{
       Controls::{self as win32c, HOVER_DEFAULT},
@@ -1763,7 +1760,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
       match set_cursor_to {
         Some(cursor) => {
-          if let Ok(cursor) = LoadCursorW(HINSTANCE::default(), cursor.to_windows_cursor()) {
+          if let Ok(cursor) = LoadCursorW(HMODULE::default(), cursor.to_windows_cursor()) {
             SetCursor(cursor);
           }
           result = ProcResult::Value(LRESULT(0));

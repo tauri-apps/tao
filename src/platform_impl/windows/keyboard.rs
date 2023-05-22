@@ -750,7 +750,7 @@ fn is_current_fake(curr_info: &PartialKeyEventInfo, next_msg: MSG, layout: &Layo
 }
 
 fn get_location(scancode: ExScancode, hkl: HKL) -> KeyLocation {
-  const VK_ABNT_C2: VIRTUAL_KEY = VIRTUAL_KEY(win32km::VK_ABNT_C2 as u16);
+  const VK_ABNT_C2: VIRTUAL_KEY = win32km::VK_ABNT_C2;
 
   let extension = 0xE000;
   let extended = (scancode & extension) == extension;

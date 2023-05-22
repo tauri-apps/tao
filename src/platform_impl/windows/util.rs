@@ -421,3 +421,18 @@ pub unsafe extern "system" fn call_default_window_proc(
 ) -> LRESULT {
   DefWindowProcW(hwnd, msg, wparam, lparam)
 }
+
+pub fn get_instance_handle() -> windows::Win32::Foundation::HMODULE {
+  // Gets the instance handle by taking the address of the
+  // pseudo-variable created by the microsoft linker:
+  // https://devblogs.microsoft.com/oldnewthing/20041025-00/?p=37483
+
+  // This is preferred over GetModuleHandle(NULL) because it also works in DLLs:
+  // https://stackoverflow.com/questions/21718027/getmodulehandlenull-vs-hinstance
+
+  extern "C" {
+    static __ImageBase: windows::Win32::System::SystemServices::IMAGE_DOS_HEADER;
+  }
+
+  windows::Win32::Foundation::HMODULE(unsafe { &__ImageBase as *const _ as _ })
+}

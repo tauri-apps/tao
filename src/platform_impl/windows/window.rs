@@ -22,7 +22,7 @@ use crossbeam_channel as channel;
 use windows::{
   core::PCWSTR,
   Win32::{
-    Foundation::{self as win32f, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
+    Foundation::{self as win32f, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
     Graphics::{
       Dwm::{DwmEnableBlurBehindWindow, DWM_BB_BLURREGION, DWM_BB_ENABLE, DWM_BLURBEHIND},
       Gdi::*,
@@ -353,8 +353,8 @@ impl Window {
   }
 
   #[inline]
-  pub fn hinstance(&self) -> HINSTANCE {
-    HINSTANCE(util::GetWindowLongPtrW(self.hwnd(), GWLP_HINSTANCE))
+  pub fn hinstance(&self) -> HMODULE {
+    util::get_instance_handle()
   }
 
   #[inline]
@@ -374,8 +374,7 @@ impl Window {
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
     self.window_state.lock().mouse.cursor = cursor;
     self.thread_executor.execute_in_thread(move || unsafe {
-      let cursor =
-        LoadCursorW(HINSTANCE::default(), cursor.to_windows_cursor()).unwrap_or_default();
+      let cursor = LoadCursorW(HMODULE::default(), cursor.to_windows_cursor()).unwrap_or_default();
       SetCursor(cursor);
     });
   }
