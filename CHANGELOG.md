@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.16.2]
+
+- [`0e950f82`](https://github.com/tauri-apps/tao/commit/0e950f8263ff349504285b68d51c7850146549d5)([#731](https://github.com/tauri-apps/tao/pull/731)) Fix build error on target i686-pc-windows-msvc
+
 ## \[0.16.1]
 
 - On Windows, fix auto-hide taskbar can't be shown when maximizing undecorated window.
