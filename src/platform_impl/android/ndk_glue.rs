@@ -19,7 +19,7 @@ use std::{
   ffi::{CStr, CString},
   fs::File,
   io::{BufRead, BufReader},
-  os::{raw, unix::prelude::*},
+  os::unix::prelude::*,
   sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard},
   thread,
 };
@@ -69,14 +69,14 @@ pub const NDK_GLUE_LOOPER_INPUT_QUEUE_IDENT: i32 = 1;
 
 pub fn android_log(level: Level, tag: &CStr, msg: &CStr) {
   let prio = match level {
-    Level::Error => ndk_sys::android_LogPriority_ANDROID_LOG_ERROR,
-    Level::Warn => ndk_sys::android_LogPriority_ANDROID_LOG_WARN,
-    Level::Info => ndk_sys::android_LogPriority_ANDROID_LOG_INFO,
-    Level::Debug => ndk_sys::android_LogPriority_ANDROID_LOG_DEBUG,
-    Level::Trace => ndk_sys::android_LogPriority_ANDROID_LOG_VERBOSE,
+    Level::Error => ndk_sys::android_LogPriority::ANDROID_LOG_ERROR,
+    Level::Warn => ndk_sys::android_LogPriority::ANDROID_LOG_WARN,
+    Level::Info => ndk_sys::android_LogPriority::ANDROID_LOG_INFO,
+    Level::Debug => ndk_sys::android_LogPriority::ANDROID_LOG_DEBUG,
+    Level::Trace => ndk_sys::android_LogPriority::ANDROID_LOG_VERBOSE,
   };
   unsafe {
-    ndk_sys::__android_log_write(prio as raw::c_int, tag.as_ptr(), msg.as_ptr());
+    ndk_sys::__android_log_write(prio.0 as _, tag.as_ptr(), msg.as_ptr());
   }
 }
 
