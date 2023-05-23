@@ -19,7 +19,7 @@ use gio::{prelude::*, Cancellable};
 use glib::{source::Priority, Continue, MainContext};
 use gtk::{builders::AboutDialogBuilder, prelude::*, Inhibit};
 
-use raw_window_handle::{RawDisplayHandle, XlibDisplayHandle};
+use raw_window_handle::{RawDisplayHandle, WaylandDisplayHandle, XlibDisplayHandle};
 
 use crate::{
   accelerator::AcceleratorId,
@@ -87,15 +87,24 @@ impl<T> EventLoopWindowTarget<T> {
   }
 
   pub fn raw_display_handle(&self) -> RawDisplayHandle {
-    let mut display_handle = XlibDisplayHandle::empty();
-    unsafe {
-      if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
-        let display = (xlib.XOpenDisplay)(std::ptr::null());
-        display_handle.display = display as _;
-        display_handle.screen = (xlib.XDefaultScreen)(display) as _;
+    if self.is_wayland() {
+      let mut display_handle = WaylandDisplayHandle::empty();
+      display_handle.display = unsafe {
+        gdk_wayland_sys::gdk_wayland_display_get_wl_display(self.display.as_ptr() as *mut _)
+      };
+      RawDisplayHandle::Wayland(display_handle)
+    } else {
+      let mut display_handle = XlibDisplayHandle::empty();
+      unsafe {
+        if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
+          let display = (xlib.XOpenDisplay)(std::ptr::null());
+          display_handle.display = display as _;
+          display_handle.screen = (xlib.XDefaultScreen)(display) as _;
+        }
       }
+
+      RawDisplayHandle::Xlib(display_handle)
     }
-    RawDisplayHandle::Xlib(display_handle)
   }
 
   pub fn is_wayland(&self) -> bool {
