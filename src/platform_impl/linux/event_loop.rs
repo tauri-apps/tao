@@ -90,7 +90,7 @@ impl<T> EventLoopWindowTarget<T> {
     if self.is_wayland() {
       let mut display_handle = WaylandDisplayHandle::empty();
       display_handle.display = unsafe {
-        gdk_wayland_sys::gdk_wayland_display_get_wl_display(self.window.display().as_ptr() as *mut _)
+        gdk_wayland_sys::gdk_wayland_display_get_wl_display(self.display.as_ptr() as *mut _)
       };
       RawDisplayHandle::Wayland(display_handle)
     } else {
