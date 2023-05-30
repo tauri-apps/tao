@@ -118,10 +118,10 @@ pub trait WindowExtWindows {
   fn set_skip_taskbar(&self, skip: bool);
 
   /// Sets the Taskbar Progress State
-  fn set_taskbar_progress_state(&self, state: i32);
+  fn set_window_taskbar_progress_state(&self, state: i32);
 
   /// Sets the Taskbar Progress
-  fn set_taskbar_progress(&self, current: u64, total: u64);
+  fn set_window_taskbar_progress(&self, current: u64, total: u64);
 
   /// Shows or hides the background drop shadow for undecorated windows.
   ///
@@ -173,13 +173,13 @@ impl WindowExtWindows for Window {
   }
 
   #[inline]
-  fn set_taskbar_progress_state(&self, state: i32) {
-    self.window.set_taskbar_progress_state(state);
+  fn set_window_taskbar_progress_state(&self, state: i32) {
+    self.window.set_window_taskbar_progress_state(state);
   }
 
   #[inline]
-  fn set_taskbar_progress(&self, current: u64, total: u64) {
-    self.window.set_taskbar_progress(current, total);
+  fn set_window_taskbar_progress(&self, current: u64, total: u64) {
+    self.window.set_window_taskbar_progress(current, total);
   }
 
   #[inline]

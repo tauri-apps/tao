@@ -844,9 +844,9 @@ impl Window {
   ///
   /// - **macOS/Linux/Android/iOS:** Unimplemented
   #[cfg(windows)]
-  pub fn set_taskbar_progress(&self, current: u64, total: u64) {
+  pub fn set_window_taskbar_progress(&self, current: u64, total: u64) {
     if cfg!(windows) {
-      self.window.set_taskbar_progress(current, total);
+      self.window.set_window_taskbar_progress(current, total);
     }
   }
 
@@ -868,9 +868,9 @@ impl Window {
   ///
   /// - **macOS/Linux/Android/iOS:** Unimplemented
   #[cfg(windows)]
-  pub fn set_taskbar_progress_state(&self, state: i32) {
+  pub fn set_window_taskbar_progress_state(&self, state: i32) {
     if cfg!(windows) {
-      self.window.set_taskbar_progress_state(state);
+      self.window.set_window_taskbar_progress_state(state);
     }
   }
 
