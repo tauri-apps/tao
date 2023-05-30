@@ -19,6 +19,7 @@ use raw_window_handle::{
   RawDisplayHandle, RawWindowHandle, WaylandDisplayHandle, WaylandWindowHandle, XlibDisplayHandle,
   XlibWindowHandle,
 };
+use taskbar_interface::{ProgressIndicatorState, TaskbarInterface};
 
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
@@ -50,6 +51,8 @@ impl WindowId {
 // Currently GTK doesn't provide feature for detect theme, so we need to check theme manually.
 // ref: https://github.com/WebKit/WebKit/blob/e44ffaa0d999a9807f76f1805943eea204cfdfbc/Source/WebKit/UIProcess/API/gtk/PageClientImpl.cpp#L587
 const GTK_THEME_SUFFIX_LIST: [&'static str; 3] = ["-dark", "-Dark", "-Darker"];
+
+static mut TaskbarLinux: Option<taskbar_interface::TaskbarInterface> = None;
 
 pub struct Window {
   /// Window id.
@@ -856,6 +859,36 @@ impl Window {
       .send((self.window_id, WindowRequest::SetSkipTaskbar(skip)))
     {
       log::warn!("Fail to send skip taskbar request: {}", e);
+    }
+  }
+
+  pub fn set_progress(&self, progress: f64) {
+    unsafe {
+      if &TaskbarLinux.is_none() == &true {
+        let handle = self.raw_window_handle().clone();
+        TaskbarLinux = Some(
+          TaskbarInterface::new(
+            handle: handle
+          )
+        )
+      }
+
+      TaskbarLinux.set_progress(progress);
+    }
+  }
+
+  pub fn set_progress_state(&self, state: ProgressIndicatorState) {
+    unsafe {
+      if &TaskbarLinux.is_none() == &true {
+        let handle = self.raw_window_handle().clone();
+        TaskbarLinux = Some(
+          TaskbarInterface::new(
+            handle: handle
+          )
+        )
+      }
+
+      TaskbarLinux.set_progress_state(state);
     }
   }
 

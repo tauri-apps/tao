@@ -172,10 +172,10 @@ extern crate objc;
 
 /// Taskbar Progress State
 pub enum TaskbarProgressState {
-  None(),
-  Normal(),
-  Intermediate(),
-  Paused(),
+  None,
+  Normal,
+  Intermediate,
+  Paused,
 }
 
 //// Identifier of a system tray.

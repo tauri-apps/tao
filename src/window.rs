@@ -19,6 +19,8 @@ use crate::{
 
 pub use crate::icon::{BadIcon, Icon};
 
+use taskbar_interface::ProgressIndicatorState;
+
 /// Represents a window.
 ///
 /// # Example
@@ -854,9 +856,11 @@ impl Window {
   /// ## Platform-specific
   ///
   /// - **macOS/Linux/Android/iOS:** Unimplemented
-  #[cfg(not(windows))]
-  pub fn set_taskbar_progress(&self, _current: u64, _total: u64) {
-    
+  #[cfg(target_os = "linux")]
+  pub fn set_taskbar_progress(&self, current: u64, total: u64) {
+    let progress: f64 = (current / total) * 100;
+
+    self.window.set_progress(progress);
   }
 
   /// Sets the taskbar Progress State
@@ -868,10 +872,10 @@ impl Window {
   pub fn set_taskbar_progress_state(&self, state: TaskbarProgressState) {
     let taskbar_state = {
       match state {
-        TaskbarProgressState::None() => 0,
-        TaskbarProgressState::Intermediate() => 1,
-        TaskbarProgressState::Normal() => 2,
-        TaskbarProgressState::Paused() => 4,
+        TaskbarProgressState::None => 0,
+        TaskbarProgressState::Intermediate => 1,
+        TaskbarProgressState::Normal => 2,
+        TaskbarProgressState::Paused => 4,
       }
     };
 
@@ -883,8 +887,16 @@ impl Window {
   /// ## Platform-specific
   ///
   /// - **macOS/Linux/Android/iOS:** Unimplemented
-  #[cfg(not(windows))]
+  #[cfg(target_os = "linux")]
   pub fn set_taskbar_progress_state(&self, state: TaskbarProgressState) {
+    let taskbar_state = {
+      match state {
+        TaskbarProgressState::Normal => ProgressIndicatorState::Normal,
+        _ => ProgressIndicatorState::NoProgress,
+      }
+    };
+
+    self.window.set_progress_state(taskbar_state);
   }
 
   /// Sets whether the window is closable or not.

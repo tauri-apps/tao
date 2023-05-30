@@ -17,7 +17,7 @@ use crossbeam_channel::SendError;
 use gdk::{Cursor, CursorType, EventKey, EventMask, ScrollDirection, WindowEdge, WindowState};
 use gio::{prelude::*, Cancellable};
 use glib::{source::Priority, Continue, MainContext};
-use gtk::{builders::AboutDialogBuilder, prelude::*, Inhibit};
+use gtk::{builders::AboutDialogBuilder, prelude::*, Inhibit, builders::ProgressBarBuilder};
 
 use raw_window_handle::{RawDisplayHandle, WaylandDisplayHandle, XlibDisplayHandle};
 
