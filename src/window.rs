@@ -13,6 +13,7 @@ use crate::{
   event_loop::EventLoopWindowTarget,
   menu::MenuBar,
   monitor::{MonitorHandle, VideoMode},
+  TaskbarProgressState,
   platform_impl,
 };
 
@@ -843,34 +844,29 @@ impl Window {
   /// ## Platform-specific
   ///
   /// - **macOS/Linux/Android/iOS:** Unimplemented
-  #[cfg(windows)]
-  pub fn set_window_taskbar_progress(&self, current: u64, total: u64) {
+  pub fn set_taskbar_progress(&self, current: u64, total: u64) {
     if cfg!(windows) {
-      self.window.set_window_taskbar_progress(current, total);
+      self.window.set_taskbar_progress(current, total);
     }
   }
 
   /// Sets the taskbar Progress State
-  /// 
-  /// 0: None
-  /// 
-  /// 1: Intermediate
-  /// 
-  /// 2: Normal
-  /// 
-  /// 3: A red progress indicator
-  /// 
-  /// 4: A yellow progress indicator
-  /// 
-  /// Reference: [ProgressState](https://learn.microsoft.com/en-us/dotnet/api/system.windows.shell.taskbaritemprogressstate?view=windowsdesktop-7.0)
   ///
   /// ## Platform-specific
   ///
   /// - **macOS/Linux/Android/iOS:** Unimplemented
-  #[cfg(windows)]
-  pub fn set_window_taskbar_progress_state(&self, state: i32) {
+  pub fn set_taskbar_progress_state(&self, state: TaskbarProgressState) {
     if cfg!(windows) {
-      self.window.set_window_taskbar_progress_state(state);
+      let taskbar_state = {
+        match state {
+          TaskbarProgressState::None() => 0,
+          TaskbarProgressState::Intermediate() => 1,
+          TaskbarProgressState::Normal() => 2,
+          TaskbarProgressState::Paused() => 4,
+        }
+      };
+
+      self.window.set_taskbar_progress_state(taskbar_state);
     }
   }
 

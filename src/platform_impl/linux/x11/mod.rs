@@ -4,5 +4,6 @@
 
 pub mod ffi;
 pub mod xdisplay;
+pub mod xapps;
 
 pub use xdisplay::XConnection;

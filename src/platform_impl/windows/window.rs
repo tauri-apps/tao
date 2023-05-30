@@ -883,7 +883,7 @@ impl Window {
   }
 
   #[inline]
-  pub fn set_window_taskbar_progress_state(&self, state: i32) {
+  pub fn set_taskbar_progress_state(&self, state: i32) {
     let handle = self.window.0;
 
     unsafe {
@@ -894,7 +894,7 @@ impl Window {
   }
 
   #[inline]
-  pub fn set_window_taskbar_progress(&self, current: u64, total: u64) {
+  pub fn set_taskbar_progress(&self, current: u64, total: u64) {
     let handle = self.window.0;
 
     unsafe {
