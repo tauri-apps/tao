@@ -124,4 +124,3 @@ x11-dl = "2.21"
 uuid = { version = "1.3", features = [ "v4" ] }
 png = "0.17"
 parking_lot = "0.12"
-taskbar_interface = "0.1.0"
