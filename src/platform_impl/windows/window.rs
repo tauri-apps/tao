@@ -33,6 +33,7 @@ use windows::{
       Shell::*,
       WindowsAndMessaging::{self as win32wm, *},
     },
+    UI::Shell::{ITaskbarList4 as ITaskbarList, TaskbarList, TBPFLAG},
   },
 };
 
@@ -879,6 +880,28 @@ impl Window {
   pub(crate) fn set_skip_taskbar(&self, skip: bool) {
     self.window_state.lock().skip_taskbar = skip;
     unsafe { set_skip_taskbar(self.hwnd(), skip) };
+  }
+
+  #[inline]
+  pub fn set_taskbar_progress_state(&self, state: i32) {
+    let handle = self.window.0;
+
+    unsafe {
+      let taskbar_list: ITaskbarList = CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).unwrap();
+
+      taskbar_list.SetProgressState(handle, TBPFLAG(state)).unwrap_or(());
+    }   
+  }
+
+  #[inline]
+  pub fn set_taskbar_progress(&self, current: u64, total: u64) {
+    let handle = self.window.0;
+
+    unsafe {
+      let taskbar_list: ITaskbarList = CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).unwrap();
+
+      taskbar_list.SetProgressValue(handle, current, total).unwrap_or(());
+    }
   }
 
   #[inline]

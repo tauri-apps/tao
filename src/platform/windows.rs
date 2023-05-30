@@ -117,6 +117,12 @@ pub trait WindowExtWindows {
   /// Whether to show the window icon in the taskbar or not.
   fn set_skip_taskbar(&self, skip: bool);
 
+  /// Sets the Taskbar Progress State
+  fn set_taskbar_progress_state(&self, state: i32);
+
+  /// Sets the Taskbar Progress
+  fn set_taskbar_progress(&self, current: u64, total: u64);
+
   /// Shows or hides the background drop shadow for undecorated windows.
   ///
   /// Enabling the shadow causes a thin 1px line to appear on the top of the window.
@@ -164,6 +170,16 @@ impl WindowExtWindows for Window {
   #[inline]
   fn set_skip_taskbar(&self, skip: bool) {
     self.window.set_skip_taskbar(skip);
+  }
+
+  #[inline]
+  fn set_taskbar_progress_state(&self, state: i32) {
+    self.window.set_taskbar_progress_state(state);
+  }
+
+  #[inline]
+  fn set_taskbar_progress(&self, current: u64, total: u64) {
+    self.window.set_taskbar_progress(current, total);
   }
 
   #[inline]

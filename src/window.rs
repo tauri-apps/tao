@@ -838,6 +838,42 @@ impl Window {
     self.window.set_maximizable(maximizable)
   }
 
+  /// Set the taskbar progress
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS/Linux/Android/iOS:** Unimplemented
+  #[cfg(windows)]
+  pub fn set_taskbar_progress(&self, current: u64, total: u64) {
+    if cfg!(windows) {
+      self.window.set_taskbar_progress(current, total);
+    }
+  }
+
+  /// Sets the taskbar Progress State
+  /// 
+  /// 0: None
+  /// 
+  /// 1: Intermediate
+  /// 
+  /// 2: Normal
+  /// 
+  /// 3: A red progress indicator
+  /// 
+  /// 4: A yellow progress indicator
+  /// 
+  /// Reference: [ProgressState](https://learn.microsoft.com/en-us/dotnet/api/system.windows.shell.taskbaritemprogressstate?view=windowsdesktop-7.0)
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS/Linux/Android/iOS:** Unimplemented
+  #[cfg(windows)]
+  pub fn set_taskbar_progress_state(&self, state: i32) {
+    if cfg!(windows) {
+      self.window.set_taskbar_progress_state(state);
+    }
+  }
+
   /// Sets whether the window is closable or not.
   ///
   /// ## Platform-specific
