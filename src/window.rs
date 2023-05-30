@@ -19,8 +19,6 @@ use crate::{
 
 pub use crate::icon::{BadIcon, Icon};
 
-use taskbar_interface::ProgressIndicatorState;
-
 /// Represents a window.
 ///
 /// # Example
