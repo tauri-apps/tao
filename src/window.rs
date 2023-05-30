@@ -844,10 +844,19 @@ impl Window {
   /// ## Platform-specific
   ///
   /// - **macOS/Linux/Android/iOS:** Unimplemented
+  #[cfg(windows)]
   pub fn set_taskbar_progress(&self, current: u64, total: u64) {
-    if cfg!(windows) {
-      self.window.set_taskbar_progress(current, total);
-    }
+    self.window.set_taskbar_progress(current, total);
+  }
+
+  /// Set the taskbar progress
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS/Linux/Android/iOS:** Unimplemented
+  #[cfg(not(windows))]
+  pub fn set_taskbar_progress(&self, _current: u64, _total: u64) {
+    
   }
 
   /// Sets the taskbar Progress State
@@ -855,19 +864,27 @@ impl Window {
   /// ## Platform-specific
   ///
   /// - **macOS/Linux/Android/iOS:** Unimplemented
+  #[cfg(windows)]
   pub fn set_taskbar_progress_state(&self, state: TaskbarProgressState) {
-    if cfg!(windows) {
-      let taskbar_state = {
-        match state {
-          TaskbarProgressState::None() => 0,
-          TaskbarProgressState::Intermediate() => 1,
-          TaskbarProgressState::Normal() => 2,
-          TaskbarProgressState::Paused() => 4,
-        }
-      };
+    let taskbar_state = {
+      match state {
+        TaskbarProgressState::None() => 0,
+        TaskbarProgressState::Intermediate() => 1,
+        TaskbarProgressState::Normal() => 2,
+        TaskbarProgressState::Paused() => 4,
+      }
+    };
 
-      self.window.set_taskbar_progress_state(taskbar_state);
-    }
+    self.window.set_taskbar_progress_state(taskbar_state);
+  }
+
+  /// Sets the taskbar Progress State
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS/Linux/Android/iOS:** Unimplemented
+  #[cfg(not(windows))]
+  pub fn set_taskbar_progress_state(&self, state: TaskbarProgressState) {
   }
 
   /// Sets whether the window is closable or not.

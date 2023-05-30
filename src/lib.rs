@@ -171,19 +171,11 @@ extern crate bitflags;
 extern crate objc;
 
 /// Taskbar Progress State
-#[cfg(windows)]
 pub enum TaskbarProgressState {
   None(),
   Normal(),
   Intermediate(),
   Paused(),
-}
-
-/// Taskbar Progress State
-#[cfg(target_os = "linux")]
-pub enum TaskbarProgressState {
-  NoProgress(),
-  Normal()
 }
 
 //// Identifier of a system tray.
