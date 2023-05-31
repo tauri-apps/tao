@@ -871,7 +871,7 @@ impl Window {
     let taskbar_state = {
       match state {
         TaskbarProgressState::None => false,
-        _ => true
+        _ => true,
       }
     };
 

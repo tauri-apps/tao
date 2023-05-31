@@ -863,7 +863,11 @@ impl Window {
   pub fn set_taskbar_progress_state(&self, state: bool) {
     if let Err(e) = self.window_requests_tx.send((
       self.window_id,
-      WindowRequest::TaskbarProgressState(state, self.raw_window_handle().clone(), self.raw_display_handle().clone()),
+      WindowRequest::TaskbarProgressState(
+        state,
+        self.raw_window_handle().clone(),
+        self.raw_display_handle().clone(),
+      ),
     )) {
       log::warn!("Fail to send skip taskbar request: {}", e);
     }
@@ -873,7 +877,11 @@ impl Window {
   pub fn set_taskbar_progress(&self, current: u64, total: u64) {
     if let Err(e) = self.window_requests_tx.send((
       self.window_id,
-      WindowRequest::TaskbarProgress((current / total) as f64, self.raw_window_handle().clone(), self.raw_display_handle().clone()),
+      WindowRequest::TaskbarProgress(
+        (current / total) as f64,
+        self.raw_window_handle().clone(),
+        self.raw_display_handle().clone(),
+      ),
     )) {
       log::warn!("Fail to send skip taskbar request: {}", e);
     }

@@ -2,13 +2,7 @@ use std::ffi::CStr;
 
 use lazy_static::lazy_static;
 use raw_window_handle::{
-  RawDisplayHandle, 
-  RawWindowHandle, 
-  
-  XcbDisplayHandle, 
-  XcbWindowHandle,
-  
-  XlibDisplayHandle, 
+  RawDisplayHandle, RawWindowHandle, XcbDisplayHandle, XcbWindowHandle, XlibDisplayHandle,
   XlibWindowHandle,
 };
 use x11_dl::xlib::{self, PropModeReplace, Xlib};
@@ -26,7 +20,7 @@ pub struct Manager {
   handle: (RawWindowHandle, RawDisplayHandle),
   progress: u32,
   progress_visible: bool,
-  pulse: bool
+  pulse: bool,
 }
 
 impl Manager {

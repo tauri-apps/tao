@@ -316,34 +316,38 @@ impl<T: 'static> EventLoop<T> {
             window.set_skip_taskbar_hint(skip);
             window.set_skip_pager_hint(skip)
           }
-          WindowRequest::TaskbarProgress(progress, handle, window) => {
-            unsafe {
-              if &TASKBAR.is_none() == &true {
-                match TaskbarIndicator::new(handle, window) {
-                  Ok(a) => TASKBAR = Some(a),
-                  _ => TASKBAR = None,
-                }
-              }
-
-              if &TASKBAR.is_some() == &true {
-                TASKBAR.as_mut().unwrap().set_progress(progress).unwrap_or(());
+          WindowRequest::TaskbarProgress(progress, handle, window) => unsafe {
+            if &TASKBAR.is_none() == &true {
+              match TaskbarIndicator::new(handle, window) {
+                Ok(a) => TASKBAR = Some(a),
+                _ => TASKBAR = None,
               }
             }
-          }
-          WindowRequest::TaskbarProgressState(state, handle, window) => {
-            unsafe {
-              if &TASKBAR.is_none() == &true {
-                match TaskbarIndicator::new(handle, window) {
-                  Ok(a) => TASKBAR = Some(a),
-                  _ => TASKBAR = None,
-                }
-              }
 
-              if &TASKBAR.is_some() == &true {
-                TASKBAR.as_mut().unwrap().set_progress_state(state).unwrap_or(());
+            if &TASKBAR.is_some() == &true {
+              TASKBAR
+                .as_mut()
+                .unwrap()
+                .set_progress(progress)
+                .unwrap_or(());
+            }
+          },
+          WindowRequest::TaskbarProgressState(state, handle, window) => unsafe {
+            if &TASKBAR.is_none() == &true {
+              match TaskbarIndicator::new(handle, window) {
+                Ok(a) => TASKBAR = Some(a),
+                _ => TASKBAR = None,
               }
             }
-          }
+
+            if &TASKBAR.is_some() == &true {
+              TASKBAR
+                .as_mut()
+                .unwrap()
+                .set_progress_state(state)
+                .unwrap_or(());
+            }
+          },
           WindowRequest::SetVisibleOnAllWorkspaces(visible) => {
             if visible {
               window.stick();
