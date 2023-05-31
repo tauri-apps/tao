@@ -39,9 +39,13 @@ use crate::{
 use super::{
   keyboard,
   monitor::{self, MonitorHandle},
-  util,
+  taskbar, util,
   window::{WindowId, WindowRequest},
 };
+
+use taskbar::TaskbarIndicator;
+
+static mut TASKBAR: Option<TaskbarIndicator> = None;
 
 #[derive(Clone)]
 pub struct EventLoopWindowTarget<T> {
@@ -311,6 +315,34 @@ impl<T: 'static> EventLoop<T> {
           WindowRequest::SetSkipTaskbar(skip) => {
             window.set_skip_taskbar_hint(skip);
             window.set_skip_pager_hint(skip)
+          }
+          WindowRequest::TaskbarProgress(progress, handle, window) => {
+            unsafe {
+              if &TASKBAR.is_none() == &true {
+                match TaskbarIndicator::new(handle, window) {
+                  Ok(a) => TASKBAR = Some(a),
+                  _ => TASKBAR = None,
+                }
+              }
+
+              if &TASKBAR.is_some() == &true {
+                TASKBAR.as_mut().unwrap().set_progress(progress).unwrap_or(());
+              }
+            }
+          }
+          WindowRequest::TaskbarProgressState(state, handle, window) => {
+            unsafe {
+              if &TASKBAR.is_none() == &true {
+                match TaskbarIndicator::new(handle, window) {
+                  Ok(a) => TASKBAR = Some(a),
+                  _ => TASKBAR = None,
+                }
+              }
+
+              if &TASKBAR.is_some() == &true {
+                TASKBAR.as_mut().unwrap().set_progress_state(state).unwrap_or(());
+              }
+            }
           }
           WindowRequest::SetVisibleOnAllWorkspaces(visible) => {
             if visible {

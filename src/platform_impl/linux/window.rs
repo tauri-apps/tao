@@ -859,6 +859,26 @@ impl Window {
     }
   }
 
+  #[inline]
+  pub fn set_taskbar_progress_state(&self, state: bool) {
+    if let Err(e) = self.window_requests_tx.send((
+      self.window_id,
+      WindowRequest::TaskbarProgressState(state, self.raw_window_handle().clone(), self.raw_display_handle().clone()),
+    )) {
+      log::warn!("Fail to send skip taskbar request: {}", e);
+    }
+  }
+
+  #[inline]
+  pub fn set_taskbar_progress(&self, current: u64, total: u64) {
+    if let Err(e) = self.window_requests_tx.send((
+      self.window_id,
+      WindowRequest::TaskbarProgress((current / total) as f64, self.raw_window_handle().clone(), self.raw_display_handle().clone()),
+    )) {
+      log::warn!("Fail to send skip taskbar request: {}", e);
+    }
+  }
+
   pub fn theme(&self) -> Theme {
     if let Some(settings) = Settings::default() {
       let theme_name = settings.gtk_theme_name().map(|s| s.as_str().to_owned());
@@ -911,6 +931,8 @@ pub enum WindowRequest {
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
   GlobalHotKey(u16),
   SetVisibleOnAllWorkspaces(bool),
+  TaskbarProgressState(bool, RawWindowHandle, RawDisplayHandle),
+  TaskbarProgress(f64, RawWindowHandle, RawDisplayHandle),
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {

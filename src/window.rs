@@ -13,8 +13,7 @@ use crate::{
   event_loop::EventLoopWindowTarget,
   menu::MenuBar,
   monitor::{MonitorHandle, VideoMode},
-  TaskbarProgressState,
-  platform_impl,
+  platform_impl, TaskbarProgressState,
 };
 
 pub use crate::icon::{BadIcon, Icon};
@@ -843,9 +842,12 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS/Linux/Android/iOS:** Unimplemented
-  #[cfg(windows)]
+  /// - **Linux:** May work, might not work
+  /// - **macOS/Android/iOS:** Unimplemented
   pub fn set_taskbar_progress(&self, current: u64, total: u64) {
+    #[cfg(windows)]
+    self.window.set_taskbar_progress(current, total);
+    #[cfg(target_os = "linux")]
     self.window.set_taskbar_progress(current, total);
   }
 
@@ -853,18 +855,10 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS/Linux/Android/iOS:** Unimplemented
-  #[cfg(not(windows))]
-  pub fn set_taskbar_progress(&self, _current: u64, _total: u64) {
-  }
-
-  /// Sets the taskbar Progress State
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **macOS/Linux/Android/iOS:** Unimplemented
-  #[cfg(windows)]
+  /// - **Linux:** May work, might not work
+  /// - **macOS/Android/iOS:** Unimplemented
   pub fn set_taskbar_progress_state(&self, state: TaskbarProgressState) {
+    #[cfg(windows)]
     let taskbar_state = {
       match state {
         TaskbarProgressState::None => 0,
@@ -873,18 +867,15 @@ impl Window {
         TaskbarProgressState::Paused => 4,
       }
     };
+    #[cfg(target_os = "linux")]
+    let taskbar_state = {
+      match state {
+        TaskbarProgressState::None => false,
+        _ => true
+      }
+    };
 
     self.window.set_taskbar_progress_state(taskbar_state);
-  }
-
-  /// Sets the taskbar Progress State
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **macOS/Linux/Android/iOS:** Unimplemented
-  #[cfg(not(windows))]
-  pub fn set_taskbar_progress_state(&self, _state: TaskbarProgressState) {
-    
   }
 
   /// Sets whether the window is closable or not.

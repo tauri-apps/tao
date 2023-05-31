@@ -28,12 +28,12 @@ use windows::{
       Gdi::*,
     },
     System::{Com::*, LibraryLoader::*, Ole::*},
+    UI::Shell::{ITaskbarList4 as ITaskbarList, TaskbarList, TBPFLAG},
     UI::{
       Input::{Ime::*, KeyboardAndMouse::*, Touch::*},
       Shell::*,
       WindowsAndMessaging::{self as win32wm, *},
     },
-    UI::Shell::{ITaskbarList4 as ITaskbarList, TaskbarList, TBPFLAG},
   },
 };
 
@@ -889,8 +889,10 @@ impl Window {
     unsafe {
       let taskbar_list: ITaskbarList = CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).unwrap();
 
-      taskbar_list.SetProgressState(handle, TBPFLAG(state)).unwrap_or(());
-    }   
+      taskbar_list
+        .SetProgressState(handle, TBPFLAG(state))
+        .unwrap_or(());
+    }
   }
 
   #[inline]
@@ -900,7 +902,9 @@ impl Window {
     unsafe {
       let taskbar_list: ITaskbarList = CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).unwrap();
 
-      taskbar_list.SetProgressValue(handle, current, total).unwrap_or(());
+      taskbar_list
+        .SetProgressValue(handle, current, total)
+        .unwrap_or(());
     }
   }
 
