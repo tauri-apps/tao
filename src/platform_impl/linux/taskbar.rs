@@ -26,14 +26,22 @@ impl TaskbarIndicator {
   pub fn set_progress(&mut self, progress: f64) -> Result<(), Box<dyn std::error::Error>> {
     self.progress = progress;
 
-    self.xapps.as_mut().unwrap().set_progress(progress)?;
+    let xapps = self.xapps.as_mut();
+
+    if &xapps.is_some() == &true {
+      xapps.unwrap().set_progress(progress)?;
+    }
     Ok(())
   }
 
   pub fn set_progress_state(&mut self, state: bool) -> Result<(), Box<dyn std::error::Error>> {
     self.progress_visible = state;
 
-    self.xapps.as_mut().unwrap().set_progress_visible(state)?;
+    let xapps = self.xapps.as_mut();
+
+    if &xapps.is_some() == &true {
+      xapps.unwrap().set_progress_visible(state)?;
+    }
     Ok(())
   }
 
@@ -43,7 +51,11 @@ impl TaskbarIndicator {
   ) -> Result<(), Box<dyn std::error::Error>> {
     self.needs_attention = needs_attention;
 
-    self.xapps.as_mut().unwrap().needs_attention(needs_attention)?;
+    let xapps = self.xapps.as_mut();
+
+    if &xapps.is_some() == &true {
+      xapps.unwrap().needs_attention(needs_attention)?;
+    }
     Ok(())
   }
 }
