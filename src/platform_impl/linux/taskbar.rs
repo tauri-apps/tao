@@ -43,7 +43,6 @@ impl TaskbarIndicator {
   pub fn set_progress(&mut self, progress: f64) -> Result<(), Box<dyn std::error::Error>> {
     self.set_progress_state(true)?;
 
-    let progress = progress.clamp(0.0, 1.0);
     self.progress = progress;
 
     if let Some(ref mut xapps) = self.xapps {
