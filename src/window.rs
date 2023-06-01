@@ -844,11 +844,18 @@ impl Window {
   ///
   /// - **Linux:** May work, might not work
   /// - **macOS/Android/iOS:** Unimplemented
+  #[cfg(windows)]
   pub fn set_taskbar_progress(&self, current: u64, total: u64) {
-    #[cfg(windows)]
     self.window.set_taskbar_progress(current, total);
-    #[cfg(target_os = "linux")]
-    self.window.set_taskbar_progress(current, total);
+  }
+
+  #[cfg(target_os = "linux")]
+  pub fn set_taskbar_progress(&self, current: u64, total: u64, unity_uri: Option<&str>) {
+    let uri = match unity_uri {
+      Some(a) => Some(a.to_string()),
+      _ => None,
+    };
+    self.window.set_taskbar_progress(current, total, uri);
   }
 
   /// Set the taskbar progress
@@ -857,8 +864,8 @@ impl Window {
   ///
   /// - **Linux:** May work, might not work
   /// - **macOS/Android/iOS:** Unimplemented
+  #[cfg(windows)]
   pub fn set_taskbar_progress_state(&self, state: TaskbarProgressState) {
-    #[cfg(windows)]
     let taskbar_state = {
       match state {
         TaskbarProgressState::None => 0,
@@ -867,7 +874,17 @@ impl Window {
         TaskbarProgressState::Paused => 4,
       }
     };
-    #[cfg(target_os = "linux")]
+
+    self.window.set_taskbar_progress_state(taskbar_state);
+  }
+
+  #[cfg(target_os = "linux")]
+  pub fn set_taskbar_progress_state(&self, state: TaskbarProgressState, unity_uri: Option<&str>) {
+    let uri = match unity_uri {
+      Some(a) => Some(a.to_string()),
+      _ => None,
+    };
+
     let taskbar_state = {
       match state {
         TaskbarProgressState::None => false,
@@ -875,7 +892,7 @@ impl Window {
       }
     };
 
-    self.window.set_taskbar_progress_state(taskbar_state);
+    self.window.set_taskbar_progress_state(taskbar_state, uri);
   }
 
   /// Sets whether the window is closable or not.

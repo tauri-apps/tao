@@ -316,11 +316,25 @@ impl<T: 'static> EventLoop<T> {
             window.set_skip_taskbar_hint(skip);
             window.set_skip_pager_hint(skip)
           }
-          WindowRequest::TaskbarProgress(progress, handle, window) => unsafe {
+          WindowRequest::TaskbarProgress((progress, unity_uri), handle, window) => unsafe {
             if &TASKBAR.is_none() == &true {
-              match TaskbarIndicator::new(handle, window) {
-                Ok(a) => TASKBAR = Some(a),
-                _ => TASKBAR = None,
+              let res = match TaskbarIndicator::new(handle, window) {
+                Ok(a) => {
+                  TASKBAR = Some(a);
+                  1
+                }
+                _ => {
+                  TASKBAR = None;
+                  0
+                }
+              };
+
+              if res == 1 && &unity_uri.is_some() == &true {
+                TASKBAR
+                  .as_mut()
+                  .unwrap()
+                  .set_unity_app_uri(&unity_uri.unwrap())
+                  .unwrap_or(());
               }
             }
 
@@ -332,11 +346,25 @@ impl<T: 'static> EventLoop<T> {
                 .unwrap_or(());
             }
           },
-          WindowRequest::TaskbarProgressState(state, handle, window) => unsafe {
+          WindowRequest::TaskbarProgressState((state, unity_uri), handle, window) => unsafe {
             if &TASKBAR.is_none() == &true {
-              match TaskbarIndicator::new(handle, window) {
-                Ok(a) => TASKBAR = Some(a),
-                _ => TASKBAR = None,
+              let res = match TaskbarIndicator::new(handle, window) {
+                Ok(a) => {
+                  TASKBAR = Some(a);
+                  1
+                }
+                _ => {
+                  TASKBAR = None;
+                  0
+                }
+              };
+
+              if res == 1 && &unity_uri.is_some() == &true {
+                TASKBAR
+                  .as_mut()
+                  .unwrap()
+                  .set_unity_app_uri(&unity_uri.unwrap())
+                  .unwrap_or(());
               }
             }
 

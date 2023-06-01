@@ -860,11 +860,11 @@ impl Window {
   }
 
   #[inline]
-  pub fn set_taskbar_progress_state(&self, state: bool) {
+  pub fn set_taskbar_progress_state(&self, state: bool, unity_uri: Option<String>) {
     if let Err(e) = self.window_requests_tx.send((
       self.window_id,
       WindowRequest::TaskbarProgressState(
-        state,
+        (state, unity_uri),
         self.raw_window_handle().clone(),
         self.raw_display_handle().clone(),
       ),
@@ -874,11 +874,11 @@ impl Window {
   }
 
   #[inline]
-  pub fn set_taskbar_progress(&self, current: u64, total: u64) {
+  pub fn set_taskbar_progress(&self, current: u64, total: u64, unity_uri: Option<String>) {
     if let Err(e) = self.window_requests_tx.send((
       self.window_id,
       WindowRequest::TaskbarProgress(
-        (current / total) as f64,
+        ((current / total) as f64, unity_uri),
         self.raw_window_handle().clone(),
         self.raw_display_handle().clone(),
       ),
@@ -939,8 +939,8 @@ pub enum WindowRequest {
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
   GlobalHotKey(u16),
   SetVisibleOnAllWorkspaces(bool),
-  TaskbarProgressState(bool, RawWindowHandle, RawDisplayHandle),
-  TaskbarProgress(f64, RawWindowHandle, RawDisplayHandle),
+  TaskbarProgressState((bool, Option<String>), RawWindowHandle, RawDisplayHandle),
+  TaskbarProgress((f64, Option<String>), RawWindowHandle, RawDisplayHandle),
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
