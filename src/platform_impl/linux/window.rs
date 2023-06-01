@@ -878,7 +878,7 @@ impl Window {
     if let Err(e) = self.window_requests_tx.send((
       self.window_id,
       WindowRequest::TaskbarProgress(
-        ((current / total) as f64, unity_uri),
+        ((current as f64) / (total as f64), unity_uri),
         self.raw_window_handle().clone(),
         self.raw_display_handle().clone(),
       ),
