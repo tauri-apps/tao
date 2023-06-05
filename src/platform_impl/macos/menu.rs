@@ -110,8 +110,10 @@ impl MenuItemAttributes {
   pub fn set_native_image(&mut self, icon: NativeImage) {
     unsafe {
       let ns_image: id = icon.get_ns_image();
-      let image_ref: id = msg_send![class!(NSImage), imageNamed: ns_image];
-      let () = msg_send![self.1, setImage: image_ref];
+      let nsimage: id = msg_send![class!(NSImage), imageNamed: ns_image];
+      let size = NSSize::new(18.0, 18.0);
+      let _: () = msg_send![nsimage, setSize: size];
+      let _: () = msg_send![self.1, setImage: nsimage];
     }
   }
 }
