@@ -233,7 +233,7 @@ impl WindowFlags {
     if self.contains(WindowFlags::RESIZABLE) {
       style |= WS_SIZEBOX;
     }
-    if self.contains(WindowFlags::RESIZABLE | WindowFlags::MAXIMIZABLE) {
+    if self.contains(WindowFlags::MAXIMIZABLE) {
       style |= WS_MAXIMIZEBOX;
     }
     if self.contains(WindowFlags::MINIMIZABLE) {
