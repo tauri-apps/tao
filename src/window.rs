@@ -842,7 +842,7 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux:** May work, might not work
+  /// - **Linux:** Requires the app to be installed via deb package, Might not work on some distros like Linux Mint (Cinnamon)
   /// - **macOS:** Unimplemented
   /// - **Android / iOS:** Unsupported
   #[cfg(windows)]
@@ -863,7 +863,7 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux:** May work, might not work
+  /// - **Linux:** Requires the app to be installed via deb package, Might not work on some distros like Linux Mint (Cinnamon)
   /// - **macOS:** Unimplemented
   /// - **Android / iOS:** Unsupported
   #[cfg(windows)]
