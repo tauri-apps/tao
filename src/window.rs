@@ -13,7 +13,7 @@ use crate::{
   event_loop::EventLoopWindowTarget,
   menu::MenuBar,
   monitor::{MonitorHandle, VideoMode},
-  platform_impl, TaskbarProgressState,
+  platform_impl,
 };
 
 pub use crate::icon::{BadIcon, Icon};
@@ -836,65 +836,6 @@ impl Window {
   #[inline]
   pub fn set_maximizable(&self, maximizable: bool) {
     self.window.set_maximizable(maximizable)
-  }
-
-  /// Set the taskbar progress
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux:** Requires the app to be installed via deb package, Might not work on some distros like Linux Mint (Cinnamon)
-  /// - **macOS:** Unimplemented
-  /// - **Android / iOS:** Unsupported
-  #[cfg(windows)]
-  pub fn set_taskbar_progress(&self, current: u64, total: u64) {
-    self.window.set_taskbar_progress(current, total);
-  }
-
-  #[cfg(target_os = "linux")]
-  pub fn set_taskbar_progress(&self, current: u64, total: u64, unity_uri: Option<&str>) {
-    let uri = match unity_uri {
-      Some(a) => Some(a.to_string()),
-      _ => None,
-    };
-    self.window.set_taskbar_progress(current, total, uri);
-  }
-
-  /// Set the taskbar progress
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux:** Requires the app to be installed via deb package, Might not work on some distros like Linux Mint (Cinnamon)
-  /// - **macOS:** Unimplemented
-  /// - **Android / iOS:** Unsupported
-  #[cfg(windows)]
-  pub fn set_taskbar_progress_state(&self, state: TaskbarProgressState) {
-    let taskbar_state = {
-      match state {
-        TaskbarProgressState::None => 0,
-        TaskbarProgressState::Intermediate => 1,
-        TaskbarProgressState::Normal => 2,
-        TaskbarProgressState::Paused => 4,
-      }
-    };
-
-    self.window.set_taskbar_progress_state(taskbar_state);
-  }
-
-  #[cfg(target_os = "linux")]
-  pub fn set_taskbar_progress_state(&self, state: TaskbarProgressState, unity_uri: Option<&str>) {
-    let uri = match unity_uri {
-      Some(a) => Some(a.to_string()),
-      _ => None,
-    };
-
-    let taskbar_state = {
-      match state {
-        TaskbarProgressState::None => false,
-        _ => true,
-      }
-    };
-
-    self.window.set_taskbar_progress_state(taskbar_state, uri);
   }
 
   /// Sets whether the window is closable or not.

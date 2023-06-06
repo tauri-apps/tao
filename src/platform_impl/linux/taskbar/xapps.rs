@@ -1,20 +1,12 @@
 use std::ffi::CStr;
 
-use lazy_static::lazy_static;
 use raw_window_handle::{
-  RawDisplayHandle, RawWindowHandle, XcbDisplayHandle, XcbWindowHandle, XlibDisplayHandle,
+  RawDisplayHandle, RawWindowHandle, XlibDisplayHandle,
   XlibWindowHandle,
 };
 use x11_dl::xlib::{self, PropModeReplace, Xlib};
-use x11rb::{
-  protocol::xproto::{AtomEnum, ConnectionExt, PropMode},
-  wrapper::ConnectionExt as WrapperConnectionExt,
-  xcb_ffi::XCBConnection,
-};
 
-lazy_static! {
-  static ref XLIB: Xlib = Xlib::open().unwrap();
-}
+static mut STATIC_XLIB: Option<Xlib> = None;
 
 pub struct Manager {
   handle: (RawWindowHandle, RawDisplayHandle),
@@ -25,9 +17,17 @@ pub struct Manager {
 
 impl Manager {
   pub fn new(handle: RawWindowHandle, d_handle: RawDisplayHandle) -> Option<Self> {
-    if !matches!(handle, RawWindowHandle::Xlib(_) | RawWindowHandle::Xcb(_)) {
+    if !matches!(handle, RawWindowHandle::Xlib(_)) {
       return None;
     }
+
+    unsafe {
+      STATIC_XLIB = match Xlib::open() {
+        Ok(s_xlib) => Some(s_xlib),
+        _ => None
+      }
+    }
+
     Some(Self {
       handle: (handle, d_handle),
       progress: 0,
@@ -43,43 +43,25 @@ impl Manager {
         RawDisplayHandle::Xlib(XlibDisplayHandle { display, .. }),
       ) => {
         let display = display as *mut xlib::Display;
-        let atom = unsafe { (XLIB.XInternAtom)(display, name.as_ptr(), xlib::True) };
+
         unsafe {
-          (XLIB.XChangeProperty)(
-            display,
-            window,
-            atom,
-            xlib::XA_CARDINAL,
-            32,
-            PropModeReplace,
-            &value as *const _ as *const u8,
-            1,
-          );
+          if let Some(x_lib) = &STATIC_XLIB {
+            let atom = (x_lib.XInternAtom)(display, name.as_ptr(), xlib::True);
+          
+            (x_lib.XChangeProperty)(
+              display,
+              window,
+              atom,
+              xlib::XA_CARDINAL,
+              32,
+              PropModeReplace,
+              &value as *const _ as *const u8,
+              1,
+            );
+          }
         }
       }
-      (
-        RawWindowHandle::Xcb(XcbWindowHandle { window, .. }),
-        RawDisplayHandle::Xcb(XcbDisplayHandle { connection, .. }),
-      ) => {
-        let connection =
-          unsafe { XCBConnection::from_raw_xcb_connection(connection, false).unwrap() };
-        let atom = connection
-          .intern_atom(false, name.to_bytes_with_nul())
-          .unwrap()
-          .reply()
-          .unwrap()
-          .atom;
-        connection
-          .change_property32(
-            PropMode::REPLACE,
-            window,
-            atom,
-            AtomEnum::CARDINAL,
-            &[value],
-          )
-          .unwrap();
-      }
-      _ => unreachable!(),
+      _ => {},
     }
   }
 
@@ -90,26 +72,15 @@ impl Manager {
         RawDisplayHandle::Xlib(XlibDisplayHandle { display, .. }),
       ) => {
         let display = display as *mut xlib::Display;
-        let atom = unsafe { (XLIB.XInternAtom)(display, name.as_ptr(), xlib::True) };
         unsafe {
-          (XLIB.XDeleteProperty)(display, window, atom);
+          if let Some(x_lib) = &STATIC_XLIB {
+            let atom = (x_lib.XInternAtom)(display, name.as_ptr(), xlib::True);
+          
+            (x_lib.XDeleteProperty)(display, window, atom);
+          }
         }
-      }
-      (
-        RawWindowHandle::Xcb(XcbWindowHandle { window, .. }),
-        RawDisplayHandle::Xcb(XcbDisplayHandle { connection, .. }),
-      ) => {
-        let connection =
-          unsafe { XCBConnection::from_raw_xcb_connection(connection, false).unwrap() };
-        let atom = connection
-          .intern_atom(false, name.to_bytes_with_nul())
-          .unwrap()
-          .reply()
-          .unwrap()
-          .atom;
-        connection.delete_property(window, atom).unwrap();
-      }
-      _ => unreachable!(),
+      },
+      _ => {}
     }
   }
 
