@@ -864,7 +864,8 @@ impl Window {
   /// ## Platform-specific
   ///
   /// - **Linux:** May work, might not work
-  /// - **macOS/Android/iOS:** Unimplemented
+  /// - **macOS:** Unimplemented
+  /// - **Android / iOS:** Unsupported
   #[cfg(windows)]
   pub fn set_taskbar_progress_state(&self, state: TaskbarProgressState) {
     let taskbar_state = {
