@@ -102,6 +102,16 @@ pub enum Event<'a, T: 'static> {
     position: PhysicalPosition<f64>,
   },
 
+  /// Emitted when dock icon has been clicked.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Linux / Windows:** Unsupported.
+  ApplicationShouldHandleReopen {
+    has_visible_windows: bool,
+    should_handle: &'a mut bool,
+  },
+
   /// Emitted when a global shortcut is triggered.
   ///
   /// ## Platform-specific
@@ -207,6 +217,9 @@ impl<T: Clone> Clone for Event<'static, T> {
         position: *position,
       },
       GlobalShortcutEvent(accelerator_id) => GlobalShortcutEvent(*accelerator_id),
+      ApplicationShouldHandleReopen { .. } => {
+        unreachable!("ApplicationShouldHandleReopen cannot clone")
+      }
     }
   }
 }
@@ -246,6 +259,13 @@ impl<'a, T> Event<'a, T> {
         position,
       }),
       GlobalShortcutEvent(accelerator_id) => Ok(GlobalShortcutEvent(accelerator_id)),
+      ApplicationShouldHandleReopen {
+        has_visible_windows,
+        should_handle,
+      } => Ok(ApplicationShouldHandleReopen {
+        has_visible_windows,
+        should_handle,
+      }),
     }
   }
 
@@ -287,6 +307,7 @@ impl<'a, T> Event<'a, T> {
         position,
       }),
       GlobalShortcutEvent(accelerator_id) => Some(GlobalShortcutEvent(accelerator_id)),
+      ApplicationShouldHandleReopen { .. } => None,
     }
   }
 }

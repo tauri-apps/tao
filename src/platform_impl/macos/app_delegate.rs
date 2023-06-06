@@ -2,17 +2,18 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{platform::macos::ActivationPolicy, platform_impl::platform::app_state::AppState};
-
-use cocoa::base::id;
-use objc::{
-  declare::ClassDecl,
-  runtime::{Class, Object, Sel},
-};
 use std::{
   cell::{RefCell, RefMut},
   os::raw::c_void,
 };
+
+use cocoa::base::id;
+use objc::{
+  declare::ClassDecl,
+  runtime::{Class, Object, Sel, BOOL, NO, YES},
+};
+
+use crate::{platform::macos::ActivationPolicy, platform_impl::platform::app_state::AppState};
 
 static AUX_DELEGATE_STATE_NAME: &str = "auxState";
 
@@ -46,6 +47,10 @@ lazy_static! {
     decl.add_method(
       sel!(applicationWillTerminate:),
       application_will_terminate as extern "C" fn(&Object, Sel, id),
+    );
+    decl.add_method(
+      sel!(applicationShouldHandleReopen:hasVisibleWindows:),
+      application_should_handle_reopen as extern "C" fn(&Object, Sel, id, BOOL) -> BOOL,
     );
     decl.add_ivar::<*mut c_void>(AUX_DELEGATE_STATE_NAME);
 
@@ -95,4 +100,20 @@ extern "C" fn application_will_terminate(_: &Object, _: Sel, _: id) {
   trace!("Triggered `applicationWillTerminate`");
   AppState::exit();
   trace!("Completed `applicationWillTerminate`");
+}
+
+extern "C" fn application_should_handle_reopen(
+  _: &Object,
+  _: Sel,
+  _: id,
+  has_visible_windows: BOOL,
+) -> BOOL {
+  trace!("Triggered `applicationShouldHandleReopen`");
+  let should_handle = AppState::should_handle_reopen(has_visible_windows == YES);
+  trace!("Completed `applicationShouldHandleReopen`");
+  if should_handle {
+    YES
+  } else {
+    NO
+  }
 }

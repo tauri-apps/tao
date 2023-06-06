@@ -212,6 +212,12 @@ impl Handler {
     }
   }
 
+  fn handle_nonuser_event_without_wrapper(&self, event: Event<'_, Never>) {
+    if let Some(ref mut callback) = *self.callback.lock().unwrap() {
+      callback.handle_nonuser_event(event, &mut *self.control_flow.lock().unwrap())
+    }
+  }
+
   fn handle_user_events(&self) {
     if let Some(ref mut callback) = *self.callback.lock().unwrap() {
       callback.handle_user_events(&mut *self.control_flow.lock().unwrap());
@@ -300,6 +306,17 @@ impl AppState {
       StartCause::Init,
     )));
     HANDLER.set_in_callback(false);
+  }
+
+  pub fn should_handle_reopen(has_visible_windows: bool) -> bool {
+    let mut should_handle = true;
+
+    HANDLER.handle_nonuser_event_without_wrapper(Event::ApplicationShouldHandleReopen {
+      has_visible_windows,
+      should_handle: &mut should_handle,
+    });
+
+    should_handle
   }
 
   pub fn wakeup(panic_info: Weak<PanicInfo>) {
