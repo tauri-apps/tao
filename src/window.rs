@@ -843,7 +843,8 @@ impl Window {
   /// ## Platform-specific
   ///
   /// - **Linux:** May work, might not work
-  /// - **macOS/Android/iOS:** Unimplemented
+  /// - **macOS:** Unimplemented
+  /// - **Android / iOS:** Unsupported
   #[cfg(windows)]
   pub fn set_taskbar_progress(&self, current: u64, total: u64) {
     self.window.set_taskbar_progress(current, total);
