@@ -1,9 +1,6 @@
 use std::ffi::CStr;
 
-use raw_window_handle::{
-  RawDisplayHandle, RawWindowHandle, XlibDisplayHandle,
-  XlibWindowHandle,
-};
+use raw_window_handle::{RawDisplayHandle, RawWindowHandle, XlibDisplayHandle, XlibWindowHandle};
 use x11_dl::xlib::{self, PropModeReplace, Xlib};
 
 static mut STATIC_XLIB: Option<Xlib> = None;
@@ -24,7 +21,7 @@ impl Manager {
     unsafe {
       STATIC_XLIB = match Xlib::open() {
         Ok(s_xlib) => Some(s_xlib),
-        _ => None
+        _ => None,
       }
     }
 
@@ -47,7 +44,7 @@ impl Manager {
         unsafe {
           if let Some(x_lib) = &STATIC_XLIB {
             let atom = (x_lib.XInternAtom)(display, name.as_ptr(), xlib::True);
-          
+
             (x_lib.XChangeProperty)(
               display,
               window,
@@ -61,7 +58,7 @@ impl Manager {
           }
         }
       }
-      _ => {},
+      _ => {}
     }
   }
 
@@ -75,11 +72,11 @@ impl Manager {
         unsafe {
           if let Some(x_lib) = &STATIC_XLIB {
             let atom = (x_lib.XInternAtom)(display, name.as_ptr(), xlib::True);
-          
+
             (x_lib.XDeleteProperty)(display, window, atom);
           }
         }
-      },
+      }
       _ => {}
     }
   }

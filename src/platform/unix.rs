@@ -21,7 +21,7 @@ use crate::{
   event_loop::{EventLoop, EventLoopWindowTarget},
   platform_impl::{x11::xdisplay::XError, Parent},
   window::{Window, WindowBuilder},
-  TaskbarProgressState
+  TaskbarProgressState,
 };
 
 use self::x11::xdisplay::XConnection;
@@ -34,12 +34,12 @@ pub trait WindowExtUnix {
   /// Whether to show the window icon in the taskbar or not.
   fn set_skip_taskbar(&self, skip: bool);
 
-  /// Sets the taskbar progress state./ 
+  /// Sets the taskbar progress state./
   /// ## NOTE
   /// - On **Linux:** App must be installed using .deb binary, Might not work on some distros like Linux Mint (Cinnamon)
   fn set_taskbar_progress(&self, current: u64, total: u64, unity_uri: Option<&str>);
 
-  /// Sets the taskbar progress state./ 
+  /// Sets the taskbar progress state./
   /// ## NOTE
   /// - On **Linux:** App must be installed using .deb binary, Might not work on some distros like Linux Mint (Cinnamon)
   fn set_taskbar_progress_state(&self, state: TaskbarProgressState, unity_uri: Option<&str>);
