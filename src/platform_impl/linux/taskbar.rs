@@ -1,10 +1,6 @@
-use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
-
 mod unity;
-mod xapps;
 
 pub struct TaskbarIndicator {
-  xapps: Option<xapps::Manager>,
   unity: Option<unity::Manager>,
   progress: f64,
   progress_visible: bool,
@@ -13,12 +9,8 @@ pub struct TaskbarIndicator {
 
 #[allow(dead_code)]
 impl TaskbarIndicator {
-  pub fn new(
-    window: RawWindowHandle,
-    d_handle: RawDisplayHandle,
-  ) -> Result<Self, Box<dyn std::error::Error>> {
+  pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
     Ok(Self {
-      xapps: xapps::Manager::new(window, d_handle),
       unity: None,
       progress: 0.0,
       progress_visible: false,
@@ -26,7 +18,7 @@ impl TaskbarIndicator {
     })
   }
 
-  pub fn set_unity_app_uri(&mut self, uri: impl AsRef<str>) -> Result<(), dbus::Error> {
+  pub fn set_unity_app_uri(&mut self, uri: impl AsRef<str>) -> Result<(), zbus::Error> {
     let mut unity = unity::Manager::new(uri.as_ref().to_owned())?;
 
     unity.set_progress(self.progress).unwrap_or(());
@@ -45,9 +37,6 @@ impl TaskbarIndicator {
 
     self.progress = progress;
 
-    if let Some(ref mut xapps) = self.xapps {
-      xapps.set_progress(progress)?;
-    }
     if let Some(ref mut unity) = self.unity {
       unity.set_progress(progress)?;
     }
@@ -57,9 +46,6 @@ impl TaskbarIndicator {
   pub fn set_progress_state(&mut self, visible: bool) -> Result<(), Box<dyn std::error::Error>> {
     self.progress_visible = visible;
 
-    if let Some(ref mut xapps) = self.xapps {
-      xapps.set_progress_visible(visible)?;
-    }
     if let Some(ref mut unity) = self.unity {
       unity.set_progress_visible(visible)?;
     }
@@ -72,9 +58,6 @@ impl TaskbarIndicator {
   ) -> Result<(), Box<dyn std::error::Error>> {
     self.needs_attention = needs_attention;
 
-    if let Some(ref mut xapps) = self.xapps {
-      xapps.needs_attention(needs_attention)?;
-    }
     if let Some(ref mut unity) = self.unity {
       unity.needs_attention(needs_attention)?;
     }

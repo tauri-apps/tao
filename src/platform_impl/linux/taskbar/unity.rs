@@ -1,9 +1,6 @@
-use dbus::{
-  arg::{PropMap, Variant},
+use zbus::{
   blocking::Connection,
-  channel::Sender,
-  strings::{Interface, Member},
-  Message, Path,
+  MessageBuilder,
 };
 
 pub struct Manager {
@@ -21,9 +18,17 @@ pub struct Manager {
   dirty_urgent: bool,
 }
 
+enum DataTypes<'a> {
+  Str(&'a str),
+  String(&'a String),
+  Bool(&'a bool),
+  Number(&'a i32),
+  Float(&'a f64)
+}
+
 impl Manager {
-  pub fn new(app_uri: String) -> Result<Self, dbus::Error> {
-    let conn = Connection::new_session()?;
+  pub fn new(app_uri: String) -> Result<Self, zbus::Error> {
+    let conn = Connection::session()?;
     let mut m = Self {
       conn,
       app_uri,
@@ -44,42 +49,67 @@ impl Manager {
   }
 
   fn update(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-    let mut properties = PropMap::new();
+    let mut properties: Vec<DataTypes> = Vec::new();
+
+    properties.push(DataTypes::String(&self.app_uri));
+
     if self.dirty_progress {
       self.dirty_progress = false;
-      properties.insert("progress".to_owned(), Variant(Box::new(self.progress)));
+
+      properties.push(DataTypes::Str("progress"));
+
+      properties.push(DataTypes::Float(&self.progress));
     }
     if self.dirty_count {
       self.dirty_count = false;
-      properties.insert("count".to_owned(), Variant(Box::new(self.count)));
+
+      properties.push(DataTypes::Str("count"));
+      properties.push(DataTypes::Number(&self.count));
     }
     if self.dirty_progress_visible {
       self.dirty_progress_visible = false;
-      properties.insert(
-        "progress-visible".to_owned(),
-        Variant(Box::new(self.progress_visible)),
+
+      properties.push(
+        DataTypes::Str("progress-visible")
+      );
+      properties.push(
+        DataTypes::Bool(&self.progress_visible)
       );
     }
     if self.dirty_count_visible {
       self.dirty_count_visible = false;
-      properties.insert(
-        "count-visible".to_owned(),
-        Variant(Box::new(self.count_visible)),
+      
+      properties.push(
+        DataTypes::Str("count-visible")
+      );
+      properties.push(
+        DataTypes::Bool(&self.count_visible)
       );
     }
     if self.dirty_urgent {
       self.dirty_urgent = false;
-      properties.insert("urgent".to_owned(), Variant(Box::new(self.urgent)));
+
+      properties.push(DataTypes::Str("urgent"));
+      properties.push(DataTypes::Bool(&self.urgent));
     }
+
     if !properties.is_empty() {
-      let signal = Message::signal(
-        &Path::new("/")?,
-        &Interface::new("com.canonical.Unity.LauncherEntry")?,
-        &Member::new("Update")?,
-      )
-      .append1(&self.app_uri)
-      .append1(properties);
-      self.conn.send(signal).unwrap();
+      let mapped = properties.iter().map(|x| match x {
+        DataTypes::Str(string) => string.clone().to_string(),
+        DataTypes::String(string) => string.clone().to_owned(),
+        DataTypes::Bool(val) => val.to_string(),
+        DataTypes::Number(val) => val.to_string(),
+        DataTypes::Float(val) => val.to_string(),
+      }).collect::<Vec<String>>();
+
+      let signal = MessageBuilder::signal(
+        "/",
+        "com.canonical.Unity.LauncherEntry",
+        "Update",
+      )?
+      .build(&mapped)?;
+
+      self.conn.send_message(signal).unwrap();
     }
     Ok(())
   }

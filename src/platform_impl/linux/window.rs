@@ -864,9 +864,7 @@ impl Window {
     if let Err(e) = self.window_requests_tx.send((
       self.window_id,
       WindowRequest::TaskbarProgressState(
-        (state, unity_uri),
-        self.raw_window_handle().clone(),
-        self.raw_display_handle().clone(),
+        state, unity_uri
       ),
     )) {
       log::warn!("Fail to send skip taskbar request: {}", e);
@@ -878,9 +876,8 @@ impl Window {
     if let Err(e) = self.window_requests_tx.send((
       self.window_id,
       WindowRequest::TaskbarProgress(
-        ((current as f64) / (total as f64), unity_uri),
-        self.raw_window_handle().clone(),
-        self.raw_display_handle().clone(),
+        (current as f64) / (total as f64), 
+        unity_uri
       ),
     )) {
       log::warn!("Fail to send skip taskbar request: {}", e);
@@ -939,8 +936,8 @@ pub enum WindowRequest {
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
   GlobalHotKey(u16),
   SetVisibleOnAllWorkspaces(bool),
-  TaskbarProgressState((bool, Option<String>), RawWindowHandle, RawDisplayHandle),
-  TaskbarProgress((f64, Option<String>), RawWindowHandle, RawDisplayHandle),
+  TaskbarProgressState(bool, Option<String>),
+  TaskbarProgress(f64, Option<String>),
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {

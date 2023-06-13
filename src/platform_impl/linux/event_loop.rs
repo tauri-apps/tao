@@ -45,8 +45,6 @@ use super::{
 
 use taskbar::TaskbarIndicator;
 
-static mut TASKBAR: Option<TaskbarIndicator> = None;
-
 #[derive(Clone)]
 pub struct EventLoopWindowTarget<T> {
   /// Gdk display
@@ -205,6 +203,8 @@ impl<T: 'static> EventLoop<T> {
       None
     };
 
+    let mut taskbar: Option<TaskbarIndicator> = None;
+
     // Window Request
     window_requests_rx.attach(Some(&context), move |(id, request)| {
       if let Some(window) = app_.window_by_id(id.0) {
@@ -316,21 +316,21 @@ impl<T: 'static> EventLoop<T> {
             window.set_skip_taskbar_hint(skip);
             window.set_skip_pager_hint(skip)
           }
-          WindowRequest::TaskbarProgress((progress, unity_uri), handle, window) => unsafe {
-            if &TASKBAR.is_none() == &true {
-              let res = match TaskbarIndicator::new(handle, window) {
+          WindowRequest::TaskbarProgress(progress, unity_uri) => {
+            if &taskbar.is_none() == &true {
+              let res = match TaskbarIndicator::new() {
                 Ok(a) => {
-                  TASKBAR = Some(a);
+                  taskbar = Some(a);
                   1
                 }
                 _ => {
-                  TASKBAR = None;
+                  taskbar = None;
                   0
                 }
               };
 
               if res == 1 && &unity_uri.is_some() == &true {
-                TASKBAR
+                taskbar
                   .as_mut()
                   .unwrap()
                   .set_unity_app_uri(&unity_uri.unwrap())
@@ -338,29 +338,29 @@ impl<T: 'static> EventLoop<T> {
               }
             }
 
-            if &TASKBAR.is_some() == &true {
-              TASKBAR
+            if &taskbar.is_some() == &true {
+              taskbar
                 .as_mut()
                 .unwrap()
                 .set_progress(progress)
                 .unwrap_or(());
             }
           },
-          WindowRequest::TaskbarProgressState((state, unity_uri), handle, window) => unsafe {
-            if &TASKBAR.is_none() == &true {
-              let res = match TaskbarIndicator::new(handle, window) {
+          WindowRequest::TaskbarProgressState(state, unity_uri) => {
+            if &taskbar.is_none() == &true {
+              let res = match TaskbarIndicator::new() {
                 Ok(a) => {
-                  TASKBAR = Some(a);
+                  taskbar = Some(a);
                   1
                 }
                 _ => {
-                  TASKBAR = None;
+                  taskbar = None;
                   0
                 }
               };
 
               if res == 1 && &unity_uri.is_some() == &true {
-                TASKBAR
+                taskbar
                   .as_mut()
                   .unwrap()
                   .set_unity_app_uri(&unity_uri.unwrap())
@@ -368,8 +368,8 @@ impl<T: 'static> EventLoop<T> {
               }
             }
 
-            if &TASKBAR.is_some() == &true {
-              TASKBAR
+            if &taskbar.is_some() == &true {
+              taskbar
                 .as_mut()
                 .unwrap()
                 .set_progress_state(state)
