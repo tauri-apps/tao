@@ -37,12 +37,12 @@ pub trait WindowExtUnix {
   /// Sets the taskbar progress state./
   /// ## NOTE
   /// - On **Linux:** App must be installed using .deb binary, Might not work on some distros like Linux Mint (Cinnamon)
-  pub fn set_taskbar_progress(&self, current: u64, total: u64, unity_uri: Option<&str>);
+  fn set_taskbar_progress(&self, current: u64, total: u64, unity_uri: Option<&str>);
 
   /// Sets the taskbar progress state./
   /// ## NOTE
   /// - On **Linux:** App must be installed using .deb binary, Might not work on some distros like Linux Mint (Cinnamon)
-  pub fn set_taskbar_progress_state(&self, state: TaskbarProgressState, unity_uri: Option<&str>);
+  fn set_taskbar_progress_state(&self, state: TaskbarProgressState, unity_uri: Option<&str>);
 }
 
 impl WindowExtUnix for Window {
@@ -54,7 +54,7 @@ impl WindowExtUnix for Window {
     self.window.set_skip_taskbar(skip);
   }
 
-  pub fn set_taskbar_progress(&self, current: u64, total: u64, unity_uri: Option<&str>) {
+  fn set_taskbar_progress(&self, current: u64, total: u64, unity_uri: Option<&str>) {
     let uri = match unity_uri {
       Some(a) => Some(a.to_string()),
       _ => None,
@@ -62,7 +62,7 @@ impl WindowExtUnix for Window {
     self.window.set_taskbar_progress(current, total, uri);
   }
 
-  pub fn set_taskbar_progress_state(&self, state: TaskbarProgressState, unity_uri: Option<&str>) {
+  fn set_taskbar_progress_state(&self, state: TaskbarProgressState, unity_uri: Option<&str>) {
     let uri = match unity_uri {
       Some(a) => Some(a.to_string()),
       _ => None,
