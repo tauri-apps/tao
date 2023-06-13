@@ -345,7 +345,7 @@ impl<T: 'static> EventLoop<T> {
                 .set_progress(progress)
                 .unwrap_or(());
             }
-          },
+          }
           WindowRequest::TaskbarProgressState(state, unity_uri) => {
             if &taskbar.is_none() == &true {
               let res = match TaskbarIndicator::new() {
@@ -375,7 +375,7 @@ impl<T: 'static> EventLoop<T> {
                 .set_progress_state(state)
                 .unwrap_or(());
             }
-          },
+          }
           WindowRequest::SetVisibleOnAllWorkspaces(visible) => {
             if visible {
               window.stick();

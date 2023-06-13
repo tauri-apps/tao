@@ -1,7 +1,4 @@
-use zbus::{
-  blocking::Connection,
-  MessageBuilder,
-};
+use zbus::{blocking::Connection, MessageBuilder};
 
 pub struct Manager {
   conn: Connection,
@@ -23,7 +20,7 @@ enum DataTypes<'a> {
   String(&'a String),
   Bool(&'a bool),
   Number(&'a i32),
-  Float(&'a f64)
+  Float(&'a f64),
 }
 
 impl Manager {
@@ -69,22 +66,14 @@ impl Manager {
     if self.dirty_progress_visible {
       self.dirty_progress_visible = false;
 
-      properties.push(
-        DataTypes::Str("progress-visible")
-      );
-      properties.push(
-        DataTypes::Bool(&self.progress_visible)
-      );
+      properties.push(DataTypes::Str("progress-visible"));
+      properties.push(DataTypes::Bool(&self.progress_visible));
     }
     if self.dirty_count_visible {
       self.dirty_count_visible = false;
-      
-      properties.push(
-        DataTypes::Str("count-visible")
-      );
-      properties.push(
-        DataTypes::Bool(&self.count_visible)
-      );
+
+      properties.push(DataTypes::Str("count-visible"));
+      properties.push(DataTypes::Bool(&self.count_visible));
     }
     if self.dirty_urgent {
       self.dirty_urgent = false;
@@ -94,20 +83,19 @@ impl Manager {
     }
 
     if !properties.is_empty() {
-      let mapped = properties.iter().map(|x| match x {
-        DataTypes::Str(string) => string.clone().to_string(),
-        DataTypes::String(string) => string.clone().to_owned(),
-        DataTypes::Bool(val) => val.to_string(),
-        DataTypes::Number(val) => val.to_string(),
-        DataTypes::Float(val) => val.to_string(),
-      }).collect::<Vec<String>>();
+      let mapped = properties
+        .iter()
+        .map(|x| match x {
+          DataTypes::Str(string) => string.clone().to_string(),
+          DataTypes::String(string) => string.clone().to_owned(),
+          DataTypes::Bool(val) => val.to_string(),
+          DataTypes::Number(val) => val.to_string(),
+          DataTypes::Float(val) => val.to_string(),
+        })
+        .collect::<Vec<String>>();
 
-      let signal = MessageBuilder::signal(
-        "/",
-        "com.canonical.Unity.LauncherEntry",
-        "Update",
-      )?
-      .build(&mapped)?;
+      let signal = MessageBuilder::signal("/", "com.canonical.Unity.LauncherEntry", "Update")?
+        .build(&mapped)?;
 
       self.conn.send_message(signal).unwrap();
     }

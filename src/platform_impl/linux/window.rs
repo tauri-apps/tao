@@ -863,9 +863,7 @@ impl Window {
   pub fn set_taskbar_progress_state(&self, state: bool, unity_uri: Option<String>) {
     if let Err(e) = self.window_requests_tx.send((
       self.window_id,
-      WindowRequest::TaskbarProgressState(
-        state, unity_uri
-      ),
+      WindowRequest::TaskbarProgressState(state, unity_uri),
     )) {
       log::warn!("Fail to send skip taskbar request: {}", e);
     }
@@ -875,10 +873,7 @@ impl Window {
   pub fn set_taskbar_progress(&self, current: u64, total: u64, unity_uri: Option<String>) {
     if let Err(e) = self.window_requests_tx.send((
       self.window_id,
-      WindowRequest::TaskbarProgress(
-        (current as f64) / (total as f64), 
-        unity_uri
-      ),
+      WindowRequest::TaskbarProgress((current as f64) / (total as f64), unity_uri),
     )) {
       log::warn!("Fail to send skip taskbar request: {}", e);
     }
