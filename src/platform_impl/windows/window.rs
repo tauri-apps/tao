@@ -896,14 +896,14 @@ impl Window {
   }
 
   #[inline]
-  pub fn set_taskbar_progress(&self, current: u64, total: u64) {
+  pub fn set_taskbar_progress(&self, current: f64) {
     let handle = self.window.0;
 
     unsafe {
       let taskbar_list: ITaskbarList = CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).unwrap();
 
       taskbar_list
-        .SetProgressValue(handle, current, total)
+        .SetProgressValue(handle, current as u64, 100)
         .unwrap_or(());
     }
   }

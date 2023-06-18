@@ -21,7 +21,8 @@ use crate::{
   event_loop::{EventLoop, EventLoopWindowTarget},
   platform_impl::{x11::xdisplay::XError, Parent},
   window::{Window, WindowBuilder},
-  TaskbarProgressState,
+  ProgressBarState,
+  TaskbarProgressState
 };
 
 use self::x11::xdisplay::XConnection;
@@ -37,12 +38,7 @@ pub trait WindowExtUnix {
   /// Sets the taskbar progress state./
   /// ## NOTE
   /// - On **Linux:** App must be installed using .deb binary, Might not work on some distros like Linux Mint (Cinnamon)
-  fn set_taskbar_progress(&self, current: u64, total: u64, unity_uri: Option<&str>);
-
-  /// Sets the taskbar progress state./
-  /// ## NOTE
-  /// - On **Linux:** App must be installed using .deb binary, Might not work on some distros like Linux Mint (Cinnamon)
-  fn set_taskbar_progress_state(&self, state: TaskbarProgressState, unity_uri: Option<&str>);
+  fn set_progress_bar(&self, state: ProgressBarState);
 }
 
 impl WindowExtUnix for Window {
@@ -54,28 +50,20 @@ impl WindowExtUnix for Window {
     self.window.set_skip_taskbar(skip);
   }
 
-  fn set_taskbar_progress(&self, current: u64, total: u64, unity_uri: Option<&str>) {
-    let uri = match unity_uri {
-      Some(a) => Some(a.to_string()),
-      _ => None,
-    };
-    self.window.set_taskbar_progress(current, total, uri);
-  }
+  fn set_progress_bar(&self, progress: ProgressBarState) {
+    if let Some(state) = progress.state {
+      let taskbar_state = {
+        match state {
+          TaskbarProgressState::None => false,
+          _ => true
+        }
+      };
 
-  fn set_taskbar_progress_state(&self, state: TaskbarProgressState, unity_uri: Option<&str>) {
-    let uri = match unity_uri {
-      Some(a) => Some(a.to_string()),
-      _ => None,
-    };
-
-    let taskbar_state = {
-      match state {
-        TaskbarProgressState::None => false,
-        _ => true,
-      }
-    };
-
-    self.window.set_taskbar_progress_state(taskbar_state, uri);
+      self.window.set_taskbar_progress_state(taskbar_state, progress.unity_uri.clone());
+    }
+    if let Some(value) = progress.progress {
+      self.window.set_taskbar_progress(value, progress.unity_uri.clone());
+    }
   }
 }
 

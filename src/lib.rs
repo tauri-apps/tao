@@ -178,6 +178,14 @@ pub enum TaskbarProgressState {
   Paused,
 }
 
+pub struct ProgressBarState {
+	pub state: Option<TaskbarProgressState>,
+  /// **Treated as Percentage**
+	pub progress: Option<f64>,
+	/// **Linux Only**
+	pub unity_uri: Option<String>,
+}
+
 //// Identifier of a system tray.
 ///
 /// Whenever you receive an event arising from a particular tray, this event contains a `TrayId` which

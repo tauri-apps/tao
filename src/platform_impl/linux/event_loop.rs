@@ -317,63 +317,37 @@ impl<T: 'static> EventLoop<T> {
             window.set_skip_pager_hint(skip)
           }
           WindowRequest::TaskbarProgress(progress, unity_uri) => {
-            if &taskbar.is_none() == &true {
-              let res = match TaskbarIndicator::new() {
-                Ok(a) => {
-                  taskbar = Some(a);
-                  1
-                }
-                _ => {
-                  taskbar = None;
-                  0
-                }
-              };
-
-              if res == 1 && &unity_uri.is_some() == &true {
-                taskbar
-                  .as_mut()
-                  .unwrap()
-                  .set_unity_app_uri(&unity_uri.unwrap())
-                  .unwrap_or(());
-              }
+            if taskbar.is_none() {
+            	taskbar.replace(TaskbarIndicator::new());
             }
-
-            if &taskbar.is_some() == &true {
-              taskbar
-                .as_mut()
-                .unwrap()
-                .set_progress(progress)
-                .unwrap_or(());
+            
+            if let Some(taskbar) = &mut taskbar {
+            	if let Some(unity_uri) = &unity_uri {
+            		if let Err(e) = taskbar.set_unity_app_uri(unity_uri) {
+            			log::warn!("Failed to set unity app uri {}", e);
+            		}
+            	}
+            	
+            	if let Err(e) = taskbar.set_progress(progress) {
+            		log::warn!("Failed to set progres: {}", e);
+            	}
             }
           }
           WindowRequest::TaskbarProgressState(state, unity_uri) => {
-            if &taskbar.is_none() == &true {
-              let res = match TaskbarIndicator::new() {
-                Ok(a) => {
-                  taskbar = Some(a);
-                  1
-                }
-                _ => {
-                  taskbar = None;
-                  0
-                }
-              };
-
-              if res == 1 && &unity_uri.is_some() == &true {
-                taskbar
-                  .as_mut()
-                  .unwrap()
-                  .set_unity_app_uri(&unity_uri.unwrap())
-                  .unwrap_or(());
-              }
+            if taskbar.is_none() {
+            	taskbar.replace(TaskbarIndicator::new());
             }
-
-            if &taskbar.is_some() == &true {
-              taskbar
-                .as_mut()
-                .unwrap()
-                .set_progress_state(state)
-                .unwrap_or(());
+            
+            if let Some(taskbar) = &mut taskbar {
+            	if let Some(unity_uri) = &unity_uri {
+            		if let Err(e) = taskbar.set_unity_app_uri(unity_uri) {
+            			log::warn!("Failed to set unity app uri {}", e);
+            		}
+            	}
+            	
+            	if let Err(e) = taskbar.set_progress_state(state) {
+            		log::warn!("Failed to set progres: {}", e);
+            	}
             }
           }
           WindowRequest::SetVisibleOnAllWorkspaces(visible) => {

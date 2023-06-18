@@ -9,13 +9,13 @@ pub struct TaskbarIndicator {
 
 #[allow(dead_code)]
 impl TaskbarIndicator {
-  pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
-    Ok(Self {
+  pub fn new() -> Self {
+    Self {
       unity: None,
       progress: 0.0,
       progress_visible: false,
       needs_attention: false,
-    })
+    }
   }
 
   pub fn set_unity_app_uri(&mut self, uri: impl AsRef<str>) -> Result<(), zbus::Error> {

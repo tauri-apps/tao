@@ -14,6 +14,8 @@ use crate::{
   monitor::MonitorHandle,
   platform_impl::{EventLoop as WindowsEventLoop, Parent, WinIcon},
   window::{BadIcon, Icon, Theme, Window, WindowBuilder},
+  ProgressBarState,
+  TaskbarProgressState
 };
 use libc;
 use windows::Win32::{
@@ -117,11 +119,8 @@ pub trait WindowExtWindows {
   /// Whether to show the window icon in the taskbar or not.
   fn set_skip_taskbar(&self, skip: bool);
 
-  /// Sets the Taskbar Progress State
-  fn set_taskbar_progress_state(&self, state: i32);
-
-  /// Sets the Taskbar Progress
-  fn set_taskbar_progress(&self, current: u64, total: u64);
+  /// Sets the taskbar progress state./
+  fn set_progress_bar(&self, progress: ProgressBarState);
 
   /// Shows or hides the background drop shadow for undecorated windows.
   ///
@@ -173,13 +172,22 @@ impl WindowExtWindows for Window {
   }
 
   #[inline]
-  fn set_taskbar_progress_state(&self, state: i32) {
-    self.window.set_taskbar_progress_state(state);
-  }
+  fn set_progress_bar(&self, progress: ProgressBarState) {
+    if let Some(state) = progress.state {
+      let taskbar_state = {
+        match state {
+          TaskbarProgressState::None => 0,
+          TaskbarProgressState::Intermediate => 1,
+          TaskbarProgressState::Normal => 2,
+          TaskbarProgressState::Paused => 4,
+        }
+      };
 
-  #[inline]
-  fn set_taskbar_progress(&self, current: u64, total: u64) {
-    self.window.set_taskbar_progress(current, total);
+      self.window.set_taskbar_progress_state(taskbar_state);
+    }
+    if let Some(value) = progress.progress {
+      self.window.set_taskbar_progress(value);
+    }
   }
 
   #[inline]
