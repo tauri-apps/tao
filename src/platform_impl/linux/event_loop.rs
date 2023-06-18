@@ -318,36 +318,36 @@ impl<T: 'static> EventLoop<T> {
           }
           WindowRequest::TaskbarProgress(progress, unity_uri) => {
             if taskbar.is_none() {
-            	taskbar.replace(TaskbarIndicator::new());
+              taskbar.replace(TaskbarIndicator::new());
             }
-            
+
             if let Some(taskbar) = &mut taskbar {
-            	if let Some(unity_uri) = &unity_uri {
-            		if let Err(e) = taskbar.set_unity_app_uri(unity_uri) {
-            			log::warn!("Failed to set unity app uri {}", e);
-            		}
-            	}
-            	
-            	if let Err(e) = taskbar.set_progress(progress) {
-            		log::warn!("Failed to set progres: {}", e);
-            	}
+              if let Some(unity_uri) = &unity_uri {
+                if let Err(e) = taskbar.set_unity_app_uri(unity_uri) {
+                  log::warn!("Failed to set unity app uri {}", e);
+                }
+              }
+
+              if let Err(e) = taskbar.set_progress(progress) {
+                log::warn!("Failed to set progres: {}", e);
+              }
             }
           }
           WindowRequest::TaskbarProgressState(state, unity_uri) => {
             if taskbar.is_none() {
-            	taskbar.replace(TaskbarIndicator::new());
+              taskbar.replace(TaskbarIndicator::new());
             }
-            
+
             if let Some(taskbar) = &mut taskbar {
-            	if let Some(unity_uri) = &unity_uri {
-            		if let Err(e) = taskbar.set_unity_app_uri(unity_uri) {
-            			log::warn!("Failed to set unity app uri {}", e);
-            		}
-            	}
-            	
-            	if let Err(e) = taskbar.set_progress_state(state) {
-            		log::warn!("Failed to set progres: {}", e);
-            	}
+              if let Some(unity_uri) = &unity_uri {
+                if let Err(e) = taskbar.set_unity_app_uri(unity_uri) {
+                  log::warn!("Failed to set unity app uri {}", e);
+                }
+              }
+
+              if let Err(e) = taskbar.set_progress_state(state) {
+                log::warn!("Failed to set progres: {}", e);
+              }
             }
           }
           WindowRequest::SetVisibleOnAllWorkspaces(visible) => {

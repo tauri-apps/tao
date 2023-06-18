@@ -14,8 +14,7 @@ use crate::{
   monitor::MonitorHandle,
   platform_impl::{EventLoop as WindowsEventLoop, Parent, WinIcon},
   window::{BadIcon, Icon, Theme, Window, WindowBuilder},
-  ProgressBarState,
-  TaskbarProgressState
+  ProgressBarState, TaskbarProgressState,
 };
 use libc;
 use windows::Win32::{

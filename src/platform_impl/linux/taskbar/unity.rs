@@ -1,8 +1,8 @@
 use zbus::{
-  blocking::Connection, 
-  MessageBuilder,
+  blocking::Connection,
   fdo::Result,
-  zvariant::{DeserializeDict, SerializeDict, Type}
+  zvariant::{DeserializeDict, SerializeDict, Type},
+  MessageBuilder,
 };
 
 pub struct Manager {
@@ -22,7 +22,7 @@ struct Progress {
   progress: Option<f64>,
   #[zvariant(rename = "progress-visible")]
   progress_visible: Option<bool>,
-  urgent: Option<bool>
+  urgent: Option<bool>,
 }
 
 impl Manager {
@@ -54,7 +54,7 @@ impl Manager {
     if self.dirty_progress_visible {
       self.dirty_progress_visible = false;
 
-      properties.progress_visible = Some(*&self.progress_visible);      
+      properties.progress_visible = Some(*&self.progress_visible);
     }
     if self.dirty_urgent {
       self.dirty_urgent = false;
@@ -62,12 +62,10 @@ impl Manager {
       properties.urgent = Some(*&self.urgent);
     }
 
-      let signal = MessageBuilder::signal("/", "com.canonical.Unity.LauncherEntry", "Update")?
-        .build(&
-          (self.app_uri.clone(), properties)
-        )?;
+    let signal = MessageBuilder::signal("/", "com.canonical.Unity.LauncherEntry", "Update")?
+      .build(&(self.app_uri.clone(), properties))?;
 
-      self.conn.send_message(signal).unwrap();
+    self.conn.send_message(signal).unwrap();
     Ok(())
   }
 
@@ -78,20 +76,14 @@ impl Manager {
     Ok(())
   }
 
-  pub fn set_progress_visible(
-    &mut self,
-    is_visible: bool,
-  ) -> Result<()> {
+  pub fn set_progress_visible(&mut self, is_visible: bool) -> Result<()> {
     self.progress_visible = is_visible;
     self.dirty_progress_visible = true;
     self.update()?;
     Ok(())
   }
 
-  pub fn needs_attention(
-    &mut self,
-    needs_attention: bool,
-  ) -> Result<()> {
+  pub fn needs_attention(&mut self, needs_attention: bool) -> Result<()> {
     self.urgent = needs_attention;
     self.dirty_urgent = true;
     self.update()?;

@@ -179,11 +179,11 @@ pub enum TaskbarProgressState {
 }
 
 pub struct ProgressBarState {
-	pub state: Option<TaskbarProgressState>,
+  pub state: Option<TaskbarProgressState>,
   /// **Treated as Percentage**
-	pub progress: Option<f64>,
-	/// **Linux Only**
-	pub unity_uri: Option<String>,
+  pub progress: Option<f64>,
+  /// **Linux Only**
+  pub unity_uri: Option<String>,
 }
 
 //// Identifier of a system tray.

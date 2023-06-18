@@ -21,8 +21,7 @@ use crate::{
   event_loop::{EventLoop, EventLoopWindowTarget},
   platform_impl::{x11::xdisplay::XError, Parent},
   window::{Window, WindowBuilder},
-  ProgressBarState,
-  TaskbarProgressState
+  ProgressBarState, TaskbarProgressState,
 };
 
 use self::x11::xdisplay::XConnection;
@@ -55,14 +54,18 @@ impl WindowExtUnix for Window {
       let taskbar_state = {
         match state {
           TaskbarProgressState::None => false,
-          _ => true
+          _ => true,
         }
       };
 
-      self.window.set_taskbar_progress_state(taskbar_state, progress.unity_uri.clone());
+      self
+        .window
+        .set_taskbar_progress_state(taskbar_state, progress.unity_uri.clone());
     }
     if let Some(value) = progress.progress {
-      self.window.set_taskbar_progress(value, progress.unity_uri.clone());
+      self
+        .window
+        .set_taskbar_progress(value, progress.unity_uri.clone());
     }
   }
 }
