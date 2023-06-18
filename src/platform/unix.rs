@@ -63,9 +63,11 @@ impl WindowExtUnix for Window {
         .set_taskbar_progress_state(taskbar_state, progress.unity_uri.clone());
     }
     if let Some(value) = progress.progress {
+      let progress_num = if value > 100 { 100f64 } else { value };
+
       self
         .window
-        .set_taskbar_progress(value, progress.unity_uri.clone());
+        .set_taskbar_progress(progress_num, progress.unity_uri.clone());
     }
   }
 }

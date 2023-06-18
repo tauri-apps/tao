@@ -185,7 +185,9 @@ impl WindowExtWindows for Window {
       self.window.set_taskbar_progress_state(taskbar_state);
     }
     if let Some(value) = progress.progress {
-      self.window.set_taskbar_progress(value);
+      let progress = if value > 100 { 100f64 } else { value };
+
+      self.window.set_taskbar_progress(progress);
     }
   }
 
