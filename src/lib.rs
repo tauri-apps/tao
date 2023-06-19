@@ -178,11 +178,13 @@ pub enum TaskbarProgressState {
   Paused,
 }
 
+/// A struct describing the state of the progress bar
 pub struct ProgressBarState {
+  /// The progress bar state
   pub state: Option<TaskbarProgressState>,
-  /// **Treated as Percentage**
+  /// The progress bar progress. This can be a value ranging from `0` to `100`
   pub progress: Option<f64>,
-  /// **Linux Only**
+  /// An identifier for your app to communicate with the Unity desktop window manager **Linux Only**
   pub unity_uri: Option<String>,
 }
 
