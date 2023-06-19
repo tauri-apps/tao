@@ -44,10 +44,7 @@ impl TaskbarIndicator {
     }
 
     if let Some(state) = progress.state {
-      match state {
-        ProgressState::None => properties.progress_visible = Some(false),
-        _ => properties.progress_visible = Some(true),
-      }
+      properties.progress_visible = matches!(state, ProgressState::None);
     }
 
     let signal = MessageBuilder::signal("/", "com.canonical.Unity.LauncherEntry", "Update")?
