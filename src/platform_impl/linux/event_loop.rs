@@ -325,7 +325,7 @@ impl<T: 'static> EventLoop<T> {
 
             if let Some(taskbar) = &mut taskbar {
               if let Err(e) = taskbar.update(state) {
-                log::warn!("Failed to set taskbar progress {}", e);
+                log::warn!("Failed to update taskbar progress {}", e);
               }
             }
           }
