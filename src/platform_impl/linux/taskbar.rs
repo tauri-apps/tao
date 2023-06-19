@@ -50,7 +50,7 @@ impl TaskbarIndicator {
     let signal = MessageBuilder::signal("/", "com.canonical.Unity.LauncherEntry", "Update")?
       .build(&(self.app_uri.clone(), properties))?;
 
-    self.conn.send_message(signal).unwrap();
+    self.conn.send_message(signal)?;
     Ok(())
   }
 }
