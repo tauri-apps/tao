@@ -1049,7 +1049,14 @@ impl Window {
   /// - **iOS / Android / macOS:** Unsupported.
   #[inline]
   pub fn set_progress_bar(&self, progress: ProgressBarState) {
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(any(
+    	windows,
+        target_os = "linux",
+  		target_os = "dragonfly",
+ 		target_os = "freebsd",
+  		target_os = "netbsd",
+  		target_os = "openbsd"
+    ))]
     self.window.set_progress_bar(progress)
   }
 
