@@ -1046,6 +1046,8 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
+  /// - **Linux**: Progress bar is app-wide and not specific to this window.
+  /// - **macOS**: Unimplemented.
   /// - **iOS / Android / macOS:** Unsupported.
   #[inline]
   pub fn set_progress_bar(&self, progress: ProgressBarState) {
