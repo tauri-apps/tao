@@ -29,6 +29,7 @@ use crate::{
   window::{
     CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, BORDERLESS_RESIZE_INSET,
   },
+  ProgressBarState,
 };
 
 use super::{
@@ -859,23 +860,12 @@ impl Window {
     }
   }
 
-  #[inline]
-  pub fn set_taskbar_progress_state(&self, state: bool, unity_uri: Option<String>) {
-    if let Err(e) = self.window_requests_tx.send((
-      self.window_id,
-      WindowRequest::TaskbarProgressState(state, unity_uri),
-    )) {
-      log::warn!("Fail to send skip taskbar request: {}", e);
-    }
-  }
-
-  #[inline]
-  pub fn set_taskbar_progress(&self, current: f64, unity_uri: Option<String>) {
-    if let Err(e) = self.window_requests_tx.send((
-      self.window_id,
-      WindowRequest::TaskbarProgress(current / 100.0, unity_uri),
-    )) {
-      log::warn!("Fail to send skip taskbar request: {}", e);
+  pub fn set_progress_bar(&self, progress: ProgressBarState) {
+    if let Err(e) = self
+      .window_requests_tx
+      .send((self.window_id, WindowRequest::PrgoressBarState(progress)))
+    {
+      log::warn!("Fail to send update progress bar request: {}", e);
     }
   }
 
@@ -931,8 +921,7 @@ pub enum WindowRequest {
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
   GlobalHotKey(u16),
   SetVisibleOnAllWorkspaces(bool),
-  TaskbarProgressState(bool, Option<String>),
-  TaskbarProgress(f64, Option<String>),
+  PrgoressBarState(ProgressBarState),
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {

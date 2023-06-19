@@ -13,7 +13,7 @@ use crate::{
   event_loop::EventLoopWindowTarget,
   menu::MenuBar,
   monitor::{MonitorHandle, VideoMode},
-  platform_impl,
+  platform_impl, ProgressBarState,
 };
 
 pub use crate::icon::{BadIcon, Icon};
@@ -1040,6 +1040,17 @@ impl Window {
   #[inline]
   pub fn set_ime_position<P: Into<Position>>(&self, position: P) {
     self.window.set_ime_position(position.into())
+  }
+
+  /// Sets the taskbar progress state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / macOS:** Unsupported.
+  #[inline]
+  pub fn set_progress_bar(&self, progress: ProgressBarState) {
+    #[cfg(not(target_os = "macos"))]
+    self.window.set_progress_bar(progress)
   }
 
   /// Requests user attention to the window, this has no effect if the application

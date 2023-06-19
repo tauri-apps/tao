@@ -57,6 +57,7 @@ use crate::{
     CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
     BORDERLESS_RESIZE_INSET,
   },
+  ProgressBarState, ProgressState,
 };
 
 use super::keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS};
@@ -883,28 +884,33 @@ impl Window {
   }
 
   #[inline]
-  pub fn set_taskbar_progress_state(&self, state: i32) {
-    let handle = self.window.0;
-
+  pub fn set_progress_bar(&self, progress: ProgressBarState) {
     unsafe {
       let taskbar_list: ITaskbarList = CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).unwrap();
+      let handle = self.window.0;
 
-      taskbar_list
-        .SetProgressState(handle, TBPFLAG(state))
-        .unwrap_or(());
-    }
-  }
+      if let Some(state) = progress.state {
+        let taskbar_state = {
+          match state {
+            ProgressState::None => 0,
+            ProgressState::Intermediate => 1,
+            ProgressState::Normal => 2,
+            ProgressState::Error => 3,
+            ProgressState::Paused => 4,
+          }
+        };
 
-  #[inline]
-  pub fn set_taskbar_progress(&self, current: f64) {
-    let handle = self.window.0;
+        taskbar_list
+          .SetProgressState(handle, TBPFLAG(taskbar_state))
+          .unwrap_or(());
+      }
+      if let Some(value) = progress.progress {
+        let value = if value > 100 { 100 } else { value };
 
-    unsafe {
-      let taskbar_list: ITaskbarList = CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).unwrap();
-
-      taskbar_list
-        .SetProgressValue(handle, current as u64, 100)
-        .unwrap_or(());
+        taskbar_list
+          .SetProgressValue(handle, value, 100)
+          .unwrap_or(());
+      }
     }
   }
 

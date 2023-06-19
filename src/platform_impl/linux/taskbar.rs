@@ -1,66 +1,59 @@
-mod unity;
+use crate::{ProgressBarState, ProgressState};
+use zbus::{
+  blocking::Connection,
+  fdo::Result,
+  zvariant::{DeserializeDict, SerializeDict, Type},
+  MessageBuilder,
+};
 
 pub struct TaskbarIndicator {
-  unity: Option<unity::Manager>,
-  progress: f64,
-  progress_visible: bool,
-  needs_attention: bool,
+  conn: Connection,
+  app_uri: String,
 }
 
-#[allow(dead_code)]
+#[derive(Default, SerializeDict, DeserializeDict, Type, PartialEq, Debug)]
+#[zvariant(signature = "dict")]
+struct Progress {
+  progress: Option<f64>,
+  #[zvariant(rename = "progress-visible")]
+  progress_visible: Option<bool>,
+  urgent: Option<bool>,
+}
+
 impl TaskbarIndicator {
-  pub fn new() -> Self {
-    Self {
-      unity: None,
-      progress: 0.0,
-      progress_visible: false,
-      needs_attention: false,
-    }
+  pub fn new() -> Result<Self> {
+    let conn = Connection::session()?;
+
+    Ok(Self {
+      conn,
+      app_uri: String::new(),
+    })
   }
 
-  pub fn set_unity_app_uri(&mut self, uri: impl AsRef<str>) -> Result<(), zbus::Error> {
-    let mut unity = unity::Manager::new(uri.as_ref().to_owned())?;
+  pub fn update(&mut self, progress: ProgressBarState) -> Result<()> {
+    let mut properties = Progress::default();
 
-    unity.set_progress(self.progress).unwrap_or(());
-    unity
-      .set_progress_visible(self.progress_visible)
-      .unwrap_or(());
-    unity.needs_attention(self.needs_attention).unwrap_or(());
-
-    self.unity.replace(unity);
-
-    Ok(())
-  }
-
-  pub fn set_progress(&mut self, progress: f64) -> Result<(), Box<dyn std::error::Error>> {
-    self.set_progress_state(true)?;
-
-    self.progress = progress;
-
-    if let Some(ref mut unity) = self.unity {
-      unity.set_progress(progress)?;
+    if let Some(uri) = progress.unity_uri {
+      self.app_uri = uri;
     }
-    Ok(())
-  }
 
-  pub fn set_progress_state(&mut self, visible: bool) -> Result<(), Box<dyn std::error::Error>> {
-    self.progress_visible = visible;
+    if let Some(progress) = progress.progress {
+      let progress = if progress > 100 { 100 } else { progress };
 
-    if let Some(ref mut unity) = self.unity {
-      unity.set_progress_visible(visible)?;
+      properties.progress = Some(progress as f64 / 100.0);
     }
-    Ok(())
-  }
 
-  pub fn needs_attention(
-    &mut self,
-    needs_attention: bool,
-  ) -> Result<(), Box<dyn std::error::Error>> {
-    self.needs_attention = needs_attention;
-
-    if let Some(ref mut unity) = self.unity {
-      unity.needs_attention(needs_attention)?;
+    if let Some(state) = progress.state {
+      match state {
+        ProgressState::None => properties.progress_visible = Some(false),
+        _ => properties.progress_visible = Some(true),
+      }
     }
+
+    let signal = MessageBuilder::signal("/", "com.canonical.Unity.LauncherEntry", "Update")?
+      .build(&(self.app_uri.clone(), properties))?;
+
+    self.conn.send_message(signal).unwrap();
     Ok(())
   }
 }
