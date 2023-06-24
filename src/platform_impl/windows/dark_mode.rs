@@ -17,6 +17,15 @@ use std::ffi::c_void;
 
 use crate::{platform_impl::platform::util, window::Theme};
 
+#[allow(dead_code)]
+enum PreferredAppMode {
+  Default,
+  AllowDark,
+  ForceDark,
+  ForceLight,
+  Max,
+}
+
 lazy_static! {
     static ref WIN10_BUILD_VERSION: Option<u32> = {
         // FIXME: RtlGetVersion is a documented windows API,
@@ -141,6 +150,7 @@ fn set_dark_mode_for_window(hwnd: HWND, is_dark_mode: bool) -> bool {
       };
 
       let status = set_window_composition_attribute(hwnd, &mut data as *mut _);
+      set_preferred_app_mode(is_dark_mode);
 
       status.as_bool()
     }
@@ -179,6 +189,71 @@ fn should_apps_use_dark_mode() -> bool {
   SHOULD_APPS_USE_DARK_MODE
     .map(|should_apps_use_dark_mode| unsafe { (should_apps_use_dark_mode)() })
     .unwrap_or(false)
+}
+
+// This enables dark mode menus
+fn set_preferred_app_mode(is_dark_mode: bool) -> bool {
+  let build_version = (*WIN10_BUILD_VERSION).unwrap();
+
+  // SetPreferredAppMode is for Windows 1903+ (18362)
+  if build_version >= 18362 {
+    type SetPreferredAppMode = unsafe extern "system" fn(PreferredAppMode) -> bool;
+    lazy_static! {
+      static ref SET_PREFERRED_APP_MODE: Option<SetPreferredAppMode> = {
+        unsafe {
+          const UXTHEME_SETPREFERREDAPPMODE_ORDINAL: u16 = 135;
+
+          let module = LoadLibraryA(s!("uxtheme.dll")).unwrap_or_default();
+
+          if module.is_invalid() {
+            return None;
+          }
+
+          let handle = GetProcAddress(
+            module,
+            PCSTR::from_raw(UXTHEME_SETPREFERREDAPPMODE_ORDINAL as usize as *mut _),
+          );
+
+          handle.map(|handle| std::mem::transmute(handle))
+        }
+      };
+    }
+
+    let app_mode = if is_dark_mode {
+      PreferredAppMode::ForceDark
+    } else {
+      PreferredAppMode::ForceLight
+    };
+    SET_PREFERRED_APP_MODE
+      .map(|set_preferred_app_mode| unsafe { (set_preferred_app_mode)(app_mode) })
+      .unwrap_or(false)
+  } else {
+    type AllowDarkModeForApp = unsafe extern "system" fn(bool) -> bool;
+    lazy_static! {
+      static ref ALLOW_DARK_MODE_FOR_APP: Option<AllowDarkModeForApp> = {
+        unsafe {
+          const UXTHEME_ALLOWDARKMODEFORAPP_ORDINAL: u16 = 135;
+
+          let module = LoadLibraryA(s!("uxtheme.dll")).unwrap_or_default();
+
+          if module.is_invalid() {
+            return None;
+          }
+
+          let handle = GetProcAddress(
+            module,
+            PCSTR::from_raw(UXTHEME_ALLOWDARKMODEFORAPP_ORDINAL as usize as *mut _),
+          );
+
+          handle.map(|handle| std::mem::transmute(handle))
+        }
+      };
+    }
+
+    ALLOW_DARK_MODE_FOR_APP
+      .map(|allow_dark_mode_for_app| unsafe { (allow_dark_mode_for_app)(is_dark_mode) })
+      .unwrap_or(false)
+  }
 }
 
 const HCF_HIGHCONTRASTON: u32 = 1;
