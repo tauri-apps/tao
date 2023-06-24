@@ -33,7 +33,7 @@ use crate::{
   menu::{MenuItem, MenuType},
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{device, window::hit_test, DEVICE_ID},
-  window::{CursorIcon, Fullscreen, WindowId as RootWindowId},
+  window::{CursorIcon, Fullscreen, ProgressBarState, WindowId as RootWindowId},
 };
 
 use super::{
@@ -121,6 +121,21 @@ impl<T> EventLoopWindowTarget<T> {
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
     util::cursor_position(self.is_wayland())
   }
+
+  #[inline]
+  pub fn set_progress_bar(&self, progress: ProgressBarState) {
+    let window = self.windows.borrow();
+    let window = window.iter().next();
+
+    if let Some(window) = window {
+      if let Err(e) = self
+        .window_requests_tx
+        .send((*window, WindowRequest::ProgressBarState(progress)))
+      {
+        log::warn!("Fail to send update progress bar request: {}", e);
+      }
+    }
+  }
 }
 
 pub struct EventLoop<T: 'static> {
@@ -204,6 +219,7 @@ impl<T: 'static> EventLoop<T> {
     };
 
     let mut taskbar: Option<TaskbarIndicator> = None;
+    let supports_unity = util::is_unity();
 
     // Window Request
     window_requests_rx.attach(Some(&context), move |(id, request)| {
@@ -316,16 +332,18 @@ impl<T: 'static> EventLoop<T> {
             window.set_skip_taskbar_hint(skip);
             window.set_skip_pager_hint(skip)
           }
-          WindowRequest::PrgoressBarState(state) => {
-            if taskbar.is_none() {
-              if let Ok(indicator) = TaskbarIndicator::new() {
-                taskbar.replace(indicator);
+          WindowRequest::ProgressBarState(state) => {
+            if supports_unity {
+              if taskbar.is_none() {
+                if let Ok(indicator) = TaskbarIndicator::new() {
+                  taskbar.replace(indicator);
+                }
               }
-            }
 
-            if let Some(taskbar) = &mut taskbar {
-              if let Err(e) = taskbar.update(state) {
-                log::warn!("Failed to update taskbar progress {}", e);
+              if let Some(taskbar) = &mut taskbar {
+                if let Err(e) = taskbar.update(state) {
+                  log::warn!("Failed to update taskbar progress {}", e);
+                }
               }
             }
           }

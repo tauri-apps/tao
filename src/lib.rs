@@ -170,27 +170,6 @@ extern crate bitflags;
 #[macro_use]
 extern crate objc;
 
-/// Progress State
-pub enum ProgressState {
-  None,
-  Normal,
-  /// **Treated as Normal in linux**
-  Intermediate,
-  /// **Treated as Normal in linux**
-  Paused,
-  /// **Treated as Normal in linux**
-  Error,
-}
-
-pub struct ProgressBarState {
-  /// The progress bar state.
-  pub state: Option<ProgressState>,
-  /// The progress bar progress. This can be a value ranging from `0` to `100`
-  pub progress: Option<u64>,
-  /// The identifier for your app to communicate with the Unity desktop window manager **Linux Only**
-  pub unity_uri: Option<String>,
-}
-
 //// Identifier of a system tray.
 ///
 /// Whenever you receive an event arising from a particular tray, this event contains a `TrayId` which

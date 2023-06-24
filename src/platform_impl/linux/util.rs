@@ -4,6 +4,7 @@ use crate::{
   dpi::{LogicalPosition, PhysicalPosition},
   error::ExternalError,
 };
+use std::process::{Command, Stdio};
 
 #[inline]
 pub fn cursor_position(is_wayland: bool) -> Result<PhysicalPosition<f64>, ExternalError> {
@@ -25,5 +26,26 @@ pub fn cursor_position(is_wayland: bool) -> Result<PhysicalPosition<f64>, Extern
       })
       .map(|p| p.ok_or(ExternalError::Os(os_error!(super::OsError))))
       .ok_or(ExternalError::Os(os_error!(super::OsError)))?
+  }
+}
+
+pub fn is_unity() -> bool {
+  if let Ok(child) = Command::new("echo")
+    .arg("$XDG_CURRENT_DESKTOP")
+    .stdout(Stdio::piped())
+    .spawn()
+  {
+    if let Ok(output) = child.wait_with_output() {
+      if let Ok(string) = String::from_utf8(output.stdout) {
+        let string = string.as_str().to_lowercase();
+        string == "unity" || string == "gnome"
+      } else {
+        false
+      }
+    } else {
+      false
+    }
+  } else {
+    false
   }
 }

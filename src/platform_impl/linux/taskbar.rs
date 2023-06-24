@@ -1,4 +1,4 @@
-use crate::{ProgressBarState, ProgressState};
+use crate::window::{ProgressBarState, ProgressState};
 use zbus::{
   blocking::Connection,
   fdo::Result,
@@ -44,7 +44,7 @@ impl TaskbarIndicator {
     }
 
     if let Some(state) = progress.state {
-      properties.progress_visible = matches!(state, ProgressState::None);
+      properties.progress_visible = Some(matches!(state, ProgressState::None));
     }
 
     let signal = MessageBuilder::signal("/", "com.canonical.Unity.LauncherEntry", "Update")?

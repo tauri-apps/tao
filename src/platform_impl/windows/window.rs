@@ -57,7 +57,7 @@ use crate::{
     CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
     BORDERLESS_RESIZE_INSET,
   },
-  ProgressBarState, ProgressState,
+  window::{ProgressBarState, ProgressState},
 };
 
 use super::keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS};

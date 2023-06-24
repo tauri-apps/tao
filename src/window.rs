@@ -13,10 +13,31 @@ use crate::{
   event_loop::EventLoopWindowTarget,
   menu::MenuBar,
   monitor::{MonitorHandle, VideoMode},
-  platform_impl, ProgressBarState,
+  platform_impl,
 };
 
 pub use crate::icon::{BadIcon, Icon};
+
+/// Progress State
+pub enum ProgressState {
+  None,
+  Normal,
+  /// **Treated as Normal in linux**
+  Intermediate,
+  /// **Treated as Normal in linux**
+  Paused,
+  /// **Treated as Normal in linux**
+  Error,
+}
+
+pub struct ProgressBarState {
+  /// The progress bar state.
+  pub state: Option<ProgressState>,
+  /// The progress bar progress. This can be a value ranging from `0` to `100`
+  pub progress: Option<u64>,
+  /// The identifier for your app to communicate with the Unity desktop window manager **Linux Only**
+  pub unity_uri: Option<String>,
+}
 
 /// Represents a window.
 ///
@@ -1052,12 +1073,12 @@ impl Window {
   #[inline]
   pub fn set_progress_bar(&self, progress: ProgressBarState) {
     #[cfg(any(
-    	windows,
-        target_os = "linux",
-  		target_os = "dragonfly",
- 		target_os = "freebsd",
-  		target_os = "netbsd",
-  		target_os = "openbsd"
+      windows,
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
     ))]
     self.window.set_progress_bar(progress)
   }

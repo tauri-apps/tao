@@ -26,10 +26,10 @@ use crate::{
   icon::Icon,
   menu::{MenuId, MenuItem},
   monitor::MonitorHandle as RootMonitorHandle,
+  window::ProgressBarState,
   window::{
     CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, BORDERLESS_RESIZE_INSET,
   },
-  ProgressBarState,
 };
 
 use super::{
@@ -863,7 +863,7 @@ impl Window {
   pub fn set_progress_bar(&self, progress: ProgressBarState) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::PrgoressBarState(progress)))
+      .send((self.window_id, WindowRequest::ProgressBarState(progress)))
     {
       log::warn!("Fail to send update progress bar request: {}", e);
     }
@@ -921,7 +921,7 @@ pub enum WindowRequest {
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
   GlobalHotKey(u16),
   SetVisibleOnAllWorkspaces(bool),
-  PrgoressBarState(ProgressBarState),
+  ProgressBarState(ProgressBarState),
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
