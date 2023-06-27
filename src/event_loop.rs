@@ -264,8 +264,8 @@ impl<T> EventLoopWindowTarget<T> {
   #[inline]
   #[allow(unused)]
   pub fn set_progress_bar(&self, progress: ProgressBarState) {
-    #[cfg(target_os = "macos")]
-	  self.p.set_progress_bar(progress)
+    #[cfg(target_os = "linux")]
+    self.p.set_progress_bar(progress)
   }
 }
 
