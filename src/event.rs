@@ -164,6 +164,16 @@ pub enum Event<'a, T: 'static> {
   /// This is irreversable - if this event is emitted, it is guaranteed to be the last event that
   /// gets emitted. You generally want to treat this as an "do on quit" event.
   LoopDestroyed,
+
+  /// Emitted when the app is opening an URL.
+  Opened { event: OpenEvent },
+}
+
+/// What the app is opening.
+#[derive(Debug, PartialEq, Clone)]
+pub enum OpenEvent {
+  /// App is opening an URL.
+  Url(url::Url),
 }
 
 impl<T: Clone> Clone for Event<'static, T> {
@@ -207,6 +217,9 @@ impl<T: Clone> Clone for Event<'static, T> {
         position: *position,
       },
       GlobalShortcutEvent(accelerator_id) => GlobalShortcutEvent(*accelerator_id),
+      Opened { event } => Opened {
+        event: event.clone(),
+      },
     }
   }
 }
@@ -246,6 +259,7 @@ impl<'a, T> Event<'a, T> {
         position,
       }),
       GlobalShortcutEvent(accelerator_id) => Ok(GlobalShortcutEvent(accelerator_id)),
+      Opened { event } => Ok(Opened { event }),
     }
   }
 
@@ -287,6 +301,7 @@ impl<'a, T> Event<'a, T> {
         position,
       }),
       GlobalShortcutEvent(accelerator_id) => Some(GlobalShortcutEvent(accelerator_id)),
+      Opened { event } => Some(Opened { event }),
     }
   }
 }

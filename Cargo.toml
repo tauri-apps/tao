@@ -46,6 +46,7 @@ serde = { version = "1", optional = true, features = [ "serde_derive" ] }
 raw-window-handle = "0.5"
 bitflags = "1"
 crossbeam-channel = "0.5"
+url = "2"
 
 [dev-dependencies]
 image = "0.24"
