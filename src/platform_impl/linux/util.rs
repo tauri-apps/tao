@@ -30,8 +30,9 @@ pub fn cursor_position(is_wayland: bool) -> Result<PhysicalPosition<f64>, Extern
 }
 
 pub fn is_unity() -> bool {
-  if let Ok(child) = Command::new("echo")
-    .arg("$XDG_CURRENT_DESKTOP")
+  if let Ok(child) = Command::new("sh")
+    .arg("-c")
+    .arg("echo -n $XDG_CURRENT_DESKTOP")
     .stdout(Stdio::piped())
     .spawn()
   {
