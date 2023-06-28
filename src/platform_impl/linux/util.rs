@@ -39,14 +39,9 @@ pub fn is_unity() -> bool {
     if let Ok(output) = child.wait_with_output() {
       if let Ok(string) = String::from_utf8(output.stdout) {
         let string = string.as_str().to_lowercase();
-        string == "unity" || string == "gnome"
-      } else {
-        false
+        return string == "unity" || string == "gnome";
       }
-    } else {
-      false
     }
-  } else {
-    false
   }
+  false
 }
