@@ -28,10 +28,9 @@ use windows::{
       Gdi::*,
     },
     System::{Com::*, LibraryLoader::*, Ole::*},
-    UI::Shell::{ITaskbarList4 as ITaskbarList, TaskbarList, TBPFLAG},
     UI::{
       Input::{Ime::*, KeyboardAndMouse::*, Touch::*},
-      Shell::*,
+      Shell::{ITaskbarList4 as ITaskbarList, TaskbarList, TBPFLAG, *},
       WindowsAndMessaging::{self as win32wm, *},
     },
   },
@@ -54,10 +53,9 @@ use crate::{
     OsError, Parent, PlatformSpecificWindowBuilderAttributes, WindowId,
   },
   window::{
-    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
-    BORDERLESS_RESIZE_INSET,
+    CursorIcon, Fullscreen, ProgressBarState, ProgressState, Theme, UserAttentionType,
+    WindowAttributes, WindowId as RootWindowId, BORDERLESS_RESIZE_INSET,
   },
-  window::{ProgressBarState, ProgressState},
 };
 
 use super::keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS};

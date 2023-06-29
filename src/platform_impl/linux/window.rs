@@ -26,9 +26,9 @@ use crate::{
   icon::Icon,
   menu::{MenuId, MenuItem},
   monitor::MonitorHandle as RootMonitorHandle,
-  window::ProgressBarState,
   window::{
-    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, BORDERLESS_RESIZE_INSET,
+    CursorIcon, Fullscreen, ProgressBarState, Theme, UserAttentionType, WindowAttributes,
+    BORDERLESS_RESIZE_INSET,
   },
 };
 
