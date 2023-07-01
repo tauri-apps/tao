@@ -165,7 +165,7 @@ pub enum Event<'a, T: 'static> {
   /// gets emitted. You generally want to treat this as an "do on quit" event.
   LoopDestroyed,
 
-  /// Emitted when the app is opening an URL.
+  /// Emitted when the app is open by external resources, like opening a Url.
   Opened { event: OpenEvent },
 }
 
