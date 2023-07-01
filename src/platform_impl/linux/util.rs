@@ -30,8 +30,10 @@ pub fn cursor_position(is_wayland: bool) -> Result<PhysicalPosition<f64>, Extern
 }
 
 pub fn is_unity() -> bool {
-  std::env::var("XDG_CURRENT_DESKTOP").map(|d| {
-  	let d = d.to_lowercase();
-  	d == "unity" || d == "gnome"
-  }).unwrap_or(false)
+  std::env::var("XDG_CURRENT_DESKTOP")
+    .map(|d| {
+      let d = d.to_lowercase();
+      d == "unity" || d == "gnome"
+    })
+    .unwrap_or(false)
 }
