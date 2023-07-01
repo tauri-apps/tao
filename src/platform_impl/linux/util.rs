@@ -4,7 +4,6 @@ use crate::{
   dpi::{LogicalPosition, PhysicalPosition},
   error::ExternalError,
 };
-use std::process::{Command, Stdio};
 
 #[inline]
 pub fn cursor_position(is_wayland: bool) -> Result<PhysicalPosition<f64>, ExternalError> {
