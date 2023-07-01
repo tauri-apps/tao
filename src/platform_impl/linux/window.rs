@@ -863,7 +863,7 @@ impl Window {
   pub fn set_progress_bar(&self, progress: ProgressBarState) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::ProgressBarState(progress)))
+      .send((WindowId::dummy(), WindowRequest::ProgressBarState(progress)))
     {
       log::warn!("Fail to send update progress bar request: {}", e);
     }
