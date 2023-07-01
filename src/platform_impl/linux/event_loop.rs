@@ -124,16 +124,11 @@ impl<T> EventLoopWindowTarget<T> {
 
   #[inline]
   pub fn set_progress_bar(&self, progress: ProgressBarState) {
-    let window = self.windows.borrow();
-    let window = window.iter().next();
-
-    if let Some(window) = window {
-      if let Err(e) = self
-        .window_requests_tx
-        .send((*window, WindowRequest::ProgressBarState(progress)))
-      {
-        log::warn!("Fail to send update progress bar request: {}", e);
-      }
+    if let Err(e) = self
+      .window_requests_tx
+      .send((WindowId::dummy(), WindowRequest::ProgressBarState(progress)))
+    {
+      log::warn!("Fail to send update progress bar request: {}", e);
     }
   }
 }
