@@ -33,7 +33,7 @@ pub fn is_unity() -> bool {
   std::env::var("XDG_CURRENT_DESKTOP")
     .map(|d| {
       let d = d.to_lowercase();
-      d == "unity" || d == "gnome"
+      d.includes("unity") || d.includes("gnome")
     })
     .unwrap_or(false)
 }
