@@ -259,7 +259,7 @@ impl<T> EventLoopWindowTarget<T> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows:** Use the Progress Bar Function Available in Window (Windows can have different progress bars for different window)
+  /// - **Windows:** Unsupported. Use the Progress Bar Function Available in Window (Windows can have different progress bars for different window)
   /// - **Linux:** Only supported desktop environments with `libunity` (e.g. GNOME).
   /// - **macOS:** Unimplemented.
   /// - **iOS / Android:** Unsupported.
