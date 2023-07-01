@@ -30,18 +30,8 @@ pub fn cursor_position(is_wayland: bool) -> Result<PhysicalPosition<f64>, Extern
 }
 
 pub fn is_unity() -> bool {
-  if let Ok(child) = Command::new("sh")
-    .arg("-c")
-    .arg("echo -n $XDG_CURRENT_DESKTOP")
-    .stdout(Stdio::piped())
-    .spawn()
-  {
-    if let Ok(output) = child.wait_with_output() {
-      if let Ok(string) = String::from_utf8(output.stdout) {
-        let string = string.as_str().to_lowercase();
-        return string == "unity" || string == "gnome";
-      }
-    }
-  }
-  false
+  std::env::var("XDG_CURRENT_DESKTOP").map(|d| {
+  	let d = d.to_lowercase();
+  	d == "unity" || d == "gnome"
+  }).unwrap_or(false)
 }
