@@ -165,16 +165,8 @@ pub enum Event<'a, T: 'static> {
   /// gets emitted. You generally want to treat this as an "do on quit" event.
   LoopDestroyed,
 
-  /// Emitted when the app is open by external resources, like opening a Url.
-  Opened { event: OpenEvent },
-}
-
-/// What the app is opening.
-#[derive(Debug, PartialEq, Clone)]
-pub enum OpenEvent {
-  /// App is opening the given list of URLs.
-  Url(Vec<url::Url>),
-  File(Vec<PathBuf>),
+  /// Emitted when the app is open by external resources, like opening a file or deeplink.
+  Opened { urls: Vec<url::Url> },
 }
 
 impl<T: Clone> Clone for Event<'static, T> {
@@ -218,9 +210,7 @@ impl<T: Clone> Clone for Event<'static, T> {
         position: *position,
       },
       GlobalShortcutEvent(accelerator_id) => GlobalShortcutEvent(*accelerator_id),
-      Opened { event } => Opened {
-        event: event.clone(),
-      },
+      Opened { urls } => Opened { urls: urls.clone() },
     }
   }
 }
@@ -260,7 +250,7 @@ impl<'a, T> Event<'a, T> {
         position,
       }),
       GlobalShortcutEvent(accelerator_id) => Ok(GlobalShortcutEvent(accelerator_id)),
-      Opened { event } => Ok(Opened { event }),
+      Opened { urls } => Ok(Opened { urls }),
     }
   }
 
@@ -302,7 +292,7 @@ impl<'a, T> Event<'a, T> {
         position,
       }),
       GlobalShortcutEvent(accelerator_id) => Some(GlobalShortcutEvent(accelerator_id)),
-      Opened { event } => Some(Opened { event }),
+      Opened { urls } => Some(Opened { urls }),
     }
   }
 }

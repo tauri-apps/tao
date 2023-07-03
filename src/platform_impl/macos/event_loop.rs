@@ -29,10 +29,9 @@ use crate::{
   event::Event,
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootWindowTarget},
   monitor::MonitorHandle as RootMonitorHandle,
-  platform::macos::OpenResourceKind,
   platform_impl::platform::{
     app::APP_CLASS,
-    app_delegate::app_delegate_class,
+    app_delegate::APP_DELEGATE_CLASS,
     app_state::AppState,
     monitor::{self, MonitorHandle},
     observer::*,
@@ -116,7 +115,6 @@ impl<T: 'static> EventLoopWindowTarget<T> {
 
 pub struct EventLoop<T: 'static> {
   pub(crate) delegate: IdRef,
-  pub(crate) open_resource_kind: OpenResourceKind,
 
   window_target: Rc<RootWindowTarget<T>>,
   panic_info: Rc<PanicInfo>,
@@ -136,7 +134,6 @@ impl<T> EventLoop<T> {
     setup_control_flow_observers(Rc::downgrade(&panic_info));
     EventLoop {
       delegate: IdRef::new(nil),
-      open_resource_kind: Default::default(),
       window_target: Rc::new(RootWindowTarget {
         p: Default::default(),
         _marker: PhantomData,
@@ -176,10 +173,7 @@ impl<T> EventLoop<T> {
         // be marked as main.
         let app: id = msg_send![APP_CLASS.0, sharedApplication];
 
-        let delegate = IdRef::new(msg_send![
-          app_delegate_class("TaoAppDelegate", self.open_resource_kind).0,
-          new
-        ]);
+        let delegate = IdRef::new(msg_send![APP_DELEGATE_CLASS.0, new]);
         let pool = NSAutoreleasePool::new(nil);
         let _: () = msg_send![app, setDelegate:*delegate];
         let _: () = msg_send![pool, drain];

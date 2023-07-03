@@ -171,21 +171,6 @@ impl From<ActivationPolicy> for NSApplicationActivationPolicy {
   }
 }
 
-/// Kind of resource the application opens.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum OpenResourceKind {
-  /// The application expects the user to open an URL with it.
-  Url,
-  /// The application expects the user to open files with it.
-  File,
-}
-
-impl Default for OpenResourceKind {
-  fn default() -> Self {
-    Self::File
-  }
-}
-
 pub trait CustomMenuItemExtMacOS {
   fn set_native_image(&mut self, native_image: NativeImage);
 }
@@ -526,9 +511,6 @@ pub trait EventLoopExtMacOS {
   /// [`run`](crate::event_loop::EventLoop::run) or
   /// [`run_return`](crate::platform::run_return::EventLoopExtRunReturn::run_return)
   fn set_activate_ignoring_other_apps(&mut self, ignore: bool);
-
-  /// Sets which kind of resource the application opens.
-  fn set_application_open_resource_kind(&mut self, kind: OpenResourceKind);
 }
 
 impl<T> EventLoopExtMacOS for EventLoop<T> {
@@ -551,11 +533,6 @@ impl<T> EventLoopExtMacOS for EventLoop<T> {
     unsafe {
       get_aux_state_mut(&**self.event_loop.delegate).activate_ignoring_other_apps = ignore;
     }
-  }
-
-  #[inline]
-  fn set_application_open_resource_kind(&mut self, kind: OpenResourceKind) {
-    self.event_loop.open_resource_kind = kind;
   }
 }
 

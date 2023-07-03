@@ -303,25 +303,7 @@ impl AppState {
   }
 
   pub fn open_urls(urls: Vec<url::Url>) {
-    HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened {
-      event: crate::event::OpenEvent::Url(urls),
-    }));
-  }
-
-  pub fn open_file(filename: std::path::PathBuf) {
-    if let Some(ref mut callback) = *HANDLER.callback.lock().unwrap() {
-      callback.handle_nonuser_event(
-        Event::Opened {
-          event: crate::event::OpenEvent::File(vec![filename]),
-        },
-        &mut HANDLER.control_flow.lock().unwrap(),
-      )
-    }
-  }
-  pub fn open_files(files: Vec<std::path::PathBuf>) {
-    HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened {
-      event: crate::event::OpenEvent::File(files),
-    }));
+    HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls }));
   }
 
   pub fn wakeup(panic_info: Weak<PanicInfo>) {
