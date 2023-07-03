@@ -8,7 +8,7 @@ use cocoa::base::id;
 use cocoa::foundation::NSString;
 use objc::{
   declare::ClassDecl,
-  runtime::{Class, Object, Sel},
+  runtime::{Class, Object, Sel, BOOL, NO, YES},
 };
 use std::{
   cell::{RefCell, RefMut},
@@ -142,7 +142,7 @@ extern "C" fn application_open_urls(_: &Object, _: Sel, _: id, urls: id) -> () {
 }
 
 #[cfg(all(feature = "macos-open-files", not(feature = "macos-open-urls")))]
-extern "C" fn application_open_file(_: &Object, _: Sel, _: id, file: id) -> cocoa::base::BOOL {
+extern "C" fn application_open_file(_: &Object, _: Sel, _: id, file: id) -> BOOL {
   trace!("Trigger `application:openFile:`");
 
   let filename = unsafe { CStr::from_ptr(file.UTF8String()) }
@@ -154,7 +154,11 @@ extern "C" fn application_open_file(_: &Object, _: Sel, _: id, file: id) -> coco
   AppState::open_file(filename, &mut success);
   trace!("Completed `application:openFile:`");
 
-  success as i8
+  if success {
+    YES
+  } else {
+    NO
+  }
 }
 
 #[cfg(all(feature = "macos-open-files", not(feature = "macos-open-urls")))]
