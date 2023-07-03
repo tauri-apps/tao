@@ -44,5 +44,5 @@ jobs:
           title: "Publish New Versions"
           commit-message: "publish new versions"
           labels: "version updates"
-          branch: "release"
+          branch: "release-v-0-16"
           body: ${{ steps.covector.outputs.change }}
