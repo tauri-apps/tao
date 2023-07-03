@@ -8,11 +8,15 @@ use std::{
   mem,
   ops::BitAnd,
   os::windows::prelude::OsStrExt,
-  ptr, slice,
+  slice,
   sync::atomic::{AtomicBool, Ordering},
 };
 
-use crate::{dpi::PhysicalSize, window::CursorIcon};
+use crate::{
+  dpi::{PhysicalPosition, PhysicalSize},
+  error::ExternalError,
+  window::CursorIcon,
+};
 
 use windows::{
   core::{HRESULT, PCSTR, PCWSTR},
@@ -29,6 +33,8 @@ use windows::{
     },
   },
 };
+
+use super::OsError;
 
 pub fn has_flag<T>(bitset: T, flag: T) -> bool
 where
@@ -189,10 +195,7 @@ pub fn get_cursor_clip() -> Result<RECT, io::Error> {
 /// Note that calling this will automatically dispatch a `WM_MOUSEMOVE` event.
 pub fn set_cursor_clip(rect: Option<RECT>) -> Result<(), io::Error> {
   unsafe {
-    let rect_ptr = rect
-      .as_ref()
-      .map(|r| r as *const RECT)
-      .unwrap_or(ptr::null());
+    let rect_ptr = rect.as_ref().map(|r| r as *const RECT);
     win_to_err(|| ClipCursor(rect_ptr))
   }
 }
@@ -227,6 +230,17 @@ pub fn is_maximized(window: HWND) -> bool {
     GetWindowPlacement(window, &mut placement);
   }
   placement.showCmd == SW_MAXIMIZE
+}
+
+pub fn cursor_position() -> Result<PhysicalPosition<f64>, ExternalError> {
+  let mut pt = POINT { x: 0, y: 0 };
+  if !unsafe { GetCursorPos(&mut pt) }.as_bool() {
+    return Err(ExternalError::Os(os_error!(OsError::IoError(
+      io::Error::last_os_error()
+    ))));
+  }
+
+  Ok((pt.x, pt.y).into())
 }
 
 impl CursorIcon {
@@ -406,4 +420,19 @@ pub unsafe extern "system" fn call_default_window_proc(
   lparam: LPARAM,
 ) -> LRESULT {
   DefWindowProcW(hwnd, msg, wparam, lparam)
+}
+
+pub fn get_instance_handle() -> windows::Win32::Foundation::HMODULE {
+  // Gets the instance handle by taking the address of the
+  // pseudo-variable created by the microsoft linker:
+  // https://devblogs.microsoft.com/oldnewthing/20041025-00/?p=37483
+
+  // This is preferred over GetModuleHandle(NULL) because it also works in DLLs:
+  // https://stackoverflow.com/questions/21718027/getmodulehandlenull-vs-hinstance
+
+  extern "C" {
+    static __ImageBase: windows::Win32::System::SystemServices::IMAGE_DOS_HEADER;
+  }
+
+  windows::Win32::Foundation::HMODULE(unsafe { &__ImageBase as *const _ as _ })
 }

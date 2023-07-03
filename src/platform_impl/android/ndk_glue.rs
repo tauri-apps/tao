@@ -19,7 +19,7 @@ use std::{
   ffi::{CStr, CString},
   fs::File,
   io::{BufRead, BufReader},
-  os::{raw, unix::prelude::*},
+  os::unix::prelude::*,
   sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard},
   thread,
 };
@@ -29,7 +29,7 @@ pub static PACKAGE: OnceCell<&str> = OnceCell::new();
 
 #[macro_export]
 macro_rules! android_binding {
-  ($domain:ident, $package:ident, $setup: ident, $main: ident) => {
+  ($domain:ident, $package:ident, $activity:ident, $setup:ident, $main:ident) => {
     fn __store_package_name__() {
       PACKAGE.get_or_init(move || generate_package_name!($domain, $package));
     }
@@ -37,21 +37,21 @@ macro_rules! android_binding {
     android_fn!(
       $domain,
       $package,
-      TauriActivity,
+      $activity,
       create,
       [JObject],
       __VOID__,
       [$setup, $main],
       __store_package_name__,
     );
-    android_fn!($domain, $package, TauriActivity, start, [JObject]);
-    android_fn!($domain, $package, TauriActivity, stop, [JObject]);
-    android_fn!($domain, $package, TauriActivity, resume, [JObject]);
-    android_fn!($domain, $package, TauriActivity, pause, [JObject]);
-    android_fn!($domain, $package, TauriActivity, save, [JObject]);
-    android_fn!($domain, $package, TauriActivity, destroy, [JObject]);
-    android_fn!($domain, $package, TauriActivity, memory, [JObject]);
-    android_fn!($domain, $package, TauriActivity, focus, [i32]);
+    android_fn!($domain, $package, $activity, start, [JObject]);
+    android_fn!($domain, $package, $activity, stop, [JObject]);
+    android_fn!($domain, $package, $activity, resume, [JObject]);
+    android_fn!($domain, $package, $activity, pause, [JObject]);
+    android_fn!($domain, $package, $activity, save, [JObject]);
+    android_fn!($domain, $package, $activity, destroy, [JObject]);
+    android_fn!($domain, $package, $activity, memory, [JObject]);
+    android_fn!($domain, $package, $activity, focus, [i32]);
   };
 }
 
@@ -69,14 +69,14 @@ pub const NDK_GLUE_LOOPER_INPUT_QUEUE_IDENT: i32 = 1;
 
 pub fn android_log(level: Level, tag: &CStr, msg: &CStr) {
   let prio = match level {
-    Level::Error => ndk_sys::android_LogPriority_ANDROID_LOG_ERROR,
-    Level::Warn => ndk_sys::android_LogPriority_ANDROID_LOG_WARN,
-    Level::Info => ndk_sys::android_LogPriority_ANDROID_LOG_INFO,
-    Level::Debug => ndk_sys::android_LogPriority_ANDROID_LOG_DEBUG,
-    Level::Trace => ndk_sys::android_LogPriority_ANDROID_LOG_VERBOSE,
+    Level::Error => ndk_sys::android_LogPriority::ANDROID_LOG_ERROR,
+    Level::Warn => ndk_sys::android_LogPriority::ANDROID_LOG_WARN,
+    Level::Info => ndk_sys::android_LogPriority::ANDROID_LOG_INFO,
+    Level::Debug => ndk_sys::android_LogPriority::ANDROID_LOG_DEBUG,
+    Level::Trace => ndk_sys::android_LogPriority::ANDROID_LOG_VERBOSE,
   };
   unsafe {
-    ndk_sys::__android_log_write(prio as raw::c_int, tag.as_ptr(), msg.as_ptr());
+    ndk_sys::__android_log_write(prio.0 as _, tag.as_ptr(), msg.as_ptr());
   }
 }
 

@@ -98,7 +98,7 @@ impl SystemTrayBuilder {
         HWND::default(),
         HMENU::default(),
         hinstance,
-        std::ptr::null_mut(),
+        None,
       );
       if !IsWindow(hwnd).as_bool() {
         return Err(os_error!(OsError::CreationError(
@@ -189,16 +189,22 @@ impl SystemTray {
   }
 
   pub fn set_tooltip(&self, tooltip: &str) {
+    let mut tip = util::encode_wide(tooltip);
+    tip.resize(128, 0);
+
+    let mut sz_tip: [u16; 128] = [0; 128];
+    sz_tip.copy_from_slice(&tip);
     unsafe {
+      let mut tip = util::encode_wide(tooltip);
+      tip.resize(128, 0);
+
       let mut nid = NOTIFYICONDATAW {
         uFlags: NIF_TIP,
         hWnd: self.hwnd,
         uID: TRAYICON_UID,
+        szTip: sz_tip,
         ..std::mem::zeroed()
       };
-      let mut wide = util::encode_wide(tooltip);
-      wide.resize(128, 0);
-      nid.szTip.copy_from_slice(&wide);
 
       if !Shell_NotifyIconW(NIM_MODIFY, &mut nid as _).as_bool() {
         debug!("Error setting icon");
@@ -362,26 +368,31 @@ unsafe fn show_tray_menu(hwnd: HWND, menu: HMENU, x: i32, y: i32) {
     y,
     0,
     hwnd,
-    std::ptr::null_mut(),
+    None,
   );
 }
 
 unsafe fn register_tray_icon(hwnd: HWND, hicon: HICON, tooltip: Option<String>) -> bool {
+  let mut flags = NIF_MESSAGE | NIF_ICON;
+  let mut sz_tip: [u16; 128] = [0; 128];
+
+  if let Some(tooltip) = tooltip {
+    let mut tip = util::encode_wide(tooltip);
+    tip.resize(128, 0);
+
+    flags |= NIF_TIP;
+    sz_tip.copy_from_slice(&tip);
+  }
+
   let mut nid = NOTIFYICONDATAW {
-    uFlags: NIF_MESSAGE | NIF_ICON,
+    uFlags: flags,
     hWnd: hwnd,
     hIcon: hicon,
     uID: TRAYICON_UID,
     uCallbackMessage: WM_USER_TRAYICON,
+    szTip: sz_tip,
     ..std::mem::zeroed()
   };
-
-  if let Some(tooltip) = tooltip {
-    nid.uFlags |= NIF_TIP;
-    let mut tooltip_w = util::encode_wide(tooltip);
-    tooltip_w.resize(128, 0);
-    nid.szTip.copy_from_slice(&tooltip_w)
-  }
 
   Shell_NotifyIconW(NIM_ADD, &mut nid as _).as_bool()
 }

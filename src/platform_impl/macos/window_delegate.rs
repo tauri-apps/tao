@@ -34,7 +34,9 @@ use crate::{
 
 pub struct WindowDelegateState {
   ns_window: IdRef, // never changes
-  ns_view: IdRef,   // never changes
+  // We keep this ns_view because we still need its view state for some extern function
+  // like didResignKey
+  ns_view: IdRef, // never changes
 
   window: Weak<UnownedWindow>,
 
@@ -75,6 +77,10 @@ impl WindowDelegateState {
     delegate_state
   }
 
+  fn ns_view(&self) -> id {
+    unsafe { (*self.ns_window).contentView() }
+  }
+
   fn with_window<F, T>(&mut self, callback: F) -> Option<T>
   where
     F: FnOnce(&UnownedWindow) -> T,
@@ -106,7 +112,7 @@ impl WindowDelegateState {
   }
 
   pub fn emit_resize_event(&mut self) {
-    let rect = unsafe { NSView::frame(*self.ns_view) };
+    let rect = unsafe { NSView::frame(self.ns_view()) };
     let scale_factor = self.get_scale_factor();
     let logical_size = LogicalSize::new(rect.size.width as f64, rect.size.height as f64);
     let size = logical_size.to_physical(scale_factor);
@@ -131,7 +137,7 @@ impl WindowDelegateState {
   }
 
   fn view_size(&self) -> LogicalSize<f64> {
-    let ns_size = unsafe { NSView::frame(*self.ns_view).size };
+    let ns_size = unsafe { NSView::frame(self.ns_view()).size };
     LogicalSize::new(ns_size.width as f64, ns_size.height as f64)
   }
 }
@@ -335,18 +341,7 @@ extern "C" fn window_will_close(this: &Object, _: Sel, _: id) {
 extern "C" fn window_did_resize(this: &Object, _: Sel, _: id) {
   trace!("Triggered `windowDidResize:`");
   with_state(this, |state| {
-    // If window is entering/exiting, resize and move event will be emitted in
-    // window_did_enter_fullscreen & window_did_exit_fullscreen.
-    let in_fullscreen_transition = state
-      .with_window(|window| {
-        trace!("Locked shared state in `window_did_resize`");
-        let shared_state = window.shared_state.lock().unwrap();
-        trace!("Unlocked shared state in `window_did_resize`");
-        shared_state.in_fullscreen_transition
-      })
-      .unwrap_or(false);
-
-    if !state.is_checking_zoomed_in && !in_fullscreen_transition {
+    if !state.is_checking_zoomed_in {
       state.emit_resize_event();
       state.emit_move_event();
     }

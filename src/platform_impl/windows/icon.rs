@@ -7,7 +7,7 @@ use std::{fmt, io, iter::once, mem, os::windows::ffi::OsStrExt, path::Path, sync
 use windows::{
   core::PCWSTR,
   Win32::{
-    Foundation::{HINSTANCE, HWND, LPARAM, WPARAM},
+    Foundation::{HMODULE, HWND, LPARAM, WPARAM},
     System::LibraryLoader::*,
     UI::WindowsAndMessaging::*,
   },
@@ -35,7 +35,7 @@ impl RgbaIcon {
     assert_eq!(and_mask.len(), pixel_count);
     let handle = unsafe {
       CreateIcon(
-        HINSTANCE::default(),
+        HMODULE::default(),
         self.width as i32,
         self.height as i32,
         1,
@@ -90,7 +90,7 @@ impl WinIcon {
 
     let handle = unsafe {
       LoadImageW(
-        HINSTANCE::default(),
+        HMODULE::default(),
         PCWSTR::from_raw(wide_path.as_ptr()),
         IMAGE_ICON,
         width as i32,

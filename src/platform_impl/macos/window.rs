@@ -41,12 +41,14 @@ use crate::{
 use cocoa::{
   appkit::{
     self, CGFloat, NSApp, NSApplication, NSApplicationPresentationOptions, NSColor, NSEvent,
-    NSRequestUserAttentionType, NSScreen, NSView, NSWindow, NSWindowButton,
-    NSWindowCollectionBehavior, NSWindowOrderingMode, NSWindowStyleMask,
+    NSEventModifierFlags, NSEventSubtype, NSEventType, NSRequestUserAttentionType, NSScreen,
+    NSView, NSWindow, NSWindowButton, NSWindowCollectionBehavior, NSWindowOrderingMode,
+    NSWindowStyleMask,
   },
   base::{id, nil},
   foundation::{
-    NSArray, NSAutoreleasePool, NSDictionary, NSPoint, NSRect, NSSize, NSString, NSUInteger,
+    NSArray, NSAutoreleasePool, NSDictionary, NSInteger, NSPoint, NSRect, NSSize, NSString,
+    NSTimeInterval, NSUInteger,
   },
 };
 use core_graphics::display::{CGDisplay, CGDisplayMode};
@@ -804,6 +806,16 @@ impl UnownedWindow {
   }
 
   #[inline]
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    let point = util::cursor_position()?;
+    if let Some(m) = self.monitor_from_point(point.x, point.y) {
+      Ok(point.to_physical(m.scale_factor()))
+    } else {
+      Err(ExternalError::Os(os_error!(OsError::CGError(0))))
+    }
+  }
+
+  #[inline]
   pub fn scale_factor(&self) -> f64 {
     unsafe { NSWindow::backingScaleFactor(*self.ns_window) as _ }
   }
@@ -829,7 +841,29 @@ impl UnownedWindow {
   #[inline]
   pub fn drag_window(&self) -> Result<(), ExternalError> {
     unsafe {
-      let event: id = msg_send![NSApp(), currentEvent];
+      let mut event: id = msg_send![NSApp(), currentEvent];
+
+      let event_type: NSUInteger = msg_send![event, type];
+      if event_type == 0x15 {
+        let mouse_location: NSPoint = msg_send![class!(NSEvent), mouseLocation];
+        let event_modifier_flags: NSEventModifierFlags = msg_send![event, modifierFlags];
+        let event_timestamp: NSTimeInterval = msg_send![event, timestamp];
+        let event_window_number: NSInteger = msg_send![event, windowNumber];
+
+        event = msg_send![
+            class!(NSEvent),
+            mouseEventWithType: NSEventType::NSLeftMouseDown
+            location: mouse_location
+            modifierFlags: event_modifier_flags
+            timestamp: event_timestamp
+            windowNumber: event_window_number
+            context: nil
+            eventNumber: NSEventSubtype::NSWindowExposedEventType
+            clickCount: 1
+            pressure: 1.0
+        ];
+      }
+
       let _: () = msg_send![*self.ns_window, performWindowDragWithEvent: event];
     }
 

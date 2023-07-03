@@ -1,5 +1,76 @@
 # Changelog
 
+## \[0.20.0]
+
+- [`c6082173`](https://github.com/tauri-apps/tao/commit/c6082173a943e23653783fd0872f64c66bf96de9)([#731](https://github.com/tauri-apps/tao/pull/731)) Fix build error on target i686-pc-windows-msvc
+- [`90ce80cd`](https://github.com/tauri-apps/tao/commit/90ce80cd4dc8babb5e5fab21fb783c710340b923)([#732](https://github.com/tauri-apps/tao/pull/732)) Enable shadows by default for undecorated window on Windows.
+
+## \[0.19.1]
+
+- On Windows, fix auto-hide taskbar can't be shown when maximizing undecorated window.
+  - [c5d606df](https://github.com/tauri-apps/tao/commit/c5d606dffeb1733ab06fd8c43eb3b9e7b2f553fe) fix(windows): leave space for auto-hidden taskbar for undecorated windows ([#726](https://github.com/tauri-apps/tao/pull/726)) on 2023-04-19
+- On Linux, fix `ShortcutManager::unregister_all` making `ShortcutManager::register` succeed but no events are triggered.
+  - [ee5dc41f](https://github.com/tauri-apps/tao/commit/ee5dc41f0071c9177304b3697d5b4c21c5734fd4) fix(linux): clear shortcuts instead of replacing it ([#724](https://github.com/tauri-apps/tao/pull/724)) on 2023-04-18
+- On macOS, fix window frozed when starting with fullscreen.
+  - [71594667](https://github.com/tauri-apps/tao/commit/71594667432c554f46dad06bfce87ba8edf18605) fix(macOS): windows frozen when starting in fullscreen ([#727](https://github.com/tauri-apps/tao/pull/727)) on 2023-05-04
+
+## \[0.19.0]
+
+- **Breaking change**: All ow specifying the android activity in `android_binding` macro, instead of hard-coded `TauriActivity`.
+  - [b78b9616](https://github.com/tauri-apps/tao/commit/b78b961621e9cde355c8de2cb9fc168efcae4313) feat!: allow specifying android activity in binding macro ([#723](https://github.com/tauri-apps/tao/pull/723)) on 2023-04-14
+- Fix set_focus not working on Windows in some situations like interactive notifications.
+  - [62db4313](https://github.com/tauri-apps/tao/commit/62db431338636dd0adafca15d636c08f68941984) fix(windows): Use SetForegroundWindow before focus hack ([#719](https://github.com/tauri-apps/tao/pull/719)) on 2023-04-04
+
+## \[0.18.3]
+
+- On macOS, fix wry window will crash if unfocused.
+  - [6a03847f](https://github.com/tauri-apps/tao/commit/6a03847f6d1343315174c9cd41b58a4cd2798657) On macOS, fix wry window can crash if unfocused ([#714](https://github.com/tauri-apps/tao/pull/714)) on 2023-03-24
+
+## \[0.18.2]
+
+- fix not get actual ns_view when it's replace by setContentView
+  - [76ae625b](https://github.com/tauri-apps/tao/commit/76ae625bae429148f295fc3eaf3e90984cf0c7ad) fix: not get actual ns_view when it's replace by setContentView ([#710](https://github.com/tauri-apps/tao/pull/710)) on 2023-03-07
+- Fix `Window::cursor_position` and `EventLoopWindowTarget::cursor_position` scale on Linux and macOS.
+  - [dc913cd5](https://github.com/tauri-apps/tao/commit/dc913cd5fe72f098a3545288eeed9b68f5e320ef) fix: scale cursor_position ([#712](https://github.com/tauri-apps/tao/pull/712)) on 2023-03-08
+- On macOS, Fix `cursor_position` return incorrect position.
+  - [ea2e60d9](https://github.com/tauri-apps/tao/commit/ea2e60d9df719a3abc335dc22078f72bbff1d3ef) fix(macOS): `cursor_position` returns incorrect position ([#711](https://github.com/tauri-apps/tao/pull/711)) on 2023-03-07
+- Fix arrow cursor icon on Linux
+  - [e9eba855](https://github.com/tauri-apps/tao/commit/e9eba8555b2bff1080d75d3386ce990c04576cde) chore: rename change file on 2023-02-22
+- Attempt to get primary monitor on linux will now return None rather than panicking if monitor not found.
+  - [28b53f80](https://github.com/tauri-apps/tao/commit/28b53f80c49bbf2ae8902b98a2e28f6451a5a8f1) fix: don't panic if primary monitor not discoverable. ([#705](https://github.com/tauri-apps/tao/pull/705)) on 2023-02-22
+- On macOS, Remove linking to `ColorSync`
+  - [a1e96d1b](https://github.com/tauri-apps/tao/commit/a1e96d1b1284a76576da0de7cba4730df9776bb5) feat: remove linking to `ColorSync` ([#713](https://github.com/tauri-apps/tao/pull/713)) on 2023-03-15
+
+## \[0.18.1]
+
+- Retain NSMenu reference instead of autoreleasing it.
+  - [5c37a54a](https://github.com/tauri-apps/tao/commit/5c37a54ab577e74730052658c9ed2e9b85462be8) fix(macos): retain and release NSMenu manually ([#699](https://github.com/tauri-apps/tao/pull/699)) on 2023-02-20
+
+## \[0.18.0]
+
+- Fix undecorated window shadow enabled by default on Windows.
+  - [1011b688](https://github.com/tauri-apps/tao/commit/1011b688ab67ffe898e24a3fa9c4566e91ab7359) fix(windows): default undecorated shadow to false ([#689](https://github.com/tauri-apps/tao/pull/689)) on 2023-02-07
+- On Linux, Add wayland raw handle methods. (#685)
+  - [3ce71295](https://github.com/tauri-apps/tao/commit/3ce71295c1a55134e77bb461c0fd49347b782403) Add missing change file in [#685](https://github.com/tauri-apps/tao/pull/685) on 2023-02-04
+- Update `windows-rs` to `0.44` which bumps the MSRV of this crate on Windows to `1.64`.
+  - [8971d731](https://github.com/tauri-apps/tao/commit/8971d731b02ec61a1665351c9bae11f5e4058dc4) chore(deps): update to windows-rs 0.44 ([#687](https://github.com/tauri-apps/tao/pull/687)) on 2023-02-06
+
+## \[0.17.0]
+
+- Bump gtk version: 0.15 -> 0.16
+  - [b59f1b49](https://github.com/tauri-apps/tao/commit/b59f1b4922533c7b3bd14516de8da1c6467061ea) Bump gtk version 0.15 -> 0.16 ([#679](https://github.com/tauri-apps/tao/pull/679)) on 2023-01-26
+- Add `Window::cursor_position` and `EventLoopWindowTarget::cursor_position` to get the current mouse position.
+  - [5d8bf51d](https://github.com/tauri-apps/tao/commit/5d8bf51d7ea2ea89feb4e8b003e583fed69bf300) feat: add `cursor_position` ([#668](https://github.com/tauri-apps/tao/pull/668)) on 2023-01-12
+- On Linux, spawn device event thread only once instead of a new thread on each iteration of the event loop.
+  - [ca1ed5de](https://github.com/tauri-apps/tao/commit/ca1ed5decf516dc674b5e26815aa98346fca11ff) fix(linux): spawn device thread only once ([#678](https://github.com/tauri-apps/tao/pull/678)) on 2023-01-23
+- On Windows, fix `Window::set_minimized(false)` not working when the window was minimized using `Win + D` hotkey.
+  - [e1149563](https://github.com/tauri-apps/tao/commit/e1149563b85eb6187f5aa78d53cab9c5d7b87025) fix(Windows): fix `set_minimized` with `Win + D` ([#676](https://github.com/tauri-apps/tao/pull/676)) on 2023-01-21
+
+## \[0.16.0]
+
+- Yanked `0.15.9` and publish a new minor as `0.15.9` included breaking changes by depending on `tao-macros`.
+  - [5397b8f6](https://github.com/tauri-apps/tao/commit/5397b8f6177f01418f1e56b60c9777395607278c) chore: bump minor on 2023-01-11
+
 ## \[0.15.9]
 
 - On Linux, Fix mnemonics for submenus.

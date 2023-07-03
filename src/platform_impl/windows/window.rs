@@ -22,7 +22,7 @@ use crossbeam_channel as channel;
 use windows::{
   core::PCWSTR,
   Win32::{
-    Foundation::{self as win32f, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
+    Foundation::{self as win32f, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
     Graphics::{
       Dwm::{DwmEnableBlurBehindWindow, DWM_BB_BLURREGION, DWM_BB_ENABLE, DWM_BLURBEHIND},
       Gdi::*,
@@ -191,12 +191,7 @@ impl Window {
   #[inline]
   pub fn request_redraw(&self) {
     unsafe {
-      RedrawWindow(
-        self.window.0,
-        ptr::null(),
-        HRGN::default(),
-        RDW_INTERNALPAINT,
-      );
+      RedrawWindow(self.window.0, None, HRGN::default(), RDW_INTERNALPAINT);
     }
   }
 
@@ -358,8 +353,8 @@ impl Window {
   }
 
   #[inline]
-  pub fn hinstance(&self) -> HINSTANCE {
-    HINSTANCE(util::GetWindowLongPtrW(self.hwnd(), GWLP_HINSTANCE))
+  pub fn hinstance(&self) -> HMODULE {
+    util::get_instance_handle()
   }
 
   #[inline]
@@ -379,8 +374,7 @@ impl Window {
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
     self.window_state.lock().mouse.cursor = cursor;
     self.thread_executor.execute_in_thread(move || unsafe {
-      let cursor =
-        LoadCursorW(HINSTANCE::default(), cursor.to_windows_cursor()).unwrap_or_default();
+      let cursor = LoadCursorW(HMODULE::default(), cursor.to_windows_cursor()).unwrap_or_default();
       SetCursor(cursor);
     });
   }
@@ -417,6 +411,11 @@ impl Window {
       let _ = tx.send(result);
     });
     rx.recv().unwrap().ok();
+  }
+
+  #[inline]
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    util::cursor_position()
   }
 
   #[inline]
@@ -485,7 +484,12 @@ impl Window {
     let window = self.window.clone();
     let window_state = Arc::clone(&self.window_state);
 
+    let is_minimized = self.is_minimized();
+
     self.thread_executor.execute_in_thread(move || {
+      WindowState::set_window_flags_in_place(&mut window_state.lock(), |f| {
+        f.set(WindowFlags::MINIMIZED, is_minimized)
+      });
       WindowState::set_window_flags(window_state.lock(), window.0, |f| {
         f.set(WindowFlags::MINIMIZED, minimized)
       });
@@ -512,8 +516,7 @@ impl Window {
 
   #[inline]
   pub fn is_minimized(&self) -> bool {
-    let window_state = self.window_state.lock();
-    window_state.window_flags.contains(WindowFlags::MINIMIZED)
+    unsafe { IsIconic(self.hwnd()) }.as_bool()
   }
 
   #[inline]
@@ -594,10 +597,10 @@ impl Window {
           let res = unsafe {
             ChangeDisplaySettingsExW(
               PCWSTR::from_raw(display_name.as_ptr()),
-              &native_video_mode,
+              Some(&native_video_mode),
               HWND::default(),
               CDS_FULLSCREEN,
-              std::ptr::null_mut(),
+              None,
             )
           };
 
@@ -610,13 +613,7 @@ impl Window {
         (&Some(Fullscreen::Exclusive(_)), &None)
         | (&Some(Fullscreen::Exclusive(_)), &Some(Fullscreen::Borderless(_))) => {
           let res = unsafe {
-            ChangeDisplaySettingsExW(
-              PCWSTR::null(),
-              std::ptr::null_mut(),
-              HWND::default(),
-              CDS_FULLSCREEN,
-              std::ptr::null_mut(),
-            )
+            ChangeDisplaySettingsExW(PCWSTR::null(), None, HWND::default(), CDS_FULLSCREEN, None)
           };
 
           debug_assert!(res != DISP_CHANGE_BADFLAGS);
@@ -860,7 +857,7 @@ impl Window {
       ToUnicode(
         vk,
         scancode,
-        &kbd_state,
+        Some(&kbd_state),
         mem::transmute(char_buff.as_mut()),
         0,
       );
@@ -1000,7 +997,7 @@ unsafe fn init<T: 'static>(
       parent.unwrap_or_default(),
       pl_attribs.menu.unwrap_or_default(),
       GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
-      Box::into_raw(Box::new(window_flags)) as _,
+      Some(Box::into_raw(Box::new(window_flags)) as _),
     );
 
     if !IsWindow(handle).as_bool() {
@@ -1217,7 +1214,7 @@ impl Drop for ComInitialized {
 thread_local! {
     static COM_INITIALIZED: ComInitialized = {
         unsafe {
-            ComInitialized(match CoInitializeEx(ptr::null_mut(), COINIT_APARTMENTTHREADED) {
+            ComInitialized(match CoInitializeEx(None, COINIT_APARTMENTTHREADED) {
               Ok(()) => Some(()),
               Err(_) => None,
             })
@@ -1268,10 +1265,15 @@ unsafe fn taskbar_mark_fullscreen(handle: HWND, fullscreen: bool) {
 }
 
 unsafe fn force_window_active(handle: HWND) {
-  // In some situation, calling SetForegroundWindow could not bring up the window,
-  // This is a little hack which can "steal" the foreground window permission
+  // Try to focus the window without the hack first.
+  if SetForegroundWindow(handle).as_bool() {
+    return;
+  }
+
+  // In some situations, calling SetForegroundWindow could not bring up the window,
+  // This is a little hack which can "steal" the foreground window permission.
   // We only call this function in the window creation, so it should be fine.
-  // See : https://stackoverflow.com/questions/10740346/setforegroundwindow-only-working-while-visual-studio-is-open
+  // See: https://stackoverflow.com/questions/10740346/setforegroundwindow-only-working-while-visual-studio-is-open
   let alt_sc = MapVirtualKeyW(u32::from(VK_MENU.0), MAPVK_VK_TO_VSC);
 
   let mut inputs: [INPUT; 2] = mem::zeroed();

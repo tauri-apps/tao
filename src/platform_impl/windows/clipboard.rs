@@ -8,14 +8,14 @@ use std::{ffi::OsStr, os::windows::ffi::OsStrExt, ptr};
 use windows::{
   core::{PCWSTR, PWSTR},
   Win32::{
-    Foundation::{HANDLE, HWND},
+    Foundation::{HANDLE, HGLOBAL, HWND},
     System::{
       DataExchange::{
         CloseClipboard, EmptyClipboard, GetClipboardData, OpenClipboard, RegisterClipboardFormatW,
         SetClipboardData,
       },
       Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE},
-      SystemServices::CF_UNICODETEXT,
+      Ole::CF_UNICODETEXT,
     },
   },
 };
@@ -32,11 +32,11 @@ impl Clipboard {
 
   pub(crate) fn read_text(&self) -> Option<String> {
     with_clipboard(|| unsafe {
-      let handle = GetClipboardData(CF_UNICODETEXT.0).unwrap_or_default();
+      let handle = GetClipboardData(CF_UNICODETEXT.0 as _).unwrap_or_default();
       if handle.is_invalid() {
         None
       } else {
-        let unic_str = PWSTR::from_raw(GlobalLock(handle.0) as *mut _);
+        let unic_str = PWSTR::from_raw(GlobalLock(HGLOBAL(handle.0)) as *mut _);
         let mut len = 0;
         while *unic_str.0.offset(len) != 0 {
           len += 1;
@@ -44,7 +44,7 @@ impl Clipboard {
         let utf16_slice = std::slice::from_raw_parts(unic_str.0, len as usize);
         let result = String::from_utf16(utf16_slice);
         if let Ok(result) = result {
-          GlobalUnlock(handle.0);
+          GlobalUnlock(HGLOBAL(handle.0));
           return Some(result);
         }
 
@@ -85,7 +85,7 @@ fn get_format_id(format: FormatId) -> Option<u32> {
     return Some(*id);
   }
   match format {
-    ClipboardFormat::TEXT => Some(CF_UNICODETEXT.0),
+    ClipboardFormat::TEXT => Some(CF_UNICODETEXT.0 as _),
     other => register_identifier(other),
   }
 }
@@ -112,17 +112,17 @@ unsafe fn make_handle(format: &ClipboardFormat) -> HANDLE {
   HANDLE(if format.identifier == ClipboardFormat::TEXT {
     let s: &OsStr = std::str::from_utf8_unchecked(&format.data).as_ref();
     let wstr: Vec<u16> = s.encode_wide().chain(Some(0)).collect();
-    let handle = GlobalAlloc(GMEM_MOVEABLE, wstr.len() * std::mem::size_of::<u16>());
-    let locked = GlobalLock(handle) as *mut _;
+    let handle = GlobalAlloc(GMEM_MOVEABLE, wstr.len() * std::mem::size_of::<u16>()).unwrap();
+    let locked = GlobalLock(HGLOBAL(handle.0)) as *mut _;
     ptr::copy_nonoverlapping(wstr.as_ptr(), locked, wstr.len());
     GlobalUnlock(handle);
-    handle
+    handle.0
   } else {
-    let handle = GlobalAlloc(GMEM_MOVEABLE, format.data.len() * std::mem::size_of::<u8>());
-    let locked = GlobalLock(handle) as *mut _;
+    let handle = GlobalAlloc(GMEM_MOVEABLE, format.data.len() * std::mem::size_of::<u8>()).unwrap();
+    let locked = GlobalLock(HGLOBAL(handle.0)) as *mut _;
     ptr::copy_nonoverlapping(format.data.as_ptr(), locked, format.data.len());
-    GlobalUnlock(handle);
-    handle
+    GlobalUnlock(HGLOBAL(handle.0));
+    handle.0
   })
 }
 

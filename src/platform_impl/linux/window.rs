@@ -15,7 +15,10 @@ use std::{
 use gdk::{WindowEdge, WindowState};
 use glib::translate::ToGlibPtr;
 use gtk::{prelude::*, traits::SettingsExt, AccelGroup, Orientation, Settings};
-use raw_window_handle::{RawDisplayHandle, RawWindowHandle, XlibDisplayHandle, XlibWindowHandle};
+use raw_window_handle::{
+  RawDisplayHandle, RawWindowHandle, WaylandDisplayHandle, WaylandWindowHandle, XlibDisplayHandle,
+  XlibWindowHandle,
+};
 
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
@@ -32,7 +35,7 @@ use super::{
   event_loop::EventLoopWindowTarget,
   menu,
   monitor::{self, MonitorHandle},
-  Parent, PlatformSpecificWindowBuilderAttributes,
+  util, Parent, PlatformSpecificWindowBuilderAttributes,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -153,7 +156,7 @@ impl Window {
 
     // Set GDK Visual
     if pl_attribs.rgba_visual || attributes.transparent {
-      if let Some(screen) = window.screen() {
+      if let Some(screen) = GtkWindowExt::screen(&window) {
         if let Some(visual) = screen.rgba_visual() {
           window.set_visual(Some(&visual));
         }
@@ -204,9 +207,16 @@ impl Window {
     window.set_title(&attributes.title);
     if let Some(Fullscreen::Borderless(m)) = &attributes.fullscreen {
       if let Some(monitor) = m {
-        let number = monitor.inner.number;
-        let screen = window.display().default_screen();
-        window.fullscreen_on_monitor(&screen, number);
+        let display = window.display();
+        let monitor = &monitor.inner;
+        let monitors = display.n_monitors();
+        for i in 0..monitors {
+          let m = display.monitor(i).unwrap();
+          if m == monitor.monitor {
+            let screen = display.default_screen();
+            window.fullscreen_on_monitor(&screen, i);
+          }
+        }
       } else {
         window.fullscreen();
       }
@@ -749,22 +759,22 @@ impl Window {
     }
   }
 
+  #[inline]
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    util::cursor_position(self.is_wayland())
+  }
+
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
-    let screen = self.window.display().default_screen();
+    let display = self.window.display();
     // `.window()` returns `None` if the window is invisible;
     // we fallback to the primary monitor
-    let number = self
+    let monitor = self
       .window
       .window()
-      .map(|window| {
-        #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
-        screen.monitor_at_window(&window)
-      })
-      .unwrap_or_else(|| {
-        #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
-        screen.primary_monitor()
-      });
-    let handle = MonitorHandle::new(&self.window.display(), number);
+      .map(|window| display.monitor_at_window(&window))
+      .unwrap_or_else(|| display.primary_monitor())
+      .unwrap();
+    let handle = MonitorHandle { monitor };
     Some(RootMonitorHandle { inner: handle })
   }
 
@@ -783,10 +793,9 @@ impl Window {
   }
 
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
-    let screen = self.window.display().default_screen();
-    #[allow(deprecated)] // Gtk3 Window only accepts Gdkscreen
-    let number = screen.primary_monitor();
-    let handle = MonitorHandle::new(&self.window.display(), number);
+    let display = self.window.display();
+    let monitor = display.primary_monitor().unwrap();
+    let handle = MonitorHandle { monitor };
     Some(RootMonitorHandle { inner: handle })
   }
 
@@ -796,28 +805,49 @@ impl Window {
     monitor::from_point(display, x, y).map(|inner| RootMonitorHandle { inner })
   }
 
+  fn is_wayland(&self) -> bool {
+    self.window.display().backend().is_wayland()
+  }
+
   pub fn raw_window_handle(&self) -> RawWindowHandle {
-    // TODO: add wayland support
-    let mut window_handle = XlibWindowHandle::empty();
-    unsafe {
+    if self.is_wayland() {
+      let mut window_handle = WaylandWindowHandle::empty();
       if let Some(window) = self.window.window() {
-        window_handle.window = gdk_x11_sys::gdk_x11_window_get_xid(window.as_ptr() as *mut _);
+        window_handle.surface =
+          unsafe { gdk_wayland_sys::gdk_wayland_window_get_wl_surface(window.as_ptr() as *mut _) };
       }
+
+      RawWindowHandle::Wayland(window_handle)
+    } else {
+      let mut window_handle = XlibWindowHandle::empty();
+      unsafe {
+        if let Some(window) = self.window.window() {
+          window_handle.window = gdk_x11_sys::gdk_x11_window_get_xid(window.as_ptr() as *mut _);
+        }
+      }
+      RawWindowHandle::Xlib(window_handle)
     }
-    RawWindowHandle::Xlib(window_handle)
   }
 
   pub fn raw_display_handle(&self) -> RawDisplayHandle {
-    let mut display_handle = XlibDisplayHandle::empty();
-    unsafe {
-      if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
-        let display = (xlib.XOpenDisplay)(std::ptr::null());
-        display_handle.display = display as _;
-        display_handle.screen = (xlib.XDefaultScreen)(display) as _;
+    if self.is_wayland() {
+      let mut display_handle = WaylandDisplayHandle::empty();
+      display_handle.display = unsafe {
+        gdk_wayland_sys::gdk_wayland_display_get_wl_display(self.window.display().as_ptr() as *mut _)
+      };
+      RawDisplayHandle::Wayland(display_handle)
+    } else {
+      let mut display_handle = XlibDisplayHandle::empty();
+      unsafe {
+        if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
+          let display = (xlib.XOpenDisplay)(std::ptr::null());
+          display_handle.display = display as _;
+          display_handle.screen = (xlib.XDefaultScreen)(display) as _;
+        }
       }
-    }
 
-    RawDisplayHandle::Xlib(display_handle)
+      RawDisplayHandle::Xlib(display_handle)
+    }
   }
 
   pub(crate) fn set_skip_taskbar(&self, skip: bool) {
