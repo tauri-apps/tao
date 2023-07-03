@@ -30,11 +30,8 @@ targets = [
 members = [ "tao-macros" ]
 
 [features]
-default = [ "macos-open-files" ]
 dox = [ "gtk/dox"]
 tray = [ "libappindicator", "dirs-next" ]
-macos-open-urls = []
-macos-open-files = []
 
 [build-dependencies]
 cc = "1"

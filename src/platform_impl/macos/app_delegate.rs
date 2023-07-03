@@ -2,28 +2,25 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{platform::macos::ActivationPolicy, platform_impl::platform::app_state::AppState};
+use crate::{
+  platform::macos::{ActivationPolicy, OpenResourceKind},
+  platform_impl::platform::app_state::AppState,
+};
 
 use cocoa::base::id;
 use cocoa::foundation::NSString;
 use objc::{
   declare::ClassDecl,
-  runtime::{Class, Object, Sel},
+  runtime::{Class, Object, Sel, BOOL, YES},
 };
 use std::{
   cell::{RefCell, RefMut},
   os::raw::c_void,
 };
 
-#[cfg(any(feature = "macos-open-urls", feature = "macos-open-files"))]
 use cocoa::foundation::NSArray;
-#[cfg(all(feature = "macos-open-urls", not(feature = "macos-open-files")))]
 use cocoa::foundation::NSURL;
-#[cfg(any(feature = "macos-open-urls", feature = "macos-open-files"))]
 use std::ffi::CStr;
-
-#[cfg(all(feature = "macos-open-files", feature = "macos-open-urls"))]
-compile_error!("`macos-open-files` and `macos-open-urls` feature flags can't be used at the same time, please choose only one of them.");
 
 static AUX_DELEGATE_STATE_NAME: &str = "auxState";
 
@@ -42,10 +39,39 @@ pub struct AppDelegateClass(pub *const Class);
 unsafe impl Send for AppDelegateClass {}
 unsafe impl Sync for AppDelegateClass {}
 
+pub unsafe fn app_delegate_class(
+  classname: &str,
+  open_resource_kind: OpenResourceKind,
+) -> AppDelegateClass {
+  let superclass = &*APP_DELEGATE_CLASS.0;
+  let mut decl = ClassDecl::new(classname, superclass).unwrap();
+
+  match open_resource_kind {
+    OpenResourceKind::Url => {
+      decl.add_method(
+        sel!(application:openURLs:),
+        application_open_urls as extern "C" fn(&Object, Sel, id, id),
+      );
+    }
+    OpenResourceKind::File => {
+      decl.add_method(
+        sel!(application:openFile:),
+        application_open_file as extern "C" fn(&Object, Sel, id, id) -> cocoa::base::BOOL,
+      );
+      decl.add_method(
+        sel!(application:openFiles:),
+        application_open_files as extern "C" fn(&Object, Sel, id, id),
+      );
+    }
+  }
+
+  AppDelegateClass(decl.register())
+}
+
 lazy_static! {
-  pub static ref APP_DELEGATE_CLASS: AppDelegateClass = unsafe {
+  static ref APP_DELEGATE_CLASS: AppDelegateClass = unsafe {
     let superclass = class!(NSResponder);
-    let mut decl = ClassDecl::new("TaoAppDelegate", superclass).unwrap();
+    let mut decl = ClassDecl::new("TaoAppDelegateParent", superclass).unwrap();
 
     decl.add_class_method(sel!(new), new as extern "C" fn(&Class, Sel) -> id);
     decl.add_method(sel!(dealloc), dealloc as extern "C" fn(&Object, Sel));
@@ -57,21 +83,6 @@ lazy_static! {
     decl.add_method(
       sel!(applicationWillTerminate:),
       application_will_terminate as extern "C" fn(&Object, Sel, id),
-    );
-    #[cfg(all(feature = "macos-open-urls", not(feature = "macos-open-files")))]
-    decl.add_method(
-      sel!(application:openURLs:),
-      application_open_urls as extern "C" fn(&Object, Sel, id, id),
-    );
-    #[cfg(all(feature = "macos-open-files", not(feature = "macos-open-urls")))]
-    decl.add_method(
-      sel!(application:openFile:),
-      application_open_file as extern "C" fn(&Object, Sel, id, id) -> cocoa::base::BOOL,
-    );
-    #[cfg(all(feature = "macos-open-files", not(feature = "macos-open-urls")))]
-    decl.add_method(
-      sel!(application:openFiles:),
-      application_open_files as extern "C" fn(&Object, Sel, id, id),
     );
     decl.add_ivar::<*mut c_void>(AUX_DELEGATE_STATE_NAME);
 
@@ -123,7 +134,6 @@ extern "C" fn application_will_terminate(_: &Object, _: Sel, _: id) {
   trace!("Completed `applicationWillTerminate`");
 }
 
-#[cfg(all(feature = "macos-open-urls", not(feature = "macos-open-files")))]
 extern "C" fn application_open_urls(_: &Object, _: Sel, _: id, urls: id) -> () {
   trace!("Trigger `application:openURLs:`");
 
@@ -142,8 +152,7 @@ extern "C" fn application_open_urls(_: &Object, _: Sel, _: id, urls: id) -> () {
   trace!("Completed `application:openURLs:`");
 }
 
-#[cfg(all(feature = "macos-open-files", not(feature = "macos-open-urls")))]
-extern "C" fn application_open_file(_: &Object, _: Sel, _: id, file: id) -> objc::runtime::BOOL {
+extern "C" fn application_open_file(_: &Object, _: Sel, _: id, file: id) -> BOOL {
   use std::{ffi::OsStr, os::unix::prelude::OsStrExt};
 
   trace!("Trigger `application:openFile:`");
@@ -154,10 +163,9 @@ extern "C" fn application_open_file(_: &Object, _: Sel, _: id, file: id) -> objc
   AppState::open_file(filename);
   trace!("Completed `application:openFile:`");
 
-  objc::runtime::YES
+  YES
 }
 
-#[cfg(all(feature = "macos-open-files", not(feature = "macos-open-urls")))]
 extern "C" fn application_open_files(_: &Object, _: Sel, _: id, files: id) -> () {
   use std::{ffi::OsStr, os::unix::prelude::OsStrExt};
 

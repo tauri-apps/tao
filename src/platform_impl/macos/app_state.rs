@@ -302,14 +302,12 @@ impl AppState {
     HANDLER.set_in_callback(false);
   }
 
-  #[cfg(all(feature = "macos-open-urls", not(feature = "macos-open-files")))]
   pub fn open_urls(urls: Vec<url::Url>) {
     HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened {
       event: crate::event::OpenEvent::Url(urls),
     }));
   }
 
-  #[cfg(all(feature = "macos-open-files", not(feature = "macos-open-urls")))]
   pub fn open_file(filename: std::path::PathBuf) {
     if let Some(ref mut callback) = *HANDLER.callback.lock().unwrap() {
       callback.handle_nonuser_event(
@@ -320,7 +318,6 @@ impl AppState {
       )
     }
   }
-  #[cfg(all(feature = "macos-open-files", not(feature = "macos-open-urls")))]
   pub fn open_files(files: Vec<std::path::PathBuf>) {
     HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened {
       event: crate::event::OpenEvent::File(files),
