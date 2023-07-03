@@ -1,5 +1,16 @@
 # Changelog
 
+## \[0.21.0]
+
+- [`81329013`](https://github.com/tauri-apps/tao/commit/813290130ea255b2cb45a66234a422519d13f667)([#743](https://github.com/tauri-apps/tao/pull/743)) On macOS, fix the unexpected shifting of the window when dragging after closing the share dialog.
+- [`5af3da4a`](https://github.com/tauri-apps/tao/commit/5af3da4a2cfa0e648dfa87c067deb6745b73bcc8)([#746](https://github.com/tauri-apps/tao/pull/746)) On macOS, force `NativeImage` height to be `18` to have consistent size for all icons and match custom icons.
+- [`e9875fe5`](https://github.com/tauri-apps/tao/commit/e9875fe54e1e8ae1db6e28eedeed2e3e51f8226b)([#755](https://github.com/tauri-apps/tao/pull/755)) On Windows, fix leak of `tao::system_tray::Icon` when calling `tao::system_tray::SystemTray::set_icon` and leak of `String` when calling `tao::system_tray::SystemTray::set_tooltip`.
+- [`50e69d71`](https://github.com/tauri-apps/tao/commit/50e69d718e9c71d044ebc3535ca58a992db18547)([#749](https://github.com/tauri-apps/tao/pull/749)) On Windows, fix disabling `resizable` also disabling maximize button and messing up `Window::set_maximized`.
+
+### feat
+
+- [`8f361f0c`](https://github.com/tauri-apps/tao/commit/8f361f0c19014e6ef647fe7fa8adc47718796984)([#752](https://github.com/tauri-apps/tao/pull/752)) Handle universal links on iOS and send `Event::Opened { event: OpenEvent::Url(url) }`.
+
 ## \[0.20.0]
 
 - [`c6082173`](https://github.com/tauri-apps/tao/commit/c6082173a943e23653783fd0872f64c66bf96de9)([#731](https://github.com/tauri-apps/tao/pull/731)) Fix build error on target i686-pc-windows-msvc
