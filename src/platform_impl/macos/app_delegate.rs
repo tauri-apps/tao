@@ -8,7 +8,7 @@ use cocoa::base::id;
 use cocoa::foundation::NSString;
 use objc::{
   declare::ClassDecl,
-  runtime::{Class, Object, Sel, BOOL, NO, YES},
+  runtime::{Class, Object, Sel},
 };
 use std::{
   cell::{RefCell, RefMut},
@@ -127,50 +127,46 @@ extern "C" fn application_will_terminate(_: &Object, _: Sel, _: id) {
 extern "C" fn application_open_urls(_: &Object, _: Sel, _: id, urls: id) -> () {
   trace!("Trigger `application:openURLs:`");
 
-  let url_strings = unsafe {
+  let urls = unsafe {
     (0..urls.count())
       .map(|i| {
-        CStr::from_ptr(urls.objectAtIndex(i).absoluteString().UTF8String())
-          .to_string_lossy()
-          .to_string()
+        url::Url::parse(
+          &CStr::from_ptr(urls.objectAtIndex(i).absoluteString().UTF8String()).to_string_lossy(),
+        )
       })
+      .flatten()
       .collect::<Vec<_>>()
   };
-  trace!("Get `application:openURLs:` URLs: {:?}", url_strings);
-  AppState::open_urls(url_strings);
+  trace!("Get `application:openURLs:` URLs: {:?}", urls);
+  AppState::open_urls(urls);
   trace!("Completed `application:openURLs:`");
 }
 
 #[cfg(all(feature = "macos-open-files", not(feature = "macos-open-urls")))]
-extern "C" fn application_open_file(_: &Object, _: Sel, _: id, file: id) -> BOOL {
+extern "C" fn application_open_file(_: &Object, _: Sel, _: id, file: id) -> objc::runtime::BOOL {
+  use std::{ffi::OsStr, os::unix::prelude::OsStrExt};
+
   trace!("Trigger `application:openFile:`");
 
-  let filename = unsafe { CStr::from_ptr(file.UTF8String()) }
-    .to_string_lossy()
-    .to_string();
-  let mut success = true;
+  let filename = OsStr::from_bytes(unsafe { CStr::from_ptr(file.UTF8String()) }.to_bytes()).into();
 
   trace!("Get `application:openFile:` URLs: {:?}", filename);
-  AppState::open_file(filename, &mut success);
+  AppState::open_file(filename);
   trace!("Completed `application:openFile:`");
 
-  if success {
-    YES
-  } else {
-    NO
-  }
+  objc::runtime::YES
 }
 
 #[cfg(all(feature = "macos-open-files", not(feature = "macos-open-urls")))]
 extern "C" fn application_open_files(_: &Object, _: Sel, _: id, files: id) -> () {
+  use std::{ffi::OsStr, os::unix::prelude::OsStrExt};
+
   trace!("Trigger `application:openFiles:`");
 
   let filenames = unsafe {
     (0..files.count())
       .map(|i| {
-        CStr::from_ptr(files.objectAtIndex(i).UTF8String())
-          .to_string_lossy()
-          .to_string()
+        OsStr::from_bytes(CStr::from_ptr(files.objectAtIndex(i).UTF8String()).to_bytes()).into()
       })
       .collect::<Vec<_>>()
   };

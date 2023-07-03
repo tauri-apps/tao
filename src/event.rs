@@ -102,46 +102,6 @@ pub enum Event<'a, T: 'static> {
     position: PhysicalPosition<f64>,
   },
 
-  /// Emitted when the app is requested to open a URL.
-  ///
-  /// ## Platform-specific
-  ///
-  /// This event is only relevant on macOS.
-  ///
-  /// ## Note
-  ///
-  /// Needs `macos-open-urls` feature flag.
-  OpenURLs(Vec<String>),
-
-  /// Emitted when the app is requested to open a file.
-  ///
-  /// After this event is processed, the app will respond to the OS
-  /// using the value pointed at by `success`.
-  ///
-  /// ## Platform-specific
-  ///
-  /// This event is only relevant on macOS.
-  ///
-  /// ## Note
-  ///
-  /// Needs `macos-open-files` feature flag.
-  OpenFile {
-    filename: String,
-    /// An indicator to the OS of the success or faile of opening the file.
-    success: &'a mut bool,
-  },
-
-  /// Emitted when the app is requested to open files.
-  ///
-  /// ## Platform-specific
-  ///
-  /// This event is only relevant on macOS.
-  ///
-  /// ## Note
-  ///
-  /// Needs `macos-open-files` feature flag.
-  OpenFiles(Vec<String>),
-
   /// Emitted when a global shortcut is triggered.
   ///
   /// ## Platform-specific
@@ -212,8 +172,9 @@ pub enum Event<'a, T: 'static> {
 /// What the app is opening.
 #[derive(Debug, PartialEq, Clone)]
 pub enum OpenEvent {
-  /// App is opening an URL.
-  Url(url::Url),
+  /// App is opening the given list of URLs.
+  Url(Vec<url::Url>),
+  File(Vec<PathBuf>),
 }
 
 impl<T: Clone> Clone for Event<'static, T> {
@@ -260,9 +221,6 @@ impl<T: Clone> Clone for Event<'static, T> {
       Opened { event } => Opened {
         event: event.clone(),
       },
-      OpenURLs(urls) => OpenURLs(urls.clone()),
-      OpenFile { .. } => unreachable!("Static event can't be about open file"),
-      OpenFiles(filenames) => OpenFiles(filenames.clone()),
     }
   }
 }
@@ -303,9 +261,6 @@ impl<'a, T> Event<'a, T> {
       }),
       GlobalShortcutEvent(accelerator_id) => Ok(GlobalShortcutEvent(accelerator_id)),
       Opened { event } => Ok(Opened { event }),
-      OpenURLs(urls) => Ok(OpenURLs(urls)),
-      OpenFile { filename, success } => Ok(OpenFile { filename, success }),
-      OpenFiles(filenames) => Ok(OpenFiles(filenames)),
     }
   }
 
@@ -348,9 +303,6 @@ impl<'a, T> Event<'a, T> {
       }),
       GlobalShortcutEvent(accelerator_id) => Some(GlobalShortcutEvent(accelerator_id)),
       Opened { event } => Some(Opened { event }),
-      OpenURLs(urls) => Some(OpenURLs(urls)),
-      OpenFile { .. } => None,
-      OpenFiles(filenames) => Some(OpenFiles(filenames)),
     }
   }
 }

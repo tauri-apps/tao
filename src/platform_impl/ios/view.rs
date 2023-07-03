@@ -581,7 +581,7 @@ pub fn create_delegate_class() {
       let url = url::Url::parse(std::str::from_utf8(bytes).unwrap()).unwrap();
 
       app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened {
-        event: OpenEvent::Url(url),
+        event: OpenEvent::Url(vec![url]),
       }));
 
       YES
