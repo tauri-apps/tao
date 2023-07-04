@@ -1773,29 +1773,43 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let mmi = lparam.0 as *mut MINMAXINFO;
 
       let window_state = subclass_input.window_state.lock();
+      let is_decorated = window_state
+        .window_flags()
+        .contains(WindowFlags::MARKER_DECORATIONS);
 
-      if window_state.min_size.is_some() || window_state.max_size.is_some() {
-        let is_decorated = window_state
-          .window_flags()
-          .contains(WindowFlags::MARKER_DECORATIONS);
-        if let Some(min_size) = window_state.min_size {
-          let min_size = min_size.to_physical(window_state.scale_factor);
-          let (width, height): (u32, u32) =
-            util::adjust_size(window, min_size, is_decorated).into();
-          (*mmi).ptMinTrackSize = POINT {
-            x: width as i32,
-            y: height as i32,
-          };
-        }
-        if let Some(max_size) = window_state.max_size {
-          let max_size = max_size.to_physical(window_state.scale_factor);
-          let (width, height): (u32, u32) =
-            util::adjust_size(window, max_size, is_decorated).into();
-          (*mmi).ptMaxTrackSize = POINT {
-            x: width as i32,
-            y: height as i32,
-          };
-        }
+      if window_state.min_width.is_some() || window_state.min_height.is_some() {
+        let min_size = PhysicalSize::new(
+          window_state
+            .min_width
+            .map(|w| w.to_physical(window_state.scale_factor).0)
+            .unwrap_or_default(),
+          window_state
+            .min_height
+            .map(|w| w.to_physical(window_state.scale_factor).0)
+            .unwrap_or_default(),
+        );
+        let (width, height): (u32, u32) = util::adjust_size(window, min_size, is_decorated).into();
+        (*mmi).ptMinTrackSize = POINT {
+          x: width as i32,
+          y: height as i32,
+        };
+      }
+      if window_state.max_width.is_some() || window_state.max_height.is_some() {
+        let max_size = PhysicalSize::new(
+          window_state
+            .max_width
+            .map(|w| w.to_physical(window_state.scale_factor).0)
+            .unwrap_or_default(),
+          window_state
+            .max_height
+            .map(|w| w.to_physical(window_state.scale_factor).0)
+            .unwrap_or_default(),
+        );
+        let (width, height): (u32, u32) = util::adjust_size(window, max_size, is_decorated).into();
+        (*mmi).ptMaxTrackSize = POINT {
+          x: width as i32,
+          y: height as i32,
+        };
       }
 
       result = ProcResult::Value(LRESULT(0));

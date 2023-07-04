@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-  dpi::{PhysicalPosition, Size},
+  dpi::{PhysicalPosition, Unit},
   icon::Icon,
   keyboard::ModifiersState,
   platform_impl::platform::{event_loop, minimal_ime::MinimalIme, util},
@@ -22,8 +22,10 @@ pub struct WindowState {
   pub mouse: MouseProperties,
 
   /// Used by `WM_GETMINMAXINFO`.
-  pub min_size: Option<Size>,
-  pub max_size: Option<Size>,
+  pub min_width: Option<Unit>,
+  pub min_height: Option<Unit>,
+  pub max_width: Option<Unit>,
+  pub max_height: Option<Unit>,
 
   pub window_icon: Option<Icon>,
   pub taskbar_icon: Option<Icon>,
@@ -128,8 +130,10 @@ impl WindowState {
         last_position: None,
       },
 
-      min_size: attributes.min_inner_size,
-      max_size: attributes.max_inner_size,
+      min_width: attributes.min_inner_width,
+      min_height: attributes.min_inner_height,
+      max_width: attributes.max_inner_width,
+      max_height: attributes.max_inner_height,
 
       window_icon: attributes.window_icon.clone(),
       taskbar_icon,
