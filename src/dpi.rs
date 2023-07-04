@@ -283,6 +283,49 @@ impl<P: Pixel, X: Pixel> Into<[X; 2]> for PhysicalPosition<P> {
   }
 }
 
+/// A position that's either physical or logical.
+#[non_exhaustive]
+#[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum Position {
+  Physical(PhysicalPosition<i32>),
+  Logical(LogicalPosition<f64>),
+}
+
+impl Position {
+  pub fn new<S: Into<Position>>(position: S) -> Position {
+    position.into()
+  }
+
+  pub fn to_logical<P: Pixel>(&self, scale_factor: f64) -> LogicalPosition<P> {
+    match *self {
+      Position::Physical(position) => position.to_logical(scale_factor),
+      Position::Logical(position) => position.cast(),
+    }
+  }
+
+  pub fn to_physical<P: Pixel>(&self, scale_factor: f64) -> PhysicalPosition<P> {
+    match *self {
+      Position::Physical(position) => position.cast(),
+      Position::Logical(position) => position.to_physical(scale_factor),
+    }
+  }
+}
+
+impl<P: Pixel> From<PhysicalPosition<P>> for Position {
+  #[inline]
+  fn from(position: PhysicalPosition<P>) -> Position {
+    Position::Physical(position.cast())
+  }
+}
+
+impl<P: Pixel> From<LogicalPosition<P>> for Position {
+  #[inline]
+  fn from(position: LogicalPosition<P>) -> Position {
+    Position::Logical(position.cast())
+  }
+}
+
 /// A size represented in logical pixels.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -435,6 +478,20 @@ impl Size {
     }
   }
 
+  pub fn width(&self) -> Unit {
+    match *self {
+      Size::Physical(size) => Unit::Physical(size.width.into()),
+      Size::Logical(size) => Unit::Logical(size.width.into()),
+    }
+  }
+
+  pub fn height(&self) -> Unit {
+    match *self {
+      Size::Physical(size) => Unit::Physical(size.height.into()),
+      Size::Logical(size) => Unit::Logical(size.height.into()),
+    }
+  }
+
   pub fn clamp<S: Into<Size>>(input: S, min: S, max: S, scale_factor: f64) -> Size {
     let (input, min, max) = (
       input.into().to_physical::<f64>(scale_factor),
@@ -473,45 +530,117 @@ impl<P: Pixel> From<LogicalSize<P>> for Size {
   }
 }
 
-/// A position that's either physical or logical.
-#[non_exhaustive]
-#[derive(Debug, Copy, Clone, PartialEq)]
+/// A unit represented in logical pixels.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum Position {
-  Physical(PhysicalPosition<i32>),
-  Logical(LogicalPosition<f64>),
+pub struct LogicalUnit<P>(pub P);
+
+impl<P> LogicalUnit<P> {
+  #[inline]
+  pub const fn new(u: P) -> Self {
+    Self(u)
+  }
 }
 
-impl Position {
-  pub fn new<S: Into<Position>>(position: S) -> Position {
-    position.into()
+impl<P: Pixel> LogicalUnit<P> {
+  #[inline]
+  pub fn from_physical<T: Into<PhysicalUnit<X>>, X: Pixel>(physical: T, scale_factor: f64) -> Self {
+    physical.into().to_logical(scale_factor)
   }
 
-  pub fn to_logical<P: Pixel>(&self, scale_factor: f64) -> LogicalPosition<P> {
+  #[inline]
+  pub fn to_physical<X: Pixel>(&self, scale_factor: f64) -> PhysicalUnit<X> {
+    assert!(validate_scale_factor(scale_factor));
+    let u = self.0.into() * scale_factor;
+    PhysicalUnit::new(u).cast()
+  }
+
+  #[inline]
+  pub fn cast<X: Pixel>(&self) -> LogicalUnit<X> {
+    LogicalUnit(self.0.cast())
+  }
+}
+
+impl<P: Pixel> From<P> for LogicalUnit<P> {
+  fn from(p: P) -> LogicalUnit<P> {
+    LogicalUnit::new(p.cast())
+  }
+}
+
+/// A unit represented in physical pixels.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct PhysicalUnit<P>(pub P);
+
+impl<P> PhysicalUnit<P> {
+  #[inline]
+  pub const fn new(u: P) -> Self {
+    Self(u)
+  }
+}
+
+impl<P: Pixel> PhysicalUnit<P> {
+  #[inline]
+  pub fn from_logical<T: Into<LogicalUnit<X>>, X: Pixel>(logical: T, scale_factor: f64) -> Self {
+    logical.into().to_physical(scale_factor)
+  }
+
+  #[inline]
+  pub fn to_logical<X: Pixel>(&self, scale_factor: f64) -> LogicalUnit<X> {
+    assert!(validate_scale_factor(scale_factor));
+    let u = self.0.into() / scale_factor;
+    LogicalUnit::new(u).cast()
+  }
+
+  #[inline]
+  pub fn cast<X: Pixel>(&self) -> PhysicalUnit<X> {
+    PhysicalUnit(self.0.cast())
+  }
+}
+
+impl<P: Pixel> From<P> for PhysicalUnit<P> {
+  fn from(p: P) -> PhysicalUnit<P> {
+    PhysicalUnit::new(p.cast())
+  }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum Unit {
+  Physical(PhysicalUnit<u32>),
+  Logical(LogicalUnit<f64>),
+}
+
+impl Unit {
+  pub fn new<S: Into<Unit>>(val: S) -> Unit {
+    val.into()
+  }
+
+  pub fn to_logical<P: Pixel>(&self, scale_factor: f64) -> LogicalUnit<P> {
     match *self {
-      Position::Physical(position) => position.to_logical(scale_factor),
-      Position::Logical(position) => position.cast(),
+      Unit::Physical(val) => val.to_logical(scale_factor),
+      Unit::Logical(val) => val.cast(),
     }
   }
 
-  pub fn to_physical<P: Pixel>(&self, scale_factor: f64) -> PhysicalPosition<P> {
+  pub fn to_physical<P: Pixel>(&self, scale_factor: f64) -> PhysicalUnit<P> {
     match *self {
-      Position::Physical(position) => position.cast(),
-      Position::Logical(position) => position.to_physical(scale_factor),
+      Unit::Physical(val) => val.cast(),
+      Unit::Logical(val) => val.to_physical(scale_factor),
     }
   }
 }
 
-impl<P: Pixel> From<PhysicalPosition<P>> for Position {
+impl<P: Pixel> From<PhysicalUnit<P>> for Unit {
   #[inline]
-  fn from(position: PhysicalPosition<P>) -> Position {
-    Position::Physical(position.cast())
+  fn from(val: PhysicalUnit<P>) -> Unit {
+    Unit::Physical(val.cast())
   }
 }
 
-impl<P: Pixel> From<LogicalPosition<P>> for Position {
+impl<P: Pixel> From<LogicalUnit<P>> for Unit {
   #[inline]
-  fn from(position: LogicalPosition<P>) -> Position {
-    Position::Logical(position.cast())
+  fn from(val: LogicalUnit<P>) -> Unit {
+    Unit::Logical(val.cast())
   }
 }

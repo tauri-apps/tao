@@ -5,7 +5,7 @@
 #![cfg(target_os = "android")]
 use crate::{
   accelerator::Accelerator,
-  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+  dpi::{PhysicalPosition, PhysicalSize, Position, Size, Unit},
   error, event,
   event_loop::{self, ControlFlow},
   icon::Icon,
@@ -601,8 +601,12 @@ impl Window {
     MonitorHandle.size()
   }
 
+  pub fn set_min_inner_width(&self, _: Option<Unit>) {}
+  pub fn set_min_inner_height(&self, _: Option<Unit>) {}
   pub fn set_min_inner_size(&self, _: Option<Size>) {}
 
+  pub fn set_max_inner_width(&self, _: Option<Unit>) {}
+  pub fn set_max_inner_height(&self, _: Option<Unit>) {}
   pub fn set_max_inner_size(&self, _: Option<Size>) {}
 
   pub fn set_title(&self, _title: &str) {}

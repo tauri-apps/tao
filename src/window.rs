@@ -8,7 +8,7 @@ use std::fmt;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 
 use crate::{
-  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+  dpi::{PhysicalPosition, PhysicalSize, Position, Size, Unit},
   error::{ExternalError, NotSupportedError, OsError},
   event_loop::EventLoopWindowTarget,
   menu::MenuBar,
@@ -115,15 +115,25 @@ pub struct WindowAttributes {
   /// The default is `None`.
   pub inner_size: Option<Size>,
 
-  /// The minimum dimensions a window can be, If this is `None`, the window will have no minimum dimensions (aside from reserved).
+  /// The minimum width a window can be, If this is `None`, the window will have no minimum width (aside from reserved).
   ///
   /// The default is `None`.
-  pub min_inner_size: Option<Size>,
+  pub min_inner_width: Option<Unit>,
 
-  /// The maximum dimensions a window can be, If this is `None`, the maximum will have no maximum or will be set to the primary monitor's dimensions by the platform.
+  /// The minimum height a window can be, If this is `None`, the window will have no minimum height (aside from reserved).
   ///
   /// The default is `None`.
-  pub max_inner_size: Option<Size>,
+  pub min_inner_height: Option<Unit>,
+
+  /// The maximum width a window can be, If this is `None`, the maximum will have no maximum or will be set to the primary monitor's width by the platform.
+  ///
+  /// The default is `None`.
+  pub max_inner_width: Option<Unit>,
+
+  /// The maximum height a window can be, If this is `None`, the maximum will have no maximum or will be set to the primary monitor's height by the platform.
+  ///
+  /// The default is `None`.
+  pub max_inner_height: Option<Unit>,
 
   /// The desired position of the window. If this is `None`, some platform-specific position
   /// will be chosen.
@@ -257,8 +267,10 @@ impl Default for WindowAttributes {
   fn default() -> WindowAttributes {
     WindowAttributes {
       inner_size: None,
-      min_inner_size: None,
-      max_inner_size: None,
+      min_inner_width: None,
+      min_inner_height: None,
+      max_inner_width: None,
+      max_inner_height: None,
       position: None,
       resizable: true,
       minimizable: true,
@@ -300,6 +312,28 @@ impl WindowBuilder {
     self
   }
 
+  /// Sets a minimum width for the window.
+  ///
+  /// See [`Window::set_min_inner_width`] for details.
+  ///
+  /// [`Window::set_min_inner_width`]: crate::window::Window::set_min_inner_width
+  #[inline]
+  pub fn with_min_inner_width<U: Into<Unit>>(mut self, width: U) -> Self {
+    self.window.min_inner_width = Some(width.into());
+    self
+  }
+
+  /// Sets a minimum height for the window.
+  ///
+  /// See [`Window::set_min_inner_height`] for details.
+  ///
+  /// [`Window::set_min_inner_height`]: crate::window::Window::set_min_inner_height
+  #[inline]
+  pub fn with_min_inner_height<U: Into<Unit>>(mut self, height: U) -> Self {
+    self.window.min_inner_height = Some(height.into());
+    self
+  }
+
   /// Sets a minimum dimension size for the window.
   ///
   /// See [`Window::set_min_inner_size`] for details.
@@ -307,7 +341,31 @@ impl WindowBuilder {
   /// [`Window::set_min_inner_size`]: crate::window::Window::set_min_inner_size
   #[inline]
   pub fn with_min_inner_size<S: Into<Size>>(mut self, min_size: S) -> Self {
-    self.window.min_inner_size = Some(min_size.into());
+    let size = min_size.into();
+    self.window.min_inner_width = Some(size.width());
+    self.window.min_inner_height = Some(size.height());
+    self
+  }
+
+  /// Sets a maximum width for the window.
+  ///
+  /// See [`Window::set_max_inner_width`] for details.
+  ///
+  /// [`Window::set_max_inner_width`]: crate::window::Window::set_max_inner_width
+  #[inline]
+  pub fn with_max_inner_width<U: Into<Unit>>(mut self, width: U) -> Self {
+    self.window.max_inner_width = Some(width.into());
+    self
+  }
+
+  /// Sets a maximum height for the window.
+  ///
+  /// See [`Window::set_max_inner_height`] for details.
+  ///
+  /// [`Window::set_max_inner_height`]: crate::window::Window::set_max_inner_height
+  #[inline]
+  pub fn with_max_inner_height<U: Into<Unit>>(mut self, height: U) -> Self {
+    self.window.max_inner_height = Some(height.into());
     self
   }
 
@@ -318,7 +376,9 @@ impl WindowBuilder {
   /// [`Window::set_max_inner_size`]: crate::window::Window::set_max_inner_size
   #[inline]
   pub fn with_max_inner_size<S: Into<Size>>(mut self, max_size: S) -> Self {
-    self.window.max_inner_size = Some(max_size.into());
+    let size = max_size.into();
+    self.window.max_inner_width = Some(size.width());
+    self.window.max_inner_height = Some(size.height());
     self
   }
 
@@ -702,6 +762,26 @@ impl Window {
     self.window.outer_size()
   }
 
+  /// Sets a minimum width for the window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_min_inner_width<U: Into<Unit>>(&self, width: Option<U>) {
+    self.window.set_min_inner_width(width.map(|s| s.into()))
+  }
+
+  /// Sets a minimum height for the window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_min_inner_height<U: Into<Unit>>(&self, height: Option<U>) {
+    self.window.set_min_inner_height(height.map(|s| s.into()))
+  }
+
   /// Sets a minimum dimension size for the window.
   ///
   /// ## Platform-specific
@@ -710,6 +790,26 @@ impl Window {
   #[inline]
   pub fn set_min_inner_size<S: Into<Size>>(&self, min_size: Option<S>) {
     self.window.set_min_inner_size(min_size.map(|s| s.into()))
+  }
+
+  /// Sets a maximum width for the window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_max_inner_width<U: Into<Unit>>(&self, width: Option<U>) {
+    self.window.set_max_inner_width(width.map(|s| s.into()))
+  }
+
+  /// Sets a maximum height for the window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_max_inner_height<U: Into<Unit>>(&self, height: Option<U>) {
+    self.window.set_max_inner_height(height.map(|s| s.into()))
   }
 
   /// Sets a maximum dimension size for the window.

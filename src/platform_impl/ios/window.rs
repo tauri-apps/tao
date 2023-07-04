@@ -169,11 +169,23 @@ impl Inner {
     warn!("not clear what `Window::set_inner_size` means on iOS");
   }
 
-  pub fn set_min_inner_size(&self, _dimensions: Option<Size>) {
+  pub fn set_min_inner_width(&self, _: Option<Unit>) {
+    warn!("`Window::set_min_inner_width` is ignored on iOS")
+  }
+  pub fn set_min_inner_height(&self, _: Option<Unit>) {
+    warn!("`Window::set_min_inner_height` is ignored on iOS")
+  }
+  pub fn set_min_inner_size(&self, _: Option<Size>) {
     warn!("`Window::set_min_inner_size` is ignored on iOS")
   }
 
-  pub fn set_max_inner_size(&self, _dimensions: Option<Size>) {
+  pub fn set_max_inner_width(&self, _: Option<Unit>) {
+    warn!("`Window::set_max_inner_width` is ignored on iOS")
+  }
+  pub fn set_max_inner_height(&self, _: Option<Unit>) {
+    warn!("`Window::set_max_inner_height` is ignored on iOS")
+  }
+  pub fn set_max_inner_size(&self, _: Option<Size>) {
     warn!("`Window::set_max_inner_size` is ignored on iOS")
   }
 
