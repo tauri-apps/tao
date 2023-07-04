@@ -21,7 +21,9 @@ use raw_window_handle::{
 };
 
 use crate::{
-  dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
+  dpi::{
+    LogicalPosition, LogicalSize, LogicalUnit, PhysicalPosition, PhysicalSize, Position, Size, Unit,
+  },
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
   menu::{MenuId, MenuItem},
@@ -68,8 +70,10 @@ pub struct Window {
   maximized: Rc<AtomicBool>,
   minimized: Rc<AtomicBool>,
   fullscreen: RefCell<Option<Fullscreen>>,
-  min_inner_size: RefCell<Option<Size>>,
-  max_inner_size: RefCell<Option<Size>>,
+  min_inner_width: RefCell<Option<Unit>>,
+  max_inner_width: RefCell<Option<Unit>>,
+  min_inner_height: RefCell<Option<Unit>>,
+  max_inner_height: RefCell<Option<Unit>>,
   /// Draw event Sender
   draw_tx: crossbeam_channel::Sender<WindowId>,
 }
@@ -114,20 +118,37 @@ impl Window {
 
     // Set Min/Max Size
     let geom_mask = attributes
-      .min_inner_size
+      .min_inner_width
       .map(|_| gdk::WindowHints::MIN_SIZE)
       .unwrap_or(gdk::WindowHints::empty())
       | attributes
-        .max_inner_size
+        .min_inner_height
+        .map(|_| gdk::WindowHints::MIN_SIZE)
+        .unwrap_or(gdk::WindowHints::empty())
+      | attributes
+        .max_inner_width
+        .map(|_| gdk::WindowHints::MAX_SIZE)
+        .unwrap_or(gdk::WindowHints::empty())
+      | attributes
+        .max_inner_height
         .map(|_| gdk::WindowHints::MAX_SIZE)
         .unwrap_or(gdk::WindowHints::empty());
-    let (min_width, min_height) = attributes
-      .min_inner_size
-      .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
+
+    let min_width = attributes
+      .min_inner_width
+      .map(|u| u.to_logical::<f64>(win_scale_factor as f64).0 as i32)
       .unwrap_or_default();
-    let (max_width, max_height) = attributes
-      .max_inner_size
-      .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
+    let min_height = attributes
+      .min_inner_height
+      .map(|u| u.to_logical::<f64>(win_scale_factor as f64).0 as i32)
+      .unwrap_or_default();
+    let max_width = attributes
+      .max_inner_width
+      .map(|u| u.to_logical::<f64>(win_scale_factor as f64).0 as i32)
+      .unwrap_or_default();
+    let max_height = attributes
+      .max_inner_height
+      .map(|u| u.to_logical::<f64>(win_scale_factor as f64).0 as i32)
       .unwrap_or_default();
     let picky_none: Option<&gtk::Window> = None;
     window.set_geometry_hints(
@@ -360,8 +381,10 @@ impl Window {
       maximized,
       minimized,
       fullscreen: RefCell::new(attributes.fullscreen),
-      min_inner_size: RefCell::new(attributes.min_inner_size),
-      max_inner_size: RefCell::new(attributes.max_inner_size),
+      min_inner_width: RefCell::new(attributes.min_inner_width),
+      min_inner_height: RefCell::new(attributes.min_inner_height),
+      max_inner_width: RefCell::new(attributes.max_inner_width),
+      max_inner_height: RefCell::new(attributes.max_inner_height),
     };
 
     win.set_skip_taskbar(pl_attribs.skip_taskbar);
@@ -444,47 +467,69 @@ impl Window {
     .to_physical(self.scale_factor.load(Ordering::Acquire) as f64)
   }
 
-  pub fn set_min_inner_size<S: Into<Size>>(&self, min_size: Option<S>) {
-    *self.min_inner_size.borrow_mut() = min_size.map(Into::into);
-
+  fn set_size_constraints(&self) {
     let scale_factor = self.scale_factor();
 
-    let min = self
-      .min_inner_size
+    let min_width = self
+      .min_inner_width
       .borrow()
       .map(|s| s.to_logical::<i32>(scale_factor));
-    let max = self
-      .max_inner_size
+    let min_height = self
+      .min_inner_height
+      .borrow()
+      .map(|s| s.to_logical::<i32>(scale_factor));
+    let max_width = self
+      .max_inner_width
+      .borrow()
+      .map(|s| s.to_logical::<i32>(scale_factor));
+    let max_height = self
+      .max_inner_height
       .borrow()
       .map(|s| s.to_logical::<i32>(scale_factor));
 
-    if let Err(e) = self
-      .window_requests_tx
-      .send((self.window_id, WindowRequest::SizeConstraint { min, max }))
-    {
-      log::warn!("Fail to send min size request: {}", e);
+    if let Err(e) = self.window_requests_tx.send((
+      self.window_id,
+      WindowRequest::SizeConstraint {
+        min_width,
+        min_height,
+        max_width,
+        max_height,
+      },
+    )) {
+      log::warn!("Fail to send size constraint request: {}", e);
     }
   }
-  pub fn set_max_inner_size<S: Into<Size>>(&self, max_size: Option<S>) {
-    *self.max_inner_size.borrow_mut() = max_size.map(Into::into);
 
-    let scale_factor = self.scale_factor();
+  pub fn set_min_inner_width(&self, width: Option<Unit>) {
+    *self.min_inner_width.borrow_mut() = width;
+    self.set_size_constraints()
+  }
 
-    let min = self
-      .min_inner_size
-      .borrow()
-      .map(|s| s.to_logical::<i32>(scale_factor));
-    let max = self
-      .max_inner_size
-      .borrow()
-      .map(|s| s.to_logical::<i32>(scale_factor));
+  pub fn set_min_inner_height(&self, height: Option<Unit>) {
+    *self.min_inner_height.borrow_mut() = height;
+    self.set_size_constraints()
+  }
 
-    if let Err(e) = self
-      .window_requests_tx
-      .send((self.window_id, WindowRequest::SizeConstraint { min, max }))
-    {
-      log::warn!("Fail to send max size request: {}", e);
-    }
+  pub fn set_min_inner_size(&self, size: Option<Size>) {
+    *self.min_inner_width.borrow_mut() = size.map(|s| s.width());
+    *self.min_inner_height.borrow_mut() = size.map(|s| s.height());
+    self.set_size_constraints()
+  }
+
+  pub fn set_max_inner_width(&self, width: Option<Unit>) {
+    *self.max_inner_width.borrow_mut() = width;
+    self.set_size_constraints()
+  }
+
+  pub fn set_max_inner_height(&self, height: Option<Unit>) {
+    *self.max_inner_height.borrow_mut() = height;
+    self.set_size_constraints()
+  }
+
+  pub fn set_max_inner_size(&self, size: Option<Size>) {
+    *self.max_inner_width.borrow_mut() = size.map(|s| s.width());
+    *self.max_inner_height.borrow_mut() = size.map(|s| s.height());
+    self.set_size_constraints()
   }
 
   pub fn set_title(&self, title: &str) {
@@ -883,8 +928,10 @@ pub enum WindowRequest {
   Position((i32, i32)),
   Size((i32, i32)),
   SizeConstraint {
-    min: Option<LogicalSize<i32>>,
-    max: Option<LogicalSize<i32>>,
+    min_width: Option<LogicalUnit<i32>>,
+    min_height: Option<LogicalUnit<i32>>,
+    max_width: Option<LogicalUnit<i32>>,
+    max_height: Option<LogicalUnit<i32>>,
   },
   Visible(bool),
   Focus,

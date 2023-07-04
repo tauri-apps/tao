@@ -208,16 +208,31 @@ impl<T: 'static> EventLoop<T> {
           WindowRequest::Title(title) => window.set_title(&title),
           WindowRequest::Position((x, y)) => window.move_(x, y),
           WindowRequest::Size((w, h)) => window.resize(w, h),
-          WindowRequest::SizeConstraint { min, max } => {
-            let geom_mask = min
+          WindowRequest::SizeConstraint {
+            min_width,
+            min_height,
+            max_width,
+            max_height,
+          } => {
+            let geom_mask = min_width
               .map(|_| gdk::WindowHints::MIN_SIZE)
               .unwrap_or(gdk::WindowHints::empty())
-              | max
+              | min_height
+                .map(|_| gdk::WindowHints::MIN_SIZE)
+                .unwrap_or(gdk::WindowHints::empty())
+              | max_width
+                .map(|_| gdk::WindowHints::MAX_SIZE)
+                .unwrap_or(gdk::WindowHints::empty())
+              | max_height
                 .map(|_| gdk::WindowHints::MAX_SIZE)
                 .unwrap_or(gdk::WindowHints::empty());
 
-            let (min_width, min_height) = min.map(Into::into).unwrap_or_default();
-            let (max_width, max_height) = max.map(Into::into).unwrap_or_default();
+            let min_width = min_width.map(|u| u.0 as i32).unwrap_or_default();
+            let min_height = min_height.map(|u| u.0 as i32).unwrap_or_default();
+            let max_width = max_width.map(|u| u.0 as i32).unwrap_or_default();
+            let max_height = max_height.map(|u| u.0 as i32).unwrap_or_default();
+
+            dbg!(min_width, min_height, max_width, max_height);
 
             let picky_none: Option<&gtk::Window> = None;
             window.set_geometry_hints(
