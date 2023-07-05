@@ -229,10 +229,8 @@ impl<T: 'static> EventLoop<T> {
 
             let min_width = min_width.map(|u| u.0 as i32).unwrap_or_default();
             let min_height = min_height.map(|u| u.0 as i32).unwrap_or_default();
-            let max_width = max_width.map(|u| u.0 as i32).unwrap_or_default();
-            let max_height = max_height.map(|u| u.0 as i32).unwrap_or_default();
-
-            dbg!(min_width, min_height, max_width, max_height);
+            let max_width = max_width.map(|u| u.0 as i32).unwrap_or(i32::MAX);
+            let max_height = max_height.map(|u| u.0 as i32).unwrap_or(i32::MAX);
 
             let picky_none: Option<&gtk::Window> = None;
             window.set_geometry_hints(

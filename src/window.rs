@@ -766,7 +766,6 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// **Linux**: Setting a minimum width without a minimum height can cause unwanted behaviors, instead, use [`WindowBuilder::set_min_inner_size`].
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_min_inner_width<U: Into<Unit>>(&self, width: Option<U>) {
@@ -777,7 +776,6 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// **Linux**: Setting a minimum height without a minimum width can cause unwanted behaviors, instead, use [`WindowBuilder::set_min_inner_size`].
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_min_inner_height<U: Into<Unit>>(&self, height: Option<U>) {
@@ -788,7 +786,6 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// **Linux**: Setting a minimum width without a minimum height can cause unwanted behaviors, instead, use [`WindowBuilder::set_max_inner_size`].
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_min_inner_size<S: Into<Size>>(&self, min_size: Option<S>) {
@@ -799,7 +796,6 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// **Linux**: Setting a maximum height without a maximum width can cause unwanted behaviors, instead, use [`WindowBuilder::set_max_inner_size`].
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_max_inner_width<U: Into<Unit>>(&self, width: Option<U>) {
