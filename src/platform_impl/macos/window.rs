@@ -720,7 +720,7 @@ impl UnownedWindow {
     let dimensions = width
       .map(|w| {
         Logical(LogicalSize {
-          width: w.to_logical(scale_factor),
+          width: w.to_logical(scale_factor).0,
           height: 0.0,
         })
       })
@@ -737,7 +737,7 @@ impl UnownedWindow {
       .map(|h| {
         Logical(LogicalSize {
           width: 0.0,
-          height: h.to_logical(scale_factor),
+          height: h.to_logical(scale_factor).0,
         })
       })
       .unwrap_or(Logical(LogicalSize {
@@ -763,7 +763,7 @@ impl UnownedWindow {
     let dimensions = width
       .map(|w| {
         Logical(LogicalSize {
-          width: w.to_logical(scale_factor),
+          width: w.to_logical(scale_factor).0,
           height: std::f32::MAX as f64,
         })
       })
@@ -780,7 +780,7 @@ impl UnownedWindow {
       .map(|h| {
         Logical(LogicalSize {
           width: std::f32::MAX as f64,
-          height: h.to_logical(scale_factor),
+          height: h.to_logical(scale_factor).0,
         })
       })
       .unwrap_or(Logical(LogicalSize {
