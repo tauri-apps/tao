@@ -473,11 +473,17 @@ impl Window {
     window_attributes: WindowAttributes,
     platform_attributes: PlatformSpecificWindowBuilderAttributes,
   ) -> Result<Window, RootOsError> {
-    if let Some(_) = window_attributes.min_inner_size {
-      warn!("`WindowAttributes::min_inner_size` is ignored on iOS");
+    if let Some(_) = window_attributes.min_inner_width {
+      warn!("`WindowAttributes::min_inner_width` is ignored on iOS");
     }
-    if let Some(_) = window_attributes.max_inner_size {
-      warn!("`WindowAttributes::max_inner_size` is ignored on iOS");
+    if let Some(_) = window_attributes.min_inner_height {
+      warn!("`WindowAttributes::min_inner_height` is ignored on iOS");
+    }
+    if let Some(_) = window_attributes.max_inner_width {
+      warn!("`WindowAttributes::max_inner_width` is ignored on iOS");
+    }
+    if let Some(_) = window_attributes.max_inner_height {
+      warn!("`WindowAttributes::max_inner_height` is ignored on iOS");
     }
     if window_attributes.always_on_top {
       warn!("`WindowAttributes::always_on_top` is unsupported on iOS");
