@@ -208,13 +208,8 @@ impl<T: 'static> EventLoop<T> {
           WindowRequest::Title(title) => window.set_title(&title),
           WindowRequest::Position((x, y)) => window.move_(x, y),
           WindowRequest::Size((w, h)) => window.resize(w, h),
-          WindowRequest::SizeConstraint {
-            min_width,
-            min_height,
-            max_width,
-            max_height,
-          } => {
-            util::set_size_constraints(&window, min_width, min_height, max_width, max_height);
+          WindowRequest::SizeConstraints(constraints) => {
+            util::set_size_constraints(&window, constraints);
           }
           WindowRequest::Visible(visible) => {
             if visible {

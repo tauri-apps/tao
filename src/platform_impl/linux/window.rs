@@ -21,13 +21,14 @@ use raw_window_handle::{
 };
 
 use crate::{
-  dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size, Unit},
+  dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
   menu::{MenuId, MenuItem},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{
-    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, BORDERLESS_RESIZE_INSET,
+    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowSizeConstraints,
+    BORDERLESS_RESIZE_INSET,
   },
 };
 
@@ -68,10 +69,7 @@ pub struct Window {
   maximized: Rc<AtomicBool>,
   minimized: Rc<AtomicBool>,
   fullscreen: RefCell<Option<Fullscreen>>,
-  min_inner_width: RefCell<Option<Unit>>,
-  max_inner_width: RefCell<Option<Unit>>,
-  min_inner_height: RefCell<Option<Unit>>,
-  max_inner_height: RefCell<Option<Unit>>,
+  inner_size_constraints: RefCell<WindowSizeConstraints>,
   /// Draw event Sender
   draw_tx: crossbeam_channel::Sender<WindowId>,
 }
@@ -115,13 +113,7 @@ impl Window {
     window.set_deletable(attributes.closable);
 
     // Set Min/Max Size
-    util::set_size_constraints(
-      &window,
-      attributes.min_inner_width,
-      attributes.min_inner_height,
-      attributes.max_inner_width,
-      attributes.max_inner_height,
-    );
+    util::set_size_constraints(&window, attributes.inner_size_constraints);
 
     // Set Position
     if let Some(position) = attributes.position {
@@ -287,12 +279,12 @@ impl Window {
     let maximized: Rc<AtomicBool> = Rc::new(w_max.into());
     let max_clone = maximized.clone();
     let minimized = Rc::new(AtomicBool::new(false));
-    let min_clone = minimized.clone();
+    let minimized_clone = minimized.clone();
 
     window.connect_window_state_event(move |_, event| {
       let state = event.new_window_state();
       max_clone.store(state.contains(WindowState::MAXIMIZED), Ordering::Release);
-      min_clone.store(state.contains(WindowState::ICONIFIED), Ordering::Release);
+      minimized_clone.store(state.contains(WindowState::ICONIFIED), Ordering::Release);
       Inhibit(false)
     });
 
@@ -335,10 +327,7 @@ impl Window {
       maximized,
       minimized,
       fullscreen: RefCell::new(attributes.fullscreen),
-      min_inner_width: RefCell::new(attributes.min_inner_width),
-      min_inner_height: RefCell::new(attributes.min_inner_height),
-      max_inner_width: RefCell::new(attributes.max_inner_width),
-      max_inner_height: RefCell::new(attributes.max_inner_height),
+      inner_size_constraints: RefCell::new(attributes.inner_size_constraints),
     };
 
     win.set_skip_taskbar(pl_attribs.skip_taskbar);
@@ -424,46 +413,28 @@ impl Window {
   fn set_size_constraints(&self) {
     if let Err(e) = self.window_requests_tx.send((
       self.window_id,
-      WindowRequest::SizeConstraint {
-        min_width: *self.min_inner_width.borrow(),
-        min_height: *self.min_inner_height.borrow(),
-        max_width: *self.max_inner_width.borrow(),
-        max_height: *self.max_inner_height.borrow(),
-      },
+      WindowRequest::SizeConstraints(*self.inner_size_constraints.borrow()),
     )) {
       log::warn!("Fail to send size constraint request: {}", e);
     }
   }
 
-  pub fn set_min_inner_width(&self, width: Option<Unit>) {
-    *self.min_inner_width.borrow_mut() = width;
-    self.set_size_constraints()
-  }
-
-  pub fn set_min_inner_height(&self, height: Option<Unit>) {
-    *self.min_inner_height.borrow_mut() = height;
-    self.set_size_constraints()
-  }
-
   pub fn set_min_inner_size(&self, size: Option<Size>) {
-    *self.min_inner_width.borrow_mut() = size.map(|s| s.width());
-    *self.min_inner_height.borrow_mut() = size.map(|s| s.height());
-    self.set_size_constraints()
-  }
-
-  pub fn set_max_inner_width(&self, width: Option<Unit>) {
-    *self.max_inner_width.borrow_mut() = width;
-    self.set_size_constraints()
-  }
-
-  pub fn set_max_inner_height(&self, height: Option<Unit>) {
-    *self.max_inner_height.borrow_mut() = height;
+    let mut size_constraints = self.inner_size_constraints.borrow_mut();
+    size_constraints.min_width = size.map(|s| s.width());
+    size_constraints.min_height = size.map(|s| s.height());
     self.set_size_constraints()
   }
 
   pub fn set_max_inner_size(&self, size: Option<Size>) {
-    *self.max_inner_width.borrow_mut() = size.map(|s| s.width());
-    *self.max_inner_height.borrow_mut() = size.map(|s| s.height());
+    let mut size_constraints = self.inner_size_constraints.borrow_mut();
+    size_constraints.max_width = size.map(|s| s.width());
+    size_constraints.max_height = size.map(|s| s.height());
+    self.set_size_constraints()
+  }
+
+  pub fn set_inner_size_constraints(&self, constraints: WindowSizeConstraints) {
+    *self.inner_size_constraints.borrow_mut() = constraints;
     self.set_size_constraints()
   }
 
@@ -862,12 +833,7 @@ pub enum WindowRequest {
   Title(String),
   Position((i32, i32)),
   Size((i32, i32)),
-  SizeConstraint {
-    min_width: Option<Unit>,
-    min_height: Option<Unit>,
-    max_width: Option<Unit>,
-    max_height: Option<Unit>,
-  },
+  SizeConstraints(WindowSizeConstraints),
   Visible(bool),
   Focus,
   Resizable(bool),

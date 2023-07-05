@@ -7,7 +7,7 @@ use tao::{
   event::{ElementState, Event, KeyEvent, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   keyboard::Key,
-  window::WindowBuilder,
+  window::{WindowBuilder, WindowSizeConstraints},
 };
 
 #[allow(clippy::single_match)]
@@ -16,13 +16,10 @@ fn main() {
   let event_loop = EventLoop::new();
 
   let min_width = 400.0;
-  let mut min_width_set = false;
   let max_width = 800.0;
-  let mut max_width_set = false;
   let min_height = 200.0;
-  let mut min_height_set = false;
   let max_height = 400.0;
-  let mut max_height_set = false;
+  let mut size_constraints = WindowSizeConstraints::default();
 
   let window = WindowBuilder::new().build(&event_loop).unwrap();
 
@@ -55,24 +52,24 @@ fn main() {
         ..
       } => match key_str {
         "e" => {
-          min_width_set = !min_width_set;
-          let min_width: Option<LogicalUnit<f64>> = min_width_set.then_some(min_width.into());
-          window.set_min_inner_width(min_width);
+          size_constraints.min_width =
+            (!size_constraints.min_width.is_some()).then_some(LogicalUnit::new(min_width).into());
+          window.set_inner_size_constraints(size_constraints);
         }
         "f" => {
-          max_width_set = !max_width_set;
-          let max_width: Option<LogicalUnit<f64>> = max_width_set.then_some(max_width.into());
-          window.set_max_inner_width(max_width);
+          size_constraints.max_width =
+            (!size_constraints.max_width.is_some()).then_some(LogicalUnit::new(max_width).into());
+          window.set_inner_size_constraints(size_constraints);
         }
         "p" => {
-          min_height_set = !min_height_set;
-          let min_height: Option<LogicalUnit<f64>> = min_height_set.then_some(min_height.into());
-          window.set_min_inner_height(min_height);
+          size_constraints.min_height =
+            (!size_constraints.min_height.is_some()).then_some(LogicalUnit::new(min_height).into());
+          window.set_inner_size_constraints(size_constraints);
         }
         "v" => {
-          max_height_set = !max_height_set;
-          let max_height: Option<LogicalUnit<f64>> = max_height_set.then_some(max_height.into());
-          window.set_max_inner_height(max_height);
+          size_constraints.max_height =
+            (!size_constraints.max_height.is_some()).then_some(LogicalUnit::new(max_height).into());
+          window.set_inner_size_constraints(size_constraints);
         }
         _ => {}
       },

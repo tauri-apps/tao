@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-  dpi::{PhysicalPosition, Unit},
+  dpi::PhysicalPosition,
   icon::Icon,
   keyboard::ModifiersState,
   platform_impl::platform::{event_loop, minimal_ime::MinimalIme, util},
-  window::{CursorIcon, Fullscreen, Theme, WindowAttributes},
+  window::{CursorIcon, Fullscreen, Theme, WindowAttributes, WindowSizeConstraints},
 };
 use parking_lot::MutexGuard;
 use std::io;
@@ -22,10 +22,7 @@ pub struct WindowState {
   pub mouse: MouseProperties,
 
   /// Used by `WM_GETMINMAXINFO`.
-  pub min_width: Option<Unit>,
-  pub min_height: Option<Unit>,
-  pub max_width: Option<Unit>,
-  pub max_height: Option<Unit>,
+  pub size_constraints: WindowSizeConstraints,
 
   pub window_icon: Option<Icon>,
   pub taskbar_icon: Option<Icon>,
@@ -130,10 +127,7 @@ impl WindowState {
         last_position: None,
       },
 
-      min_width: attributes.min_inner_width,
-      min_height: attributes.min_inner_height,
-      max_width: attributes.max_inner_width,
-      max_height: attributes.max_inner_height,
+      size_constraints: attributes.inner_size_constraints,
 
       window_icon: attributes.window_icon.clone(),
       taskbar_icon,

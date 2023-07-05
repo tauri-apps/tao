@@ -93,6 +93,9 @@
 
 pub trait Pixel: Copy + Into<f64> {
   fn from_f64(f: f64) -> Self;
+  fn inner(&self) -> Self {
+    *self
+  }
   fn cast<P: Pixel>(self) -> P {
     P::from_f64(self.into())
   }
@@ -492,25 +495,25 @@ impl Size {
     }
   }
 
-  pub fn clamp<S: Into<Size>>(input: S, min: S, max: S, scale_factor: f64) -> Size {
-    let (input, min, max) = (
-      input.into().to_physical::<f64>(scale_factor),
+  pub fn clamp<S: Into<Size>>(desired_size: S, min: S, max: S, scale_factor: f64) -> Size {
+    let (desired_size, min, max) = (
+      desired_size.into().to_physical::<f64>(scale_factor),
       min.into().to_physical::<f64>(scale_factor),
       max.into().to_physical::<f64>(scale_factor),
     );
 
-    let clamp = |input: f64, min: f64, max: f64| {
-      if input < min {
+    let clamp = |desired_size: f64, min: f64, max: f64| {
+      if desired_size < min {
         min
-      } else if input > max {
+      } else if desired_size > max {
         max
       } else {
-        input
+        desired_size
       }
     };
 
-    let width = clamp(input.width, min.width, max.width);
-    let height = clamp(input.height, min.height, max.height);
+    let width = clamp(desired_size.width, min.width, max.width);
+    let height = clamp(desired_size.height, min.height, max.height);
 
     PhysicalSize::new(width, height).into()
   }
@@ -533,12 +536,14 @@ impl<P: Pixel> From<LogicalSize<P>> for Size {
 /// A unit represented in logical pixels.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct LogicalUnit<P>(pub P);
+pub struct LogicalUnit<P> {
+  pub value: P,
+}
 
 impl<P> LogicalUnit<P> {
   #[inline]
-  pub const fn new(u: P) -> Self {
-    Self(u)
+  pub const fn new(value: P) -> Self {
+    Self { value }
   }
 }
 
@@ -551,13 +556,13 @@ impl<P: Pixel> LogicalUnit<P> {
   #[inline]
   pub fn to_physical<X: Pixel>(&self, scale_factor: f64) -> PhysicalUnit<X> {
     assert!(validate_scale_factor(scale_factor));
-    let u = self.0.into() * scale_factor;
+    let u = self.value.into() * scale_factor;
     PhysicalUnit::new(u).cast()
   }
 
   #[inline]
   pub fn cast<X: Pixel>(&self) -> LogicalUnit<X> {
-    LogicalUnit(self.0.cast())
+    LogicalUnit::new(self.value.cast())
   }
 }
 
@@ -570,12 +575,14 @@ impl<P: Pixel> From<P> for LogicalUnit<P> {
 /// A unit represented in physical pixels.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct PhysicalUnit<P>(pub P);
+pub struct PhysicalUnit<P> {
+  pub value: P,
+}
 
 impl<P> PhysicalUnit<P> {
   #[inline]
-  pub const fn new(u: P) -> Self {
-    Self(u)
+  pub const fn new(value: P) -> Self {
+    Self { value }
   }
 }
 
@@ -588,13 +595,13 @@ impl<P: Pixel> PhysicalUnit<P> {
   #[inline]
   pub fn to_logical<X: Pixel>(&self, scale_factor: f64) -> LogicalUnit<X> {
     assert!(validate_scale_factor(scale_factor));
-    let u = self.0.into() / scale_factor;
+    let u = self.value.into() / scale_factor;
     LogicalUnit::new(u).cast()
   }
 
   #[inline]
   pub fn cast<X: Pixel>(&self) -> PhysicalUnit<X> {
-    PhysicalUnit(self.0.cast())
+    PhysicalUnit::new(self.value.cast())
   }
 }
 
@@ -611,7 +618,16 @@ pub enum Unit {
   Logical(LogicalUnit<f64>),
 }
 
+impl Default for Unit {
+  fn default() -> Self {
+    Self::Logical(LogicalUnit::new(f64::default()))
+  }
+}
+
 impl Unit {
+  pub const MIN: Unit = Unit::Logical(LogicalUnit::new(0.0));
+  pub const MAX: Unit = Unit::Logical(LogicalUnit::new(f64::MAX));
+
   pub fn new<S: Into<Unit>>(val: S) -> Unit {
     val.into()
   }

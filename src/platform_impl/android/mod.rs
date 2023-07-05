@@ -5,14 +5,14 @@
 #![cfg(target_os = "android")]
 use crate::{
   accelerator::Accelerator,
-  dpi::{PhysicalPosition, PhysicalSize, Position, Size, Unit},
+  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error, event,
   event_loop::{self, ControlFlow},
   icon::Icon,
   keyboard::{Key, KeyCode, KeyLocation, NativeKeyCode},
   menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   monitor,
-  window::{self, Theme},
+  window::{self, Theme, WindowSizeConstraints},
 };
 use ndk::{
   configuration::Configuration,
@@ -601,13 +601,9 @@ impl Window {
     MonitorHandle.size()
   }
 
-  pub fn set_min_inner_width(&self, _: Option<Unit>) {}
-  pub fn set_min_inner_height(&self, _: Option<Unit>) {}
   pub fn set_min_inner_size(&self, _: Option<Size>) {}
-
-  pub fn set_max_inner_width(&self, _: Option<Unit>) {}
-  pub fn set_max_inner_height(&self, _: Option<Unit>) {}
   pub fn set_max_inner_size(&self, _: Option<Size>) {}
+  pub fn set_inner_size_constraints(&self, _: WindowSizeConstraints) {}
 
   pub fn set_title(&self, _title: &str) {}
   pub fn title(&self) -> String {

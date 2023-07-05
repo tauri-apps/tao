@@ -2,8 +2,9 @@ use gdk::Display;
 use gtk::traits::{GtkWindowExt, WidgetExt};
 
 use crate::{
-  dpi::{LogicalPosition, PhysicalPosition, Unit},
+  dpi::{LogicalPosition, LogicalSize, PhysicalPosition},
   error::ExternalError,
+  window::WindowSizeConstraints,
 };
 
 #[inline]
@@ -31,42 +32,29 @@ pub fn cursor_position(is_wayland: bool) -> Result<PhysicalPosition<f64>, Extern
 
 pub fn set_size_constraints<W: GtkWindowExt + WidgetExt>(
   window: &W,
-  min_width: Option<Unit>,
-  min_height: Option<Unit>,
-  max_width: Option<Unit>,
-  max_height: Option<Unit>,
+  constraints: WindowSizeConstraints,
 ) {
   let mut geom_mask = gdk::WindowHints::empty();
-  if min_width.is_some() || min_height.is_some() {
+  if constraints.has_min() {
     geom_mask |= gdk::WindowHints::MIN_SIZE;
   }
-  if max_width.is_some() || max_height.is_some() {
+  if constraints.has_max() {
     geom_mask |= gdk::WindowHints::MAX_SIZE;
   }
 
   let scale_factor = window.scale_factor() as f64;
 
-  let min_width = min_width
-    .map(|u| u.to_logical::<f64>(scale_factor).0 as i32)
-    .unwrap_or_default();
-  let min_height = min_height
-    .map(|u| u.to_logical::<f64>(scale_factor).0 as i32)
-    .unwrap_or_default();
-  let max_width = max_width
-    .map(|u| u.to_logical::<f64>(scale_factor).0 as i32)
-    .unwrap_or(i32::MAX);
-  let max_height = max_height
-    .map(|u| u.to_logical::<f64>(scale_factor).0 as i32)
-    .unwrap_or(i32::MAX);
+  let min_size: LogicalSize<i32> = constraints.min_size_logical(scale_factor);
+  let max_size: LogicalSize<i32> = constraints.max_size_logical(scale_factor);
 
   let picky_none: Option<&gtk::Window> = None;
   window.set_geometry_hints(
     picky_none,
     Some(&gdk::Geometry::new(
-      min_width,
-      min_height,
-      max_width,
-      max_height,
+      min_size.width,
+      min_size.height,
+      max_size.width,
+      max_size.height,
       0,
       0,
       0,

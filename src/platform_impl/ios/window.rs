@@ -11,7 +11,7 @@ use std::{
 use objc::runtime::{Class, Object, BOOL, NO, YES};
 
 use crate::{
-  dpi::{self, LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size, Unit},
+  dpi::{self, LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   event::{Event, WindowEvent},
   icon::Icon,
@@ -28,6 +28,7 @@ use crate::{
   },
   window::{
     CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
+    WindowSizeConstraints,
   },
 };
 
@@ -169,24 +170,14 @@ impl Inner {
     warn!("not clear what `Window::set_inner_size` means on iOS");
   }
 
-  pub fn set_min_inner_width(&self, _: Option<Unit>) {
-    warn!("`Window::set_min_inner_width` is ignored on iOS")
-  }
-  pub fn set_min_inner_height(&self, _: Option<Unit>) {
-    warn!("`Window::set_min_inner_height` is ignored on iOS")
-  }
   pub fn set_min_inner_size(&self, _: Option<Size>) {
     warn!("`Window::set_min_inner_size` is ignored on iOS")
   }
-
-  pub fn set_max_inner_width(&self, _: Option<Unit>) {
-    warn!("`Window::set_max_inner_width` is ignored on iOS")
-  }
-  pub fn set_max_inner_height(&self, _: Option<Unit>) {
-    warn!("`Window::set_max_inner_height` is ignored on iOS")
-  }
   pub fn set_max_inner_size(&self, _: Option<Size>) {
     warn!("`Window::set_max_inner_size` is ignored on iOS")
+  }
+  pub fn set_inner_size_constraints(&self, _: WindowSizeConstraints) {
+    warn!("`Window::set_inner_size_constraints` is ignored on iOS")
   }
 
   pub fn set_resizable(&self, _resizable: bool) {
@@ -473,18 +464,6 @@ impl Window {
     window_attributes: WindowAttributes,
     platform_attributes: PlatformSpecificWindowBuilderAttributes,
   ) -> Result<Window, RootOsError> {
-    if let Some(_) = window_attributes.min_inner_width {
-      warn!("`WindowAttributes::min_inner_width` is ignored on iOS");
-    }
-    if let Some(_) = window_attributes.min_inner_height {
-      warn!("`WindowAttributes::min_inner_height` is ignored on iOS");
-    }
-    if let Some(_) = window_attributes.max_inner_width {
-      warn!("`WindowAttributes::max_inner_width` is ignored on iOS");
-    }
-    if let Some(_) = window_attributes.max_inner_height {
-      warn!("`WindowAttributes::max_inner_height` is ignored on iOS");
-    }
     if window_attributes.always_on_top {
       warn!("`WindowAttributes::always_on_top` is unsupported on iOS");
     }

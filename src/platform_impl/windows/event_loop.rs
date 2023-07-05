@@ -44,7 +44,7 @@ use windows::{
 
 use crate::{
   accelerator::AcceleratorId,
-  dpi::{PhysicalPosition, PhysicalSize},
+  dpi::{PhysicalPosition, PhysicalSize, Unit},
   error::ExternalError,
   event::{DeviceEvent, Event, Force, RawKeyEvent, Touch, TouchPhase, WindowEvent},
   event_loop::{ControlFlow, DeviceEventFilter, EventLoopClosed, EventLoopWindowTarget as RootELW},
@@ -1777,33 +1777,31 @@ unsafe fn public_window_callback_inner<T: 'static>(
         .window_flags()
         .contains(WindowFlags::MARKER_DECORATIONS);
 
-      if window_state.min_width.is_some() || window_state.min_height.is_some() {
-        let min_size = PhysicalSize::new(
-          window_state
-            .min_width
-            .map(|w| w.to_physical(window_state.scale_factor).0)
-            .unwrap_or_default(),
-          window_state
-            .min_height
-            .map(|w| w.to_physical(window_state.scale_factor).0)
-            .unwrap_or_default(),
-        );
+      let size_constraints = window_state.size_constraints;
+
+      if size_constraints.has_min() {
+        let min_size = size_constraints.min_size_physical(window_state.scale_factor);
         let (width, height): (u32, u32) = util::adjust_size(window, min_size, is_decorated).into();
         (*mmi).ptMinTrackSize = POINT {
           x: width as i32,
           y: height as i32,
         };
       }
-      if window_state.max_width.is_some() || window_state.max_height.is_some() {
+      if size_constraints.has_max() {
+        // we can't use WindowSizeConstraints::max_size_physical because
+        // for Windows, in order to remove the max constraints, we need to fall to Unit::MIN (which is `0`)
+        // instead of Unit::MAX (which is f64::MAX)
         let max_size = PhysicalSize::new(
-          window_state
+          size_constraints
             .max_width
-            .map(|w| w.to_physical(window_state.scale_factor).0)
-            .unwrap_or_default(),
-          window_state
+            .unwrap_or(Unit::MIN)
+            .to_physical(window_state.scale_factor)
+            .value,
+          size_constraints
             .max_height
-            .map(|w| w.to_physical(window_state.scale_factor).0)
-            .unwrap_or_default(),
+            .unwrap_or(Unit::MIN)
+            .to_physical(window_state.scale_factor)
+            .value,
         );
         let (width, height): (u32, u32) = util::adjust_size(window, max_size, is_decorated).into();
         (*mmi).ptMaxTrackSize = POINT {
@@ -1905,7 +1903,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         false => old_physical_inner_size,
       };
 
-      let _ = subclass_input.send_event(Event::WindowEvent {
+      subclass_input.send_event(Event::WindowEvent {
         window_id: RootWindowId(WindowId(window.0)),
         event: ScaleFactorChanged {
           scale_factor: new_scale_factor,
@@ -2042,7 +2040,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
       let preferred_theme = subclass_input.window_state.lock().preferred_theme;
 
-      if preferred_theme == None {
+      if preferred_theme.is_none() {
         let new_theme = try_theme(window, preferred_theme);
         let mut window_state = subclass_input.window_state.lock();
 

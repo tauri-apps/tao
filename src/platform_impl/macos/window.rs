@@ -20,7 +20,6 @@ use raw_window_handle::{
 use crate::{
   dpi::{
     LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size, Size::Logical,
-    Unit,
   },
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
@@ -37,6 +36,7 @@ use crate::{
   },
   window::{
     CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
+    WindowSizeConstraints,
   },
 };
 use cocoa::{
@@ -163,13 +163,12 @@ fn create_window(
       None => {
         let screen = NSScreen::mainScreen(nil);
         let scale_factor = NSScreen::backingScaleFactor(screen) as f64;
-        let (width, height) = match attrs.inner_size {
-          Some(size) => {
-            let logical = size.to_logical(scale_factor);
-            (logical.width, logical.height)
-          }
-          None => (800.0, 600.0),
-        };
+        let desired_size = attributes
+          .inner_size
+          .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
+        let size = attributes
+          .inner_size_constraints
+          .clamp(desired_size, scale_factor);
         let (left, bottom) = match attrs.position {
           Some(position) => {
             let logical = util::window_position(position.to_logical(scale_factor));
@@ -180,7 +179,10 @@ fn create_window(
           // This value is ignored by calling win.center() below
           None => (0.0, 0.0),
         };
-        NSRect::new(NSPoint::new(left, bottom), NSSize::new(width, height))
+        NSRect::new(
+          NSPoint::new(left, bottom),
+          NSSize::new(size.width, size.height),
+        )
       }
     };
 
@@ -496,31 +498,17 @@ impl UnownedWindow {
         ns_window.setBackgroundColor_(NSColor::clearColor(nil));
       }
 
-      if win_attribs.min_inner_width.is_some() || win_attribs.min_inner_height.is_some() {
-        let logical_dim = LogicalSize {
-          width: win_attribs
-            .min_inner_width
-            .map(|w| w.to_logical(scale_factor).0)
-            .unwrap_or_default(),
-          height: win_attribs
-            .min_inner_height
-            .map(|w| w.to_logical(scale_factor).0)
-            .unwrap_or_default(),
-        };
-        set_min_inner_size(*ns_window, logical_dim);
+      if win_attribs.inner_size_constraints.has_min() {
+        let min_size = win_attribs
+          .inner_size_constraints
+          .min_size_logical(scale_factor);
+        set_min_inner_size(*ns_window, min_size);
       }
-      if win_attribs.max_inner_width.is_some() || win_attribs.max_inner_height.is_some() {
-        let logical_dim = LogicalSize {
-          width: win_attribs
-            .max_inner_width
-            .map(|w| w.to_logical(scale_factor).0)
-            .unwrap_or_default(),
-          height: win_attribs
-            .max_inner_height
-            .map(|w| w.to_logical(scale_factor).0)
-            .unwrap_or_default(),
-        };
-        set_max_inner_size(*ns_window, logical_dim);
+      if win_attribs.inner_size_constraints.has_max() {
+        let max_size = win_attribs
+          .inner_size_constraints
+          .max_size_logical(scale_factor);
+        set_max_inner_size(*ns_window, max_size);
       }
 
       // register for drag and drop operations.
@@ -715,97 +703,35 @@ impl UnownedWindow {
     }
   }
 
-  pub fn set_min_inner_width(&self, width: Option<Unit>) {
-    unsafe {
-      let scale_factor = self.scale_factor();
-      let dimensions = width
-        .map(|w| {
-          Logical(LogicalSize {
-            width: w.to_logical(scale_factor).0,
-            height: 0.0,
-          })
-        })
-        .unwrap_or(Logical(LogicalSize {
-          width: 0.0,
-          height: 0.0,
-        }));
-      set_min_inner_size(*self.ns_window, dimensions.to_logical(scale_factor));
-    }
-  }
-
-  pub fn set_min_inner_height(&self, height: Option<Unit>) {
-    unsafe {
-      let scale_factor = self.scale_factor();
-      let dimensions = height
-        .map(|h| {
-          Logical(LogicalSize {
-            width: 0.0,
-            height: h.to_logical(scale_factor).0,
-          })
-        })
-        .unwrap_or(Logical(LogicalSize {
-          width: 0.0,
-          height: 0.0,
-        }));
-      set_min_inner_size(*self.ns_window, dimensions.to_logical(scale_factor));
-    }
-  }
-
   pub fn set_min_inner_size(&self, dimensions: Option<Size>) {
+    let dimensions = dimensions.unwrap_or(Logical(LogicalSize {
+      width: 0.0,
+      height: 0.0,
+    }));
+    let scale_factor = self.scale_factor();
     unsafe {
-      let dimensions = dimensions.unwrap_or(Logical(LogicalSize {
-        width: 0.0,
-        height: 0.0,
-      }));
-      let scale_factor = self.scale_factor();
       set_min_inner_size(*self.ns_window, dimensions.to_logical(scale_factor));
-    }
-  }
-
-  pub fn set_max_inner_width(&self, width: Option<Unit>) {
-    unsafe {
-      let scale_factor = self.scale_factor();
-      let dimensions = width
-        .map(|w| {
-          Logical(LogicalSize {
-            width: w.to_logical(scale_factor).0,
-            height: std::f32::MAX as f64,
-          })
-        })
-        .unwrap_or(Logical(LogicalSize {
-          width: std::f32::MAX as f64,
-          height: std::f32::MAX as f64,
-        }));
-      set_max_inner_size(*self.ns_window, dimensions.to_logical(scale_factor));
-    }
-  }
-
-  pub fn set_max_inner_height(&self, height: Option<Unit>) {
-    unsafe {
-      let scale_factor = self.scale_factor();
-      let dimensions = height
-        .map(|h| {
-          Logical(LogicalSize {
-            width: std::f32::MAX as f64,
-            height: h.to_logical(scale_factor).0,
-          })
-        })
-        .unwrap_or(Logical(LogicalSize {
-          width: std::f32::MAX as f64,
-          height: std::f32::MAX as f64,
-        }));
-      set_max_inner_size(*self.ns_window, dimensions.to_logical(scale_factor));
     }
   }
 
   pub fn set_max_inner_size(&self, dimensions: Option<Size>) {
+    let dimensions = dimensions.unwrap_or(Logical(LogicalSize {
+      width: std::f32::MAX as f64,
+      height: std::f32::MAX as f64,
+    }));
+    let scale_factor = self.scale_factor();
     unsafe {
-      let dimensions = dimensions.unwrap_or(Logical(LogicalSize {
-        width: std::f32::MAX as f64,
-        height: std::f32::MAX as f64,
-      }));
-      let scale_factor = self.scale_factor();
       set_max_inner_size(*self.ns_window, dimensions.to_logical(scale_factor));
+    }
+  }
+
+  pub fn set_inner_size_constraints(&self, constraints: WindowSizeConstraints) {
+    let scale_factor = self.scale_factor();
+    unsafe {
+      let min_size = constraints.min_size_logical(scale_factor);
+      set_min_inner_size(*self.ns_window, min_size);
+      let max_size = constraints.max_size_logical(scale_factor);
+      set_max_inner_size(*self.ns_window, max_size);
     }
   }
 
