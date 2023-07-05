@@ -20,6 +20,7 @@ use raw_window_handle::{
 use crate::{
   dpi::{
     LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size, Size::Logical,
+    Unit,
   },
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,

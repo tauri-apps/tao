@@ -11,7 +11,7 @@ use std::{
 use objc::runtime::{Class, Object, BOOL, NO, YES};
 
 use crate::{
-  dpi::{self, LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
+  dpi::{self, LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size, Unit},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   event::{Event, WindowEvent},
   icon::Icon,
