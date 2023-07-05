@@ -716,35 +716,39 @@ impl UnownedWindow {
   }
 
   pub fn set_min_inner_width(&self, width: Option<Unit>) {
-    let scale_factor = self.scale_factor();
-    let dimensions = width
-      .map(|w| {
-        Logical(LogicalSize {
-          width: w.to_logical(scale_factor).0,
-          height: 0.0,
+    unsafe {
+      let scale_factor = self.scale_factor();
+      let dimensions = width
+        .map(|w| {
+          Logical(LogicalSize {
+            width: w.to_logical(scale_factor).0,
+            height: 0.0,
+          })
         })
-      })
-      .unwrap_or(Logical(LogicalSize {
-        width: 0.0,
-        height: 0.0,
-      }));
-    set_min_inner_size(*self.ns_window, dimensions.to_logical(scale_factor));
+        .unwrap_or(Logical(LogicalSize {
+          width: 0.0,
+          height: 0.0,
+        }));
+      set_min_inner_size(*self.ns_window, dimensions.to_logical(scale_factor));
+    }
   }
 
   pub fn set_min_inner_height(&self, height: Option<Unit>) {
-    let scale_factor = self.scale_factor();
-    let dimensions = height
-      .map(|h| {
-        Logical(LogicalSize {
-          width: 0.0,
-          height: h.to_logical(scale_factor).0,
+    unsafe {
+      let scale_factor = self.scale_factor();
+      let dimensions = height
+        .map(|h| {
+          Logical(LogicalSize {
+            width: 0.0,
+            height: h.to_logical(scale_factor).0,
+          })
         })
-      })
-      .unwrap_or(Logical(LogicalSize {
-        width: 0.0,
-        height: 0.0,
-      }));
-    set_min_inner_size(*self.ns_window, dimensions.to_logical(scale_factor));
+        .unwrap_or(Logical(LogicalSize {
+          width: 0.0,
+          height: 0.0,
+        }));
+      set_min_inner_size(*self.ns_window, dimensions.to_logical(scale_factor));
+    }
   }
 
   pub fn set_min_inner_size(&self, dimensions: Option<Size>) {
@@ -759,35 +763,39 @@ impl UnownedWindow {
   }
 
   pub fn set_max_inner_width(&self, width: Option<Unit>) {
-    let scale_factor = self.scale_factor();
-    let dimensions = width
-      .map(|w| {
-        Logical(LogicalSize {
-          width: w.to_logical(scale_factor).0,
-          height: std::f32::MAX as f64,
+    unsafe {
+      let scale_factor = self.scale_factor();
+      let dimensions = width
+        .map(|w| {
+          Logical(LogicalSize {
+            width: w.to_logical(scale_factor).0,
+            height: std::f32::MAX as f64,
+          })
         })
-      })
-      .unwrap_or(Logical(LogicalSize {
-        width: std::f32::MAX as f64,
-        height: std::f32::MAX as f64,
-      }));
-    set_max_inner_size(*self.ns_window, dimensions.to_logical(scale_factor));
+        .unwrap_or(Logical(LogicalSize {
+          width: std::f32::MAX as f64,
+          height: std::f32::MAX as f64,
+        }));
+      set_max_inner_size(*self.ns_window, dimensions.to_logical(scale_factor));
+    }
   }
 
   pub fn set_max_inner_height(&self, height: Option<Unit>) {
-    let scale_factor = self.scale_factor();
-    let dimensions = height
-      .map(|h| {
-        Logical(LogicalSize {
-          width: std::f32::MAX as f64,
-          height: h.to_logical(scale_factor).0,
+    unsafe {
+      let scale_factor = self.scale_factor();
+      let dimensions = height
+        .map(|h| {
+          Logical(LogicalSize {
+            width: std::f32::MAX as f64,
+            height: h.to_logical(scale_factor).0,
+          })
         })
-      })
-      .unwrap_or(Logical(LogicalSize {
-        width: std::f32::MAX as f64,
-        height: std::f32::MAX as f64,
-      }));
-    set_max_inner_size(*self.ns_window, dimensions.to_logical(scale_factor));
+        .unwrap_or(Logical(LogicalSize {
+          width: std::f32::MAX as f64,
+          height: std::f32::MAX as f64,
+        }));
+      set_max_inner_size(*self.ns_window, dimensions.to_logical(scale_factor));
+    }
   }
 
   pub fn set_max_inner_size(&self, dimensions: Option<Size>) {
