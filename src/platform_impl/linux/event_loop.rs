@@ -214,42 +214,7 @@ impl<T: 'static> EventLoop<T> {
             max_width,
             max_height,
           } => {
-            let geom_mask = min_width
-              .map(|_| gdk::WindowHints::MIN_SIZE)
-              .unwrap_or(gdk::WindowHints::empty())
-              | min_height
-                .map(|_| gdk::WindowHints::MIN_SIZE)
-                .unwrap_or(gdk::WindowHints::empty())
-              | max_width
-                .map(|_| gdk::WindowHints::MAX_SIZE)
-                .unwrap_or(gdk::WindowHints::empty())
-              | max_height
-                .map(|_| gdk::WindowHints::MAX_SIZE)
-                .unwrap_or(gdk::WindowHints::empty());
-
-            let min_width = min_width.map(|u| u.0 as i32).unwrap_or_default();
-            let min_height = min_height.map(|u| u.0 as i32).unwrap_or_default();
-            let max_width = max_width.map(|u| u.0 as i32).unwrap_or(i32::MAX);
-            let max_height = max_height.map(|u| u.0 as i32).unwrap_or(i32::MAX);
-
-            let picky_none: Option<&gtk::Window> = None;
-            window.set_geometry_hints(
-              picky_none,
-              Some(&gdk::Geometry::new(
-                min_width,
-                min_height,
-                max_width,
-                max_height,
-                0,
-                0,
-                0,
-                0,
-                0f64,
-                0f64,
-                gdk::Gravity::Center,
-              )),
-              geom_mask,
-            )
+            util::set_size_constraints(&window, min_width, min_height, max_width, max_height);
           }
           WindowRequest::Visible(visible) => {
             if visible {
