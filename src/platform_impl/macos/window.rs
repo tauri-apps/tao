@@ -163,12 +163,14 @@ fn create_window(
       None => {
         let screen = NSScreen::mainScreen(nil);
         let scale_factor = NSScreen::backingScaleFactor(screen) as f64;
-        let desired_size = attributes
+        let (width, height) = attrs
           .inner_size
-          .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
-        let size = attributes
+          .unwrap_or_else(|| PhysicalSize::new(800, 600).into())
+          .into();
+        let (width, height): (f64, f64) = attributes
           .inner_size_constraints
-          .clamp(desired_size, scale_factor);
+          .clamp(desired_size, scale_factor)
+          .to_logical::<f64>(scale_factor);
         let (left, bottom) = match attrs.position {
           Some(position) => {
             let logical = util::window_position(position.to_logical(scale_factor));
@@ -179,10 +181,7 @@ fn create_window(
           // This value is ignored by calling win.center() below
           None => (0.0, 0.0),
         };
-        NSRect::new(
-          NSPoint::new(left, bottom),
-          NSSize::new(size.width, size.height),
-        )
+        NSRect::new(NSPoint::new(left, bottom), NSSize::new(width, height))
       }
     };
 
