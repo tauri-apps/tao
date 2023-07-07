@@ -899,21 +899,7 @@ impl<T: 'static> EventLoop<T> {
             }
           }
           WindowRequest::GlobalHotKey(_hotkey_id) => {}
-          WindowRequest::ProgressBarState(state) => {
-            if supports_unity {
-              if taskbar.is_none() {
-                if let Ok(indicator) = TaskbarIndicator::new() {
-                  taskbar.replace(indicator);
-                }
-              }
-
-              if let Some(taskbar) = &mut taskbar {
-                if let Err(e) = taskbar.update(state) {
-                  log::warn!("Failed to update taskbar progress {}", e);
-                }
-              }
-            }
-          }
+          WindowRequest::ProgressBarState(_) => {}
         }
       } else if id == WindowId::dummy() {
         match request {
