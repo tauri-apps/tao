@@ -1303,6 +1303,10 @@ impl UnownedWindow {
     unsafe { util::set_level_async(*self.ns_window, level) };
   }
 
+  pub fn set_rtl(&self, _rtl: bool) {
+    warn!("`Window::set_rtl` is ignored on macOS")
+  }
+
   #[inline]
   pub fn set_window_icon(&self, _icon: Option<Icon>) {
     // macOS doesn't have window icons. Though, there is

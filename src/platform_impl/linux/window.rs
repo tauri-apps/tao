@@ -612,6 +612,10 @@ impl Window {
     }
   }
 
+  pub fn set_rtl(&self, _rtl: bool) {
+    log::warn!("`Window::set_rtl` is ignored on Linux")
+  }
+
   pub fn set_window_icon(&self, window_icon: Option<Icon>) {
     if let Err(e) = self
       .window_requests_tx
