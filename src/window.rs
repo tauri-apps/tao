@@ -8,7 +8,7 @@ use std::fmt;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 
 use crate::{
-  dpi::{LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size, Unit},
+  dpi::{LogicalSize, PhysicalPosition, PhysicalSize, Pixel, PixelUnit, Position, Size},
   error::{ExternalError, NotSupportedError, OsError},
   event_loop::EventLoopWindowTarget,
   menu::MenuBar,
@@ -1418,27 +1418,27 @@ pub struct WindowSizeConstraints {
   /// The minimum width a window can be, If this is `None`, the window will have no minimum width (aside from reserved).
   ///
   /// The default is `None`.
-  pub min_width: Option<Unit>,
+  pub min_width: Option<PixelUnit>,
   /// The minimum height a window can be, If this is `None`, the window will have no minimum height (aside from reserved).
   ///
   /// The default is `None`.
-  pub min_height: Option<Unit>,
+  pub min_height: Option<PixelUnit>,
   /// The maximum width a window can be, If this is `None`, the window will have no maximum width (aside from reserved).
   ///
   /// The default is `None`.
-  pub max_width: Option<Unit>,
+  pub max_width: Option<PixelUnit>,
   /// The maximum height a window can be, If this is `None`, the window will have no maximum height (aside from reserved).
   ///
   /// The default is `None`.
-  pub max_height: Option<Unit>,
+  pub max_height: Option<PixelUnit>,
 }
 
 impl WindowSizeConstraints {
   pub fn new(
-    min_width: Option<Unit>,
-    min_height: Option<Unit>,
-    max_width: Option<Unit>,
-    max_height: Option<Unit>,
+    min_width: Option<PixelUnit>,
+    min_height: Option<PixelUnit>,
+    max_width: Option<PixelUnit>,
+    max_height: Option<PixelUnit>,
   ) -> Self {
     Self {
       min_width,
@@ -1448,82 +1448,80 @@ impl WindowSizeConstraints {
     }
   }
 
-  pub fn symmetrical(min: Option<Size>, max: Option<Size>) -> Self {
-    Self {
-      min_width: min.map(|s| s.width()),
-      min_height: min.map(|s| s.height()),
-      max_width: max.map(|s| s.width()),
-      max_height: max.map(|s| s.height()),
-    }
-  }
-
+  /// Returns true if `min_width` or `min_height` is set.
   pub fn has_min(&self) -> bool {
     self.min_width.is_some() || self.min_height.is_some()
   }
+  /// Returns true if `max_width` or `max_height` is set.
   pub fn has_max(&self) -> bool {
     self.max_width.is_some() || self.max_height.is_some()
   }
 
+  /// Returns a physical size that represents the minimum constraints set and fallbacks to [`PixelUnit::MIN`] for unset values
   pub fn min_size_physical<T: Pixel>(&self, scale_factor: f64) -> PhysicalSize<T> {
     PhysicalSize::new(
       self
         .min_width
-        .unwrap_or_default()
+        .unwrap_or(PixelUnit::MIN)
         .to_physical(scale_factor)
         .value,
       self
         .min_height
-        .unwrap_or_default()
+        .unwrap_or(PixelUnit::MIN)
         .to_physical(scale_factor)
         .value,
     )
   }
 
+  /// Returns a logical size that represents the minimum constraints set and fallbacks to [`PixelUnit::MIN`] for unset values
   pub fn min_size_logical<T: Pixel>(&self, scale_factor: f64) -> LogicalSize<T> {
     LogicalSize::new(
       self
         .min_width
-        .unwrap_or_default()
+        .unwrap_or(PixelUnit::MIN)
         .to_logical(scale_factor)
         .value,
       self
         .min_height
-        .unwrap_or_default()
+        .unwrap_or(PixelUnit::MIN)
         .to_logical(scale_factor)
         .value,
     )
   }
 
+  /// Returns a physical size that represents the maximum constraints set and fallbacks to [`PixelUnit::MAX`] for unset values
   pub fn max_size_physical<T: Pixel>(&self, scale_factor: f64) -> PhysicalSize<T> {
     PhysicalSize::new(
       self
         .max_width
-        .unwrap_or(Unit::MAX)
+        .unwrap_or(PixelUnit::MAX)
         .to_physical(scale_factor)
         .value,
       self
         .max_height
-        .unwrap_or(Unit::MAX)
+        .unwrap_or(PixelUnit::MAX)
         .to_physical(scale_factor)
         .value,
     )
   }
 
+  /// Returns a logical size that represents the maximum constraints set and fallbacks to [`PixelUnit::MAX`] for unset values
   pub fn max_size_logical<T: Pixel>(&self, scale_factor: f64) -> LogicalSize<T> {
     LogicalSize::new(
       self
         .max_width
-        .unwrap_or(Unit::MAX)
+        .unwrap_or(PixelUnit::MAX)
         .to_logical(scale_factor)
         .value,
       self
         .max_height
-        .unwrap_or(Unit::MAX)
+        .unwrap_or(PixelUnit::MAX)
         .to_logical(scale_factor)
         .value,
     )
   }
 
+  /// Clamps the desired size based on the constraints set
   pub fn clamp(&self, desired_size: Size, scale_factor: f64) -> Size {
     let min_size: PhysicalSize<f64> = self.min_size_physical(scale_factor);
     let max_size: PhysicalSize<f64> = self.max_size_physical(scale_factor);

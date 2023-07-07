@@ -44,7 +44,7 @@ use windows::{
 
 use crate::{
   accelerator::AcceleratorId,
-  dpi::{PhysicalPosition, PhysicalSize, Unit},
+  dpi::{PhysicalPosition, PhysicalSize, PixelUnit},
   error::ExternalError,
   event::{DeviceEvent, Event, Force, RawKeyEvent, Touch, TouchPhase, WindowEvent},
   event_loop::{ControlFlow, DeviceEventFilter, EventLoopClosed, EventLoopWindowTarget as RootELW},
@@ -1789,17 +1789,17 @@ unsafe fn public_window_callback_inner<T: 'static>(
       }
       if size_constraints.has_max() {
         // we can't use WindowSizeConstraints::max_size_physical because
-        // for Windows, in order to remove the max constraints, we need to fall to Unit::MIN (which is `0`)
-        // instead of Unit::MAX (which is f64::MAX)
+        // for Windows, in order to remove the max constraints, we need to fall to PixelUnit::MIN (which is `0`)
+        // instead of PixelUnit::MAX (which is f64::MAX)
         let max_size = PhysicalSize::new(
           size_constraints
             .max_width
-            .unwrap_or(Unit::MIN)
+            .unwrap_or(PixelUnit::MIN)
             .to_physical(window_state.scale_factor)
             .value,
           size_constraints
             .max_height
-            .unwrap_or(Unit::MIN)
+            .unwrap_or(PixelUnit::MIN)
             .to_physical(window_state.scale_factor)
             .value,
         );
