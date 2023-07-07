@@ -1780,7 +1780,18 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let size_constraints = window_state.size_constraints;
 
       if size_constraints.has_min() {
-        let min_size = size_constraints.min_size_physical(window_state.scale_factor);
+        let min_size = PhysicalSize::new(
+          size_constraints
+            .min_width
+            .unwrap_or_else(|| PixelUnit::Physical(GetSystemMetrics(SM_CXMINTRACK).into()))
+            .to_physical(window_state.scale_factor)
+            .value,
+          size_constraints
+            .min_height
+            .unwrap_or_else(|| PixelUnit::Physical(GetSystemMetrics(SM_CYMINTRACK).into()))
+            .to_physical(window_state.scale_factor)
+            .value,
+        );
         let (width, height): (u32, u32) = util::adjust_size(window, min_size, is_decorated).into();
         (*mmi).ptMinTrackSize = POINT {
           x: width as i32,
@@ -1788,18 +1799,15 @@ unsafe fn public_window_callback_inner<T: 'static>(
         };
       }
       if size_constraints.has_max() {
-        // we can't use WindowSizeConstraints::max_size_physical because
-        // for Windows, in order to remove the max constraints, we need to fall to PixelUnit::MIN (which is `0`)
-        // instead of PixelUnit::MAX (which is f64::MAX)
         let max_size = PhysicalSize::new(
           size_constraints
             .max_width
-            .unwrap_or(PixelUnit::MIN)
+            .unwrap_or_else(|| PixelUnit::Physical(GetSystemMetrics(SM_CXMAXTRACK).into()))
             .to_physical(window_state.scale_factor)
             .value,
           size_constraints
             .max_height
-            .unwrap_or(PixelUnit::MIN)
+            .unwrap_or_else(|| PixelUnit::Physical(GetSystemMetrics(SM_CYMAXTRACK).into()))
             .to_physical(window_state.scale_factor)
             .value,
         );
