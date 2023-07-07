@@ -27,3 +27,12 @@ pub fn cursor_position(is_wayland: bool) -> Result<PhysicalPosition<f64>, Extern
       .ok_or(ExternalError::Os(os_error!(super::OsError)))?
   }
 }
+
+pub fn is_unity() -> bool {
+  std::env::var("XDG_CURRENT_DESKTOP")
+    .map(|d| {
+      let d = d.to_lowercase();
+      d.contains("unity") || d.contains("gnome")
+    })
+    .unwrap_or(false)
+}

@@ -30,7 +30,7 @@ use windows::{
     System::{Com::*, LibraryLoader::*, Ole::*},
     UI::{
       Input::{Ime::*, KeyboardAndMouse::*, Touch::*},
-      Shell::*,
+      Shell::{ITaskbarList4 as ITaskbarList, TaskbarList, TBPFLAG, *},
       WindowsAndMessaging::{self as win32wm, *},
     },
   },
@@ -53,8 +53,8 @@ use crate::{
     OsError, Parent, PlatformSpecificWindowBuilderAttributes, WindowId,
   },
   window::{
-    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
-    BORDERLESS_RESIZE_INSET,
+    CursorIcon, Fullscreen, ProgressBarState, ProgressState, Theme, UserAttentionType,
+    WindowAttributes, WindowId as RootWindowId, BORDERLESS_RESIZE_INSET,
   },
 };
 
@@ -879,6 +879,37 @@ impl Window {
   pub(crate) fn set_skip_taskbar(&self, skip: bool) {
     self.window_state.lock().skip_taskbar = skip;
     unsafe { set_skip_taskbar(self.hwnd(), skip) };
+  }
+
+  #[inline]
+  pub fn set_progress_bar(&self, progress: ProgressBarState) {
+    unsafe {
+      let taskbar_list: ITaskbarList = CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).unwrap();
+      let handle = self.window.0;
+
+      if let Some(state) = progress.state {
+        let taskbar_state = {
+          match state {
+            ProgressState::None => 0,
+            ProgressState::Intermediate => 1,
+            ProgressState::Normal => 2,
+            ProgressState::Error => 3,
+            ProgressState::Paused => 4,
+          }
+        };
+
+        taskbar_list
+          .SetProgressState(handle, TBPFLAG(taskbar_state))
+          .unwrap_or(());
+      }
+      if let Some(value) = progress.progress {
+        let value = if value > 100 { 100 } else { value };
+
+        taskbar_list
+          .SetProgressValue(handle, value, 100)
+          .unwrap_or(());
+      }
+    }
   }
 
   #[inline]
