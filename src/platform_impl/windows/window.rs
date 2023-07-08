@@ -54,8 +54,7 @@ use crate::{
   },
   window::{
     CursorIcon, Fullscreen, ProgressBarState, ProgressState, Theme, UserAttentionType,
-    WindowAttributes, WindowId as RootWindowId, WindowSizeConstraints,
-    BORDERLESS_RESIZE_INSET,
+    WindowAttributes, WindowId as RootWindowId, WindowSizeConstraints, BORDERLESS_RESIZE_INSET,
   },
 };
 
