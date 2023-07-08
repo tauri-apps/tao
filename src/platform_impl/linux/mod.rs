@@ -23,6 +23,8 @@ mod monitor;
 mod system_tray;
 mod util;
 mod window;
+
+pub mod taskbar;
 pub mod x11;
 
 #[cfg(feature = "tray")]

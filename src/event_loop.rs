@@ -19,6 +19,7 @@ use std::{error, fmt, ops::Deref};
 
 use crate::{
   dpi::PhysicalPosition, error::ExternalError, event::Event, monitor::MonitorHandle, platform_impl,
+  window::ProgressBarState,
 };
 
 /// Provides a way to retrieve events from the system and from the windows that were registered to
@@ -252,6 +253,20 @@ impl<T> EventLoopWindowTarget<T> {
   #[inline]
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
     self.p.cursor_position()
+  }
+
+  /// Sets the progress bar state
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:** Unsupported. Use the Progress Bar Function Available in Window (Windows can have different progress bars for different window)
+  /// - **Linux:** Only supported desktop environments with `libunity` (e.g. GNOME).
+  /// - **macOS:** Unimplemented.
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_progress_bar(&self, _progress: ProgressBarState) {
+    #[cfg(target_os = "linux")]
+    self.p.set_progress_bar(_progress)
   }
 }
 
