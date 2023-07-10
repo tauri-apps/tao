@@ -145,7 +145,11 @@ impl SystemTray {
 
   pub fn set_menu(&mut self, tray_menu: &Menu) {
     unsafe {
-      self.ns_status_bar.setMenu_(tray_menu.menu);
+      self.tray_menu = Some(tray_menu.clone());
+
+      let tray_target: id = msg_send![self.ns_status_bar.button(), target];
+      (*tray_target).set_ivar("menu", tray_menu.menu);
+      let () = msg_send![tray_menu.menu, setDelegate: tray_target];
     }
   }
 
