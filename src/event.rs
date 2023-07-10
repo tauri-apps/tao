@@ -46,7 +46,7 @@ use crate::{
   keyboard::{self, ModifiersState},
   menu::{MenuId, MenuType},
   platform_impl,
-  window::{Theme, WindowId},
+  window::{AccentColor, Theme, WindowId},
 };
 
 /// Describes a generic event.
@@ -497,6 +497,13 @@ pub enum WindowEvent<'a> {
   /// - **Linux / Android / iOS:** Unsupported
   ThemeChanged(Theme),
 
+  /// The system accent color has changed.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Linux / Windows:** Unsupported.
+  AccentColorChanged(Option<AccentColor>),
+
   /// The window decorations has been clicked.
   ///
   /// ## Platform-specific
@@ -589,6 +596,7 @@ impl Clone for WindowEvent<'static> {
       },
       Touch(touch) => Touch(*touch),
       ThemeChanged(theme) => ThemeChanged(*theme),
+      AccentColorChanged(color) => AccentColorChanged(*color),
       ScaleFactorChanged { .. } => {
         unreachable!("Static event can't be about scale factor changing")
       }
@@ -676,6 +684,7 @@ impl<'a> WindowEvent<'a> {
       }),
       Touch(touch) => Some(Touch(touch)),
       ThemeChanged(theme) => Some(ThemeChanged(theme)),
+      AccentColorChanged(color) => Some(AccentColorChanged(color)),
       ScaleFactorChanged { .. } => None,
       DecorationsClick => Some(DecorationsClick),
     }

@@ -20,6 +20,7 @@ fn main() {
     .unwrap();
 
   println!("Initial theme: {:?}", window.theme());
+  println!("Initial accent color: {:?}", window.accent_color());
 
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Wait;
@@ -35,6 +36,12 @@ fn main() {
         ..
       } if window_id == window.id() => {
         println!("Theme is changed: {:?}", theme)
+      }
+      Event::WindowEvent {
+        event: WindowEvent::AccentColorChanged(accent_color),
+        ..
+      } => {
+        println!("Accent color has changed: {:?}", accent_color)
       }
       _ => (),
     }

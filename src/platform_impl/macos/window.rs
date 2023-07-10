@@ -35,7 +35,8 @@ use crate::{
     OsError,
   },
   window::{
-    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
+    AccentColor, CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes,
+    WindowId as RootWindowId,
   },
 };
 use cocoa::{
@@ -348,6 +349,32 @@ pub(super) fn set_ns_theme(theme: Theme) {
   }
 }
 
+pub(super) fn get_ns_accent_color() -> Option<AccentColor> {
+  unsafe {
+    let key_name = NSString::alloc(nil).init_str("AppleAccentColor");
+
+    let user_defaults: id = msg_send![class!(NSUserDefaults), standardUserDefaults];
+    let color_obj: id = msg_send![user_defaults, objectForKey: key_name];
+
+    if color_obj == nil {
+      return None;
+    }
+
+    let color_int: id = msg_send![user_defaults, integerForKey: key_name];
+
+    match color_int as i8 {
+      -1 => Some(AccentColor::Graphite),
+      0 => Some(AccentColor::Red),
+      1 => Some(AccentColor::Orange),
+      2 => Some(AccentColor::Yellow),
+      3 => Some(AccentColor::Green),
+      4 => Some(AccentColor::Blue),
+      5 => Some(AccentColor::Purple),
+      6 => Some(AccentColor::Pink),
+      _ => None,
+    }
+  }
+}
 struct WindowClass(*const Class);
 unsafe impl Send for WindowClass {}
 unsafe impl Sync for WindowClass {}
@@ -414,6 +441,7 @@ pub struct SharedState {
   save_presentation_opts: Option<NSApplicationPresentationOptions>,
   pub saved_desktop_display_mode: Option<(CGDisplay, CGDisplayMode)>,
   pub current_theme: Theme,
+  pub current_accent_color: Option<AccentColor>,
 }
 
 impl SharedState {
@@ -548,6 +576,11 @@ impl UnownedWindow {
         let mut state = window.shared_state.lock().unwrap();
         state.current_theme = get_ns_theme();
       }
+    }
+
+    {
+      let mut state = window.shared_state.lock().unwrap();
+      state.current_accent_color = get_ns_accent_color();
     }
 
     let delegate = new_delegate(&window, fullscreen.is_some());
@@ -1389,6 +1422,12 @@ impl UnownedWindow {
   pub fn theme(&self) -> Theme {
     let state = self.shared_state.lock().unwrap();
     state.current_theme
+  }
+
+  #[inline]
+  pub fn accent_color(&self) -> Option<AccentColor> {
+    let state = self.shared_state.lock().unwrap();
+    state.current_accent_color
   }
 
   pub fn set_content_protection(&self, enabled: bool) {

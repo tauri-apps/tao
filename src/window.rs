@@ -1140,6 +1140,17 @@ impl Window {
     self.window.theme()
   }
 
+  /// Returns the accent color of the system.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Linux / Windows:** Unsupported.
+  #[inline]
+  pub fn accent_color(&self) -> Option<AccentColor> {
+    #[cfg(target_os = "macos")]
+    self.window.accent_color()
+  }
+
   /// Prevents the window contents from being captured by other apps.
   ///
   /// ## Platform-specific
@@ -1409,6 +1420,19 @@ pub enum Fullscreen {
 pub enum Theme {
   Light,
   Dark,
+}
+
+#[non_exhaustive]
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum AccentColor {
+  Graphite,
+  Red,
+  Orange,
+  Yellow,
+  Green,
+  Blue,
+  Purple,
+  Pink,
 }
 
 impl Default for Theme {

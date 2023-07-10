@@ -27,7 +27,7 @@ use crate::{
     event::{EventProxy, EventWrapper},
     util::{self, IdRef},
     view::ViewState,
-    window::{get_ns_theme, get_window_id, UnownedWindow},
+    window::{get_ns_accent_color, get_ns_theme, get_window_id, UnownedWindow},
   },
   window::{Fullscreen, WindowId},
 };
@@ -258,6 +258,10 @@ lazy_static! {
       sel!(effectiveAppearanceDidChangedOnMainThread:),
       effective_appearance_did_changed_on_main_thread as extern "C" fn(&Object, Sel, id),
     );
+    decl.add_method(
+      sel!(accentColorChanged:),
+      accent_color_did_change as extern "C" fn(&Object, Sel, id),
+    );
 
     decl.add_ivar::<*mut c_void>("taoState");
     WindowDelegateClass(decl.register())
@@ -298,6 +302,17 @@ extern "C" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void) -> id 
         addObserver: this
         selector: sel!(effectiveAppearanceDidChange:)
         name: notification_name
+        object: nil
+    ];
+
+    let notification_accent_color_name =
+      NSString::alloc(nil).init_str("AppleColorPreferencesChangedNotification");
+
+    let _: () = msg_send![
+        notification_center,
+        addObserver: this
+        selector: sel!(accentColorChanged:)
+        name: notification_accent_color_name
         object: nil
     ];
 
@@ -668,4 +683,15 @@ extern "C" fn effective_appearance_did_changed_on_main_thread(this: &Object, _: 
     }
   });
   trace!("Completed `effectiveAppearDidChange:`");
+}
+
+extern "C" fn accent_color_did_change(this: &Object, _: Sel, _: id) {
+  with_state(this, |state| {
+    let accent_color = get_ns_accent_color();
+    state.with_window(|window| {
+      let mut shared_state = window.shared_state.lock().unwrap();
+      shared_state.current_accent_color = accent_color;
+    });
+    state.emit_event(WindowEvent::AccentColorChanged(accent_color));
+  });
 }
