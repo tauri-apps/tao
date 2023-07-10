@@ -1021,7 +1021,7 @@ unsafe fn init<T: 'static>(
 
   window_flags.set(WindowFlags::MARKER_DONT_FOCUS, !attributes.focused);
 
-  window_flags.set(WindowFlags::RTL, attributes.rtl);
+  window_flags.set(WindowFlags::RTL, pl_attribs.rtl);
 
   let parent = match pl_attribs.parent {
     Parent::ChildOf(parent) => {

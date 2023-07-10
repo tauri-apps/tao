@@ -348,10 +348,6 @@ impl Inner {
     warn!("`Window::set_always_on_top` is ignored on iOS")
   }
 
-  pub fn set_rtl(&self, _rtl: bool) {
-    warn!("`Window::set_rtl` is ignored on iOS")
-  }
-
   pub fn set_window_icon(&self, _icon: Option<Icon>) {
     warn!("`Window::set_window_icon` is ignored on iOS")
   }

@@ -699,8 +699,6 @@ impl Window {
 
   pub fn set_always_on_top(&self, _always_on_top: bool) {}
 
-  pub fn set_rtl(&self, _rtl: bool) {}
-
   pub fn set_window_icon(&self, _window_icon: Option<crate::icon::Icon>) {}
 
   pub fn set_ime_position(&self, _position: Position) {}

@@ -265,14 +265,6 @@ pub struct WindowAttributes {
   ///
   /// - **iOS / Android / Windows:** Unsupported.
   pub visible_on_all_workspaces: bool,
-
-
-  /// Sets right-to-left layout.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux / macOS / iOS / Android:** Unsupported.
-  pub rtl: bool,
 }
 
 impl Default for WindowAttributes {
@@ -300,7 +292,6 @@ impl Default for WindowAttributes {
       focused: true,
       content_protection: false,
       visible_on_all_workspaces: false,
-      rtl: false,
     }
   }
 }
@@ -509,17 +500,6 @@ impl WindowBuilder {
   pub fn with_always_on_top(mut self, always_on_top: bool) -> Self {
     self.window.always_on_bottom = false;
     self.window.always_on_top = always_on_top;
-    self
-  }
-
-  /// Sets right-to-left layout
-  ///
-  /// See [`Window::set_rtl`] for details.
-  ///
-  /// [`Window::set_rtl`]: crate::window::Window::set_rtl
-  #[inline]
-  pub fn with_rtl(mut self, rtl: bool) -> Self {
-    self.window.rtl = rtl;
     self
   }
 
@@ -1075,16 +1055,6 @@ impl Window {
   #[inline]
   pub fn set_always_on_top(&self, always_on_top: bool) {
     self.window.set_always_on_top(always_on_top)
-  }
-
-  /// Sets right-to-left layout.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux / macOS / iOS / Android:** Unsupported.
-  #[inline]
-  pub fn set_rtl(&self, rtl: bool) {
-    self.window.set_rtl(rtl)
   }
 
   /// Sets the window icon. On Windows and Linux, this is typically the small icon in the top-left

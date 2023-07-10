@@ -121,6 +121,9 @@ pub trait WindowExtWindows {
   ///
   /// Enabling the shadow causes a thin 1px line to appear on the top of the window.
   fn set_undecorated_shadow(&self, shadow: bool);
+
+  /// Sets right-to-left layout.
+  fn set_rtl(&self, rtl: bool);
 }
 
 impl WindowExtWindows for Window {
@@ -169,6 +172,11 @@ impl WindowExtWindows for Window {
   #[inline]
   fn set_undecorated_shadow(&self, shadow: bool) {
     self.window.set_undecorated_shadow(shadow)
+  }
+
+  #[inline]
+  fn set_rtl(&self, rtl: bool) {
+    self.window.set_rtl(rtl)
   }
 }
 
@@ -226,6 +234,10 @@ pub trait WindowBuilderExtWindows {
   /// The shadow is hidden by default.
   /// Enabling the shadow causes a thin 1px line to appear on the top of the window.
   fn with_undecorated_shadow(self, shadow: bool) -> WindowBuilder;
+
+  /// Sets right-to-left layout.
+  fn with_rtl(self, rtl: bool) -> WindowBuilder;
+
 }
 
 impl WindowBuilderExtWindows for WindowBuilder {
@@ -274,6 +286,12 @@ impl WindowBuilderExtWindows for WindowBuilder {
   #[inline]
   fn with_undecorated_shadow(mut self, shadow: bool) -> WindowBuilder {
     self.platform_specific.decoration_shadow = shadow;
+    self
+  }
+
+  #[inline]
+  fn with_rtl(mut self, rtl: bool) -> WindowBuilder {
+    self.platform_specific.rtl = rtl;
     self
   }
 }
