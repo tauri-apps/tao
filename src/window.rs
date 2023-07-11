@@ -19,14 +19,15 @@ use crate::{
 pub use crate::icon::{BadIcon, Icon};
 
 /// Progress State
+#[derive(Debug)]
 pub enum ProgressState {
   None,
   Normal,
-  /// **Treated as Normal in linux**
-  Intermediate,
-  /// **Treated as Normal in linux**
+  /// **Treated as Normal in linux and macOS**
+  Indeterminate,
+  /// **Treated as Normal in linux and macOS**
   Paused,
-  /// **Treated as Normal in linux**
+  /// **Treated as Normal in linux and macOS**
   Error,
 }
 
@@ -1078,7 +1079,8 @@ impl Window {
       target_os = "dragonfly",
       target_os = "freebsd",
       target_os = "netbsd",
-      target_os = "openbsd"
+      target_os = "openbsd",
+      target_os = "macos",
     ))]
     self.window.set_progress_bar(progress)
   }

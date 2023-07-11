@@ -17,6 +17,7 @@ mod keycode;
 mod menu;
 mod monitor;
 mod observer;
+mod progress_bar;
 #[cfg(feature = "tray")]
 mod system_tray;
 mod util;
@@ -38,6 +39,7 @@ pub use self::{
   keycode::{keycode_from_scancode, keycode_to_scancode},
   menu::{Menu, MenuItemAttributes},
   monitor::{MonitorHandle, VideoMode},
+  progress_bar::set_progress_indicator,
   window::{Id as WindowId, Parent, PlatformSpecificWindowBuilderAttributes, UnownedWindow},
 };
 use crate::{

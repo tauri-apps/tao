@@ -265,7 +265,7 @@ impl<T> EventLoopWindowTarget<T> {
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_progress_bar(&self, _progress: ProgressBarState) {
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     self.p.set_progress_bar(_progress)
   }
 }

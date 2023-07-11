@@ -891,7 +891,7 @@ impl Window {
         let taskbar_state = {
           match state {
             ProgressState::None => 0,
-            ProgressState::Intermediate => 1,
+            ProgressState::Indeterminate => 1,
             ProgressState::Normal => 2,
             ProgressState::Error => 3,
             ProgressState::Paused => 4,
