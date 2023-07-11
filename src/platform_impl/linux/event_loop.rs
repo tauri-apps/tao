@@ -223,35 +223,8 @@ impl<T: 'static> EventLoop<T> {
           WindowRequest::Title(title) => window.set_title(&title),
           WindowRequest::Position((x, y)) => window.move_(x, y),
           WindowRequest::Size((w, h)) => window.resize(w, h),
-          WindowRequest::SizeConstraint { min, max } => {
-            let geom_mask = min
-              .map(|_| gdk::WindowHints::MIN_SIZE)
-              .unwrap_or(gdk::WindowHints::empty())
-              | max
-                .map(|_| gdk::WindowHints::MAX_SIZE)
-                .unwrap_or(gdk::WindowHints::empty());
-
-            let (min_width, min_height) = min.map(Into::into).unwrap_or_default();
-            let (max_width, max_height) = max.map(Into::into).unwrap_or_default();
-
-            let picky_none: Option<&gtk::Window> = None;
-            window.set_geometry_hints(
-              picky_none,
-              Some(&gdk::Geometry::new(
-                min_width,
-                min_height,
-                max_width,
-                max_height,
-                0,
-                0,
-                0,
-                0,
-                0f64,
-                0f64,
-                gdk::Gravity::Center,
-              )),
-              geom_mask,
-            )
+          WindowRequest::SizeConstraints(constraints) => {
+            util::set_size_constraints(&window, constraints);
           }
           WindowRequest::Visible(visible) => {
             if visible {
