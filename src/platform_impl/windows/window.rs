@@ -22,7 +22,7 @@ use crossbeam_channel as channel;
 use windows::{
   core::PCWSTR,
   Win32::{
-    Foundation::{self as win32f, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
+    Foundation::{self as win32f, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
     Graphics::{
       Dwm::{DwmEnableBlurBehindWindow, DWM_BB_BLURREGION, DWM_BB_ENABLE, DWM_BLURBEHIND},
       Gdi::*,
@@ -30,7 +30,7 @@ use windows::{
     System::{Com::*, LibraryLoader::*, Ole::*},
     UI::{
       Input::{Ime::*, KeyboardAndMouse::*, Touch::*},
-      Shell::*,
+      Shell::{ITaskbarList4 as ITaskbarList, TaskbarList, TBPFLAG, *},
       WindowsAndMessaging::{self as win32wm, *},
     },
   },
@@ -52,7 +52,8 @@ use crate::{
     OsError, Parent, PlatformSpecificWindowBuilderAttributes, WindowId,
   },
   window::{
-    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, BORDERLESS_RESIZE_INSET,
+    CursorIcon, Fullscreen, ProgressBarState, ProgressState, Theme, UserAttentionType,
+    WindowAttributes, WindowSizeConstraints, BORDERLESS_RESIZE_INSET,
   },
 };
 
@@ -272,7 +273,11 @@ impl Window {
 
   #[inline]
   pub fn set_min_inner_size(&self, size: Option<Size>) {
-    self.window_state.lock().min_size = size;
+    {
+      let mut window_state = self.window_state.lock();
+      window_state.size_constraints.min_width = size.map(|s| s.width());
+      window_state.size_constraints.min_height = size.map(|s| s.height());
+    }
     // Make windows re-check the window size bounds.
     let size = self.inner_size();
     self.set_inner_size(size.into());
@@ -280,7 +285,19 @@ impl Window {
 
   #[inline]
   pub fn set_max_inner_size(&self, size: Option<Size>) {
-    self.window_state.lock().max_size = size;
+    {
+      let mut window_state = self.window_state.lock();
+      window_state.size_constraints.max_width = size.map(|s| s.width());
+      window_state.size_constraints.max_height = size.map(|s| s.height());
+    }
+    // Make windows re-check the window size bounds.
+    let size = self.inner_size();
+    self.set_inner_size(size.into());
+  }
+
+  #[inline]
+  pub fn set_inner_size_constraints(&self, constraints: WindowSizeConstraints) {
+    self.window_state.lock().size_constraints = constraints;
     // Make windows re-check the window size bounds.
     let size = self.inner_size();
     self.set_inner_size(size.into());
@@ -340,8 +357,8 @@ impl Window {
   }
 
   #[inline]
-  pub fn hinstance(&self) -> HINSTANCE {
-    HINSTANCE(util::GetWindowLongPtrW(self.hwnd(), GWLP_HINSTANCE))
+  pub fn hinstance(&self) -> HMODULE {
+    util::get_instance_handle()
   }
 
   #[inline]
@@ -361,8 +378,7 @@ impl Window {
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
     self.window_state.lock().mouse.cursor = cursor;
     self.thread_executor.execute_in_thread(move || unsafe {
-      let cursor =
-        LoadCursorW(HINSTANCE::default(), cursor.to_windows_cursor()).unwrap_or_default();
+      let cursor = LoadCursorW(HMODULE::default(), cursor.to_windows_cursor()).unwrap_or_default();
       SetCursor(cursor);
     });
   }
@@ -849,6 +865,37 @@ impl Window {
   }
 
   #[inline]
+  pub fn set_progress_bar(&self, progress: ProgressBarState) {
+    unsafe {
+      let taskbar_list: ITaskbarList = CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).unwrap();
+      let handle = self.window.0;
+
+      if let Some(state) = progress.state {
+        let taskbar_state = {
+          match state {
+            ProgressState::None => 0,
+            ProgressState::Intermediate => 1,
+            ProgressState::Normal => 2,
+            ProgressState::Error => 3,
+            ProgressState::Paused => 4,
+          }
+        };
+
+        taskbar_list
+          .SetProgressState(handle, TBPFLAG(taskbar_state))
+          .unwrap_or(());
+      }
+      if let Some(value) = progress.progress {
+        let value = if value > 100 { 100 } else { value };
+
+        taskbar_list
+          .SetProgressValue(handle, value, 100)
+          .unwrap_or(());
+      }
+    }
+  }
+
+  #[inline]
   pub fn set_undecorated_shadow(&self, shadow: bool) {
     let window = self.window.clone();
     let window_state = Arc::clone(&self.window_state);
@@ -1037,17 +1084,13 @@ unsafe fn init<T: 'static>(
     win.set_fullscreen(attributes.fullscreen);
     force_window_active(win.window.0);
   } else {
-    let size = attributes
+    let desired_size = attributes
       .inner_size
       .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
-    let max_size = attributes
-      .max_inner_size
-      .unwrap_or_else(|| PhysicalSize::new(f64::MAX, f64::MAX).into());
-    let min_size = attributes
-      .min_inner_size
-      .unwrap_or_else(|| PhysicalSize::new(0, 0).into());
-    let clamped_size = Size::clamp(size, min_size, max_size, win.scale_factor());
-    win.set_inner_size(clamped_size);
+    let size = attributes
+      .inner_size_constraints
+      .clamp(desired_size, win.scale_factor());
+    win.set_inner_size(size);
 
     if attributes.maximized {
       // Need to set MAXIMIZED after setting `inner_size` as

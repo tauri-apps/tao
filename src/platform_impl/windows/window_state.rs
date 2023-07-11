@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-  dpi::{PhysicalPosition, Size},
+  dpi::PhysicalPosition,
   icon::Icon,
   keyboard::ModifiersState,
   platform_impl::platform::{event_loop, minimal_ime::MinimalIme, util},
-  window::{CursorIcon, Fullscreen, Theme, WindowAttributes},
+  window::{CursorIcon, Fullscreen, Theme, WindowAttributes, WindowSizeConstraints},
 };
 use parking_lot::MutexGuard;
 use std::io;
@@ -22,8 +22,7 @@ pub struct WindowState {
   pub mouse: MouseProperties,
 
   /// Used by `WM_GETMINMAXINFO`.
-  pub min_size: Option<Size>,
-  pub max_size: Option<Size>,
+  pub size_constraints: WindowSizeConstraints,
 
   pub window_icon: Option<Icon>,
   pub taskbar_icon: Option<Icon>,
@@ -128,8 +127,7 @@ impl WindowState {
         last_position: None,
       },
 
-      min_size: attributes.min_inner_size,
-      max_size: attributes.max_inner_size,
+      size_constraints: attributes.inner_size_constraints,
 
       window_icon: attributes.window_icon.clone(),
       taskbar_icon,
@@ -233,7 +231,7 @@ impl WindowFlags {
     if self.contains(WindowFlags::RESIZABLE) {
       style |= WS_SIZEBOX;
     }
-    if self.contains(WindowFlags::RESIZABLE | WindowFlags::MAXIMIZABLE) {
+    if self.contains(WindowFlags::MAXIMIZABLE) {
       style |= WS_MAXIMIZEBOX;
     }
     if self.contains(WindowFlags::MINIMIZABLE) {

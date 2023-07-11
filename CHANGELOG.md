@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.20.0]
+
+- [`c6082173`](https://github.com/tauri-apps/tao/commit/c6082173a943e23653783fd0872f64c66bf96de9)([#731](https://github.com/tauri-apps/tao/pull/731)) Fix build error on target i686-pc-windows-msvc
+- [`90ce80cd`](https://github.com/tauri-apps/tao/commit/90ce80cd4dc8babb5e5fab21fb783c710340b923)([#732](https://github.com/tauri-apps/tao/pull/732)) Enable shadows by default for undecorated window on Windows.
+
 ## \[0.19.1]
 
 - On Windows, fix auto-hide taskbar can't be shown when maximizing undecorated window.

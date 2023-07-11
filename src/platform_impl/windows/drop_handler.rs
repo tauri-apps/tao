@@ -38,7 +38,7 @@ impl FileDropHandler {
     }
   }
 
-  unsafe fn iterate_filenames<F>(data_obj: &Option<IDataObject>, callback: F) -> Option<HDROP>
+  unsafe fn iterate_filenames<F>(data_obj: Option<&IDataObject>, callback: F) -> Option<HDROP>
   where
     F: Fn(PathBuf),
   {
@@ -57,7 +57,7 @@ impl FileDropHandler {
     {
       Ok(medium) => {
         let hglobal = medium.Anonymous.hGlobal;
-        let hdrop = HDROP(hglobal);
+        let hdrop = HDROP(hglobal.0);
 
         // The second parameter (0xFFFFFFFF) instructs the function to return the item count
         let mut lpsz_file = [];
@@ -102,7 +102,7 @@ impl FileDropHandler {
 impl IDropTarget_Impl for FileDropHandler {
   fn DragEnter(
     &self,
-    pDataObj: &Option<IDataObject>,
+    pDataObj: Option<&IDataObject>,
     _grfKeyState: MODIFIERKEYS_FLAGS,
     _pt: &POINTL,
     pdwEffect: *mut DROPEFFECT,
@@ -153,7 +153,7 @@ impl IDropTarget_Impl for FileDropHandler {
 
   fn Drop(
     &self,
-    pDataObj: &Option<IDataObject>,
+    pDataObj: Option<&IDataObject>,
     _grfKeyState: MODIFIERKEYS_FLAGS,
     _pt: &POINTL,
     _pdwEffect: *mut DROPEFFECT,

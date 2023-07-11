@@ -24,15 +24,12 @@ use windows::{
   core::{s, PCWSTR},
   Win32::{
     Devices::HumanInterfaceDevice::*,
-    Foundation::{
-      BOOL, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_TIMEOUT, WPARAM,
-    },
+    Foundation::{BOOL, HANDLE, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_TIMEOUT, WPARAM},
     Graphics::Gdi::*,
     System::{
       LibraryLoader::GetModuleHandleW,
       Ole::{IDropTarget, RevokeDragDrop},
-      Threading::GetCurrentThreadId,
-      WindowsProgramming::INFINITE,
+      Threading::{GetCurrentThreadId, INFINITE},
     },
     UI::{
       Controls::{self as win32c, HOVER_DEFAULT},
@@ -47,7 +44,7 @@ use windows::{
 };
 
 use crate::{
-  dpi::{PhysicalPosition, PhysicalSize},
+  dpi::{PhysicalPosition, PhysicalSize, PixelUnit},
   error::ExternalError,
   event::{DeviceEvent, Event, Force, RawKeyEvent, Touch, TouchPhase, WindowEvent},
   event_loop::{ControlFlow, DeviceEventFilter, EventLoopClosed, EventLoopWindowTarget as RootELW},
@@ -1753,7 +1750,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
       match set_cursor_to {
         Some(cursor) => {
-          if let Ok(cursor) = LoadCursorW(HINSTANCE::default(), cursor.to_windows_cursor()) {
+          if let Ok(cursor) = LoadCursorW(HMODULE::default(), cursor.to_windows_cursor()) {
             SetCursor(cursor);
           }
           result = ProcResult::Value(LRESULT(0));
@@ -1766,29 +1763,49 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let mmi = lparam.0 as *mut MINMAXINFO;
 
       let window_state = subclass_input.window_state.lock();
+      let is_decorated = window_state
+        .window_flags()
+        .contains(WindowFlags::MARKER_DECORATIONS);
 
-      if window_state.min_size.is_some() || window_state.max_size.is_some() {
-        let is_decorated = window_state
-          .window_flags()
-          .contains(WindowFlags::MARKER_DECORATIONS);
-        if let Some(min_size) = window_state.min_size {
-          let min_size = min_size.to_physical(window_state.scale_factor);
-          let (width, height): (u32, u32) =
-            util::adjust_size(window, min_size, is_decorated).into();
-          (*mmi).ptMinTrackSize = POINT {
-            x: width as i32,
-            y: height as i32,
-          };
-        }
-        if let Some(max_size) = window_state.max_size {
-          let max_size = max_size.to_physical(window_state.scale_factor);
-          let (width, height): (u32, u32) =
-            util::adjust_size(window, max_size, is_decorated).into();
-          (*mmi).ptMaxTrackSize = POINT {
-            x: width as i32,
-            y: height as i32,
-          };
-        }
+      let size_constraints = window_state.size_constraints;
+
+      if size_constraints.has_min() {
+        let min_size = PhysicalSize::new(
+          size_constraints
+            .min_width
+            .unwrap_or_else(|| PixelUnit::Physical(GetSystemMetrics(SM_CXMINTRACK).into()))
+            .to_physical(window_state.scale_factor)
+            .value,
+          size_constraints
+            .min_height
+            .unwrap_or_else(|| PixelUnit::Physical(GetSystemMetrics(SM_CYMINTRACK).into()))
+            .to_physical(window_state.scale_factor)
+            .value,
+        );
+        let (width, height): (u32, u32) = util::adjust_size(window, min_size, is_decorated).into();
+        (*mmi).ptMinTrackSize = POINT {
+          x: width as i32,
+          y: height as i32,
+        };
+      }
+      if size_constraints.has_max() {
+        let max_size = PhysicalSize::new(
+          size_constraints
+            .max_width
+            .unwrap_or_else(|| PixelUnit::Physical(GetSystemMetrics(SM_CXMAXTRACK).into()))
+            .to_physical(window_state.scale_factor)
+            .value,
+          size_constraints
+            .max_height
+            .unwrap_or_else(|| PixelUnit::Physical(GetSystemMetrics(SM_CYMAXTRACK).into()))
+            .to_physical(window_state.scale_factor)
+            .value,
+        );
+        let (width, height): (u32, u32) = util::adjust_size(window, max_size, is_decorated).into();
+        (*mmi).ptMaxTrackSize = POINT {
+          x: width as i32,
+          y: height as i32,
+        };
       }
 
       result = ProcResult::Value(LRESULT(0));
@@ -1884,7 +1901,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         false => old_physical_inner_size,
       };
 
-      let _ = subclass_input.send_event(Event::WindowEvent {
+      subclass_input.send_event(Event::WindowEvent {
         window_id: RootWindowId(WindowId(window.0)),
         event: ScaleFactorChanged {
           scale_factor: new_scale_factor,
@@ -2021,7 +2038,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
       let preferred_theme = subclass_input.window_state.lock().preferred_theme;
 
-      if preferred_theme == None {
+      if preferred_theme.is_none() {
         let new_theme = try_theme(window, preferred_theme);
         let mut window_state = subclass_input.window_state.lock();
 

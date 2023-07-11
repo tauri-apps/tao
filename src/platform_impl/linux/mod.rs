@@ -19,6 +19,8 @@ mod keycode;
 mod monitor;
 mod util;
 mod window;
+
+pub mod taskbar;
 pub mod x11;
 
 pub use self::{

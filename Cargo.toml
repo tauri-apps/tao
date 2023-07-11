@@ -1,6 +1,6 @@
 [package]
 name = "tao"
-version = "0.19.1"
+version = "0.20.0"
 description = "Cross-platform window manager library."
 authors = [
   "Tauri Programme within The Commons Conservancy",
@@ -45,15 +45,16 @@ serde = { version = "1", optional = true, features = ["serde_derive"] }
 raw-window-handle = "0.5"
 bitflags = "1"
 crossbeam-channel = "0.5"
+url = "2"
 
 [dev-dependencies]
 image = "0.24"
-env_logger = "0.9"
+env_logger = "0.10"
 
 [target."cfg(target_os = \"android\")".dependencies]
 jni = "0.20"
-ndk = "0.6"
-ndk-sys = "0.3"
+ndk = "0.7"
+ndk-sys = "0.4"
 ndk-context = "0.1"
 once_cell = "1"
 tao-macros = { version = "0.1.0", path = "./tao-macros" }
@@ -73,10 +74,10 @@ png = "0.17"
 parking_lot = "0.12"
 unicode-segmentation = "1.10"
 image = { version = "0.24", default-features = false }
-windows-implement = "0.44.0"
+windows-implement = "0.48.0"
 
   [target."cfg(target_os = \"windows\")".dependencies.windows]
-  version = "0.44.0"
+  version = "0.48.0"
   features = [
   "implement",
   "Win32_Devices_HumanInterfaceDevice",
@@ -118,6 +119,7 @@ gdkx11-sys = "0.16"
 gdkwayland-sys = "0.16.0"
 gdk-pixbuf = "0.16"
 x11-dl = "2.21"
+zbus = "3"
 uuid = { version = "1.3", features = [ "v4" ] }
 png = "0.17"
 parking_lot = "0.12"

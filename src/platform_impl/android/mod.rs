@@ -11,7 +11,7 @@ use crate::{
   icon::Icon,
   keyboard::{Key, KeyCode, KeyLocation, NativeKeyCode},
   monitor,
-  window::{self, Theme},
+  window::{self, Theme, WindowSizeConstraints},
 };
 use ndk::{
   configuration::Configuration,
@@ -189,7 +189,7 @@ impl<T: 'static> EventLoop<T> {
         },
         Some(EventSource::InputQueue) => {
           if let Some(input_queue) = ndk_glue::input_queue().as_ref() {
-            while let Some(event) = input_queue.get_event() {
+            while let Ok(Some(event)) = input_queue.get_event() {
               if let Some(event) = input_queue.pre_dispatch(event) {
                 let mut handled = true;
                 let window_id = window::WindowId(WindowId);
@@ -547,8 +547,8 @@ impl Window {
   }
 
   pub fn set_min_inner_size(&self, _: Option<Size>) {}
-
   pub fn set_max_inner_size(&self, _: Option<Size>) {}
+  pub fn set_inner_size_constraints(&self, _: WindowSizeConstraints) {}
 
   pub fn set_title(&self, _title: &str) {}
   pub fn title(&self) -> String {
