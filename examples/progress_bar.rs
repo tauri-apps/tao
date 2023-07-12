@@ -53,7 +53,7 @@ fn main() {
               "1" => progress = 0,
               "2" => progress = 25,
               "3" => progress = 50,
-              "4" => progress = 70,
+              "4" => progress = 75,
               "5" => progress = 100,
               _ => {}
             }
