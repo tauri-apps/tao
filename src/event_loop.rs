@@ -261,7 +261,6 @@ impl<T> EventLoopWindowTarget<T> {
   ///
   /// - **Windows:** Unsupported. Use the Progress Bar Function Available in Window (Windows can have different progress bars for different window)
   /// - **Linux:** Only supported desktop environments with `libunity` (e.g. GNOME).
-  /// - **macOS:** Unimplemented.
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_progress_bar(&self, _progress: ProgressBarState) {
