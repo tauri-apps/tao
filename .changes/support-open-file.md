@@ -2,4 +2,4 @@
 "tao": minor
 ---
 
-Add `Event::OpenURLs` on macOS.
+Implement `Event::Opened` on macOS for file association and deeplink support.
