@@ -130,28 +130,10 @@ pub struct EventLoop<T: 'static> {
 
 impl<T> EventLoop<T> {
   pub fn new() -> Self {
-    let delegate = unsafe {
-      let is_main_thread: BOOL = msg_send!(class!(NSThread), isMainThread);
-      if is_main_thread == NO {
-        panic!("On macOS, `EventLoop` must be created on the main thread!");
-      }
-
-      // This must be done before `NSApp()` (equivalent to sending
-      // `sharedApplication`) is called anywhere else, or we'll end up
-      // with the wrong `NSApplication` class and the wrong thread could
-      // be marked as main.
-      let app: id = msg_send![APP_CLASS.0, sharedApplication];
-
-      let delegate = IdRef::new(msg_send![APP_DELEGATE_CLASS.0, new]);
-      let pool = NSAutoreleasePool::new(nil);
-      let _: () = msg_send![app, setDelegate:*delegate];
-      let _: () = msg_send![pool, drain];
-      delegate
-    };
     let panic_info: Rc<PanicInfo> = Default::default();
     setup_control_flow_observers(Rc::downgrade(&panic_info));
     EventLoop {
-      delegate,
+      delegate: IdRef::new(nil),
       window_target: Rc::new(RootWindowTarget {
         p: Default::default(),
         _marker: PhantomData,
@@ -177,6 +159,29 @@ impl<T> EventLoop<T> {
   where
     F: FnMut(Event<'_, T>, &RootWindowTarget<T>, &mut ControlFlow),
   {
+    // initialize app delegate if needed
+    if self.delegate.is_null() {
+      let delegate = unsafe {
+        let is_main_thread: BOOL = msg_send!(class!(NSThread), isMainThread);
+        if is_main_thread == NO {
+          panic!("On macOS, `EventLoop` must be created on the main thread!");
+        }
+
+        // This must be done before `NSApp()` (equivalent to sending
+        // `sharedApplication`) is called anywhere else, or we'll end up
+        // with the wrong `NSApplication` class and the wrong thread could
+        // be marked as main.
+        let app: id = msg_send![APP_CLASS.0, sharedApplication];
+
+        let delegate = IdRef::new(msg_send![APP_DELEGATE_CLASS.0, new]);
+        let pool = NSAutoreleasePool::new(nil);
+        let _: () = msg_send![app, setDelegate:*delegate];
+        let _: () = msg_send![pool, drain];
+        delegate
+      };
+      self.delegate = delegate;
+    }
+
     // This transmute is always safe, in case it was reached through `run`, since our
     // lifetime will be already 'static. In other cases caller should ensure that all data
     // they passed to callback will actually outlive it, some apps just can't move

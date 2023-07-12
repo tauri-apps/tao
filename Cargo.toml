@@ -31,8 +31,8 @@ members = [ "tao-macros" ]
 
 [features]
 default = []
-dox = ["gtk/dox"]
-tray = ["libappindicator", "dirs-next"]
+dox = [ "gtk/dox"]
+tray = [ "libappindicator", "dirs-next" ]
 
 [build-dependencies]
 cc = "1"

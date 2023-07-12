@@ -5,6 +5,7 @@
 use crate::{platform::macos::ActivationPolicy, platform_impl::platform::app_state::AppState};
 
 use cocoa::base::id;
+use cocoa::foundation::NSString;
 use objc::{
   declare::ClassDecl,
   runtime::{Class, Object, Sel},
@@ -13,6 +14,10 @@ use std::{
   cell::{RefCell, RefMut},
   os::raw::c_void,
 };
+
+use cocoa::foundation::NSArray;
+use cocoa::foundation::NSURL;
+use std::ffi::CStr;
 
 static AUX_DELEGATE_STATE_NAME: &str = "auxState";
 
@@ -34,7 +39,7 @@ unsafe impl Sync for AppDelegateClass {}
 lazy_static! {
   pub static ref APP_DELEGATE_CLASS: AppDelegateClass = unsafe {
     let superclass = class!(NSResponder);
-    let mut decl = ClassDecl::new("TaoAppDelegate", superclass).unwrap();
+    let mut decl = ClassDecl::new("TaoAppDelegateParent", superclass).unwrap();
 
     decl.add_class_method(sel!(new), new as extern "C" fn(&Class, Sel) -> id);
     decl.add_method(sel!(dealloc), dealloc as extern "C" fn(&Object, Sel));
@@ -46,6 +51,10 @@ lazy_static! {
     decl.add_method(
       sel!(applicationWillTerminate:),
       application_will_terminate as extern "C" fn(&Object, Sel, id),
+    );
+    decl.add_method(
+      sel!(application:openURLs:),
+      application_open_urls as extern "C" fn(&Object, Sel, id, id),
     );
     decl.add_ivar::<*mut c_void>(AUX_DELEGATE_STATE_NAME);
 
@@ -81,7 +90,7 @@ extern "C" fn dealloc(this: &Object, _: Sel) {
     let state_ptr: *mut c_void = *(this.get_ivar(AUX_DELEGATE_STATE_NAME));
     // As soon as the box is constructed it is immediately dropped, releasing the underlying
     // memory
-    Box::from_raw(state_ptr as *mut RefCell<AuxDelegateState>);
+    drop(Box::from_raw(state_ptr as *mut RefCell<AuxDelegateState>));
   }
 }
 
@@ -95,4 +104,22 @@ extern "C" fn application_will_terminate(_: &Object, _: Sel, _: id) {
   trace!("Triggered `applicationWillTerminate`");
   AppState::exit();
   trace!("Completed `applicationWillTerminate`");
+}
+
+extern "C" fn application_open_urls(_: &Object, _: Sel, _: id, urls: id) -> () {
+  trace!("Trigger `application:openURLs:`");
+
+  let urls = unsafe {
+    (0..urls.count())
+      .map(|i| {
+        url::Url::parse(
+          &CStr::from_ptr(urls.objectAtIndex(i).absoluteString().UTF8String()).to_string_lossy(),
+        )
+      })
+      .flatten()
+      .collect::<Vec<_>>()
+  };
+  trace!("Get `application:openURLs:` URLs: {:?}", urls);
+  AppState::open_urls(urls);
+  trace!("Completed `application:openURLs:`");
 }

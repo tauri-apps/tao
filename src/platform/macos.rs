@@ -512,6 +512,7 @@ pub trait EventLoopExtMacOS {
   /// [`run_return`](crate::platform::run_return::EventLoopExtRunReturn::run_return)
   fn set_activate_ignoring_other_apps(&mut self, ignore: bool);
 }
+
 impl<T> EventLoopExtMacOS for EventLoop<T> {
   #[inline]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {

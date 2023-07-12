@@ -11,7 +11,7 @@ use objc::{
 
 use crate::{
   dpi::PhysicalPosition,
-  event::{DeviceId as RootDeviceId, Event, Force, OpenEvent, Touch, TouchPhase, WindowEvent},
+  event::{DeviceId as RootDeviceId, Event, Force, Touch, TouchPhase, WindowEvent},
   platform::ios::MonitorHandleExtIOS,
   platform_impl::platform::{
     app_state::{self, OSCapabilities},
@@ -580,9 +580,7 @@ pub fn create_delegate_class() {
 
       let url = url::Url::parse(std::str::from_utf8(bytes).unwrap()).unwrap();
 
-      app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened {
-        event: OpenEvent::Url(url),
-      }));
+      app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls: vec![url] }));
 
       YES
     }
