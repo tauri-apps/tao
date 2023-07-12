@@ -8,7 +8,7 @@ use std::fmt;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 
 use crate::{
-  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+  dpi::{LogicalSize, PhysicalPosition, PhysicalSize, Pixel, PixelUnit, Position, Size},
   error::{ExternalError, NotSupportedError, OsError},
   event_loop::EventLoopWindowTarget,
   menu::MenuBar,
@@ -137,15 +137,8 @@ pub struct WindowAttributes {
   /// The default is `None`.
   pub inner_size: Option<Size>,
 
-  /// The minimum dimensions a window can be, If this is `None`, the window will have no minimum dimensions (aside from reserved).
-  ///
-  /// The default is `None`.
-  pub min_inner_size: Option<Size>,
-
-  /// The maximum dimensions a window can be, If this is `None`, the maximum will have no maximum or will be set to the primary monitor's dimensions by the platform.
-  ///
-  /// The default is `None`.
-  pub max_inner_size: Option<Size>,
+  /// The window size constraints
+  pub inner_size_constraints: WindowSizeConstraints,
 
   /// The desired position of the window. If this is `None`, some platform-specific position
   /// will be chosen.
@@ -279,8 +272,7 @@ impl Default for WindowAttributes {
   fn default() -> WindowAttributes {
     WindowAttributes {
       inner_size: None,
-      min_inner_size: None,
-      max_inner_size: None,
+      inner_size_constraints: Default::default(),
       position: None,
       resizable: true,
       minimizable: true,
@@ -329,7 +321,9 @@ impl WindowBuilder {
   /// [`Window::set_min_inner_size`]: crate::window::Window::set_min_inner_size
   #[inline]
   pub fn with_min_inner_size<S: Into<Size>>(mut self, min_size: S) -> Self {
-    self.window.min_inner_size = Some(min_size.into());
+    let size = min_size.into();
+    self.window.inner_size_constraints.min_width = Some(size.width());
+    self.window.inner_size_constraints.min_height = Some(size.height());
     self
   }
 
@@ -340,7 +334,20 @@ impl WindowBuilder {
   /// [`Window::set_max_inner_size`]: crate::window::Window::set_max_inner_size
   #[inline]
   pub fn with_max_inner_size<S: Into<Size>>(mut self, max_size: S) -> Self {
-    self.window.max_inner_size = Some(max_size.into());
+    let size = max_size.into();
+    self.window.inner_size_constraints.max_width = Some(size.width());
+    self.window.inner_size_constraints.max_height = Some(size.height());
+    self
+  }
+
+  /// Sets inner size constraints for the window.
+  ///
+  /// See [`Window::set_inner_size_constraints`] for details.
+  ///
+  /// [`Window::set_inner_size_constraints`]: crate::window::Window::set_inner_size_constraints
+  #[inline]
+  pub fn with_inner_size_constraints(mut self, constraints: WindowSizeConstraints) -> Self {
+    self.window.inner_size_constraints = constraints;
     self
   }
 
@@ -742,6 +749,16 @@ impl Window {
   #[inline]
   pub fn set_max_inner_size<S: Into<Size>>(&self, max_size: Option<S>) {
     self.window.set_max_inner_size(max_size.map(|s| s.into()))
+  }
+
+  /// Sets inner size constraints for the window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_inner_size_constraints(&self, constraints: WindowSizeConstraints) {
+    self.window.set_inner_size_constraints(constraints)
   }
 }
 
@@ -1435,6 +1452,123 @@ pub enum UserAttentionType {
 impl Default for UserAttentionType {
   fn default() -> Self {
     UserAttentionType::Informational
+  }
+}
+
+/// Window size constraints
+#[derive(Clone, Copy, PartialEq, PartialOrd, Debug, Default)]
+pub struct WindowSizeConstraints {
+  /// The minimum width a window can be, If this is `None`, the window will have no minimum width (aside from reserved).
+  ///
+  /// The default is `None`.
+  pub min_width: Option<PixelUnit>,
+  /// The minimum height a window can be, If this is `None`, the window will have no minimum height (aside from reserved).
+  ///
+  /// The default is `None`.
+  pub min_height: Option<PixelUnit>,
+  /// The maximum width a window can be, If this is `None`, the window will have no maximum width (aside from reserved).
+  ///
+  /// The default is `None`.
+  pub max_width: Option<PixelUnit>,
+  /// The maximum height a window can be, If this is `None`, the window will have no maximum height (aside from reserved).
+  ///
+  /// The default is `None`.
+  pub max_height: Option<PixelUnit>,
+}
+
+impl WindowSizeConstraints {
+  pub fn new(
+    min_width: Option<PixelUnit>,
+    min_height: Option<PixelUnit>,
+    max_width: Option<PixelUnit>,
+    max_height: Option<PixelUnit>,
+  ) -> Self {
+    Self {
+      min_width,
+      min_height,
+      max_width,
+      max_height,
+    }
+  }
+
+  /// Returns true if `min_width` or `min_height` is set.
+  pub fn has_min(&self) -> bool {
+    self.min_width.is_some() || self.min_height.is_some()
+  }
+  /// Returns true if `max_width` or `max_height` is set.
+  pub fn has_max(&self) -> bool {
+    self.max_width.is_some() || self.max_height.is_some()
+  }
+
+  /// Returns a physical size that represents the minimum constraints set and fallbacks to [`PixelUnit::MIN`] for unset values
+  pub fn min_size_physical<T: Pixel>(&self, scale_factor: f64) -> PhysicalSize<T> {
+    PhysicalSize::new(
+      self
+        .min_width
+        .unwrap_or(PixelUnit::MIN)
+        .to_physical(scale_factor)
+        .value,
+      self
+        .min_height
+        .unwrap_or(PixelUnit::MIN)
+        .to_physical(scale_factor)
+        .value,
+    )
+  }
+
+  /// Returns a logical size that represents the minimum constraints set and fallbacks to [`PixelUnit::MIN`] for unset values
+  pub fn min_size_logical<T: Pixel>(&self, scale_factor: f64) -> LogicalSize<T> {
+    LogicalSize::new(
+      self
+        .min_width
+        .unwrap_or(PixelUnit::MIN)
+        .to_logical(scale_factor)
+        .value,
+      self
+        .min_height
+        .unwrap_or(PixelUnit::MIN)
+        .to_logical(scale_factor)
+        .value,
+    )
+  }
+
+  /// Returns a physical size that represents the maximum constraints set and fallbacks to [`PixelUnit::MAX`] for unset values
+  pub fn max_size_physical<T: Pixel>(&self, scale_factor: f64) -> PhysicalSize<T> {
+    PhysicalSize::new(
+      self
+        .max_width
+        .unwrap_or(PixelUnit::MAX)
+        .to_physical(scale_factor)
+        .value,
+      self
+        .max_height
+        .unwrap_or(PixelUnit::MAX)
+        .to_physical(scale_factor)
+        .value,
+    )
+  }
+
+  /// Returns a logical size that represents the maximum constraints set and fallbacks to [`PixelUnit::MAX`] for unset values
+  pub fn max_size_logical<T: Pixel>(&self, scale_factor: f64) -> LogicalSize<T> {
+    LogicalSize::new(
+      self
+        .max_width
+        .unwrap_or(PixelUnit::MAX)
+        .to_logical(scale_factor)
+        .value,
+      self
+        .max_height
+        .unwrap_or(PixelUnit::MAX)
+        .to_logical(scale_factor)
+        .value,
+    )
+  }
+
+  /// Clamps the desired size based on the constraints set
+  pub fn clamp(&self, desired_size: Size, scale_factor: f64) -> Size {
+    let min_size: PhysicalSize<f64> = self.min_size_physical(scale_factor);
+    let max_size: PhysicalSize<f64> = self.max_size_physical(scale_factor);
+    Size::clamp(desired_size, min_size.into(), max_size.into(), scale_factor)
   }
 }
 

@@ -114,7 +114,7 @@ impl SystemTrayBuilder {
         )));
       }
 
-      let system_tray = SystemTray { hwnd: hwnd.clone() };
+      let system_tray = SystemTray { hwnd };
 
       // system_tray event handler
       let event_loop_runner = window_target.p.runner_shared.clone();

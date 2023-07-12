@@ -54,7 +54,7 @@ use crate::{
   },
   window::{
     CursorIcon, Fullscreen, ProgressBarState, ProgressState, Theme, UserAttentionType,
-    WindowAttributes, WindowId as RootWindowId, BORDERLESS_RESIZE_INSET,
+    WindowAttributes, WindowId as RootWindowId, WindowSizeConstraints, BORDERLESS_RESIZE_INSET,
   },
 };
 
@@ -285,7 +285,11 @@ impl Window {
 
   #[inline]
   pub fn set_min_inner_size(&self, size: Option<Size>) {
-    self.window_state.lock().min_size = size;
+    {
+      let mut window_state = self.window_state.lock();
+      window_state.size_constraints.min_width = size.map(|s| s.width());
+      window_state.size_constraints.min_height = size.map(|s| s.height());
+    }
     // Make windows re-check the window size bounds.
     let size = self.inner_size();
     self.set_inner_size(size.into());
@@ -293,7 +297,19 @@ impl Window {
 
   #[inline]
   pub fn set_max_inner_size(&self, size: Option<Size>) {
-    self.window_state.lock().max_size = size;
+    {
+      let mut window_state = self.window_state.lock();
+      window_state.size_constraints.max_width = size.map(|s| s.width());
+      window_state.size_constraints.max_height = size.map(|s| s.height());
+    }
+    // Make windows re-check the window size bounds.
+    let size = self.inner_size();
+    self.set_inner_size(size.into());
+  }
+
+  #[inline]
+  pub fn set_inner_size_constraints(&self, constraints: WindowSizeConstraints) {
+    self.window_state.lock().size_constraints = constraints;
     // Make windows re-check the window size bounds.
     let size = self.inner_size();
     self.set_inner_size(size.into());
@@ -1102,17 +1118,13 @@ unsafe fn init<T: 'static>(
     win.set_fullscreen(attributes.fullscreen);
     force_window_active(win.window.0);
   } else {
-    let size = attributes
+    let desired_size = attributes
       .inner_size
       .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
-    let max_size = attributes
-      .max_inner_size
-      .unwrap_or_else(|| PhysicalSize::new(f64::MAX, f64::MAX).into());
-    let min_size = attributes
-      .min_inner_size
-      .unwrap_or_else(|| PhysicalSize::new(0, 0).into());
-    let clamped_size = Size::clamp(size, min_size, max_size, win.scale_factor());
-    win.set_inner_size(clamped_size);
+    let size = attributes
+      .inner_size_constraints
+      .clamp(desired_size, win.scale_factor());
+    win.set_inner_size(size);
 
     if attributes.maximized {
       // Need to set MAXIMIZED after setting `inner_size` as
