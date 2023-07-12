@@ -114,7 +114,7 @@ impl SystemTrayBuilder {
         )));
       }
 
-      let system_tray = SystemTray { hwnd: hwnd.clone() };
+      let system_tray = SystemTray { hwnd };
 
       // system_tray event handler
       let event_loop_runner = window_target.p.runner_shared.clone();
@@ -274,12 +274,12 @@ unsafe extern "system" fn tray_subclass_proc(
 
   if msg == WM_USER_UPDATE_TRAYICON {
     let icon = wparam.0 as *mut Icon;
-    subclass_input.icon = (*icon).clone();
+    subclass_input.icon = *Box::from_raw(icon);
   }
 
   if msg == WM_USER_UPDATE_TOOLTIP {
     let tooltip = wparam.0 as *mut String;
-    subclass_input.tooltip = Some((*tooltip).clone());
+    subclass_input.tooltip = Some(*Box::from_raw(tooltip));
   }
 
   if msg == *S_U_TASKBAR_RESTART {

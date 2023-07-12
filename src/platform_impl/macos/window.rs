@@ -36,6 +36,7 @@ use crate::{
   },
   window::{
     CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
+    WindowSizeConstraints,
   },
 };
 use cocoa::{
@@ -162,13 +163,14 @@ fn create_window(
       None => {
         let screen = NSScreen::mainScreen(nil);
         let scale_factor = NSScreen::backingScaleFactor(screen) as f64;
-        let (width, height) = match attrs.inner_size {
-          Some(size) => {
-            let logical = size.to_logical(scale_factor);
-            (logical.width, logical.height)
-          }
-          None => (800.0, 600.0),
-        };
+        let desired_size = attrs
+          .inner_size
+          .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
+        let (width, height): (f64, f64) = attrs
+          .inner_size_constraints
+          .clamp(desired_size, scale_factor)
+          .to_logical::<f64>(scale_factor)
+          .into();
         let (left, bottom) = match attrs.position {
           Some(position) => {
             let logical = util::window_position(position.to_logical(scale_factor));
@@ -495,14 +497,18 @@ impl UnownedWindow {
         ns_window.setBackgroundColor_(NSColor::clearColor(nil));
       }
 
-      win_attribs.min_inner_size.map(|dim| {
-        let logical_dim = dim.to_logical(scale_factor);
-        set_min_inner_size(*ns_window, logical_dim)
-      });
-      win_attribs.max_inner_size.map(|dim| {
-        let logical_dim = dim.to_logical(scale_factor);
-        set_max_inner_size(*ns_window, logical_dim)
-      });
+      if win_attribs.inner_size_constraints.has_min() {
+        let min_size = win_attribs
+          .inner_size_constraints
+          .min_size_logical(scale_factor);
+        set_min_inner_size(*ns_window, min_size);
+      }
+      if win_attribs.inner_size_constraints.has_max() {
+        let max_size = win_attribs
+          .inner_size_constraints
+          .max_size_logical(scale_factor);
+        set_max_inner_size(*ns_window, max_size);
+      }
 
       // register for drag and drop operations.
       let () = msg_send![
@@ -697,24 +703,34 @@ impl UnownedWindow {
   }
 
   pub fn set_min_inner_size(&self, dimensions: Option<Size>) {
+    let dimensions = dimensions.unwrap_or(Logical(LogicalSize {
+      width: 0.0,
+      height: 0.0,
+    }));
+    let scale_factor = self.scale_factor();
     unsafe {
-      let dimensions = dimensions.unwrap_or(Logical(LogicalSize {
-        width: 0.0,
-        height: 0.0,
-      }));
-      let scale_factor = self.scale_factor();
       set_min_inner_size(*self.ns_window, dimensions.to_logical(scale_factor));
     }
   }
 
   pub fn set_max_inner_size(&self, dimensions: Option<Size>) {
+    let dimensions = dimensions.unwrap_or(Logical(LogicalSize {
+      width: std::f32::MAX as f64,
+      height: std::f32::MAX as f64,
+    }));
+    let scale_factor = self.scale_factor();
     unsafe {
-      let dimensions = dimensions.unwrap_or(Logical(LogicalSize {
-        width: std::f32::MAX as f64,
-        height: std::f32::MAX as f64,
-      }));
-      let scale_factor = self.scale_factor();
       set_max_inner_size(*self.ns_window, dimensions.to_logical(scale_factor));
+    }
+  }
+
+  pub fn set_inner_size_constraints(&self, constraints: WindowSizeConstraints) {
+    let scale_factor = self.scale_factor();
+    unsafe {
+      let min_size = constraints.min_size_logical(scale_factor);
+      set_min_inner_size(*self.ns_window, min_size);
+      let max_size = constraints.max_size_logical(scale_factor);
+      set_max_inner_size(*self.ns_window, max_size);
     }
   }
 

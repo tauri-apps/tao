@@ -33,15 +33,17 @@ use crate::{
   menu::{MenuItem, MenuType},
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{device, window::hit_test, DEVICE_ID},
-  window::{CursorIcon, Fullscreen, WindowId as RootWindowId},
+  window::{CursorIcon, Fullscreen, ProgressBarState, WindowId as RootWindowId},
 };
 
 use super::{
   keyboard,
   monitor::{self, MonitorHandle},
-  util,
+  taskbar, util,
   window::{WindowId, WindowRequest},
 };
+
+use taskbar::TaskbarIndicator;
 
 #[derive(Clone)]
 pub struct EventLoopWindowTarget<T> {
@@ -118,6 +120,16 @@ impl<T> EventLoopWindowTarget<T> {
   #[inline]
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
     util::cursor_position(self.is_wayland())
+  }
+
+  #[inline]
+  pub fn set_progress_bar(&self, progress: ProgressBarState) {
+    if let Err(e) = self
+      .window_requests_tx
+      .send((WindowId::dummy(), WindowRequest::ProgressBarState(progress)))
+    {
+      log::warn!("Fail to send update progress bar request: {}", e);
+    }
   }
 }
 
@@ -201,6 +213,9 @@ impl<T: 'static> EventLoop<T> {
       None
     };
 
+    let mut taskbar: Option<TaskbarIndicator> = None;
+    let supports_unity = util::is_unity();
+
     // Window Request
     window_requests_rx.attach(Some(&context), move |(id, request)| {
       if let Some(window) = app_.window_by_id(id.0) {
@@ -208,35 +223,8 @@ impl<T: 'static> EventLoop<T> {
           WindowRequest::Title(title) => window.set_title(&title),
           WindowRequest::Position((x, y)) => window.move_(x, y),
           WindowRequest::Size((w, h)) => window.resize(w, h),
-          WindowRequest::SizeConstraint { min, max } => {
-            let geom_mask = min
-              .map(|_| gdk::WindowHints::MIN_SIZE)
-              .unwrap_or(gdk::WindowHints::empty())
-              | max
-                .map(|_| gdk::WindowHints::MAX_SIZE)
-                .unwrap_or(gdk::WindowHints::empty());
-
-            let (min_width, min_height) = min.map(Into::into).unwrap_or_default();
-            let (max_width, max_height) = max.map(Into::into).unwrap_or_default();
-
-            let picky_none: Option<&gtk::Window> = None;
-            window.set_geometry_hints(
-              picky_none,
-              Some(&gdk::Geometry::new(
-                min_width,
-                min_height,
-                max_width,
-                max_height,
-                0,
-                0,
-                0,
-                0,
-                0f64,
-                0f64,
-                gdk::Gravity::Center,
-              )),
-              geom_mask,
-            )
+          WindowRequest::SizeConstraints(constraints) => {
+            util::set_size_constraints(&window, constraints);
           }
           WindowRequest::Visible(visible) => {
             if visible {
@@ -884,6 +872,7 @@ impl<T: 'static> EventLoop<T> {
             }
           }
           WindowRequest::GlobalHotKey(_hotkey_id) => {}
+          WindowRequest::ProgressBarState(_) => {}
         }
       } else if id == WindowId::dummy() {
         match request {
@@ -899,6 +888,21 @@ impl<T: 'static> EventLoop<T> {
               origin: MenuType::ContextMenu,
             }) {
               log::warn!("Failed to send status bar event to event channel: {}", e);
+            }
+          }
+          WindowRequest::ProgressBarState(state) => {
+            if supports_unity {
+              if taskbar.is_none() {
+                if let Ok(indicator) = TaskbarIndicator::new() {
+                  taskbar.replace(indicator);
+                }
+              }
+
+              if let Some(taskbar) = &mut taskbar {
+                if let Err(e) = taskbar.update(state) {
+                  log::warn!("Failed to update taskbar progress {}", e);
+                }
+              }
             }
           }
           _ => {}

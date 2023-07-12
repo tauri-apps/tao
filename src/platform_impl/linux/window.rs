@@ -27,7 +27,8 @@ use crate::{
   menu::{MenuId, MenuItem},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{
-    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, BORDERLESS_RESIZE_INSET,
+    CursorIcon, Fullscreen, ProgressBarState, Theme, UserAttentionType, WindowAttributes,
+    WindowSizeConstraints, BORDERLESS_RESIZE_INSET,
   },
 };
 
@@ -68,8 +69,7 @@ pub struct Window {
   maximized: Rc<AtomicBool>,
   minimized: Rc<AtomicBool>,
   fullscreen: RefCell<Option<Fullscreen>>,
-  min_inner_size: RefCell<Option<Size>>,
-  max_inner_size: RefCell<Option<Size>>,
+  inner_size_constraints: RefCell<WindowSizeConstraints>,
   /// Draw event Sender
   draw_tx: crossbeam_channel::Sender<WindowId>,
 }
@@ -113,40 +113,7 @@ impl Window {
     window.set_deletable(attributes.closable);
 
     // Set Min/Max Size
-    let geom_mask = attributes
-      .min_inner_size
-      .map(|_| gdk::WindowHints::MIN_SIZE)
-      .unwrap_or(gdk::WindowHints::empty())
-      | attributes
-        .max_inner_size
-        .map(|_| gdk::WindowHints::MAX_SIZE)
-        .unwrap_or(gdk::WindowHints::empty());
-    let (min_width, min_height) = attributes
-      .min_inner_size
-      .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
-      .unwrap_or_default();
-    let (max_width, max_height) = attributes
-      .max_inner_size
-      .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
-      .unwrap_or_default();
-    let picky_none: Option<&gtk::Window> = None;
-    window.set_geometry_hints(
-      picky_none,
-      Some(&gdk::Geometry::new(
-        min_width,
-        min_height,
-        max_width,
-        max_height,
-        0,
-        0,
-        0,
-        0,
-        0f64,
-        0f64,
-        gdk::Gravity::Center,
-      )),
-      geom_mask,
-    );
+    util::set_size_constraints(&window, attributes.inner_size_constraints);
 
     // Set Position
     if let Some(position) = attributes.position {
@@ -312,12 +279,12 @@ impl Window {
     let maximized: Rc<AtomicBool> = Rc::new(w_max.into());
     let max_clone = maximized.clone();
     let minimized = Rc::new(AtomicBool::new(false));
-    let min_clone = minimized.clone();
+    let minimized_clone = minimized.clone();
 
     window.connect_window_state_event(move |_, event| {
       let state = event.new_window_state();
       max_clone.store(state.contains(WindowState::MAXIMIZED), Ordering::Release);
-      min_clone.store(state.contains(WindowState::ICONIFIED), Ordering::Release);
+      minimized_clone.store(state.contains(WindowState::ICONIFIED), Ordering::Release);
       Inhibit(false)
     });
 
@@ -360,8 +327,7 @@ impl Window {
       maximized,
       minimized,
       fullscreen: RefCell::new(attributes.fullscreen),
-      min_inner_size: RefCell::new(attributes.min_inner_size),
-      max_inner_size: RefCell::new(attributes.max_inner_size),
+      inner_size_constraints: RefCell::new(attributes.inner_size_constraints),
     };
 
     win.set_skip_taskbar(pl_attribs.skip_taskbar);
@@ -444,47 +410,32 @@ impl Window {
     .to_physical(self.scale_factor.load(Ordering::Acquire) as f64)
   }
 
-  pub fn set_min_inner_size<S: Into<Size>>(&self, min_size: Option<S>) {
-    *self.min_inner_size.borrow_mut() = min_size.map(Into::into);
-
-    let scale_factor = self.scale_factor();
-
-    let min = self
-      .min_inner_size
-      .borrow()
-      .map(|s| s.to_logical::<i32>(scale_factor));
-    let max = self
-      .max_inner_size
-      .borrow()
-      .map(|s| s.to_logical::<i32>(scale_factor));
-
-    if let Err(e) = self
-      .window_requests_tx
-      .send((self.window_id, WindowRequest::SizeConstraint { min, max }))
-    {
-      log::warn!("Fail to send min size request: {}", e);
+  fn set_size_constraints(&self) {
+    if let Err(e) = self.window_requests_tx.send((
+      self.window_id,
+      WindowRequest::SizeConstraints(*self.inner_size_constraints.borrow()),
+    )) {
+      log::warn!("Fail to send size constraint request: {}", e);
     }
   }
-  pub fn set_max_inner_size<S: Into<Size>>(&self, max_size: Option<S>) {
-    *self.max_inner_size.borrow_mut() = max_size.map(Into::into);
 
-    let scale_factor = self.scale_factor();
+  pub fn set_min_inner_size(&self, size: Option<Size>) {
+    let mut size_constraints = self.inner_size_constraints.borrow_mut();
+    size_constraints.min_width = size.map(|s| s.width());
+    size_constraints.min_height = size.map(|s| s.height());
+    self.set_size_constraints()
+  }
 
-    let min = self
-      .min_inner_size
-      .borrow()
-      .map(|s| s.to_logical::<i32>(scale_factor));
-    let max = self
-      .max_inner_size
-      .borrow()
-      .map(|s| s.to_logical::<i32>(scale_factor));
+  pub fn set_max_inner_size(&self, size: Option<Size>) {
+    let mut size_constraints = self.inner_size_constraints.borrow_mut();
+    size_constraints.max_width = size.map(|s| s.width());
+    size_constraints.max_height = size.map(|s| s.height());
+    self.set_size_constraints()
+  }
 
-    if let Err(e) = self
-      .window_requests_tx
-      .send((self.window_id, WindowRequest::SizeConstraint { min, max }))
-    {
-      log::warn!("Fail to send max size request: {}", e);
-    }
+  pub fn set_inner_size_constraints(&self, constraints: WindowSizeConstraints) {
+    *self.inner_size_constraints.borrow_mut() = constraints;
+    self.set_size_constraints()
   }
 
   pub fn set_title(&self, title: &str) {
@@ -859,6 +810,15 @@ impl Window {
     }
   }
 
+  pub fn set_progress_bar(&self, progress: ProgressBarState) {
+    if let Err(e) = self
+      .window_requests_tx
+      .send((WindowId::dummy(), WindowRequest::ProgressBarState(progress)))
+    {
+      log::warn!("Fail to send update progress bar request: {}", e);
+    }
+  }
+
   pub fn theme(&self) -> Theme {
     if let Some(settings) = Settings::default() {
       let theme_name = settings.gtk_theme_name().map(|s| s.as_str().to_owned());
@@ -882,10 +842,7 @@ pub enum WindowRequest {
   Title(String),
   Position((i32, i32)),
   Size((i32, i32)),
-  SizeConstraint {
-    min: Option<LogicalSize<i32>>,
-    max: Option<LogicalSize<i32>>,
-  },
+  SizeConstraints(WindowSizeConstraints),
   Visible(bool),
   Focus,
   Resizable(bool),
@@ -911,6 +868,7 @@ pub enum WindowRequest {
   SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
   GlobalHotKey(u16),
   SetVisibleOnAllWorkspaces(bool),
+  ProgressBarState(ProgressBarState),
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
