@@ -19,15 +19,15 @@ use crate::{
 pub use crate::icon::{BadIcon, Icon};
 
 /// Progress State
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ProgressState {
   None,
   Normal,
   /// **Treated as Normal in linux and macOS**
   Indeterminate,
-  /// **Treated as Normal in linux and macOS**
+  /// **Treated as Normal in linux**
   Paused,
-  /// **Treated as Normal in linux and macOS**
+  /// **Treated as Normal in linux**
   Error,
 }
 

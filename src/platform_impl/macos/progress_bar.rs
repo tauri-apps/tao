@@ -31,6 +31,7 @@ pub fn set_progress_indicator(progress_state: ProgressBarState) {
       let _: () = msg_send![progress_indicator, setHidden: NO];
     }
     if let Some(state) = progress_state.state {
+      (*progress_indicator).set_ivar("state", state as u8);
       let _: () = msg_send![
         progress_indicator,
         setHidden: matches!(state, ProgressState::None)
@@ -65,7 +66,7 @@ fn create_progress_indicator(ns_app: id, dock_tile: id) -> id {
     // set progress indicator to the dock tile
     let _: () = msg_send![image_view, addSubview: progress_indicator];
 
-    return progress_indicator;
+    progress_indicator
   }
 }
 
@@ -106,13 +107,16 @@ fn create_progress_indicator_class() -> *const Class {
       draw_progress_bar as extern "C" fn(&Object, _, NSRect),
     );
 
+    // progress bar states, follows ProgressState
+    decl.add_ivar::<u8>("state");
+
     APP_CLASS = decl.register();
   });
 
   unsafe { APP_CLASS }
 }
 
-extern "C" fn draw_progress_bar(_this: &Object, _: Sel, rect: NSRect) {
+extern "C" fn draw_progress_bar(this: &Object, _: Sel, rect: NSRect) {
   unsafe {
     let bar = NSRect::new(
       NSPoint { x: 0.0, y: 0.0 },
@@ -125,7 +129,7 @@ extern "C" fn draw_progress_bar(_this: &Object, _: Sel, rect: NSRect) {
     let mut bar_progress = bar.inset(1.0, 1.0);
 
     // set progress width
-    let current_progress: f64 = msg_send![_this, doubleValue];
+    let current_progress: f64 = msg_send![this, doubleValue];
     let normalized_progress: f64 = (current_progress / 100.0).clamp(0.0, 1.0);
     bar_progress.size.width *= normalized_progress;
 
@@ -140,8 +144,13 @@ extern "C" fn draw_progress_bar(_this: &Object, _: Sel, rect: NSRect) {
     draw_rounded_rect(bar_inner);
 
     // draw progress
-    let white_color: id = msg_send![class!(NSColor), whiteColor];
-    let _: () = msg_send![white_color, set];
+    let state: u8 = *(this.get_ivar("state"));
+    let progress_color: id = match state {
+      3 => msg_send![class!(NSColor), grayColor], // paused
+      4 => msg_send![class!(NSColor), redColor],  // error
+      _ => msg_send![class!(NSColor), whiteColor],
+    };
+    let _: () = msg_send![progress_color, set];
     draw_rounded_rect(bar_progress);
   }
 }
