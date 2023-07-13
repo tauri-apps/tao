@@ -146,8 +146,8 @@ extern "C" fn draw_progress_bar(this: &Object, _: Sel, rect: NSRect) {
     // draw progress
     let state: u8 = *(this.get_ivar("state"));
     let progress_color: id = match state {
-      3 => msg_send![class!(NSColor), grayColor], // paused
-      4 => msg_send![class!(NSColor), redColor],  // error
+      x if x == ProgressState::Paused as u8 => msg_send![class!(NSColor), grayColor],
+      x if x == ProgressState::Error as u8 => msg_send![class!(NSColor), redColor],
       _ => msg_send![class!(NSColor), whiteColor],
     };
     let _: () = msg_send![progress_color, set];
