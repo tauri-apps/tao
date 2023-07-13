@@ -119,10 +119,10 @@ fn create_progress_indicator_class() -> *const Class {
 extern "C" fn draw_progress_bar(this: &Object, _: Sel, rect: NSRect) {
   unsafe {
     let bar = NSRect::new(
-      NSPoint { x: 0.0, y: 0.0 },
+      NSPoint { x: 0.0, y: 4.0 },
       NSSize {
         width: rect.size.width,
-        height: 15.0,
+        height: 8.0,
       },
     );
     let bar_inner = bar.inset(0.5, 0.5);
@@ -134,21 +134,18 @@ extern "C" fn draw_progress_bar(this: &Object, _: Sel, rect: NSRect) {
     bar_progress.size.width *= normalized_progress;
 
     // draw outer bar
-    let white_color_alpha: id = msg_send![class!(NSColor), colorWithWhite:1.0 alpha:0.8];
-    let _: () = msg_send![white_color_alpha, set];
+    let bg_color: id = msg_send![class!(NSColor), colorWithWhite:1.0 alpha:0.05];
+    let _: () = msg_send![bg_color, set];
     draw_rounded_rect(bar);
-
     // draw inner bar
-    let black_color_alpha: id = msg_send![class!(NSColor), colorWithWhite:0.0 alpha:0.8];
-    let _: () = msg_send![black_color_alpha, set];
     draw_rounded_rect(bar_inner);
 
     // draw progress
     let state: u8 = *(this.get_ivar("state"));
     let progress_color: id = match state {
-      x if x == ProgressState::Paused as u8 => msg_send![class!(NSColor), grayColor],
-      x if x == ProgressState::Error as u8 => msg_send![class!(NSColor), redColor],
-      _ => msg_send![class!(NSColor), whiteColor],
+      x if x == ProgressState::Paused as u8 => msg_send![class!(NSColor), systemYellowColor],
+      x if x == ProgressState::Error as u8 => msg_send![class!(NSColor), systemRedColor],
+      _ => msg_send![class!(NSColor), systemBlueColor],
     };
     let _: () = msg_send![progress_color, set];
     draw_rounded_rect(bar_progress);
