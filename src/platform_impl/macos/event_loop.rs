@@ -37,6 +37,8 @@ use crate::{
     observer::*,
     util::{self, IdRef},
   },
+  platform_impl::set_progress_indicator,
+  window::ProgressBarState,
 };
 
 #[derive(Default)]
@@ -110,6 +112,11 @@ impl<T: 'static> EventLoopWindowTarget<T> {
     } else {
       Err(ExternalError::Os(os_error!(super::OsError::CGError(0))))
     }
+  }
+
+  #[inline]
+  pub fn set_progress_bar(&self, progress: ProgressBarState) {
+    set_progress_indicator(progress);
   }
 }
 
