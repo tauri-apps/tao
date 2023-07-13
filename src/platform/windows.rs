@@ -123,6 +123,8 @@ pub trait WindowExtWindows {
   fn set_undecorated_shadow(&self, shadow: bool);
 
   /// Sets right-to-left layout.
+  ///
+  /// Enabling this mainly flips the orientation of menus and title bar buttons
   fn set_rtl(&self, rtl: bool);
 }
 
