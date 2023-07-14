@@ -1,5 +1,16 @@
 # Changelog
 
+## \[0.21.0]
+
+- [`81329013`](https://github.com/tauri-apps/tao/commit/813290130ea255b2cb45a66234a422519d13f667)([#743](https://github.com/tauri-apps/tao/pull/743)) On macOS, fix the unexpected shifting of the window when dragging after closing the share dialog.
+- [`baa02977`](https://github.com/tauri-apps/tao/commit/baa02977483c9da21451d65bde0a64230778a034)([#418](https://github.com/tauri-apps/tao/pull/418)) Added APIs for setting progress bars for the application icon on Linux (Unity only) and macOS, along with progress indicator for specific window on Windows.
+- [`8f361f0c`](https://github.com/tauri-apps/tao/commit/8f361f0c19014e6ef647fe7fa8adc47718796984)([#752](https://github.com/tauri-apps/tao/pull/752)) Handle universal links on iOS and send `Event::Opened { urls }`.
+- [`bb3c53d1`](https://github.com/tauri-apps/tao/commit/bb3c53d1d84ebc26b0d66230877ecc7b6a71db27)([#764](https://github.com/tauri-apps/tao/pull/764)) On macOS, fix `SystemTrayEvent` not emitted after calling `set_menu`.
+- [`5af3da4a`](https://github.com/tauri-apps/tao/commit/5af3da4a2cfa0e648dfa87c067deb6745b73bcc8)([#746](https://github.com/tauri-apps/tao/pull/746)) On macOS, force `NativeImage` height to be `18` to have consistent size for all icons and match custom icons.
+- [`093d8fbc`](https://github.com/tauri-apps/tao/commit/093d8fbc20954d51c96c94618479ff465ca55888)([#422](https://github.com/tauri-apps/tao/pull/422)) Implement `Event::Opened` on macOS for file association and deeplink support.
+- [`e9875fe5`](https://github.com/tauri-apps/tao/commit/e9875fe54e1e8ae1db6e28eedeed2e3e51f8226b)([#755](https://github.com/tauri-apps/tao/pull/755)) On Windows, fix leak of `tao::system_tray::Icon` when calling `tao::system_tray::SystemTray::set_icon` and leak of `String` when calling `tao::system_tray::SystemTray::set_tooltip`.
+- [`50e69d71`](https://github.com/tauri-apps/tao/commit/50e69d718e9c71d044ebc3535ca58a992db18547)([#749](https://github.com/tauri-apps/tao/pull/749)) On Windows, fix disabling `resizable` also disabling maximize button and messing up `Window::set_maximized`.
+
 ## \[0.20.0]
 
 - [`c6082173`](https://github.com/tauri-apps/tao/commit/c6082173a943e23653783fd0872f64c66bf96de9)([#731](https://github.com/tauri-apps/tao/pull/731)) Fix build error on target i686-pc-windows-msvc
