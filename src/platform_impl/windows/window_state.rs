@@ -107,6 +107,8 @@ bitflags! {
         /// Drop shadow for undecorated windows.
         const MARKER_UNDECORATED_SHADOW = 1 << 21;
 
+        const RIGHT_TO_LEFT_LAYOUT = 1 << 22;
+
         const EXCLUSIVE_FULLSCREEN_OR_MASK = WindowFlags::ALWAYS_ON_TOP.bits;
     }
 }
@@ -268,6 +270,9 @@ impl WindowFlags {
       WindowFlags::MARKER_EXCLUSIVE_FULLSCREEN | WindowFlags::MARKER_BORDERLESS_FULLSCREEN,
     ) {
       style &= !WS_OVERLAPPEDWINDOW;
+    }
+    if self.contains(WindowFlags::RIGHT_TO_LEFT_LAYOUT) {
+      style_ex |= WS_EX_LAYOUTRTL | WS_EX_RTLREADING | WS_EX_RIGHT;
     }
 
     (style, style_ex)
