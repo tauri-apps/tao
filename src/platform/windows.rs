@@ -239,7 +239,6 @@ pub trait WindowBuilderExtWindows {
 
   /// Sets right-to-left layout.
   fn with_rtl(self, rtl: bool) -> WindowBuilder;
-
 }
 
 impl WindowBuilderExtWindows for WindowBuilder {
