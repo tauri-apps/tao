@@ -13,6 +13,7 @@ use crate::{
   monitor,
   window::{self, Theme, WindowSizeConstraints},
 };
+use crossbeam_channel::{Receiver, Sender};
 use ndk::{
   configuration::Configuration,
   event::{InputEvent, KeyAction, MotionAction},
@@ -25,7 +26,7 @@ use raw_window_handle::{
 use std::{
   collections::VecDeque,
   convert::TryInto,
-  sync::{Arc, Mutex, RwLock},
+  sync::RwLock,
   time::{Duration, Instant},
 };
 
@@ -59,7 +60,8 @@ fn poll(poll: Poll) -> Option<EventSource> {
 
 pub struct EventLoop<T: 'static> {
   window_target: event_loop::EventLoopWindowTarget<T>,
-  user_queue: Arc<Mutex<VecDeque<T>>>,
+  receiver: Receiver<T>,
+  sender_to_clone: Sender<T>,
   first_event: Option<EventSource>,
   start_cause: event::StartCause,
   looper: ThreadLooper,
@@ -88,7 +90,8 @@ impl<T: 'static> EventLoop<T> {
         },
         _marker: std::marker::PhantomData,
       },
-      user_queue: Default::default(),
+      sender_to_clone: sender,
+      receiver,
       first_event: None,
       start_cause: event::StartCause::Init,
       looper: ThreadLooper::for_thread().unwrap(),
@@ -290,8 +293,7 @@ impl<T: 'static> EventLoop<T> {
           }
         }
         Some(EventSource::User) => {
-          let mut user_queue = self.user_queue.lock().unwrap();
-          while let Some(event) = user_queue.pop_front() {
+          while let Ok(event) = self.receiver.try_recv() {
             call_event_handler!(
               event_handler,
               self.window_target(),
@@ -391,20 +393,20 @@ impl<T: 'static> EventLoop<T> {
 
   pub fn create_proxy(&self) -> EventLoopProxy<T> {
     EventLoopProxy {
-      queue: self.user_queue.clone(),
+      queue: self.sender_to_clone.clone(),
       looper: ForeignLooper::for_thread().expect("called from event loop thread"),
     }
   }
 }
 
 pub struct EventLoopProxy<T: 'static> {
-  queue: Arc<Mutex<VecDeque<T>>>,
+  queue: Sender<T>,
   looper: ForeignLooper,
 }
 
 impl<T> EventLoopProxy<T> {
   pub fn send_event(&self, event: T) -> Result<(), event_loop::EventLoopClosed<T>> {
-    self.queue.lock().unwrap().push_back(event);
+    _ = self.queue.try_send(event);
     self.looper.wake();
     Ok(())
   }

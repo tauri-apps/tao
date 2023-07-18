@@ -18,11 +18,12 @@ use crate::{
 pub use crate::icon::{BadIcon, Icon};
 
 /// Progress State
+#[derive(Debug, Clone, Copy)]
 pub enum ProgressState {
   None,
   Normal,
-  /// **Treated as Normal in linux**
-  Intermediate,
+  /// **Treated as Normal in linux and macOS**
+  Indeterminate,
   /// **Treated as Normal in linux**
   Paused,
   /// **Treated as Normal in linux**
@@ -1051,8 +1052,7 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux**: Progress bar is app-wide and not specific to this window. Only supported desktop environments with `libunity` (e.g. GNOME).
-  /// - **macOS**: Unimplemented.
+  /// - **Linux / macOS**: Progress bar is app-wide and not specific to this window. Only supported desktop environments with `libunity` (e.g. GNOME).
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_progress_bar(&self, _progress: ProgressBarState) {
@@ -1062,7 +1062,8 @@ impl Window {
       target_os = "dragonfly",
       target_os = "freebsd",
       target_os = "netbsd",
-      target_os = "openbsd"
+      target_os = "openbsd",
+      target_os = "macos",
     ))]
     self.window.set_progress_bar(_progress)
   }

@@ -34,9 +34,10 @@ use crate::{
     window_delegate::new_delegate,
     OsError,
   },
+  platform_impl::set_progress_indicator,
   window::{
-    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
-    WindowSizeConstraints,
+    CursorIcon, Fullscreen, ProgressBarState, Theme, UserAttentionType, WindowAttributes,
+    WindowId as RootWindowId, WindowSizeConstraints,
   },
 };
 use cocoa::{
@@ -1402,6 +1403,10 @@ impl UnownedWindow {
       };
       self.ns_window.setCollectionBehavior_(collection_behavior)
     }
+  }
+
+  pub fn set_progress_bar(&self, progress: ProgressBarState) {
+    set_progress_indicator(progress);
   }
 }
 

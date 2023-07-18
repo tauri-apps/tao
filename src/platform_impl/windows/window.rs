@@ -744,6 +744,17 @@ impl Window {
     });
   }
 
+  pub fn set_rtl(&self, rtl: bool) {
+    let window = self.window.clone();
+    let window_state = Arc::clone(&self.window_state);
+
+    self.thread_executor.execute_in_thread(move || {
+      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+        f.set(WindowFlags::RIGHT_TO_LEFT_LAYOUT, rtl)
+      });
+    });
+  }
+
   #[inline]
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
     Some(RootMonitorHandle {
@@ -874,7 +885,7 @@ impl Window {
         let taskbar_state = {
           match state {
             ProgressState::None => 0,
-            ProgressState::Intermediate => 1,
+            ProgressState::Indeterminate => 1,
             ProgressState::Normal => 2,
             ProgressState::Error => 3,
             ProgressState::Paused => 4,
@@ -976,6 +987,8 @@ unsafe fn init<T: 'static>(
   window_flags.set(WindowFlags::CLOSABLE, true);
 
   window_flags.set(WindowFlags::MARKER_DONT_FOCUS, !attributes.focused);
+
+  window_flags.set(WindowFlags::RIGHT_TO_LEFT_LAYOUT, pl_attribs.rtl);
 
   let parent = match pl_attribs.parent {
     Parent::ChildOf(parent) => {
