@@ -145,15 +145,16 @@ pub struct EventLoop<T: 'static> {
 }
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct PlatformSpecificEventLoopAttributes {}
+pub(crate) struct PlatformSpecificEventLoopAttributes {
+  pub(crate) any_thread: bool,
+}
 
 impl<T: 'static> EventLoop<T> {
-  pub(crate) fn new(_: &PlatformSpecificEventLoopAttributes) -> EventLoop<T> {
-    assert_is_main_thread("new_any_thread");
-    EventLoop::new_any_thread()
-  }
+  pub(crate) fn new(attrs: &PlatformSpecificEventLoopAttributes) -> EventLoop<T> {
+    if !attrs.any_thread {
+      assert_is_main_thread("new_any_thread");
+    }
 
-  pub fn new_any_thread() -> EventLoop<T> {
     let context = MainContext::default();
     context
       .with_thread_default(|| EventLoop::new_gtk().expect("Failed to initialize gtk backend!"))

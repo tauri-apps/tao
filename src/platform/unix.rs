@@ -18,12 +18,35 @@ pub use crate::platform_impl::x11;
 
 pub use crate::platform_impl::{hit_test, EventLoop as UnixEventLoop};
 use crate::{
-  event_loop::{EventLoop, EventLoopWindowTarget},
+  event_loop::{EventLoopBuilder, EventLoopWindowTarget},
   platform_impl::{x11::xdisplay::XError, Parent},
   window::{Window, WindowBuilder},
 };
 
 use self::x11::xdisplay::XConnection;
+
+/// Additional methods on `EventLoop` that are specific to Unix.
+pub trait EventLoopBuilderExtUnix {
+  /// Whether to allow the event loop to be created off of the main thread.
+  ///
+  /// By default, the window is only allowed to be created on the main
+  /// thread, to make platform compatibility easier.
+  ///
+  /// # `Window` caveats
+  ///
+  /// Note that any `Window` created on the new thread will be destroyed when the thread
+  /// terminates. Attempting to use a `Window` after its parent thread terminates has
+  /// unspecified, although explicitly not undefined, behavior.
+  fn with_any_thread(&mut self, any_thread: bool) -> &mut Self;
+}
+
+impl<T> EventLoopBuilderExtUnix for EventLoopBuilder<T> {
+  #[inline]
+  fn with_any_thread(&mut self, any_thread: bool) -> &mut Self {
+    self.platform_specific.any_thread = any_thread;
+    self
+  }
+}
 
 /// Additional methods on `Window` that are specific to Unix.
 pub trait WindowExtUnix {
@@ -117,31 +140,6 @@ impl WindowBuilderExtUnix for WindowBuilder {
   fn with_cursor_moved_event(mut self, cursor_moved: bool) -> WindowBuilder {
     self.platform_specific.cursor_moved = cursor_moved;
     self
-  }
-}
-
-/// Additional methods on `EventLoop` that are specific to Unix.
-pub trait EventLoopExtUnix {
-  /// Builds a new `EventLoop` on any thread.
-  ///
-  /// This method bypasses the cross-platform compatibility requirement
-  /// that `EventLoop` be created on the main thread.
-  fn new_any_thread() -> Self
-  where
-    Self: Sized;
-}
-
-fn wrap_ev<T>(event_loop: UnixEventLoop<T>) -> EventLoop<T> {
-  EventLoop {
-    event_loop,
-    _marker: std::marker::PhantomData,
-  }
-}
-
-impl<T> EventLoopExtUnix for EventLoop<T> {
-  #[inline]
-  fn new_any_thread() -> Self {
-    wrap_ev(UnixEventLoop::new_any_thread())
   }
 }
 
