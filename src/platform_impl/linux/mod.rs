@@ -63,6 +63,7 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub app_paintable: bool,
   pub rgba_visual: bool,
   pub cursor_moved: bool,
+  pub default_vbox: bool,
 }
 
 impl Default for PlatformSpecificWindowBuilderAttributes {
@@ -75,6 +76,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       app_paintable: false,
       rgba_visual: false,
       cursor_moved: true,
+      default_vbox: true,
     }
   }
 }

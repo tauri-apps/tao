@@ -55,6 +55,7 @@ pub struct Window {
   pub(crate) window_id: WindowId,
   /// Gtk application window.
   pub(crate) window: gtk::ApplicationWindow,
+  pub(crate) default_vbox: Option<gtk::Box>,
   /// Window requests sender
   pub(crate) window_requests_tx: glib::Sender<(WindowId, WindowRequest)>,
   scale_factor: Rc<AtomicI32>,
@@ -136,6 +137,14 @@ impl Window {
         }
       }
     }
+
+    let default_vbox = if pl_attribs.default_vbox {
+      let box_ = gtk::Box::new(gtk::Orientation::Vertical, 0);
+      window.add(&box_);
+      Some(box_)
+    } else {
+      None
+    };
 
     // Rest attributes
     window.set_title(&attributes.title);
@@ -284,6 +293,7 @@ impl Window {
     let win = Self {
       window_id,
       window,
+      default_vbox,
       window_requests_tx,
       draw_tx,
       scale_factor,
