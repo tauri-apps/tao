@@ -446,7 +446,6 @@ impl From<WindowAttributes> for SharedState {
 
 pub struct UnownedWindow {
   pub ns_window: IdRef, // never changes
-  pub ns_view: IdRef,   // never changes
   input_context: IdRef, // never changes
   pub shared_state: Arc<Mutex<SharedState>>,
   decorations: AtomicBool,
@@ -536,7 +535,6 @@ impl UnownedWindow {
     let cloned_preferred_theme = win_attribs.preferred_theme.clone();
 
     let window = Arc::new(UnownedWindow {
-      ns_view,
       ns_window,
       input_context,
       shared_state: Arc::new(Mutex::new(win_attribs.into())),
@@ -585,11 +583,11 @@ impl UnownedWindow {
   }
 
   fn set_style_mask_async(&self, mask: NSWindowStyleMask) {
-    unsafe { util::set_style_mask_async(*self.ns_window, *self.ns_view, mask) };
+    unsafe { util::set_style_mask_async(*self.ns_window, self.ns_view() as id, mask) };
   }
 
   fn set_style_mask_sync(&self, mask: NSWindowStyleMask) {
-    unsafe { util::set_style_mask_sync(*self.ns_window, *self.ns_view, mask) };
+    unsafe { util::set_style_mask_sync(*self.ns_window, self.ns_view() as id, mask) };
   }
 
   pub fn id(&self) -> Id {
@@ -679,7 +677,7 @@ impl UnownedWindow {
 
   #[inline]
   pub fn inner_size(&self) -> PhysicalSize<u32> {
-    let view_frame = unsafe { NSView::frame(*self.ns_view) };
+    let view_frame = unsafe { NSView::frame(self.ns_view() as id) };
     let logical: LogicalSize<f64> =
       (view_frame.size.width as f64, view_frame.size.height as f64).into();
     let scale_factor = self.scale_factor();
@@ -794,7 +792,7 @@ impl UnownedWindow {
     }
     unsafe {
       let _: () = msg_send![*self.ns_window,
-          invalidateCursorRectsForView:*self.ns_view
+          invalidateCursorRectsForView:self.ns_view()
       ];
     }
   }
@@ -815,7 +813,7 @@ impl UnownedWindow {
         drop(cursor_state);
         unsafe {
           let _: () = msg_send![*self.ns_window,
-              invalidateCursorRectsForView:*self.ns_view
+              invalidateCursorRectsForView:self.ns_view()
           ];
         }
       }
@@ -1174,7 +1172,7 @@ impl UnownedWindow {
       (&None, &Some(_)) => unsafe {
         util::toggle_full_screen_async(
           *self.ns_window,
-          *self.ns_view,
+          self.ns_view() as id,
           old_fullscreen.is_none(),
           Arc::downgrade(&self.shared_state),
         );
@@ -1183,7 +1181,7 @@ impl UnownedWindow {
         // State is restored by `window_did_exit_fullscreen`
         util::toggle_full_screen_async(
           *self.ns_window,
-          *self.ns_view,
+          self.ns_view() as id,
           old_fullscreen.is_none(),
           Arc::downgrade(&self.shared_state),
         );
@@ -1193,7 +1191,7 @@ impl UnownedWindow {
         // Rest of the state is restored by `window_did_exit_fullscreen`
         util::toggle_full_screen_async(
           *self.ns_window,
-          *self.ns_view,
+          self.ns_view() as id,
           old_fullscreen.is_none(),
           Arc::downgrade(&self.shared_state),
         );
@@ -1321,7 +1319,7 @@ impl UnownedWindow {
     let logical_spot = spot.to_logical(scale_factor);
     unsafe {
       view::set_ime_position(
-        *self.ns_view,
+        self.ns_view() as id,
         *self.input_context,
         logical_spot.x,
         logical_spot.y,
@@ -1393,7 +1391,7 @@ impl UnownedWindow {
   pub fn raw_window_handle(&self) -> RawWindowHandle {
     let mut window_handle = AppKitWindowHandle::empty();
     window_handle.ns_window = *self.ns_window as *mut _;
-    window_handle.ns_view = *self.ns_view as *mut _;
+    window_handle.ns_view = self.ns_view() as *mut _;
     RawWindowHandle::AppKit(window_handle)
   }
 
@@ -1489,7 +1487,7 @@ impl WindowExtMacOS for UnownedWindow {
         // Hide the titlebar
         util::toggle_style_mask(
           *self.ns_window,
-          *self.ns_view,
+          self.ns_view() as id,
           NSWindowStyleMask::NSTitledWindowMask,
           false,
         );
@@ -1502,13 +1500,13 @@ impl WindowExtMacOS for UnownedWindow {
         // Fullscreen windows can't be resized, minimized, or moved
         util::toggle_style_mask(
           *self.ns_window,
-          *self.ns_view,
+          self.ns_view() as id,
           NSWindowStyleMask::NSMiniaturizableWindowMask,
           false,
         );
         util::toggle_style_mask(
           *self.ns_window,
-          *self.ns_view,
+          self.ns_view() as id,
           NSWindowStyleMask::NSResizableWindowMask,
           false,
         );

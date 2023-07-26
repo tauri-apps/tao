@@ -34,9 +34,6 @@ use crate::{
 
 pub struct WindowDelegateState {
   ns_window: IdRef, // never changes
-  // We keep this ns_view because we still need its view state for some extern function
-  // like didResignKey
-  ns_view: IdRef, // never changes
 
   window: Weak<UnownedWindow>,
 
@@ -63,7 +60,6 @@ impl WindowDelegateState {
     let scale_factor = window.scale_factor();
     let mut delegate_state = WindowDelegateState {
       ns_window: window.ns_window.clone(),
-      ns_view: window.ns_view.clone(),
       window: Arc::downgrade(window),
       initial_fullscreen,
       previous_position: None,
@@ -391,7 +387,7 @@ extern "C" fn window_did_resign_key(this: &Object, _: Sel, _: id) {
     // Object referenced by state.ns_view (an IdRef, which is dereferenced
     // to an id)
     let view_state: &mut ViewState = unsafe {
-      let ns_view: &Object = (*state.ns_view).as_ref().expect("failed to deref");
+      let ns_view: &Object = (state.ns_view() as id).as_ref().expect("failed to deref");
       let state_ptr: *mut c_void = *ns_view.get_ivar("taoState");
       &mut *(state_ptr as *mut ViewState)
     };
