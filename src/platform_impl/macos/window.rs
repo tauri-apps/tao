@@ -1441,7 +1441,7 @@ impl WindowExtMacOS for UnownedWindow {
 
   #[inline]
   fn ns_view(&self) -> *mut c_void {
-    unsafe { (*self.ns_window).contentView() }
+    unsafe { (*self.ns_window).contentView() as *mut _ }
   }
 
   #[inline]
