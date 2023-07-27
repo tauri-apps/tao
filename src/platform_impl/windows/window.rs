@@ -1180,7 +1180,7 @@ unsafe fn init<T: 'static>(
   Ok(win)
 }
 
-unsafe fn register_window_class<T: 'static>(window_classname: &String) -> Vec<u16> {
+unsafe fn register_window_class(window_classname: &str) -> Vec<u16> {
   let class_name = util::encode_wide(window_classname);
 
   let class = WNDCLASSEXW {
