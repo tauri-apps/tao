@@ -996,7 +996,7 @@ unsafe fn init<T: 'static>(
   event_loop: &EventLoopWindowTarget<T>,
 ) -> Result<Window, RootOsError> {
   // registering the window class
-  let class_name = register_window_class::<T>(&pl_attribs.window_classname);
+  let class_name = register_window_class(&pl_attribs.window_classname);
 
   let mut window_flags = WindowFlags::empty();
   window_flags.set(WindowFlags::MARKER_DECORATIONS, attributes.decorations);
