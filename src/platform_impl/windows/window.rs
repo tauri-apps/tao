@@ -996,7 +996,7 @@ unsafe fn init<T: 'static>(
   event_loop: &EventLoopWindowTarget<T>,
 ) -> Result<Window, RootOsError> {
   // registering the window class
-  let class_name = register_window_class();
+  let class_name = register_window_class(&pl_attribs.window_classname);
 
   let mut window_flags = WindowFlags::empty();
   window_flags.set(WindowFlags::MARKER_DECORATIONS, attributes.decorations);
@@ -1180,8 +1180,8 @@ unsafe fn init<T: 'static>(
   Ok(win)
 }
 
-unsafe fn register_window_class() -> Vec<u16> {
-  let class_name = util::encode_wide("Window Class");
+unsafe fn register_window_class(window_classname: &str) -> Vec<u16> {
+  let class_name = util::encode_wide(window_classname);
 
   let class = WNDCLASSEXW {
     cbSize: mem::size_of::<WNDCLASSEXW>() as u32,
