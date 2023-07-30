@@ -1,5 +1,12 @@
 # Changelog
 
+## \[0.21.1]
+
+- [`9a320882`](https://github.com/tauri-apps/tao/commit/9a320882ed824d18f9e20f8a9af7a97f51805c87)([#761](https://github.com/tauri-apps/tao/pull/761)) On Android, use a lockfree queue (crossbeam channel) to prevent deadlocks inside send_event.
+- [`b31cb692`](https://github.com/tauri-apps/tao/commit/b31cb692df2b0a03d2fbdf2fbf7ba82591678e24)([#772](https://github.com/tauri-apps/tao/pull/772)) On macOS, fix `WindowExtMacOS::ns_view` returning an invalid pointer if the view was replaced by a call to `setContentView` later on.
+- [`4d0e1862`](https://github.com/tauri-apps/tao/commit/4d0e1862b6a2a7580631d637ef937d217f0797bf)([#762](https://github.com/tauri-apps/tao/pull/762)) Add `WindowExtWindows::set_rtl` and `WindowBuilderExtWindows::with_rtl` to set right-to-left layout on Windows.
+- [`75eb0c1e`](https://github.com/tauri-apps/tao/commit/75eb0c1e7e83a766af0e083ce09c761d1974cde4)([#769](https://github.com/tauri-apps/tao/pull/769)) Add `WindowBuilderExtWindows::with_window_classname` to set the name of the window class created/used to create windows.
+
 ## \[0.21.0]
 
 - [`81329013`](https://github.com/tauri-apps/tao/commit/813290130ea255b2cb45a66234a422519d13f667)([#743](https://github.com/tauri-apps/tao/pull/743)) On macOS, fix the unexpected shifting of the window when dragging after closing the share dialog.
