@@ -121,7 +121,7 @@ impl<T: 'static> EventLoopWindowTarget<T> {
 }
 
 pub struct EventLoop<T: 'static> {
-  pub(crate) delegate: IdRef,
+  delegate: IdRef,
 
   window_target: Rc<RootWindowTarget<T>>,
   panic_info: Rc<PanicInfo>,
@@ -162,11 +162,7 @@ impl<T> EventLoop<T> {
     process::exit(exit_code);
   }
 
-  pub fn run_return<F>(&mut self, callback: F) -> i32
-  where
-    F: FnMut(Event<'_, T>, &RootWindowTarget<T>, &mut ControlFlow),
-  {
-    // initialize app delegate if needed
+  pub(crate) fn get_delegate_or_init(&mut self) -> IdRef {
     if self.delegate.is_null() {
       let delegate = unsafe {
         let is_main_thread: BOOL = msg_send!(class!(NSThread), isMainThread);
@@ -188,6 +184,15 @@ impl<T> EventLoop<T> {
       };
       self.delegate = delegate;
     }
+    self.delegate.clone()
+  }
+
+  pub fn run_return<F>(&mut self, callback: F) -> i32
+  where
+    F: FnMut(Event<'_, T>, &RootWindowTarget<T>, &mut ControlFlow),
+  {
+    // initialize app delegate if needed
+    self.get_delegate_or_init();
 
     // This transmute is always safe, in case it was reached through `run`, since our
     // lifetime will be already 'static. In other cases caller should ensure that all data

@@ -517,21 +517,23 @@ impl<T> EventLoopExtMacOS for EventLoop<T> {
   #[inline]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
     unsafe {
-      get_aux_state_mut(&**self.event_loop.delegate).activation_policy = activation_policy;
+      get_aux_state_mut(&**self.event_loop.get_delegate_or_init()).activation_policy =
+        activation_policy;
     }
   }
 
   #[inline]
   fn enable_default_menu_creation(&mut self, enable: bool) {
     unsafe {
-      get_aux_state_mut(&**self.event_loop.delegate).create_default_menu = enable;
+      get_aux_state_mut(&**self.event_loop.get_delegate_or_init()).create_default_menu = enable;
     }
   }
 
   #[inline]
   fn set_activate_ignoring_other_apps(&mut self, ignore: bool) {
     unsafe {
-      get_aux_state_mut(&**self.event_loop.delegate).activate_ignoring_other_apps = ignore;
+      get_aux_state_mut(&**self.event_loop.get_delegate_or_init()).activate_ignoring_other_apps =
+        ignore;
     }
   }
 }
