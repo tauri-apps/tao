@@ -85,11 +85,10 @@ mod window;
 use crate::accelerator::Accelerator;
 use std::fmt;
 
+pub(crate) use self::event_loop::PlatformSpecificEventLoopAttributes;
 pub use self::{
   clipboard::Clipboard,
-  event_loop::{
-    EventLoop, EventLoopProxy, EventLoopWindowTarget, PlatformSpecificEventLoopAttributes,
-  },
+  event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
   keycode::{keycode_from_scancode, keycode_to_scancode},
   monitor::{MonitorHandle, VideoMode},
   window::{PlatformSpecificWindowBuilderAttributes, Window, WindowId},
