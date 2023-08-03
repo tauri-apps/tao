@@ -4,11 +4,9 @@
 
 #![cfg(target_os = "android")]
 use crate::{
-  accelerator::Accelerator,
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error, event,
   event_loop::{self, ControlFlow},
-  icon::Icon,
   keyboard::{Key, KeyCode, KeyLocation, NativeKeyCode},
   monitor,
   window::{self, Theme, WindowSizeConstraints},
@@ -58,6 +56,9 @@ fn poll(poll: Poll) -> Option<EventSource> {
   }
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct KeyEventExtra {}
+
 pub struct EventLoop<T: 'static> {
   window_target: event_loop::EventLoopWindowTarget<T>,
   receiver: Receiver<T>,
@@ -82,7 +83,9 @@ macro_rules! call_event_handler {
 }
 
 impl<T: 'static> EventLoop<T> {
-  pub fn new(_: &PlatformSpecificEventLoopAttributes) -> Self {
+  pub(crate) fn new(_: &PlatformSpecificEventLoopAttributes) -> Self {
+    let (sender, receiver) = crossbeam_channel::unbounded();
+
     Self {
       window_target: event_loop::EventLoopWindowTarget {
         p: EventLoopWindowTarget {
