@@ -1306,8 +1306,8 @@ pub(crate) unsafe fn set_skip_taskbar(hwnd: HWND, skip: bool) {
   }
 }
 
-pub fn hit_test(hwnd: *mut libc::c_void, cx: i32, cy: i32) -> LRESULT {
-  let hwnd = HWND(hwnd as _);
+pub fn hit_test(hwnd: isize, cx: i32, cy: i32) -> LRESULT {
+  let hwnd = HWND(hwnd);
   let mut window_rect = RECT::default();
   unsafe {
     if GetWindowRect(hwnd, <*mut _>::cast(&mut window_rect)).as_bool() {
