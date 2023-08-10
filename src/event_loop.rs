@@ -189,11 +189,6 @@ impl Default for EventLoop<()> {
 }
 
 impl<T> EventLoop<T> {
-  #[deprecated = "Use `EventLoopBuilder::<T>::with_user_event().build()` instead."]
-  pub fn with_user_event() -> EventLoop<T> {
-    EventLoopBuilder::<T>::with_user_event().build()
-  }
-
   /// Hijacks the calling thread and initializes the tao event loop with the provided
   /// closure. Since the closure is `'static`, it must be a `move` closure if it needs to
   /// access any data from the calling context.

@@ -15,8 +15,10 @@ use crate::{
   platform_impl::{Parent, WinIcon},
   window::{BadIcon, Icon, Theme, Window, WindowBuilder},
 };
-use std::ffi::c_void;
-use windows::Win32::{Foundation::HWND, UI::Input::KeyboardAndMouse::*};
+use windows::Win32::UI::Input::KeyboardAndMouse::*;
+
+pub type HWND = isize;
+pub type HMENU = isize;
 
 /// Additional methods on `EventLoop` that are specific to Windows.
 pub trait EventLoopBuilderExtWindows {
@@ -83,7 +85,7 @@ pub trait EventLoopBuilderExtWindows {
   /// ```
   fn with_msg_hook<F>(&mut self, callback: F) -> &mut Self
   where
-    F: FnMut(*const c_void) -> bool + 'static;
+    F: FnMut(*const std::ffi::c_void) -> bool + 'static;
 }
 
 impl<T> EventLoopBuilderExtWindows for EventLoopBuilder<T> {
@@ -102,7 +104,7 @@ impl<T> EventLoopBuilderExtWindows for EventLoopBuilder<T> {
   #[inline]
   fn with_msg_hook<F>(&mut self, callback: F) -> &mut Self
   where
-    F: FnMut(*const c_void) -> bool + 'static,
+    F: FnMut(*const std::ffi::c_void) -> bool + 'static,
   {
     self.platform_specific.msg_hook = Some(Box::new(callback));
     self
@@ -112,11 +114,11 @@ impl<T> EventLoopBuilderExtWindows for EventLoopBuilder<T> {
 /// Additional methods on `Window` that are specific to Windows.
 pub trait WindowExtWindows {
   /// Returns the HINSTANCE of the window
-  fn hinstance(&self) -> *mut c_void;
+  fn hinstance(&self) -> isize;
   /// Returns the native handle that is used by this window.
   ///
   /// The pointer will become invalid when the native window was destroyed.
-  fn hwnd(&self) -> *mut c_void;
+  fn hwnd(&self) -> isize;
 
   /// Enables or disables mouse and keyboard input to the specified window.
   ///
@@ -165,13 +167,13 @@ pub trait WindowExtWindows {
 
 impl WindowExtWindows for Window {
   #[inline]
-  fn hinstance(&self) -> *mut c_void {
-    self.window.hinstance().0 as _
+  fn hinstance(&self) -> isize {
+    self.window.hinstance().0
   }
 
   #[inline]
-  fn hwnd(&self) -> *mut c_void {
-    self.window.hwnd().0 as _
+  fn hwnd(&self) -> isize {
+    self.window.hwnd().0
   }
 
   #[inline]
@@ -238,6 +240,17 @@ pub trait WindowBuilderExtWindows {
   /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
   fn with_owner_window(self, parent: HWND) -> WindowBuilder;
 
+  /// Sets a menu on the window to be created.
+  ///
+  /// Parent and menu are mutually exclusive; a child window cannot have a menu!
+  ///
+  /// The menu must have been manually created beforehand with [`windows::Win32::UI::WindowsAndMessaging::CreateMenu`]
+  /// or similar.
+  ///
+  /// Note: Dark mode cannot be supported for win32 menus, it's simply not possible to change how the menus look.
+  /// If you use this, it is recommended that you combine it with `with_theme(Some(Theme::Light))` to avoid a jarring effect.
+  fn with_menu(self, menu: HMENU) -> WindowBuilder;
+
   /// This sets `ICON_BIG`. A good ceiling here is 256x256.
   fn with_taskbar_icon(self, taskbar_icon: Option<Icon>) -> WindowBuilder;
 
@@ -271,13 +284,19 @@ pub trait WindowBuilderExtWindows {
 impl WindowBuilderExtWindows for WindowBuilder {
   #[inline]
   fn with_parent_window(mut self, parent: HWND) -> WindowBuilder {
-    self.platform_specific.parent = Parent::ChildOf(parent);
+    self.platform_specific.parent = Parent::ChildOf(windows::Win32::Foundation::HWND(parent as _));
     self
   }
 
   #[inline]
   fn with_owner_window(mut self, parent: HWND) -> WindowBuilder {
-    self.platform_specific.parent = Parent::OwnedBy(parent);
+    self.platform_specific.parent = Parent::OwnedBy(windows::Win32::Foundation::HWND(parent as _));
+    self
+  }
+
+  #[inline]
+  fn with_menu(mut self, menu: HMENU) -> WindowBuilder {
+    self.platform_specific.menu = Some(windows::Win32::UI::WindowsAndMessaging::HMENU(menu as _));
     self
   }
 
@@ -330,7 +349,7 @@ pub trait MonitorHandleExtWindows {
   fn native_id(&self) -> String;
 
   /// Returns the handle of the monitor - `HMONITOR`.
-  fn hmonitor(&self) -> *mut c_void;
+  fn hmonitor(&self) -> isize;
 }
 
 impl MonitorHandleExtWindows for MonitorHandle {
@@ -340,8 +359,8 @@ impl MonitorHandleExtWindows for MonitorHandle {
   }
 
   #[inline]
-  fn hmonitor(&self) -> *mut c_void {
-    self.inner.hmonitor().0 as _
+  fn hmonitor(&self) -> isize {
+    self.inner.hmonitor().0
   }
 }
 

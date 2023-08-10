@@ -1,4 +1,5 @@
 # Examples
+
 Run the `cargo run --example <file_name>` to see how each example works.
 
 - `control_flow`: tell event loop what to do in the next iteration, after the current one's finished.
@@ -11,9 +12,8 @@ Run the `cargo run --example <file_name>` to see how each example works.
 - `window_run_return`: similar to run function of EventLoop, but accept non-move closures and returns control flow to the caller when exit.
 - `window_debug`: example that debugs with eprintln.
 
-
 ## Quite self-explainatory examples.
-- `accelerator`: take hotkey as input.
+
 - `cursor_grab`: prevent the cursor from going outside the window.
 - `cursor`: set different cursor icons.
 - `drag_window`: allow dragging window when hold left mouse and move.
