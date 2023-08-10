@@ -50,11 +50,11 @@ impl<T> EventLoopBuilderExtUnix for EventLoopBuilder<T> {
 
 /// Additional methods on `Window` that are specific to Unix.
 pub trait WindowExtUnix {
-  /// Returns the [`gtk::ApplicatonWindow`] from gtk crate that is used by this window.
+  /// Returns the `gtk::ApplicatonWindow` from gtk crate that is used by this window.
   fn gtk_window(&self) -> &gtk::ApplicationWindow;
 
-  /// Returns the vertical [`gtk::Box`] that is added by default as the sole child of this window.
-  /// Returns `None` if the default vertical [`gtk::Box`] creation was disabled by [`WindowBuilderExtUnix::with_default_vbox`].
+  /// Returns the vertical `gtk::Box` that is added by default as the sole child of this window.
+  /// Returns `None` if the default vertical `gtk::Box` creation was disabled by [`WindowBuilderExtUnix::with_default_vbox`].
   fn default_vbox(&self) -> Option<&gtk::Box>;
 
   /// Whether to show the window icon in the taskbar or not.
@@ -113,7 +113,7 @@ pub trait WindowBuilderExtUnix {
   /// Default is `true`.
   fn with_cursor_moved_event(self, cursor_moved: bool) -> WindowBuilder;
 
-  /// Whether to create a vertical [`gtk::Box`] and add it as the sole child of this window.
+  /// Whether to create a vertical `gtk::Box` and add it as the sole child of this window.
   /// Created by default.
   fn with_default_vbox(self, add: bool) -> WindowBuilder;
 }

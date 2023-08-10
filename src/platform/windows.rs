@@ -1,4 +1,4 @@
-// Copyright 2014-2021 The winit contributors
+// Copyright 2014-2021 The tao contributors
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
@@ -36,7 +36,7 @@ pub trait EventLoopBuilderExtWindows {
 
   /// Whether to enable process-wide DPI awareness.
   ///
-  /// By default, `winit` will attempt to enable process-wide DPI awareness. If
+  /// By default, `tao` will attempt to enable process-wide DPI awareness. If
   /// that's undesirable, you can disable it with this function.
   ///
   /// # Example
@@ -44,9 +44,9 @@ pub trait EventLoopBuilderExtWindows {
   /// Disable process-wide DPI awareness.
   ///
   /// ```
-  /// use winit::event_loop::EventLoopBuilder;
+  /// use tao::event_loop::EventLoopBuilder;
   /// #[cfg(target_os = "windows")]
-  /// use winit::platform::windows::EventLoopBuilderExtWindows;
+  /// use tao::platform::windows::EventLoopBuilderExtWindows;
   ///
   /// let mut builder = EventLoopBuilder::new();
   /// #[cfg(target_os = "windows")]
@@ -58,25 +58,26 @@ pub trait EventLoopBuilderExtWindows {
   fn with_dpi_aware(&mut self, dpi_aware: bool) -> &mut Self;
 
   /// A callback to be executed before dispatching a win32 message to the window procedure.
-  /// Return true to disable winit's internal message dispatching.
+  /// Return true to disable tao's internal message dispatching.
   ///
   /// # Example
   ///
   /// ```
   /// # use windows::Win32::UI::WindowsAndMessaging::{ACCEL, CreateAcceleratorTableW, TranslateAcceleratorW, DispatchMessageW, TranslateMessage, MSG};
-  /// use winit::event_loop::EventLoopBuilder;
+  /// use tao::event_loop::EventLoopBuilder;
   /// #[cfg(target_os = "windows")]
-  /// use winit::platform::windows::EventLoopBuilderExtWindows;
+  /// use tao::platform::windows::EventLoopBuilderExtWindows;
   ///
   /// let mut builder = EventLoopBuilder::new();
   /// #[cfg(target_os = "windows")]
   /// builder.with_msg_hook(|msg|{
   ///     let msg = msg as *const MSG;
-  /// #   let accels: Vec<ACCEL> = Vec::new();
+  /// #   let accels_: Vec<ACCEL> = Vec::new();
+  /// #   let accels = accels_.as_slice();
   ///     let translated = unsafe {
   ///         TranslateAcceleratorW(
   ///             (*msg).hwnd,
-  ///             CreateAcceleratorTableW(accels.as_ptr() as _, 1),
+  ///             CreateAcceleratorTableW(accels).unwrap(),
   ///             msg,
   ///         ) == 1
   ///     };
