@@ -82,7 +82,6 @@ mod monitor;
 mod view;
 mod window;
 
-use crate::accelerator::Accelerator;
 use std::fmt;
 
 pub(crate) use self::event_loop::PlatformSpecificEventLoopAttributes;
