@@ -156,7 +156,7 @@ pub unsafe fn create(
   mut env: JNIEnv,
   _jclass: JClass,
   jobject: JObject,
-  setup: unsafe fn(JNIEnv, &ForeignLooper, GlobalRef),
+  setup: unsafe fn(&mut JNIEnv, &ForeignLooper, GlobalRef),
   main: fn(),
 ) {
   //-> jobjectArray {
@@ -175,14 +175,14 @@ pub unsafe fn create(
   WINDOW_MANGER.get_or_init(move || window_manager);
   let activity = env.new_global_ref(jobject).unwrap();
   let vm = env.get_java_vm().unwrap();
-  let env = vm.attach_current_thread_as_daemon().unwrap();
+  let mut env = vm.attach_current_thread_as_daemon().unwrap();
   ndk_context::initialize_android_context(
     vm.get_java_vm_pointer() as *mut _,
     activity.as_obj().as_raw() as *mut _,
   );
 
   let looper = ThreadLooper::for_thread().unwrap().into_foreign();
-  setup(env, &looper, activity);
+  setup(&mut env, &looper, activity);
 
   let mut logpipe: [RawFd; 2] = Default::default();
   libc::pipe(logpipe.as_mut_ptr());
