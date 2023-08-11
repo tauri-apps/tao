@@ -27,7 +27,7 @@ use crate::{
   platform::macos::WindowExtMacOS,
   platform_impl::platform::{
     app_state::AppState,
-    ffi, menu,
+    ffi,
     monitor::{self, MonitorHandle, VideoMode},
     util::{self, IdRef},
     view::{self, new_view, CursorState},
@@ -59,7 +59,7 @@ use objc::{
   runtime::{Class, Object, Sel, BOOL, NO, YES},
 };
 
-use super::{util::ns_string_to_rust, Menu};
+use super::util::ns_string_to_rust;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Id(pub usize);
@@ -298,9 +298,6 @@ fn create_window(
       }
       if attrs.position.is_none() {
         ns_window.center();
-      }
-      if let Some(window_menu) = attrs.window_menu.clone() {
-        menu::initialize(window_menu);
       }
 
       ns_window
@@ -606,14 +603,6 @@ impl UnownedWindow {
     unsafe {
       let title = self.ns_window.title();
       ns_string_to_rust(title)
-    }
-  }
-
-  pub fn set_menu(&self, menu: Option<Menu>) {
-    // TODO if None we should set an empty menu
-    // On windows we can remove it, in macOS we can't
-    if let Some(menu) = menu {
-      menu::initialize(menu);
     }
   }
 
@@ -1340,18 +1329,6 @@ impl UnownedWindow {
         NSApp().requestUserAttention_(ty);
       }
     }
-  }
-
-  #[inline]
-  pub fn hide_menu(&self) {}
-
-  #[inline]
-  pub fn show_menu(&self) {}
-
-  #[inline]
-  pub fn is_menu_visible(&self) -> bool {
-    warn!("`Window::is_menu_visible` always return true on macOS");
-    true
   }
 
   #[inline]

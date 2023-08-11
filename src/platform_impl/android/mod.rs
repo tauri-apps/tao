@@ -4,13 +4,10 @@
 
 #![cfg(target_os = "android")]
 use crate::{
-  accelerator::Accelerator,
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error, event,
   event_loop::{self, ControlFlow},
-  icon::Icon,
   keyboard::{Key, KeyCode, KeyLocation, NativeKeyCode},
-  menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   monitor,
   window::{self, Theme, WindowSizeConstraints},
 };
@@ -59,62 +56,8 @@ fn poll(poll: Poll) -> Option<EventSource> {
   }
 }
 
-// todo: implement android menubar
-#[derive(Debug, Clone)]
-pub struct MenuItemAttributes;
-
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct KeyEventExtra {}
-
-#[derive(Debug, Clone)]
-pub struct Menu;
-
-impl Default for Menu {
-  fn default() -> Self {
-    Menu::new()
-  }
-}
-
-impl Menu {
-  pub fn new() -> Self {
-    Menu {}
-  }
-  pub fn new_popup_menu() -> Self {
-    Self::new()
-  }
-  pub fn add_item(
-    &mut self,
-    _menu_id: MenuId,
-    _title: &str,
-    _accelerator: Option<Accelerator>,
-    _enabled: bool,
-    _selected: bool,
-    _menu_type: MenuType,
-  ) -> CustomMenuItem {
-    CustomMenuItem(MenuItemAttributes {})
-  }
-  pub fn add_submenu(&mut self, _title: &str, _enabled: bool, _submenu: Menu) {}
-  pub fn add_native_item(
-    &mut self,
-    _item: MenuItem,
-    _menu_type: MenuType,
-  ) -> Option<CustomMenuItem> {
-    None
-  }
-}
-
-impl MenuItemAttributes {
-  pub fn id(self) -> MenuId {
-    MenuId::EMPTY
-  }
-  pub fn title(&self) -> String {
-    "".to_owned()
-  }
-  pub fn set_enabled(&mut self, _is_enabled: bool) {}
-  pub fn set_title(&mut self, _title: &str) {}
-  pub fn set_selected(&mut self, _is_selected: bool) {}
-  pub fn set_icon(&mut self, _icon: Icon) {}
-}
 
 pub struct EventLoop<T: 'static> {
   window_target: event_loop::EventLoopWindowTarget<T>,
@@ -125,6 +68,9 @@ pub struct EventLoop<T: 'static> {
   looper: ThreadLooper,
   running: bool,
 }
+
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct PlatformSpecificEventLoopAttributes {}
 
 macro_rules! call_event_handler {
   ( $event_handler:expr, $window_target:expr, $cf:expr, $event:expr ) => {{
@@ -137,8 +83,9 @@ macro_rules! call_event_handler {
 }
 
 impl<T: 'static> EventLoop<T> {
-  pub fn new() -> Self {
+  pub(crate) fn new(_: &PlatformSpecificEventLoopAttributes) -> Self {
     let (sender, receiver) = crossbeam_channel::unbounded();
+
     Self {
       window_target: event_loop::EventLoopWindowTarget {
         p: EventLoopWindowTarget {
@@ -613,8 +560,6 @@ impl Window {
     String::new()
   }
 
-  pub fn set_menu(&self, _menu: Option<Menu>) {}
-
   pub fn set_visible(&self, _visibility: bool) {}
 
   pub fn set_focus(&self) {
@@ -704,15 +649,6 @@ impl Window {
   pub fn set_ime_position(&self, _position: Position) {}
 
   pub fn request_user_attention(&self, _request_type: Option<window::UserAttentionType>) {}
-
-  pub fn hide_menu(&self) {}
-
-  pub fn show_menu(&self) {}
-
-  pub fn is_menu_visible(&self) -> bool {
-    warn!("`Window::is_menu_visible` is ignored on Android");
-    false
-  }
 
   pub fn set_cursor_icon(&self, _: window::CursorIcon) {}
 

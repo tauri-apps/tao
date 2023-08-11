@@ -15,7 +15,8 @@ fn main() {
   let mut window = Some(
     WindowBuilder::new()
       .with_title("A fantastic window!")
-      .with_inner_size(tao::dpi::LogicalSize::new(128.0, 128.0))
+      .with_inner_size(tao::dpi::LogicalSize::new(300.0, 300.0))
+      .with_min_inner_size(tao::dpi::LogicalSize::new(200.0, 200.0))
       .build(&event_loop)
       .unwrap(),
   );

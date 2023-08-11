@@ -9,29 +9,23 @@ use windows::Win32::{
   UI::WindowsAndMessaging::HMENU,
 };
 
-pub use self::{
+pub(crate) use self::{
   clipboard::Clipboard,
-  event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
-  global_shortcut::{GlobalShortcut, ShortcutManager},
+  event_loop::{
+    EventLoop, EventLoopProxy, EventLoopWindowTarget, PlatformSpecificEventLoopAttributes,
+  },
   icon::WinIcon,
   keycode::{keycode_from_scancode, keycode_to_scancode},
-  menu::{Menu, MenuItemAttributes},
   monitor::{MonitorHandle, VideoMode},
-  window::{hit_test, Window},
+  window::Window,
 };
+
+pub use self::window::hit_test;
 
 pub use self::icon::WinIcon as PlatformIcon;
 
 use crate::{event::DeviceId as RootDeviceId, icon::Icon, keyboard::Key, window::Theme};
-mod accelerator;
-mod global_shortcut;
 mod keycode;
-mod menu;
-
-#[cfg(feature = "tray")]
-mod system_tray;
-#[cfg(feature = "tray")]
-pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 
 #[non_exhaustive]
 #[derive(Clone)]

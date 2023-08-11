@@ -12,6 +12,7 @@ use raw_window_handle::{RawDisplayHandle, WindowsDisplayHandle};
 use std::{
   cell::Cell,
   collections::VecDeque,
+  ffi::c_void,
   marker::PhantomData,
   mem, panic,
   rc::Rc,
@@ -43,7 +44,6 @@ use windows::{
 };
 
 use crate::{
-  accelerator::AcceleratorId,
   dpi::{PhysicalPosition, PhysicalSize, PixelUnit},
   error::ExternalError,
   event::{DeviceEvent, Event, Force, RawKeyEvent, Touch, TouchPhase, WindowEvent},
@@ -51,7 +51,6 @@ use crate::{
   keyboard::{KeyCode, ModifiersState},
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{
-    accelerator,
     dark_mode::try_theme,
     dpi::{become_dpi_aware, dpi_to_scale_factor, enable_non_client_dpi_scaling},
     keyboard::is_msg_keyboard_related,
@@ -136,6 +135,23 @@ pub(crate) enum ProcResult {
 pub struct EventLoop<T: 'static> {
   thread_msg_sender: Sender<T>,
   window_target: RootELW<T>,
+  msg_hook: Option<Box<dyn FnMut(*const c_void) -> bool + 'static>>,
+}
+
+pub(crate) struct PlatformSpecificEventLoopAttributes {
+  pub(crate) any_thread: bool,
+  pub(crate) dpi_aware: bool,
+  pub(crate) msg_hook: Option<Box<dyn FnMut(*const c_void) -> bool + 'static>>,
+}
+
+impl Default for PlatformSpecificEventLoopAttributes {
+  fn default() -> Self {
+    Self {
+      any_thread: false,
+      dpi_aware: true,
+      msg_hook: None,
+    }
+  }
 }
 
 #[derive(Clone)]
@@ -145,41 +161,22 @@ pub struct EventLoopWindowTarget<T: 'static> {
   pub(crate) runner_shared: EventLoopRunnerShared<T>,
 }
 
-macro_rules! main_thread_check {
-  ($fn_name:literal) => {{
-    let thread_id = unsafe { GetCurrentThreadId() };
-    if thread_id != main_thread_id() {
-      panic!(concat!(
-        "Initializing the event loop outside of the main thread is a significant \
-                 cross-platform compatibility hazard. If you really, absolutely need to create an \
-                 EventLoop on a different thread, please use the `EventLoopExtWindows::",
-        $fn_name,
-        "` function."
-      ));
-    }
-  }};
-}
-
 impl<T: 'static> EventLoop<T> {
-  pub fn new() -> EventLoop<T> {
-    main_thread_check!("new_any_thread");
-
-    Self::new_any_thread()
-  }
-
-  pub fn new_any_thread() -> EventLoop<T> {
-    become_dpi_aware();
-    Self::new_dpi_unaware_any_thread()
-  }
-
-  pub fn new_dpi_unaware() -> EventLoop<T> {
-    main_thread_check!("new_dpi_unaware_any_thread");
-
-    Self::new_dpi_unaware_any_thread()
-  }
-
-  pub fn new_dpi_unaware_any_thread() -> EventLoop<T> {
+  pub(crate) fn new(attributes: &mut PlatformSpecificEventLoopAttributes) -> EventLoop<T> {
     let thread_id = unsafe { GetCurrentThreadId() };
+
+    if !attributes.any_thread && thread_id != main_thread_id() {
+      panic!(
+        "Initializing the event loop outside of the main thread is a significant \
+             cross-platform compatibility hazard. If you absolutely need to create an \
+             EventLoop on a different thread, you can use the \
+             `EventLoopBuilderExtWindows::any_thread` function."
+      );
+    }
+
+    if attributes.dpi_aware {
+      become_dpi_aware();
+    }
 
     let thread_msg_target = create_event_target_window();
 
@@ -202,6 +199,7 @@ impl<T: 'static> EventLoop<T> {
         },
         _marker: PhantomData,
       },
+      msg_hook: attributes.msg_hook.take(),
     }
   }
 
@@ -244,20 +242,12 @@ impl<T: 'static> EventLoop<T> {
           break 'main 0;
         }
 
-        // global accelerator
-        if msg.message == WM_HOTKEY {
-          let event_loop_runner = self.window_target.p.runner_shared.clone();
-          event_loop_runner.send_event(Event::GlobalShortcutEvent(AcceleratorId(
-            msg.wParam.0 as u16,
-          )));
-        }
-
-        // window accelerator
-        let accels = accelerator::find_accels(GetAncestor(msg.hwnd, GA_ROOT));
-        let translated = accels.map_or(false, |it| {
-          TranslateAcceleratorW(msg.hwnd, it.handle(), &msg) != 0
-        });
-        if !translated {
+        let handled = if let Some(callback) = self.msg_hook.as_deref_mut() {
+          callback(&mut msg as *mut _ as *mut _)
+        } else {
+          false
+        };
+        if !handled {
           TranslateMessage(&msg);
           DispatchMessageW(&msg);
         }

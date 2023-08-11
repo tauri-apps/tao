@@ -150,11 +150,6 @@
 #[cfg(target_os = "android")]
 pub use tao_macros::{android_fn, generate_package_name};
 
-use std::{
-  collections::hash_map::DefaultHasher,
-  hash::{Hash, Hasher},
-};
-
 #[allow(unused_imports)]
 #[macro_use]
 extern crate lazy_static;
@@ -170,63 +165,16 @@ extern crate bitflags;
 #[macro_use]
 extern crate objc;
 
-//// Identifier of a system tray.
-///
-/// Whenever you receive an event arising from a particular tray, this event contains a `TrayId` which
-/// identifies its origin.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct TrayId(pub u16);
-
-impl TrayId {
-  /// Return an empty `TrayId`.
-  pub const EMPTY: TrayId = TrayId(0);
-
-  /// Create new `TrayId` from a String.
-  pub fn new(unique_string: &str) -> TrayId {
-    TrayId(hash_string_to_u16(unique_string))
-  }
-
-  /// Whether this tray id is empty or not.
-  pub fn is_empty(self) -> bool {
-    Self::EMPTY == self
-  }
-}
-
-fn hash_string_to_u16(title: &str) -> u16 {
-  let mut s = DefaultHasher::new();
-  // we transform to uppercase to make sure
-  // if we write Shift instead of SHIFT it return
-  // the same ID
-  title.to_uppercase().hash(&mut s);
-  s.finish() as u16
-}
-
 pub mod clipboard;
 pub mod dpi;
 #[macro_use]
 pub mod error;
-pub mod accelerator;
 pub mod event;
 pub mod event_loop;
-pub mod global_shortcut;
 mod icon;
 pub mod keyboard;
-pub mod menu;
 pub mod monitor;
 mod platform_impl;
-
-#[cfg(any(target_os = "windows", target_os = "macos",))]
-#[cfg(feature = "tray")]
-pub mod system_tray;
-#[cfg(any(
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
-))]
-#[cfg(feature = "tray")]
-pub mod system_tray;
 
 pub mod window;
 

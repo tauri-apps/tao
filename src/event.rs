@@ -41,10 +41,8 @@ use instant::Instant;
 use std::path::PathBuf;
 
 use crate::{
-  accelerator::AcceleratorId,
   dpi::{PhysicalPosition, PhysicalSize},
   keyboard::{self, ModifiersState},
-  menu::{MenuId, MenuType},
   platform_impl,
   window::{Theme, WindowId},
 };
@@ -79,35 +77,6 @@ pub enum Event<'a, T: 'static> {
 
   /// Emitted when an event is sent from [`EventLoopProxy::send_event`](crate::event_loop::EventLoopProxy::send_event)
   UserEvent(T),
-
-  /// Emitted when a menu has been clicked. There are two types of menu event. One comes from the
-  /// menu bar, the other comes from the status bar.
-  #[non_exhaustive]
-  MenuEvent {
-    window_id: Option<WindowId>,
-    menu_id: MenuId,
-    origin: MenuType,
-  },
-
-  /// Emitted when tray has been clicked.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **iOS / Android / Linux:** Unsupported.
-  #[non_exhaustive]
-  TrayEvent {
-    id: crate::TrayId,
-    bounds: Rectangle,
-    event: TrayEvent,
-    position: PhysicalPosition<f64>,
-  },
-
-  /// Emitted when a global shortcut is triggered.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **iOS / Android:** Unsupported.
-  GlobalShortcutEvent(AcceleratorId),
 
   /// Emitted when the application has been suspended.
   Suspended,
@@ -189,27 +158,6 @@ impl<T: Clone> Clone for Event<'static, T> {
       LoopDestroyed => LoopDestroyed,
       Suspended => Suspended,
       Resumed => Resumed,
-      MenuEvent {
-        window_id,
-        menu_id,
-        origin,
-      } => MenuEvent {
-        window_id: *window_id,
-        menu_id: *menu_id,
-        origin: *origin,
-      },
-      TrayEvent {
-        id,
-        bounds,
-        event,
-        position,
-      } => TrayEvent {
-        id: *id,
-        bounds: *bounds,
-        event: *event,
-        position: *position,
-      },
-      GlobalShortcutEvent(accelerator_id) => GlobalShortcutEvent(*accelerator_id),
       Opened { urls } => Opened { urls: urls.clone() },
     }
   }
@@ -229,27 +177,6 @@ impl<'a, T> Event<'a, T> {
       LoopDestroyed => Ok(LoopDestroyed),
       Suspended => Ok(Suspended),
       Resumed => Ok(Resumed),
-      MenuEvent {
-        window_id,
-        menu_id,
-        origin,
-      } => Ok(MenuEvent {
-        window_id,
-        menu_id,
-        origin,
-      }),
-      TrayEvent {
-        id,
-        bounds,
-        event,
-        position,
-      } => Ok(TrayEvent {
-        id,
-        bounds,
-        event,
-        position,
-      }),
-      GlobalShortcutEvent(accelerator_id) => Ok(GlobalShortcutEvent(accelerator_id)),
       Opened { urls } => Ok(Opened { urls }),
     }
   }
@@ -271,27 +198,6 @@ impl<'a, T> Event<'a, T> {
       LoopDestroyed => Some(LoopDestroyed),
       Suspended => Some(Suspended),
       Resumed => Some(Resumed),
-      MenuEvent {
-        window_id,
-        menu_id,
-        origin,
-      } => Some(MenuEvent {
-        window_id,
-        menu_id,
-        origin,
-      }),
-      TrayEvent {
-        id,
-        bounds,
-        event,
-        position,
-      } => Some(TrayEvent {
-        id,
-        bounds,
-        event,
-        position,
-      }),
-      GlobalShortcutEvent(accelerator_id) => Some(GlobalShortcutEvent(accelerator_id)),
       Opened { urls } => Some(Opened { urls }),
     }
   }
@@ -863,43 +769,6 @@ pub enum TouchPhase {
   Moved,
   Ended,
   Cancelled,
-}
-
-/// Describes available tray events.
-// FIXME: add `hover` to TrayEvent for all platforms.
-#[non_exhaustive]
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum TrayEvent {
-  /// Fired when a menu item receive a <kbd>Left Mouse Click</kbd>
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux:** Unsupported
-  ///
-  LeftClick,
-  /// Fired when a menu item receive a <kbd>Right Mouse Click</kbd>
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux:** Unsupported
-  /// - **macOS:** <kbd>⌃ Control</kbd> + <kbd>Mouse Click</kbd> fire this event.
-  ///
-  RightClick,
-  /// Fired when a menu item receive a <kbd>Double Mouse Click</kbd>
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **macOS / Linux:** Unsupported
-  ///
-  DoubleClick,
-}
-
-/// Describes a rectangle including position (x - y axis) and size.
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub struct Rectangle {
-  pub position: PhysicalPosition<f64>,
-  pub size: PhysicalSize<f64>,
 }
 
 /// Represents a touch event

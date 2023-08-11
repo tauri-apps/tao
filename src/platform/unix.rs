@@ -18,17 +18,44 @@ pub use crate::platform_impl::x11;
 
 pub use crate::platform_impl::{hit_test, EventLoop as UnixEventLoop};
 use crate::{
-  event_loop::{EventLoop, EventLoopWindowTarget},
+  event_loop::{EventLoopBuilder, EventLoopWindowTarget},
   platform_impl::{x11::xdisplay::XError, Parent},
   window::{Window, WindowBuilder},
 };
 
 use self::x11::xdisplay::XConnection;
 
+/// Additional methods on `EventLoop` that are specific to Unix.
+pub trait EventLoopBuilderExtUnix {
+  /// Whether to allow the event loop to be created off of the main thread.
+  ///
+  /// By default, the window is only allowed to be created on the main
+  /// thread, to make platform compatibility easier.
+  ///
+  /// # `Window` caveats
+  ///
+  /// Note that any `Window` created on the new thread will be destroyed when the thread
+  /// terminates. Attempting to use a `Window` after its parent thread terminates has
+  /// unspecified, although explicitly not undefined, behavior.
+  fn with_any_thread(&mut self, any_thread: bool) -> &mut Self;
+}
+
+impl<T> EventLoopBuilderExtUnix for EventLoopBuilder<T> {
+  #[inline]
+  fn with_any_thread(&mut self, any_thread: bool) -> &mut Self {
+    self.platform_specific.any_thread = any_thread;
+    self
+  }
+}
+
 /// Additional methods on `Window` that are specific to Unix.
 pub trait WindowExtUnix {
-  /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
+  /// Returns the `gtk::ApplicatonWindow` from gtk crate that is used by this window.
   fn gtk_window(&self) -> &gtk::ApplicationWindow;
+
+  /// Returns the vertical `gtk::Box` that is added by default as the sole child of this window.
+  /// Returns `None` if the default vertical `gtk::Box` creation was disabled by [`WindowBuilderExtUnix::with_default_vbox`].
+  fn default_vbox(&self) -> Option<&gtk::Box>;
 
   /// Whether to show the window icon in the taskbar or not.
   fn set_skip_taskbar(&self, skip: bool);
@@ -37,6 +64,10 @@ pub trait WindowExtUnix {
 impl WindowExtUnix for Window {
   fn gtk_window(&self) -> &gtk::ApplicationWindow {
     &self.window.window
+  }
+
+  fn default_vbox(&self) -> Option<&gtk::Box> {
+    self.window.default_vbox.as_ref()
   }
 
   fn set_skip_taskbar(&self, skip: bool) {
@@ -81,6 +112,10 @@ pub trait WindowBuilderExtUnix {
   ///
   /// Default is `true`.
   fn with_cursor_moved_event(self, cursor_moved: bool) -> WindowBuilder;
+
+  /// Whether to create a vertical `gtk::Box` and add it as the sole child of this window.
+  /// Created by default.
+  fn with_default_vbox(self, add: bool) -> WindowBuilder;
 }
 
 impl WindowBuilderExtUnix for WindowBuilder {
@@ -118,30 +153,10 @@ impl WindowBuilderExtUnix for WindowBuilder {
     self.platform_specific.cursor_moved = cursor_moved;
     self
   }
-}
 
-/// Additional methods on `EventLoop` that are specific to Unix.
-pub trait EventLoopExtUnix {
-  /// Builds a new `EventLoop` on any thread.
-  ///
-  /// This method bypasses the cross-platform compatibility requirement
-  /// that `EventLoop` be created on the main thread.
-  fn new_any_thread() -> Self
-  where
-    Self: Sized;
-}
-
-fn wrap_ev<T>(event_loop: UnixEventLoop<T>) -> EventLoop<T> {
-  EventLoop {
-    event_loop,
-    _marker: std::marker::PhantomData,
-  }
-}
-
-impl<T> EventLoopExtUnix for EventLoop<T> {
-  #[inline]
-  fn new_any_thread() -> Self {
-    wrap_ev(UnixEventLoop::new_any_thread())
+  fn with_default_vbox(mut self, add: bool) -> WindowBuilder {
+    self.platform_specific.default_vbox = add;
+    self
   }
 }
 

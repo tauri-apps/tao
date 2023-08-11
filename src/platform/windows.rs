@@ -1,4 +1,4 @@
-// Copyright 2014-2021 The winit contributors
+// Copyright 2014-2021 The tao contributors
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
@@ -10,78 +10,116 @@ pub use crate::platform_impl::hit_test;
 use crate::{
   dpi::PhysicalSize,
   event::DeviceId,
-  event_loop::EventLoop,
+  event_loop::EventLoopBuilder,
   monitor::MonitorHandle,
-  platform_impl::{EventLoop as WindowsEventLoop, Parent, WinIcon},
+  platform_impl::{Parent, WinIcon},
   window::{BadIcon, Icon, Theme, Window, WindowBuilder},
 };
-use libc;
-use windows::Win32::{
-  Foundation::HWND,
-  UI::{Input::KeyboardAndMouse::*, WindowsAndMessaging::*},
-};
+use windows::Win32::UI::Input::KeyboardAndMouse::*;
+
+pub type HWND = isize;
+pub type HMENU = isize;
 
 /// Additional methods on `EventLoop` that are specific to Windows.
-pub trait EventLoopExtWindows {
-  /// Creates an event loop off of the main thread.
+pub trait EventLoopBuilderExtWindows {
+  /// Whether to allow the event loop to be created off of the main thread.
+  ///
+  /// By default, the window is only allowed to be created on the main
+  /// thread, to make platform compatibility easier.
   ///
   /// # `Window` caveats
   ///
   /// Note that any `Window` created on the new thread will be destroyed when the thread
   /// terminates. Attempting to use a `Window` after its parent thread terminates has
   /// unspecified, although explicitly not undefined, behavior.
-  fn new_any_thread() -> Self
-  where
-    Self: Sized;
+  fn with_any_thread(&mut self, any_thread: bool) -> &mut Self;
 
-  /// By default, tao on Windows will attempt to enable process-wide DPI awareness. If that's
-  /// undesirable, you can create an `EventLoop` using this function instead.
-  fn new_dpi_unaware() -> Self
-  where
-    Self: Sized;
-
-  /// Creates a DPI-unaware event loop off of the main thread.
+  /// Whether to enable process-wide DPI awareness.
   ///
-  /// The `Window` caveats in [`new_any_thread`](EventLoopExtWindows::new_any_thread) also apply here.
-  fn new_dpi_unaware_any_thread() -> Self
+  /// By default, `tao` will attempt to enable process-wide DPI awareness. If
+  /// that's undesirable, you can disable it with this function.
+  ///
+  /// # Example
+  ///
+  /// Disable process-wide DPI awareness.
+  ///
+  /// ```
+  /// use tao::event_loop::EventLoopBuilder;
+  /// #[cfg(target_os = "windows")]
+  /// use tao::platform::windows::EventLoopBuilderExtWindows;
+  ///
+  /// let mut builder = EventLoopBuilder::new();
+  /// #[cfg(target_os = "windows")]
+  /// builder.with_dpi_aware(false);
+  /// # if false { // We can't test this part
+  /// let event_loop = builder.build();
+  /// # }
+  /// ```
+  fn with_dpi_aware(&mut self, dpi_aware: bool) -> &mut Self;
+
+  /// A callback to be executed before dispatching a win32 message to the window procedure.
+  /// Return true to disable tao's internal message dispatching.
+  ///
+  /// # Example
+  ///
+  /// ```
+  /// # use windows::Win32::UI::WindowsAndMessaging::{ACCEL, CreateAcceleratorTableW, TranslateAcceleratorW, DispatchMessageW, TranslateMessage, MSG};
+  /// use tao::event_loop::EventLoopBuilder;
+  /// #[cfg(target_os = "windows")]
+  /// use tao::platform::windows::EventLoopBuilderExtWindows;
+  ///
+  /// let mut builder = EventLoopBuilder::new();
+  /// #[cfg(target_os = "windows")]
+  /// builder.with_msg_hook(|msg|{
+  ///     let msg = msg as *const MSG;
+  /// #   let accels_: Vec<ACCEL> = Vec::new();
+  /// #   let accels = accels_.as_slice();
+  ///     let translated = unsafe {
+  ///         TranslateAcceleratorW(
+  ///             (*msg).hwnd,
+  ///             CreateAcceleratorTableW(accels).unwrap(),
+  ///             msg,
+  ///         ) == 1
+  ///     };
+  ///     translated
+  /// });
+  /// ```
+  fn with_msg_hook<F>(&mut self, callback: F) -> &mut Self
   where
-    Self: Sized;
+    F: FnMut(*const std::ffi::c_void) -> bool + 'static;
 }
 
-impl<T> EventLoopExtWindows for EventLoop<T> {
+impl<T> EventLoopBuilderExtWindows for EventLoopBuilder<T> {
   #[inline]
-  fn new_any_thread() -> Self {
-    EventLoop {
-      event_loop: WindowsEventLoop::new_any_thread(),
-      _marker: ::std::marker::PhantomData,
-    }
+  fn with_any_thread(&mut self, any_thread: bool) -> &mut Self {
+    self.platform_specific.any_thread = any_thread;
+    self
   }
 
   #[inline]
-  fn new_dpi_unaware() -> Self {
-    EventLoop {
-      event_loop: WindowsEventLoop::new_dpi_unaware(),
-      _marker: ::std::marker::PhantomData,
-    }
+  fn with_dpi_aware(&mut self, dpi_aware: bool) -> &mut Self {
+    self.platform_specific.dpi_aware = dpi_aware;
+    self
   }
 
   #[inline]
-  fn new_dpi_unaware_any_thread() -> Self {
-    EventLoop {
-      event_loop: WindowsEventLoop::new_dpi_unaware_any_thread(),
-      _marker: ::std::marker::PhantomData,
-    }
+  fn with_msg_hook<F>(&mut self, callback: F) -> &mut Self
+  where
+    F: FnMut(*const std::ffi::c_void) -> bool + 'static,
+  {
+    self.platform_specific.msg_hook = Some(Box::new(callback));
+    self
   }
 }
 
 /// Additional methods on `Window` that are specific to Windows.
 pub trait WindowExtWindows {
   /// Returns the HINSTANCE of the window
-  fn hinstance(&self) -> *mut libc::c_void;
+  fn hinstance(&self) -> isize;
   /// Returns the native handle that is used by this window.
   ///
   /// The pointer will become invalid when the native window was destroyed.
-  fn hwnd(&self) -> *mut libc::c_void;
+  fn hwnd(&self) -> isize;
 
   /// Enables or disables mouse and keyboard input to the specified window.
   ///
@@ -130,13 +168,13 @@ pub trait WindowExtWindows {
 
 impl WindowExtWindows for Window {
   #[inline]
-  fn hinstance(&self) -> *mut libc::c_void {
-    self.window.hinstance().0 as _
+  fn hinstance(&self) -> isize {
+    self.window.hinstance().0
   }
 
   #[inline]
-  fn hwnd(&self) -> *mut libc::c_void {
-    self.window.hwnd().0 as _
+  fn hwnd(&self) -> isize {
+    self.window.hwnd().0
   }
 
   #[inline]
@@ -247,19 +285,19 @@ pub trait WindowBuilderExtWindows {
 impl WindowBuilderExtWindows for WindowBuilder {
   #[inline]
   fn with_parent_window(mut self, parent: HWND) -> WindowBuilder {
-    self.platform_specific.parent = Parent::ChildOf(parent);
+    self.platform_specific.parent = Parent::ChildOf(windows::Win32::Foundation::HWND(parent as _));
     self
   }
 
   #[inline]
   fn with_owner_window(mut self, parent: HWND) -> WindowBuilder {
-    self.platform_specific.parent = Parent::OwnedBy(parent);
+    self.platform_specific.parent = Parent::OwnedBy(windows::Win32::Foundation::HWND(parent as _));
     self
   }
 
   #[inline]
   fn with_menu(mut self, menu: HMENU) -> WindowBuilder {
-    self.platform_specific.menu = Some(menu);
+    self.platform_specific.menu = Some(windows::Win32::UI::WindowsAndMessaging::HMENU(menu as _));
     self
   }
 
@@ -312,7 +350,7 @@ pub trait MonitorHandleExtWindows {
   fn native_id(&self) -> String;
 
   /// Returns the handle of the monitor - `HMONITOR`.
-  fn hmonitor(&self) -> *mut libc::c_void;
+  fn hmonitor(&self) -> isize;
 }
 
 impl MonitorHandleExtWindows for MonitorHandle {
@@ -322,8 +360,8 @@ impl MonitorHandleExtWindows for MonitorHandle {
   }
 
   #[inline]
-  fn hmonitor(&self) -> *mut libc::c_void {
-    self.inner.hmonitor().0 as _
+  fn hmonitor(&self) -> isize {
+    self.inner.hmonitor().0
   }
 }
 

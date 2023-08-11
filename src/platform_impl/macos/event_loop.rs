@@ -135,8 +135,11 @@ pub struct EventLoop<T: 'static> {
   _callback: Option<Rc<RefCell<dyn FnMut(Event<'_, T>, &RootWindowTarget<T>, &mut ControlFlow)>>>,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Default)]
+pub(crate) struct PlatformSpecificEventLoopAttributes {}
+
 impl<T> EventLoop<T> {
-  pub fn new() -> Self {
+  pub(crate) fn new(_: &PlatformSpecificEventLoopAttributes) -> Self {
     let panic_info: Rc<PanicInfo> = Default::default();
     setup_control_flow_observers(Rc::downgrade(&panic_info));
 

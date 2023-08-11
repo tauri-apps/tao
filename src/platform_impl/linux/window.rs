@@ -14,7 +14,7 @@ use std::{
 
 use gdk::{WindowEdge, WindowState};
 use glib::translate::ToGlibPtr;
-use gtk::{prelude::*, traits::SettingsExt, AccelGroup, Orientation, Settings};
+use gtk::{prelude::*, traits::SettingsExt, Settings};
 use raw_window_handle::{
   RawDisplayHandle, RawWindowHandle, WaylandDisplayHandle, WaylandWindowHandle, XlibDisplayHandle,
   XlibWindowHandle,
@@ -24,7 +24,6 @@ use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
-  menu::{MenuId, MenuItem},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{
     CursorIcon, Fullscreen, ProgressBarState, Theme, UserAttentionType, WindowAttributes,
@@ -34,7 +33,6 @@ use crate::{
 
 use super::{
   event_loop::EventLoopWindowTarget,
-  menu,
   monitor::{self, MonitorHandle},
   util, Parent, PlatformSpecificWindowBuilderAttributes,
 };
@@ -57,12 +55,9 @@ pub struct Window {
   pub(crate) window_id: WindowId,
   /// Gtk application window.
   pub(crate) window: gtk::ApplicationWindow,
+  pub(crate) default_vbox: Option<gtk::Box>,
   /// Window requests sender
   pub(crate) window_requests_tx: glib::Sender<(WindowId, WindowRequest)>,
-  /// Gtk Acceleration Group
-  pub(crate) accel_group: AccelGroup,
-  // Gtk MenuBar allocation -- always available
-  menu_bar: gtk::MenuBar,
   scale_factor: Rc<AtomicI32>,
   position: Rc<(AtomicI32, AtomicI32)>,
   size: Rc<(AtomicI32, AtomicI32)>,
@@ -92,9 +87,6 @@ impl Window {
       .windows
       .borrow_mut()
       .insert(window_id);
-
-    let accel_group = AccelGroup::new();
-    window.add_accel_group(&accel_group);
 
     // Set Width/Height & Resizable
     let win_scale_factor = window.scale_factor();
@@ -146,29 +138,13 @@ impl Window {
       }
     }
 
-    // We always create a box and allocate menubar, so if they set_menu after creation
-    // we can inject the menubar without re-redendering the whole window
-    let window_box = gtk::Box::new(Orientation::Vertical, 0);
-    window.add(&window_box);
-
-    let mut menu_bar = gtk::MenuBar::new();
-
-    if attributes.transparent {
-      let style_context = menu_bar.style_context();
-      let css_provider = gtk::CssProvider::new();
-      let theme = r#"
-          menubar {
-            background-color: transparent;
-            box-shadow: none;
-          }
-        "#;
-      let _ = css_provider.load_from_data(theme.as_bytes());
-      style_context.add_provider(&css_provider, 600);
-    }
-    window_box.pack_start(&menu_bar, false, false, 0);
-    if let Some(window_menu) = attributes.window_menu {
-      window_menu.generate_menu(&mut menu_bar, &window_requests_tx, &accel_group, window_id);
-    }
+    let default_vbox = if pl_attribs.default_vbox {
+      let box_ = gtk::Box::new(gtk::Orientation::Vertical, 0);
+      window.add(&box_);
+      Some(box_)
+    } else {
+      None
+    };
 
     // Rest attributes
     window.set_title(&attributes.title);
@@ -317,10 +293,9 @@ impl Window {
     let win = Self {
       window_id,
       window,
+      default_vbox,
       window_requests_tx,
       draw_tx,
-      accel_group,
-      menu_bar,
       scale_factor,
       position,
       size,
@@ -453,15 +428,6 @@ impl Window {
       .title()
       .map(|t| t.as_str().to_string())
       .unwrap_or_default()
-  }
-
-  pub fn set_menu(&self, menu: Option<menu::Menu>) {
-    if let Err(e) = self.window_requests_tx.send((
-      self.window_id,
-      WindowRequest::SetMenu((menu, self.accel_group.clone(), self.menu_bar.clone())),
-    )) {
-      log::warn!("Fail to send menu request: {}", e);
-    }
   }
 
   pub fn set_visible(&self, visible: bool) {
@@ -634,18 +600,6 @@ impl Window {
     }
   }
 
-  pub fn hide_menu(&self) {
-    self.menu_bar.hide();
-  }
-
-  pub fn show_menu(&self) {
-    self.menu_bar.show_all();
-  }
-
-  pub fn is_menu_visible(&self) -> bool {
-    self.menu_bar.get_visible()
-  }
-
   pub fn set_visible_on_all_workspaces(&self, visible: bool) {
     if let Err(e) = self.window_requests_tx.send((
       self.window_id,
@@ -654,7 +608,6 @@ impl Window {
       log::warn!("Fail to send visible on all workspaces request: {}", e);
     }
   }
-
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
     if let Err(e) = self
       .window_requests_tx
@@ -864,9 +817,6 @@ pub enum WindowRequest {
     transparent: bool,
     cursor_moved: bool,
   },
-  Menu((Option<MenuItem>, Option<MenuId>)),
-  SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
-  GlobalHotKey(u16),
   SetVisibleOnAllWorkspaces(bool),
   ProgressBarState(ProgressBarState),
 }
