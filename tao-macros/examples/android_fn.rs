@@ -1,7 +1,14 @@
+use std::marker::PhantomData;
+
 use tao_macros::android_fn;
 
-struct JNIEnv;
-struct JClass;
+struct JNIEnv<'a> {
+  _marker: &'a PhantomData<()>,
+}
+#[repr(C)]
+struct JClass<'a> {
+  _marker: &'a PhantomData<()>,
+}
 
 android_fn![com_example, tao_app, SomeClass, add, []];
 unsafe fn add(_env: JNIEnv, _class: JClass) {}
@@ -53,15 +60,21 @@ unsafe fn add8(_env: JNIEnv, _class: JClass, _a: i32, _b: i32) -> i32 {
   0
 }
 
-android_fn!(
+android_fn![
   com_example,
   tao_app,
   SomeClass,
-  add9,
-  [i32, i32],
-  __VOID__,
-  [],
-);
-unsafe fn add9(_env: JNIEnv, _class: JClass, _a: i32, _b: i32) {}
+  add10,
+  [JClass<'local>, i32],
+  JClass<'local>
+];
+unsafe fn add10<'local>(
+  _env: JNIEnv<'local>,
+  _class: JClass<'local>,
+  a: JClass<'local>,
+  _b: i32,
+) -> JClass<'local> {
+  a
+}
 
 fn main() {}

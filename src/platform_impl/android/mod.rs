@@ -749,7 +749,7 @@ impl MonitorHandle {
         .l()
         .unwrap();
       let rect = env
-        .call_method(metrics, "getBounds", "()Landroid/graphics/Rect;", &[])
+        .call_method(&metrics, "getBounds", "()Landroid/graphics/Rect;", &[])
         .unwrap()
         .l()
         .unwrap();
@@ -759,7 +759,7 @@ impl MonitorHandle {
         .i()
         .unwrap();
       let height = env
-        .call_method(rect, "height", "()I", &[])
+        .call_method(&rect, "height", "()I", &[])
         .unwrap()
         .i()
         .unwrap();
