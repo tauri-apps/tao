@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.1.2]
+
+- [`b7758314`](https://github.com/tauri-apps/tao/commit/b7758314abf8c6916c865d9b31eea5bd17b2fe16)([#780](https://github.com/tauri-apps/tao/pull/780)) Added support to lifetime parameters on `android_fn`.
+
 ## \[0.1.1]
 
 - Fix passing empty array for args in `android_fn!` macro

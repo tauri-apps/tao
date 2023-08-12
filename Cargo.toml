@@ -1,10 +1,10 @@
 [package]
 name = "tao"
-version = "0.21.1"
+version = "0.22.0"
 description = "Cross-platform window manager library."
 authors = [
   "Tauri Programme within The Commons Conservancy",
-  "The winit contributors",
+  "The winit contributors"
 ]
 edition = "2021"
 rust-version = "1.56"
@@ -13,25 +13,25 @@ license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/tauri-apps/tao"
 documentation = "https://docs.rs/tao"
-categories = ["gui"]
+categories = [ "gui" ]
 
 [package.metadata.docs.rs]
-features = ["serde", "dox"]
+features = [ "serde", "dox" ]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
   "i686-pc-windows-msvc",
   "x86_64-pc-windows-msvc",
   "i686-unknown-linux-gnu",
   "x86_64-unknown-linux-gnu",
-  "x86_64-apple-darwin",
+  "x86_64-apple-darwin"
 ]
 
 [workspace]
-members = ["tao-macros"]
+members = [ "tao-macros" ]
 
 [features]
-default = []
-dox = ["gtk/dox"]
+default = [ ]
+dox = [ "gtk/dox" ]
 
 [build-dependencies]
 cc = "1"
@@ -41,7 +41,7 @@ instant = "0.1"
 lazy_static = "1"
 libc = "0.2"
 log = "0.4"
-serde = { version = "1", optional = true, features = ["serde_derive"] }
+serde = { version = "1", optional = true, features = [ "serde_derive" ] }
 raw-window-handle = "0.5"
 bitflags = "1"
 crossbeam-channel = "0.5"
@@ -104,7 +104,7 @@ windows-implement = "0.48.0"
   "Win32_UI_Input_Touch",
   "Win32_UI_Shell",
   "Win32_UI_TextServices",
-  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_WindowsAndMessaging"
 ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
