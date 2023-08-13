@@ -37,7 +37,7 @@
       ],
       "publish": [
         {
-          "command": "cargo package --allow-dirty --features tray",
+          "command": "cargo package --allow-dirty",
           "dryRunCommand": true
         },
         {
