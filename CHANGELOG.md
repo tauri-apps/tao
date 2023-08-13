@@ -1,5 +1,18 @@
 # Changelog
 
+## \[0.22.0]
+
+- [`06b617ea`](https://github.com/tauri-apps/tao/commit/06b617eaa2cea7039e9b71b8322b517486e3b1e5)([#776](https://github.com/tauri-apps/tao/pull/776)) Update jni to 0.21.
+- [`d0b20c94`](https://github.com/tauri-apps/tao/commit/d0b20c94eaf555ba27f3cfbbf2636e3f3b036a97)([#778](https://github.com/tauri-apps/tao/pull/778)) This release contains a number of **breaking changes** that aimed at removing menus, system-tray and global-shortcuts features which have been moved to different crates, [`muda`](https://github.com/tauri-apps/muda/), [`tray-icon`](https://github.com/tauri-apps/tray-icon/) and [`global-hotkey`](https://github.com/tauri-apps/global-hotkey) and here is a summary of the changes:
+
+  - Removed `tray` crago feature flag.
+  - Removed `accelerator`, `menu`, `system_tray` and `global_shortcut` modules and all associated types.
+  - Removed `Event::MenuEvent`, `Event::TrayEvent`, `Event::GlobalShortcutEvent`, `TrayEvent` and `Rectangle` types.
+  - Added `EventLoopBuilder` type.
+  - Removed `EventLoop::with_user_event`, instead use `EventLoopBuilder::<T>::with_user_event().build()`.
+  - Removed `EventLoopExtWindows`, `EventLoopExtMacOS` and `EventLoopExtUnix`, instead use `EventLoopBuilderExtWindows`, `EventLoopBuilderExtMacOS` and `EventLoopBuilderExtUnix`.
+  - Changed `WindowExtWindows::hinstance`, `WindowExtWindows::hwnd` and `MonitorHandleExtWindow::hmonitor` to return `isize` instead of `*const c_void`
+
 ## \[0.21.1]
 
 - [`9a320882`](https://github.com/tauri-apps/tao/commit/9a320882ed824d18f9e20f8a9af7a97f51805c87)([#761](https://github.com/tauri-apps/tao/pull/761)) On Android, use a lockfree queue (crossbeam channel) to prevent deadlocks inside send_event.
