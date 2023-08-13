@@ -61,5 +61,4 @@ sudo apt install libgtk-3-dev
 ### Acknowledgement
 
 This is a fork of [winit](https://crates.io/crates/winit) which replaces Linux's port to Gtk.
-We need it not only because of webkit2gtk, but also a lot of Desktop Environment features like menu bar, and tray icons.
 In the future, we want to make these features more modular as separate crates. So we can switch back to winit and also benefit the whole community.

@@ -15,7 +15,6 @@ proc-macro = true
 
 [features]
 default = [ ]
-tray = [ ]
 
 [dependencies]
 proc-macro2 = "1"

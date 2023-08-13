@@ -37,7 +37,7 @@
       ],
       "publish": [
         {
-          "command": "cargo package --allow-dirty --features tray",
+          "command": "cargo package --allow-dirty",
           "dryRunCommand": true
         },
         {
@@ -68,7 +68,7 @@
       ],
       "assets": [
         {
-          "path": "${ pkg.path }/${ pkg.pkg }-${ pkgFile.version }.crate",
+          "path": "./target/package/${ pkg.pkg }-${ pkgFile.version }.crate",
           "name": "${ pkg.pkg }-${ pkgFile.version }.crate"
         }
       ]
