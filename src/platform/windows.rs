@@ -87,6 +87,19 @@ pub trait EventLoopBuilderExtWindows {
   fn with_msg_hook<F>(&mut self, callback: F) -> &mut Self
   where
     F: FnMut(*const std::ffi::c_void) -> bool + 'static;
+
+  /// Forces a theme or uses the system settings if `None` was provided.
+  ///
+  /// This will only affect some controls like context menus.
+  ///
+  /// ## Note
+  ///
+  /// Since this setting is app-wide, using [`WindowBuilder::with_theme`]
+  /// will not change the affected controls for that specific window,
+  /// so it is recommended to always use the same theme used for this app-wide setting
+  /// or use `None` so it automatically uses the theme of this method
+  /// or falls back to the system preference.
+  fn with_theme(&mut self, theme: Option<Theme>) -> &mut Self;
 }
 
 impl<T> EventLoopBuilderExtWindows for EventLoopBuilder<T> {
@@ -108,6 +121,13 @@ impl<T> EventLoopBuilderExtWindows for EventLoopBuilder<T> {
     F: FnMut(*const std::ffi::c_void) -> bool + 'static,
   {
     self.platform_specific.msg_hook = Some(Box::new(callback));
+    self
+  }
+
+  #[inline]
+
+  fn with_theme(&mut self, theme: Option<Theme>) -> &mut Self {
+    self.platform_specific.preferred_theme = theme;
     self
   }
 }
