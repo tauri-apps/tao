@@ -1,6 +1,6 @@
 [package]
 name = "tao"
-version = "0.22.0"
+version = "0.22.1"
 description = "Cross-platform window manager library."
 authors = [
   "Tauri Programme within The Commons Conservancy",
@@ -78,9 +78,9 @@ unicode-segmentation = "1.10"
 image = { version = "0.24", default-features = false }
 windows-implement = "0.48.0"
 
-[target."cfg(target_os = \"windows\")".dependencies.windows]
-version = "0.48.0"
-features = [
+  [target."cfg(target_os = \"windows\")".dependencies.windows]
+  version = "0.48.0"
+  features = [
   "implement",
   "Win32_Devices_HumanInterfaceDevice",
   "Win32_Foundation",
@@ -107,7 +107,7 @@ features = [
   "Win32_UI_Input_Touch",
   "Win32_UI_Shell",
   "Win32_UI_TextServices",
-  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_WindowsAndMessaging"
 ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
