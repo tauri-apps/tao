@@ -153,7 +153,7 @@ pub enum Event {
 }
 
 pub unsafe fn create(
-  env: JNIEnv,
+  mut env: JNIEnv,
   _jclass: JClass,
   jobject: JObject,
   setup: unsafe fn(JNIEnv, &ForeignLooper, GlobalRef),
@@ -163,7 +163,7 @@ pub unsafe fn create(
   // Initialize global context
   let window_manager = env
     .call_method(
-      jobject,
+      &jobject,
       "getWindowManager",
       "()Landroid/view/WindowManager;",
       &[],
@@ -178,7 +178,7 @@ pub unsafe fn create(
   let env = vm.attach_current_thread_as_daemon().unwrap();
   ndk_context::initialize_android_context(
     vm.get_java_vm_pointer() as *mut _,
-    activity.as_obj().into_raw() as *mut _,
+    activity.as_obj().as_raw() as *mut _,
   );
 
   let looper = ThreadLooper::for_thread().unwrap().into_foreign();

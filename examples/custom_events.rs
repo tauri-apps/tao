@@ -7,7 +7,7 @@ fn main() {
   env_logger::init();
   use tao::{
     event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::{ControlFlow, EventLoopBuilder},
     window::WindowBuilder,
   };
 
@@ -16,7 +16,7 @@ fn main() {
     Timer,
   }
 
-  let event_loop = EventLoop::<CustomEvent>::with_user_event();
+  let event_loop = EventLoopBuilder::<CustomEvent>::with_user_event().build();
 
   let _window = WindowBuilder::new()
     .with_title("A fantastic window!")

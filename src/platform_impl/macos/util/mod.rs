@@ -100,20 +100,6 @@ pub fn bottom_left_to_top_left(rect: NSRect) -> f64 {
   CGDisplay::main().pixels_high() as f64 - (rect.origin.y + rect.size.height)
 }
 
-#[cfg(feature = "tray")]
-/// Get the icon Y-axis correctly aligned with tao based on the tray icon `NSRect`.
-/// Available only with the `tray` feature flag.
-pub fn bottom_left_to_top_left_for_tray(rect: NSRect) -> f64 {
-  CGDisplay::main().pixels_high() as f64 - rect.origin.y
-}
-
-#[cfg(feature = "tray")]
-/// Get the cursor Y-axis correctly aligned with tao when we click on the tray icon.
-/// Available only with the `tray` feature flag.
-pub fn bottom_left_to_top_left_for_cursor(point: NSPoint) -> f64 {
-  CGDisplay::main().pixels_high() as f64 - point.y
-}
-
 /// Converts from tao screen-coordinates to macOS screen-coordinates.
 /// Tao: top-left is (0, 0) and y increasing downwards
 /// macOS: bottom-left is (0, 0) and y increasing upwards
@@ -148,23 +134,6 @@ pub unsafe fn ns_string_to_rust(ns_string: id) -> String {
   string.to_owned()
 }
 
-/// Gets the app's name from the `localizedName` property of `NSRunningApplication`
-pub unsafe fn app_name() -> Option<id> {
-  let app_class = class!(NSRunningApplication);
-  let app: id = msg_send![app_class, currentApplication];
-  let app_name: id = msg_send![app, localizedName];
-  if app_name != nil {
-    Some(app_name)
-  } else {
-    None
-  }
-}
-
-/// Gets the app's name as a `String` from the `localizedName` property of `NSRunningApplication`
-pub unsafe fn app_name_string() -> Option<String> {
-  app_name().map(|name| ns_string_to_rust(name))
-}
-
 pub unsafe fn superclass<'a>(this: &'a Object) -> &'a Class {
   let superclass: *const Class = msg_send![this, superclass];
   &*superclass
@@ -197,15 +166,4 @@ pub unsafe fn toggle_style_mask(window: id, view: id, mask: NSWindowStyleMask, o
 
   // If we don't do this, key handling will break. Therefore, never call `setStyleMask` directly!
   window.makeFirstResponder_(view);
-}
-
-/// Strips single `&` characters from the string.
-///
-/// `&` can be escaped as `&&` to prevent stripping, in which case a single `&` will be output.
-pub fn strip_mnemonic<S: AsRef<str>>(string: S) -> String {
-  string
-    .as_ref()
-    .replace("&&", "[~~]")
-    .replace('&', "")
-    .replace("[~~]", "&")
 }

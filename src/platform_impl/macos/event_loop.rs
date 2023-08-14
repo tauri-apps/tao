@@ -37,6 +37,8 @@ use crate::{
     observer::*,
     util::{self, IdRef},
   },
+  platform_impl::set_progress_indicator,
+  window::ProgressBarState,
 };
 
 #[derive(Default)]
@@ -111,6 +113,11 @@ impl<T: 'static> EventLoopWindowTarget<T> {
       Err(ExternalError::Os(os_error!(super::OsError::CGError(0))))
     }
   }
+
+  #[inline]
+  pub fn set_progress_bar(&self, progress: ProgressBarState) {
+    set_progress_indicator(progress);
+  }
 }
 
 pub struct EventLoop<T: 'static> {
@@ -128,8 +135,14 @@ pub struct EventLoop<T: 'static> {
   _callback: Option<Rc<RefCell<dyn FnMut(Event<'_, T>, &RootWindowTarget<T>, &mut ControlFlow)>>>,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Default)]
+pub(crate) struct PlatformSpecificEventLoopAttributes {}
+
 impl<T> EventLoop<T> {
-  pub fn new() -> Self {
+  pub(crate) fn new(_: &PlatformSpecificEventLoopAttributes) -> Self {
+    let panic_info: Rc<PanicInfo> = Default::default();
+    setup_control_flow_observers(Rc::downgrade(&panic_info));
+
     let delegate = unsafe {
       let is_main_thread: BOOL = msg_send!(class!(NSThread), isMainThread);
       if is_main_thread == NO {
@@ -148,8 +161,7 @@ impl<T> EventLoop<T> {
       let _: () = msg_send![pool, drain];
       delegate
     };
-    let panic_info: Rc<PanicInfo> = Default::default();
-    setup_control_flow_observers(Rc::downgrade(&panic_info));
+
     EventLoop {
       delegate,
       window_target: Rc::new(RootWindowTarget {

@@ -4,16 +4,14 @@
 
 #![cfg(target_os = "android")]
 use crate::{
-  accelerator::Accelerator,
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error, event,
   event_loop::{self, ControlFlow},
-  icon::Icon,
   keyboard::{Key, KeyCode, KeyLocation, NativeKeyCode},
-  menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   monitor,
-  window::{self, Theme},
+  window::{self, Theme, WindowSizeConstraints},
 };
+use crossbeam_channel::{Receiver, Sender};
 use ndk::{
   configuration::Configuration,
   event::{InputEvent, KeyAction, MotionAction},
@@ -26,7 +24,7 @@ use raw_window_handle::{
 use std::{
   collections::VecDeque,
   convert::TryInto,
-  sync::{Arc, Mutex, RwLock},
+  sync::RwLock,
   time::{Duration, Instant},
 };
 
@@ -58,71 +56,21 @@ fn poll(poll: Poll) -> Option<EventSource> {
   }
 }
 
-// todo: implement android menubar
-#[derive(Debug, Clone)]
-pub struct MenuItemAttributes;
-
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct KeyEventExtra {}
 
-#[derive(Debug, Clone)]
-pub struct Menu;
-
-impl Default for Menu {
-  fn default() -> Self {
-    Menu::new()
-  }
-}
-
-impl Menu {
-  pub fn new() -> Self {
-    Menu {}
-  }
-  pub fn new_popup_menu() -> Self {
-    Self::new()
-  }
-  pub fn add_item(
-    &mut self,
-    _menu_id: MenuId,
-    _title: &str,
-    _accelerator: Option<Accelerator>,
-    _enabled: bool,
-    _selected: bool,
-    _menu_type: MenuType,
-  ) -> CustomMenuItem {
-    CustomMenuItem(MenuItemAttributes {})
-  }
-  pub fn add_submenu(&mut self, _title: &str, _enabled: bool, _submenu: Menu) {}
-  pub fn add_native_item(
-    &mut self,
-    _item: MenuItem,
-    _menu_type: MenuType,
-  ) -> Option<CustomMenuItem> {
-    None
-  }
-}
-
-impl MenuItemAttributes {
-  pub fn id(self) -> MenuId {
-    MenuId::EMPTY
-  }
-  pub fn title(&self) -> String {
-    "".to_owned()
-  }
-  pub fn set_enabled(&mut self, _is_enabled: bool) {}
-  pub fn set_title(&mut self, _title: &str) {}
-  pub fn set_selected(&mut self, _is_selected: bool) {}
-  pub fn set_icon(&mut self, _icon: Icon) {}
-}
-
 pub struct EventLoop<T: 'static> {
   window_target: event_loop::EventLoopWindowTarget<T>,
-  user_queue: Arc<Mutex<VecDeque<T>>>,
+  receiver: Receiver<T>,
+  sender_to_clone: Sender<T>,
   first_event: Option<EventSource>,
   start_cause: event::StartCause,
   looper: ThreadLooper,
   running: bool,
 }
+
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct PlatformSpecificEventLoopAttributes {}
 
 macro_rules! call_event_handler {
   ( $event_handler:expr, $window_target:expr, $cf:expr, $event:expr ) => {{
@@ -135,7 +83,9 @@ macro_rules! call_event_handler {
 }
 
 impl<T: 'static> EventLoop<T> {
-  pub fn new() -> Self {
+  pub(crate) fn new(_: &PlatformSpecificEventLoopAttributes) -> Self {
+    let (sender, receiver) = crossbeam_channel::unbounded();
+
     Self {
       window_target: event_loop::EventLoopWindowTarget {
         p: EventLoopWindowTarget {
@@ -143,7 +93,8 @@ impl<T: 'static> EventLoop<T> {
         },
         _marker: std::marker::PhantomData,
       },
-      user_queue: Default::default(),
+      sender_to_clone: sender,
+      receiver,
       first_event: None,
       start_cause: event::StartCause::Init,
       looper: ThreadLooper::for_thread().unwrap(),
@@ -345,8 +296,7 @@ impl<T: 'static> EventLoop<T> {
           }
         }
         Some(EventSource::User) => {
-          let mut user_queue = self.user_queue.lock().unwrap();
-          while let Some(event) = user_queue.pop_front() {
+          while let Ok(event) = self.receiver.try_recv() {
             call_event_handler!(
               event_handler,
               self.window_target(),
@@ -446,20 +396,20 @@ impl<T: 'static> EventLoop<T> {
 
   pub fn create_proxy(&self) -> EventLoopProxy<T> {
     EventLoopProxy {
-      queue: self.user_queue.clone(),
+      queue: self.sender_to_clone.clone(),
       looper: ForeignLooper::for_thread().expect("called from event loop thread"),
     }
   }
 }
 
 pub struct EventLoopProxy<T: 'static> {
-  queue: Arc<Mutex<VecDeque<T>>>,
+  queue: Sender<T>,
   looper: ForeignLooper,
 }
 
 impl<T> EventLoopProxy<T> {
   pub fn send_event(&self, event: T) -> Result<(), event_loop::EventLoopClosed<T>> {
-    self.queue.lock().unwrap().push_back(event);
+    _ = self.queue.try_send(event);
     self.looper.wake();
     Ok(())
   }
@@ -602,15 +552,13 @@ impl Window {
   }
 
   pub fn set_min_inner_size(&self, _: Option<Size>) {}
-
   pub fn set_max_inner_size(&self, _: Option<Size>) {}
+  pub fn set_inner_size_constraints(&self, _: WindowSizeConstraints) {}
 
   pub fn set_title(&self, _title: &str) {}
   pub fn title(&self) -> String {
     String::new()
   }
-
-  pub fn set_menu(&self, _menu: Option<Menu>) {}
 
   pub fn set_visible(&self, _visibility: bool) {}
 
@@ -702,15 +650,6 @@ impl Window {
 
   pub fn request_user_attention(&self, _request_type: Option<window::UserAttentionType>) {}
 
-  pub fn hide_menu(&self) {}
-
-  pub fn show_menu(&self) {}
-
-  pub fn is_menu_visible(&self) -> bool {
-    warn!("`Window::is_menu_visible` is ignored on Android");
-    false
-  }
-
   pub fn set_cursor_icon(&self, _: window::CursorIcon) {}
 
   pub fn set_cursor_position(&self, _: Position) -> Result<(), error::ExternalError> {
@@ -748,7 +687,7 @@ impl Window {
     // TODO: Use main activity instead?
     let mut handle = AndroidNdkWindowHandle::empty();
     if let Some(w) = ndk_glue::window_manager() {
-      handle.a_native_window = w.as_obj().into_raw() as *mut _;
+      handle.a_native_window = w.as_obj().as_raw() as *mut _;
     } else {
       panic!("Cannot get the native window, it's null and will always be null before Event::Resumed and after Event::Suspended. Make sure you only call this function between those events.");
     };
@@ -797,7 +736,7 @@ impl MonitorHandle {
     if let Some(w) = ndk_glue::window_manager() {
       let ctx = ndk_context::android_context();
       let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.unwrap();
-      let env = vm.attach_current_thread().unwrap();
+      let mut env = vm.attach_current_thread().unwrap();
       let window_manager = w.as_obj();
       let metrics = env
         .call_method(
@@ -810,17 +749,17 @@ impl MonitorHandle {
         .l()
         .unwrap();
       let rect = env
-        .call_method(metrics, "getBounds", "()Landroid/graphics/Rect;", &[])
+        .call_method(&metrics, "getBounds", "()Landroid/graphics/Rect;", &[])
         .unwrap()
         .l()
         .unwrap();
       let width = env
-        .call_method(rect, "width", "()I", &[])
+        .call_method(&rect, "width", "()I", &[])
         .unwrap()
         .i()
         .unwrap();
       let height = env
-        .call_method(rect, "height", "()I", &[])
+        .call_method(&rect, "height", "()I", &[])
         .unwrap()
         .i()
         .unwrap();

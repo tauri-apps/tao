@@ -30,7 +30,7 @@ use windows::{
     System::{Com::*, LibraryLoader::*, Ole::*},
     UI::{
       Input::{Ime::*, KeyboardAndMouse::*, Touch::*},
-      Shell::*,
+      Shell::{ITaskbarList4 as ITaskbarList, TaskbarList, TBPFLAG, *},
       WindowsAndMessaging::{self as win32wm, *},
     },
   },
@@ -40,7 +40,6 @@ use crate::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
-  menu::MenuType,
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{
     dark_mode::try_theme,
@@ -48,21 +47,17 @@ use crate::{
     drop_handler::FileDropHandler,
     event_loop::{self, EventLoopWindowTarget, DESTROY_MSG_ID},
     icon::{self, IconType},
-    menu, monitor, util,
+    monitor, util,
     window_state::{CursorFlags, SavedWindow, WindowFlags, WindowState},
     OsError, Parent, PlatformSpecificWindowBuilderAttributes, WindowId,
   },
   window::{
-    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
-    BORDERLESS_RESIZE_INSET,
+    CursorIcon, Fullscreen, ProgressBarState, ProgressState, Theme, UserAttentionType,
+    WindowAttributes, WindowSizeConstraints, BORDERLESS_RESIZE_INSET,
   },
 };
 
 use super::keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS};
-
-struct HMenuWrapper(HMENU);
-unsafe impl Send for HMenuWrapper {}
-unsafe impl Sync for HMenuWrapper {}
 
 /// The Win32 implementation of the main `Window` object.
 pub struct Window {
@@ -74,9 +69,6 @@ pub struct Window {
 
   // The events loop proxy.
   thread_executor: event_loop::EventLoopThreadExecutor,
-
-  // The menu associated with the window
-  menu: Option<HMenuWrapper>,
 }
 
 impl Window {
@@ -153,10 +145,6 @@ impl Window {
     unsafe { GetWindowTextW(self.window.0, &mut buf) };
     String::from_utf16_lossy(&buf[..len as _])
   }
-
-  // TODO (lemarier): allow menu update
-  pub fn set_menu(&self, _new_menu: Option<menu::Menu>) {}
-
   #[inline]
   pub fn set_visible(&self, visible: bool) {
     let window = self.window.clone();
@@ -285,7 +273,11 @@ impl Window {
 
   #[inline]
   pub fn set_min_inner_size(&self, size: Option<Size>) {
-    self.window_state.lock().min_size = size;
+    {
+      let mut window_state = self.window_state.lock();
+      window_state.size_constraints.min_width = size.map(|s| s.width());
+      window_state.size_constraints.min_height = size.map(|s| s.height());
+    }
     // Make windows re-check the window size bounds.
     let size = self.inner_size();
     self.set_inner_size(size.into());
@@ -293,7 +285,19 @@ impl Window {
 
   #[inline]
   pub fn set_max_inner_size(&self, size: Option<Size>) {
-    self.window_state.lock().max_size = size;
+    {
+      let mut window_state = self.window_state.lock();
+      window_state.size_constraints.max_width = size.map(|s| s.width());
+      window_state.size_constraints.max_height = size.map(|s| s.height());
+    }
+    // Make windows re-check the window size bounds.
+    let size = self.inner_size();
+    self.set_inner_size(size.into());
+  }
+
+  #[inline]
+  pub fn set_inner_size_constraints(&self, constraints: WindowSizeConstraints) {
+    self.window_state.lock().size_constraints = constraints;
     // Make windows re-check the window size bounds.
     let size = self.inner_size();
     self.set_inner_size(size.into());
@@ -740,6 +744,17 @@ impl Window {
     });
   }
 
+  pub fn set_rtl(&self, rtl: bool) {
+    let window = self.window.clone();
+    let window_state = Arc::clone(&self.window_state);
+
+    self.thread_executor.execute_in_thread(move || {
+      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+        f.set(WindowFlags::RIGHT_TO_LEFT_LAYOUT, rtl)
+      });
+    });
+  }
+
   #[inline]
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
     Some(RootMonitorHandle {
@@ -825,27 +840,6 @@ impl Window {
   }
 
   #[inline]
-  pub fn hide_menu(&self) {
-    unsafe {
-      SetMenu(self.hwnd(), HMENU::default());
-    }
-  }
-
-  #[inline]
-  pub fn show_menu(&self) {
-    if let Some(menu) = &self.menu {
-      unsafe {
-        SetMenu(self.hwnd(), menu.0);
-      }
-    }
-  }
-
-  #[inline]
-  pub fn is_menu_visible(&self) -> bool {
-    unsafe { !GetMenu(self.hwnd()).is_invalid() }
-  }
-
-  #[inline]
   pub fn reset_dead_keys(&self) {
     // `ToUnicode` consumes the dead-key by default, so we are constructing a fake (but valid)
     // key input which we can call `ToUnicode` with.
@@ -879,6 +873,37 @@ impl Window {
   pub(crate) fn set_skip_taskbar(&self, skip: bool) {
     self.window_state.lock().skip_taskbar = skip;
     unsafe { set_skip_taskbar(self.hwnd(), skip) };
+  }
+
+  #[inline]
+  pub fn set_progress_bar(&self, progress: ProgressBarState) {
+    unsafe {
+      let taskbar_list: ITaskbarList = CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).unwrap();
+      let handle = self.window.0;
+
+      if let Some(state) = progress.state {
+        let taskbar_state = {
+          match state {
+            ProgressState::None => 0,
+            ProgressState::Indeterminate => 1,
+            ProgressState::Normal => 2,
+            ProgressState::Error => 3,
+            ProgressState::Paused => 4,
+          }
+        };
+
+        taskbar_list
+          .SetProgressState(handle, TBPFLAG(taskbar_state))
+          .unwrap_or(());
+      }
+      if let Some(value) = progress.progress {
+        let value = if value > 100 { 100 } else { value };
+
+        taskbar_list
+          .SetProgressValue(handle, value, 100)
+          .unwrap_or(());
+      }
+    }
   }
 
   #[inline]
@@ -938,7 +963,7 @@ unsafe fn init<T: 'static>(
   event_loop: &EventLoopWindowTarget<T>,
 ) -> Result<Window, RootOsError> {
   // registering the window class
-  let class_name = register_window_class();
+  let class_name = register_window_class(&pl_attribs.window_classname);
 
   let mut window_flags = WindowFlags::empty();
   window_flags.set(WindowFlags::MARKER_DECORATIONS, attributes.decorations);
@@ -962,6 +987,8 @@ unsafe fn init<T: 'static>(
   window_flags.set(WindowFlags::CLOSABLE, true);
 
   window_flags.set(WindowFlags::MARKER_DONT_FOCUS, !attributes.focused);
+
+  window_flags.set(WindowFlags::RIGHT_TO_LEFT_LAYOUT, pl_attribs.rtl);
 
   let parent = match pl_attribs.parent {
     Parent::ChildOf(parent) => {
@@ -1052,11 +1079,10 @@ unsafe fn init<T: 'static>(
     window_state
   };
 
-  let mut win = Window {
+  let win = Window {
     window: real_window,
     window_state,
     thread_executor: event_loop.create_thread_executor(),
-    menu: None,
   };
 
   KEY_EVENT_BUILDERS
@@ -1071,17 +1097,13 @@ unsafe fn init<T: 'static>(
     win.set_fullscreen(attributes.fullscreen);
     force_window_active(win.window.0);
   } else {
-    let size = attributes
+    let desired_size = attributes
       .inner_size
       .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
-    let max_size = attributes
-      .max_inner_size
-      .unwrap_or_else(|| PhysicalSize::new(f64::MAX, f64::MAX).into());
-    let min_size = attributes
-      .min_inner_size
-      .unwrap_or_else(|| PhysicalSize::new(0, 0).into());
-    let clamped_size = Size::clamp(size, min_size, max_size, win.scale_factor());
-    win.set_inner_size(clamped_size);
+    let size = attributes
+      .inner_size_constraints
+      .clamp(desired_size, win.scale_factor());
+    win.set_inner_size(size);
 
     if attributes.maximized {
       // Need to set MAXIMIZED after setting `inner_size` as
@@ -1101,31 +1123,11 @@ unsafe fn init<T: 'static>(
     win.set_outer_position(position);
   }
 
-  if let Some(window_menu) = attributes.window_menu {
-    let event_loop_runner = event_loop.runner_shared.clone();
-    let window_id = RootWindowId(win.id());
-    let menu_handler = menu::MenuHandler::new(
-      Box::new(move |event| {
-        if let Ok(e) = event.map_nonuser_event() {
-          event_loop_runner.send_event(e)
-        }
-      }),
-      MenuType::MenuBar,
-      Some(window_id),
-    );
-
-    win.menu = Some(HMenuWrapper(menu::initialize(
-      window_menu,
-      win.hwnd(),
-      menu_handler,
-    )));
-  }
-
   Ok(win)
 }
 
-unsafe fn register_window_class() -> Vec<u16> {
-  let class_name = util::encode_wide("Window Class");
+unsafe fn register_window_class(window_classname: &str) -> Vec<u16> {
+  let class_name = util::encode_wide(window_classname);
 
   let class = WNDCLASSEXW {
     cbSize: mem::size_of::<WNDCLASSEXW>() as u32,
@@ -1304,8 +1306,8 @@ pub(crate) unsafe fn set_skip_taskbar(hwnd: HWND, skip: bool) {
   }
 }
 
-pub fn hit_test(hwnd: *mut libc::c_void, cx: i32, cy: i32) -> LRESULT {
-  let hwnd = HWND(hwnd as _);
+pub fn hit_test(hwnd: isize, cx: i32, cy: i32) -> LRESULT {
+  let hwnd = HWND(hwnd);
   let mut window_rect = RECT::default();
   unsafe {
     if GetWindowRect(hwnd, <*mut _>::cast(&mut window_rect)).as_bool() {

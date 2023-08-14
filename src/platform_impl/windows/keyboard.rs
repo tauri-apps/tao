@@ -108,7 +108,12 @@ impl KeyEventBuilder {
           // This is handled in `event_loop.rs`
           return vec![];
         }
-        *result = ProcResult::Value(LRESULT(0));
+
+        if msg_kind == win32wm::WM_SYSKEYDOWN {
+          *result = ProcResult::DefSubclassProc;
+        } else {
+          *result = ProcResult::Value(LRESULT(0));
+        }
 
         let mut layouts = LAYOUT_CACHE.lock();
         let event_info =
@@ -268,7 +273,11 @@ impl KeyEventBuilder {
         }
       }
       win32wm::WM_KEYUP | win32wm::WM_SYSKEYUP => {
-        *result = ProcResult::Value(LRESULT(0));
+        if msg_kind == win32wm::WM_SYSKEYUP {
+          *result = ProcResult::DefSubclassProc;
+        } else {
+          *result = ProcResult::Value(LRESULT(0));
+        }
 
         let mut layouts = LAYOUT_CACHE.lock();
         let event_info =
@@ -803,123 +812,4 @@ fn get_location(scancode: ExScancode, hkl: HKL) -> KeyLocation {
     | VK_ABNT_C2 => KeyLocation::Numpad,
     _ => KeyLocation::Standard,
   }
-}
-
-// used to build accelerators table from Key
-pub(crate) fn key_to_vk(key: &KeyCode) -> Option<VIRTUAL_KEY> {
-  Some(match key {
-    KeyCode::KeyA => unsafe { VIRTUAL_KEY(VkKeyScanW('a' as u16) as u16) },
-    KeyCode::KeyB => unsafe { VIRTUAL_KEY(VkKeyScanW('b' as u16) as u16) },
-    KeyCode::KeyC => unsafe { VIRTUAL_KEY(VkKeyScanW('c' as u16) as u16) },
-    KeyCode::KeyD => unsafe { VIRTUAL_KEY(VkKeyScanW('d' as u16) as u16) },
-    KeyCode::KeyE => unsafe { VIRTUAL_KEY(VkKeyScanW('e' as u16) as u16) },
-    KeyCode::KeyF => unsafe { VIRTUAL_KEY(VkKeyScanW('f' as u16) as u16) },
-    KeyCode::KeyG => unsafe { VIRTUAL_KEY(VkKeyScanW('g' as u16) as u16) },
-    KeyCode::KeyH => unsafe { VIRTUAL_KEY(VkKeyScanW('h' as u16) as u16) },
-    KeyCode::KeyI => unsafe { VIRTUAL_KEY(VkKeyScanW('i' as u16) as u16) },
-    KeyCode::KeyJ => unsafe { VIRTUAL_KEY(VkKeyScanW('j' as u16) as u16) },
-    KeyCode::KeyK => unsafe { VIRTUAL_KEY(VkKeyScanW('k' as u16) as u16) },
-    KeyCode::KeyL => unsafe { VIRTUAL_KEY(VkKeyScanW('l' as u16) as u16) },
-    KeyCode::KeyM => unsafe { VIRTUAL_KEY(VkKeyScanW('m' as u16) as u16) },
-    KeyCode::KeyN => unsafe { VIRTUAL_KEY(VkKeyScanW('n' as u16) as u16) },
-    KeyCode::KeyO => unsafe { VIRTUAL_KEY(VkKeyScanW('o' as u16) as u16) },
-    KeyCode::KeyP => unsafe { VIRTUAL_KEY(VkKeyScanW('p' as u16) as u16) },
-    KeyCode::KeyQ => unsafe { VIRTUAL_KEY(VkKeyScanW('q' as u16) as u16) },
-    KeyCode::KeyR => unsafe { VIRTUAL_KEY(VkKeyScanW('r' as u16) as u16) },
-    KeyCode::KeyS => unsafe { VIRTUAL_KEY(VkKeyScanW('s' as u16) as u16) },
-    KeyCode::KeyT => unsafe { VIRTUAL_KEY(VkKeyScanW('t' as u16) as u16) },
-    KeyCode::KeyU => unsafe { VIRTUAL_KEY(VkKeyScanW('u' as u16) as u16) },
-    KeyCode::KeyV => unsafe { VIRTUAL_KEY(VkKeyScanW('v' as u16) as u16) },
-    KeyCode::KeyW => unsafe { VIRTUAL_KEY(VkKeyScanW('w' as u16) as u16) },
-    KeyCode::KeyX => unsafe { VIRTUAL_KEY(VkKeyScanW('x' as u16) as u16) },
-    KeyCode::KeyY => unsafe { VIRTUAL_KEY(VkKeyScanW('y' as u16) as u16) },
-    KeyCode::KeyZ => unsafe { VIRTUAL_KEY(VkKeyScanW('z' as u16) as u16) },
-    KeyCode::Digit0 => unsafe { VIRTUAL_KEY(VkKeyScanW('0' as u16) as u16) },
-    KeyCode::Digit1 => unsafe { VIRTUAL_KEY(VkKeyScanW('1' as u16) as u16) },
-    KeyCode::Digit2 => unsafe { VIRTUAL_KEY(VkKeyScanW('2' as u16) as u16) },
-    KeyCode::Digit3 => unsafe { VIRTUAL_KEY(VkKeyScanW('3' as u16) as u16) },
-    KeyCode::Digit4 => unsafe { VIRTUAL_KEY(VkKeyScanW('4' as u16) as u16) },
-    KeyCode::Digit5 => unsafe { VIRTUAL_KEY(VkKeyScanW('5' as u16) as u16) },
-    KeyCode::Digit6 => unsafe { VIRTUAL_KEY(VkKeyScanW('6' as u16) as u16) },
-    KeyCode::Digit7 => unsafe { VIRTUAL_KEY(VkKeyScanW('7' as u16) as u16) },
-    KeyCode::Digit8 => unsafe { VIRTUAL_KEY(VkKeyScanW('8' as u16) as u16) },
-    KeyCode::Digit9 => unsafe { VIRTUAL_KEY(VkKeyScanW('9' as u16) as u16) },
-    KeyCode::Comma => VK_OEM_COMMA,
-    KeyCode::Minus => VK_OEM_MINUS,
-    KeyCode::Plus => VK_OEM_PLUS,
-    KeyCode::Period => VK_OEM_PERIOD,
-    KeyCode::Equal => unsafe { VIRTUAL_KEY(VkKeyScanW('=' as u16) as u16) },
-    KeyCode::Semicolon => unsafe { VIRTUAL_KEY(VkKeyScanW(';' as u16) as u16) },
-    KeyCode::Slash => unsafe { VIRTUAL_KEY(VkKeyScanW('/' as u16) as u16) },
-    KeyCode::Backslash => unsafe { VIRTUAL_KEY(VkKeyScanW('\\' as u16) as u16) },
-    KeyCode::Quote => unsafe { VIRTUAL_KEY(VkKeyScanW('\'' as u16) as u16) },
-    KeyCode::Backquote => unsafe { VIRTUAL_KEY(VkKeyScanW('`' as u16) as u16) },
-    KeyCode::BracketLeft => unsafe { VIRTUAL_KEY(VkKeyScanW('[' as u16) as u16) },
-    KeyCode::BracketRight => unsafe { VIRTUAL_KEY(VkKeyScanW(']' as u16) as u16) },
-    KeyCode::Backspace => VK_BACK,
-    KeyCode::Tab => VK_TAB,
-    KeyCode::Space => VK_SPACE,
-    KeyCode::Enter => VK_RETURN,
-    KeyCode::Pause => VK_PAUSE,
-    KeyCode::CapsLock => VK_CAPITAL,
-    KeyCode::KanaMode => VK_KANA,
-    KeyCode::Escape => VK_ESCAPE,
-    KeyCode::NonConvert => VK_NONCONVERT,
-    KeyCode::PageUp => VK_PRIOR,
-    KeyCode::PageDown => VK_NEXT,
-    KeyCode::End => VK_END,
-    KeyCode::Home => VK_HOME,
-    KeyCode::ArrowLeft => VK_LEFT,
-    KeyCode::ArrowUp => VK_UP,
-    KeyCode::ArrowRight => VK_RIGHT,
-    KeyCode::ArrowDown => VK_DOWN,
-    KeyCode::PrintScreen => VK_SNAPSHOT,
-    KeyCode::Insert => VK_INSERT,
-    KeyCode::Delete => VK_DELETE,
-    KeyCode::Help => VK_HELP,
-    KeyCode::ContextMenu => VK_APPS,
-    KeyCode::F1 => VK_F1,
-    KeyCode::F2 => VK_F2,
-    KeyCode::F3 => VK_F3,
-    KeyCode::F4 => VK_F4,
-    KeyCode::F5 => VK_F5,
-    KeyCode::F6 => VK_F6,
-    KeyCode::F7 => VK_F7,
-    KeyCode::F8 => VK_F8,
-    KeyCode::F9 => VK_F9,
-    KeyCode::F10 => VK_F10,
-    KeyCode::F11 => VK_F11,
-    KeyCode::F12 => VK_F12,
-    KeyCode::F13 => VK_F13,
-    KeyCode::F14 => VK_F14,
-    KeyCode::F15 => VK_F15,
-    KeyCode::F16 => VK_F16,
-    KeyCode::F17 => VK_F17,
-    KeyCode::F18 => VK_F18,
-    KeyCode::F19 => VK_F19,
-    KeyCode::F20 => VK_F20,
-    KeyCode::F21 => VK_F21,
-    KeyCode::F22 => VK_F22,
-    KeyCode::F23 => VK_F23,
-    KeyCode::F24 => VK_F24,
-    KeyCode::NumLock => VK_NUMLOCK,
-    KeyCode::ScrollLock => VK_SCROLL,
-    KeyCode::BrowserBack => VK_BROWSER_BACK,
-    KeyCode::BrowserForward => VK_BROWSER_FORWARD,
-    KeyCode::BrowserRefresh => VK_BROWSER_REFRESH,
-    KeyCode::BrowserStop => VK_BROWSER_STOP,
-    KeyCode::BrowserSearch => VK_BROWSER_SEARCH,
-    KeyCode::BrowserFavorites => VK_BROWSER_FAVORITES,
-    KeyCode::BrowserHome => VK_BROWSER_HOME,
-    KeyCode::AudioVolumeMute => VK_VOLUME_MUTE,
-    KeyCode::AudioVolumeDown => VK_VOLUME_DOWN,
-    KeyCode::AudioVolumeUp => VK_VOLUME_UP,
-    KeyCode::MediaTrackNext => VK_MEDIA_NEXT_TRACK,
-    KeyCode::MediaTrackPrevious => VK_MEDIA_PREV_TRACK,
-    KeyCode::MediaStop => VK_MEDIA_STOP,
-    KeyCode::MediaPlayPause => VK_MEDIA_PLAY_PAUSE,
-    KeyCode::LaunchMail => VK_LAUNCH_MAIL,
-    KeyCode::Convert => VK_CONVERT,
-    _ => return None,
-  })
 }

@@ -27,15 +27,17 @@ use crate::{
   platform::macos::WindowExtMacOS,
   platform_impl::platform::{
     app_state::AppState,
-    ffi, menu,
+    ffi,
     monitor::{self, MonitorHandle, VideoMode},
     util::{self, IdRef},
     view::{self, new_view, CursorState},
     window_delegate::new_delegate,
     OsError,
   },
+  platform_impl::set_progress_indicator,
   window::{
-    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
+    CursorIcon, Fullscreen, ProgressBarState, Theme, UserAttentionType, WindowAttributes,
+    WindowId as RootWindowId, WindowSizeConstraints,
   },
 };
 use cocoa::{
@@ -57,7 +59,7 @@ use objc::{
   runtime::{Class, Object, Sel, BOOL, NO, YES},
 };
 
-use super::{util::ns_string_to_rust, Menu};
+use super::util::ns_string_to_rust;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Id(pub usize);
@@ -162,13 +164,14 @@ fn create_window(
       None => {
         let screen = NSScreen::mainScreen(nil);
         let scale_factor = NSScreen::backingScaleFactor(screen) as f64;
-        let (width, height) = match attrs.inner_size {
-          Some(size) => {
-            let logical = size.to_logical(scale_factor);
-            (logical.width, logical.height)
-          }
-          None => (800.0, 600.0),
-        };
+        let desired_size = attrs
+          .inner_size
+          .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
+        let (width, height): (f64, f64) = attrs
+          .inner_size_constraints
+          .clamp(desired_size, scale_factor)
+          .to_logical::<f64>(scale_factor)
+          .into();
         let (left, bottom) = match attrs.position {
           Some(position) => {
             let logical = util::window_position(position.to_logical(scale_factor));
@@ -295,9 +298,6 @@ fn create_window(
       }
       if attrs.position.is_none() {
         ns_window.center();
-      }
-      if let Some(window_menu) = attrs.window_menu.clone() {
-        menu::initialize(window_menu);
       }
 
       ns_window
@@ -495,14 +495,18 @@ impl UnownedWindow {
         ns_window.setBackgroundColor_(NSColor::clearColor(nil));
       }
 
-      win_attribs.min_inner_size.map(|dim| {
-        let logical_dim = dim.to_logical(scale_factor);
-        set_min_inner_size(*ns_window, logical_dim)
-      });
-      win_attribs.max_inner_size.map(|dim| {
-        let logical_dim = dim.to_logical(scale_factor);
-        set_max_inner_size(*ns_window, logical_dim)
-      });
+      if win_attribs.inner_size_constraints.has_min() {
+        let min_size = win_attribs
+          .inner_size_constraints
+          .min_size_logical(scale_factor);
+        set_min_inner_size(*ns_window, min_size);
+      }
+      if win_attribs.inner_size_constraints.has_max() {
+        let max_size = win_attribs
+          .inner_size_constraints
+          .max_size_logical(scale_factor);
+        set_max_inner_size(*ns_window, max_size);
+      }
 
       // register for drag and drop operations.
       let () = msg_send![
@@ -602,14 +606,6 @@ impl UnownedWindow {
     }
   }
 
-  pub fn set_menu(&self, menu: Option<Menu>) {
-    // TODO if None we should set an empty menu
-    // On windows we can remove it, in macOS we can't
-    if let Some(menu) = menu {
-      menu::initialize(menu);
-    }
-  }
-
   pub fn set_visible(&self, visible: bool) {
     match visible {
       true => unsafe { util::make_key_and_order_front_async(*self.ns_window) },
@@ -697,24 +693,34 @@ impl UnownedWindow {
   }
 
   pub fn set_min_inner_size(&self, dimensions: Option<Size>) {
+    let dimensions = dimensions.unwrap_or(Logical(LogicalSize {
+      width: 0.0,
+      height: 0.0,
+    }));
+    let scale_factor = self.scale_factor();
     unsafe {
-      let dimensions = dimensions.unwrap_or(Logical(LogicalSize {
-        width: 0.0,
-        height: 0.0,
-      }));
-      let scale_factor = self.scale_factor();
       set_min_inner_size(*self.ns_window, dimensions.to_logical(scale_factor));
     }
   }
 
   pub fn set_max_inner_size(&self, dimensions: Option<Size>) {
+    let dimensions = dimensions.unwrap_or(Logical(LogicalSize {
+      width: std::f32::MAX as f64,
+      height: std::f32::MAX as f64,
+    }));
+    let scale_factor = self.scale_factor();
     unsafe {
-      let dimensions = dimensions.unwrap_or(Logical(LogicalSize {
-        width: std::f32::MAX as f64,
-        height: std::f32::MAX as f64,
-      }));
-      let scale_factor = self.scale_factor();
       set_max_inner_size(*self.ns_window, dimensions.to_logical(scale_factor));
+    }
+  }
+
+  pub fn set_inner_size_constraints(&self, constraints: WindowSizeConstraints) {
+    let scale_factor = self.scale_factor();
+    unsafe {
+      let min_size = constraints.min_size_logical(scale_factor);
+      set_min_inner_size(*self.ns_window, min_size);
+      let max_size = constraints.max_size_logical(scale_factor);
+      set_max_inner_size(*self.ns_window, max_size);
     }
   }
 
@@ -1326,18 +1332,6 @@ impl UnownedWindow {
   }
 
   #[inline]
-  pub fn hide_menu(&self) {}
-
-  #[inline]
-  pub fn show_menu(&self) {}
-
-  #[inline]
-  pub fn is_menu_visible(&self) -> bool {
-    warn!("`Window::is_menu_visible` always return true on macOS");
-    true
-  }
-
-  #[inline]
   // Allow directly accessing the current monitor internally without unwrapping.
   pub(crate) fn current_monitor_inner(&self) -> RootMonitorHandle {
     unsafe {
@@ -1410,6 +1404,10 @@ impl UnownedWindow {
       self.ns_window.setCollectionBehavior_(collection_behavior)
     }
   }
+
+  pub fn set_progress_bar(&self, progress: ProgressBarState) {
+    set_progress_indicator(progress);
+  }
 }
 
 impl WindowExtMacOS for UnownedWindow {
@@ -1420,7 +1418,7 @@ impl WindowExtMacOS for UnownedWindow {
 
   #[inline]
   fn ns_view(&self) -> *mut c_void {
-    *self.ns_view as *mut _
+    unsafe { (*self.ns_window).contentView() as *mut _ }
   }
 
   #[inline]

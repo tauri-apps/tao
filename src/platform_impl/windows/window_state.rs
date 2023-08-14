@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-  dpi::{PhysicalPosition, Size},
+  dpi::PhysicalPosition,
   icon::Icon,
   keyboard::ModifiersState,
   platform_impl::platform::{event_loop, minimal_ime::MinimalIme, util},
-  window::{CursorIcon, Fullscreen, Theme, WindowAttributes},
+  window::{CursorIcon, Fullscreen, Theme, WindowAttributes, WindowSizeConstraints},
 };
 use parking_lot::MutexGuard;
 use std::io;
@@ -22,8 +22,7 @@ pub struct WindowState {
   pub mouse: MouseProperties,
 
   /// Used by `WM_GETMINMAXINFO`.
-  pub min_size: Option<Size>,
-  pub max_size: Option<Size>,
+  pub size_constraints: WindowSizeConstraints,
 
   pub window_icon: Option<Icon>,
   pub taskbar_icon: Option<Icon>,
@@ -108,6 +107,8 @@ bitflags! {
         /// Drop shadow for undecorated windows.
         const MARKER_UNDECORATED_SHADOW = 1 << 21;
 
+        const RIGHT_TO_LEFT_LAYOUT = 1 << 22;
+
         const EXCLUSIVE_FULLSCREEN_OR_MASK = WindowFlags::ALWAYS_ON_TOP.bits;
     }
 }
@@ -128,8 +129,7 @@ impl WindowState {
         last_position: None,
       },
 
-      min_size: attributes.min_inner_size,
-      max_size: attributes.max_inner_size,
+      size_constraints: attributes.inner_size_constraints,
 
       window_icon: attributes.window_icon.clone(),
       taskbar_icon,
@@ -270,6 +270,9 @@ impl WindowFlags {
       WindowFlags::MARKER_EXCLUSIVE_FULLSCREEN | WindowFlags::MARKER_BORDERLESS_FULLSCREEN,
     ) {
       style &= !WS_OVERLAPPEDWINDOW;
+    }
+    if self.contains(WindowFlags::RIGHT_TO_LEFT_LAYOUT) {
+      style_ex |= WS_EX_LAYOUTRTL | WS_EX_RTLREADING | WS_EX_RIGHT;
     }
 
     (style, style_ex)

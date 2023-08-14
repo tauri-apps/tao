@@ -14,7 +14,7 @@ use std::{
 
 use gdk::{WindowEdge, WindowState};
 use glib::translate::ToGlibPtr;
-use gtk::{prelude::*, traits::SettingsExt, AccelGroup, Orientation, Settings};
+use gtk::{prelude::*, traits::SettingsExt, Settings};
 use raw_window_handle::{
   RawDisplayHandle, RawWindowHandle, WaylandDisplayHandle, WaylandWindowHandle, XlibDisplayHandle,
   XlibWindowHandle,
@@ -24,16 +24,15 @@ use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
-  menu::{MenuId, MenuItem},
   monitor::MonitorHandle as RootMonitorHandle,
   window::{
-    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, BORDERLESS_RESIZE_INSET,
+    CursorIcon, Fullscreen, ProgressBarState, Theme, UserAttentionType, WindowAttributes,
+    WindowSizeConstraints, BORDERLESS_RESIZE_INSET,
   },
 };
 
 use super::{
   event_loop::EventLoopWindowTarget,
-  menu,
   monitor::{self, MonitorHandle},
   util, Parent, PlatformSpecificWindowBuilderAttributes,
 };
@@ -56,20 +55,16 @@ pub struct Window {
   pub(crate) window_id: WindowId,
   /// Gtk application window.
   pub(crate) window: gtk::ApplicationWindow,
+  pub(crate) default_vbox: Option<gtk::Box>,
   /// Window requests sender
   pub(crate) window_requests_tx: glib::Sender<(WindowId, WindowRequest)>,
-  /// Gtk Acceleration Group
-  pub(crate) accel_group: AccelGroup,
-  // Gtk MenuBar allocation -- always available
-  menu_bar: gtk::MenuBar,
   scale_factor: Rc<AtomicI32>,
   position: Rc<(AtomicI32, AtomicI32)>,
   size: Rc<(AtomicI32, AtomicI32)>,
   maximized: Rc<AtomicBool>,
   minimized: Rc<AtomicBool>,
   fullscreen: RefCell<Option<Fullscreen>>,
-  min_inner_size: RefCell<Option<Size>>,
-  max_inner_size: RefCell<Option<Size>>,
+  inner_size_constraints: RefCell<WindowSizeConstraints>,
   /// Draw event Sender
   draw_tx: crossbeam_channel::Sender<WindowId>,
 }
@@ -93,9 +88,6 @@ impl Window {
       .borrow_mut()
       .insert(window_id);
 
-    let accel_group = AccelGroup::new();
-    window.add_accel_group(&accel_group);
-
     // Set Width/Height & Resizable
     let win_scale_factor = window.scale_factor();
     let (width, height) = attributes
@@ -113,40 +105,7 @@ impl Window {
     window.set_deletable(attributes.closable);
 
     // Set Min/Max Size
-    let geom_mask = attributes
-      .min_inner_size
-      .map(|_| gdk::WindowHints::MIN_SIZE)
-      .unwrap_or(gdk::WindowHints::empty())
-      | attributes
-        .max_inner_size
-        .map(|_| gdk::WindowHints::MAX_SIZE)
-        .unwrap_or(gdk::WindowHints::empty());
-    let (min_width, min_height) = attributes
-      .min_inner_size
-      .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
-      .unwrap_or_default();
-    let (max_width, max_height) = attributes
-      .max_inner_size
-      .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
-      .unwrap_or_default();
-    let picky_none: Option<&gtk::Window> = None;
-    window.set_geometry_hints(
-      picky_none,
-      Some(&gdk::Geometry::new(
-        min_width,
-        min_height,
-        max_width,
-        max_height,
-        0,
-        0,
-        0,
-        0,
-        0f64,
-        0f64,
-        gdk::Gravity::Center,
-      )),
-      geom_mask,
-    );
+    util::set_size_constraints(&window, attributes.inner_size_constraints);
 
     // Set Position
     if let Some(position) = attributes.position {
@@ -179,29 +138,13 @@ impl Window {
       }
     }
 
-    // We always create a box and allocate menubar, so if they set_menu after creation
-    // we can inject the menubar without re-redendering the whole window
-    let window_box = gtk::Box::new(Orientation::Vertical, 0);
-    window.add(&window_box);
-
-    let mut menu_bar = gtk::MenuBar::new();
-
-    if attributes.transparent {
-      let style_context = menu_bar.style_context();
-      let css_provider = gtk::CssProvider::new();
-      let theme = r#"
-          menubar {
-            background-color: transparent;
-            box-shadow: none;
-          }
-        "#;
-      let _ = css_provider.load_from_data(theme.as_bytes());
-      style_context.add_provider(&css_provider, 600);
-    }
-    window_box.pack_start(&menu_bar, false, false, 0);
-    if let Some(window_menu) = attributes.window_menu {
-      window_menu.generate_menu(&mut menu_bar, &window_requests_tx, &accel_group, window_id);
-    }
+    let default_vbox = if pl_attribs.default_vbox {
+      let box_ = gtk::Box::new(gtk::Orientation::Vertical, 0);
+      window.add(&box_);
+      Some(box_)
+    } else {
+      None
+    };
 
     // Rest attributes
     window.set_title(&attributes.title);
@@ -312,12 +255,12 @@ impl Window {
     let maximized: Rc<AtomicBool> = Rc::new(w_max.into());
     let max_clone = maximized.clone();
     let minimized = Rc::new(AtomicBool::new(false));
-    let min_clone = minimized.clone();
+    let minimized_clone = minimized.clone();
 
     window.connect_window_state_event(move |_, event| {
       let state = event.new_window_state();
       max_clone.store(state.contains(WindowState::MAXIMIZED), Ordering::Release);
-      min_clone.store(state.contains(WindowState::ICONIFIED), Ordering::Release);
+      minimized_clone.store(state.contains(WindowState::ICONIFIED), Ordering::Release);
       Inhibit(false)
     });
 
@@ -350,18 +293,16 @@ impl Window {
     let win = Self {
       window_id,
       window,
+      default_vbox,
       window_requests_tx,
       draw_tx,
-      accel_group,
-      menu_bar,
       scale_factor,
       position,
       size,
       maximized,
       minimized,
       fullscreen: RefCell::new(attributes.fullscreen),
-      min_inner_size: RefCell::new(attributes.min_inner_size),
-      max_inner_size: RefCell::new(attributes.max_inner_size),
+      inner_size_constraints: RefCell::new(attributes.inner_size_constraints),
     };
 
     win.set_skip_taskbar(pl_attribs.skip_taskbar);
@@ -444,47 +385,32 @@ impl Window {
     .to_physical(self.scale_factor.load(Ordering::Acquire) as f64)
   }
 
-  pub fn set_min_inner_size<S: Into<Size>>(&self, min_size: Option<S>) {
-    *self.min_inner_size.borrow_mut() = min_size.map(Into::into);
-
-    let scale_factor = self.scale_factor();
-
-    let min = self
-      .min_inner_size
-      .borrow()
-      .map(|s| s.to_logical::<i32>(scale_factor));
-    let max = self
-      .max_inner_size
-      .borrow()
-      .map(|s| s.to_logical::<i32>(scale_factor));
-
-    if let Err(e) = self
-      .window_requests_tx
-      .send((self.window_id, WindowRequest::SizeConstraint { min, max }))
-    {
-      log::warn!("Fail to send min size request: {}", e);
+  fn set_size_constraints(&self) {
+    if let Err(e) = self.window_requests_tx.send((
+      self.window_id,
+      WindowRequest::SizeConstraints(*self.inner_size_constraints.borrow()),
+    )) {
+      log::warn!("Fail to send size constraint request: {}", e);
     }
   }
-  pub fn set_max_inner_size<S: Into<Size>>(&self, max_size: Option<S>) {
-    *self.max_inner_size.borrow_mut() = max_size.map(Into::into);
 
-    let scale_factor = self.scale_factor();
+  pub fn set_min_inner_size(&self, size: Option<Size>) {
+    let mut size_constraints = self.inner_size_constraints.borrow_mut();
+    size_constraints.min_width = size.map(|s| s.width());
+    size_constraints.min_height = size.map(|s| s.height());
+    self.set_size_constraints()
+  }
 
-    let min = self
-      .min_inner_size
-      .borrow()
-      .map(|s| s.to_logical::<i32>(scale_factor));
-    let max = self
-      .max_inner_size
-      .borrow()
-      .map(|s| s.to_logical::<i32>(scale_factor));
+  pub fn set_max_inner_size(&self, size: Option<Size>) {
+    let mut size_constraints = self.inner_size_constraints.borrow_mut();
+    size_constraints.max_width = size.map(|s| s.width());
+    size_constraints.max_height = size.map(|s| s.height());
+    self.set_size_constraints()
+  }
 
-    if let Err(e) = self
-      .window_requests_tx
-      .send((self.window_id, WindowRequest::SizeConstraint { min, max }))
-    {
-      log::warn!("Fail to send max size request: {}", e);
-    }
+  pub fn set_inner_size_constraints(&self, constraints: WindowSizeConstraints) {
+    *self.inner_size_constraints.borrow_mut() = constraints;
+    self.set_size_constraints()
   }
 
   pub fn set_title(&self, title: &str) {
@@ -502,15 +428,6 @@ impl Window {
       .title()
       .map(|t| t.as_str().to_string())
       .unwrap_or_default()
-  }
-
-  pub fn set_menu(&self, menu: Option<menu::Menu>) {
-    if let Err(e) = self.window_requests_tx.send((
-      self.window_id,
-      WindowRequest::SetMenu((menu, self.accel_group.clone(), self.menu_bar.clone())),
-    )) {
-      log::warn!("Fail to send menu request: {}", e);
-    }
   }
 
   pub fn set_visible(&self, visible: bool) {
@@ -683,18 +600,6 @@ impl Window {
     }
   }
 
-  pub fn hide_menu(&self) {
-    self.menu_bar.hide();
-  }
-
-  pub fn show_menu(&self) {
-    self.menu_bar.show_all();
-  }
-
-  pub fn is_menu_visible(&self) -> bool {
-    self.menu_bar.get_visible()
-  }
-
   pub fn set_visible_on_all_workspaces(&self, visible: bool) {
     if let Err(e) = self.window_requests_tx.send((
       self.window_id,
@@ -703,7 +608,6 @@ impl Window {
       log::warn!("Fail to send visible on all workspaces request: {}", e);
     }
   }
-
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
     if let Err(e) = self
       .window_requests_tx
@@ -859,6 +763,15 @@ impl Window {
     }
   }
 
+  pub fn set_progress_bar(&self, progress: ProgressBarState) {
+    if let Err(e) = self
+      .window_requests_tx
+      .send((WindowId::dummy(), WindowRequest::ProgressBarState(progress)))
+    {
+      log::warn!("Fail to send update progress bar request: {}", e);
+    }
+  }
+
   pub fn theme(&self) -> Theme {
     if let Some(settings) = Settings::default() {
       let theme_name = settings.gtk_theme_name().map(|s| s.as_str().to_owned());
@@ -882,10 +795,7 @@ pub enum WindowRequest {
   Title(String),
   Position((i32, i32)),
   Size((i32, i32)),
-  SizeConstraint {
-    min: Option<LogicalSize<i32>>,
-    max: Option<LogicalSize<i32>>,
-  },
+  SizeConstraints(WindowSizeConstraints),
   Visible(bool),
   Focus,
   Resizable(bool),
@@ -907,10 +817,8 @@ pub enum WindowRequest {
     transparent: bool,
     cursor_moved: bool,
   },
-  Menu((Option<MenuItem>, Option<MenuId>)),
-  SetMenu((Option<menu::Menu>, AccelGroup, gtk::MenuBar)),
-  GlobalHotKey(u16),
   SetVisibleOnAllWorkspaces(bool),
+  ProgressBarState(ProgressBarState),
 }
 
 pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {

@@ -17,12 +17,11 @@ use crossbeam_channel::SendError;
 use gdk::{Cursor, CursorType, EventKey, EventMask, ScrollDirection, WindowEdge, WindowState};
 use gio::{prelude::*, Cancellable};
 use glib::{source::Priority, Continue, MainContext};
-use gtk::{builders::AboutDialogBuilder, prelude::*, Inhibit};
+use gtk::{prelude::*, Inhibit};
 
 use raw_window_handle::{RawDisplayHandle, WaylandDisplayHandle, XlibDisplayHandle};
 
 use crate::{
-  accelerator::AcceleratorId,
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition},
   error::ExternalError,
   event::{
@@ -30,18 +29,19 @@ use crate::{
   },
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
   keyboard::ModifiersState,
-  menu::{MenuItem, MenuType},
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{device, window::hit_test, DEVICE_ID},
-  window::{CursorIcon, Fullscreen, WindowId as RootWindowId},
+  window::{CursorIcon, Fullscreen, ProgressBarState, WindowId as RootWindowId},
 };
 
 use super::{
   keyboard,
   monitor::{self, MonitorHandle},
-  util,
+  taskbar, util,
   window::{WindowId, WindowRequest},
 };
+
+use taskbar::TaskbarIndicator;
 
 #[derive(Clone)]
 pub struct EventLoopWindowTarget<T> {
@@ -119,6 +119,16 @@ impl<T> EventLoopWindowTarget<T> {
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
     util::cursor_position(self.is_wayland())
   }
+
+  #[inline]
+  pub fn set_progress_bar(&self, progress: ProgressBarState) {
+    if let Err(e) = self
+      .window_requests_tx
+      .send((WindowId::dummy(), WindowRequest::ProgressBarState(progress)))
+    {
+      log::warn!("Fail to send update progress bar request: {}", e);
+    }
+  }
 }
 
 pub struct EventLoop<T: 'static> {
@@ -134,13 +144,17 @@ pub struct EventLoop<T: 'static> {
   run_device_thread: Option<Rc<AtomicBool>>,
 }
 
-impl<T: 'static> EventLoop<T> {
-  pub fn new() -> EventLoop<T> {
-    assert_is_main_thread("new_any_thread");
-    EventLoop::new_any_thread()
-  }
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct PlatformSpecificEventLoopAttributes {
+  pub(crate) any_thread: bool,
+}
 
-  pub fn new_any_thread() -> EventLoop<T> {
+impl<T: 'static> EventLoop<T> {
+  pub(crate) fn new(attrs: &PlatformSpecificEventLoopAttributes) -> EventLoop<T> {
+    if !attrs.any_thread {
+      assert_is_main_thread("new_any_thread");
+    }
+
     let context = MainContext::default();
     context
       .with_thread_default(|| EventLoop::new_gtk().expect("Failed to initialize gtk backend!"))
@@ -168,7 +182,6 @@ impl<T: 'static> EventLoop<T> {
 
     // Create event loop window target.
     let (window_requests_tx, window_requests_rx) = glib::MainContext::channel(Priority::default());
-    let window_requests_tx_ = window_requests_tx.clone();
     let display = gdk::Display::default()
       .expect("GdkDisplay not found. This usually means `gkt_init` hasn't called yet.");
     let window_target = EventLoopWindowTarget {
@@ -201,6 +214,9 @@ impl<T: 'static> EventLoop<T> {
       None
     };
 
+    let mut taskbar: Option<TaskbarIndicator> = None;
+    let supports_unity = util::is_unity();
+
     // Window Request
     window_requests_rx.attach(Some(&context), move |(id, request)| {
       if let Some(window) = app_.window_by_id(id.0) {
@@ -208,35 +224,8 @@ impl<T: 'static> EventLoop<T> {
           WindowRequest::Title(title) => window.set_title(&title),
           WindowRequest::Position((x, y)) => window.move_(x, y),
           WindowRequest::Size((w, h)) => window.resize(w, h),
-          WindowRequest::SizeConstraint { min, max } => {
-            let geom_mask = min
-              .map(|_| gdk::WindowHints::MIN_SIZE)
-              .unwrap_or(gdk::WindowHints::empty())
-              | max
-                .map(|_| gdk::WindowHints::MAX_SIZE)
-                .unwrap_or(gdk::WindowHints::empty());
-
-            let (min_width, min_height) = min.map(Into::into).unwrap_or_default();
-            let (max_width, max_height) = max.map(Into::into).unwrap_or_default();
-
-            let picky_none: Option<&gtk::Window> = None;
-            window.set_geometry_hints(
-              picky_none,
-              Some(&gdk::Geometry::new(
-                min_width,
-                min_height,
-                max_width,
-                max_height,
-                0,
-                0,
-                0,
-                0,
-                0f64,
-                0f64,
-                gdk::Gravity::Center,
-              )),
-              geom_mask,
-            )
+          WindowRequest::SizeConstraints(constraints) => {
+            util::set_size_constraints(&window, constraints);
           }
           WindowRequest::Visible(visible) => {
             if visible {
@@ -393,6 +382,7 @@ impl<T: 'static> EventLoop<T> {
               window.input_shape_combine_region(None)
             };
           }
+          WindowRequest::ProgressBarState(_) => unreachable!(),
           WindowRequest::WireUpEvents {
             transparent,
             cursor_moved,
@@ -807,101 +797,25 @@ impl<T: 'static> EventLoop<T> {
               Inhibit(false)
             });
           }
-          WindowRequest::Menu(m) => match m {
-            (None, Some(menu_id)) => {
-              if let Err(e) = event_tx.send(Event::MenuEvent {
-                window_id: Some(RootWindowId(id)),
-                menu_id,
-                origin: MenuType::MenuBar,
-              }) {
-                log::warn!("Failed to send menu event to event channel: {}", e);
-              }
-            }
-            (Some(MenuItem::About(name, app)), None) => {
-              let mut builder = AboutDialogBuilder::new()
-                .program_name(&name)
-                .modal(true)
-                .resizable(false);
-              if let Some(version) = &app.version {
-                builder = builder.version(version);
-              }
-              if let Some(authors) = app.authors {
-                builder = builder.authors(authors);
-              }
-              if let Some(comments) = &app.comments {
-                builder = builder.comments(comments);
-              }
-              if let Some(copyright) = &app.copyright {
-                builder = builder.copyright(copyright);
-              }
-              if let Some(license) = &app.license {
-                builder = builder.license(license);
-              }
-              if let Some(website) = &app.website {
-                builder = builder.website(website);
-              }
-              if let Some(website_label) = &app.website_label {
-                builder = builder.website_label(website_label);
-              }
-              let about = builder.build();
-              about.run();
-              unsafe {
-                about.destroy();
-              }
-            }
-            (Some(MenuItem::Hide), None) => window.hide(),
-            (Some(MenuItem::CloseWindow), None) => window.close(),
-            (Some(MenuItem::Quit), None) => {
-              if let Err(e) = event_tx.send(Event::LoopDestroyed) {
-                log::warn!(
-                  "Failed to send loop destroyed event to event channel: {}",
-                  e
-                );
-              }
-            }
-            (Some(MenuItem::EnterFullScreen), None) => {
-              let state = window.window().unwrap().state();
-              if state.contains(WindowState::FULLSCREEN) {
-                window.unfullscreen();
-              } else {
-                window.fullscreen();
-              }
-            }
-            (Some(MenuItem::Minimize), None) => window.iconify(),
-            _ => {}
-          },
-          WindowRequest::SetMenu((window_menu, accel_group, mut menubar)) => {
-            if let Some(window_menu) = window_menu {
-              // remove all existing elements as we overwrite
-              // but we keep same menubar reference
-              for i in menubar.children() {
-                menubar.remove(&i);
-              }
-              // create all new elements
-              window_menu.generate_menu(&mut menubar, &window_requests_tx_, &accel_group, id);
-              // make sure all newly added elements are visible
-              menubar.show_all();
-            }
-          }
-          WindowRequest::GlobalHotKey(_hotkey_id) => {}
         }
       } else if id == WindowId::dummy() {
         match request {
-          WindowRequest::GlobalHotKey(hotkey_id) => {
-            if let Err(e) = event_tx.send(Event::GlobalShortcutEvent(AcceleratorId(hotkey_id))) {
-              log::warn!("Failed to send global hotkey event to event channel: {}", e);
+          WindowRequest::ProgressBarState(state) => {
+            if supports_unity {
+              if taskbar.is_none() {
+                if let Ok(indicator) = TaskbarIndicator::new() {
+                  taskbar.replace(indicator);
+                }
+              }
+
+              if let Some(taskbar) = &mut taskbar {
+                if let Err(e) = taskbar.update(state) {
+                  log::warn!("Failed to update taskbar progress {}", e);
+                }
+              }
             }
           }
-          WindowRequest::Menu((None, Some(menu_id))) => {
-            if let Err(e) = event_tx.send(Event::MenuEvent {
-              window_id: None,
-              menu_id,
-              origin: MenuType::ContextMenu,
-            }) {
-              log::warn!("Failed to send status bar event to event channel: {}", e);
-            }
-          }
-          _ => {}
+          _ => unreachable!(),
         }
       }
       Continue(true)

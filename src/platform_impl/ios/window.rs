@@ -24,10 +24,11 @@ use crate::{
       id, CGFloat, CGPoint, CGRect, CGSize, UIEdgeInsets, UIInterfaceOrientationMask, UIRectEdge,
       UIScreenOverscanCompensation,
     },
-    monitor, view, EventLoopWindowTarget, Menu, MonitorHandle,
+    monitor, view, EventLoopWindowTarget, MonitorHandle,
   },
   window::{
     CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
+    WindowSizeConstraints,
   },
 };
 
@@ -56,11 +57,6 @@ impl Inner {
   pub fn title(&self) -> String {
     String::new()
   }
-
-  pub fn set_menu(&self, _menu: Option<Menu>) {
-    debug!("`Window::set_menu` is ignored on iOS")
-  }
-
   pub fn set_visible(&self, visible: bool) {
     match visible {
       true => unsafe {
@@ -169,12 +165,14 @@ impl Inner {
     warn!("not clear what `Window::set_inner_size` means on iOS");
   }
 
-  pub fn set_min_inner_size(&self, _dimensions: Option<Size>) {
+  pub fn set_min_inner_size(&self, _: Option<Size>) {
     warn!("`Window::set_min_inner_size` is ignored on iOS")
   }
-
-  pub fn set_max_inner_size(&self, _dimensions: Option<Size>) {
+  pub fn set_max_inner_size(&self, _: Option<Size>) {
     warn!("`Window::set_max_inner_size` is ignored on iOS")
+  }
+  pub fn set_inner_size_constraints(&self, _: WindowSizeConstraints) {
+    warn!("`Window::set_inner_size_constraints` is ignored on iOS")
   }
 
   pub fn set_resizable(&self, _resizable: bool) {
@@ -357,19 +355,6 @@ impl Inner {
     warn!("`Window::request_user_attention` is ignored on iOS")
   }
 
-  pub fn hide_menu(&self) {
-    warn!("`Window::hide_menu` is ignored on iOS")
-  }
-
-  pub fn show_menu(&self) {
-    warn!("`Window::show_menu` is ignored on iOS")
-  }
-
-  pub fn is_menu_visible(&self) -> bool {
-    warn!("`Window::is_menu_visible` is ignored on iOS");
-    false
-  }
-
   // Allow directly accessing the current monitor internally without unwrapping.
   fn current_monitor_inner(&self) -> RootMonitorHandle {
     unsafe {
@@ -461,12 +446,6 @@ impl Window {
     window_attributes: WindowAttributes,
     platform_attributes: PlatformSpecificWindowBuilderAttributes,
   ) -> Result<Window, RootOsError> {
-    if let Some(_) = window_attributes.min_inner_size {
-      warn!("`WindowAttributes::min_inner_size` is ignored on iOS");
-    }
-    if let Some(_) = window_attributes.max_inner_size {
-      warn!("`WindowAttributes::max_inner_size` is ignored on iOS");
-    }
     if window_attributes.always_on_top {
       warn!("`WindowAttributes::always_on_top` is unsupported on iOS");
     }

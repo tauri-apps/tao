@@ -11,14 +11,11 @@ mod clipboard;
 mod event;
 mod event_loop;
 mod ffi;
-mod global_shortcut;
 mod icon;
 mod keycode;
-mod menu;
 mod monitor;
 mod observer;
-#[cfg(feature = "tray")]
-mod system_tray;
+mod progress_bar;
 mod util;
 mod view;
 mod window;
@@ -26,18 +23,15 @@ mod window_delegate;
 
 use std::{fmt, ops::Deref, sync::Arc};
 
-#[cfg(feature = "tray")]
-pub use self::system_tray::{SystemTray, SystemTrayBuilder};
-
+pub(crate) use self::event_loop::PlatformSpecificEventLoopAttributes;
 pub use self::{
   app_delegate::{get_aux_state_mut, AuxDelegateState},
   clipboard::Clipboard,
   event::KeyEventExtra,
   event_loop::{EventLoop, EventLoopWindowTarget, Proxy as EventLoopProxy},
-  global_shortcut::{GlobalShortcut, ShortcutManager},
   keycode::{keycode_from_scancode, keycode_to_scancode},
-  menu::{Menu, MenuItemAttributes},
   monitor::{MonitorHandle, VideoMode},
+  progress_bar::set_progress_indicator,
   window::{Id as WindowId, Parent, PlatformSpecificWindowBuilderAttributes, UnownedWindow},
 };
 use crate::{

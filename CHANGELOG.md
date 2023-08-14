@@ -1,5 +1,36 @@
 # Changelog
 
+## \[0.22.0]
+
+- [`06b617ea`](https://github.com/tauri-apps/tao/commit/06b617eaa2cea7039e9b71b8322b517486e3b1e5)([#776](https://github.com/tauri-apps/tao/pull/776)) Update jni to 0.21.
+- [`d0b20c94`](https://github.com/tauri-apps/tao/commit/d0b20c94eaf555ba27f3cfbbf2636e3f3b036a97)([#778](https://github.com/tauri-apps/tao/pull/778)) This release contains a number of **breaking changes** that aimed at removing menus, system-tray and global-shortcuts features which have been moved to different crates, [`muda`](https://github.com/tauri-apps/muda/), [`tray-icon`](https://github.com/tauri-apps/tray-icon/) and [`global-hotkey`](https://github.com/tauri-apps/global-hotkey) and here is a summary of the changes:
+
+  - Removed `tray` crago feature flag.
+  - Removed `accelerator`, `menu`, `system_tray` and `global_shortcut` modules and all associated types.
+  - Removed `Event::MenuEvent`, `Event::TrayEvent`, `Event::GlobalShortcutEvent`, `TrayEvent` and `Rectangle` types.
+  - Added `EventLoopBuilder` type.
+  - Removed `EventLoop::with_user_event`, instead use `EventLoopBuilder::<T>::with_user_event().build()`.
+  - Removed `EventLoopExtWindows`, `EventLoopExtMacOS` and `EventLoopExtUnix`, instead use `EventLoopBuilderExtWindows`, `EventLoopBuilderExtMacOS` and `EventLoopBuilderExtUnix`.
+  - Changed `WindowExtWindows::hinstance`, `WindowExtWindows::hwnd` and `MonitorHandleExtWindow::hmonitor` to return `isize` instead of `*const c_void`
+
+## \[0.21.1]
+
+- [`9a320882`](https://github.com/tauri-apps/tao/commit/9a320882ed824d18f9e20f8a9af7a97f51805c87)([#761](https://github.com/tauri-apps/tao/pull/761)) On Android, use a lockfree queue (crossbeam channel) to prevent deadlocks inside send_event.
+- [`b31cb692`](https://github.com/tauri-apps/tao/commit/b31cb692df2b0a03d2fbdf2fbf7ba82591678e24)([#772](https://github.com/tauri-apps/tao/pull/772)) On macOS, fix `WindowExtMacOS::ns_view` returning an invalid pointer if the view was replaced by a call to `setContentView` later on.
+- [`4d0e1862`](https://github.com/tauri-apps/tao/commit/4d0e1862b6a2a7580631d637ef937d217f0797bf)([#762](https://github.com/tauri-apps/tao/pull/762)) Add `WindowExtWindows::set_rtl` and `WindowBuilderExtWindows::with_rtl` to set right-to-left layout on Windows.
+- [`75eb0c1e`](https://github.com/tauri-apps/tao/commit/75eb0c1e7e83a766af0e083ce09c761d1974cde4)([#769](https://github.com/tauri-apps/tao/pull/769)) Add `WindowBuilderExtWindows::with_window_classname` to set the name of the window class created/used to create windows.
+
+## \[0.21.0]
+
+- [`81329013`](https://github.com/tauri-apps/tao/commit/813290130ea255b2cb45a66234a422519d13f667)([#743](https://github.com/tauri-apps/tao/pull/743)) On macOS, fix the unexpected shifting of the window when dragging after closing the share dialog.
+- [`baa02977`](https://github.com/tauri-apps/tao/commit/baa02977483c9da21451d65bde0a64230778a034)([#418](https://github.com/tauri-apps/tao/pull/418)) Added APIs for setting progress bars for the application icon on Linux (Unity only) and macOS, along with progress indicator for specific window on Windows.
+- [`8f361f0c`](https://github.com/tauri-apps/tao/commit/8f361f0c19014e6ef647fe7fa8adc47718796984)([#752](https://github.com/tauri-apps/tao/pull/752)) Handle universal links on iOS and send `Event::Opened { urls }`.
+- [`bb3c53d1`](https://github.com/tauri-apps/tao/commit/bb3c53d1d84ebc26b0d66230877ecc7b6a71db27)([#764](https://github.com/tauri-apps/tao/pull/764)) On macOS, fix `SystemTrayEvent` not emitted after calling `set_menu`.
+- [`5af3da4a`](https://github.com/tauri-apps/tao/commit/5af3da4a2cfa0e648dfa87c067deb6745b73bcc8)([#746](https://github.com/tauri-apps/tao/pull/746)) On macOS, force `NativeImage` height to be `18` to have consistent size for all icons and match custom icons.
+- [`093d8fbc`](https://github.com/tauri-apps/tao/commit/093d8fbc20954d51c96c94618479ff465ca55888)([#422](https://github.com/tauri-apps/tao/pull/422)) Implement `Event::Opened` on macOS for file association and deeplink support.
+- [`e9875fe5`](https://github.com/tauri-apps/tao/commit/e9875fe54e1e8ae1db6e28eedeed2e3e51f8226b)([#755](https://github.com/tauri-apps/tao/pull/755)) On Windows, fix leak of `tao::system_tray::Icon` when calling `tao::system_tray::SystemTray::set_icon` and leak of `String` when calling `tao::system_tray::SystemTray::set_tooltip`.
+- [`50e69d71`](https://github.com/tauri-apps/tao/commit/50e69d718e9c71d044ebc3535ca58a992db18547)([#749](https://github.com/tauri-apps/tao/pull/749)) On Windows, fix disabling `resizable` also disabling maximize button and messing up `Window::set_maximized`.
+
 ## \[0.20.0]
 
 - [`c6082173`](https://github.com/tauri-apps/tao/commit/c6082173a943e23653783fd0872f64c66bf96de9)([#731](https://github.com/tauri-apps/tao/pull/731)) Fix build error on target i686-pc-windows-msvc
