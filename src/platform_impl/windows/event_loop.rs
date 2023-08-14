@@ -51,7 +51,7 @@ use crate::{
   keyboard::{KeyCode, ModifiersState},
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{
-    dark_mode::try_theme,
+    dark_mode::{try_app_theme, try_window_theme},
     dpi::{become_dpi_aware, dpi_to_scale_factor, enable_non_client_dpi_scaling},
     keyboard::is_msg_keyboard_related,
     keyboard_layout::LAYOUT_CACHE,
@@ -62,7 +62,7 @@ use crate::{
     window_state::{CursorFlags, WindowFlags, WindowState},
     wrap_device_id, WindowId, DEVICE_ID,
   },
-  window::{Fullscreen, WindowId as RootWindowId},
+  window::{Fullscreen, Theme, WindowId as RootWindowId},
 };
 use runner::{EventLoopRunner, EventLoopRunnerShared};
 
@@ -142,6 +142,7 @@ pub(crate) struct PlatformSpecificEventLoopAttributes {
   pub(crate) any_thread: bool,
   pub(crate) dpi_aware: bool,
   pub(crate) msg_hook: Option<Box<dyn FnMut(*const c_void) -> bool + 'static>>,
+  pub(crate) preferred_theme: Option<Theme>,
 }
 
 impl Default for PlatformSpecificEventLoopAttributes {
@@ -150,6 +151,7 @@ impl Default for PlatformSpecificEventLoopAttributes {
       any_thread: false,
       dpi_aware: true,
       msg_hook: None,
+      preferred_theme: None,
     }
   }
 }
@@ -158,6 +160,7 @@ impl Default for PlatformSpecificEventLoopAttributes {
 pub struct EventLoopWindowTarget<T: 'static> {
   thread_id: u32,
   thread_msg_target: HWND,
+  pub(crate) theme: Theme,
   pub(crate) runner_shared: EventLoopRunnerShared<T>,
 }
 
@@ -180,6 +183,8 @@ impl<T: 'static> EventLoop<T> {
 
     let thread_msg_target = create_event_target_window();
 
+    let theme = try_app_theme(attributes.preferred_theme);
+
     let send_thread_msg_target = thread_msg_target;
     thread::spawn(move || wait_thread(thread_id, send_thread_msg_target));
     let wait_thread_id = get_wait_thread_id();
@@ -196,6 +201,7 @@ impl<T: 'static> EventLoop<T> {
           thread_id,
           thread_msg_target,
           runner_shared,
+          theme,
         },
         _marker: PhantomData,
       },
@@ -2039,7 +2045,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let preferred_theme = subclass_input.window_state.lock().preferred_theme;
 
       if preferred_theme.is_none() {
-        let new_theme = try_theme(window, preferred_theme);
+        let new_theme = try_window_theme(window, preferred_theme);
         let mut window_state = subclass_input.window_state.lock();
 
         if window_state.current_theme != new_theme {

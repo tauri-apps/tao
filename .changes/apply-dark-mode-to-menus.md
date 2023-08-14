@@ -2,4 +2,4 @@
 "tao": patch
 ---
 
-On Windows an additional undocumented function needs to be called to apply the dark mode theme to menus.
+On Windows, apply dark mode app-wide to some controls like context menus.

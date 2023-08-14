@@ -497,6 +497,16 @@ impl WindowBuilder {
   }
 
   /// Forces a theme or uses the system settings if `None` was provided.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: It is recommended to always use the same theme used
+  ///   in [`EventLoopBuilder::with_theme`] for this method also
+  ///   or use `None` so it automatically uses the theme used in [`EventLoopBuilder::with_theme`]
+  ///   or falls back to the system preference, because [`EventLoopBuilder::with_theme`] changes
+  ///   the theme for some controls like context menus which is app-wide and can't be changed by this method.
+  ///
+  /// [`EventLoopBuilder::with_theme`]: crate::platform::windows::EventLoopBuilderExtWindows::with_theme
   #[inline]
   pub fn with_theme(mut self, theme: Option<Theme>) -> WindowBuilder {
     self.window.preferred_theme = theme;
