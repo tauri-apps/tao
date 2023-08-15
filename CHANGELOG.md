@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.22.1]
+
+- [`6df56c2d`](https://github.com/tauri-apps/tao/commit/6df56c2dd1b0f4695dd40b70f75a22d1ba32c384)([#751](https://github.com/tauri-apps/tao/pull/751)) On Windows, apply dark mode app-wide to some controls like context menus.
+- [`6df56c2d`](https://github.com/tauri-apps/tao/commit/6df56c2dd1b0f4695dd40b70f75a22d1ba32c384)([#751](https://github.com/tauri-apps/tao/pull/751)) On Windows, add `EventLoopBuilderExtWindows::with_theme` to control the app-wide theme.
+
 ## \[0.22.0]
 
 - [`06b617ea`](https://github.com/tauri-apps/tao/commit/06b617eaa2cea7039e9b71b8322b517486e3b1e5)([#776](https://github.com/tauri-apps/tao/pull/776)) Update jni to 0.21.
