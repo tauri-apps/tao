@@ -16,7 +16,7 @@ use std::{
 
 use cocoa::{
   appkit::{NSApp, NSEventModifierFlags, NSEventSubtype, NSEventType::NSApplicationDefined},
-  base::{id, nil, BOOL, NO, YES},
+  base::{id, nil, YES},
   foundation::{NSAutoreleasePool, NSInteger, NSPoint, NSTimeInterval},
 };
 use crossbeam_channel::{self as channel, Receiver, Sender};
@@ -144,8 +144,7 @@ impl<T> EventLoop<T> {
     setup_control_flow_observers(Rc::downgrade(&panic_info));
 
     let delegate = unsafe {
-      let is_main_thread: BOOL = msg_send!(class!(NSThread), isMainThread);
-      if is_main_thread == NO {
+      if !util::is_main_thread() {
         panic!("On macOS, `EventLoop` must be created on the main thread!");
       }
 

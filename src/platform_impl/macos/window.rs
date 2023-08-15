@@ -459,11 +459,8 @@ impl UnownedWindow {
     mut win_attribs: WindowAttributes,
     pl_attribs: PlatformSpecificWindowBuilderAttributes,
   ) -> Result<(Arc<Self>, IdRef), RootOsError> {
-    unsafe {
-      let is_main_thread: BOOL = msg_send!(class!(NSThread), isMainThread);
-      if is_main_thread == NO {
-        panic!("Windows can only be created on the main thread on macOS");
-      }
+    if !util::is_main_thread() {
+      panic!("Windows can only be created on the main thread on macOS");
     }
     trace!("Creating new window");
 
@@ -608,8 +605,8 @@ impl UnownedWindow {
 
   pub fn set_visible(&self, visible: bool) {
     match visible {
-      true => unsafe { util::make_key_and_order_front_async(*self.ns_window) },
-      false => unsafe { util::order_out_async(*self.ns_window) },
+      true => unsafe { util::make_key_and_order_front_sync(*self.ns_window) },
+      false => unsafe { util::order_out_sync(*self.ns_window) },
     }
   }
 
@@ -618,7 +615,8 @@ impl UnownedWindow {
   pub fn set_focus(&self) {
     unsafe {
       let is_minimized: BOOL = msg_send![*self.ns_window, isMiniaturized];
-      if is_minimized == NO {
+      let is_visible: BOOL = msg_send![*self.ns_window, isVisible];
+      if is_minimized == NO && is_visible == YES {
         util::set_focus(*self.ns_window);
       }
     }
