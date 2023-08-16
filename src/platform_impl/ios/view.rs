@@ -566,7 +566,7 @@ pub fn create_delegate_class() {
     unsafe {
       let webpage_url: id = msg_send![user_activity, webpageURL];
       if webpage_url == nil {
-        return false;
+        return NO;
       }
       let absolute_url: id = msg_send![webpage_url, absoluteString];
       let bytes = {
