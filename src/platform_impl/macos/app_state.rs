@@ -21,7 +21,7 @@ use cocoa::{
   base::{id, nil},
   foundation::{NSAutoreleasePool, NSSize},
 };
-use objc::runtime::{Object, BOOL, NO, YES};
+use objc::runtime::{Object, NO, YES};
 
 use crate::{
   dpi::LogicalSize,
@@ -34,7 +34,7 @@ use crate::{
       event::{EventProxy, EventWrapper},
       event_loop::{post_dummy_event, PanicInfo},
       observer::{CFRunLoopGetMain, CFRunLoopWakeUp, EventLoopWaker},
-      util::{IdRef, Never},
+      util::{self, IdRef, Never},
       window::get_window_id,
     },
   },
@@ -358,16 +358,14 @@ impl AppState {
   }
 
   pub fn queue_event(wrapper: EventWrapper) {
-    let is_main_thread: BOOL = unsafe { msg_send!(class!(NSThread), isMainThread) };
-    if is_main_thread == NO {
+    if !util::is_main_thread() {
       panic!("Event queued from different thread: {:#?}", wrapper);
     }
     HANDLER.events().push_back(wrapper);
   }
 
   pub fn queue_events(mut wrappers: VecDeque<EventWrapper>) {
-    let is_main_thread: BOOL = unsafe { msg_send!(class!(NSThread), isMainThread) };
-    if is_main_thread == NO {
+    if !util::is_main_thread() {
       panic!("Events queued from different thread: {:#?}", wrappers);
     }
     HANDLER.events().append(&mut wrappers);
