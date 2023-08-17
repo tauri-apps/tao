@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.22.2]
+
+- [`65ebab88`](https://github.com/tauri-apps/tao/commit/65ebab888de2d1ae4b7562572060d1e51ef85043)([#787](https://github.com/tauri-apps/tao/pull/787)) Fix compilation error on iOS.
+
 ## \[0.22.1]
 
 - [`6df56c2d`](https://github.com/tauri-apps/tao/commit/6df56c2dd1b0f4695dd40b70f75a22d1ba32c384)([#751](https://github.com/tauri-apps/tao/pull/751)) On Windows, apply dark mode app-wide to some controls like context menus.
