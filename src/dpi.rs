@@ -91,6 +91,8 @@
 //! [apple_2]: https://developer.apple.com/design/human-interface-guidelines/macos/icons-and-images/image-size-and-resolution/
 //! [android_1]: https://developer.android.com/training/multiscreen/screendensities
 
+use std::ops::Add;
+
 pub trait Pixel: Copy + Into<f64> {
   fn from_f64(f: f64) -> Self;
   fn cast<P: Pixel>(self) -> P {
@@ -514,4 +516,356 @@ impl<P: Pixel> From<LogicalPosition<P>> for Position {
   fn from(position: LogicalPosition<P>) -> Position {
     Position::Logical(position.cast())
   }
+}
+
+/// A rect represented in logical pixels.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash)]
+pub struct LogicalRect<P> {
+  pub x: P,
+  pub y: P,
+  pub width: P,
+  pub height: P,
+}
+
+impl<P> LogicalRect<P> {
+  #[inline]
+  pub const fn new(x: P, y: P, width: P, height: P) -> Self {
+    LogicalRect {
+      x,
+      y,
+      width,
+      height,
+    }
+  }
+
+  pub fn position(&self) -> LogicalPosition<P>
+  where
+    P: Clone,
+  {
+    LogicalPosition::new(self.x.clone(), self.y.clone())
+  }
+
+  pub fn size(&self) -> LogicalSize<P>
+  where
+    P: Clone,
+  {
+    LogicalSize::new(self.width.clone(), self.height.clone())
+  }
+}
+
+impl<P: Pixel> LogicalRect<P> {
+  #[inline]
+  pub fn from_physical<T: Into<PhysicalRect<XP, XS>>, XP: Pixel, XS: Pixel>(
+    physical: T,
+    scale_factor: f64,
+  ) -> Self {
+    physical.into().to_logical(scale_factor)
+  }
+
+  #[inline]
+  pub fn to_physical<XP: Pixel, XS: Pixel>(&self, scale_factor: f64) -> PhysicalRect<XP, XS> {
+    assert!(validate_scale_factor(scale_factor));
+    let x = self.x.into() / scale_factor;
+    let y = self.y.into() / scale_factor;
+    let width = self.width.into() * scale_factor;
+    let height = self.height.into() * scale_factor;
+    PhysicalRect::new(x, y, width, height).cast()
+  }
+
+  #[inline]
+  pub fn cast<X: Pixel>(&self) -> LogicalRect<X> {
+    LogicalRect {
+      x: self.x.cast(),
+      y: self.y.cast(),
+      width: self.width.cast(),
+      height: self.height.cast(),
+    }
+  }
+}
+
+impl<P: Pixel, X: Pixel> From<(X, X, X, X)> for LogicalRect<P> {
+  fn from((x, y, z, w): (X, X, X, X)) -> LogicalRect<P> {
+    LogicalRect::new(x.cast(), y.cast(), z.cast(), w.cast())
+  }
+}
+
+impl<P: Pixel, X: Pixel> From<LogicalRect<P>> for (X, X, X, X) {
+  fn from(rect: LogicalRect<P>) -> Self {
+    (
+      rect.x.cast(),
+      rect.y.cast(),
+      rect.width.cast(),
+      rect.height.cast(),
+    )
+  }
+}
+
+impl<P: Pixel, X: Pixel> From<[X; 4]> for LogicalRect<P> {
+  fn from([x, y, z, w]: [X; 4]) -> LogicalRect<P> {
+    LogicalRect::new(x.cast(), y.cast(), z.cast(), w.cast())
+  }
+}
+
+impl<P: Pixel, X: Pixel> From<LogicalRect<P>> for [X; 4] {
+  fn from(rect: LogicalRect<P>) -> Self {
+    [
+      rect.x.cast(),
+      rect.y.cast(),
+      rect.width.cast(),
+      rect.height.cast(),
+    ]
+  }
+}
+
+/// A rect represented in physical pixels.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Default, Hash)]
+pub struct PhysicalRect<P, S> {
+  pub x: P,
+  pub y: P,
+  pub width: S,
+  pub height: S,
+}
+
+impl<P, S> PhysicalRect<P, S> {
+  #[inline]
+  pub const fn new(x: P, y: P, width: S, height: S) -> Self {
+    PhysicalRect {
+      x,
+      y,
+      width,
+      height,
+    }
+  }
+
+  pub fn position(&self) -> PhysicalPosition<P>
+  where
+    P: Clone,
+  {
+    PhysicalPosition::new(self.x.clone(), self.y.clone())
+  }
+
+  pub fn size(&self) -> PhysicalSize<S>
+  where
+    S: Clone,
+  {
+    PhysicalSize::new(self.width.clone(), self.height.clone())
+  }
+}
+
+impl<P: Pixel, S: Pixel> PhysicalRect<P, S> {
+  #[inline]
+  pub fn from_logical<T: Into<LogicalRect<X>>, X: Pixel>(logical: T, scale_factor: f64) -> Self {
+    logical.into().to_physical(scale_factor)
+  }
+
+  #[inline]
+  pub fn to_logical<X: Pixel>(&self, scale_factor: f64) -> LogicalRect<X> {
+    assert!(validate_scale_factor(scale_factor));
+    let x = self.x.into() / scale_factor;
+    let y = self.y.into() / scale_factor;
+    let width = self.width.into() / scale_factor;
+    let height = self.height.into() / scale_factor;
+    LogicalRect::new(x, y, width, height).cast()
+  }
+
+  #[inline]
+  pub fn cast<XP: Pixel, XS: Pixel>(&self) -> PhysicalRect<XP, XS> {
+    PhysicalRect {
+      x: self.x.cast(),
+      y: self.y.cast(),
+      width: self.width.cast(),
+      height: self.height.cast(),
+    }
+  }
+}
+
+impl<P: Pixel, S: Pixel, XP: Pixel, XS: Pixel> From<(XP, XP, XS, XS)> for PhysicalRect<P, S> {
+  fn from((x, y, z, w): (XP, XP, XS, XS)) -> PhysicalRect<P, S> {
+    PhysicalRect::new(x.cast(), y.cast(), z.cast(), w.cast())
+  }
+}
+
+impl<P: Pixel, S: Pixel, XP: Pixel, XS: Pixel> From<PhysicalRect<P, S>> for (XP, XP, XS, XS) {
+  fn from(rect: PhysicalRect<P, S>) -> Self {
+    (
+      rect.x.cast(),
+      rect.y.cast(),
+      rect.width.cast(),
+      rect.height.cast(),
+    )
+  }
+}
+
+impl<P: Pixel, S: Pixel, X: Pixel> From<[X; 4]> for PhysicalRect<P, S> {
+  fn from([x, y, z, w]: [X; 4]) -> PhysicalRect<P, S> {
+    PhysicalRect::new(x.cast(), y.cast(), z.cast(), w.cast())
+  }
+}
+
+impl<P: Pixel, S: Pixel, X: Pixel> From<PhysicalRect<P, S>> for [X; 4] {
+  fn from(rect: PhysicalRect<P, S>) -> Self {
+    [
+      rect.x.cast(),
+      rect.y.cast(),
+      rect.width.cast(),
+      rect.height.cast(),
+    ]
+  }
+}
+
+/// A rect that's either physical or logical.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Rect {
+  Physical(PhysicalRect<i32, u32>),
+  Logical(LogicalRect<f64>),
+}
+
+impl Rect {
+  pub fn new<S: Into<Rect>>(rect: S) -> Rect {
+    rect.into()
+  }
+
+  pub fn to_logical<P: Pixel>(&self, scale_factor: f64) -> LogicalRect<P> {
+    match *self {
+      Rect::Physical(rect) => rect.to_logical(scale_factor),
+      Rect::Logical(rect) => rect.cast(),
+    }
+  }
+
+  pub fn to_physical<P: Pixel, S: Pixel>(&self, scale_factor: f64) -> PhysicalRect<P, S> {
+    match *self {
+      Rect::Physical(rect) => rect.cast(),
+      Rect::Logical(rect) => rect.to_physical(scale_factor),
+    }
+  }
+
+  pub fn position(&self) -> Position {
+    match self {
+      Rect::Physical(rect) => Position::Physical(rect.position()),
+      Rect::Logical(rect) => Position::Logical(rect.position()),
+    }
+  }
+
+  pub fn size(&self) -> Size {
+    match self {
+      Rect::Physical(rect) => Size::Physical(rect.size()),
+      Rect::Logical(rect) => Size::Logical(rect.size()),
+    }
+  }
+}
+
+impl<P: Pixel, S: Pixel> From<PhysicalRect<P, S>> for Rect {
+  #[inline]
+  fn from(rect: PhysicalRect<P, S>) -> Rect {
+    Rect::Physical(rect.cast())
+  }
+}
+
+impl<P: Pixel> From<LogicalRect<P>> for Rect {
+  #[inline]
+  fn from(rect: LogicalRect<P>) -> Rect {
+    Rect::Logical(rect.cast())
+  }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum RectAlignment {
+  LeftTop,
+  RightTop,
+  LeftBottom,
+  RightBottom,
+}
+
+#[inline]
+pub(crate) fn is_pos_in_rect(
+  pos: PhysicalPosition<i32>,
+  rect: PhysicalRect<i32, u32>,
+  base: PhysicalRect<i32, u32>,
+  align: RectAlignment,
+) -> bool {
+  let (sx, sy, ex, ey) = (
+    base.x as i64,
+    base.y as i64,
+    base.width as i64 + base.x as i64,
+    base.height as i64 + base.y as i64,
+  );
+  let (rx, ry, rw, rh) = (
+    rect.x as i64,
+    rect.y as i64,
+    rect.width as i64,
+    rect.height as i64,
+  );
+  let (x, y) = (pos.x as i64, pos.y as i64);
+  if x < sx || y < sy || x > ex || y > ey {
+    return false;
+  }
+  match align {
+    RectAlignment::LeftTop | RectAlignment::LeftBottom => {
+      if x < sx + rx || x > sx + rx + rw {
+        return false;
+      }
+    }
+    RectAlignment::RightTop | RectAlignment::RightBottom => {
+      if x > ex - rx || x < ex - rx - rw {
+        return false;
+      }
+    }
+  }
+  match align {
+    RectAlignment::LeftTop | RectAlignment::RightTop => {
+      if y < sy + ry || y > sy + ry + rh {
+        return false;
+      }
+    }
+    RectAlignment::LeftBottom | RectAlignment::RightBottom => {
+      if y > ey - ry || y < ey - ry - rh {
+        return false;
+      }
+    }
+  }
+  true
+}
+
+#[test]
+#[cfg(test)]
+fn test_is_pos_in_rect() {
+  let base = PhysicalRect::new(0, 0, 100, 100);
+  let rect = PhysicalRect::new(10, 10, 20, 20);
+
+  assert!(!is_pos_in_rect(
+    PhysicalPosition::new(0, 0),
+    rect,
+    base,
+    RectAlignment::LeftTop
+  ));
+  assert!(is_pos_in_rect(
+    PhysicalPosition::new(20, 20),
+    rect,
+    base,
+    RectAlignment::LeftTop
+  ));
+  assert!(!is_pos_in_rect(
+    PhysicalPosition::new(50, 50),
+    rect,
+    base,
+    RectAlignment::LeftTop
+  ));
+  assert!(!is_pos_in_rect(
+    PhysicalPosition::new(20, 20),
+    rect,
+    base,
+    RectAlignment::RightBottom
+  ));
+  assert!(is_pos_in_rect(
+    PhysicalPosition::new(80, 80),
+    rect,
+    base,
+    RectAlignment::RightBottom
+  ));
+  assert!(!is_pos_in_rect(
+    PhysicalPosition::new(50, 50),
+    rect,
+    base,
+    RectAlignment::RightBottom
+  ));
 }

@@ -8,7 +8,7 @@ use std::fmt;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 
 use crate::{
-  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+  dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size, RectAlignment},
   error::{ExternalError, NotSupportedError, OsError},
   event_loop::EventLoopWindowTarget,
   menu::MenuBar,
@@ -1118,6 +1118,16 @@ impl Window {
     #[cfg(any(target_os = "macos", target_os = "linux"))]
     self.window.set_visible_on_all_workspaces(visible)
   }
+
+  /// Specify particular behavior for rect
+  ///
+  /// ## Platform-specific
+  ///
+  /// - Only **Windows:** Supported.
+  pub fn set_particular_rect(&self, kind: ParticularRectKind, rect: Option<(Rect, RectAlignment)>) {
+    #[cfg(target_os = "windows")]
+    self.window.set_particular_rect(kind, rect);
+  }
 }
 
 /// Cursor functions.
@@ -1388,3 +1398,11 @@ impl Default for UserAttentionType {
 /// A constant used to determine how much inside the window, the resize handler should appear (only used in Linux(gtk) and Windows).
 /// You probably need to scale it by the scale_factor of the window.
 pub const BORDERLESS_RESIZE_INSET: i32 = 5;
+
+/// Particular rect kind
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ParticularRectKind {
+  MinButton,
+  MaxButton,
+  CloseButton,
+}

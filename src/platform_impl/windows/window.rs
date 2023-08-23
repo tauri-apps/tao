@@ -15,7 +15,7 @@ use std::{
   io, mem,
   os::windows::ffi::OsStrExt,
   ptr,
-  sync::Arc,
+  sync::{Arc, RwLock},
 };
 
 use crossbeam_channel as channel;
@@ -37,7 +37,10 @@ use windows::{
 };
 
 use crate::{
-  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+  dpi::{
+    is_pos_in_rect, PhysicalPosition, PhysicalRect, PhysicalSize, Position, Rect, RectAlignment,
+    Size,
+  },
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
   menu::MenuType,
@@ -53,12 +56,16 @@ use crate::{
     OsError, Parent, PlatformSpecificWindowBuilderAttributes, WindowId,
   },
   window::{
-    CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
-    BORDERLESS_RESIZE_INSET,
+    CursorIcon, Fullscreen, ParticularRectKind, Theme, UserAttentionType, WindowAttributes,
+    WindowId as RootWindowId, BORDERLESS_RESIZE_INSET,
   },
 };
 
-use super::keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS};
+use super::{
+  keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS},
+  util::{GET_X_LPARAM, GET_Y_LPARAM},
+  window_state::WindowMeta,
+};
 
 struct HMenuWrapper(HMENU);
 unsafe impl Send for HMenuWrapper {}
@@ -77,6 +84,9 @@ pub struct Window {
 
   // The menu associated with the window
   menu: Option<HMenuWrapper>,
+
+  /// Window metadata
+  meta: Arc<WindowMeta>,
 }
 
 impl Window {
@@ -748,6 +758,19 @@ impl Window {
   }
 
   #[inline]
+  pub fn set_particular_rect(&self, kind: ParticularRectKind, rect: Option<(Rect, RectAlignment)>) {
+    let scale_factor = self.scale_factor();
+    let phy_rect = rect.map(|(r, a)| (r.to_physical(scale_factor), a));
+    let particular_rects = &self.meta.particular_rects;
+    let mut target = match kind {
+      ParticularRectKind::MinButton => particular_rects.max_button.write().unwrap(),
+      ParticularRectKind::MaxButton => particular_rects.max_button.write().unwrap(),
+      ParticularRectKind::CloseButton => particular_rects.close_button.write().unwrap(),
+    };
+    *target = phy_rect;
+  }
+
+  #[inline]
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
     Some(RootMonitorHandle {
       inner: monitor::current_monitor(self.window.0),
@@ -988,6 +1011,11 @@ unsafe fn init<T: 'static>(
     }
   };
 
+  let meta = Arc::new(WindowMeta {
+    window_flags,
+    particular_rects: Default::default(),
+  });
+
   // creating the real window this time, by using the functions in `extra_functions`
   let real_window = {
     let (style, ex_style) = window_flags.to_window_styles();
@@ -1004,7 +1032,7 @@ unsafe fn init<T: 'static>(
       parent.unwrap_or_default(),
       pl_attribs.menu.unwrap_or_default(),
       GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
-      Box::into_raw(Box::new(window_flags)) as _,
+      Arc::into_raw(meta.clone()) as _,
     );
 
     if !IsWindow(handle).as_bool() {
@@ -1064,6 +1092,7 @@ unsafe fn init<T: 'static>(
     window_state,
     thread_executor: event_loop.create_thread_executor(),
     menu: None,
+    meta,
   };
 
   KEY_EVENT_BUILDERS
@@ -1168,10 +1197,19 @@ unsafe extern "system" fn window_proc(
   // we need this because we need to respond to WM_NCCALCSIZE as soon as possible
   // in order to make the window borderless if needed.
   match msg {
+    win32wm::WM_DESTROY => {
+      let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
+      if userdata != 0 {
+        util::SetWindowLongPtrW(window, GWL_USERDATA, 0);
+        drop(Arc::from_raw(userdata as *mut WindowMeta));
+      }
+      return LRESULT(0);
+    }
     win32wm::WM_NCCALCSIZE => {
       let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
       if userdata != 0 {
-        let window_flags = WindowFlags::from_bits_unchecked(userdata as _);
+        let meta = &*(userdata as *mut WindowMeta);
+        let window_flags = meta.window_flags;
 
         if wparam == WPARAM(0) || window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
           return DefWindowProcW(window, msg, wparam, lparam);
@@ -1200,8 +1238,56 @@ unsafe extern "system" fn window_proc(
       if userdata == 0 {
         let createstruct = &*(lparam.0 as *const CREATESTRUCTW);
         let userdata = createstruct.lpCreateParams;
-        let window_flags = Box::from_raw(userdata as *mut WindowFlags);
-        util::SetWindowLongPtrW(window, GWL_USERDATA, window_flags.bits() as _);
+        util::SetWindowLongPtrW(window, GWL_USERDATA, userdata as _);
+      }
+      DefWindowProcW(window, msg, wparam, lparam)
+    }
+    win32wm::WM_NCHITTEST => {
+      let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
+      if userdata == 0 {
+        let meta = &*(userdata as *mut WindowMeta);
+        let particular_rects = &meta.particular_rects;
+
+        let mut base: RECT = Default::default();
+        GetWindowRect(window, &mut base);
+
+        let base = PhysicalRect::new(
+          0,
+          0,
+          (base.right - base.left) as u32,
+          (base.bottom - base.top) as u32,
+        );
+
+        let mut point = [POINT {
+          x: GET_X_LPARAM(lparam) as i32,
+          y: GET_Y_LPARAM(lparam) as i32,
+        }];
+
+        MapWindowPoints(HWND::default(), window, &mut point);
+
+        let pos = PhysicalPosition::new(point[0].x, point[0].y);
+
+        if let Ok(min_button) = particular_rects.min_button.read() {
+          if let Some((rect, align)) = *min_button {
+            if is_pos_in_rect(pos, rect, base, align) {
+              return LRESULT(HTMINBUTTON as isize);
+            }
+          }
+        }
+        if let Ok(max_button) = particular_rects.max_button.read() {
+          if let Some((rect, align)) = *max_button {
+            if is_pos_in_rect(pos, rect, base, align) {
+              return LRESULT(HTMAXBUTTON as isize);
+            }
+          }
+        }
+        if let Ok(close_button) = particular_rects.close_button.read() {
+          if let Some((rect, align)) = *close_button {
+            if is_pos_in_rect(pos, rect, base, align) {
+              return LRESULT(HTCLOSE as isize);
+            }
+          }
+        }
       }
       DefWindowProcW(window, msg, wparam, lparam)
     }

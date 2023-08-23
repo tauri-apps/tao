@@ -3,14 +3,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-  dpi::{PhysicalPosition, Size},
+  dpi::{PhysicalPosition, PhysicalRect, RectAlignment, Size},
   icon::Icon,
   keyboard::ModifiersState,
   platform_impl::platform::{event_loop, minimal_ime::MinimalIme, util},
   window::{CursorIcon, Fullscreen, Theme, WindowAttributes},
 };
 use parking_lot::MutexGuard;
-use std::io;
+use std::{io, sync::RwLock};
 use windows::Win32::{
   Foundation::{HWND, LPARAM, RECT, WPARAM},
   Graphics::Gdi::{InvalidateRgn, HRGN},
@@ -462,4 +462,19 @@ impl CursorFlags {
 
     Ok(())
   }
+}
+
+pub struct WindowMeta {
+  pub window_flags: WindowFlags,
+  /// A table that holds rects with particular behavior
+  pub particular_rects: ParticularRects,
+}
+
+type RwLcokParticularRect = RwLock<Option<(PhysicalRect<i32, u32>, RectAlignment)>>;
+
+#[derive(Debug, Default)]
+pub struct ParticularRects {
+  pub min_button: RwLcokParticularRect,
+  pub max_button: RwLcokParticularRect,
+  pub close_button: RwLcokParticularRect,
 }
