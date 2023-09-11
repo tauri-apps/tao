@@ -68,7 +68,7 @@ pub struct Window {
   window_state: Arc<Mutex<WindowState>>,
 
   // The events loop proxy.
-  thread_executor: event_loop::EventLoopThreadExecutor,
+  pub(crate) thread_executor: event_loop::EventLoopThreadExecutor,
 }
 
 impl Window {

@@ -494,9 +494,9 @@ impl EventLoopThreadExecutor {
   ///
   /// Note that we use a FnMut instead of a FnOnce because we're too lazy to create an equivalent
   /// to the unstable FnBox.
-  pub(super) fn execute_in_thread<F>(&self, mut function: F)
+  pub(crate) fn execute_in_thread<F>(&self, mut function: F)
   where
-    F: FnMut() + Send + 'static,
+    F: FnMut() + 'static,
   {
     unsafe {
       if self.in_event_loop_thread() {

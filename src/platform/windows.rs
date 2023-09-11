@@ -184,6 +184,10 @@ pub trait WindowExtWindows {
   ///
   /// Enabling this mainly flips the orientation of menus and title bar buttons
   fn set_rtl(&self, rtl: bool);
+
+  fn dispatch<F>(&self, function: F)
+  where
+    F: FnMut() + 'static;
 }
 
 impl WindowExtWindows for Window {
@@ -237,6 +241,14 @@ impl WindowExtWindows for Window {
   #[inline]
   fn set_rtl(&self, rtl: bool) {
     self.window.set_rtl(rtl)
+  }
+
+  #[inline]
+  fn dispatch<F>(&self, function: F)
+  where
+    F: FnMut() + 'static,
+  {
+    self.window.thread_executor.execute_in_thread(function)
   }
 }
 
