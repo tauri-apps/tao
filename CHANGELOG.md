@@ -1,5 +1,13 @@
 # Changelog
 
+## \[0.16.3]
+
+- [`019d9e9e`](https://github.com/tauri-apps/tao/commit/019d9e9e8b3ba9d6283e146eaaf6cf24c02bc510)([#764](https://github.com/tauri-apps/tao/pull/764)) On macOS, fix `SystemTrayEvent` not emitted after calling `set_menu`.
+- [`0371359b`](https://github.com/tauri-apps/tao/commit/0371359bd7fb8e4f010c9d3e30a2909f14c88558)([#746](https://github.com/tauri-apps/tao/pull/746)) On macOS, force `NativeImage` height to be `18` to have consistent size for all icons and match custom icons.
+- [`a934c558`](https://github.com/tauri-apps/tao/commit/a934c5585866e7bff802ee2becaf7962ff26f2d9)([#793](https://github.com/tauri-apps/tao/pull/793)) Refactor macOS system-tray implementation to fix missing click and window focus issues. (tray-icon#69)
+- [`e40b4aaf`](https://github.com/tauri-apps/tao/commit/e40b4aaf01b3fb6f5c3771523e221200e0f70b0b)([#755](https://github.com/tauri-apps/tao/pull/755)) On Windows, fix leak of `tao::system_tray::Icon` when calling `tao::system_tray::SystemTray::set_icon` and leak of `String` when calling `tao::system_tray::SystemTray::set_tooltip`.
+- [`ae664f05`](https://github.com/tauri-apps/tao/commit/ae664f05daf10456b4721214372bb5409abe53b9)([#770](https://github.com/tauri-apps/tao/pull/770)) Add `WindowBuilderExtWindows::with_window_classname` to set the name of the window class created/used to create windows.
+
 ## \[0.16.2]
 
 - [`0e950f82`](https://github.com/tauri-apps/tao/commit/0e950f8263ff349504285b68d51c7850146549d5)([#731](https://github.com/tauri-apps/tao/pull/731)) Fix build error on target i686-pc-windows-msvc
