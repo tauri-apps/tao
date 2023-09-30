@@ -189,12 +189,11 @@ impl SystemTray {
 
   pub fn set_menu(&mut self, tray_menu: &Menu) {
     unsafe {
-      self.tray_menu = Some(tray_menu.clone());
-
-      let tray_target: id = msg_send![self.ns_status_bar.button(), target];
-      (*tray_target).set_ivar("menu", tray_menu.menu);
-      let () = msg_send![tray_menu.menu, setDelegate: tray_target];
+      (*self.tray_target).set_ivar(TRAY_MENU, tray_menu.menu);
+      self.ns_status_bar.setMenu_(tray_menu.menu);
+      let () = msg_send![tray_menu.menu, setDelegate: self.ns_status_bar];
     }
+    self.tray_menu = Some(tray_menu.clone());
   }
 
   pub fn set_tooltip(&self, tooltip: &str) {
