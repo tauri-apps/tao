@@ -616,17 +616,17 @@ pub trait SystemTrayBuilderExtMacOS {
 #[cfg(feature = "tray")]
 impl SystemTrayBuilderExtMacOS for SystemTrayBuilder {
   fn with_icon_as_template(mut self, is_template: bool) -> Self {
-    self.platform_tray_builder.system_tray.icon_is_template = is_template;
+    self.platform_tray_builder.icon_is_template = is_template;
     self
   }
 
   fn with_menu_on_left_click(mut self, enable: bool) -> Self {
-    self.platform_tray_builder.system_tray.menu_on_left_click = enable;
+    self.platform_tray_builder.menu_on_left_click = enable;
     self
   }
 
   fn with_title(mut self, title: &str) -> Self {
-    self.platform_tray_builder.system_tray.title = Some(title.to_owned());
+    self.platform_tray_builder.title = Some(title.to_owned());
     self
   }
 }
@@ -649,11 +649,11 @@ pub trait SystemTrayExtMacOS {
 #[cfg(feature = "tray")]
 impl SystemTrayExtMacOS for SystemTray {
   fn set_icon_as_template(&mut self, is_template: bool) {
-    self.0.icon_is_template = is_template
+    self.0.set_icon_as_template(is_template);
   }
 
   fn enable_menu_on_left_click(&mut self, enable: bool) {
-    self.0.menu_on_left_click = enable
+    self.0.set_show_menu_on_left_click(enable);
   }
 
   fn set_title(&mut self, title: &str) {
