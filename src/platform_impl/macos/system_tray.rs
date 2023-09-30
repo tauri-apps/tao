@@ -40,44 +40,23 @@ enum ClickType {
 }
 
 pub struct SystemTrayBuilder {
-  pub(crate) system_tray: SystemTray,
+  icon: Icon,
+  tray_menu: Option<Menu>,
+  pub(crate) icon_is_template: bool,
+  pub(crate) menu_on_left_click: bool,
+  pub(crate) title: Option<String>,
 }
 
 impl SystemTrayBuilder {
   /// Creates a new SystemTray for platforms where this is appropriate.
   #[inline]
   pub fn new(icon: Icon, tray_menu: Option<Menu>) -> Self {
-    let (ns_status_bar, tray_target) = Self::create(icon.clone());
-
     Self {
-      system_tray: SystemTray {
-        icon_is_template: false,
-        icon,
-        menu_on_left_click: true,
-        tray_menu,
-        ns_status_bar,
-        title: None,
-        tray_target,
-      },
-    }
-  }
-
-  fn create(icon: Icon) -> (id, id) {
-    unsafe {
-      let ns_status_item =
-        NSStatusBar::systemStatusBar(nil).statusItemWithLength_(NSVariableStatusItemLength);
-      let _: () = msg_send![ns_status_item, retain];
-
-      set_icon_for_ns_status_item_button(ns_status_item, icon, false);
-
-      let button = ns_status_item.button();
-      let frame: NSRect = msg_send![button, frame];
-      let target: id = msg_send![make_tray_target_class(), alloc];
-      let tray_target: id = msg_send![target, initWithFrame: frame];
-      let _: () = msg_send![tray_target, retain];
-      let _: () = msg_send![tray_target, setWantsLayer: YES];
-
-      (ns_status_item, tray_target)
+      icon,
+      tray_menu,
+      icon_is_template: false,
+      menu_on_left_click: true,
+      title: None,
     }
   }
 
@@ -89,21 +68,44 @@ impl SystemTrayBuilder {
     tray_id: TrayId,
     tooltip: Option<String>,
   ) -> Result<RootSystemTray, OsError> {
-    unsafe {
-      // use our existing status bar
-      let ns_status_item = self.system_tray.ns_status_bar;
+    let tray = unsafe {
+      let ns_status_item =
+        NSStatusBar::systemStatusBar(nil).statusItemWithLength_(NSVariableStatusItemLength);
+      let _: () = msg_send![ns_status_item, retain];
 
-      let tray_target = self.system_tray.tray_target;
+      set_icon_for_ns_status_item_button(ns_status_item, &self.icon, self.icon_is_template);
+
+      let button = ns_status_item.button();
+      let frame: NSRect = msg_send![button, frame];
+      let target: id = msg_send![make_tray_target_class(), alloc];
+      let tray_target: id = msg_send![target, initWithFrame: frame];
+      let _: () = msg_send![tray_target, retain];
+      let _: () = msg_send![tray_target, setWantsLayer: YES];
+
+      let system_tray = SystemTray {
+        icon_is_template: self.icon_is_template,
+        icon: self.icon,
+        menu_on_left_click: self.menu_on_left_click,
+        tray_menu: self.tray_menu,
+        ns_status_bar: ns_status_item,
+        title: None,
+        tray_target,
+      };
+
+      // use our existing status bar
+      let ns_status_item = system_tray.ns_status_bar;
+      let tray_target = system_tray.tray_target;
+
       (*tray_target).set_ivar(TRAY_ID, tray_id.0);
       (*tray_target).set_ivar(TRAY_STATUS_ITEM, ns_status_item);
       (*tray_target).set_ivar(TRAY_MENU, nil);
-      (*tray_target).set_ivar(TRAY_MENU_ON_LEFT_CLICK, self.system_tray.menu_on_left_click);
+      (*tray_target).set_ivar(TRAY_MENU_ON_LEFT_CLICK, system_tray.menu_on_left_click);
 
       let button: id = ns_status_item.button();
       let _: () = msg_send![button, addSubview: tray_target];
 
       // attach menu only if provided
-      if let Some(menu) = self.system_tray.tray_menu.clone() {
+      if let Some(menu) = system_tray.tray_menu.clone() {
         ns_status_item.setMenu_(menu.menu);
 
         (*tray_target).set_ivar(TRAY_MENU, menu.menu);
@@ -112,16 +114,18 @@ impl SystemTrayBuilder {
 
       // attach tool_tip if provided
       if let Some(tooltip) = tooltip {
-        self.system_tray.set_tooltip(&tooltip);
+        system_tray.set_tooltip(&tooltip);
       }
 
       // set up title if provided
-      if let Some(title) = &self.system_tray.title {
-        self.system_tray.set_title(title);
+      if let Some(title) = &system_tray.title {
+        system_tray.set_title(title);
       }
-    }
 
-    Ok(RootSystemTray(self.system_tray))
+      system_tray
+    };
+
+    Ok(RootSystemTray(tray))
   }
 }
 
@@ -160,15 +164,27 @@ impl SystemTray {
   }
 
   pub fn set_icon(&mut self, icon: Icon) {
-    set_icon_for_ns_status_item_button(self.ns_status_bar, icon.clone(), self.icon_is_template);
+    set_icon_for_ns_status_item_button(self.ns_status_bar, &icon, self.icon_is_template);
     unsafe {
       let _: () = msg_send![self.tray_target, updateDimensions];
     }
     self.icon = icon;
   }
 
-  pub fn set_icon_as_template(mut self, is_template: bool) {
+  pub fn set_icon_as_template(&mut self, is_template: bool) {
+    unsafe {
+      let button = self.ns_status_bar.button();
+      let nsimage: id = msg_send![button, image];
+      let _: () = msg_send![nsimage, setTemplate: is_template as i8];
+    }
     self.icon_is_template = is_template;
+  }
+
+  pub fn set_show_menu_on_left_click(&mut self, enable: bool) {
+    unsafe {
+      (*self.tray_target).set_ivar(TRAY_MENU_ON_LEFT_CLICK, enable);
+    }
+    self.menu_on_left_click = enable;
   }
 
   pub fn set_menu(&mut self, tray_menu: &Menu) {
@@ -198,7 +214,7 @@ impl SystemTray {
   }
 }
 
-fn set_icon_for_ns_status_item_button(ns_status_item: id, icon: Icon, icon_is_template: bool) {
+fn set_icon_for_ns_status_item_button(ns_status_item: id, icon: &Icon, icon_is_template: bool) {
   // The image is to the right of the title https://developer.apple.com/documentation/appkit/nscellimageposition/nsimageleft
   const NSIMAGE_LEFT: i32 = 2;
 
