@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.16.4]
+
+- [`e10d493a`](https://github.com/tauri-apps/tao/commit/e10d493ac6bb1b4d854bb4bde8c9d2fc9ba4d519)([#795](https://github.com/tauri-apps/tao/pull/795)) Fixes `set_menu` SystemTray implementation on macOS.
+- [`cfbf5ef0`](https://github.com/tauri-apps/tao/commit/cfbf5ef0cc7305e4563bd39cf31ea56481261045)([#794](https://github.com/tauri-apps/tao/pull/794)) Fixes `icon_as_template` and `menu_on_left_click` SystemTray implementation on macOS.
+
 ## \[0.16.3]
 
 - [`019d9e9e`](https://github.com/tauri-apps/tao/commit/019d9e9e8b3ba9d6283e146eaaf6cf24c02bc510)([#764](https://github.com/tauri-apps/tao/pull/764)) On macOS, fix `SystemTrayEvent` not emitted after calling `set_menu`.
