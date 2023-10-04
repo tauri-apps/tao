@@ -10,7 +10,6 @@ use windows::Win32::{
 };
 
 pub(crate) use self::{
-  clipboard::Clipboard,
   event_loop::{
     EventLoop, EventLoopProxy, EventLoopWindowTarget, PlatformSpecificEventLoopAttributes,
   },
@@ -138,7 +137,6 @@ impl WindowId {
 
 #[macro_use]
 mod util;
-mod clipboard;
 mod dark_mode;
 mod dpi;
 mod drop_handler;

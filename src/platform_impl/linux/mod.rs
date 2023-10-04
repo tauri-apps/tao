@@ -10,7 +10,6 @@
   target_os = "openbsd"
 ))]
 
-mod clipboard;
 mod device;
 mod event_loop;
 mod icon;
@@ -23,10 +22,7 @@ mod window;
 pub mod taskbar;
 pub mod x11;
 
-pub use self::{
-  clipboard::Clipboard,
-  keycode::{keycode_from_scancode, keycode_to_scancode},
-};
+pub use self::keycode::{keycode_from_scancode, keycode_to_scancode};
 pub(crate) use event_loop::PlatformSpecificEventLoopAttributes;
 pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
 pub use icon::PlatformIcon;

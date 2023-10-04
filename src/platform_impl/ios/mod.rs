@@ -74,7 +74,6 @@ macro_rules! assert_main_thread {
 }
 
 mod app_state;
-mod clipboard;
 mod event_loop;
 mod ffi;
 mod keycode;
@@ -86,7 +85,6 @@ use std::fmt;
 
 pub(crate) use self::event_loop::PlatformSpecificEventLoopAttributes;
 pub use self::{
-  clipboard::Clipboard,
   event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
   keycode::{keycode_from_scancode, keycode_to_scancode},
   monitor::{MonitorHandle, VideoMode},
