@@ -28,8 +28,6 @@ use std::{
   time::{Duration, Instant},
 };
 
-mod clipboard;
-pub use clipboard::Clipboard;
 pub mod ndk_glue;
 use ndk_glue::{Event, Rect};
 
