@@ -67,6 +67,7 @@ pub struct Window {
   inner_size_constraints: RefCell<WindowSizeConstraints>,
   /// Draw event Sender
   draw_tx: crossbeam_channel::Sender<WindowId>,
+  theme: Theme,
 }
 
 impl Window {
@@ -185,10 +186,14 @@ impl Window {
 
     let settings = Settings::default();
 
+    let mut theme = Theme::Light;
     if let Some(settings) = settings {
       if let Some(preferred_theme) = attributes.preferred_theme {
         match preferred_theme {
-          Theme::Dark => settings.set_gtk_application_prefer_dark_theme(true),
+          Theme::Dark => {
+              settings.set_gtk_application_prefer_dark_theme(true);
+              theme = Theme::Dark;
+          }
           Theme::Light => {
             let theme_name = settings.gtk_theme_name().map(|t| t.as_str().to_owned());
             if let Some(theme) = theme_name {
@@ -303,6 +308,7 @@ impl Window {
       minimized,
       fullscreen: RefCell::new(attributes.fullscreen),
       inner_size_constraints: RefCell::new(attributes.inner_size_constraints),
+      theme,
     };
 
     win.set_skip_taskbar(pl_attribs.skip_taskbar);
@@ -773,15 +779,7 @@ impl Window {
   }
 
   pub fn theme(&self) -> Theme {
-    if let Some(settings) = Settings::default() {
-      let theme_name = settings.gtk_theme_name().map(|s| s.as_str().to_owned());
-      if let Some(theme) = theme_name {
-        if GTK_THEME_SUFFIX_LIST.iter().any(|t| theme.ends_with(t)) {
-          return Theme::Dark;
-        }
-      }
-    }
-    return Theme::Light;
+    self.theme
   }
 }
 
