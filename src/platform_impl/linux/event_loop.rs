@@ -16,8 +16,8 @@ use cairo::{RectangleInt, Region};
 use crossbeam_channel::SendError;
 use gdk::{Cursor, CursorType, EventKey, EventMask, ScrollDirection, WindowEdge, WindowState};
 use gio::{prelude::*, Cancellable};
-use glib::{source::Priority, Continue, MainContext};
-use gtk::{prelude::*, Inhibit};
+use glib::{source::Priority, MainContext};
+use gtk::prelude::*;
 
 use raw_window_handle::{RawDisplayHandle, WaylandDisplayHandle, XlibDisplayHandle};
 
@@ -207,7 +207,11 @@ impl<T: 'static> EventLoop<T> {
         }) {
           log::warn!("Fail to send device event to event channel: {}", e);
         }
-        Continue(run.load(Ordering::Relaxed))
+        if run.load(Ordering::Relaxed) {
+          glib::ControlFlow::Continue
+        } else {
+          glib::ControlFlow::Break
+        }
       });
       Some(run_device_thread)
     } else {
@@ -422,7 +426,7 @@ impl<T: 'static> EventLoop<T> {
                   );
                 }
               }
-              Inhibit(false)
+              glib::Propagation::Proceed
             });
             window.connect_button_press_event(|window, event| {
               if !window.is_decorated() && window.is_resizable() && event.button() == 1 {
@@ -441,7 +445,7 @@ impl<T: 'static> EventLoop<T> {
                 }
               }
 
-              Inhibit(false)
+              glib::Propagation::Proceed
             });
             window.connect_touch_event(|window, event| {
               if !window.is_decorated() && window.is_resizable() {
@@ -467,7 +471,7 @@ impl<T: 'static> EventLoop<T> {
                 }
               }
 
-              Inhibit(false)
+              glib::Propagation::Proceed
             });
 
             let tx_clone = event_tx.clone();
@@ -478,7 +482,7 @@ impl<T: 'static> EventLoop<T> {
               }) {
                 log::warn!("Failed to send window close event to event channel: {}", e);
               }
-              Inhibit(true)
+              glib::Propagation::Stop
             });
 
             let tx_clone = event_tx.clone();
@@ -521,7 +525,7 @@ impl<T: 'static> EventLoop<T> {
                   e
                 );
               }
-              Inhibit(false)
+              glib::Propagation::Proceed
             });
 
             let tx_clone = event_tx.clone();
@@ -535,7 +539,7 @@ impl<T: 'static> EventLoop<T> {
                   e
                 );
               }
-              Inhibit(false)
+              glib::Propagation::Proceed
             });
 
             let tx_clone = event_tx.clone();
@@ -564,7 +568,7 @@ impl<T: 'static> EventLoop<T> {
                   e
                 );
               }
-              Inhibit(false)
+              glib::Propagation::Proceed
             });
 
             let tx_clone = event_tx.clone();
@@ -586,7 +590,7 @@ impl<T: 'static> EventLoop<T> {
                   }
                 }
               }
-              Inhibit(false)
+              glib::Propagation::Proceed
             });
 
             let tx_clone = event_tx.clone();
@@ -599,7 +603,7 @@ impl<T: 'static> EventLoop<T> {
               }) {
                 log::warn!("Failed to send cursor left event to event channel: {}", e);
               }
-              Inhibit(false)
+              glib::Propagation::Proceed
             });
 
             let tx_clone = event_tx.clone();
@@ -625,7 +629,7 @@ impl<T: 'static> EventLoop<T> {
                   e
                 );
               }
-              Inhibit(false)
+              glib::Propagation::Proceed
             });
 
             let tx_clone = event_tx.clone();
@@ -651,7 +655,7 @@ impl<T: 'static> EventLoop<T> {
                   e
                 );
               }
-              Inhibit(false)
+              glib::Propagation::Proceed
             });
 
             let tx_clone = event_tx.clone();
@@ -671,7 +675,7 @@ impl<T: 'static> EventLoop<T> {
               }) {
                 log::warn!("Failed to send scroll event to event channel: {}", e);
               }
-              Inhibit(false)
+              glib::Propagation::Proceed
             });
 
             let tx_clone = event_tx.clone();
@@ -695,7 +699,7 @@ impl<T: 'static> EventLoop<T> {
                 } else {
                   // stop here we don't want to send the key event
                   // as we emit the `ModifiersChanged`
-                  return Continue(true);
+                  return glib::ControlFlow::Continue;
                 }
               }
 
@@ -714,7 +718,7 @@ impl<T: 'static> EventLoop<T> {
                   log::warn!("Failed to send keyboard event to event channel: {}", e);
                 }
               }
-              Continue(true)
+              glib::ControlFlow::Continue
             });
 
             let tx_clone = event_tx.clone();
@@ -739,13 +743,13 @@ impl<T: 'static> EventLoop<T> {
               handler(event_key.to_owned(), ElementState::Pressed);
               ime.filter_keypress(event_key);
 
-              Inhibit(false)
+              glib::Propagation::Proceed
             });
 
             let handler = keyboard_handler.clone();
             window.connect_key_release_event(move |_, event_key| {
               handler(event_key.to_owned(), ElementState::Released);
-              Inhibit(false)
+              glib::Propagation::Proceed
             });
 
             let tx_clone = event_tx.clone();
@@ -777,7 +781,7 @@ impl<T: 'static> EventLoop<T> {
                   );
                 }
               }
-              Inhibit(false)
+              glib::Propagation::Proceed
             });
 
             // Receive draw events of the window.
@@ -794,7 +798,7 @@ impl<T: 'static> EventLoop<T> {
                 cr.set_operator(cairo::Operator::Over);
               }
 
-              Inhibit(false)
+              glib::Propagation::Proceed
             });
           }
         }
@@ -818,7 +822,7 @@ impl<T: 'static> EventLoop<T> {
           _ => unreachable!(),
         }
       }
-      Continue(true)
+      glib::ControlFlow::Continue
     });
 
     // Create event loop itself.

@@ -16,7 +16,7 @@ documentation = "https://docs.rs/tao"
 categories = [ "gui" ]
 
 [package.metadata.docs.rs]
-features = [ "serde", "dox" ]
+features = [ "serde" ]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
   "i686-pc-windows-msvc",
@@ -31,7 +31,6 @@ members = [ "tao-macros" ]
 
 [features]
 default = [ ]
-dox = [ "gtk/dox" ]
 
 [build-dependencies]
 cc = "1"
@@ -111,16 +110,16 @@ windows-implement = "0.48.0"
 ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-cairo-rs = "0.16"
-gio = "0.16"
-glib = "0.16"
-glib-sys = "0.16"
-gtk = "0.16"
-gdk = "0.16"
-gdk-sys = "0.16"
-gdkx11-sys = "0.16"
-gdkwayland-sys = "0.16.0"
-gdk-pixbuf = "0.16"
+cairo-rs = "0.18"
+gio = "0.18"
+glib = "0.18"
+glib-sys = "0.18"
+gtk = "0.18"
+gdk = "0.18"
+gdk-sys = "0.18"
+gdkx11-sys = "0.18"
+gdkwayland-sys = "0.18.0"
+gdk-pixbuf = "0.18"
 x11-dl = "2.21"
 zbus = "3"
 uuid = { version = "1.3", features = [ "v4" ] }
