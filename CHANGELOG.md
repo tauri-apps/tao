@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.22.3]
+
+- [`dabfed7d`](https://github.com/tauri-apps/tao/commit/dabfed7dc34eb60c796561961103e768f1d53689)([#802](https://github.com/tauri-apps/tao/pull/802)) Fixes set size APIs crashing on Linux.
+
 ## \[0.22.2]
 
 - [`65ebab88`](https://github.com/tauri-apps/tao/commit/65ebab888de2d1ae4b7562572060d1e51ef85043)([#787](https://github.com/tauri-apps/tao/pull/787)) Fix compilation error on iOS.
