@@ -189,8 +189,8 @@ impl Window {
         match preferred_theme {
           Theme::Dark => settings.set_gtk_application_prefer_dark_theme(true),
           Theme::Light => {
-            let theme_name = settings.gtk_theme_name().map(|t| t.as_str().to_owned());
-            if let Some(theme) = theme_name {
+            if let Some(theme) = settings.gtk_theme_name() {
+              let theme = theme.as_str();
               // Remove dark variant.
               if let Some(theme) = GTK_THEME_SUFFIX_LIST
                 .iter()
@@ -780,12 +780,10 @@ impl Window {
       return theme;
     }
 
-    if let Some(settings) = Settings::default() {
-      let theme_name = settings.gtk_theme_name().map(|s| s.as_str().to_owned());
-      if let Some(theme) = theme_name {
-        if GTK_THEME_SUFFIX_LIST.iter().any(|t| theme.ends_with(t)) {
-          return Theme::Dark;
-        }
+    if let Some(theme) = Settings::default().and_then(|s| s.gtk_theme_name()) {
+      let theme = theme.as_str();
+      if GTK_THEME_SUFFIX_LIST.iter().any(|t| theme.ends_with(t)) {
+        return Theme::Dark;
       }
     }
 
