@@ -678,11 +678,12 @@ impl Window {
     let monitor = self
       .window
       .window()
-      .map(|window| display.monitor_at_window(&window))
-      .unwrap_or_else(|| display.primary_monitor())
-      .unwrap();
-    let handle = MonitorHandle { monitor };
-    Some(RootMonitorHandle { inner: handle })
+      .and_then(|window| display.monitor_at_window(&window))
+      .or_else(|| display.primary_monitor());
+
+    monitor.map(|monitor| RootMonitorHandle {
+      inner: MonitorHandle { monitor },
+    })
   }
 
   #[inline]
