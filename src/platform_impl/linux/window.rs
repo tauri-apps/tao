@@ -385,11 +385,11 @@ impl Window {
     .to_physical(self.scale_factor.load(Ordering::Acquire) as f64)
   }
 
-  fn set_size_constraints(&self) {
-    if let Err(e) = self.window_requests_tx.send((
-      self.window_id,
-      WindowRequest::SizeConstraints(*self.inner_size_constraints.borrow()),
-    )) {
+  fn set_size_constraints(&self, constraints: WindowSizeConstraints) {
+    if let Err(e) = self
+      .window_requests_tx
+      .send((self.window_id, WindowRequest::SizeConstraints(constraints)))
+    {
       log::warn!("Fail to send size constraint request: {}", e);
     }
   }
@@ -398,19 +398,19 @@ impl Window {
     let mut size_constraints = self.inner_size_constraints.borrow_mut();
     size_constraints.min_width = size.map(|s| s.width());
     size_constraints.min_height = size.map(|s| s.height());
-    self.set_size_constraints()
+    self.set_size_constraints(*size_constraints)
   }
 
   pub fn set_max_inner_size(&self, size: Option<Size>) {
     let mut size_constraints = self.inner_size_constraints.borrow_mut();
     size_constraints.max_width = size.map(|s| s.width());
     size_constraints.max_height = size.map(|s| s.height());
-    self.set_size_constraints()
+    self.set_size_constraints(*size_constraints)
   }
 
   pub fn set_inner_size_constraints(&self, constraints: WindowSizeConstraints) {
     *self.inner_size_constraints.borrow_mut() = constraints;
-    self.set_size_constraints()
+    self.set_size_constraints(constraints)
   }
 
   pub fn set_title(&self, title: &str) {
