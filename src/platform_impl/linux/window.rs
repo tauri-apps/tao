@@ -14,7 +14,7 @@ use std::{
 
 use gdk::{WindowEdge, WindowState};
 use glib::translate::ToGlibPtr;
-use gtk::{prelude::*, traits::SettingsExt, Settings};
+use gtk::{prelude::*, Settings};
 use raw_window_handle::{
   RawDisplayHandle, RawWindowHandle, WaylandDisplayHandle, WaylandWindowHandle, XlibDisplayHandle,
   XlibWindowHandle,
@@ -226,7 +226,7 @@ impl Window {
           window.set_accept_focus(true);
           window.disconnect(id);
         }
-        Inhibit(false)
+        glib::Propagation::Proceed
       });
       signal_id.borrow_mut().replace(id);
     }
@@ -261,7 +261,7 @@ impl Window {
       let state = event.new_window_state();
       max_clone.store(state.contains(WindowState::MAXIMIZED), Ordering::Release);
       minimized_clone.store(state.contains(WindowState::ICONIFIED), Ordering::Release);
-      Inhibit(false)
+      glib::Propagation::Proceed
     });
 
     let scale_factor: Rc<AtomicI32> = Rc::new(win_scale_factor.into());

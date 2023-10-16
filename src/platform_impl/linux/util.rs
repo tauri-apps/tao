@@ -1,4 +1,7 @@
-use gdk::Display;
+use gdk::{
+  prelude::{DeviceExt, SeatExt},
+  Display,
+};
 use gtk::traits::{GtkWindowExt, WidgetExt};
 
 use crate::{
