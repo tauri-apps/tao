@@ -67,6 +67,7 @@ pub struct Window {
   inner_size_constraints: RefCell<WindowSizeConstraints>,
   /// Draw event Sender
   draw_tx: crossbeam_channel::Sender<WindowId>,
+  preferred_theme: Option<Theme>,
 }
 
 impl Window {
@@ -183,15 +184,13 @@ impl Window {
       window.set_icon(Some(&icon.inner.into()));
     }
 
-    let settings = Settings::default();
-
-    if let Some(settings) = settings {
+    let preferred_theme = if let Some(settings) = Settings::default() {
       if let Some(preferred_theme) = attributes.preferred_theme {
         match preferred_theme {
           Theme::Dark => settings.set_gtk_application_prefer_dark_theme(true),
           Theme::Light => {
-            let theme_name = settings.gtk_theme_name().map(|t| t.as_str().to_owned());
-            if let Some(theme) = theme_name {
+            if let Some(theme) = settings.gtk_theme_name() {
+              let theme = theme.as_str();
               // Remove dark variant.
               if let Some(theme) = GTK_THEME_SUFFIX_LIST
                 .iter()
@@ -204,7 +203,10 @@ impl Window {
           }
         }
       }
-    }
+      attributes.preferred_theme
+    } else {
+      None
+    };
 
     if attributes.visible {
       window.show_all();
@@ -303,6 +305,7 @@ impl Window {
       minimized,
       fullscreen: RefCell::new(attributes.fullscreen),
       inner_size_constraints: RefCell::new(attributes.inner_size_constraints),
+      preferred_theme,
     };
 
     win.set_skip_taskbar(pl_attribs.skip_taskbar);
@@ -773,15 +776,18 @@ impl Window {
   }
 
   pub fn theme(&self) -> Theme {
-    if let Some(settings) = Settings::default() {
-      let theme_name = settings.gtk_theme_name().map(|s| s.as_str().to_owned());
-      if let Some(theme) = theme_name {
-        if GTK_THEME_SUFFIX_LIST.iter().any(|t| theme.ends_with(t)) {
-          return Theme::Dark;
-        }
+    if let Some(theme) = self.preferred_theme {
+      return theme;
+    }
+
+    if let Some(theme) = Settings::default().and_then(|s| s.gtk_theme_name()) {
+      let theme = theme.as_str();
+      if GTK_THEME_SUFFIX_LIST.iter().any(|t| theme.ends_with(t)) {
+        return Theme::Dark;
       }
     }
-    return Theme::Light;
+
+    Theme::Light
   }
 }
 
