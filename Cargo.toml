@@ -120,7 +120,7 @@ gdk = "0.16"
 gdk-sys = "0.16"
 gdkx11-sys = "0.16"
 gdkwayland-sys = "0.16.0"
-gdk-pixbuf = "0.16"
+gdk-pixbuf = "0.18"
 x11-dl = "2.21"
 zbus = "3"
 uuid = { version = "1.3", features = [ "v4" ] }
