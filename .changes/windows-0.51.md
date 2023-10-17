@@ -1,5 +1,5 @@
 ---
-"tao": "patch"
+"tao": "minor"
 ---
 
 Update `windows` and `windows-implement` crate to `0.51.1`
