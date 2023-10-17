@@ -14,7 +14,6 @@ use std::{
   ffi::OsStr,
   io, mem,
   os::windows::ffi::OsStrExt,
-  ptr,
   sync::Arc,
 };
 
@@ -22,7 +21,7 @@ use crossbeam_channel as channel;
 use windows::{
   core::PCWSTR,
   Win32::{
-    Foundation::{self as win32f, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
+    Foundation::{self as win32f, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
     Graphics::{
       Dwm::{DwmEnableBlurBehindWindow, DWM_BB_BLURREGION, DWM_BB_ENABLE, DWM_BLURBEHIND},
       Gdi::*,
@@ -30,7 +29,7 @@ use windows::{
     System::{Com::*, LibraryLoader::*, Ole::*},
     UI::{
       Input::{Ime::*, KeyboardAndMouse::*, Touch::*},
-      Shell::{ITaskbarList4 as ITaskbarList, TaskbarList, TBPFLAG, *},
+      Shell::{ITaskbarList4 as ITaskbarList, TaskbarList, *},
       WindowsAndMessaging::{self as win32wm, *},
     },
   },
@@ -87,7 +86,7 @@ impl Window {
         let file_drop_handler = if drag_and_drop {
           // It is ok if the initialize result is `S_FALSE` because it might happen that
           // multiple windows are created on the same thread.
-          if let Err(error) = OleInitialize(ptr::null_mut()) {
+          if let Err(error) = OleInitialize(None) {
             match error.code() {
               win32f::OLE_E_WRONGCOMPOBJ => {
                 panic!("OleInitialize failed! Result was: `OLE_E_WRONGCOMPOBJ`")
@@ -135,7 +134,7 @@ impl Window {
   pub fn set_title(&self, text: &str) {
     let text = util::encode_wide(text);
     unsafe {
-      SetWindowTextW(self.window.0, PCWSTR::from_raw(text.as_ptr()));
+      let _ = SetWindowTextW(self.window.0, PCWSTR::from_raw(text.as_ptr()));
     }
   }
 
@@ -185,7 +184,7 @@ impl Window {
 
   #[inline]
   pub fn outer_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
-    util::get_window_rect(self.window.0)
+    unsafe { util::get_window_rect(self.window.0) }
       .map(|rect| Ok(PhysicalPosition::new(rect.left as i32, rect.top as i32)))
       .expect("Unexpected GetWindowRect failure")
   }
@@ -212,7 +211,7 @@ impl Window {
     });
 
     unsafe {
-      SetWindowPos(
+      let _ = SetWindowPos(
         self.window.0,
         HWND::default(),
         x as i32,
@@ -228,7 +227,7 @@ impl Window {
   #[inline]
   pub fn inner_size(&self) -> PhysicalSize<u32> {
     let mut rect = RECT::default();
-    if !unsafe { GetClientRect(self.window.0, &mut rect) }.as_bool() {
+    if unsafe { GetClientRect(self.window.0, &mut rect) }.is_err() {
       panic!("Unexpected GetClientRect failure")
     }
     PhysicalSize::new(
@@ -239,7 +238,7 @@ impl Window {
 
   #[inline]
   pub fn outer_size(&self) -> PhysicalSize<u32> {
-    util::get_window_rect(self.window.0)
+    unsafe { util::get_window_rect(self.window.0) }
       .map(|rect| {
         PhysicalSize::new(
           (rect.right - rect.left) as u32,
@@ -419,7 +418,7 @@ impl Window {
 
   #[inline]
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
-    util::cursor_position()
+    util::cursor_position().map_err(Into::into)
   }
 
   #[inline]
@@ -439,27 +438,23 @@ impl Window {
           io::Error::last_os_error()
         ))));
       }
-      if !SetCursorPos(point.x, point.y).as_bool() {
-        return Err(ExternalError::Os(os_error!(OsError::IoError(
-          io::Error::last_os_error()
-        ))));
-      }
+      SetCursorPos(point.x, point.y)
+        .map_err(|e| ExternalError::Os(os_error!(OsError::IoError(e.into()))))
     }
-    Ok(())
   }
 
   #[inline]
   pub fn drag_window(&self) -> Result<(), ExternalError> {
     let mut pos = POINT::default();
     unsafe {
-      GetCursorPos(&mut pos);
-      ReleaseCapture();
+      GetCursorPos(&mut pos)?;
+      ReleaseCapture()?;
       PostMessageW(
         self.window.0,
         WM_NCLBUTTONDOWN,
         WPARAM(HTCAPTION as _),
         util::MAKELPARAM(pos.x as i16, pos.y as i16),
-      );
+      )?;
     }
 
     Ok(())
@@ -660,7 +655,7 @@ impl Window {
           // Save window bounds before entering fullscreen
           let placement = unsafe {
             let mut placement = WINDOWPLACEMENT::default();
-            GetWindowPlacement(window.0, &mut placement);
+            let _ = GetWindowPlacement(window.0, &mut placement);
             placement
           };
 
@@ -678,7 +673,7 @@ impl Window {
           let size: (u32, u32) = monitor.size().into();
 
           unsafe {
-            SetWindowPos(
+            let _ = SetWindowPos(
               window.0,
               HWND::default(),
               position.0,
@@ -695,7 +690,7 @@ impl Window {
           if let Some(SavedWindow { placement }) = window_state_lock.saved_window.take() {
             drop(window_state_lock);
             unsafe {
-              SetWindowPlacement(window.0, &placement);
+              let _ = SetWindowPlacement(window.0, &placement);
               InvalidateRgn(window.0, HRGN::default(), false);
             }
           }
@@ -864,8 +859,8 @@ impl Window {
       let w_param = WPARAM(edge as _);
       let l_param = util::MAKELPARAM(x as i16, y as i16);
 
-      ReleaseCapture();
-      PostMessageW(self.hwnd(), button, w_param, l_param);
+      let _ = ReleaseCapture();
+      let _ = PostMessageW(self.hwnd(), button, w_param, l_param);
     }
   }
 
@@ -884,16 +879,16 @@ impl Window {
       if let Some(state) = progress.state {
         let taskbar_state = {
           match state {
-            ProgressState::None => 0,
-            ProgressState::Indeterminate => 1,
-            ProgressState::Normal => 2,
-            ProgressState::Error => 3,
-            ProgressState::Paused => 4,
+            ProgressState::None => TBPF_NOPROGRESS,
+            ProgressState::Indeterminate => TBPF_INDETERMINATE,
+            ProgressState::Normal => TBPF_NORMAL,
+            ProgressState::Error => TBPF_ERROR,
+            ProgressState::Paused => TBPF_PAUSED,
           }
         };
 
         taskbar_list
-          .SetProgressState(handle, TBPFLAG(taskbar_state))
+          .SetProgressState(handle, taskbar_state)
           .unwrap_or(());
       }
       if let Some(value) = progress.progress {
@@ -921,7 +916,7 @@ impl Window {
 
   pub fn set_content_protection(&self, enabled: bool) {
     unsafe {
-      SetWindowDisplayAffinity(
+      let _ = SetWindowDisplayAffinity(
         self.hwnd(),
         if enabled {
           WDA_EXCLUDEFROMCAPTURE
@@ -940,7 +935,7 @@ impl Drop for Window {
     unsafe {
       // The window must be destroyed from the same thread that created it, so we send a
       // custom message to be handled by our callback to do the actual work.
-      PostMessageW(self.window.0, *DESTROY_MSG_ID, WPARAM(0), LPARAM(0));
+      let _ = PostMessageW(self.window.0, *DESTROY_MSG_ID, WPARAM(0), LPARAM(0));
     }
   }
 }
@@ -1038,7 +1033,7 @@ unsafe fn init<T: 'static>(
   {
     let digitizer = GetSystemMetrics(SM_DIGITIZER) as u32;
     if digitizer & NID_READY != 0 {
-      RegisterTouchWindow(real_window.0, TWF_WANTPALM);
+      RegisterTouchWindow(real_window.0, TWF_WANTPALM)?;
     }
   }
 
@@ -1138,7 +1133,7 @@ unsafe fn register_window_class(window_classname: &str) -> Vec<u16> {
     lpfnWndProc: Some(window_proc),
     cbClsExtra: 0,
     cbWndExtra: 0,
-    hInstance: GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
+    hInstance: HINSTANCE(GetModuleHandleW(PCWSTR::null()).unwrap_or_default().0),
     hIcon: HICON::default(),
     hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
     hbrBackground: HBRUSH::default(),
@@ -1176,7 +1171,7 @@ unsafe extern "system" fn window_proc(
         }
 
         // adjust the maximized borderless window so it doesn't cover the taskbar
-        if util::is_maximized(window) {
+        if util::is_maximized(window).unwrap_or(false) {
           let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
           if let Ok(monitor_info) =
             monitor::get_monitor_info(MonitorFromRect(&params.rgrc[0], MONITOR_DEFAULTTONULL))
@@ -1313,7 +1308,7 @@ pub fn hit_test(hwnd: isize, cx: i32, cy: i32) -> LRESULT {
   let hwnd = HWND(hwnd);
   let mut window_rect = RECT::default();
   unsafe {
-    if GetWindowRect(hwnd, <*mut _>::cast(&mut window_rect)).as_bool() {
+    if GetWindowRect(hwnd, &mut window_rect).is_ok() {
       const CLIENT: isize = 0b0000;
       const LEFT: isize = 0b0001;
       const RIGHT: isize = 0b0010;

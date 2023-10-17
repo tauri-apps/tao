@@ -198,11 +198,7 @@ impl KeyEventBuilder {
             more_char_coming = false;
           } else {
             let next_msg = next_msg.assume_init().message;
-            if next_msg == WM_CHAR || next_msg == WM_SYSCHAR {
-              more_char_coming = true;
-            } else {
-              more_char_coming = false;
-            }
+            more_char_coming = next_msg == WM_CHAR || next_msg == WM_SYSCHAR;
           }
         }
 
@@ -708,7 +704,7 @@ fn ex_scancode_from_lparam(lparam: LPARAM) -> ExScancode {
 fn get_kbd_state() -> [u8; 256] {
   unsafe {
     let mut kbd_state: MaybeUninit<[u8; 256]> = MaybeUninit::uninit();
-    GetKeyboardState(&mut *kbd_state.as_mut_ptr());
+    let _ = GetKeyboardState(&mut *kbd_state.as_mut_ptr());
     kbd_state.assume_init()
   }
 }

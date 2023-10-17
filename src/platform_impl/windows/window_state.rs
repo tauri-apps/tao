@@ -305,7 +305,7 @@ impl WindowFlags {
 
     if diff.contains(WindowFlags::ALWAYS_ON_TOP) {
       unsafe {
-        SetWindowPos(
+        let _ = SetWindowPos(
           window,
           match new.contains(WindowFlags::ALWAYS_ON_TOP) {
             true => HWND_TOPMOST,
@@ -323,7 +323,7 @@ impl WindowFlags {
 
     if diff.contains(WindowFlags::ALWAYS_ON_BOTTOM) {
       unsafe {
-        SetWindowPos(
+        let _ = SetWindowPos(
           window,
           match new.contains(WindowFlags::ALWAYS_ON_BOTTOM) {
             true => HWND_BOTTOM,
@@ -417,7 +417,7 @@ impl WindowFlags {
         }
 
         // Refresh the window frame
-        SetWindowPos(window, HWND::default(), 0, 0, 0, 0, flags);
+        let _ = SetWindowPos(window, HWND::default(), 0, 0, 0, 0, flags);
         SendMessageW(
           window,
           *event_loop::SET_RETAIN_STATE_ON_SIZE_MSG_ID,

@@ -14,7 +14,6 @@ use std::{
 
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize},
-  error::ExternalError,
   window::CursorIcon,
 };
 
@@ -33,8 +32,6 @@ use windows::{
     },
   },
 };
-
-use super::OsError;
 
 pub fn has_flag<T>(bitset: T, flag: T) -> bool
 where
@@ -57,15 +54,6 @@ pub fn encode_wide(string: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {
   string.as_ref().encode_wide().chain(once(0)).collect()
 }
 
-pub unsafe fn status_map<T, F: FnMut(&mut T) -> BOOL>(mut fun: F) -> Option<T> {
-  let mut data: T = mem::zeroed();
-  if fun(&mut data).as_bool() {
-    Some(data)
-  } else {
-    None
-  }
-}
-
 fn win_to_err<F: FnOnce() -> BOOL>(f: F) -> Result<(), io::Error> {
   if f().as_bool() {
     Ok(())
@@ -74,8 +62,9 @@ fn win_to_err<F: FnOnce() -> BOOL>(f: F) -> Result<(), io::Error> {
   }
 }
 
-pub fn get_window_rect(hwnd: HWND) -> Option<RECT> {
-  unsafe { status_map(|rect| GetWindowRect(hwnd, rect)) }
+pub unsafe fn get_window_rect(hwnd: HWND) -> Option<RECT> {
+  let mut rect = std::mem::zeroed();
+  GetWindowRect(hwnd, &mut rect).ok().map(|_| rect)
 }
 
 pub fn get_client_rect(hwnd: HWND) -> Result<RECT, io::Error> {
@@ -84,7 +73,7 @@ pub fn get_client_rect(hwnd: HWND) -> Result<RECT, io::Error> {
 
   unsafe {
     win_to_err(|| ClientToScreen(hwnd, &mut top_left))?;
-    win_to_err(|| GetClientRect(hwnd, &mut rect))?;
+    GetClientRect(hwnd, &mut rect)?;
   }
 
   rect.left += top_left.x;
@@ -123,7 +112,7 @@ pub(crate) fn set_inner_size_physical(window: HWND, x: u32, y: u32, is_decorated
 
     let outer_x = (rect.right - rect.left).abs();
     let outer_y = (rect.top - rect.bottom).abs();
-    SetWindowPos(
+    let _ = SetWindowPos(
       window,
       HWND::default(),
       0,
@@ -155,23 +144,23 @@ pub fn adjust_window_rect_with_styles(
   hwnd: HWND,
   style: WINDOW_STYLE,
   style_ex: WINDOW_EX_STYLE,
-  rect: RECT,
+  mut rect: RECT,
 ) -> Option<RECT> {
-  unsafe {
-    status_map(|r| {
-      *r = rect;
+  let b_menu: BOOL = (!unsafe { GetMenu(hwnd) }.is_invalid()).into();
 
-      let b_menu: BOOL = (!GetMenu(hwnd).is_invalid()).into();
-
-      if let (Some(get_dpi_for_window), Some(adjust_window_rect_ex_for_dpi)) =
-        (*GET_DPI_FOR_WINDOW, *ADJUST_WINDOW_RECT_EX_FOR_DPI)
-      {
-        let dpi = get_dpi_for_window(hwnd);
-        adjust_window_rect_ex_for_dpi(r, style, b_menu, style_ex, dpi)
-      } else {
-        AdjustWindowRectEx(r, style, b_menu, style_ex)
-      }
-    })
+  if let (Some(get_dpi_for_window), Some(adjust_window_rect_ex_for_dpi)) =
+    (*GET_DPI_FOR_WINDOW, *ADJUST_WINDOW_RECT_EX_FOR_DPI)
+  {
+    let dpi = unsafe { get_dpi_for_window(hwnd) };
+    if unsafe { adjust_window_rect_ex_for_dpi(&mut rect, style, b_menu, style_ex, dpi) }.as_bool() {
+      Some(rect)
+    } else {
+      None
+    }
+  } else {
+    unsafe { AdjustWindowRectEx(&mut rect, style, b_menu, style_ex) }
+      .ok()
+      .map(|_| rect)
   }
 }
 
@@ -183,20 +172,20 @@ pub fn set_cursor_hidden(hidden: bool) {
   }
 }
 
-pub fn get_cursor_clip() -> Result<RECT, io::Error> {
+pub fn get_cursor_clip() -> windows::core::Result<RECT> {
   unsafe {
     let mut rect = RECT::default();
-    win_to_err(|| GetClipCursor(&mut rect)).map(|_| rect)
+    GetClipCursor(&mut rect).map(|_| rect)
   }
 }
 
 /// Sets the cursor's clip rect.
 ///
 /// Note that calling this will automatically dispatch a `WM_MOUSEMOVE` event.
-pub fn set_cursor_clip(rect: Option<RECT>) -> Result<(), io::Error> {
+pub fn set_cursor_clip(rect: Option<RECT>) -> windows::core::Result<()> {
   unsafe {
     let rect_ptr = rect.as_ref().map(|r| r as *const RECT);
-    win_to_err(|| ClipCursor(rect_ptr))
+    ClipCursor(rect_ptr)
   }
 }
 
@@ -221,25 +210,18 @@ pub fn is_visible(window: HWND) -> bool {
   unsafe { IsWindowVisible(window).as_bool() }
 }
 
-pub fn is_maximized(window: HWND) -> bool {
+pub fn is_maximized(window: HWND) -> windows::core::Result<bool> {
   let mut placement = WINDOWPLACEMENT {
     length: mem::size_of::<WINDOWPLACEMENT>() as u32,
     ..WINDOWPLACEMENT::default()
   };
-  unsafe {
-    GetWindowPlacement(window, &mut placement);
-  }
-  placement.showCmd == SW_MAXIMIZE
+  unsafe { GetWindowPlacement(window, &mut placement)? };
+  Ok(placement.showCmd == SW_MAXIMIZE.0 as u32)
 }
 
-pub fn cursor_position() -> Result<PhysicalPosition<f64>, ExternalError> {
+pub fn cursor_position() -> windows::core::Result<PhysicalPosition<f64>> {
   let mut pt = POINT { x: 0, y: 0 };
-  if !unsafe { GetCursorPos(&mut pt) }.as_bool() {
-    return Err(ExternalError::Os(os_error!(OsError::IoError(
-      io::Error::last_os_error()
-    ))));
-  }
-
+  unsafe { GetCursorPos(&mut pt)? };
   Ok((pt.x, pt.y).into())
 }
 
