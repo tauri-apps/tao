@@ -75,10 +75,10 @@ png = "0.17"
 parking_lot = "0.12"
 unicode-segmentation = "1.10"
 image = { version = "0.24", default-features = false }
-windows-implement = "0.48.0"
+windows-implement = "0.51"
 
   [target."cfg(target_os = \"windows\")".dependencies.windows]
-  version = "0.48.0"
+  version = "0.51"
   features = [
   "implement",
   "Win32_Devices_HumanInterfaceDevice",

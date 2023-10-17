@@ -111,6 +111,24 @@ impl std::fmt::Display for OsError {
   }
 }
 
+impl From<windows::core::Error> for OsError {
+  fn from(value: windows::core::Error) -> Self {
+    OsError::IoError(value.into())
+  }
+}
+
+impl From<windows::core::Error> for crate::error::OsError {
+  fn from(value: windows::core::Error) -> Self {
+    os_error!(OsError::IoError(value.into()))
+  }
+}
+
+impl From<windows::core::Error> for crate::error::ExternalError {
+  fn from(value: windows::core::Error) -> Self {
+    crate::error::ExternalError::Os(os_error!(OsError::IoError(value.into())))
+  }
+}
+
 // Constant device ID, to be removed when this backend is updated to report real device IDs.
 const DEVICE_ID: RootDeviceId = RootDeviceId(DeviceId(0));
 

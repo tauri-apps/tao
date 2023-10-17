@@ -56,8 +56,8 @@ impl FileDropHandler {
       .GetData(&drop_format)
     {
       Ok(medium) => {
-        let hglobal = medium.Anonymous.hGlobal;
-        let hdrop = HDROP(hglobal.0);
+        let hglobal = medium.u.hGlobal;
+        let hdrop = HDROP(hglobal.0 as _);
 
         // The second parameter (0xFFFFFFFF) instructs the function to return the item count
         let mut lpsz_file = [];

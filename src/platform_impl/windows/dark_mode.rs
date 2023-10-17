@@ -7,8 +7,7 @@ use once_cell::sync::Lazy;
 /// This is a simple implementation of support for Windows Dark Mode,
 /// which is inspired by the solution in https://github.com/ysc3839/win32-darkmode
 use windows::{
-  core::{s, PCSTR, PSTR},
-  w,
+  core::{s, w, PCSTR, PSTR},
   Win32::{
     Foundation::{BOOL, HANDLE, HMODULE, HWND},
     System::{LibraryLoader::*, SystemInformation::OSVERSIONINFOW},
@@ -242,12 +241,12 @@ fn refresh_titlebar_theme_color(hwnd: HWND) {
   if let Some(ver) = *WIN10_BUILD_VERSION {
     if ver < 18362 {
       unsafe {
-        SetPropW(
+        let _ = SetPropW(
           hwnd,
           w!("UseImmersiveDarkModeColors"),
           HANDLE(&mut is_dark_mode_bigbool as *mut _ as _),
-        )
-      };
+        );
+      }
     } else if let Some(set_window_composition_attribute) = *SET_WINDOW_COMPOSITION_ATTRIBUTE {
       let mut data = WINDOWCOMPOSITIONATTRIBDATA {
         Attrib: WCA_USEDARKMODECOLORS,
@@ -301,5 +300,5 @@ fn is_high_contrast() -> bool {
     )
   };
 
-  ok.as_bool() && (HCF_HIGHCONTRASTON & hc.dwFlags.0) != 0
+  ok.is_ok() && (HCF_HIGHCONTRASTON & hc.dwFlags.0) != 0
 }

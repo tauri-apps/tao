@@ -40,8 +40,8 @@ impl RgbaIcon {
         self.height as i32,
         1,
         (PIXEL_SIZE * 8) as u8,
-        and_mask.as_ptr() as *const u8,
-        rgba.as_ptr() as *const u8,
+        and_mask.as_ptr(),
+        rgba.as_ptr(),
       )
     };
     Ok(WinIcon::from_handle(
@@ -148,7 +148,7 @@ impl WinIcon {
 
 impl Drop for RaiiIcon {
   fn drop(&mut self) {
-    unsafe { DestroyIcon(self.handle) };
+    let _ = unsafe { DestroyIcon(self.handle) };
   }
 }
 

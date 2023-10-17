@@ -121,10 +121,7 @@ pub fn get_raw_input_device_name(handle: HANDLE) -> Option<String> {
 
 pub fn register_raw_input_devices(devices: &[RAWINPUTDEVICE]) -> bool {
   let device_size = size_of::<RAWINPUTDEVICE>() as u32;
-
-  let success = unsafe { RegisterRawInputDevices(devices, device_size) };
-
-  success.as_bool()
+  unsafe { RegisterRawInputDevices(devices, device_size) }.is_ok()
 }
 
 pub fn register_all_mice_and_keyboards_for_raw_input(
