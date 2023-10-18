@@ -1,5 +1,15 @@
 # Changelog
 
+## \[0.23.0]
+
+- [`cf22c902`](https://github.com/tauri-apps/tao/commit/cf22c902d4c961be0f6cfba6a8c865e11073b027)([#85](https://github.com/tauri-apps/tao/pull/85)) **Breaking change**: Removed clipboard implementation. Use `arboard` crate instead.
+- [`081ba16a`](https://github.com/tauri-apps/tao/commit/081ba16a39066039dea9e5ee3f223056629ed28f)([#800](https://github.com/tauri-apps/tao/pull/800)) Fix `Window::theme` may return a theme different from the actual window's theme on Linux.
+- [`32ce759e`](https://github.com/tauri-apps/tao/commit/32ce759e4e2eb8c8cfd67a538f9a46c11f4f91dd)([#801](https://github.com/tauri-apps/tao/pull/801)) Updated to gtk 0.18 and Bump MSRV to 1.70.0.
+- [`f569bbab`](https://github.com/tauri-apps/tao/commit/f569bbabda0af38595320fc64f8e645cde1bb9ef)([#815](https://github.com/tauri-apps/tao/pull/815)) Fix `Window::current_monitor` sometimes panicking on Linux when the window is invisible.
+- [`7e854cb1`](https://github.com/tauri-apps/tao/commit/7e854cb1f5206b63cdd4a08c17bb35be58736e43)([#817](https://github.com/tauri-apps/tao/pull/817)) On Windows, fix incorrect delta reported for `DeviceEvent::MouseWheel` event.
+- [`7e854cb1`](https://github.com/tauri-apps/tao/commit/7e854cb1f5206b63cdd4a08c17bb35be58736e43)([#817](https://github.com/tauri-apps/tao/pull/817)) On Windows, fix `Window::set_progress_bar` incorrect states.
+- [`7e854cb1`](https://github.com/tauri-apps/tao/commit/7e854cb1f5206b63cdd4a08c17bb35be58736e43)([#817](https://github.com/tauri-apps/tao/pull/817)) Update `windows` and `windows-implement` crate to `0.51`
+
 ## \[0.22.3]
 
 - [`dabfed7d`](https://github.com/tauri-apps/tao/commit/dabfed7dc34eb60c796561961103e768f1d53689)([#802](https://github.com/tauri-apps/tao/pull/802)) Fixes set size APIs crashing on Linux.
