@@ -54,7 +54,7 @@ use objc::{
   runtime::{Class, Object, Sel, BOOL, NO, YES},
 };
 
-use super::{util::ns_string_to_rust, Menu};
+use super::{util::ns_string_to_rust, view::ViewState};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Id(pub usize);
@@ -120,6 +120,12 @@ unsafe fn create_view(
   ns_view.non_nil().map(|ns_view| {
     if !pl_attribs.disallow_hidpi {
       ns_view.setWantsBestResolutionOpenGLSurface_(YES);
+    }
+
+    if let Some(offset) = pl_attribs.traffic_light_inset {
+      let state_ptr: *mut c_void = *(**ns_view).get_ivar("taoState");
+      let state = &mut *(state_ptr as *mut ViewState);
+      state.traffic_light_inset = Some(offset);
     }
 
     // On Mojave, views automatically become layer-backed shortly after being added to
@@ -261,10 +267,6 @@ fn create_window(
       }
       if let Some(window_menu) = attrs.window_menu.clone() {
         menu::initialize(window_menu);
-      }
-
-      if let Some((offset_x, offset_y)) = pl_attrs.traffic_light_inset {
-        position_traffic_lights(*ns_window, offset_x, offset_y);
       }
 
       ns_window
@@ -1331,11 +1333,6 @@ impl WindowExtMacOS for UnownedWindow {
   }
 
   #[inline]
-  fn set_traffic_light_inset(&self, inset: LogicalSize<f64>) {
-    unsafe { position_traffic_lights(*self.ns_window, inset.width, inset.height) };
-  }
-
-  #[inline]
   fn has_shadow(&self) -> bool {
     unsafe { self.ns_window.hasShadow() == YES }
   }
@@ -1405,29 +1402,5 @@ unsafe fn set_max_inner_size<V: NSWindow + Copy>(window: V, mut max_size: Logica
     current_rect.origin.y += current_rect.size.height - max_size.height;
     current_rect.size.height = max_size.height;
     window.setFrame_display_(current_rect, NO)
-  }
-}
-
-unsafe fn position_traffic_lights<W: NSWindow + Copy>(window: W, x: f64, y: f64) {
-  let close = window.standardWindowButton_(NSWindowButton::NSWindowCloseButton);
-  let miniaturize = window.standardWindowButton_(NSWindowButton::NSWindowMiniaturizeButton);
-  let zoom = window.standardWindowButton_(NSWindowButton::NSWindowZoomButton);
-
-  let title_bar_container_view = close.superview().superview();
-
-  let close_rect = NSView::frame(close);
-  let title_bar_frame_height = close_rect.size.height + y;
-  let mut title_bar_rect = NSView::frame(title_bar_container_view);
-  title_bar_rect.size.height = title_bar_frame_height;
-  title_bar_rect.origin.y = window.frame().size.height - title_bar_frame_height;
-  let _: () = msg_send![title_bar_container_view, setFrame: title_bar_rect];
-
-  let window_buttons = vec![close, miniaturize, zoom];
-  let space_between = NSView::frame(miniaturize).origin.x - close_rect.origin.x;
-
-  for (i, button) in window_buttons.into_iter().enumerate() {
-    let mut rect = NSView::frame(button);
-    rect.origin.x = x + (i as f64 * space_between);
-    button.setFrameOrigin(rect.origin);
   }
 }
