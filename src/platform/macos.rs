@@ -81,6 +81,9 @@ pub trait WindowExtMacOS {
 
   /// Returns the window's tabbing identifier.
   fn tabbing_identifier(&self) -> String;
+
+  /// Set the window traffic light position to (x, y) relative to the upper left corner
+  fn set_traffic_light_position(&self, position: (f64, f64));
 }
 
 impl WindowExtMacOS for Window {
@@ -147,6 +150,11 @@ impl WindowExtMacOS for Window {
   #[inline]
   fn tabbing_identifier(&self) -> String {
     self.window.tabbing_identifier()
+  }
+
+  #[inline]
+  fn set_traffic_light_position(&self, position: (f64, f64)) {
+    self.window.set_traffic_light_position(position)
   }
 }
 

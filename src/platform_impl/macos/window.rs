@@ -1345,6 +1345,64 @@ impl WindowExtMacOS for UnownedWindow {
         .setHasShadow_(if has_shadow { YES } else { NO })
     }
   }
+
+  #[inline]
+  fn set_is_document_edited(&self, edited: bool) {
+    unsafe {
+      self
+        .ns_window
+        .setDocumentEdited_(if edited { YES } else { NO })
+    }
+  }
+
+  #[inline]
+  fn is_document_edited(&self) -> bool {
+    unsafe {
+      let is_document_edited: BOOL = msg_send![*self.ns_window, isDocumentEdited];
+      is_document_edited == YES
+    }
+  }
+
+  #[inline]
+  fn set_allows_automatic_window_tabbing(&self, enabled: bool) {
+    unsafe {
+      NSWindow::setAllowsAutomaticWindowTabbing_(*self.ns_window, if enabled { YES } else { NO })
+    }
+  }
+
+  #[inline]
+  fn allows_automatic_window_tabbing(&self) -> bool {
+    unsafe {
+      let allows_tabbing: BOOL = NSWindow::allowsAutomaticWindowTabbing(*self.ns_window);
+      allows_tabbing == YES
+    }
+  }
+
+  #[inline]
+  fn set_tabbing_identifier(&self, identifier: &str) {
+    unsafe {
+      let _: () =
+        msg_send![*self.ns_window, setTabbingIdentifier: NSString::alloc(nil).init_str(identifier)];
+    }
+  }
+
+  #[inline]
+  fn tabbing_identifier(&self) -> String {
+    unsafe {
+      let tabbing_identifier = NSWindow::tabbingIdentifier(*self.ns_window);
+      ns_string_to_rust(tabbing_identifier)
+    }
+  }
+
+  #[inline]
+  fn set_traffic_light_position(&self, position: (f64, f64)) {
+    // NOTE: Not sure if &self shouldn't be &mut self
+    unsafe {
+      let state_ptr: *mut c_void = *(**self.ns_view).get_ivar("taoState");
+      let state = &mut *(state_ptr as *mut ViewState);
+      state.traffic_light_inset = Some(position);
+    }
+  }
 }
 
 impl Drop for UnownedWindow {
