@@ -15,8 +15,11 @@ repository = "https://github.com/tauri-apps/tao"
 documentation = "https://docs.rs/tao"
 categories = [ "gui" ]
 
+[features]
+default = ["rwh_06"]
+
 [package.metadata.docs.rs]
-features = [ "serde" ]
+features = ["rwh_04", "rwh_05", "rwh_06", "serde"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
   "i686-pc-windows-msvc",
@@ -29,9 +32,6 @@ targets = [
 [workspace]
 members = [ "tao-macros" ]
 
-[features]
-default = [ ]
-
 [build-dependencies]
 cc = "1"
 
@@ -41,7 +41,9 @@ lazy_static = "1"
 libc = "0.2"
 log = "0.4"
 serde = { version = "1", optional = true, features = [ "serde_derive" ] }
-raw-window-handle = "0.5"
+rwh_04 = { package = "raw-window-handle", version = "0.4", optional = true }
+rwh_05 = { package = "raw-window-handle", version = "0.5", features = ["std"], optional = true }
+rwh_06 = { package = "raw-window-handle", version = "0.6", features = ["std"], optional = true }
 bitflags = "1"
 crossbeam-channel = "0.5"
 url = "2"
@@ -110,18 +112,10 @@ windows-implement = "0.51"
 ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-cairo-rs = "0.18"
-gio = "0.18"
-glib = "0.18"
-glib-sys = "0.18"
 gtk = "0.18"
-gdk = "0.18"
-gdk-sys = "0.18"
 gdkx11-sys = "0.18"
 gdkwayland-sys = "0.18.0"
-gdk-pixbuf = "0.18"
 x11-dl = "2.21"
 zbus = "3"
-uuid = { version = "1.5", features = [ "v4" ] }
 png = "0.17"
 parking_lot = "0.12"

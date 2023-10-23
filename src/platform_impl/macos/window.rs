@@ -13,10 +13,6 @@ use std::{
   },
 };
 
-use raw_window_handle::{
-  AppKitDisplayHandle, AppKitWindowHandle, RawDisplayHandle, RawWindowHandle,
-};
-
 use crate::{
   dpi::{
     LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size, Size::Logical,
@@ -1364,17 +1360,46 @@ impl UnownedWindow {
     Some(RootMonitorHandle { inner: monitor })
   }
 
+  #[cfg(feature = "rwh_04")]
   #[inline]
-  pub fn raw_window_handle(&self) -> RawWindowHandle {
-    let mut window_handle = AppKitWindowHandle::empty();
-    window_handle.ns_window = *self.ns_window as *mut _;
-    window_handle.ns_view = *self.ns_view as *mut _;
-    RawWindowHandle::AppKit(window_handle)
+  pub fn raw_window_handle_rwh_04(&self) -> rwh_04::RawWindowHandle {
+    let mut window_handle = rwh_04::AppKitHandle::empty();
+    window_handle.ns_window = self.ns_window();
+    window_handle.ns_view = self.ns_view();
+    rwh_04::RawWindowHandle::AppKit(window_handle)
   }
 
+  #[cfg(feature = "rwh_05")]
   #[inline]
-  pub fn raw_display_handle(&self) -> RawDisplayHandle {
-    RawDisplayHandle::AppKit(AppKitDisplayHandle::empty())
+  pub fn raw_window_handle_rwh_05(&self) -> rwh_05::RawWindowHandle {
+    let mut window_handle = rwh_05::AppKitWindowHandle::empty();
+    window_handle.ns_window = self.ns_window();
+    window_handle.ns_view = self.ns_view();
+    rwh_05::RawWindowHandle::AppKit(window_handle)
+  }
+
+  #[cfg(feature = "rwh_05")]
+  #[inline]
+  pub fn raw_display_handle_rwh_05(&self) -> rwh_05::RawDisplayHandle {
+    rwh_05::RawDisplayHandle::AppKit(rwh_05::AppKitDisplayHandle::empty())
+  }
+
+  #[cfg(feature = "rwh_06")]
+  #[inline]
+  pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
+    let window_handle = rwh_06::AppKitWindowHandle::new({
+      let ptr = self.ns_view();
+      std::ptr::NonNull::new(ptr).expect("Id<T> should never be null")
+    });
+    Ok(rwh_06::RawWindowHandle::AppKit(window_handle))
+  }
+
+  #[cfg(feature = "rwh_06")]
+  #[inline]
+  pub fn raw_display_handle_rwh_06(&self) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
+    Ok(rwh_06::RawDisplayHandle::AppKit(
+      rwh_06::AppKitDisplayHandle::new(),
+    ))
   }
 
   #[inline]

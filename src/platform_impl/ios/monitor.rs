@@ -169,6 +169,7 @@ impl Drop for MonitorHandle {
 impl fmt::Debug for MonitorHandle {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     #[derive(Debug)]
+    #[allow(unused)]
     struct MonitorHandle {
       name: Option<String>,
       size: PhysicalSize<u32>,

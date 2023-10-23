@@ -15,11 +15,9 @@ use std::{
 use cairo::{RectangleInt, Region};
 use crossbeam_channel::SendError;
 use gdk::{Cursor, CursorType, EventKey, EventMask, ScrollDirection, WindowEdge, WindowState};
-use gio::{prelude::*, Cancellable};
+use gio::Cancellable;
 use glib::{source::Priority, MainContext};
-use gtk::prelude::*;
-
-use raw_window_handle::{RawDisplayHandle, WaylandDisplayHandle, XlibDisplayHandle};
+use gtk::{cairo, gdk, gio, glib, prelude::*};
 
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition},
@@ -86,15 +84,16 @@ impl<T> EventLoopWindowTarget<T> {
     })
   }
 
-  pub fn raw_display_handle(&self) -> RawDisplayHandle {
+  #[cfg(feature = "rwh_05")]
+  pub fn raw_display_handle_rwh_05(&self) -> rwh_05::RawDisplayHandle {
     if self.is_wayland() {
-      let mut display_handle = WaylandDisplayHandle::empty();
+      let mut display_handle = rwh_05::WaylandDisplayHandle::empty();
       display_handle.display = unsafe {
         gdk_wayland_sys::gdk_wayland_display_get_wl_display(self.display.as_ptr() as *mut _)
       };
-      RawDisplayHandle::Wayland(display_handle)
+      rwh_05::RawDisplayHandle::Wayland(display_handle)
     } else {
-      let mut display_handle = XlibDisplayHandle::empty();
+      let mut display_handle = rwh_05::XlibDisplayHandle::empty();
       unsafe {
         if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
           let display = (xlib.XOpenDisplay)(std::ptr::null());
@@ -103,7 +102,31 @@ impl<T> EventLoopWindowTarget<T> {
         }
       }
 
-      RawDisplayHandle::Xlib(display_handle)
+      rwh_05::RawDisplayHandle::Xlib(display_handle)
+    }
+  }
+
+  #[cfg(feature = "rwh_06")]
+  pub fn raw_display_handle_rwh_06(&self) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
+    if self.is_wayland() {
+      let display = unsafe {
+        gdk_wayland_sys::gdk_wayland_display_get_wl_display(self.display.as_ptr() as *mut _)
+      };
+      let display = unsafe { std::ptr::NonNull::new_unchecked(display) };
+      let display_handle = rwh_06::WaylandDisplayHandle::new(display);
+      Ok(rwh_06::RawDisplayHandle::Wayland(display_handle))
+    } else {
+      unsafe {
+        if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
+          let display = (xlib.XOpenDisplay)(std::ptr::null());
+          let screen = (xlib.XDefaultScreen)(display) as _;
+          let display = std::ptr::NonNull::new_unchecked(display as _);
+          let display_handle = rwh_06::XlibDisplayHandle::new(Some(display), screen);
+          Ok(rwh_06::RawDisplayHandle::Xlib(display_handle))
+        } else {
+          Err(rwh_06::HandleError::Unavailable)
+        }
+      }
     }
   }
 
@@ -239,7 +262,7 @@ impl<T: 'static> EventLoop<T> {
             }
           }
           WindowRequest::Focus => {
-            window.present_with_time(gdk_sys::GDK_CURRENT_TIME as _);
+            window.present_with_time(gdk::ffi::GDK_CURRENT_TIME as _);
           }
           WindowRequest::Resizable(resizable) => window.set_resizable(resizable),
           WindowRequest::Closable(closable) => window.set_deletable(closable),

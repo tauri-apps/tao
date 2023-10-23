@@ -3,6 +3,7 @@ use std::{
   ptr,
 };
 
+use gtk::glib;
 use x11_dl::{xinput2, xlib};
 
 use crate::event::{DeviceEvent, ElementState, RawKeyEvent};

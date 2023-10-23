@@ -2,7 +2,6 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use raw_window_handle::{RawDisplayHandle, RawWindowHandle, UiKitDisplayHandle, UiKitWindowHandle};
 use std::{
   collections::VecDeque,
   ops::{Deref, DerefMut},
@@ -374,7 +373,7 @@ impl Inner {
   }
 
   #[inline]
-  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<RootMonitorHandle> {
+  pub fn monitor_from_point(&self, _x: f64, _y: f64) -> Option<RootMonitorHandle> {
     warn!("`Window::monitor_from_point` is ignored on iOS");
     None
   }
@@ -388,16 +387,43 @@ impl Inner {
     self.window.into()
   }
 
-  pub fn raw_window_handle(&self) -> RawWindowHandle {
-    let mut window_handle = UiKitWindowHandle::empty();
+  #[cfg(feature = "rwh_04")]
+  pub fn raw_window_handle_rwh_04(&self) -> rwh_04::RawWindowHandle {
+    let mut window_handle = rwh_04::UiKitHandle::empty();
     window_handle.ui_window = self.window as _;
     window_handle.ui_view = self.view as _;
     window_handle.ui_view_controller = self.view_controller as _;
-    RawWindowHandle::UiKit(window_handle)
+    rwh_04::RawWindowHandle::UiKit(window_handle)
   }
 
-  pub fn raw_display_handle(&self) -> RawDisplayHandle {
-    RawDisplayHandle::UiKit(UiKitDisplayHandle::empty())
+  #[cfg(feature = "rwh_05")]
+  pub fn raw_window_handle_rwh_05(&self) -> rwh_05::RawWindowHandle {
+    let mut window_handle = rwh_05::UiKitWindowHandle::empty();
+    window_handle.ui_window = self.window as _;
+    window_handle.ui_view = self.view as _;
+    window_handle.ui_view_controller = self.view_controller as _;
+    rwh_05::RawWindowHandle::UiKit(window_handle)
+  }
+
+  #[cfg(feature = "rwh_05")]
+  pub fn raw_display_handle_rwh_05(&self) -> rwh_05::RawDisplayHandle {
+    rwh_05::RawDisplayHandle::UiKit(rwh_05::UiKitDisplayHandle::empty())
+  }
+
+  #[cfg(feature = "rwh_06")]
+  pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
+    let mut window_handle = rwh_06::UiKitWindowHandle::new({
+      std::ptr::NonNull::new(self.view as _).expect("self.view should never be null")
+    });
+    window_handle.ui_view_controller = std::ptr::NonNull::new(self.view_controller as _);
+    Ok(rwh_06::RawWindowHandle::UiKit(window_handle))
+  }
+
+  #[cfg(feature = "rwh_06")]
+  pub fn raw_display_handle_rwh_06(&self) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
+    Ok(rwh_06::RawDisplayHandle::UiKit(
+      rwh_06::UiKitDisplayHandle::new(),
+    ))
   }
 
   pub fn theme(&self) -> Theme {

@@ -91,7 +91,7 @@ pub use self::{
   window::{PlatformSpecificWindowBuilderAttributes, Window, WindowId},
 };
 
-pub(crate) use crate::icon::{Icon, NoIcon as PlatformIcon};
+pub(crate) use crate::icon::NoIcon as PlatformIcon;
 
 // todo: implement iOS keyboard event
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]

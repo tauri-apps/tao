@@ -150,6 +150,13 @@
 #[cfg(target_os = "android")]
 pub use tao_macros::{android_fn, generate_package_name};
 
+#[cfg(feature = "rwh_04")]
+pub use rwh_04 as raw_window_handle;
+#[cfg(feature = "rwh_05")]
+pub use rwh_05 as raw_window_handle;
+#[cfg(feature = "rwh_06")]
+pub use rwh_06 as raw_window_handle;
+
 #[allow(unused_imports)]
 #[macro_use]
 extern crate lazy_static;
