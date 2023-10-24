@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.16.5]
+
+- [`496cbb7c`](https://github.com/tauri-apps/tao/commit/496cbb7cedb3e0020d5c7552ee36a20cd6cd0ad7)([#827](https://github.com/tauri-apps/tao/pull/827)) Fix documentation build for macOS.
+
 ## \[0.16.4]
 
 - [`e10d493a`](https://github.com/tauri-apps/tao/commit/e10d493ac6bb1b4d854bb4bde8c9d2fc9ba4d519)([#795](https://github.com/tauri-apps/tao/pull/795)) Fixes `set_menu` SystemTray implementation on macOS.
