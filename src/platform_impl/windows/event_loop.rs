@@ -8,7 +8,6 @@ mod runner;
 
 use crossbeam_channel::{self as channel, Receiver, Sender};
 use parking_lot::Mutex;
-use raw_window_handle::{RawDisplayHandle, WindowsDisplayHandle};
 use std::{
   cell::Cell,
   collections::VecDeque,
@@ -311,8 +310,16 @@ impl<T> EventLoopWindowTarget<T> {
     monitor::from_point(x, y)
   }
 
-  pub fn raw_display_handle(&self) -> RawDisplayHandle {
-    RawDisplayHandle::Windows(WindowsDisplayHandle::empty())
+  #[cfg(feature = "rwh_05")]
+  pub fn raw_display_handle_rwh_05(&self) -> rwh_05::RawDisplayHandle {
+    rwh_05::RawDisplayHandle::Windows(rwh_05::WindowsDisplayHandle::empty())
+  }
+
+  #[cfg(feature = "rwh_06")]
+  pub fn raw_display_handle_rwh_06(&self) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
+    Ok(rwh_06::RawDisplayHandle::Windows(
+      rwh_06::WindowsDisplayHandle::new(),
+    ))
   }
 
   pub fn set_device_event_filter(&self, filter: DeviceEventFilter) {

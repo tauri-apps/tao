@@ -7,7 +7,10 @@ use crate::{
   event::{ElementState, KeyEvent},
   keyboard::{Key, KeyCode, KeyLocation, ModifiersState, NativeKeyCode},
 };
-use gdk::{keys::constants::*, EventKey};
+use gtk::{
+  gdk::{self, keys::constants::*, EventKey},
+  glib,
+};
 use std::{
   collections::HashSet,
   ffi::c_void,
@@ -235,17 +238,17 @@ pub(crate) fn make_key_event(
 fn hardware_keycode_to_keyval(keycode: u16) -> Option<RawKey> {
   use glib::translate::FromGlib;
   unsafe {
-    let keymap = gdk_sys::gdk_keymap_get_default();
+    let keymap = gdk::ffi::gdk_keymap_get_default();
 
     let mut nkeys = 0;
-    let mut keys: *mut gdk_sys::GdkKeymapKey = ptr::null_mut();
+    let mut keys: *mut gdk::ffi::GdkKeymapKey = ptr::null_mut();
     let mut keyvals: *mut c_uint = ptr::null_mut();
 
     // call into gdk to retrieve the keyvals and keymap keys
-    gdk_sys::gdk_keymap_get_entries_for_keycode(
+    gdk::ffi::gdk_keymap_get_entries_for_keycode(
       keymap,
       c_uint::from(keycode),
-      &mut keys as *mut *mut gdk_sys::GdkKeymapKey,
+      &mut keys as *mut *mut gdk::ffi::GdkKeymapKey,
       &mut keyvals as *mut *mut c_uint,
       &mut nkeys as *mut c_int,
     );
@@ -263,8 +266,8 @@ fn hardware_keycode_to_keyval(keycode: u16) -> Option<RawKey> {
       });
 
       // notify glib to free the allocated arrays
-      glib_sys::g_free(keyvals as *mut c_void);
-      glib_sys::g_free(keys as *mut c_void);
+      glib::ffi::g_free(keyvals as *mut c_void);
+      glib::ffi::g_free(keys as *mut c_void);
 
       return resolved_keyval;
     }

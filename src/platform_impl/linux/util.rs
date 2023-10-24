@@ -1,4 +1,5 @@
-use gdk::{
+use gtk::gdk::{
+  self,
   prelude::{DeviceExt, SeatExt},
   Display,
 };

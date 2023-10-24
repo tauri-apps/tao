@@ -5,8 +5,6 @@
 //! The `Window` struct and associated types.
 use std::fmt;
 
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
-
 use crate::{
   dpi::{LogicalSize, PhysicalPosition, PhysicalSize, Pixel, PixelUnit, Position, Size},
   error::{ExternalError, NotSupportedError, OsError},
@@ -1271,28 +1269,45 @@ impl Window {
   }
 }
 
-// Safety: objc runtime calls are unsafe
-unsafe impl HasRawWindowHandle for Window {
-  /// Returns a `raw_window_handle::RawWindowHandle` for the Window
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Android:** Only available after receiving the Resumed event and before Suspended. *If you*
-  /// *try to get the handle outside of that period, this function will panic*!
-  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    self.window.raw_window_handle()
+#[cfg(feature = "rwh_04")]
+unsafe impl rwh_04::HasRawWindowHandle for Window {
+  fn raw_window_handle(&self) -> rwh_04::RawWindowHandle {
+    self.window.raw_window_handle_rwh_04()
   }
 }
 
-unsafe impl HasRawDisplayHandle for Window {
-  /// Returns a [`raw_window_handle::RawDisplayHandle`] used by the [`EventLoop`] that
-  /// created a window.
-  ///
-  /// [`EventLoop`]: crate::event_loop::EventLoop
-  fn raw_display_handle(&self) -> RawDisplayHandle {
-    self.window.raw_display_handle()
+#[cfg(feature = "rwh_05")]
+unsafe impl rwh_05::HasRawWindowHandle for Window {
+  fn raw_window_handle(&self) -> rwh_05::RawWindowHandle {
+    self.window.raw_window_handle_rwh_05()
   }
 }
+
+#[cfg(feature = "rwh_05")]
+unsafe impl rwh_05::HasRawDisplayHandle for Window {
+  fn raw_display_handle(&self) -> rwh_05::RawDisplayHandle {
+    self.window.raw_display_handle_rwh_05()
+  }
+}
+
+#[cfg(feature = "rwh_06")]
+impl rwh_06::HasWindowHandle for Window {
+  fn window_handle(&self) -> Result<rwh_06::WindowHandle<'_>, rwh_06::HandleError> {
+    let raw = self.window.raw_window_handle_rwh_06()?;
+    // SAFETY: The window handle will never be deallocated while the window is alive.
+    Ok(unsafe { rwh_06::WindowHandle::borrow_raw(raw) })
+  }
+}
+
+#[cfg(feature = "rwh_06")]
+impl rwh_06::HasDisplayHandle for Window {
+  fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
+    let raw = self.window.raw_display_handle_rwh_06()?;
+    // SAFETY: The window handle will never be deallocated while the window is alive.
+    Ok(unsafe { rwh_06::DisplayHandle::borrow_raw(raw) })
+  }
+}
+
 /// Describes the appearance of the mouse cursor.
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]

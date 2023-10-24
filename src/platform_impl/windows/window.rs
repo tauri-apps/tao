@@ -6,9 +6,6 @@
 
 use mem::MaybeUninit;
 use parking_lot::Mutex;
-use raw_window_handle::{
-  RawDisplayHandle, RawWindowHandle, Win32WindowHandle, WindowsDisplayHandle,
-};
 use std::{
   cell::{Cell, RefCell},
   ffi::OsStr,
@@ -360,17 +357,51 @@ impl Window {
     util::get_instance_handle()
   }
 
+  #[cfg(feature = "rwh_04")]
   #[inline]
-  pub fn raw_window_handle(&self) -> RawWindowHandle {
-    let mut window_handle = Win32WindowHandle::empty();
+  pub fn raw_window_handle_rwh_04(&self) -> rwh_04::RawWindowHandle {
+    let mut window_handle = rwh_04::Win32Handle::empty();
     window_handle.hwnd = self.window.0 .0 as *mut _;
-    window_handle.hinstance = self.hinstance().0 as *mut _;
-    RawWindowHandle::Win32(window_handle)
+    let hinstance = util::GetWindowLongPtrW(self.hwnd(), GWLP_HINSTANCE);
+    window_handle.hinstance = hinstance as *mut _;
+    rwh_04::RawWindowHandle::Win32(window_handle)
   }
 
+  #[cfg(feature = "rwh_05")]
   #[inline]
-  pub fn raw_display_handle(&self) -> RawDisplayHandle {
-    RawDisplayHandle::Windows(WindowsDisplayHandle::empty())
+  pub fn raw_window_handle_rwh_05(&self) -> rwh_05::RawWindowHandle {
+    let mut window_handle = rwh_05::Win32WindowHandle::empty();
+    window_handle.hwnd = self.window.0 .0 as *mut _;
+    let hinstance = util::GetWindowLongPtrW(self.hwnd(), GWLP_HINSTANCE);
+    window_handle.hinstance = hinstance as *mut _;
+    rwh_05::RawWindowHandle::Win32(window_handle)
+  }
+
+  #[cfg(feature = "rwh_05")]
+  #[inline]
+  pub fn raw_display_handle_rwh_05(&self) -> rwh_05::RawDisplayHandle {
+    rwh_05::RawDisplayHandle::Windows(rwh_05::WindowsDisplayHandle::empty())
+  }
+
+  #[cfg(feature = "rwh_06")]
+  #[inline]
+  pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
+    let mut window_handle = rwh_06::Win32WindowHandle::new(unsafe {
+      // SAFETY: Handle will never be zero.
+      let window = self.window.0 .0;
+      std::num::NonZeroIsize::new_unchecked(window)
+    });
+    let hinstance = util::GetWindowLongPtrW(self.hwnd(), GWLP_HINSTANCE);
+    window_handle.hinstance = std::num::NonZeroIsize::new(hinstance);
+    Ok(rwh_06::RawWindowHandle::Win32(window_handle))
+  }
+
+  #[cfg(feature = "rwh_06")]
+  #[inline]
+  pub fn raw_display_handle_rwh_06(&self) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
+    Ok(rwh_06::RawDisplayHandle::Windows(
+      rwh_06::WindowsDisplayHandle::new(),
+    ))
   }
 
   #[inline]

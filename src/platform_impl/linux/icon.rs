@@ -4,7 +4,7 @@
 
 use std::{fs::File, io::BufWriter, path::Path};
 
-use gdk_pixbuf::{Colorspace, Pixbuf};
+use gtk::gdk_pixbuf::{Colorspace, Pixbuf};
 
 use crate::window::BadIcon;
 
@@ -21,7 +21,7 @@ impl From<PlatformIcon> for Pixbuf {
   fn from(icon: PlatformIcon) -> Self {
     Pixbuf::from_mut_slice(
       icon.raw,
-      gdk_pixbuf::Colorspace::Rgb,
+      Colorspace::Rgb,
       true,
       8,
       icon.width,

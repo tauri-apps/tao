@@ -14,7 +14,6 @@
 //! [event_loop_proxy]: crate::event_loop::EventLoopProxy
 //! [send_event]: crate::event_loop::EventLoopProxy::send_event
 use instant::Instant;
-use raw_window_handle::{HasRawDisplayHandle, RawDisplayHandle};
 use std::{error, fmt, marker::PhantomData, ops::Deref};
 
 use crate::{
@@ -299,10 +298,33 @@ impl<T> EventLoopWindowTarget<T> {
   }
 }
 
-unsafe impl<T> HasRawDisplayHandle for EventLoopWindowTarget<T> {
-  /// Returns a [`raw_window_handle::RawDisplayHandle`] for the event loop.
-  fn raw_display_handle(&self) -> RawDisplayHandle {
-    self.p.raw_display_handle()
+#[cfg(feature = "rwh_05")]
+unsafe impl<T> rwh_05::HasRawDisplayHandle for EventLoop<T> {
+  fn raw_display_handle(&self) -> rwh_05::RawDisplayHandle {
+    rwh_05::HasRawDisplayHandle::raw_display_handle(&**self)
+  }
+}
+
+#[cfg(feature = "rwh_06")]
+impl<T> rwh_06::HasDisplayHandle for EventLoop<T> {
+  fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
+    rwh_06::HasDisplayHandle::display_handle(&**self)
+  }
+}
+
+#[cfg(feature = "rwh_05")]
+unsafe impl<T> rwh_05::HasRawDisplayHandle for EventLoopWindowTarget<T> {
+  fn raw_display_handle(&self) -> rwh_05::RawDisplayHandle {
+    self.p.raw_display_handle_rwh_05()
+  }
+}
+
+#[cfg(feature = "rwh_06")]
+impl<T> rwh_06::HasDisplayHandle for EventLoopWindowTarget<T> {
+  fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
+    let raw = self.p.raw_display_handle_rwh_06()?;
+    // SAFETY: The display will never be deallocated while the event loop is alive.
+    Ok(unsafe { rwh_06::DisplayHandle::borrow_raw(raw) })
   }
 }
 
