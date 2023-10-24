@@ -251,6 +251,7 @@ pub const kUCKeyActionDisplay: u16 = 3;
 #[allow(non_upper_case_globals)]
 pub const kUCKeyTranslateNoDeadKeysMask: OptionBits = 1;
 
+#[cfg(not(feature = "dox"))]
 #[link(name = "Carbon", kind = "framework")]
 extern "C" {
   pub static kTISPropertyUnicodeKeyLayoutData: CFStringRef;
