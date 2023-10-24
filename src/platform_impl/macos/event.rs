@@ -59,6 +59,7 @@ pub struct KeyEventExtra {
   pub key_without_modifiers: Key<'static>,
 }
 
+#[cfg(not(feature = "dox"))]
 pub fn get_modifierless_char(scancode: u16) -> Key<'static> {
   let mut string = [0; 16];
   let input_source;
@@ -165,7 +166,14 @@ pub fn create_key_event(
     key_without_modifiers = key_from_code;
   } else {
     //#[cfg(debug_assertions)] println!("Couldn't get key from code: {:?}", physical_key);
-    key_without_modifiers = get_modifierless_char(scancode);
+    #[cfg(feature = "dox")]
+    {
+      key_without_modifiers = key_from_code;
+    }
+    #[cfg(not(feature = "dox"))]
+    {
+      key_without_modifiers = get_modifierless_char(scancode);
+    }
 
     let modifiers = unsafe { NSEvent::modifierFlags(ns_event) };
     let has_alt = modifiers.contains(NSEventModifierFlags::NSAlternateKeyMask);
