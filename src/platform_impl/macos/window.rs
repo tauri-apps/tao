@@ -1396,7 +1396,6 @@ impl WindowExtMacOS for UnownedWindow {
 
   #[inline]
   fn set_traffic_light_position(&self, position: (f64, f64)) {
-    // NOTE: Not sure if &self shouldn't be &mut self
     unsafe {
       let state_ptr: *mut c_void = *(**self.ns_view).get_ivar("taoState");
       let state = &mut *(state_ptr as *mut ViewState);
