@@ -387,7 +387,7 @@ extern "C" fn draw_rect(this: &Object, _sel: Sel, rect: NSRect) {
 
     if let Some(position) = state.traffic_light_inset {
       let window = state.ns_window;
-      position_traffic_lights(window, position);
+      inset_traffic_lights(window, position);
     }
 
     AppState::handle_redraw(WindowId(get_window_id(state.ns_window)));
@@ -1182,10 +1182,7 @@ extern "C" fn accepts_first_mouse(_this: &Object, _sel: Sel, _event: id) -> BOOL
   YES
 }
 
-pub unsafe fn position_traffic_lights<W: NSWindow + Copy>(
-  window: W,
-  position: LogicalPosition<f64>,
-) {
+pub unsafe fn inset_traffic_lights<W: NSWindow + Copy>(window: W, position: LogicalPosition<f64>) {
   let (x, y) = (position.x, position.y);
 
   let close = window.standardWindowButton_(NSWindowButton::NSWindowCloseButton);

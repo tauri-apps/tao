@@ -6,7 +6,7 @@
 use std::os::raw::c_void;
 
 use crate::{
-  dpi::{LogicalPosition, LogicalSize},
+  dpi::{LogicalSize, Position},
   event_loop::{EventLoop, EventLoopWindowTarget},
   menu::CustomMenuItem,
   monitor::MonitorHandle,
@@ -83,7 +83,7 @@ pub trait WindowExtMacOS {
   fn tabbing_identifier(&self) -> String;
 
   /// Set the window traffic light position relative to the upper left corner
-  fn set_traffic_light_position<P: Into<LogicalPosition<f64>>>(&self, position: P);
+  fn set_traffic_light_inset<P: Into<Position>>(&self, position: P);
 }
 
 impl WindowExtMacOS for Window {
@@ -153,8 +153,8 @@ impl WindowExtMacOS for Window {
   }
 
   #[inline]
-  fn set_traffic_light_position<P: Into<LogicalPosition<f64>>>(&self, position: P) {
-    self.window.set_traffic_light_position(position)
+  fn set_traffic_light_inset<P: Into<Position>>(&self, position: P) {
+    self.window.set_traffic_light_inset(position)
   }
 }
 
@@ -409,7 +409,7 @@ pub trait WindowBuilderExtMacOS {
   fn with_disallow_hidpi(self, disallow_hidpi: bool) -> WindowBuilder;
   fn with_has_shadow(self, has_shadow: bool) -> WindowBuilder;
   /// Sets the traffic light position to (x, y) relative to the upper left corner
-  fn with_traffic_light_inset<P: Into<LogicalPosition<f64>>>(self, inset: P) -> WindowBuilder;
+  fn with_traffic_light_inset<P: Into<Position>>(self, inset: P) -> WindowBuilder;
   /// Sets whether the system can automatically organize windows into tabs.
   fn with_automatic_window_tabbing(self, automatic_tabbing: bool) -> WindowBuilder;
   /// Defines the window [tabbing identifier].
@@ -483,7 +483,7 @@ impl WindowBuilderExtMacOS for WindowBuilder {
   }
 
   #[inline]
-  fn with_traffic_light_inset<P: Into<LogicalPosition<f64>>>(mut self, inset: P) -> WindowBuilder {
+  fn with_traffic_light_inset<P: Into<Position>>(mut self, inset: P) -> WindowBuilder {
     self.platform_specific.traffic_light_inset = Some(inset.into());
     self
   }
