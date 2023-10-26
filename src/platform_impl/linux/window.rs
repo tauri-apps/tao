@@ -13,7 +13,7 @@ use std::{
 };
 
 use gtk::{
-  gdk::{self, WindowEdge, WindowState},
+  gdk::WindowState,
   glib::{self, translate::ToGlibPtr},
 };
 use gtk::{prelude::*, Settings};
@@ -24,8 +24,8 @@ use crate::{
   icon::Icon,
   monitor::MonitorHandle as RootMonitorHandle,
   window::{
-    CursorIcon, Fullscreen, ProgressBarState, Theme, UserAttentionType, WindowAttributes,
-    WindowSizeConstraints, BORDERLESS_RESIZE_INSET,
+    CursorIcon, Fullscreen, ProgressBarState, ResizeDirection, Theme, UserAttentionType,
+    WindowAttributes, WindowSizeConstraints,
   },
 };
 
@@ -538,6 +538,16 @@ impl Window {
     Ok(())
   }
 
+  pub fn drag_resize_window(&self, direction: ResizeDirection) -> Result<(), ExternalError> {
+    if let Err(e) = self
+      .window_requests_tx
+      .send((self.window_id, WindowRequest::DragResizeWindow(direction)))
+    {
+      log::warn!("Fail to send drag window request: {}", e);
+    }
+    Ok(())
+  }
+
   pub fn set_fullscreen(&self, fullscreen: Option<Fullscreen>) {
     self.fullscreen.replace(fullscreen.clone());
     if let Err(e) = self
@@ -879,6 +889,7 @@ pub enum WindowRequest {
   Minimized(bool),
   Maximized(bool),
   DragWindow,
+  DragResizeWindow(ResizeDirection),
   Fullscreen(Option<Fullscreen>),
   Decorations(bool),
   AlwaysOnBottom(bool),
@@ -895,44 +906,6 @@ pub enum WindowRequest {
   },
   SetVisibleOnAllWorkspaces(bool),
   ProgressBarState(ProgressBarState),
-}
-
-pub fn hit_test(window: &gdk::Window, cx: f64, cy: f64) -> WindowEdge {
-  let (left, top) = window.position();
-  let (w, h) = (window.width(), window.height());
-  let (right, bottom) = (left + w, top + h);
-  let (cx, cy) = (cx as i32, cy as i32);
-
-  const LEFT: i32 = 0b0001;
-  const RIGHT: i32 = 0b0010;
-  const TOP: i32 = 0b0100;
-  const BOTTOM: i32 = 0b1000;
-  const TOPLEFT: i32 = TOP | LEFT;
-  const TOPRIGHT: i32 = TOP | RIGHT;
-  const BOTTOMLEFT: i32 = BOTTOM | LEFT;
-  const BOTTOMRIGHT: i32 = BOTTOM | RIGHT;
-
-  let inset = BORDERLESS_RESIZE_INSET * window.scale_factor();
-  #[rustfmt::skip]
-  let result =
-      (LEFT * (if cx < (left + inset) { 1 } else { 0 }))
-    | (RIGHT * (if cx >= (right - inset) { 1 } else { 0 }))
-    | (TOP * (if cy < (top + inset) { 1 } else { 0 }))
-    | (BOTTOM * (if cy >= (bottom - inset) { 1 } else { 0 }));
-
-  match result {
-    LEFT => WindowEdge::West,
-    TOP => WindowEdge::North,
-    RIGHT => WindowEdge::East,
-    BOTTOM => WindowEdge::South,
-    TOPLEFT => WindowEdge::NorthWest,
-    TOPRIGHT => WindowEdge::NorthEast,
-    BOTTOMLEFT => WindowEdge::SouthWest,
-    BOTTOMRIGHT => WindowEdge::SouthEast,
-    // we return `WindowEdge::__Unknown` to be ignored later.
-    // we must return 8 or bigger, otherwise it will be the same as one of the other 7 variants of `WindowEdge` enum.
-    _ => WindowEdge::__Unknown(8),
-  }
 }
 
 impl Drop for Window {

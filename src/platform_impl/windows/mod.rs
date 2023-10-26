@@ -19,8 +19,6 @@ pub(crate) use self::{
   window::Window,
 };
 
-pub use self::window::hit_test;
-
 pub use self::icon::WinIcon as PlatformIcon;
 
 use crate::{event::DeviceId as RootDeviceId, icon::Icon, keyboard::Key, window::Theme};

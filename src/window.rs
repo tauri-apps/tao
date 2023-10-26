@@ -1190,6 +1190,19 @@ impl Window {
     self.window.drag_window()
   }
 
+  /// Resizes the window with the left mouse button until the button is released.
+  ///
+  /// There's no guarantee that this will work unless the left mouse button was pressed
+  /// immediately before this function is called.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / iOS / Android:** Always returns an [`ExternalError::NotSupported`].
+  #[inline]
+  pub fn drag_resize_window(&self, direction: ResizeDirection) -> Result<(), ExternalError> {
+    self.window.drag_resize_window(direction)
+  }
+
   /// Modifies whether the window catches cursor events.
   ///
   /// If `true`, the events are passed through the window such that any other window behind it receives them.
@@ -1536,4 +1549,51 @@ impl WindowSizeConstraints {
 
 /// A constant used to determine how much inside the window, the resize handler should appear (only used in Linux(gtk) and Windows).
 /// You probably need to scale it by the scale_factor of the window.
-pub const BORDERLESS_RESIZE_INSET: i32 = 5;
+
+pub enum ResizeDirection {
+  East,
+  North,
+  NorthEast,
+  NorthWest,
+  South,
+  SouthEast,
+  SouthWest,
+  West,
+}
+
+pub fn hit_test(
+  (left, top, right, bottom): (i32, i32, i32, i32),
+  cx: i32,
+  cy: i32,
+  scale_factor: f64,
+) -> Option<ResizeDirection> {
+  const LEFT: isize = 0b0001;
+  const RIGHT: isize = 0b0010;
+  const TOP: isize = 0b0100;
+  const BOTTOM: isize = 0b1000;
+  const TOPLEFT: isize = TOP | LEFT;
+  const TOPRIGHT: isize = TOP | RIGHT;
+  const BOTTOMLEFT: isize = BOTTOM | LEFT;
+  const BOTTOMRIGHT: isize = BOTTOM | RIGHT;
+
+  let inset = (5 as f64 * scale_factor) as i32;
+
+  #[rustfmt::skip]
+      let result =
+          (LEFT * (if cx < (left + inset) { 1 } else { 0 }))
+        | (RIGHT * (if cx >= (right - inset) { 1 } else { 0 }))
+        | (TOP * (if cy < (top + inset) { 1 } else { 0 }))
+        | (BOTTOM * (if cy >= (bottom - inset) { 1 } else { 0 }));
+
+  match result {
+    LEFT => Some(ResizeDirection::West),
+    RIGHT => Some(ResizeDirection::East),
+    TOP => Some(ResizeDirection::North),
+    BOTTOM => Some(ResizeDirection::South),
+    TOPLEFT => Some(ResizeDirection::NorthWest),
+    TOPRIGHT => Some(ResizeDirection::NorthEast),
+    BOTTOMLEFT => Some(ResizeDirection::SouthWest),
+    BOTTOMRIGHT => Some(ResizeDirection::SouthEast),
+    _ => None,
+  }
+}

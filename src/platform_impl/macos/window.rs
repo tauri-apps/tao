@@ -32,8 +32,8 @@ use crate::{
   },
   platform_impl::set_progress_indicator,
   window::{
-    CursorIcon, Fullscreen, ProgressBarState, Theme, UserAttentionType, WindowAttributes,
-    WindowId as RootWindowId, WindowSizeConstraints,
+    CursorIcon, Fullscreen, ProgressBarState, ResizeDirection, Theme, UserAttentionType,
+    WindowAttributes, WindowId as RootWindowId, WindowSizeConstraints,
   },
 };
 use cocoa::{
@@ -878,6 +878,10 @@ impl UnownedWindow {
     }
 
     Ok(())
+  }
+
+  pub fn drag_resize_window(&self, _direction: ResizeDirection) -> Result<(), ExternalError> {
+    Err(ExternalError::NotSupported(NotSupportedError::new()))
   }
 
   #[inline]
