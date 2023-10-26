@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(any(
@@ -9,27 +10,20 @@
   target_os = "openbsd"
 ))]
 
-mod clipboard;
+mod device;
 mod event_loop;
-mod global_shortcut;
 mod icon;
 mod keyboard;
 mod keycode;
-mod menu;
 mod monitor;
-#[cfg(feature = "tray")]
-mod system_tray;
+mod util;
 mod window;
+
+pub mod taskbar;
 pub mod x11;
 
-#[cfg(feature = "tray")]
-pub use self::system_tray::{SystemTray, SystemTrayBuilder};
-pub use self::{
-  clipboard::Clipboard,
-  global_shortcut::{GlobalShortcut, ShortcutManager},
-  keycode::{keycode_from_scancode, keycode_to_scancode},
-  menu::{Menu, MenuItemAttributes},
-};
+pub use self::keycode::{keycode_from_scancode, keycode_to_scancode};
+pub(crate) use event_loop::PlatformSpecificEventLoopAttributes;
 pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
 pub use icon::PlatformIcon;
 pub use monitor::{MonitorHandle, VideoMode};
@@ -61,6 +55,11 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub parent: Parent,
   pub skip_taskbar: bool,
   pub auto_transparent: bool,
+  pub double_buffered: bool,
+  pub app_paintable: bool,
+  pub rgba_visual: bool,
+  pub cursor_moved: bool,
+  pub default_vbox: bool,
 }
 
 impl Default for PlatformSpecificWindowBuilderAttributes {
@@ -69,6 +68,11 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       parent: Default::default(),
       skip_taskbar: Default::default(),
       auto_transparent: true,
+      double_buffered: true,
+      app_paintable: false,
+      rgba_visual: false,
+      cursor_moved: true,
+      default_vbox: true,
     }
   }
 }

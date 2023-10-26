@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(target_os = "windows")]
@@ -8,29 +9,22 @@ use windows::Win32::{
   UI::WindowsAndMessaging::HMENU,
 };
 
-pub use self::{
-  clipboard::Clipboard,
-  event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
-  global_shortcut::{GlobalShortcut, ShortcutManager},
+pub(crate) use self::{
+  event_loop::{
+    EventLoop, EventLoopProxy, EventLoopWindowTarget, PlatformSpecificEventLoopAttributes,
+  },
   icon::WinIcon,
   keycode::{keycode_from_scancode, keycode_to_scancode},
-  menu::{Menu, MenuItemAttributes},
   monitor::{MonitorHandle, VideoMode},
-  window::{hit_test, Window},
+  window::Window,
 };
+
+pub use self::window::hit_test;
 
 pub use self::icon::WinIcon as PlatformIcon;
 
 use crate::{event::DeviceId as RootDeviceId, icon::Icon, keyboard::Key, window::Theme};
-mod accelerator;
-mod global_shortcut;
 mod keycode;
-mod menu;
-
-#[cfg(feature = "tray")]
-mod system_tray;
-#[cfg(feature = "tray")]
-pub use self::system_tray::{SystemTray, SystemTrayBuilder};
 
 #[non_exhaustive]
 #[derive(Clone)]
@@ -46,9 +40,12 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub menu: Option<HMENU>,
   pub taskbar_icon: Option<Icon>,
   pub skip_taskbar: bool,
+  pub window_classname: String,
   pub no_redirection_bitmap: bool,
   pub drag_and_drop: bool,
   pub preferred_theme: Option<Theme>,
+  pub decoration_shadow: bool,
+  pub rtl: bool,
 }
 
 impl Default for PlatformSpecificWindowBuilderAttributes {
@@ -61,6 +58,9 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       drag_and_drop: true,
       preferred_theme: None,
       skip_taskbar: false,
+      window_classname: "Window Class".to_string(),
+      decoration_shadow: true,
+      rtl: false,
     }
   }
 }
@@ -96,6 +96,7 @@ impl DeviceId {
 #[non_exhaustive]
 #[derive(Debug)]
 pub enum OsError {
+  #[allow(unused)]
   CreationError(&'static str),
   IoError(std::io::Error),
 }
@@ -107,6 +108,24 @@ impl std::fmt::Display for OsError {
       OsError::CreationError(e) => f.pad(e),
       OsError::IoError(e) => f.pad(&e.to_string()),
     }
+  }
+}
+
+impl From<windows::core::Error> for OsError {
+  fn from(value: windows::core::Error) -> Self {
+    OsError::IoError(value.into())
+  }
+}
+
+impl From<windows::core::Error> for crate::error::OsError {
+  fn from(value: windows::core::Error) -> Self {
+    os_error!(OsError::IoError(value.into()))
+  }
+}
+
+impl From<windows::core::Error> for crate::error::ExternalError {
+  fn from(value: windows::core::Error) -> Self {
+    crate::error::ExternalError::Os(os_error!(OsError::IoError(value.into())))
   }
 }
 
@@ -136,7 +155,6 @@ impl WindowId {
 
 #[macro_use]
 mod util;
-mod clipboard;
 mod dark_mode;
 mod dpi;
 mod drop_handler;

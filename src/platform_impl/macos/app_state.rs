@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -20,7 +21,7 @@ use cocoa::{
   base::{id, nil},
   foundation::{NSAutoreleasePool, NSSize},
 };
-use objc::runtime::{Object, BOOL, NO, YES};
+use objc::runtime::{Object, NO, YES};
 
 use crate::{
   dpi::LogicalSize,
@@ -33,7 +34,7 @@ use crate::{
       event::{EventProxy, EventWrapper},
       event_loop::{post_dummy_event, PanicInfo},
       observer::{CFRunLoopGetMain, CFRunLoopWakeUp, EventLoopWaker},
-      util::{IdRef, Never},
+      util::{self, IdRef, Never},
       window::get_window_id,
     },
   },
@@ -285,8 +286,12 @@ impl AppState {
     unsafe {
       let ns_app = NSApp();
       window_activation_hack(ns_app);
-      // TODO: Consider allowing the user to specify they don't want their application activated
-      ns_app.activateIgnoringOtherApps_(YES);
+      let ignore = if get_aux_state_mut(app_delegate).activate_ignoring_other_apps {
+        YES
+      } else {
+        NO
+      };
+      ns_app.activateIgnoringOtherApps_(ignore);
     };
     HANDLER.set_ready();
     HANDLER.waker().start();
@@ -295,6 +300,10 @@ impl AppState {
       StartCause::Init,
     )));
     HANDLER.set_in_callback(false);
+  }
+
+  pub fn open_urls(urls: Vec<url::Url>) {
+    HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls }));
   }
 
   pub fn wakeup(panic_info: Weak<PanicInfo>) {
@@ -349,16 +358,14 @@ impl AppState {
   }
 
   pub fn queue_event(wrapper: EventWrapper) {
-    let is_main_thread: BOOL = unsafe { msg_send!(class!(NSThread), isMainThread) };
-    if is_main_thread == NO {
+    if !util::is_main_thread() {
       panic!("Event queued from different thread: {:#?}", wrapper);
     }
     HANDLER.events().push_back(wrapper);
   }
 
   pub fn queue_events(mut wrappers: VecDeque<EventWrapper>) {
-    let is_main_thread: BOOL = unsafe { msg_send!(class!(NSThread), isMainThread) };
-    if is_main_thread == NO {
+    if !util::is_main_thread() {
       panic!("Events queued from different thread: {:#?}", wrappers);
     }
     HANDLER.events().append(&mut wrappers);

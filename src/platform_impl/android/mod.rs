@@ -1,36 +1,30 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(target_os = "android")]
 use crate::{
-  accelerator::Accelerator,
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   error, event,
   event_loop::{self, ControlFlow},
-  icon::Icon,
   keyboard::{Key, KeyCode, KeyLocation, NativeKeyCode},
-  menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
   monitor,
-  window::{self, Theme},
+  window::{self, Theme, WindowSizeConstraints},
 };
+use crossbeam_channel::{Receiver, Sender};
 use ndk::{
   configuration::Configuration,
   event::{InputEvent, KeyAction, MotionAction},
   looper::{ForeignLooper, Poll, ThreadLooper},
 };
 use ndk_sys::AKeyEvent_getKeyCode;
-use raw_window_handle::{
-  AndroidDisplayHandle, AndroidNdkWindowHandle, RawDisplayHandle, RawWindowHandle,
-};
 use std::{
   collections::VecDeque,
   convert::TryInto,
-  sync::{Arc, Mutex, RwLock},
+  sync::RwLock,
   time::{Duration, Instant},
 };
 
-mod clipboard;
-pub use clipboard::Clipboard;
 pub mod ndk_glue;
 use ndk_glue::{Event, Rect};
 
@@ -57,71 +51,21 @@ fn poll(poll: Poll) -> Option<EventSource> {
   }
 }
 
-// todo: implement android menubar
-#[derive(Debug, Clone)]
-pub struct MenuItemAttributes;
-
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct KeyEventExtra {}
 
-#[derive(Debug, Clone)]
-pub struct Menu;
-
-impl Default for Menu {
-  fn default() -> Self {
-    Menu::new()
-  }
-}
-
-impl Menu {
-  pub fn new() -> Self {
-    Menu {}
-  }
-  pub fn new_popup_menu() -> Self {
-    Self::new()
-  }
-  pub fn add_item(
-    &mut self,
-    _menu_id: MenuId,
-    _title: &str,
-    _accelerator: Option<Accelerator>,
-    _enabled: bool,
-    _selected: bool,
-    _menu_type: MenuType,
-  ) -> CustomMenuItem {
-    CustomMenuItem(MenuItemAttributes {})
-  }
-  pub fn add_submenu(&mut self, _title: &str, _enabled: bool, _submenu: Menu) {}
-  pub fn add_native_item(
-    &mut self,
-    _item: MenuItem,
-    _menu_type: MenuType,
-  ) -> Option<CustomMenuItem> {
-    None
-  }
-}
-
-impl MenuItemAttributes {
-  pub fn id(self) -> MenuId {
-    MenuId::EMPTY
-  }
-  pub fn title(&self) -> String {
-    "".to_owned()
-  }
-  pub fn set_enabled(&mut self, _is_enabled: bool) {}
-  pub fn set_title(&mut self, _title: &str) {}
-  pub fn set_selected(&mut self, _is_selected: bool) {}
-  pub fn set_icon(&mut self, _icon: Icon) {}
-}
-
 pub struct EventLoop<T: 'static> {
   window_target: event_loop::EventLoopWindowTarget<T>,
-  user_queue: Arc<Mutex<VecDeque<T>>>,
+  receiver: Receiver<T>,
+  sender_to_clone: Sender<T>,
   first_event: Option<EventSource>,
   start_cause: event::StartCause,
   looper: ThreadLooper,
   running: bool,
 }
+
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct PlatformSpecificEventLoopAttributes {}
 
 macro_rules! call_event_handler {
   ( $event_handler:expr, $window_target:expr, $cf:expr, $event:expr ) => {{
@@ -134,7 +78,9 @@ macro_rules! call_event_handler {
 }
 
 impl<T: 'static> EventLoop<T> {
-  pub fn new() -> Self {
+  pub(crate) fn new(_: &PlatformSpecificEventLoopAttributes) -> Self {
+    let (sender, receiver) = crossbeam_channel::unbounded();
+
     Self {
       window_target: event_loop::EventLoopWindowTarget {
         p: EventLoopWindowTarget {
@@ -142,7 +88,8 @@ impl<T: 'static> EventLoop<T> {
         },
         _marker: std::marker::PhantomData,
       },
-      user_queue: Default::default(),
+      sender_to_clone: sender,
+      receiver,
       first_event: None,
       start_cause: event::StartCause::Init,
       looper: ThreadLooper::for_thread().unwrap(),
@@ -243,7 +190,7 @@ impl<T: 'static> EventLoop<T> {
         },
         Some(EventSource::InputQueue) => {
           if let Some(input_queue) = ndk_glue::input_queue().as_ref() {
-            while let Some(event) = input_queue.get_event() {
+            while let Ok(Some(event)) = input_queue.get_event() {
               if let Some(event) = input_queue.pre_dispatch(event) {
                 let mut handled = true;
                 let window_id = window::WindowId(WindowId);
@@ -344,8 +291,7 @@ impl<T: 'static> EventLoop<T> {
           }
         }
         Some(EventSource::User) => {
-          let mut user_queue = self.user_queue.lock().unwrap();
-          while let Some(event) = user_queue.pop_front() {
+          while let Ok(event) = self.receiver.try_recv() {
             call_event_handler!(
               event_handler,
               self.window_target(),
@@ -445,20 +391,20 @@ impl<T: 'static> EventLoop<T> {
 
   pub fn create_proxy(&self) -> EventLoopProxy<T> {
     EventLoopProxy {
-      queue: self.user_queue.clone(),
+      queue: self.sender_to_clone.clone(),
       looper: ForeignLooper::for_thread().expect("called from event loop thread"),
     }
   }
 }
 
 pub struct EventLoopProxy<T: 'static> {
-  queue: Arc<Mutex<VecDeque<T>>>,
+  queue: Sender<T>,
   looper: ForeignLooper,
 }
 
 impl<T> EventLoopProxy<T> {
   pub fn send_event(&self, event: T) -> Result<(), event_loop::EventLoopClosed<T>> {
-    self.queue.lock().unwrap().push_back(event);
+    _ = self.queue.try_send(event);
     self.looper.wake();
     Ok(())
   }
@@ -485,14 +431,35 @@ impl<T: 'static> EventLoopWindowTarget<T> {
     })
   }
 
+  #[inline]
+  pub fn monitor_from_point(&self, _x: f64, _y: f64) -> Option<MonitorHandle> {
+    warn!("`Window::monitor_from_point` is ignored on Android");
+    return None;
+  }
+
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
     let mut v = VecDeque::with_capacity(1);
     v.push_back(MonitorHandle);
     v
   }
 
-  pub fn raw_display_handle(&self) -> RawDisplayHandle {
-    RawDisplayHandle::Android(AndroidDisplayHandle::empty())
+  #[cfg(feature = "rwh_05")]
+  #[inline]
+  pub fn raw_display_handle_rwh_05(&self) -> rwh_05::RawDisplayHandle {
+    rwh_05::RawDisplayHandle::Android(rwh_05::AndroidDisplayHandle::empty())
+  }
+
+  #[cfg(feature = "rwh_06")]
+  #[inline]
+  pub fn raw_display_handle_rwh_06(&self) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
+    Ok(rwh_06::RawDisplayHandle::Android(
+      rwh_06::AndroidDisplayHandle::new(),
+    ))
+  }
+
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, error::ExternalError> {
+    debug!("`EventLoopWindowTarget::cursor_position` is ignored on Android");
+    Ok((0, 0).into())
   }
 }
 
@@ -545,6 +512,12 @@ impl Window {
     v
   }
 
+  #[inline]
+  pub fn monitor_from_point(&self, _x: f64, _y: f64) -> Option<monitor::MonitorHandle> {
+    warn!("`Window::monitor_from_point` is ignored on Android");
+    None
+  }
+
   pub fn current_monitor(&self) -> Option<monitor::MonitorHandle> {
     Some(monitor::MonitorHandle {
       inner: MonitorHandle,
@@ -584,12 +557,13 @@ impl Window {
   }
 
   pub fn set_min_inner_size(&self, _: Option<Size>) {}
-
   pub fn set_max_inner_size(&self, _: Option<Size>) {}
+  pub fn set_inner_size_constraints(&self, _: WindowSizeConstraints) {}
 
   pub fn set_title(&self, _title: &str) {}
-
-  pub fn set_menu(&self, _menu: Option<Menu>) {}
+  pub fn title(&self) -> String {
+    String::new()
+  }
 
   pub fn set_visible(&self, _visibility: bool) {}
 
@@ -598,7 +572,26 @@ impl Window {
     warn!("set_focus not yet implemented on Android");
   }
 
-  pub fn set_resizable(&self, _resizeable: bool) {}
+  pub fn is_focused(&self) -> bool {
+    log::warn!("`Window::is_focused` is ignored on Android");
+    false
+  }
+
+  pub fn set_resizable(&self, _resizeable: bool) {
+    warn!("`Window::set_resizable` is ignored on Android")
+  }
+
+  pub fn set_minimizable(&self, _minimizable: bool) {
+    warn!("`Window::set_minimizable` is ignored on Android")
+  }
+
+  pub fn set_maximizable(&self, _maximizable: bool) {
+    warn!("`Window::set_maximizable` is ignored on Android")
+  }
+
+  pub fn set_closable(&self, _closable: bool) {
+    warn!("`Window::set_closable` is ignored on Android")
+  }
 
   pub fn set_minimized(&self, _minimized: bool) {}
 
@@ -608,13 +601,32 @@ impl Window {
     false
   }
 
+  pub fn is_minimized(&self) -> bool {
+    false
+  }
+
   pub fn is_visible(&self) -> bool {
-    log::warn!("`Window::is_visible` is ignored on android");
+    log::warn!("`Window::is_visible` is ignored on Android");
     false
   }
 
   pub fn is_resizable(&self) -> bool {
-    warn!("`Window::is_resizable` is ignored on android");
+    warn!("`Window::is_resizable` is ignored on Android");
+    false
+  }
+
+  pub fn is_minimizable(&self) -> bool {
+    warn!("`Window::is_minimizable` is ignored on Android");
+    false
+  }
+
+  pub fn is_maximizable(&self) -> bool {
+    warn!("`Window::is_maximizable` is ignored on Android");
+    false
+  }
+
+  pub fn is_closable(&self) -> bool {
+    warn!("`Window::is_closable` is ignored on Android");
     false
   }
 
@@ -633,6 +645,8 @@ impl Window {
 
   pub fn set_decorations(&self, _decorations: bool) {}
 
+  pub fn set_always_on_bottom(&self, _always_on_bottom: bool) {}
+
   pub fn set_always_on_top(&self, _always_on_top: bool) {}
 
   pub fn set_window_icon(&self, _window_icon: Option<crate::icon::Icon>) {}
@@ -640,15 +654,6 @@ impl Window {
   pub fn set_ime_position(&self, _position: Position) {}
 
   pub fn request_user_attention(&self, _request_type: Option<window::UserAttentionType>) {}
-
-  pub fn hide_menu(&self) {}
-
-  pub fn show_menu(&self) {}
-
-  pub fn is_menu_visible(&self) -> bool {
-    warn!("`Window::is_menu_visible` is ignored on Android");
-    false
-  }
 
   pub fn set_cursor_icon(&self, _: window::CursorIcon) {}
 
@@ -678,21 +683,60 @@ impl Window {
     ))
   }
 
-  pub fn raw_window_handle(&self) -> RawWindowHandle {
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, error::ExternalError> {
+    debug!("`Window::cursor_position` is ignored on Android");
+    Ok((0, 0).into())
+  }
+
+  #[cfg(feature = "rwh_04")]
+  pub fn raw_window_handle_rwh_04(&self) -> rwh_04::RawWindowHandle {
     // TODO: Use main activity instead?
-    let mut handle = AndroidNdkWindowHandle::empty();
+    let mut handle = rwh_04::AndroidNdkHandle::empty();
     if let Some(w) = ndk_glue::window_manager() {
-      handle.a_native_window = w.as_obj().into_inner() as *mut _;
+      handle.a_native_window = w.as_obj().as_raw() as *mut _;
     } else {
       panic!("Cannot get the native window, it's null and will always be null before Event::Resumed and after Event::Suspended. Make sure you only call this function between those events.");
     };
-    RawWindowHandle::AndroidNdk(handle)
+    rwh_04::RawWindowHandle::AndroidNdk(handle)
   }
 
-  pub fn raw_display_handle(&self) -> RawDisplayHandle {
-    RawDisplayHandle::Android(AndroidDisplayHandle::empty())
+  #[cfg(feature = "rwh_05")]
+  pub fn raw_window_handle_rwh_05(&self) -> rwh_05::RawWindowHandle {
+    // TODO: Use main activity instead?
+    let mut handle = rwh_05::AndroidNdkWindowHandle::empty();
+    if let Some(w) = ndk_glue::window_manager() {
+      handle.a_native_window = w.as_obj().as_raw() as *mut _;
+    } else {
+      panic!("Cannot get the native window, it's null and will always be null before Event::Resumed and after Event::Suspended. Make sure you only call this function between those events.");
+    };
+    rwh_05::RawWindowHandle::AndroidNdk(handle)
   }
 
+  #[cfg(feature = "rwh_05")]
+  pub fn raw_display_handle_rwh_05(&self) -> rwh_05::RawDisplayHandle {
+    rwh_05::RawDisplayHandle::Android(rwh_05::AndroidDisplayHandle::empty())
+  }
+
+  #[cfg(feature = "rwh_06")]
+  pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
+    // TODO: Use main activity instead?
+    if let Some(w) = ndk_glue::window_manager() {
+      let native_window =
+        unsafe { std::ptr::NonNull::new_unchecked(w.as_obj().as_raw() as *mut _) };
+      // native_window shuldn't be null
+      let handle = rwh_06::AndroidNdkWindowHandle::new(native_window);
+      Ok(rwh_06::RawWindowHandle::AndroidNdk(handle))
+    } else {
+      Err(rwh_06::HandleError::Unavailable)
+    }
+  }
+
+  #[cfg(feature = "rwh_06")]
+  pub fn raw_display_handle_rwh_06(&self) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
+    Ok(rwh_06::RawDisplayHandle::Android(
+      rwh_06::AndroidDisplayHandle::new(),
+    ))
+  }
   pub fn config(&self) -> Configuration {
     CONFIG.read().unwrap().clone()
   }
@@ -731,7 +775,7 @@ impl MonitorHandle {
     if let Some(w) = ndk_glue::window_manager() {
       let ctx = ndk_context::android_context();
       let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }.unwrap();
-      let env = vm.attach_current_thread().unwrap();
+      let mut env = vm.attach_current_thread().unwrap();
       let window_manager = w.as_obj();
       let metrics = env
         .call_method(
@@ -744,17 +788,17 @@ impl MonitorHandle {
         .l()
         .unwrap();
       let rect = env
-        .call_method(metrics, "getBounds", "()Landroid/graphics/Rect;", &[])
+        .call_method(&metrics, "getBounds", "()Landroid/graphics/Rect;", &[])
         .unwrap()
         .l()
         .unwrap();
       let width = env
-        .call_method(rect, "width", "()I", &[])
+        .call_method(&rect, "width", "()I", &[])
         .unwrap()
         .i()
         .unwrap();
       let height = env
-        .call_method(rect, "height", "()I", &[])
+        .call_method(&rect, "height", "()I", &[])
         .unwrap()
         .i()
         .unwrap();

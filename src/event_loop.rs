@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 //! The `EventLoop` struct and assorted supporting types, including `ControlFlow`.
@@ -13,10 +14,12 @@
 //! [event_loop_proxy]: crate::event_loop::EventLoopProxy
 //! [send_event]: crate::event_loop::EventLoopProxy::send_event
 use instant::Instant;
-use raw_window_handle::{HasRawDisplayHandle, RawDisplayHandle};
-use std::{error, fmt, ops::Deref};
+use std::{error, fmt, marker::PhantomData, ops::Deref};
 
-use crate::{event::Event, monitor::MonitorHandle, platform_impl};
+use crate::{
+  dpi::PhysicalPosition, error::ExternalError, event::Event, monitor::MonitorHandle, platform_impl,
+  window::ProgressBarState,
+};
 
 /// Provides a way to retrieve events from the system and from the windows that were registered to
 /// the events loop.
@@ -57,6 +60,58 @@ impl<T> fmt::Debug for EventLoop<T> {
 impl<T> fmt::Debug for EventLoopWindowTarget<T> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.pad("EventLoopWindowTarget { .. }")
+  }
+}
+
+/// Object that allows building the event loop.
+///
+/// This is used to make specifying options that affect the whole application
+/// easier. But note that constructing multiple event loops is not supported.
+#[derive(Default)]
+pub struct EventLoopBuilder<T: 'static> {
+  pub(crate) platform_specific: platform_impl::PlatformSpecificEventLoopAttributes,
+  _p: PhantomData<T>,
+}
+impl EventLoopBuilder<()> {
+  /// Start building a new event loop.
+  #[inline]
+  pub fn new() -> Self {
+    Self::with_user_event()
+  }
+}
+impl<T> EventLoopBuilder<T> {
+  /// Start building a new event loop, with the given type as the user event
+  /// type.
+  #[inline]
+  pub fn with_user_event() -> Self {
+    Self {
+      platform_specific: Default::default(),
+      _p: PhantomData,
+    }
+  }
+  /// Builds a new event loop.
+  ///
+  /// ***For cross-platform compatibility, the `EventLoop` must be created on the main thread.***
+  /// Attempting to create the event loop on a different thread will panic. This restriction isn't
+  /// strictly necessary on all platforms, but is imposed to eliminate any nasty surprises when
+  /// porting to platforms that require it. `EventLoopBuilderExt::any_thread` functions are exposed
+  /// in the relevant `platform` module if the target platform supports creating an event loop on
+  /// any thread.
+  ///
+  /// Usage will result in display backend initialisation, this can be controlled on linux
+  /// using an environment variable `WINIT_UNIX_BACKEND`. Legal values are `x11` and `wayland`.
+  /// If it is not set, winit will try to connect to a wayland connection, and if it fails will
+  /// fallback on x11. If this variable is set with any other value, winit will panic.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS:** Can only be called on the main thread.
+  #[inline]
+  pub fn build(&mut self) -> EventLoop<T> {
+    EventLoop {
+      event_loop: platform_impl::EventLoop::new(&mut self.platform_specific),
+      _marker: PhantomData,
+    }
   }
 }
 
@@ -117,44 +172,22 @@ impl Default for ControlFlow {
 }
 
 impl EventLoop<()> {
-  /// Builds a new event loop with a `()` as the user event type.
+  /// Alias for [`EventLoopBuilder::new().build()`].
   ///
-  /// ***For cross-platform compatibility, the `EventLoop` must be created on the main thread.***
-  /// Attempting to create the event loop on a different thread will panic. This restriction isn't
-  /// strictly necessary on all platforms, but is imposed to eliminate any nasty surprises when
-  /// porting to platforms that require it. `EventLoopExt::new_any_thread` functions are exposed
-  /// in the relevant `platform` module if the target platform supports creating an event loop on
-  /// any thread.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **iOS:** Can only be called on the main thread.
+  /// [`EventLoopBuilder::new().build()`]: EventLoopBuilder::build
+  #[inline]
   pub fn new() -> EventLoop<()> {
-    EventLoop::<()>::with_user_event()
+    EventLoopBuilder::new().build()
   }
 }
 
 impl Default for EventLoop<()> {
   fn default() -> Self {
-    EventLoop::<()>::new()
+    Self::new()
   }
 }
 
 impl<T> EventLoop<T> {
-  /// Builds a new event loop.
-  ///
-  /// All caveats documented in [`EventLoop::new`] apply to this function.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **iOS:** Can only be called on the main thread.
-  pub fn with_user_event() -> EventLoop<T> {
-    EventLoop {
-      event_loop: platform_impl::EventLoop::new(),
-      _marker: ::std::marker::PhantomData,
-    }
-  }
-
   /// Hijacks the calling thread and initializes the tao event loop with the provided
   /// closure. Since the closure is `'static`, it must be a `move` closure if it needs to
   /// access any data from the calling context.
@@ -211,12 +244,87 @@ impl<T> EventLoopWindowTarget<T> {
   pub fn primary_monitor(&self) -> Option<MonitorHandle> {
     self.p.primary_monitor()
   }
+
+  /// Returns the monitor that contains the given point.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Android / iOS:** Unsupported.
+  #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
+    self
+      .p
+      .monitor_from_point(x, y)
+      .map(|inner| MonitorHandle { inner })
+  }
+
+  /// Change [`DeviceEvent`] filter mode.
+  ///
+  /// Since the [`DeviceEvent`] capture can lead to high CPU usage for unfocused windows, tao
+  /// will ignore them by default for unfocused windows. This method allows changing
+  /// this filter at runtime to explicitly capture them again.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / macOS / iOS / Android:** Unsupported.
+  ///
+  /// [`DeviceEvent`]: crate::event::DeviceEvent
+  pub fn set_device_event_filter(&self, _filter: DeviceEventFilter) {
+    #[cfg(target_os = "windows")]
+    self.p.set_device_event_filter(_filter);
+  }
+
+  /// Returns the current cursor position
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Linux(Wayland)**: Unsupported, returns `0,0`.
+  #[inline]
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    self.p.cursor_position()
+  }
+
+  /// Sets the progress bar state
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:** Unsupported. Use the Progress Bar Function Available in Window (Windows can have different progress bars for different window)
+  /// - **Linux:** Only supported desktop environments with `libunity` (e.g. GNOME).
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_progress_bar(&self, _progress: ProgressBarState) {
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    self.p.set_progress_bar(_progress)
+  }
 }
 
-unsafe impl<T> HasRawDisplayHandle for EventLoopWindowTarget<T> {
-  /// Returns a [`raw_window_handle::RawDisplayHandle`] for the event loop.
-  fn raw_display_handle(&self) -> RawDisplayHandle {
-    self.p.raw_display_handle()
+#[cfg(feature = "rwh_05")]
+unsafe impl<T> rwh_05::HasRawDisplayHandle for EventLoop<T> {
+  fn raw_display_handle(&self) -> rwh_05::RawDisplayHandle {
+    rwh_05::HasRawDisplayHandle::raw_display_handle(&**self)
+  }
+}
+
+#[cfg(feature = "rwh_06")]
+impl<T> rwh_06::HasDisplayHandle for EventLoop<T> {
+  fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
+    rwh_06::HasDisplayHandle::display_handle(&**self)
+  }
+}
+
+#[cfg(feature = "rwh_05")]
+unsafe impl<T> rwh_05::HasRawDisplayHandle for EventLoopWindowTarget<T> {
+  fn raw_display_handle(&self) -> rwh_05::RawDisplayHandle {
+    self.p.raw_display_handle_rwh_05()
+  }
+}
+
+#[cfg(feature = "rwh_06")]
+impl<T> rwh_06::HasDisplayHandle for EventLoopWindowTarget<T> {
+  fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
+    let raw = self.p.raw_display_handle_rwh_06()?;
+    // SAFETY: The display will never be deallocated while the event loop is alive.
+    Ok(unsafe { rwh_06::DisplayHandle::borrow_raw(raw) })
   }
 }
 
@@ -262,3 +370,20 @@ impl<T> fmt::Display for EventLoopClosed<T> {
 }
 
 impl<T: fmt::Debug> error::Error for EventLoopClosed<T> {}
+
+/// Fiter controlling the propagation of device events.
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum DeviceEventFilter {
+  /// Always filter out device events.
+  Always,
+  /// Filter out device events while the window is not focused.
+  Unfocused,
+  /// Report all device events regardless of window focus.
+  Never,
+}
+
+impl Default for DeviceEventFilter {
+  fn default() -> Self {
+    Self::Unfocused
+  }
+}

@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 //! iOS support
@@ -73,7 +74,6 @@ macro_rules! assert_main_thread {
 }
 
 mod app_state;
-mod clipboard;
 mod event_loop;
 mod ffi;
 mod keycode;
@@ -81,78 +81,21 @@ mod monitor;
 mod view;
 mod window;
 
-use crate::{
-  accelerator::Accelerator,
-  menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
-};
 use std::fmt;
 
+pub(crate) use self::event_loop::PlatformSpecificEventLoopAttributes;
 pub use self::{
-  clipboard::Clipboard,
   event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget},
   keycode::{keycode_from_scancode, keycode_to_scancode},
   monitor::{MonitorHandle, VideoMode},
   window::{PlatformSpecificWindowBuilderAttributes, Window, WindowId},
 };
 
-pub(crate) use crate::icon::{Icon, NoIcon as PlatformIcon};
+pub(crate) use crate::icon::NoIcon as PlatformIcon;
 
 // todo: implement iOS keyboard event
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct KeyEventExtra {}
-
-// todo: implement iOS menubar
-#[derive(Debug, Clone)]
-pub struct MenuItemAttributes;
-#[derive(Debug, Clone)]
-pub struct Menu;
-
-impl Default for Menu {
-  fn default() -> Self {
-    Menu::new()
-  }
-}
-
-impl Menu {
-  pub fn new() -> Self {
-    Menu {}
-  }
-  pub fn new_popup_menu() -> Self {
-    Self::new()
-  }
-  pub fn add_item(
-    &mut self,
-    _menu_id: MenuId,
-    _title: &str,
-    _accelerator: Option<Accelerator>,
-    _enabled: bool,
-    _selected: bool,
-    _menu_type: MenuType,
-  ) -> CustomMenuItem {
-    CustomMenuItem(MenuItemAttributes {})
-  }
-  pub fn add_submenu(&mut self, _title: &str, _enabled: bool, _submenu: Menu) {}
-  pub fn add_native_item(
-    &mut self,
-    _item: MenuItem,
-    _menu_type: MenuType,
-  ) -> Option<CustomMenuItem> {
-    None
-  }
-}
-
-impl MenuItemAttributes {
-  pub fn id(self) -> MenuId {
-    MenuId::EMPTY
-  }
-  pub fn title(&self) -> String {
-    "".to_owned()
-  }
-  pub fn set_enabled(&mut self, _is_enabled: bool) {}
-  pub fn set_title(&mut self, _title: &str) {}
-  pub fn set_selected(&mut self, _is_selected: bool) {}
-  pub fn set_icon(&mut self, _icon: Icon) {}
-}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DeviceId {

@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -15,14 +16,15 @@ use std::{
 
 use cocoa::{
   appkit::{NSApp, NSEventModifierFlags, NSEventSubtype, NSEventType::NSApplicationDefined},
-  base::{id, nil, BOOL, NO, YES},
+  base::{id, nil, YES},
   foundation::{NSAutoreleasePool, NSInteger, NSPoint, NSTimeInterval},
 };
 use crossbeam_channel::{self as channel, Receiver, Sender};
-use raw_window_handle::{AppKitDisplayHandle, RawDisplayHandle};
 use scopeguard::defer;
 
 use crate::{
+  dpi::PhysicalPosition,
+  error::ExternalError,
   event::Event,
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootWindowTarget},
   monitor::MonitorHandle as RootMonitorHandle,
@@ -32,8 +34,10 @@ use crate::{
     app_state::AppState,
     monitor::{self, MonitorHandle},
     observer::*,
-    util::IdRef,
+    util::{self, IdRef},
   },
+  platform_impl::set_progress_indicator,
+  window::ProgressBarState,
 };
 
 #[derive(Default)]
@@ -84,14 +88,42 @@ impl<T: 'static> EventLoopWindowTarget<T> {
   }
 
   #[inline]
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
+    monitor::from_point(x, y)
+  }
+
+  #[inline]
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
     let monitor = monitor::primary_monitor();
     Some(RootMonitorHandle { inner: monitor })
   }
 
+  #[cfg(feature = "rwh_05")]
   #[inline]
-  pub fn raw_display_handle(&self) -> RawDisplayHandle {
-    RawDisplayHandle::AppKit(AppKitDisplayHandle::empty())
+  pub fn raw_display_handle_rwh_05(&self) -> rwh_05::RawDisplayHandle {
+    rwh_05::RawDisplayHandle::AppKit(rwh_05::AppKitDisplayHandle::empty())
+  }
+
+  #[cfg(feature = "rwh_06")]
+  #[inline]
+  pub fn raw_display_handle_rwh_06(&self) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
+    Ok(rwh_06::RawDisplayHandle::AppKit(
+      rwh_06::AppKitDisplayHandle::new(),
+    ))
+  }
+  #[inline]
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    let point = util::cursor_position()?;
+    if let Some(m) = self.monitor_from_point(point.x, point.y) {
+      Ok(point.to_physical(m.scale_factor()))
+    } else {
+      Err(ExternalError::Os(os_error!(super::OsError::CGError(0))))
+    }
+  }
+
+  #[inline]
+  pub fn set_progress_bar(&self, progress: ProgressBarState) {
+    set_progress_indicator(progress);
   }
 }
 
@@ -110,11 +142,16 @@ pub struct EventLoop<T: 'static> {
   _callback: Option<Rc<RefCell<dyn FnMut(Event<'_, T>, &RootWindowTarget<T>, &mut ControlFlow)>>>,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Default)]
+pub(crate) struct PlatformSpecificEventLoopAttributes {}
+
 impl<T> EventLoop<T> {
-  pub fn new() -> Self {
+  pub(crate) fn new(_: &PlatformSpecificEventLoopAttributes) -> Self {
+    let panic_info: Rc<PanicInfo> = Default::default();
+    setup_control_flow_observers(Rc::downgrade(&panic_info));
+
     let delegate = unsafe {
-      let is_main_thread: BOOL = msg_send!(class!(NSThread), isMainThread);
-      if is_main_thread == NO {
+      if !util::is_main_thread() {
         panic!("On macOS, `EventLoop` must be created on the main thread!");
       }
 
@@ -130,8 +167,7 @@ impl<T> EventLoop<T> {
       let _: () = msg_send![pool, drain];
       delegate
     };
-    let panic_info: Rc<PanicInfo> = Default::default();
-    setup_control_flow_observers(Rc::downgrade(&panic_info));
+
     EventLoop {
       delegate,
       window_target: Rc::new(RootWindowTarget {

@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -7,14 +8,17 @@ use std::{
   mem,
   ops::BitAnd,
   os::windows::prelude::OsStrExt,
-  ptr, slice,
+  slice,
   sync::atomic::{AtomicBool, Ordering},
 };
 
-use crate::{dpi::PhysicalSize, window::CursorIcon};
+use crate::{
+  dpi::{PhysicalPosition, PhysicalSize},
+  window::CursorIcon,
+};
 
 use windows::{
-  core::{HRESULT, PCWSTR},
+  core::{HRESULT, PCSTR, PCWSTR},
   Win32::{
     Foundation::{BOOL, FARPROC, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
     Globalization::lstrlenW,
@@ -50,15 +54,6 @@ pub fn encode_wide(string: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {
   string.as_ref().encode_wide().chain(once(0)).collect()
 }
 
-pub unsafe fn status_map<T, F: FnMut(&mut T) -> BOOL>(mut fun: F) -> Option<T> {
-  let mut data: T = mem::zeroed();
-  if fun(&mut data).as_bool() {
-    Some(data)
-  } else {
-    None
-  }
-}
-
 fn win_to_err<F: FnOnce() -> BOOL>(f: F) -> Result<(), io::Error> {
   if f().as_bool() {
     Ok(())
@@ -67,8 +62,9 @@ fn win_to_err<F: FnOnce() -> BOOL>(f: F) -> Result<(), io::Error> {
   }
 }
 
-pub fn get_window_rect(hwnd: HWND) -> Option<RECT> {
-  unsafe { status_map(|rect| GetWindowRect(hwnd, rect)) }
+pub unsafe fn get_window_rect(hwnd: HWND) -> Option<RECT> {
+  let mut rect = std::mem::zeroed();
+  GetWindowRect(hwnd, &mut rect).ok().map(|_| rect)
 }
 
 pub fn get_client_rect(hwnd: HWND) -> Result<RECT, io::Error> {
@@ -77,7 +73,7 @@ pub fn get_client_rect(hwnd: HWND) -> Result<RECT, io::Error> {
 
   unsafe {
     win_to_err(|| ClientToScreen(hwnd, &mut top_left))?;
-    win_to_err(|| GetClientRect(hwnd, &mut rect))?;
+    GetClientRect(hwnd, &mut rect)?;
   }
 
   rect.left += top_left.x;
@@ -116,7 +112,7 @@ pub(crate) fn set_inner_size_physical(window: HWND, x: u32, y: u32, is_decorated
 
     let outer_x = (rect.right - rect.left).abs();
     let outer_y = (rect.top - rect.bottom).abs();
-    SetWindowPos(
+    let _ = SetWindowPos(
       window,
       HWND::default(),
       0,
@@ -148,23 +144,23 @@ pub fn adjust_window_rect_with_styles(
   hwnd: HWND,
   style: WINDOW_STYLE,
   style_ex: WINDOW_EX_STYLE,
-  rect: RECT,
+  mut rect: RECT,
 ) -> Option<RECT> {
-  unsafe {
-    status_map(|r| {
-      *r = rect;
+  let b_menu: BOOL = (!unsafe { GetMenu(hwnd) }.is_invalid()).into();
 
-      let b_menu: BOOL = (!GetMenu(hwnd).is_invalid()).into();
-
-      if let (Some(get_dpi_for_window), Some(adjust_window_rect_ex_for_dpi)) =
-        (*GET_DPI_FOR_WINDOW, *ADJUST_WINDOW_RECT_EX_FOR_DPI)
-      {
-        let dpi = get_dpi_for_window(hwnd);
-        adjust_window_rect_ex_for_dpi(r, style, b_menu, style_ex, dpi)
-      } else {
-        AdjustWindowRectEx(r, style, b_menu, style_ex)
-      }
-    })
+  if let (Some(get_dpi_for_window), Some(adjust_window_rect_ex_for_dpi)) =
+    (*GET_DPI_FOR_WINDOW, *ADJUST_WINDOW_RECT_EX_FOR_DPI)
+  {
+    let dpi = unsafe { get_dpi_for_window(hwnd) };
+    if unsafe { adjust_window_rect_ex_for_dpi(&mut rect, style, b_menu, style_ex, dpi) }.as_bool() {
+      Some(rect)
+    } else {
+      None
+    }
+  } else {
+    unsafe { AdjustWindowRectEx(&mut rect, style, b_menu, style_ex) }
+      .ok()
+      .map(|_| rect)
   }
 }
 
@@ -176,23 +172,20 @@ pub fn set_cursor_hidden(hidden: bool) {
   }
 }
 
-pub fn get_cursor_clip() -> Result<RECT, io::Error> {
+pub fn get_cursor_clip() -> windows::core::Result<RECT> {
   unsafe {
     let mut rect = RECT::default();
-    win_to_err(|| GetClipCursor(&mut rect)).map(|_| rect)
+    GetClipCursor(&mut rect).map(|_| rect)
   }
 }
 
 /// Sets the cursor's clip rect.
 ///
 /// Note that calling this will automatically dispatch a `WM_MOUSEMOVE` event.
-pub fn set_cursor_clip(rect: Option<RECT>) -> Result<(), io::Error> {
+pub fn set_cursor_clip(rect: Option<RECT>) -> windows::core::Result<()> {
   unsafe {
-    let rect_ptr = rect
-      .as_ref()
-      .map(|r| r as *const RECT)
-      .unwrap_or(ptr::null());
-    win_to_err(|| ClipCursor(rect_ptr))
+    let rect_ptr = rect.as_ref().map(|r| r as *const RECT);
+    ClipCursor(rect_ptr)
   }
 }
 
@@ -217,15 +210,19 @@ pub fn is_visible(window: HWND) -> bool {
   unsafe { IsWindowVisible(window).as_bool() }
 }
 
-pub fn is_maximized(window: HWND) -> bool {
+pub fn is_maximized(window: HWND) -> windows::core::Result<bool> {
   let mut placement = WINDOWPLACEMENT {
     length: mem::size_of::<WINDOWPLACEMENT>() as u32,
     ..WINDOWPLACEMENT::default()
   };
-  unsafe {
-    GetWindowPlacement(window, &mut placement);
-  }
-  placement.showCmd == SW_MAXIMIZE
+  unsafe { GetWindowPlacement(window, &mut placement)? };
+  Ok(placement.showCmd == SW_MAXIMIZE.0 as u32)
+}
+
+pub fn cursor_position() -> windows::core::Result<PhysicalPosition<f64>> {
+  let mut pt = POINT { x: 0, y: 0 };
+  unsafe { GetCursorPos(&mut pt)? };
+  Ok((pt.x, pt.y).into())
 }
 
 impl CursorIcon {
@@ -258,25 +255,23 @@ impl CursorIcon {
 // Helper function to dynamically load function pointer.
 // `library` and `function` must be zero-terminated.
 pub(super) fn get_function_impl(library: &str, function: &str) -> FARPROC {
-  assert_eq!(library.chars().last(), Some('\0'));
+  let library = encode_wide(library);
   assert_eq!(function.chars().last(), Some('\0'));
+  let function = PCSTR::from_raw(function.as_ptr());
 
   // Library names we will use are ASCII so we can use the A version to avoid string conversion.
-  let module = unsafe { LoadLibraryA(library) }.unwrap_or_default();
+  let module = unsafe { LoadLibraryW(PCWSTR::from_raw(library.as_ptr())) }.unwrap_or_default();
   if module.is_invalid() {
     return None;
   }
 
-  unsafe { GetProcAddress(module, function) }
+  unsafe { GetProcAddress(module, PCSTR::from_raw(function.as_ptr())) }
 }
 
 macro_rules! get_function {
   ($lib:expr, $func:ident) => {
-    crate::platform_impl::platform::util::get_function_impl(
-      concat!($lib, '\0'),
-      concat!(stringify!($func), '\0'),
-    )
-    .map(|f| unsafe { std::mem::transmute::<_, $func>(f) })
+    crate::platform_impl::platform::util::get_function_impl($lib, concat!(stringify!($func), '\0'))
+      .map(|f| unsafe { std::mem::transmute::<_, $func>(f) })
   };
 }
 
@@ -407,4 +402,19 @@ pub unsafe extern "system" fn call_default_window_proc(
   lparam: LPARAM,
 ) -> LRESULT {
   DefWindowProcW(hwnd, msg, wparam, lparam)
+}
+
+pub fn get_instance_handle() -> windows::Win32::Foundation::HMODULE {
+  // Gets the instance handle by taking the address of the
+  // pseudo-variable created by the microsoft linker:
+  // https://devblogs.microsoft.com/oldnewthing/20041025-00/?p=37483
+
+  // This is preferred over GetModuleHandle(NULL) because it also works in DLLs:
+  // https://stackoverflow.com/questions/21718027/getmodulehandlenull-vs-hinstance
+
+  extern "C" {
+    static __ImageBase: windows::Win32::System::SystemServices::IMAGE_DOS_HEADER;
+  }
+
+  windows::Win32::Foundation::HMODULE(unsafe { &__ImageBase as *const _ as _ })
 }

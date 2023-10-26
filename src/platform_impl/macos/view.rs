@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -309,7 +310,7 @@ extern "C" fn dealloc(this: &Object, _sel: Sel) {
     let state: *mut c_void = *this.get_ivar("taoState");
     let marked_text: id = *this.get_ivar("markedText");
     let _: () = msg_send![marked_text, release];
-    Box::from_raw(state as *mut ViewState);
+    drop(Box::from_raw(state as *mut ViewState));
   }
 }
 
@@ -421,10 +422,12 @@ extern "C" fn reset_cursor_rects(this: &Object, _sel: Sel) {
       util::invisible_cursor()
     };
 
-    let _: () = msg_send![this,
-        addCursorRect:bounds
-        cursor:cursor
-    ];
+    if !cursor.is_null() {
+      let _: () = msg_send![this,
+          addCursorRect:bounds
+          cursor:cursor
+      ];
+    }
   }
 }
 
@@ -614,6 +617,7 @@ extern "C" fn do_command_by_selector(_this: &Object, _sel: Sel, _command: Sel) {
   //     };
   //     AppState::queue_events(events);
   // }
+
   trace!("Completed `doCommandBySelector`");
 }
 

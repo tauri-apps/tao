@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 mod r#async;
@@ -16,10 +17,14 @@ use cocoa::{
   base::{id, nil},
   foundation::{NSAutoreleasePool, NSPoint, NSRect, NSString, NSUInteger},
 };
-use core_graphics::display::CGDisplay;
+use core_graphics::{
+  display::CGDisplay,
+  event::CGEvent,
+  event_source::{CGEventSource, CGEventSourceStateID},
+};
 use objc::runtime::{Class, Object, Sel, BOOL, YES};
 
-use crate::{dpi::LogicalPosition, platform_impl::platform::ffi};
+use crate::{dpi::LogicalPosition, error::ExternalError, platform_impl::platform::ffi};
 
 // Replace with `!` once stable
 #[derive(Debug)]
@@ -95,20 +100,6 @@ pub fn bottom_left_to_top_left(rect: NSRect) -> f64 {
   CGDisplay::main().pixels_high() as f64 - (rect.origin.y + rect.size.height)
 }
 
-#[cfg(feature = "tray")]
-/// Get the icon Y-axis correctly aligned with tao based on the tray icon `NSRect`.
-/// Available only with the `tray` feature flag.
-pub fn bottom_left_to_top_left_for_tray(rect: NSRect) -> f64 {
-  CGDisplay::main().pixels_high() as f64 - rect.origin.y
-}
-
-#[cfg(feature = "tray")]
-/// Get the cursor Y-axis correctly aligned with tao when we click on the tray icon.
-/// Available only with the `tray` feature flag.
-pub fn bottom_left_to_top_left_for_cursor(point: NSPoint) -> f64 {
-  CGDisplay::main().pixels_high() as f64 - point.y
-}
-
 /// Converts from tao screen-coordinates to macOS screen-coordinates.
 /// Tao: top-left is (0, 0) and y increasing downwards
 /// macOS: bottom-left is (0, 0) and y increasing upwards
@@ -117,6 +108,19 @@ pub fn window_position(position: LogicalPosition<f64>) -> NSPoint {
     position.x,
     CGDisplay::main().pixels_high() as f64 - position.y,
   )
+}
+
+// FIXME: This is actually logical position.
+pub fn cursor_position() -> Result<LogicalPosition<f64>, ExternalError> {
+  if let Ok(s) = CGEventSource::new(CGEventSourceStateID::CombinedSessionState) {
+    if let Ok(e) = CGEvent::new(s) {
+      let pt = e.location();
+      let pos = LogicalPosition::new(pt.x, pt.y);
+      return Ok(pos);
+    }
+  }
+
+  return Err(ExternalError::Os(os_error!(super::OsError::CGError(0))));
 }
 
 pub unsafe fn ns_string_id_ref(s: &str) -> IdRef {
@@ -128,19 +132,6 @@ pub unsafe fn ns_string_to_rust(ns_string: id) -> String {
   let slice = slice::from_raw_parts(ns_string.UTF8String() as *mut u8, ns_string.len());
   let string = str::from_utf8_unchecked(slice);
   string.to_owned()
-}
-
-#[allow(dead_code)] // In case we want to use this function in the future
-pub unsafe fn app_name() -> Option<id> {
-  let bundle: id = msg_send![class!(NSBundle), mainBundle];
-  let dict: id = msg_send![bundle, infoDictionary];
-  let key = ns_string_id_ref("CFBundleName");
-  let app_name: id = msg_send![dict, objectForKey:*key];
-  if app_name != nil {
-    Some(app_name)
-  } else {
-    None
-  }
 }
 
 pub unsafe fn superclass<'a>(this: &'a Object) -> &'a Class {

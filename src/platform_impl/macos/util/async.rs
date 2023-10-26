@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -30,6 +31,11 @@ use crate::{
   window::WindowId,
 };
 
+pub fn is_main_thread() -> bool {
+  let is: BOOL = unsafe { msg_send!(class!(NSThread), isMainThread) };
+  is == YES
+}
+
 // Unsafe wrapper type that allows us to dispatch things that aren't Send.
 // This should *only* be used to dispatch to the main queue.
 // While it is indeed not guaranteed that these types can safely be sent to
@@ -42,6 +48,14 @@ impl<T> Deref for MainThreadSafe<T> {
   type Target = T;
   fn deref(&self) -> &T {
     &self.0
+  }
+}
+
+fn run_on_main<R: Send>(f: impl FnOnce() -> R + Send) -> R {
+  if is_main_thread() {
+    f()
+  } else {
+    Queue::main().exec_sync(f)
   }
 }
 
@@ -64,8 +78,7 @@ pub unsafe fn set_style_mask_async(ns_window: id, ns_view: id, mask: NSWindowSty
   });
 }
 pub unsafe fn set_style_mask_sync(ns_window: id, ns_view: id, mask: NSWindowStyleMask) {
-  let is_main_thread: BOOL = msg_send!(class!(NSThread), isMainThread);
-  if is_main_thread != NO {
+  if is_main_thread() {
     set_style_mask(ns_window, ns_view, mask);
   } else {
     let ns_window = MainThreadSafe(ns_window);
@@ -194,18 +207,18 @@ pub unsafe fn set_maximized_async(
 
 // `orderOut:` isn't thread-safe. Calling it from another thread actually works,
 // but with an odd delay.
-pub unsafe fn order_out_async(ns_window: id) {
+pub unsafe fn order_out_sync(ns_window: id) {
   let ns_window = MainThreadSafe(ns_window);
-  Queue::main().exec_async(move || {
+  run_on_main(move || {
     ns_window.orderOut_(nil);
   });
 }
 
 // `makeKeyAndOrderFront:` isn't thread-safe. Calling it from another thread
 // actually works, but with an odd delay.
-pub unsafe fn make_key_and_order_front_async(ns_window: id) {
+pub unsafe fn make_key_and_order_front_sync(ns_window: id) {
   let ns_window = MainThreadSafe(ns_window);
-  Queue::main().exec_async(move || {
+  run_on_main(move || {
     ns_window.makeKeyAndOrderFront_(nil);
   });
 }
@@ -224,7 +237,7 @@ pub unsafe fn set_title_async(ns_window: id, title: String) {
 // `setFocus:` isn't thread-safe.
 pub unsafe fn set_focus(ns_window: id) {
   let ns_window = MainThreadSafe(ns_window);
-  Queue::main().exec_async(move || {
+  run_on_main(move || {
     ns_window.makeKeyAndOrderFront_(nil);
     let app: id = msg_send![class!(NSApplication), sharedApplication];
     let () = msg_send![app, activateIgnoringOtherApps: YES];

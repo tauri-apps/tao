@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{fmt, io, iter::once, mem, os::windows::ffi::OsStrExt, path::Path, sync::Arc};
@@ -6,7 +7,7 @@ use std::{fmt, io, iter::once, mem, os::windows::ffi::OsStrExt, path::Path, sync
 use windows::{
   core::PCWSTR,
   Win32::{
-    Foundation::{HINSTANCE, HWND, LPARAM, WPARAM},
+    Foundation::{HMODULE, HWND, LPARAM, WPARAM},
     System::LibraryLoader::*,
     UI::WindowsAndMessaging::*,
   },
@@ -34,13 +35,13 @@ impl RgbaIcon {
     assert_eq!(and_mask.len(), pixel_count);
     let handle = unsafe {
       CreateIcon(
-        HINSTANCE::default(),
+        HMODULE::default(),
         self.width as i32,
         self.height as i32,
         1,
         (PIXEL_SIZE * 8) as u8,
-        and_mask.as_ptr() as *const u8,
-        rgba.as_ptr() as *const u8,
+        and_mask.as_ptr(),
+        rgba.as_ptr(),
       )
     };
     Ok(WinIcon::from_handle(
@@ -89,8 +90,8 @@ impl WinIcon {
 
     let handle = unsafe {
       LoadImageW(
-        HINSTANCE::default(),
-        PCWSTR(wide_path.as_ptr()),
+        HMODULE::default(),
+        PCWSTR::from_raw(wide_path.as_ptr()),
         IMAGE_ICON,
         width as i32,
         height as i32,
@@ -108,8 +109,8 @@ impl WinIcon {
     let (width, height) = size.map(Into::into).unwrap_or((0, 0));
     let handle = unsafe {
       LoadImageW(
-        GetModuleHandleW(PCWSTR::default()).unwrap_or_default(),
-        PCWSTR(resource_id as usize as *const u16),
+        GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
+        PCWSTR::from_raw(resource_id as usize as *const u16),
         IMAGE_ICON,
         width as i32,
         height as i32,
@@ -147,7 +148,7 @@ impl WinIcon {
 
 impl Drop for RaiiIcon {
   fn drop(&mut self) {
-    unsafe { DestroyIcon(self.handle) };
+    let _ = unsafe { DestroyIcon(self.handle) };
   }
 }
 

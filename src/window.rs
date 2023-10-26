@@ -1,21 +1,41 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 //! The `Window` struct and associated types.
 use std::fmt;
 
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
-
 use crate::{
-  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+  dpi::{LogicalSize, PhysicalPosition, PhysicalSize, Pixel, PixelUnit, Position, Size},
   error::{ExternalError, NotSupportedError, OsError},
   event_loop::EventLoopWindowTarget,
-  menu::MenuBar,
   monitor::{MonitorHandle, VideoMode},
   platform_impl,
 };
 
 pub use crate::icon::{BadIcon, Icon};
+
+/// Progress State
+#[derive(Debug, Clone, Copy)]
+pub enum ProgressState {
+  None,
+  Normal,
+  /// **Treated as Normal in linux and macOS**
+  Indeterminate,
+  /// **Treated as Normal in linux**
+  Paused,
+  /// **Treated as Normal in linux**
+  Error,
+}
+
+pub struct ProgressBarState {
+  /// The progress bar state.
+  pub state: Option<ProgressState>,
+  /// The progress bar progress. This can be a value ranging from `0` to `100`
+  pub progress: Option<u64>,
+  /// The identifier for your app to communicate with the Unity desktop window manager **Linux Only**
+  pub unity_uri: Option<String>,
+}
 
 /// Represents a window.
 ///
@@ -114,15 +134,8 @@ pub struct WindowAttributes {
   /// The default is `None`.
   pub inner_size: Option<Size>,
 
-  /// The minimum dimensions a window can be, If this is `None`, the window will have no minimum dimensions (aside from reserved).
-  ///
-  /// The default is `None`.
-  pub min_inner_size: Option<Size>,
-
-  /// The maximum dimensions a window can be, If this is `None`, the maximum will have no maximum or will be set to the primary monitor's dimensions by the platform.
-  ///
-  /// The default is `None`.
-  pub max_inner_size: Option<Size>,
+  /// The window size constraints
+  pub inner_size_constraints: WindowSizeConstraints,
 
   /// The desired position of the window. If this is `None`, some platform-specific position
   /// will be chosen.
@@ -142,6 +155,7 @@ pub struct WindowAttributes {
   /// There may be a small gap between this position and the window due to the specifics of the
   /// Window Manager.
   /// - **Linux**: The top left corner of the window, the window's "outer" position.
+  /// - **Linux(Wayland)**: Unsupported.
   /// - **Others**: Ignored.
   ///
   /// See [`Window::set_outer_position`].
@@ -153,6 +167,27 @@ pub struct WindowAttributes {
   ///
   /// The default is `true`.
   pub resizable: bool,
+
+  /// Whether the window is minimizable or not.
+  ///
+  /// The default is `true`.
+  ///
+  /// See [`Window::set_minimizable`] for details.
+  pub minimizable: bool,
+
+  /// Whether the window is maximizable or not.
+  ///
+  /// The default is `true`.
+  ///
+  /// See [`Window::set_maximizable`] for details.
+  pub maximizable: bool,
+
+  /// Whether the window is closable or not.
+  ///
+  /// The default is `true`.
+  ///
+  /// See [`Window::set_closable`] for details.
+  pub closable: bool,
 
   /// Whether the window should be set as fullscreen upon creation.
   ///
@@ -190,17 +225,38 @@ pub struct WindowAttributes {
   /// The default is `false`.
   pub always_on_top: bool,
 
+  /// Whether the window should always be on bottom of other windows.
+  ///
+  /// The default is `false`.
+  pub always_on_bottom: bool,
+
   /// The window icon.
   ///
   /// The default is `None`.
   pub window_icon: Option<Icon>,
 
-  /// The window menu.
-  ///
-  /// The default is `None`.
-  pub window_menu: Option<platform_impl::Menu>,
-
   pub preferred_theme: Option<Theme>,
+
+  /// Whether the window should be initially focused or not.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// **Android / iOS:** Unsupported.
+  pub focused: bool,
+
+  /// Prevents the window contents from being captured by other apps.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Linux:** Unsupported.
+  pub content_protection: bool,
+
+  /// Sets whether the window should be visible on all workspaces.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Windows:** Unsupported.
+  pub visible_on_all_workspaces: bool,
 }
 
 impl Default for WindowAttributes {
@@ -208,10 +264,12 @@ impl Default for WindowAttributes {
   fn default() -> WindowAttributes {
     WindowAttributes {
       inner_size: None,
-      min_inner_size: None,
-      max_inner_size: None,
+      inner_size_constraints: Default::default(),
       position: None,
       resizable: true,
+      minimizable: true,
+      maximizable: true,
+      closable: true,
       title: "tao window".to_owned(),
       maximized: false,
       fullscreen: None,
@@ -219,9 +277,12 @@ impl Default for WindowAttributes {
       transparent: false,
       decorations: true,
       always_on_top: false,
+      always_on_bottom: false,
       window_icon: None,
-      window_menu: None,
       preferred_theme: None,
+      focused: true,
+      content_protection: false,
+      visible_on_all_workspaces: false,
     }
   }
 }
@@ -251,7 +312,9 @@ impl WindowBuilder {
   /// [`Window::set_min_inner_size`]: crate::window::Window::set_min_inner_size
   #[inline]
   pub fn with_min_inner_size<S: Into<Size>>(mut self, min_size: S) -> Self {
-    self.window.min_inner_size = Some(min_size.into());
+    let size = min_size.into();
+    self.window.inner_size_constraints.min_width = Some(size.width());
+    self.window.inner_size_constraints.min_height = Some(size.height());
     self
   }
 
@@ -262,7 +325,20 @@ impl WindowBuilder {
   /// [`Window::set_max_inner_size`]: crate::window::Window::set_max_inner_size
   #[inline]
   pub fn with_max_inner_size<S: Into<Size>>(mut self, max_size: S) -> Self {
-    self.window.max_inner_size = Some(max_size.into());
+    let size = max_size.into();
+    self.window.inner_size_constraints.max_width = Some(size.width());
+    self.window.inner_size_constraints.max_height = Some(size.height());
+    self
+  }
+
+  /// Sets inner size constraints for the window.
+  ///
+  /// See [`Window::set_inner_size_constraints`] for details.
+  ///
+  /// [`Window::set_inner_size_constraints`]: crate::window::Window::set_inner_size_constraints
+  #[inline]
+  pub fn with_inner_size_constraints(mut self, constraints: WindowSizeConstraints) -> Self {
+    self.window.inner_size_constraints = constraints;
     self
   }
 
@@ -288,6 +364,39 @@ impl WindowBuilder {
     self
   }
 
+  /// Sets whether the window is minimizable or not.
+  ///
+  /// See [`Window::set_minimizable`] for details.
+  ///
+  /// [`Window::set_minimizable`]: crate::window::Window::set_minimizable
+  #[inline]
+  pub fn with_minimizable(mut self, minimizable: bool) -> Self {
+    self.window.minimizable = minimizable;
+    self
+  }
+
+  /// Sets whether the window is maximizable or not.
+  ///
+  /// See [`Window::set_maximizable`] for details.
+  ///
+  /// [`Window::set_maximizable`]: crate::window::Window::set_maximizable
+  #[inline]
+  pub fn with_maximizable(mut self, maximizable: bool) -> Self {
+    self.window.maximizable = maximizable;
+    self
+  }
+
+  /// Sets whether the window is closable or not.
+  ///
+  /// See [`Window::set_closable`] for details.
+  ///
+  /// [`Window::set_closable`]: crate::window::Window::set_closable
+  #[inline]
+  pub fn with_closable(mut self, closable: bool) -> Self {
+    self.window.closable = closable;
+    self
+  }
+
   /// Requests a specific title for the window.
   ///
   /// See [`Window::set_title`] for details.
@@ -296,17 +405,6 @@ impl WindowBuilder {
   #[inline]
   pub fn with_title<T: Into<String>>(mut self, title: T) -> Self {
     self.window.title = title.into();
-    self
-  }
-
-  /// Requests a specific menu for the window.
-  ///
-  /// See [`Window::set_menu`] for details.
-  ///
-  /// [`Window::set_menu`]: crate::window::Window::set_menu
-  #[inline]
-  pub fn with_menu(mut self, menu: MenuBar) -> Self {
-    self.window.window_menu = Some(menu.0.menu_platform);
     self
   }
 
@@ -361,6 +459,18 @@ impl WindowBuilder {
     self
   }
 
+  /// Sets whether or not the window will always be below other windows.
+  ///
+  /// See [`Window::set_always_on_bottom`] for details.
+  ///
+  /// [`Window::set_always_on_bottom`]: crate::window::Window::set_always_on_bottom
+  #[inline]
+  pub fn with_always_on_bottom(mut self, always_on_bottom: bool) -> Self {
+    self.window.always_on_top = false;
+    self.window.always_on_bottom = always_on_bottom;
+    self
+  }
+
   /// Sets whether or not the window will always be on top of other windows.
   ///
   /// See [`Window::set_always_on_top`] for details.
@@ -368,6 +478,7 @@ impl WindowBuilder {
   /// [`Window::set_always_on_top`]: crate::window::Window::set_always_on_top
   #[inline]
   pub fn with_always_on_top(mut self, always_on_top: bool) -> Self {
+    self.window.always_on_bottom = false;
     self.window.always_on_top = always_on_top;
     self
   }
@@ -384,9 +495,52 @@ impl WindowBuilder {
   }
 
   /// Forces a theme or uses the system settings if `None` was provided.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: It is recommended to always use the same theme used
+  ///   in [`EventLoopBuilderExtWindows::with_theme`] for this method also
+  ///   or use `None` so it automatically uses the theme used in [`EventLoopBuilderExtWindows::with_theme`]
+  ///   or falls back to the system preference, because [`EventLoopBuilderExtWindows::with_theme`] changes
+  ///   the theme for some controls like context menus which is app-wide and can't be changed by this method.
+  ///
+  /// [`EventLoopBuilderExtWindows::with_theme`]: crate::platform::windows::EventLoopBuilderExtWindows::with_theme
+  #[allow(rustdoc::broken_intra_doc_links)]
   #[inline]
   pub fn with_theme(mut self, theme: Option<Theme>) -> WindowBuilder {
     self.window.preferred_theme = theme;
+    self
+  }
+
+  /// Whether the window will be initially focused or not.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// **Android / iOS:** Unsupported.
+  #[inline]
+  pub fn with_focused(mut self, focused: bool) -> WindowBuilder {
+    self.window.focused = focused;
+    self
+  }
+  /// Prevents the window contents from being captured by other apps.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Linux:** Unsupported.
+  #[inline]
+  pub fn with_content_protection(mut self, protected: bool) -> WindowBuilder {
+    self.window.content_protection = protected;
+    self
+  }
+
+  /// Sets whether the window should be visible on all workspaces.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Windows:** Unsupported.
+  #[inline]
+  pub fn with_visible_on_all_workspaces(mut self, visible: bool) -> WindowBuilder {
+    self.window.visible_on_all_workspaces = visible;
     self
   }
 
@@ -520,7 +674,7 @@ impl Window {
   ///
   /// - **iOS:** Can only be called on the main thread. Sets the top left coordinates of the
   ///   window in the screen space coordinate system.
-  /// - **Android:** Unsupported.
+  /// - **Android / Linux(Wayland):** Unsupported.
   #[inline]
   pub fn set_outer_position<P: Into<Position>>(&self, position: P) {
     self.window.set_outer_position(position.into())
@@ -587,6 +741,16 @@ impl Window {
   pub fn set_max_inner_size<S: Into<Size>>(&self, max_size: Option<S>) {
     self.window.set_max_inner_size(max_size.map(|s| s.into()))
   }
+
+  /// Sets inner size constraints for the window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_inner_size_constraints(&self, constraints: WindowSizeConstraints) {
+    self.window.set_inner_size_constraints(constraints)
+  }
 }
 
 /// Misc. attribute functions.
@@ -601,19 +765,14 @@ impl Window {
     self.window.set_title(title)
   }
 
-  /// Modifies the menu of the window.
+  /// Gets the current title of the window.
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows:** Unsupported.
-
+  /// - **iOS / Android:** Unsupported. Returns ane empty string.
   #[inline]
-  pub fn set_menu(&self, menu: Option<MenuBar>) {
-    if let Some(menu) = menu {
-      self.window.set_menu(Some(menu.0.menu_platform))
-    } else {
-      self.window.set_menu(None)
-    }
+  pub fn title(&self) -> String {
+    self.window.title()
   }
 
   /// Modifies the window's visibility.
@@ -638,6 +797,16 @@ impl Window {
     self.window.set_focus()
   }
 
+  /// Is window active and focused?
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_focused(&self) -> bool {
+    self.window.is_focused()
+  }
+
   /// Sets whether the window is resizable or not.
   ///
   /// Note that making the window unresizable doesn't exempt you from handling `Resized`, as that event can still be
@@ -651,10 +820,49 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
+  /// - **Linux:** Most size methods like maximized are async and do not work well with calling
+  /// sequentailly. For setting inner or outer size, you don't need to set resizable to true before
+  /// it. It can resize no matter what. But if you insist to do so, it has a `100, 100` minimum
+  /// limitation somehow. For maximizing, it requires resizable is true. If you really want to set
+  /// resizable to false after it. You might need a mechanism to check the window is really
+  /// maximized.
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_resizable(&self, resizable: bool) {
     self.window.set_resizable(resizable)
+  }
+
+  /// Sets whether the window is minimizable or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_minimizable(&self, minimizable: bool) {
+    self.window.set_minimizable(minimizable)
+  }
+
+  /// Sets whether the window is maximizable or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Disables the "zoom" button in the window titlebar, which is also used to enter fullscreen mode.
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_maximizable(&self, maximizable: bool) {
+    self.window.set_maximizable(maximizable)
+  }
+
+  /// Sets whether the window is closable or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** "GTK+ will do its best to convince the window manager not to show a close button.
+  ///   Depending on the system, this function may not have any effect when called on a window that is already visible"
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_closable(&self, closable: bool) {
+    self.window.set_closable(closable)
   }
 
   /// Sets the window to minimized or back
@@ -687,7 +895,17 @@ impl Window {
     self.window.is_maximized()
   }
 
-  /// Gets the window's current vibility state.
+  /// Gets the window's current minimized state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_minimized(&self) -> bool {
+    self.window.is_minimized()
+  }
+
+  /// Gets the window's current visibility state.
   ///
   /// ## Platform-specific
   ///
@@ -705,6 +923,36 @@ impl Window {
   #[inline]
   pub fn is_resizable(&self) -> bool {
     self.window.is_resizable()
+  }
+
+  /// Gets the window's current minimizable state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_minimizable(&self) -> bool {
+    self.window.is_minimizable()
+  }
+
+  /// Gets the window's current maximizable state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_maximizable(&self) -> bool {
+    self.window.is_maximizable()
+  }
+
+  /// Gets the window's current closable state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_closable(&self) -> bool {
+    self.window.is_closable()
   }
 
   /// Gets the window's current decoration state.
@@ -764,6 +1012,17 @@ impl Window {
     self.window.set_decorations(decorations)
   }
 
+  /// Change whether or not the window will always be below other windows.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: There is no guarantee that the window will be the bottom most but it will try to be.
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
+    self.window.set_always_on_bottom(always_on_bottom)
+  }
+
   /// Change whether or not the window will always be on top of other windows.
   ///
   /// ## Platform-specific
@@ -798,6 +1057,26 @@ impl Window {
     self.window.set_ime_position(position.into())
   }
 
+  /// Sets the taskbar progress state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / macOS**: Progress bar is app-wide and not specific to this window. Only supported desktop environments with `libunity` (e.g. GNOME).
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_progress_bar(&self, _progress: ProgressBarState) {
+    #[cfg(any(
+      windows,
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd",
+      target_os = "macos",
+    ))]
+    self.window.set_progress_bar(_progress)
+  }
+
   /// Requests user attention to the window, this has no effect if the application
   /// is already focused. How requesting for user attention manifests is platform dependent,
   /// see `UserAttentionType` for details.
@@ -815,36 +1094,6 @@ impl Window {
     self.window.request_user_attention(request_type)
   }
 
-  /// Hides the menu associated with the window
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **macOs/ iOS / Android:** Unsupported.
-  #[inline]
-  pub fn hide_menu(&self) {
-    self.window.hide_menu();
-  }
-
-  /// Shows the menu associated with the window
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **macOs/ iOS / Android:** Unsupported.
-  #[inline]
-  pub fn show_menu(&self) {
-    self.window.show_menu();
-  }
-
-  /// Gets the visibilty of the window menu.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **iOS / Android:** Unsupported.
-  /// - **macOS:** Always return true, as the menu is always visible.
-  pub fn is_menu_visible(&self) -> bool {
-    self.window.is_menu_visible()
-  }
-
   /// Returns the current window theme.
   ///
   /// ## Platform-specific
@@ -853,6 +1102,26 @@ impl Window {
   #[inline]
   pub fn theme(&self) -> Theme {
     self.window.theme()
+  }
+
+  /// Prevents the window contents from being captured by other apps.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Linux:** Unsupported.
+  pub fn set_content_protection(&self, #[allow(unused)] enabled: bool) {
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    self.window.set_content_protection(enabled);
+  }
+
+  /// Sets whether the window should be visible on all workspaces.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Windows:** Unsupported.
+  pub fn set_visible_on_all_workspaces(&self, #[allow(unused)] visible: bool) {
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    self.window.set_visible_on_all_workspaces(visible)
   }
 }
 
@@ -933,6 +1202,16 @@ impl Window {
   pub fn set_ignore_cursor_events(&self, ignore: bool) -> Result<(), ExternalError> {
     self.window.set_ignore_cursor_events(ignore)
   }
+
+  /// Returns the current cursor position
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android / Linux(Wayland)**: Unsupported, returns `0,0`.
+  #[inline]
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    self.window.cursor_position()
+  }
 }
 
 /// Monitor info functions.
@@ -947,6 +1226,16 @@ impl Window {
   #[inline]
   pub fn current_monitor(&self) -> Option<MonitorHandle> {
     self.window.current_monitor()
+  }
+
+  #[inline]
+  /// Returns the monitor that contains the given point.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Android / iOS:** Unsupported.
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
+    self.window.monitor_from_point(x, y)
   }
 
   /// Returns the list of all the monitors available on the system.
@@ -980,28 +1269,45 @@ impl Window {
   }
 }
 
-// Safety: objc runtime calls are unsafe
-unsafe impl HasRawWindowHandle for Window {
-  /// Returns a `raw_window_handle::RawWindowHandle` for the Window
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Android:** Only available after receiving the Resumed event and before Suspended. *If you*
-  /// *try to get the handle outside of that period, this function will panic*!
-  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    self.window.raw_window_handle()
+#[cfg(feature = "rwh_04")]
+unsafe impl rwh_04::HasRawWindowHandle for Window {
+  fn raw_window_handle(&self) -> rwh_04::RawWindowHandle {
+    self.window.raw_window_handle_rwh_04()
   }
 }
 
-unsafe impl HasRawDisplayHandle for Window {
-  /// Returns a [`raw_window_handle::RawDisplayHandle`] used by the [`EventLoop`] that
-  /// created a window.
-  ///
-  /// [`EventLoop`]: crate::event_loop::EventLoop
-  fn raw_display_handle(&self) -> RawDisplayHandle {
-    self.window.raw_display_handle()
+#[cfg(feature = "rwh_05")]
+unsafe impl rwh_05::HasRawWindowHandle for Window {
+  fn raw_window_handle(&self) -> rwh_05::RawWindowHandle {
+    self.window.raw_window_handle_rwh_05()
   }
 }
+
+#[cfg(feature = "rwh_05")]
+unsafe impl rwh_05::HasRawDisplayHandle for Window {
+  fn raw_display_handle(&self) -> rwh_05::RawDisplayHandle {
+    self.window.raw_display_handle_rwh_05()
+  }
+}
+
+#[cfg(feature = "rwh_06")]
+impl rwh_06::HasWindowHandle for Window {
+  fn window_handle(&self) -> Result<rwh_06::WindowHandle<'_>, rwh_06::HandleError> {
+    let raw = self.window.raw_window_handle_rwh_06()?;
+    // SAFETY: The window handle will never be deallocated while the window is alive.
+    Ok(unsafe { rwh_06::WindowHandle::borrow_raw(raw) })
+  }
+}
+
+#[cfg(feature = "rwh_06")]
+impl rwh_06::HasDisplayHandle for Window {
+  fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
+    let raw = self.window.raw_display_handle_rwh_06()?;
+    // SAFETY: The window handle will never be deallocated while the window is alive.
+    Ok(unsafe { rwh_06::DisplayHandle::borrow_raw(raw) })
+  }
+}
+
 /// Describes the appearance of the mouse cursor.
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -1108,6 +1414,123 @@ pub enum UserAttentionType {
 impl Default for UserAttentionType {
   fn default() -> Self {
     UserAttentionType::Informational
+  }
+}
+
+/// Window size constraints
+#[derive(Clone, Copy, PartialEq, PartialOrd, Debug, Default)]
+pub struct WindowSizeConstraints {
+  /// The minimum width a window can be, If this is `None`, the window will have no minimum width (aside from reserved).
+  ///
+  /// The default is `None`.
+  pub min_width: Option<PixelUnit>,
+  /// The minimum height a window can be, If this is `None`, the window will have no minimum height (aside from reserved).
+  ///
+  /// The default is `None`.
+  pub min_height: Option<PixelUnit>,
+  /// The maximum width a window can be, If this is `None`, the window will have no maximum width (aside from reserved).
+  ///
+  /// The default is `None`.
+  pub max_width: Option<PixelUnit>,
+  /// The maximum height a window can be, If this is `None`, the window will have no maximum height (aside from reserved).
+  ///
+  /// The default is `None`.
+  pub max_height: Option<PixelUnit>,
+}
+
+impl WindowSizeConstraints {
+  pub fn new(
+    min_width: Option<PixelUnit>,
+    min_height: Option<PixelUnit>,
+    max_width: Option<PixelUnit>,
+    max_height: Option<PixelUnit>,
+  ) -> Self {
+    Self {
+      min_width,
+      min_height,
+      max_width,
+      max_height,
+    }
+  }
+
+  /// Returns true if `min_width` or `min_height` is set.
+  pub fn has_min(&self) -> bool {
+    self.min_width.is_some() || self.min_height.is_some()
+  }
+  /// Returns true if `max_width` or `max_height` is set.
+  pub fn has_max(&self) -> bool {
+    self.max_width.is_some() || self.max_height.is_some()
+  }
+
+  /// Returns a physical size that represents the minimum constraints set and fallbacks to [`PixelUnit::MIN`] for unset values
+  pub fn min_size_physical<T: Pixel>(&self, scale_factor: f64) -> PhysicalSize<T> {
+    PhysicalSize::new(
+      self
+        .min_width
+        .unwrap_or(PixelUnit::MIN)
+        .to_physical(scale_factor)
+        .value,
+      self
+        .min_height
+        .unwrap_or(PixelUnit::MIN)
+        .to_physical(scale_factor)
+        .value,
+    )
+  }
+
+  /// Returns a logical size that represents the minimum constraints set and fallbacks to [`PixelUnit::MIN`] for unset values
+  pub fn min_size_logical<T: Pixel>(&self, scale_factor: f64) -> LogicalSize<T> {
+    LogicalSize::new(
+      self
+        .min_width
+        .unwrap_or(PixelUnit::MIN)
+        .to_logical(scale_factor)
+        .value,
+      self
+        .min_height
+        .unwrap_or(PixelUnit::MIN)
+        .to_logical(scale_factor)
+        .value,
+    )
+  }
+
+  /// Returns a physical size that represents the maximum constraints set and fallbacks to [`PixelUnit::MAX`] for unset values
+  pub fn max_size_physical<T: Pixel>(&self, scale_factor: f64) -> PhysicalSize<T> {
+    PhysicalSize::new(
+      self
+        .max_width
+        .unwrap_or(PixelUnit::MAX)
+        .to_physical(scale_factor)
+        .value,
+      self
+        .max_height
+        .unwrap_or(PixelUnit::MAX)
+        .to_physical(scale_factor)
+        .value,
+    )
+  }
+
+  /// Returns a logical size that represents the maximum constraints set and fallbacks to [`PixelUnit::MAX`] for unset values
+  pub fn max_size_logical<T: Pixel>(&self, scale_factor: f64) -> LogicalSize<T> {
+    LogicalSize::new(
+      self
+        .max_width
+        .unwrap_or(PixelUnit::MAX)
+        .to_logical(scale_factor)
+        .value,
+      self
+        .max_height
+        .unwrap_or(PixelUnit::MAX)
+        .to_logical(scale_factor)
+        .value,
+    )
+  }
+
+  /// Clamps the desired size based on the constraints set
+  pub fn clamp(&self, desired_size: Size, scale_factor: f64) -> Size {
+    let min_size: PhysicalSize<f64> = self.min_size_physical(scale_factor);
+    let max_size: PhysicalSize<f64> = self.max_size_physical(scale_factor);
+    Size::clamp(desired_size, min_size.into(), max_size.into(), scale_factor)
   }
 }
 

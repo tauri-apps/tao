@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -11,10 +12,9 @@ use std::{
 
 use crossbeam_channel::{self as channel, Receiver, Sender};
 
-use raw_window_handle::{RawDisplayHandle, UiKitDisplayHandle};
-
 use crate::{
-  dpi::LogicalSize,
+  dpi::{LogicalSize, PhysicalPosition},
+  error::ExternalError,
   event::Event,
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootEventLoopWindowTarget},
   monitor::MonitorHandle as RootMonitorHandle,
@@ -63,6 +63,12 @@ impl<T: 'static> EventLoopWindowTarget<T> {
     unsafe { monitor::uiscreens() }
   }
 
+  #[inline]
+  pub fn monitor_from_point(&self, _x: f64, _y: f64) -> Option<MonitorHandle> {
+    warn!("`Window::monitor_from_point` is ignored on iOS");
+    return None;
+  }
+
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
     // guaranteed to be on main thread
     let monitor = unsafe { monitor::main_uiscreen() };
@@ -70,17 +76,35 @@ impl<T: 'static> EventLoopWindowTarget<T> {
     Some(RootMonitorHandle { inner: monitor })
   }
 
-  pub fn raw_display_handle(&self) -> RawDisplayHandle {
-    RawDisplayHandle::UiKit(UiKitDisplayHandle::empty())
+  #[cfg(feature = "rwh_05")]
+  #[inline]
+  pub fn raw_display_handle_rwh_05(&self) -> rwh_05::RawDisplayHandle {
+    rwh_05::RawDisplayHandle::UiKit(rwh_05::UiKitDisplayHandle::empty())
+  }
+
+  #[cfg(feature = "rwh_06")]
+  #[inline]
+  pub fn raw_display_handle_rwh_06(&self) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
+    Ok(rwh_06::RawDisplayHandle::UiKit(
+      rwh_06::UiKitDisplayHandle::new(),
+    ))
+  }
+
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    debug!("`EventLoopWindowTarget::cursor_position` is ignored on iOS");
+    Ok((0, 0).into())
   }
 }
+
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct PlatformSpecificEventLoopAttributes {}
 
 pub struct EventLoop<T: 'static> {
   window_target: RootEventLoopWindowTarget<T>,
 }
 
 impl<T: 'static> EventLoop<T> {
-  pub fn new() -> EventLoop<T> {
+  pub(crate) fn new(_: &PlatformSpecificEventLoopAttributes) -> EventLoop<T> {
     static mut SINGLETON_INIT: bool = false;
     unsafe {
       assert_main_thread!("`EventLoop` can only be created on the main thread on iOS");
@@ -160,6 +184,7 @@ pub struct EventLoopProxy<T> {
 }
 
 unsafe impl<T: Send> Send for EventLoopProxy<T> {}
+unsafe impl<T: Send> Sync for EventLoopProxy<T> {}
 
 impl<T> Clone for EventLoopProxy<T> {
   fn clone(&self) -> EventLoopProxy<T> {

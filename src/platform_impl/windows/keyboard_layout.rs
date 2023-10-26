@@ -12,7 +12,6 @@ use windows::Win32::{
   UI::{
     Input::KeyboardAndMouse::{self as win32km, *},
     TextServices::HKL,
-    WindowsAndMessaging::*,
   },
 };
 

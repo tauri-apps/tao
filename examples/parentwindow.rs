@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
@@ -16,8 +17,6 @@ fn main() {
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
   };
-  #[cfg(target_os = "windows")]
-  use windows::Win32::Foundation::HWND;
   env_logger::init();
   let event_loop = EventLoop::new();
   let mut windows = HashMap::new();
@@ -26,7 +25,7 @@ fn main() {
   #[cfg(target_os = "macos")]
   let parent_window = main_window.ns_window();
   #[cfg(target_os = "windows")]
-  let parent_window = HWND(main_window.hwnd() as _);
+  let parent_window = main_window.hwnd();
   #[cfg(target_os = "linux")]
   let parent_window = main_window.gtk_window();
 

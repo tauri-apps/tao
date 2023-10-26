@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(any(
@@ -17,17 +18,44 @@ pub use crate::platform_impl::x11;
 
 pub use crate::platform_impl::{hit_test, EventLoop as UnixEventLoop};
 use crate::{
-  event_loop::{EventLoop, EventLoopWindowTarget},
+  event_loop::{EventLoopBuilder, EventLoopWindowTarget},
   platform_impl::{x11::xdisplay::XError, Parent},
   window::{Window, WindowBuilder},
 };
 
 use self::x11::xdisplay::XConnection;
 
+/// Additional methods on `EventLoop` that are specific to Unix.
+pub trait EventLoopBuilderExtUnix {
+  /// Whether to allow the event loop to be created off of the main thread.
+  ///
+  /// By default, the window is only allowed to be created on the main
+  /// thread, to make platform compatibility easier.
+  ///
+  /// # `Window` caveats
+  ///
+  /// Note that any `Window` created on the new thread will be destroyed when the thread
+  /// terminates. Attempting to use a `Window` after its parent thread terminates has
+  /// unspecified, although explicitly not undefined, behavior.
+  fn with_any_thread(&mut self, any_thread: bool) -> &mut Self;
+}
+
+impl<T> EventLoopBuilderExtUnix for EventLoopBuilder<T> {
+  #[inline]
+  fn with_any_thread(&mut self, any_thread: bool) -> &mut Self {
+    self.platform_specific.any_thread = any_thread;
+    self
+  }
+}
+
 /// Additional methods on `Window` that are specific to Unix.
 pub trait WindowExtUnix {
-  /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
+  /// Returns the `gtk::ApplicatonWindow` from gtk crate that is used by this window.
   fn gtk_window(&self) -> &gtk::ApplicationWindow;
+
+  /// Returns the vertical `gtk::Box` that is added by default as the sole child of this window.
+  /// Returns `None` if the default vertical `gtk::Box` creation was disabled by [`WindowBuilderExtUnix::with_default_vbox`].
+  fn default_vbox(&self) -> Option<&gtk::Box>;
 
   /// Whether to show the window icon in the taskbar or not.
   fn set_skip_taskbar(&self, skip: bool);
@@ -36,6 +64,10 @@ pub trait WindowExtUnix {
 impl WindowExtUnix for Window {
   fn gtk_window(&self) -> &gtk::ApplicationWindow {
     &self.window.window
+  }
+
+  fn default_vbox(&self) -> Option<&gtk::Box> {
+    self.window.default_vbox.as_ref()
   }
 
   fn set_skip_taskbar(&self, skip: bool) {
@@ -56,6 +88,34 @@ pub trait WindowBuilderExtUnix {
   /// For anyone who wants to draw the background themselves, set this to `false`.
   /// Default is `true`.
   fn with_transparent_draw(self, draw: bool) -> WindowBuilder;
+
+  /// Whether to enable or disable the double buffered rendering of the window.
+  ///
+  /// Default is `true`.
+  fn with_double_buffered(self, double_buffered: bool) -> WindowBuilder;
+
+  /// Whether to enable the rgba visual for the window.
+  ///
+  /// Default is `false` but is always `true` if [`WindowAttributes::transparent`](crate::window::WindowAttributes::transparent) is `true`
+  fn with_rgba_visual(self, rgba_visual: bool) -> WindowBuilder;
+
+  /// Wether to set this window as app paintable
+  ///
+  /// <https://docs.gtk.org/gtk3/method.Widget.set_app_paintable.html>
+  ///
+  /// Default is `false` but is always `true` if [`WindowAttributes::transparent`](crate::window::WindowAttributes::transparent) is `true`
+  fn with_app_paintable(self, app_paintable: bool) -> WindowBuilder;
+
+  /// Whether to set cursor moved event. Cursor event is suited for native GUI frameworks and
+  /// games. But it can block gtk's own pipeline occasionally. Turn this off can help Gtk looks
+  /// smoother.
+  ///
+  /// Default is `true`.
+  fn with_cursor_moved_event(self, cursor_moved: bool) -> WindowBuilder;
+
+  /// Whether to create a vertical `gtk::Box` and add it as the sole child of this window.
+  /// Created by default.
+  fn with_default_vbox(self, add: bool) -> WindowBuilder;
 }
 
 impl WindowBuilderExtUnix for WindowBuilder {
@@ -73,30 +133,30 @@ impl WindowBuilderExtUnix for WindowBuilder {
     self.platform_specific.auto_transparent = draw;
     self
   }
-}
 
-/// Additional methods on `EventLoop` that are specific to Unix.
-pub trait EventLoopExtUnix {
-  /// Builds a new `EventLoop` on any thread.
-  ///
-  /// This method bypasses the cross-platform compatibility requirement
-  /// that `EventLoop` be created on the main thread.
-  fn new_any_thread() -> Self
-  where
-    Self: Sized;
-}
-
-fn wrap_ev<T>(event_loop: UnixEventLoop<T>) -> EventLoop<T> {
-  EventLoop {
-    event_loop,
-    _marker: std::marker::PhantomData,
+  fn with_double_buffered(mut self, double_buffered: bool) -> WindowBuilder {
+    self.platform_specific.double_buffered = double_buffered;
+    self
   }
-}
 
-impl<T> EventLoopExtUnix for EventLoop<T> {
-  #[inline]
-  fn new_any_thread() -> Self {
-    wrap_ev(UnixEventLoop::new_any_thread())
+  fn with_rgba_visual(mut self, rgba_visual: bool) -> WindowBuilder {
+    self.platform_specific.rgba_visual = rgba_visual;
+    self
+  }
+
+  fn with_app_paintable(mut self, app_paintable: bool) -> WindowBuilder {
+    self.platform_specific.app_paintable = app_paintable;
+    self
+  }
+
+  fn with_cursor_moved_event(mut self, cursor_moved: bool) -> WindowBuilder {
+    self.platform_specific.cursor_moved = cursor_moved;
+    self
+  }
+
+  fn with_default_vbox(mut self, add: bool) -> WindowBuilder {
+    self.platform_specific.default_vbox = add;
+    self
   }
 }
 

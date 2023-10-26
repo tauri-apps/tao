@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 //! Tao is a cross-platform application window creation and event loop management library.
@@ -146,6 +147,16 @@
 )]
 #![deny(rustdoc::broken_intra_doc_links)]
 
+#[cfg(target_os = "android")]
+pub use tao_macros::{android_fn, generate_package_name};
+
+#[cfg(feature = "rwh_04")]
+pub use rwh_04 as raw_window_handle;
+#[cfg(feature = "rwh_05")]
+pub use rwh_05 as raw_window_handle;
+#[cfg(feature = "rwh_06")]
+pub use rwh_06 as raw_window_handle;
+
 #[allow(unused_imports)]
 #[macro_use]
 extern crate lazy_static;
@@ -161,32 +172,15 @@ extern crate bitflags;
 #[macro_use]
 extern crate objc;
 
-pub mod clipboard;
 pub mod dpi;
 #[macro_use]
 pub mod error;
-pub mod accelerator;
 pub mod event;
 pub mod event_loop;
-pub mod global_shortcut;
 mod icon;
 pub mod keyboard;
-pub mod menu;
 pub mod monitor;
 mod platform_impl;
-
-#[cfg(any(target_os = "windows", target_os = "macos",))]
-#[cfg(feature = "tray")]
-pub mod system_tray;
-#[cfg(any(
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
-))]
-#[cfg(feature = "tray")]
-pub mod system_tray;
 
 pub mod window;
 

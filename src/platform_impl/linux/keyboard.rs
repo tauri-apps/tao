@@ -1,9 +1,16 @@
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 use super::KeyEventExtra;
 use crate::{
   event::{ElementState, KeyEvent},
   keyboard::{Key, KeyCode, KeyLocation, ModifiersState, NativeKeyCode},
 };
-use gdk::{keys::constants::*, EventKey};
+use gtk::{
+  gdk::{self, keys::constants::*, EventKey},
+  glib,
+};
 use std::{
   collections::HashSet,
   ffi::c_void,
@@ -231,17 +238,17 @@ pub(crate) fn make_key_event(
 fn hardware_keycode_to_keyval(keycode: u16) -> Option<RawKey> {
   use glib::translate::FromGlib;
   unsafe {
-    let keymap = gdk_sys::gdk_keymap_get_default();
+    let keymap = gdk::ffi::gdk_keymap_get_default();
 
     let mut nkeys = 0;
-    let mut keys: *mut gdk_sys::GdkKeymapKey = ptr::null_mut();
+    let mut keys: *mut gdk::ffi::GdkKeymapKey = ptr::null_mut();
     let mut keyvals: *mut c_uint = ptr::null_mut();
 
     // call into gdk to retrieve the keyvals and keymap keys
-    gdk_sys::gdk_keymap_get_entries_for_keycode(
+    gdk::ffi::gdk_keymap_get_entries_for_keycode(
       keymap,
       c_uint::from(keycode),
-      &mut keys as *mut *mut gdk_sys::GdkKeymapKey,
+      &mut keys as *mut *mut gdk::ffi::GdkKeymapKey,
       &mut keyvals as *mut *mut c_uint,
       &mut nkeys as *mut c_int,
     );
@@ -259,81 +266,11 @@ fn hardware_keycode_to_keyval(keycode: u16) -> Option<RawKey> {
       });
 
       // notify glib to free the allocated arrays
-      glib_sys::g_free(keyvals as *mut c_void);
-      glib_sys::g_free(keys as *mut c_void);
+      glib::ffi::g_free(keyvals as *mut c_void);
+      glib::ffi::g_free(keys as *mut c_void);
 
       return resolved_keyval;
     }
   }
   None
-}
-
-#[allow(non_upper_case_globals)]
-pub fn key_to_raw_key(src: &KeyCode) -> Option<RawKey> {
-  Some(match src {
-    KeyCode::Escape => Escape,
-    KeyCode::Backspace => BackSpace,
-
-    KeyCode::Tab => Tab,
-    KeyCode::Enter => Return,
-
-    KeyCode::ControlLeft => Control_L,
-    KeyCode::AltLeft => Alt_L,
-    KeyCode::ShiftLeft => Shift_L,
-    KeyCode::SuperLeft => Super_L,
-
-    KeyCode::ControlRight => Control_R,
-    KeyCode::AltRight => Alt_R,
-    KeyCode::ShiftRight => Shift_R,
-    KeyCode::SuperRight => Super_R,
-
-    KeyCode::CapsLock => Caps_Lock,
-    KeyCode::F1 => F1,
-    KeyCode::F2 => F2,
-    KeyCode::F3 => F3,
-    KeyCode::F4 => F4,
-    KeyCode::F5 => F5,
-    KeyCode::F6 => F6,
-    KeyCode::F7 => F7,
-    KeyCode::F8 => F8,
-    KeyCode::F9 => F9,
-    KeyCode::F10 => F10,
-    KeyCode::F11 => F11,
-    KeyCode::F12 => F12,
-    KeyCode::F13 => F13,
-    KeyCode::F14 => F14,
-    KeyCode::F15 => F15,
-    KeyCode::F16 => F16,
-    KeyCode::F17 => F17,
-    KeyCode::F18 => F18,
-    KeyCode::F19 => F19,
-    KeyCode::F20 => F20,
-    KeyCode::F21 => F21,
-    KeyCode::F22 => F22,
-    KeyCode::F23 => F23,
-    KeyCode::F24 => F24,
-
-    KeyCode::PrintScreen => Print,
-    KeyCode::ScrollLock => Scroll_Lock,
-    // Pause/Break not audio.
-    KeyCode::Pause => Pause,
-
-    KeyCode::Insert => Insert,
-    KeyCode::Delete => Delete,
-    KeyCode::Home => Home,
-    KeyCode::End => End,
-    KeyCode::PageUp => Page_Up,
-    KeyCode::PageDown => Page_Down,
-
-    KeyCode::NumLock => Num_Lock,
-
-    KeyCode::ArrowUp => Up,
-    KeyCode::ArrowDown => Down,
-    KeyCode::ArrowLeft => Left,
-    KeyCode::ArrowRight => Right,
-
-    KeyCode::ContextMenu => Menu,
-    KeyCode::WakeUp => WakeUp,
-    _ => return None,
-  })
 }

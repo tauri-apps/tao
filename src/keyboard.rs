@@ -1,3 +1,7 @@
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+
 //! **UNSTABLE** -- Types related to the keyboard.
 
 // This file contains a substantial portion of the UI Events Specification by the W3C. In
@@ -319,6 +323,8 @@ pub enum KeyCode {
   KeyZ,
   /// <kbd>-</kbd> on a US keyboard.
   Minus,
+  /// <kbd>Shift</kbd>+<kbd>=</kbd> on a US keyboard.
+  Plus,
   /// <kbd>.</kbd> on a US keyboard.
   Period,
   /// <kbd>'</kbd> on a US keyboard.
@@ -694,6 +700,7 @@ impl FromStr for KeyCode {
       "NUM9" | "NUMPAD9" => KeyCode::Numpad9,
       "=" => KeyCode::Equal,
       "-" => KeyCode::Minus,
+      "PLUS" => KeyCode::Plus,
       "." | "PERIOD" => KeyCode::Period,
       "'" | "QUOTE" => KeyCode::Quote,
       "\\" => KeyCode::IntlBackslash,
@@ -741,10 +748,10 @@ impl FromStr for KeyCode {
       "PAGEDOWN" => KeyCode::PageDown,
       "PAGEUP" => KeyCode::PageUp,
 
-      "DOWN" => KeyCode::ArrowDown,
-      "UP" => KeyCode::ArrowUp,
-      "LEFT" => KeyCode::ArrowLeft,
-      "RIGHT" => KeyCode::ArrowRight,
+      "DOWN" | "ARROWDOWN" => KeyCode::ArrowDown,
+      "UP" | "ARROWUP" => KeyCode::ArrowUp,
+      "LEFT" | "ARROWLEFT" => KeyCode::ArrowLeft,
+      "RIGHT" | "ARROWRIGHT" => KeyCode::ArrowRight,
 
       "NUMLOCK" => KeyCode::NumLock,
       "NUMADD" | "NUMPADADD" => KeyCode::NumpadAdd,

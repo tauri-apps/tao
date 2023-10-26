@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #[allow(clippy::single_match)]
@@ -6,7 +7,7 @@ fn main() {
   env_logger::init();
   use tao::{
     event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::{ControlFlow, EventLoopBuilder},
     window::WindowBuilder,
   };
 
@@ -15,7 +16,7 @@ fn main() {
     Timer,
   }
 
-  let event_loop = EventLoop::<CustomEvent>::with_user_event();
+  let event_loop = EventLoopBuilder::<CustomEvent>::with_user_event().build();
 
   let _window = WindowBuilder::new()
     .with_title("A fantastic window!")

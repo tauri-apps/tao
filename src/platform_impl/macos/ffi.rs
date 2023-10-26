@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 // TODO: Upstream these
@@ -13,6 +14,7 @@
 use std::ffi::c_void;
 
 use cocoa::{
+  appkit::CGPoint,
   base::id,
   foundation::{NSInteger, NSUInteger},
 };
@@ -22,7 +24,8 @@ use core_foundation::{
 };
 use core_graphics::{
   base::CGError,
-  display::{CGDirectDisplayID, CGDisplayConfigRef},
+  display::{boolean_t, CGDirectDisplayID, CGDisplayConfigRef},
+  geometry::CGRect,
 };
 pub const NSNotFound: NSInteger = NSInteger::max_value();
 
@@ -116,6 +119,7 @@ pub const kCGNumberOfWindowLevelKeys: NSInteger = 20;
 #[derive(Debug, Clone, Copy)]
 #[repr(isize)]
 pub enum NSWindowLevel {
+  BelowNormalWindowLevel = (kCGBaseWindowLevelKey - 1) as _,
   NSNormalWindowLevel = kCGBaseWindowLevelKey as _,
   NSFloatingWindowLevel = kCGFloatingWindowLevelKey as _,
   NSTornOffMenuWindowLevel = kCGTornOffMenuWindowLevelKey as _,
@@ -178,16 +182,7 @@ pub type CGDisplayModeRef = *mut libc::c_void;
 // directly. Fortunately, it has always been available as a subframework of
 // `ApplicationServices`, see:
 // https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/OSX_Technology_Overview/SystemFrameworks/SystemFrameworks.html#//apple_ref/doc/uid/TP40001067-CH210-BBCFFIEG
-//
-// TODO: Remove the WINIT_LINK_COLORSYNC hack, it is probably not needed.
-#[cfg_attr(
-  not(use_colorsync_cgdisplaycreateuuidfromdisplayid),
-  link(name = "ApplicationServices", kind = "framework")
-)]
-#[cfg_attr(
-  use_colorsync_cgdisplaycreateuuidfromdisplayid,
-  link(name = "ColorSync", kind = "framework")
-)]
+#[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
   pub fn CGDisplayCreateUUIDFromDisplayID(display: CGDirectDisplayID) -> CFUUIDRef;
 }
@@ -219,6 +214,7 @@ extern "C" {
     blueBlend: f32,
     synchronous: Boolean,
   ) -> CGError;
+  pub fn CGRectContainsPoint(rect: CGRect, point: CGPoint) -> boolean_t;
   pub fn CGReleaseDisplayFadeReservation(token: CGDisplayFadeReservationToken) -> CGError;
   pub fn CGShieldingWindowLevel() -> CGWindowLevel;
   pub fn CGDisplaySetDisplayMode(

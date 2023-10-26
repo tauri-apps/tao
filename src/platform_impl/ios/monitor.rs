@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
@@ -168,6 +169,7 @@ impl Drop for MonitorHandle {
 impl fmt::Debug for MonitorHandle {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     #[derive(Debug)]
+    #[allow(unused)]
     struct MonitorHandle {
       name: Option<String>,
       size: PhysicalSize<u32>,

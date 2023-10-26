@@ -1,7 +1,7 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use raw_window_handle::{RawDisplayHandle, RawWindowHandle, UiKitDisplayHandle, UiKitWindowHandle};
 use std::{
   collections::VecDeque,
   ops::{Deref, DerefMut},
@@ -23,10 +23,11 @@ use crate::{
       id, CGFloat, CGPoint, CGRect, CGSize, UIEdgeInsets, UIInterfaceOrientationMask, UIRectEdge,
       UIScreenOverscanCompensation,
     },
-    monitor, view, EventLoopWindowTarget, Menu, MonitorHandle,
+    monitor, view, EventLoopWindowTarget, MonitorHandle,
   },
   window::{
     CursorIcon, Fullscreen, Theme, UserAttentionType, WindowAttributes, WindowId as RootWindowId,
+    WindowSizeConstraints,
   },
 };
 
@@ -52,10 +53,9 @@ impl Inner {
     debug!("`Window::set_title` is ignored on iOS")
   }
 
-  pub fn set_menu(&self, _menu: Option<Menu>) {
-    debug!("`Window::set_menu` is ignored on iOS")
+  pub fn title(&self) -> String {
+    String::new()
   }
-
   pub fn set_visible(&self, visible: bool) {
     match visible {
       true => unsafe {
@@ -70,6 +70,11 @@ impl Inner {
   pub fn set_focus(&self) {
     //FIXME: implementation goes here
     warn!("set_focus not yet implemented on iOS");
+  }
+
+  pub fn is_focused(&self) -> bool {
+    warn!("`Window::is_focused` is ignored on iOS");
+    false
   }
 
   pub fn request_redraw(&self) {
@@ -159,16 +164,30 @@ impl Inner {
     warn!("not clear what `Window::set_inner_size` means on iOS");
   }
 
-  pub fn set_min_inner_size(&self, _dimensions: Option<Size>) {
+  pub fn set_min_inner_size(&self, _: Option<Size>) {
     warn!("`Window::set_min_inner_size` is ignored on iOS")
   }
-
-  pub fn set_max_inner_size(&self, _dimensions: Option<Size>) {
+  pub fn set_max_inner_size(&self, _: Option<Size>) {
     warn!("`Window::set_max_inner_size` is ignored on iOS")
+  }
+  pub fn set_inner_size_constraints(&self, _: WindowSizeConstraints) {
+    warn!("`Window::set_inner_size_constraints` is ignored on iOS")
   }
 
   pub fn set_resizable(&self, _resizable: bool) {
     warn!("`Window::set_resizable` is ignored on iOS")
+  }
+
+  pub fn set_minimizable(&self, _minimizable: bool) {
+    warn!("`Window::set_minimizable` is ignored on iOS")
+  }
+
+  pub fn set_maximizable(&self, _maximizable: bool) {
+    warn!("`Window::set_maximizable` is ignored on iOS")
+  }
+
+  pub fn set_closable(&self, _closable: bool) {
+    warn!("`Window::set_closable` is ignored on iOS")
   }
 
   pub fn scale_factor(&self) -> f64 {
@@ -194,6 +213,11 @@ impl Inner {
     debug!("`Window::set_cursor_visible` is ignored on iOS")
   }
 
+  pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
+    debug!("`Window::cursor_position` is ignored on iOS");
+    Ok((0, 0).into())
+  }
+
   pub fn drag_window(&self) -> Result<(), ExternalError> {
     Err(ExternalError::NotSupported(NotSupportedError::new()))
   }
@@ -215,6 +239,11 @@ impl Inner {
     false
   }
 
+  pub fn is_minimized(&self) -> bool {
+    warn!("`Window::is_minimized` is ignored on iOS");
+    false
+  }
+
   pub fn is_visible(&self) -> bool {
     log::warn!("`Window::is_visible` is ignored on iOS");
     false
@@ -222,6 +251,21 @@ impl Inner {
 
   pub fn is_resizable(&self) -> bool {
     warn!("`Window::is_resizable` is ignored on iOS");
+    false
+  }
+
+  pub fn is_minimizable(&self) -> bool {
+    warn!("`Window::is_minimizable` is ignored on iOS");
+    false
+  }
+
+  pub fn is_maximizable(&self) -> bool {
+    warn!("`Window::is_maximizable` is ignored on iOS");
+    false
+  }
+
+  pub fn is_closable(&self) -> bool {
+    warn!("`Window::is_closable` is ignored on iOS");
     false
   }
 
@@ -290,6 +334,10 @@ impl Inner {
     warn!("`Window::set_decorations` is ignored on iOS")
   }
 
+  pub fn set_always_on_bottom(&self, _always_on_bottom: bool) {
+    warn!("`Window::set_always_on_bottom` is ignored on iOS")
+  }
+
   pub fn set_always_on_top(&self, _always_on_top: bool) {
     warn!("`Window::set_always_on_top` is ignored on iOS")
   }
@@ -304,19 +352,6 @@ impl Inner {
 
   pub fn request_user_attention(&self, _request_type: Option<UserAttentionType>) {
     warn!("`Window::request_user_attention` is ignored on iOS")
-  }
-
-  pub fn hide_menu(&self) {
-    warn!("`Window::hide_menu` is ignored on iOS")
-  }
-
-  pub fn show_menu(&self) {
-    warn!("`Window::show_menu` is ignored on iOS")
-  }
-
-  pub fn is_menu_visible(&self) -> bool {
-    warn!("`Window::is_menu_visible` is ignored on iOS");
-    false
   }
 
   // Allow directly accessing the current monitor internally without unwrapping.
@@ -337,6 +372,12 @@ impl Inner {
     unsafe { monitor::uiscreens() }
   }
 
+  #[inline]
+  pub fn monitor_from_point(&self, _x: f64, _y: f64) -> Option<RootMonitorHandle> {
+    warn!("`Window::monitor_from_point` is ignored on iOS");
+    None
+  }
+
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
     let monitor = unsafe { monitor::main_uiscreen() };
     Some(RootMonitorHandle { inner: monitor })
@@ -346,16 +387,43 @@ impl Inner {
     self.window.into()
   }
 
-  pub fn raw_window_handle(&self) -> RawWindowHandle {
-    let mut window_handle = UiKitWindowHandle::empty();
+  #[cfg(feature = "rwh_04")]
+  pub fn raw_window_handle_rwh_04(&self) -> rwh_04::RawWindowHandle {
+    let mut window_handle = rwh_04::UiKitHandle::empty();
     window_handle.ui_window = self.window as _;
     window_handle.ui_view = self.view as _;
     window_handle.ui_view_controller = self.view_controller as _;
-    RawWindowHandle::UiKit(window_handle)
+    rwh_04::RawWindowHandle::UiKit(window_handle)
   }
 
-  pub fn raw_display_handle(&self) -> RawDisplayHandle {
-    RawDisplayHandle::UiKit(UiKitDisplayHandle::empty())
+  #[cfg(feature = "rwh_05")]
+  pub fn raw_window_handle_rwh_05(&self) -> rwh_05::RawWindowHandle {
+    let mut window_handle = rwh_05::UiKitWindowHandle::empty();
+    window_handle.ui_window = self.window as _;
+    window_handle.ui_view = self.view as _;
+    window_handle.ui_view_controller = self.view_controller as _;
+    rwh_05::RawWindowHandle::UiKit(window_handle)
+  }
+
+  #[cfg(feature = "rwh_05")]
+  pub fn raw_display_handle_rwh_05(&self) -> rwh_05::RawDisplayHandle {
+    rwh_05::RawDisplayHandle::UiKit(rwh_05::UiKitDisplayHandle::empty())
+  }
+
+  #[cfg(feature = "rwh_06")]
+  pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
+    let mut window_handle = rwh_06::UiKitWindowHandle::new({
+      std::ptr::NonNull::new(self.view as _).expect("self.view should never be null")
+    });
+    window_handle.ui_view_controller = std::ptr::NonNull::new(self.view_controller as _);
+    Ok(rwh_06::RawWindowHandle::UiKit(window_handle))
+  }
+
+  #[cfg(feature = "rwh_06")]
+  pub fn raw_display_handle_rwh_06(&self) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
+    Ok(rwh_06::RawDisplayHandle::UiKit(
+      rwh_06::UiKitDisplayHandle::new(),
+    ))
   }
 
   pub fn theme(&self) -> Theme {
@@ -404,12 +472,6 @@ impl Window {
     window_attributes: WindowAttributes,
     platform_attributes: PlatformSpecificWindowBuilderAttributes,
   ) -> Result<Window, RootOsError> {
-    if let Some(_) = window_attributes.min_inner_size {
-      warn!("`WindowAttributes::min_inner_size` is ignored on iOS");
-    }
-    if let Some(_) = window_attributes.max_inner_size {
-      warn!("`WindowAttributes::max_inner_size` is ignored on iOS");
-    }
     if window_attributes.always_on_top {
       warn!("`WindowAttributes::always_on_top` is unsupported on iOS");
     }

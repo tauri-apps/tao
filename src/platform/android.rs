@@ -1,7 +1,8 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-#![cfg(any(target_os = "android"))]
+#![cfg(target_os = "android")]
 
 #[doc(hidden)]
 pub use crate::platform_impl::ndk_glue;

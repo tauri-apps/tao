@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{cell::UnsafeCell, ffi::OsString, os::windows::ffi::OsStringExt, path::PathBuf, ptr};
@@ -7,8 +8,8 @@ use windows::Win32::{
   Foundation::{self as win32f, HWND, POINTL},
   System::{
     Com::{IDataObject, DVASPECT_CONTENT, FORMATETC, TYMED_HGLOBAL},
-    Ole::{IDropTarget, IDropTarget_Impl, DROPEFFECT_COPY, DROPEFFECT_NONE},
-    SystemServices::CF_HDROP,
+    Ole::{IDropTarget, IDropTarget_Impl, CF_HDROP, DROPEFFECT, DROPEFFECT_COPY, DROPEFFECT_NONE},
+    SystemServices::MODIFIERKEYS_FLAGS,
   },
   UI::Shell::{DragFinish, DragQueryFileW, HDROP},
 };
@@ -23,7 +24,7 @@ use crate::{event::Event, window::WindowId as SuperWindowId};
 pub struct FileDropHandler {
   window: HWND,
   send_event: Box<dyn Fn(Event<'static, ()>)>,
-  cursor_effect: UnsafeCell<u32>,
+  cursor_effect: UnsafeCell<DROPEFFECT>,
   hovered_is_valid: UnsafeCell<bool>, /* If the currently hovered item is not valid there must not be any `HoveredFileCancelled` emitted */
 }
 
@@ -37,7 +38,7 @@ impl FileDropHandler {
     }
   }
 
-  unsafe fn iterate_filenames<F>(data_obj: &Option<IDataObject>, callback: F) -> Option<HDROP>
+  unsafe fn iterate_filenames<F>(data_obj: Option<&IDataObject>, callback: F) -> Option<HDROP>
   where
     F: Fn(PathBuf),
   {
@@ -55,18 +56,18 @@ impl FileDropHandler {
       .GetData(&drop_format)
     {
       Ok(medium) => {
-        let hglobal = medium.Anonymous.hGlobal;
-        let hdrop = HDROP(hglobal);
+        let hglobal = medium.u.hGlobal;
+        let hdrop = HDROP(hglobal.0 as _);
 
         // The second parameter (0xFFFFFFFF) instructs the function to return the item count
         let mut lpsz_file = [];
-        let item_count = DragQueryFileW(hdrop, 0xFFFFFFFF, &mut lpsz_file);
+        let item_count = DragQueryFileW(hdrop, 0xFFFFFFFF, Some(&mut lpsz_file));
 
         for i in 0..item_count {
           // Get the length of the path string NOT including the terminating null character.
           // Previously, this was using a fixed size array of MAX_PATH length, but the
           // Windows API allows longer paths under certain circumstances.
-          let character_count = DragQueryFileW(hdrop, i, &mut lpsz_file) as usize;
+          let character_count = DragQueryFileW(hdrop, i, Some(&mut lpsz_file)) as usize;
           let str_len = character_count + 1;
 
           // Fill path_buf with the null-terminated file name
@@ -101,10 +102,10 @@ impl FileDropHandler {
 impl IDropTarget_Impl for FileDropHandler {
   fn DragEnter(
     &self,
-    pDataObj: &Option<IDataObject>,
-    _grfKeyState: u32,
+    pDataObj: Option<&IDataObject>,
+    _grfKeyState: MODIFIERKEYS_FLAGS,
     _pt: &POINTL,
-    pdwEffect: *mut u32,
+    pdwEffect: *mut DROPEFFECT,
   ) -> windows::core::Result<()> {
     use crate::event::WindowEvent::HoveredFile;
     unsafe {
@@ -129,9 +130,9 @@ impl IDropTarget_Impl for FileDropHandler {
 
   fn DragOver(
     &self,
-    _grfKeyState: u32,
+    _grfKeyState: MODIFIERKEYS_FLAGS,
     _pt: &POINTL,
-    pdwEffect: *mut u32,
+    pdwEffect: *mut DROPEFFECT,
   ) -> windows::core::Result<()> {
     unsafe {
       *pdwEffect = *self.cursor_effect.get();
@@ -152,10 +153,10 @@ impl IDropTarget_Impl for FileDropHandler {
 
   fn Drop(
     &self,
-    pDataObj: &Option<IDataObject>,
-    _grfKeyState: u32,
+    pDataObj: Option<&IDataObject>,
+    _grfKeyState: MODIFIERKEYS_FLAGS,
     _pt: &POINTL,
-    _pdwEffect: *mut u32,
+    _pdwEffect: *mut DROPEFFECT,
   ) -> windows::core::Result<()> {
     use crate::event::WindowEvent::DroppedFile;
     unsafe {

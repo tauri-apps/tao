@@ -1,7 +1,8 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashMap;
+use std::{collections::HashMap, ffi::c_char};
 
 use objc::{
   declare::ClassDecl,
@@ -554,6 +555,37 @@ pub fn create_delegate_class() {
     YES
   }
 
+  // universal links
+  extern "C" fn application_continue(
+    _: &mut Object,
+    _: Sel,
+    _application: id,
+    user_activity: id,
+    _restoration_handler: id,
+  ) -> BOOL {
+    unsafe {
+      let webpage_url: id = msg_send![user_activity, webpageURL];
+      if webpage_url == nil {
+        return NO;
+      }
+      let absolute_url: id = msg_send![webpage_url, absoluteString];
+      let bytes = {
+        let bytes: *const c_char = msg_send![absolute_url, UTF8String];
+        bytes as *const u8
+      };
+
+      // 4 represents utf8 encoding
+      let len = msg_send![absolute_url, lengthOfBytesUsingEncoding: 4];
+      let bytes = std::slice::from_raw_parts(bytes, len);
+
+      let url = url::Url::parse(std::str::from_utf8(bytes).unwrap()).unwrap();
+
+      app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls: vec![url] }));
+
+      YES
+    }
+  }
+
   extern "C" fn did_become_active(_: &Object, _: Sel, _: id) {
     unsafe { app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Resumed)) }
   }
@@ -597,6 +629,11 @@ pub fn create_delegate_class() {
     decl.add_method(
       sel!(application:didFinishLaunchingWithOptions:),
       did_finish_launching as extern "C" fn(&mut Object, Sel, id, id) -> BOOL,
+    );
+
+    decl.add_method(
+      sel!(application:continueUserActivity:restorationHandler:),
+      application_continue as extern "C" fn(&mut Object, Sel, id, id, id) -> BOOL,
     );
 
     decl.add_method(

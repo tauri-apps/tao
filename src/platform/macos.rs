@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 #![cfg(target_os = "macos")]
@@ -8,21 +9,14 @@ use std::os::raw::c_void;
 use crate::{
   dpi::{LogicalSize, Position},
   event_loop::{EventLoop, EventLoopWindowTarget},
-  menu::CustomMenuItem,
   monitor::MonitorHandle,
   platform_impl::{get_aux_state_mut, Parent},
   window::{Window, WindowBuilder},
 };
 
-#[cfg(feature = "tray")]
-use crate::system_tray::{SystemTray, SystemTrayBuilder};
-
-use cocoa::{
-  appkit::{
-    self, NSApplicationActivationPolicy, NSApplicationActivationPolicyAccessory,
-    NSApplicationActivationPolicyProhibited, NSApplicationActivationPolicyRegular,
-  },
-  base::id,
+use cocoa::appkit::{
+  NSApplicationActivationPolicy, NSApplicationActivationPolicyAccessory,
+  NSApplicationActivationPolicyProhibited, NSApplicationActivationPolicyRegular,
 };
 
 /// Additional methods on `Window` that are specific to MacOS.
@@ -57,6 +51,29 @@ pub trait WindowExtMacOS {
 
   /// Set the window traffic light position relative to the upper left corner
   fn set_traffic_light_inset<P: Into<Position>>(&self, position: P);
+  /// Put the window in a state which indicates a file save is required.
+  ///
+  /// <https://developer.apple.com/documentation/appkit/nswindow/1419311-isdocumentedited>
+  fn set_is_document_edited(&self, edited: bool);
+
+  /// Get the window's edit state
+  fn is_document_edited(&self) -> bool;
+
+  /// Sets whether the system can automatically organize windows into tabs.
+  ///
+  /// <https://developer.apple.com/documentation/appkit/nswindow/1646657-allowsautomaticwindowtabbing>
+  fn set_allows_automatic_window_tabbing(&self, enabled: bool);
+
+  /// Returns whether the system can automatically organize windows into tabs.
+  fn allows_automatic_window_tabbing(&self) -> bool;
+
+  /// Group windows together by using the same tabbing identifier.
+  ///
+  /// <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
+  fn set_tabbing_identifier(&self, identifier: &str);
+
+  /// Returns the window's tabbing identifier.
+  fn tabbing_identifier(&self) -> String;
 }
 
 impl WindowExtMacOS for Window {
@@ -94,6 +111,36 @@ impl WindowExtMacOS for Window {
   fn set_traffic_light_inset<P: Into<Position>>(&self, position: P) {
     self.window.set_traffic_light_inset(position)
   }
+
+  #[inline]
+  fn set_is_document_edited(&self, edited: bool) {
+    self.window.set_is_document_edited(edited)
+  }
+
+  #[inline]
+  fn is_document_edited(&self) -> bool {
+    self.window.is_document_edited()
+  }
+
+  #[inline]
+  fn set_allows_automatic_window_tabbing(&self, enabled: bool) {
+    self.window.set_allows_automatic_window_tabbing(enabled)
+  }
+
+  #[inline]
+  fn allows_automatic_window_tabbing(&self) -> bool {
+    self.window.allows_automatic_window_tabbing()
+  }
+
+  #[inline]
+  fn set_tabbing_identifier(&self, identifier: &str) {
+    self.window.set_tabbing_identifier(identifier)
+  }
+
+  #[inline]
+  fn tabbing_identifier(&self) -> String {
+    self.window.tabbing_identifier()
+  }
 }
 
 /// Corresponds to `NSApplicationActivationPolicy`.
@@ -120,199 +167,6 @@ impl From<ActivationPolicy> for NSApplicationActivationPolicy {
       ActivationPolicy::Regular => NSApplicationActivationPolicyRegular,
       ActivationPolicy::Accessory => NSApplicationActivationPolicyAccessory,
       ActivationPolicy::Prohibited => NSApplicationActivationPolicyProhibited,
-    }
-  }
-}
-
-pub trait CustomMenuItemExtMacOS {
-  fn set_native_image(&mut self, native_image: NativeImage);
-}
-
-impl CustomMenuItemExtMacOS for CustomMenuItem {
-  fn set_native_image(&mut self, native_image: NativeImage) {
-    self.0.set_native_image(native_image)
-  }
-}
-
-/// Named images, defined by the system or you, for use in your app.
-#[non_exhaustive]
-pub enum NativeImage {
-  /// An add item template image.
-  Add,
-  /// Advanced preferences toolbar icon for the preferences window.
-  Advanced,
-  /// A Bluetooth template image.
-  Bluetooth,
-  /// Bookmarks image suitable for a template.
-  Bookmarks,
-  /// A caution image.
-  Caution,
-  /// A color panel toolbar icon.
-  ColorPanel,
-  /// A column view mode template image.
-  ColumnView,
-  /// A computer icon.
-  Computer,
-  /// An enter full-screen mode template image.
-  EnterFullScreen,
-  /// Permissions for all users.
-  Everyone,
-  /// An exit full-screen mode template image.
-  ExitFullScreen,
-  /// A cover flow view mode template image.
-  FlowView,
-  /// A folder image.
-  Folder,
-  /// A burnable folder icon.
-  FolderBurnable,
-  /// A smart folder icon.
-  FolderSmart,
-  /// A link template image.
-  FollowLinkFreestanding,
-  /// A font panel toolbar icon.
-  FontPanel,
-  /// A `go back` template image.
-  GoLeft,
-  /// A `go forward` template image.
-  GoRight,
-  /// Home image suitable for a template.
-  Home,
-  /// An iChat Theater template image.
-  IChatTheater,
-  /// An icon view mode template image.
-  IconView,
-  /// An information toolbar icon.
-  Info,
-  /// A template image used to denote invalid data.
-  InvalidDataFreestanding,
-  /// A generic left-facing triangle template image.
-  LeftFacingTriangle,
-  /// A list view mode template image.
-  ListView,
-  /// A locked padlock template image.
-  LockLocked,
-  /// An unlocked padlock template image.
-  LockUnlocked,
-  /// A horizontal dash, for use in menus.
-  MenuMixedState,
-  /// A check mark template image, for use in menus.
-  MenuOnState,
-  /// A MobileMe icon.
-  MobileMe,
-  /// A drag image for multiple items.
-  MultipleDocuments,
-  /// A network icon.
-  Network,
-  /// A path button template image.
-  Path,
-  /// General preferences toolbar icon for the preferences window.
-  PreferencesGeneral,
-  /// A Quick Look template image.
-  QuickLook,
-  /// A refresh template image.
-  RefreshFreestanding,
-  /// A refresh template image.
-  Refresh,
-  /// A remove item template image.
-  Remove,
-  /// A reveal contents template image.
-  RevealFreestanding,
-  /// A generic right-facing triangle template image.
-  RightFacingTriangle,
-  /// A share view template image.
-  Share,
-  /// A slideshow template image.
-  Slideshow,
-  /// A badge for a `smart` item.
-  SmartBadge,
-  /// Small green indicator, similar to iChat’s available image.
-  StatusAvailable,
-  /// Small clear indicator.
-  StatusNone,
-  /// Small yellow indicator, similar to iChat’s idle image.
-  StatusPartiallyAvailable,
-  /// Small red indicator, similar to iChat’s unavailable image.
-  StatusUnavailable,
-  /// A stop progress template image.
-  StopProgressFreestanding,
-  /// A stop progress button template image.
-  StopProgress,
-
-  // todo add TouchBar icons
-  // https://developer.apple.com/documentation/appkit/nsimagenameactiontemplate
-  /// An image of the empty trash can.
-  TrashEmpty,
-  /// An image of the full trash can.
-  TrashFull,
-  /// Permissions for a single user.
-  User,
-  /// User account toolbar icon for the preferences window.
-  UserAccounts,
-  /// Permissions for a group of users.
-  UserGroup,
-  /// Permissions for guests.
-  UserGuest,
-}
-
-impl NativeImage {
-  pub(crate) unsafe fn get_ns_image(self) -> id {
-    match self {
-      NativeImage::Add => appkit::NSImageNameAddTemplate,
-      NativeImage::StatusAvailable => appkit::NSImageNameStatusAvailable,
-      NativeImage::StatusUnavailable => appkit::NSImageNameStatusUnavailable,
-      NativeImage::StatusPartiallyAvailable => appkit::NSImageNameStatusPartiallyAvailable,
-      NativeImage::Advanced => appkit::NSImageNameAdvanced,
-      NativeImage::Bluetooth => appkit::NSImageNameBluetoothTemplate,
-      NativeImage::Bookmarks => appkit::NSImageNameBookmarksTemplate,
-      NativeImage::Caution => appkit::NSImageNameCaution,
-      NativeImage::ColorPanel => appkit::NSImageNameColorPanel,
-      NativeImage::ColumnView => appkit::NSImageNameColumnViewTemplate,
-      NativeImage::Computer => appkit::NSImageNameComputer,
-      NativeImage::EnterFullScreen => appkit::NSImageNameEnterFullScreenTemplate,
-      NativeImage::Everyone => appkit::NSImageNameEveryone,
-      NativeImage::ExitFullScreen => appkit::NSImageNameExitFullScreenTemplate,
-      NativeImage::FlowView => appkit::NSImageNameFlowViewTemplate,
-      NativeImage::Folder => appkit::NSImageNameFolder,
-      NativeImage::FolderBurnable => appkit::NSImageNameFolderBurnable,
-      NativeImage::FolderSmart => appkit::NSImageNameFolderSmart,
-      NativeImage::FollowLinkFreestanding => appkit::NSImageNameFollowLinkFreestandingTemplate,
-      NativeImage::FontPanel => appkit::NSImageNameFontPanel,
-      NativeImage::GoLeft => appkit::NSImageNameGoLeftTemplate,
-      NativeImage::GoRight => appkit::NSImageNameGoRightTemplate,
-      NativeImage::Home => appkit::NSImageNameHomeTemplate,
-      NativeImage::IChatTheater => appkit::NSImageNameIChatTheaterTemplate,
-      NativeImage::IconView => appkit::NSImageNameIconViewTemplate,
-      NativeImage::Info => appkit::NSImageNameInfo,
-      NativeImage::InvalidDataFreestanding => appkit::NSImageNameInvalidDataFreestandingTemplate,
-      NativeImage::LeftFacingTriangle => appkit::NSImageNameLeftFacingTriangleTemplate,
-      NativeImage::ListView => appkit::NSImageNameListViewTemplate,
-      NativeImage::LockLocked => appkit::NSImageNameLockLockedTemplate,
-      NativeImage::LockUnlocked => appkit::NSImageNameLockUnlockedTemplate,
-      NativeImage::MenuMixedState => appkit::NSImageNameMenuMixedStateTemplate,
-      NativeImage::MenuOnState => appkit::NSImageNameMenuOnStateTemplate,
-      NativeImage::MobileMe => appkit::NSImageNameMobileMe,
-      NativeImage::MultipleDocuments => appkit::NSImageNameMultipleDocuments,
-      NativeImage::Network => appkit::NSImageNameNetwork,
-      NativeImage::Path => appkit::NSImageNamePathTemplate,
-      NativeImage::PreferencesGeneral => appkit::NSImageNamePreferencesGeneral,
-      NativeImage::QuickLook => appkit::NSImageNameQuickLookTemplate,
-      NativeImage::RefreshFreestanding => appkit::NSImageNameRefreshFreestandingTemplate,
-      NativeImage::Refresh => appkit::NSImageNameRefreshTemplate,
-      NativeImage::Remove => appkit::NSImageNameRemoveTemplate,
-      NativeImage::RevealFreestanding => appkit::NSImageNameRevealFreestandingTemplate,
-      NativeImage::RightFacingTriangle => appkit::NSImageNameRightFacingTriangleTemplate,
-      NativeImage::Share => appkit::NSImageNameShareTemplate,
-      NativeImage::Slideshow => appkit::NSImageNameSlideshowTemplate,
-      NativeImage::SmartBadge => appkit::NSImageNameSmartBadgeTemplate,
-      NativeImage::StatusNone => appkit::NSImageNameStatusNone,
-      NativeImage::StopProgressFreestanding => appkit::NSImageNameStopProgressFreestandingTemplate,
-      NativeImage::StopProgress => appkit::NSImageNameStopProgressTemplate,
-      NativeImage::TrashEmpty => appkit::NSImageNameTrashEmpty,
-      NativeImage::TrashFull => appkit::NSImageNameTrashFull,
-      NativeImage::User => appkit::NSImageNameUser,
-      NativeImage::UserAccounts => appkit::NSImageNameUserAccounts,
-      NativeImage::UserGroup => appkit::NSImageNameUserGroup,
-      NativeImage::UserGuest => appkit::NSImageNameUserGuest,
     }
   }
 }
@@ -345,9 +199,16 @@ pub trait WindowBuilderExtMacOS {
   /// Build window with `resizeIncrements` property. Values must not be 0.
   fn with_resize_increments(self, increments: LogicalSize<f64>) -> WindowBuilder;
   fn with_disallow_hidpi(self, disallow_hidpi: bool) -> WindowBuilder;
+  /// Sets whether or not the window has shadow.
   fn with_has_shadow(self, has_shadow: bool) -> WindowBuilder;
   /// Sets the traffic light position to (x, y) relative to the upper left corner
   fn with_traffic_light_inset<P: Into<Position>>(self, inset: P) -> WindowBuilder;
+  /// Sets whether the system can automatically organize windows into tabs.
+  fn with_automatic_window_tabbing(self, automatic_tabbing: bool) -> WindowBuilder;
+  /// Defines the window [tabbing identifier].
+  ///
+  /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
+  fn with_tabbing_identifier(self, identifier: &str) -> WindowBuilder;
 }
 
 impl WindowBuilderExtMacOS for WindowBuilder {
@@ -417,6 +278,20 @@ impl WindowBuilderExtMacOS for WindowBuilder {
   #[inline]
   fn with_traffic_light_inset<P: Into<Position>>(mut self, inset: P) -> WindowBuilder {
     self.platform_specific.traffic_light_inset = Some(inset.into());
+  }
+
+  #[inline]
+  fn with_automatic_window_tabbing(mut self, automatic_tabbing: bool) -> WindowBuilder {
+    self.platform_specific.automatic_tabbing = automatic_tabbing;
+    self
+  }
+
+  #[inline]
+  fn with_tabbing_identifier(mut self, tabbing_identifier: &str) -> WindowBuilder {
+    self
+      .platform_specific
+      .tabbing_identifier
+      .replace(tabbing_identifier.into());
     self
   }
 }
@@ -432,15 +307,17 @@ pub trait EventLoopExtMacOS {
   /// [`EventLoopWindowTargetExtMacOS::set_activation_policy_at_runtime`](crate::platform::macos::EventLoopWindowTargetExtMacOS::set_activation_policy_at_runtime).
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
-  /// Used to prevent a default menubar menu from getting created
+  /// Used to prevent the application from automatically activating when launched if
+  /// another application is already active
   ///
-  /// The default menu creation is enabled by default.
+  /// The default behavior is to ignore other applications and activate when launched.
   ///
   /// This function only takes effect if it's called before calling
   /// [`run`](crate::event_loop::EventLoop::run) or
   /// [`run_return`](crate::platform::run_return::EventLoopExtRunReturn::run_return)
-  fn enable_default_menu_creation(&mut self, enable: bool);
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool);
 }
+
 impl<T> EventLoopExtMacOS for EventLoop<T> {
   #[inline]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
@@ -450,9 +327,9 @@ impl<T> EventLoopExtMacOS for EventLoop<T> {
   }
 
   #[inline]
-  fn enable_default_menu_creation(&mut self, enable: bool) {
+  fn set_activate_ignoring_other_apps(&mut self, ignore: bool) {
     unsafe {
-      get_aux_state_mut(&**self.event_loop.delegate).create_default_menu = enable;
+      get_aux_state_mut(&**self.event_loop.delegate).activate_ignoring_other_apps = ignore;
     }
   }
 }
@@ -516,54 +393,5 @@ impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
     let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
     let ns_activation_policy: NSApplicationActivationPolicy = activation_policy.into();
     unsafe { msg_send![app, setActivationPolicy: ns_activation_policy] }
-  }
-}
-
-#[cfg(feature = "tray")]
-pub trait SystemTrayBuilderExtMacOS {
-  /// Sets the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
-  ///
-  /// Images you mark as template images should consist of only black and clear colors.
-  /// You can use the alpha channel in the image to adjust the opacity of black content.
-  ///
-  fn with_icon_as_template(self, is_template: bool) -> Self;
-
-  /// Enables or disables showing the tray menu on left click, default is true.
-  fn with_menu_on_left_click(self, enable: bool) -> Self;
-}
-
-#[cfg(feature = "tray")]
-impl SystemTrayBuilderExtMacOS for SystemTrayBuilder {
-  fn with_icon_as_template(mut self, is_template: bool) -> Self {
-    self.platform_tray_builder.system_tray.icon_is_template = is_template;
-    self
-  }
-
-  fn with_menu_on_left_click(mut self, enable: bool) -> Self {
-    self.platform_tray_builder.system_tray.menu_on_left_click = enable;
-    self
-  }
-}
-
-#[cfg(feature = "tray")]
-pub trait SystemTrayExtMacOS {
-  /// Sets the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
-  ///
-  /// You need to update this value before changing the icon.
-  ///
-  fn set_icon_as_template(&mut self, is_template: bool);
-
-  /// Enables or disables showing the tray menu on left click, default is true.
-  fn enable_menu_on_left_click(&mut self, enable: bool);
-}
-
-#[cfg(feature = "tray")]
-impl SystemTrayExtMacOS for SystemTray {
-  fn set_icon_as_template(&mut self, is_template: bool) {
-    self.0.icon_is_template = is_template
-  }
-
-  fn enable_menu_on_left_click(&mut self, enable: bool) {
-    self.0.menu_on_left_click = enable
   }
 }

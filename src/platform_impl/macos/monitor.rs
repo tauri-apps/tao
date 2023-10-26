@@ -1,15 +1,19 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{collections::VecDeque, fmt};
 
-use super::{ffi, util};
+use super::{
+  ffi::{self, CGRectContainsPoint},
+  util,
+};
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize},
   monitor::{MonitorHandle as RootMonitorHandle, VideoMode as RootVideoMode},
 };
 use cocoa::{
-  appkit::NSScreen,
+  appkit::{CGPoint, NSScreen},
   base::{id, nil},
   foundation::NSUInteger,
 };
@@ -155,6 +159,19 @@ pub fn available_monitors() -> VecDeque<MonitorHandle> {
 
 pub fn primary_monitor() -> MonitorHandle {
   MonitorHandle(CGDisplay::main().id)
+}
+
+// `from_point` get a monitor handle which contains the given point.
+pub fn from_point(x: f64, y: f64) -> Option<MonitorHandle> {
+  unsafe {
+    for monitor in available_monitors() {
+      let bound = CGDisplayBounds(monitor.0);
+      if CGRectContainsPoint(bound, CGPoint::new(x, y)) > 0 {
+        return Some(monitor);
+      }
+    }
+  }
+  return None;
 }
 
 impl fmt::Debug for MonitorHandle {

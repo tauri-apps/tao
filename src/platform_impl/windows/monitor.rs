@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use windows::{
@@ -11,7 +12,7 @@ use windows::{
 
 use std::{
   collections::{BTreeSet, VecDeque},
-  io, mem, ptr,
+  io, mem,
 };
 
 use super::util;
@@ -103,7 +104,7 @@ pub fn available_monitors() -> VecDeque<MonitorHandle> {
   unsafe {
     EnumDisplayMonitors(
       HDC::default(),
-      ptr::null_mut(),
+      None,
       Some(monitor_enum_proc),
       LPARAM(&mut monitors as *mut _ as _),
     );
@@ -122,6 +123,23 @@ pub fn current_monitor(hwnd: HWND) -> MonitorHandle {
   MonitorHandle::new(hmonitor)
 }
 
+pub fn from_point(x: f64, y: f64) -> Option<MonitorHandle> {
+  let hmonitor = unsafe {
+    MonitorFromPoint(
+      POINT {
+        x: x as i32,
+        y: y as i32,
+      },
+      MONITOR_DEFAULTTONULL,
+    )
+  };
+  if hmonitor.is_invalid() {
+    Some(MonitorHandle::new(hmonitor))
+  } else {
+    None
+  }
+}
+
 impl Window {
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
     available_monitors()
@@ -130,6 +148,10 @@ impl Window {
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
     let monitor = primary_monitor();
     Some(RootMonitorHandle { inner: monitor })
+  }
+
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<RootMonitorHandle> {
+    from_point(x, y).map(|inner| RootMonitorHandle { inner })
   }
 }
 
@@ -157,7 +179,7 @@ impl MonitorHandle {
   #[inline]
   pub fn name(&self) -> Option<String> {
     let monitor_info = get_monitor_info(self.hmonitor()).unwrap();
-    Some(util::wchar_ptr_to_string(PCWSTR(
+    Some(util::wchar_ptr_to_string(PCWSTR::from_raw(
       monitor_info.szDevice.as_ptr(),
     )))
   }
@@ -208,19 +230,23 @@ impl MonitorHandle {
     loop {
       unsafe {
         let monitor_info = get_monitor_info(self.hmonitor()).unwrap();
-        let device_name = PCWSTR(monitor_info.szDevice.as_ptr());
+        let device_name = PCWSTR::from_raw(monitor_info.szDevice.as_ptr());
         let mut mode: DEVMODEW = mem::zeroed();
         mode.dmSize = mem::size_of_val(&mode) as u16;
-        if !EnumDisplaySettingsExW(device_name, ENUM_DISPLAY_SETTINGS_MODE(i), &mut mode, 0)
-          .as_bool()
+        if !EnumDisplaySettingsExW(
+          device_name,
+          ENUM_DISPLAY_SETTINGS_MODE(i),
+          &mut mode,
+          ENUM_DISPLAY_SETTINGS_FLAGS(0),
+        )
+        .as_bool()
         {
           break;
         }
         i += 1;
 
-        const REQUIRED_FIELDS: u32 =
-          (DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY) as u32;
-        assert!(mode.dmFields & REQUIRED_FIELDS == REQUIRED_FIELDS);
+        let required_fields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
+        assert!(mode.dmFields & required_fields == required_fields);
 
         modes.insert(RootVideoMode {
           video_mode: VideoMode {

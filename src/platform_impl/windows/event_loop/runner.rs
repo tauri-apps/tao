@@ -1,11 +1,12 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2014-2021 The winit contributors
+// Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
   any::Any,
   cell::{Cell, RefCell},
   collections::{HashSet, VecDeque},
-  mem, panic, ptr,
+  mem, panic,
   rc::Rc,
   time::Instant,
 };
@@ -396,7 +397,7 @@ impl<T> EventLoopRunner<T> {
     self.dispatch_buffered_events();
     RedrawWindow(
       self.thread_msg_target,
-      ptr::null(),
+      None,
       HRGN::default(),
       RDW_INTERNALPAINT,
     );
