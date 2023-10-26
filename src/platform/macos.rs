@@ -7,7 +7,7 @@
 use std::os::raw::c_void;
 
 use crate::{
-  dpi::LogicalSize,
+  dpi::{LogicalSize, Position},
   event_loop::{EventLoop, EventLoopWindowTarget},
   monitor::MonitorHandle,
   platform_impl::{get_aux_state_mut, Parent},
@@ -49,6 +49,8 @@ pub trait WindowExtMacOS {
   /// Sets whether or not the window has shadow.
   fn set_has_shadow(&self, has_shadow: bool);
 
+  /// Set the window traffic light position relative to the upper left corner
+  fn set_traffic_light_inset<P: Into<Position>>(&self, position: P);
   /// Put the window in a state which indicates a file save is required.
   ///
   /// <https://developer.apple.com/documentation/appkit/nswindow/1419311-isdocumentedited>
@@ -103,6 +105,11 @@ impl WindowExtMacOS for Window {
   #[inline]
   fn set_has_shadow(&self, has_shadow: bool) {
     self.window.set_has_shadow(has_shadow)
+  }
+
+  #[inline]
+  fn set_traffic_light_inset<P: Into<Position>>(&self, position: P) {
+    self.window.set_traffic_light_inset(position)
   }
 
   #[inline]
@@ -194,6 +201,8 @@ pub trait WindowBuilderExtMacOS {
   fn with_disallow_hidpi(self, disallow_hidpi: bool) -> WindowBuilder;
   /// Sets whether or not the window has shadow.
   fn with_has_shadow(self, has_shadow: bool) -> WindowBuilder;
+  /// Sets the traffic light position to (x, y) relative to the upper left corner
+  fn with_traffic_light_inset<P: Into<Position>>(self, inset: P) -> WindowBuilder;
   /// Sets whether the system can automatically organize windows into tabs.
   fn with_automatic_window_tabbing(self, automatic_tabbing: bool) -> WindowBuilder;
   /// Defines the window [tabbing identifier].
@@ -263,6 +272,12 @@ impl WindowBuilderExtMacOS for WindowBuilder {
   #[inline]
   fn with_has_shadow(mut self, has_shadow: bool) -> WindowBuilder {
     self.platform_specific.has_shadow = has_shadow;
+    self
+  }
+
+  #[inline]
+  fn with_traffic_light_inset<P: Into<Position>>(mut self, inset: P) -> WindowBuilder {
+    self.platform_specific.traffic_light_inset = Some(inset.into());
     self
   }
 

@@ -55,7 +55,7 @@ use objc::{
   runtime::{Class, Object, Sel, BOOL, NO, YES},
 };
 
-use super::util::ns_string_to_rust;
+use super::{util::ns_string_to_rust, view::ViewState};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Id(pub usize);
@@ -91,6 +91,7 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub resize_increments: Option<LogicalSize<f64>>,
   pub disallow_hidpi: bool,
   pub has_shadow: bool,
+  pub traffic_light_inset: Option<Position>,
   pub automatic_tabbing: bool,
   pub tabbing_identifier: Option<String>,
 }
@@ -109,6 +110,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       resize_increments: None,
       disallow_hidpi: false,
       has_shadow: true,
+      traffic_light_inset: None,
       automatic_tabbing: true,
       tabbing_identifier: None,
     }
@@ -123,6 +125,14 @@ unsafe fn create_view(
   ns_view.non_nil().map(|ns_view| {
     if !pl_attribs.disallow_hidpi {
       ns_view.setWantsBestResolutionOpenGLSurface_(YES);
+    }
+
+    if let Some(position) = pl_attribs.traffic_light_inset {
+      let state_ptr: *mut c_void = *(**ns_view).get_ivar("taoState");
+      let state = &mut *(state_ptr as *mut ViewState);
+      let scale_factor = NSWindow::backingScaleFactor(ns_window);
+      let position = position.to_logical(scale_factor);
+      state.traffic_light_inset = Some(position);
     }
 
     // On Mojave, views automatically become layer-backed shortly after being added to
@@ -1544,6 +1554,16 @@ impl WindowExtMacOS for UnownedWindow {
       self
         .ns_window
         .setHasShadow_(if has_shadow { YES } else { NO })
+    }
+  }
+
+  #[inline]
+  fn set_traffic_light_inset<P: Into<Position>>(&self, position: P) {
+    let position: Position = position.into();
+    unsafe {
+      let state_ptr: *mut c_void = *(**self.ns_view).get_ivar("taoState");
+      let state = &mut *(state_ptr as *mut ViewState);
+      state.traffic_light_inset = Some(position.to_logical(self.scale_factor()));
     }
   }
 
