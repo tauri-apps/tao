@@ -348,12 +348,6 @@ pub trait WindowBuilderExtMacOS {
   fn with_has_shadow(self, has_shadow: bool) -> WindowBuilder;
   /// Sets the traffic light position to (x, y) relative to the upper left corner
   fn with_traffic_light_inset<P: Into<Position>>(self, inset: P) -> WindowBuilder;
-  /// Sets whether the system can automatically organize windows into tabs.
-  fn with_automatic_window_tabbing(self, automatic_tabbing: bool) -> WindowBuilder;
-  /// Defines the window [tabbing identifier].
-  ///
-  /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
-  fn with_tabbing_identifier(self, identifier: &str) -> WindowBuilder;
 }
 
 impl WindowBuilderExtMacOS for WindowBuilder {
