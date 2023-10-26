@@ -278,6 +278,7 @@ impl WindowBuilderExtMacOS for WindowBuilder {
   #[inline]
   fn with_traffic_light_inset<P: Into<Position>>(mut self, inset: P) -> WindowBuilder {
     self.platform_specific.traffic_light_inset = Some(inset.into());
+    self
   }
 
   #[inline]
