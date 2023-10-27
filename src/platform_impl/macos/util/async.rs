@@ -20,15 +20,7 @@ use objc::{
 
 use crate::{
   dpi::LogicalSize,
-  event::{Event, WindowEvent},
-  platform_impl::platform::{
-    app_state::AppState,
-    event::EventWrapper,
-    ffi,
-    util::IdRef,
-    window::{get_window_id, SharedState},
-  },
-  window::WindowId,
+  platform_impl::platform::{ffi, util::IdRef, window::SharedState},
 };
 
 pub fn is_main_thread() -> bool {
@@ -251,14 +243,9 @@ pub unsafe fn set_focus(ns_window: id) {
 // through the `IdRef` because otherwise it would dereference free'd memory
 pub unsafe fn close_async(ns_window: IdRef) {
   let ns_window = MainThreadSafe(ns_window);
-  Queue::main().exec_async(move || {
+  run_on_main(move || {
     autoreleasepool(move || {
       ns_window.close();
-      let event = Event::WindowEvent {
-        window_id: WindowId(get_window_id(*ns_window.0)),
-        event: WindowEvent::Destroyed,
-      };
-      AppState::queue_event(EventWrapper::StaticEvent(event));
     });
   });
 }
