@@ -972,7 +972,6 @@ impl Drop for Window {
 }
 
 /// A simple non-owning wrapper around a window.
-#[doc(hidden)]
 #[derive(Clone)]
 pub struct WindowWrapper(HWND);
 

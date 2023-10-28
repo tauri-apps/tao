@@ -24,13 +24,36 @@ use std::{
   thread,
 };
 
-// pub static PACKAGE: OnceCell<&str> = OnceCell::new();
+/// Android pacakge name that could be used to reference classes
+/// in the android project.
 pub static PACKAGE: OnceCell<&str> = OnceCell::new();
 
+/// Generate JNI compilant functions that are necessary for
+/// building android apps with tao.
+///
+/// Arguments in order:
+/// 1. android app domain name in reverse snake_case as an ident (for ex: com_example)
+/// 2. android package anme (for ex: wryapp)
+/// 3. the android activity that has external linking for the following functions and calls them:
+///       - `private external fun create(activity: WryActivity)``
+///       - `private external fun start()`
+///       - `private external fun resume()`
+///       - `private external fun pause()`
+///       - `private external fun stop()`
+///       - `private external fun save()`
+///       - `private external fun destroy()`
+///       - `private external fun memory()`
+///       - `private external fun focus(focus: Boolean)`
+/// 4. a one time setup function that will be ran once after tao has created its event loop in the `create` function above.
+/// 5. the main entry point of your android application.
 #[macro_export]
 macro_rules! android_binding {
-  ($domain:ident, $package:ident, $activity:ident, $setup:ident, $main:ident) => {
-    fn __store_package_name__() {
+  ($domain:ident, $package:ident, $activity:ident, $setup:path, $main:ident) => {
+    ::tao::android_binding!($domain, $package, $activity, $setup, $main, ::tao)
+  };
+  ($domain:ident, $package:ident, $activity:ident, $setup:path, $main:ident, $tao:path) => {{
+    use $tao::{platform::android::prelude::android_fn, platform::android::prelude::*};
+    fn _____tao_store_package_name__() {
       PACKAGE.get_or_init(move || generate_package_name!($domain, $package));
     }
 
@@ -42,7 +65,7 @@ macro_rules! android_binding {
       [JObject],
       __VOID__,
       [$setup, $main],
-      __store_package_name__,
+      _____tao_store_package_name__,
     );
     android_fn!($domain, $package, $activity, start, [JObject]);
     android_fn!($domain, $package, $activity, stop, [JObject]);
@@ -52,7 +75,7 @@ macro_rules! android_binding {
     android_fn!($domain, $package, $activity, destroy, [JObject]);
     android_fn!($domain, $package, $activity, memory, [JObject]);
     android_fn!($domain, $package, $activity, focus, [i32]);
-  };
+  }};
 }
 
 /// `ndk-glue` macros register the reading end of an event pipe with the
@@ -156,7 +179,7 @@ pub unsafe fn create(
   mut env: JNIEnv,
   _jclass: JClass,
   jobject: JObject,
-  setup: unsafe fn(JNIEnv, &ForeignLooper, GlobalRef),
+  setup: unsafe fn(&str, JNIEnv, &ForeignLooper, GlobalRef),
   main: fn(),
 ) {
   //-> jobjectArray {
@@ -182,7 +205,7 @@ pub unsafe fn create(
   );
 
   let looper = ThreadLooper::for_thread().unwrap().into_foreign();
-  setup(env, &looper, activity);
+  setup(PACKAGE.get().unwrap(), env, &looper, activity);
 
   let mut logpipe: [RawFd; 2] = Default::default();
   libc::pipe(logpipe.as_mut_ptr());

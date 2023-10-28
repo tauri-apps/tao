@@ -147,9 +147,6 @@
 )]
 #![deny(rustdoc::broken_intra_doc_links)]
 
-#[cfg(target_os = "android")]
-pub use tao_macros::{android_fn, generate_package_name};
-
 #[cfg(feature = "rwh_04")]
 pub use rwh_04 as raw_window_handle;
 #[cfg(feature = "rwh_05")]

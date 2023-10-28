@@ -4,14 +4,16 @@
 
 #![cfg(target_os = "android")]
 
-#[doc(hidden)]
-pub use crate::platform_impl::ndk_glue;
+pub mod prelude {
+  pub use crate::platform_impl::ndk_glue::*;
+  pub use tao_macros::{android_fn, generate_package_name};
+}
+use crate::platform_impl::ndk_glue::Rect;
 use crate::{
   event_loop::{EventLoop, EventLoopWindowTarget},
   window::{Window, WindowBuilder},
 };
 use ndk::configuration::Configuration;
-use ndk_glue::Rect;
 
 /// Additional methods on `EventLoop` that are specific to Android.
 pub trait EventLoopExtAndroid {}
