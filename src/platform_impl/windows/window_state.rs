@@ -30,6 +30,8 @@ pub struct WindowState {
   pub saved_window: Option<SavedWindow>,
   pub scale_factor: f64,
 
+  pub dragging: bool,
+
   pub skip_taskbar: bool,
 
   pub modifiers_state: ModifiersState,
@@ -136,6 +138,8 @@ impl WindowState {
 
       saved_window: None,
       scale_factor,
+
+      dragging: false,
 
       skip_taskbar: false,
 

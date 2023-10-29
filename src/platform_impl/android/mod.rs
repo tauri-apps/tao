@@ -9,7 +9,7 @@ use crate::{
   event_loop::{self, ControlFlow},
   keyboard::{Key, KeyCode, KeyLocation, NativeKeyCode},
   monitor,
-  window::{self, Theme, WindowSizeConstraints},
+  window::{self, ResizeDirection, Theme, WindowSizeConstraints},
 };
 use crossbeam_channel::{Receiver, Sender};
 use ndk::{
@@ -672,6 +672,15 @@ impl Window {
   pub fn set_cursor_visible(&self, _: bool) {}
 
   pub fn drag_window(&self) -> Result<(), error::ExternalError> {
+    Err(error::ExternalError::NotSupported(
+      error::NotSupportedError::new(),
+    ))
+  }
+
+  pub fn drag_resize_window(
+    &self,
+    _direction: ResizeDirection,
+  ) -> Result<(), error::ExternalError> {
     Err(error::ExternalError::NotSupported(
       error::NotSupportedError::new(),
     ))

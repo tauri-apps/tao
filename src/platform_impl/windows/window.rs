@@ -18,7 +18,9 @@ use crossbeam_channel as channel;
 use windows::{
   core::PCWSTR,
   Win32::{
-    Foundation::{self as win32f, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
+    Foundation::{
+      self as win32f, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, POINTS, RECT, WPARAM,
+    },
     Graphics::{
       Dwm::{DwmEnableBlurBehindWindow, DWM_BB_BLURREGION, DWM_BB_ENABLE, DWM_BLURBEHIND},
       Gdi::*,
@@ -48,8 +50,8 @@ use crate::{
     OsError, Parent, PlatformSpecificWindowBuilderAttributes, WindowId,
   },
   window::{
-    CursorIcon, Fullscreen, ProgressBarState, ProgressState, Theme, UserAttentionType,
-    WindowAttributes, WindowSizeConstraints, BORDERLESS_RESIZE_INSET,
+    CursorIcon, Fullscreen, ProgressBarState, ProgressState, ResizeDirection, Theme,
+    UserAttentionType, WindowAttributes, WindowSizeConstraints,
   },
 };
 
@@ -474,21 +476,40 @@ impl Window {
     }
   }
 
-  #[inline]
-  pub fn drag_window(&self) -> Result<(), ExternalError> {
-    let mut pos = POINT::default();
+  fn handle_os_dragging(&self, wparam: WPARAM) -> Result<(), ExternalError> {
+    let points = {
+      let mut pos = unsafe { mem::zeroed() };
+      unsafe { GetCursorPos(&mut pos)? };
+      pos
+    };
+    let points = POINTS {
+      x: points.x as i16,
+      y: points.y as i16,
+    };
+    unsafe { ReleaseCapture()? };
+
+    self.window_state.lock().dragging = true;
+
     unsafe {
-      GetCursorPos(&mut pos)?;
-      ReleaseCapture()?;
       PostMessageW(
-        self.window.0,
+        self.hwnd(),
         WM_NCLBUTTONDOWN,
-        WPARAM(HTCAPTION as _),
-        util::MAKELPARAM(pos.x as i16, pos.y as i16),
-      )?;
-    }
+        wparam,
+        LPARAM(&points as *const _ as _),
+      )?
+    };
 
     Ok(())
+  }
+
+  #[inline]
+  pub fn drag_window(&self) -> Result<(), ExternalError> {
+    self.handle_os_dragging(WPARAM(HTCAPTION as _))
+  }
+
+  #[inline]
+  pub fn drag_resize_window(&self, direction: ResizeDirection) -> Result<(), ExternalError> {
+    self.handle_os_dragging(WPARAM(direction.to_win32() as _))
   }
 
   #[inline]
@@ -1334,53 +1355,17 @@ pub(crate) unsafe fn set_skip_taskbar(hwnd: HWND, skip: bool) {
   }
 }
 
-pub fn hit_test(hwnd: isize, cx: i32, cy: i32) -> LRESULT {
-  let hwnd = HWND(hwnd);
-  let mut window_rect = RECT::default();
-  unsafe {
-    if GetWindowRect(hwnd, &mut window_rect).is_ok() {
-      const CLIENT: isize = 0b0000;
-      const LEFT: isize = 0b0001;
-      const RIGHT: isize = 0b0010;
-      const TOP: isize = 0b0100;
-      const BOTTOM: isize = 0b1000;
-      const TOPLEFT: isize = TOP | LEFT;
-      const TOPRIGHT: isize = TOP | RIGHT;
-      const BOTTOMLEFT: isize = BOTTOM | LEFT;
-      const BOTTOMRIGHT: isize = BOTTOM | RIGHT;
-
-      let RECT {
-        left,
-        right,
-        bottom,
-        top,
-      } = window_rect;
-
-      let dpi = hwnd_dpi(hwnd);
-      let scale_factor = dpi_to_scale_factor(dpi);
-      let inset = (BORDERLESS_RESIZE_INSET as f64 * scale_factor) as i32;
-
-      #[rustfmt::skip]
-      let result =
-          (LEFT * (if cx < (left + inset) { 1 } else { 0 }))
-        | (RIGHT * (if cx >= (right - inset) { 1 } else { 0 }))
-        | (TOP * (if cy < (top + inset) { 1 } else { 0 }))
-        | (BOTTOM * (if cy >= (bottom - inset) { 1 } else { 0 }));
-
-      LRESULT(match result {
-        CLIENT => HTCLIENT,
-        LEFT => HTLEFT,
-        RIGHT => HTRIGHT,
-        TOP => HTTOP,
-        BOTTOM => HTBOTTOM,
-        TOPLEFT => HTTOPLEFT,
-        TOPRIGHT => HTTOPRIGHT,
-        BOTTOMLEFT => HTBOTTOMLEFT,
-        BOTTOMRIGHT => HTBOTTOMRIGHT,
-        _ => HTNOWHERE,
-      } as _)
-    } else {
-      LRESULT(HTNOWHERE as _)
+impl ResizeDirection {
+  pub(crate) fn to_win32(&self) -> u32 {
+    match self {
+      ResizeDirection::East => HTRIGHT,
+      ResizeDirection::North => HTTOP,
+      ResizeDirection::NorthEast => HTTOPRIGHT,
+      ResizeDirection::NorthWest => HTTOPLEFT,
+      ResizeDirection::South => HTBOTTOM,
+      ResizeDirection::SouthEast => HTBOTTOMRIGHT,
+      ResizeDirection::SouthWest => HTBOTTOMLEFT,
+      ResizeDirection::West => HTLEFT,
     }
   }
 }

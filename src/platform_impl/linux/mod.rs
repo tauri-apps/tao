@@ -27,7 +27,7 @@ pub(crate) use event_loop::PlatformSpecificEventLoopAttributes;
 pub use event_loop::{EventLoop, EventLoopProxy, EventLoopWindowTarget};
 pub use icon::PlatformIcon;
 pub use monitor::{MonitorHandle, VideoMode};
-pub use window::{hit_test, Window, WindowId};
+pub use window::{Window, WindowId};
 
 use crate::{event::DeviceId as RootDeviceId, keyboard::Key};
 

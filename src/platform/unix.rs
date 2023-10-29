@@ -16,7 +16,7 @@ use std::{os::raw::c_int, sync::Arc};
 #[doc(hidden)]
 pub use crate::platform_impl::x11;
 
-pub use crate::platform_impl::{hit_test, EventLoop as UnixEventLoop};
+pub use crate::platform_impl::EventLoop as UnixEventLoop;
 use crate::{
   event_loop::{EventLoopBuilder, EventLoopWindowTarget},
   platform_impl::{x11::xdisplay::XError, Parent},

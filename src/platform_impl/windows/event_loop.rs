@@ -1027,10 +1027,12 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     win32wm::WM_EXITSIZEMOVE => {
-      subclass_input
-        .window_state
-        .lock()
-        .set_window_flags_in_place(|f| f.remove(WindowFlags::MARKER_IN_SIZE_MOVE));
+      let mut state = subclass_input.window_state.lock();
+      if state.dragging {
+        state.dragging = false;
+        let _ = unsafe { PostMessageW(window, WM_LBUTTONUP, WPARAM::default(), lparam) };
+      }
+      state.set_window_flags_in_place(|f| f.remove(WindowFlags::MARKER_IN_SIZE_MOVE));
       result = ProcResult::Value(LRESULT(0));
     }
 
@@ -2120,11 +2122,10 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     win32wm::WM_NCHITTEST => {
+      let window_state = subclass_input.window_state.lock();
       // Allow resizing unmaximized borderless window
       if !util::is_maximized(window).unwrap_or(false)
-        && !subclass_input
-          .window_state
-          .lock()
+        && !window_state
           .window_flags()
           .contains(WindowFlags::MARKER_DECORATIONS)
       {
@@ -2134,7 +2135,19 @@ unsafe fn public_window_callback_inner<T: 'static>(
           i32::from(util::GET_Y_LPARAM(lparam)),
         );
 
-        result = ProcResult::Value(crate::platform_impl::hit_test(window.0 as _, cx, cy));
+        let mut rect = RECT::default();
+        let _ = GetClientRect(window, &mut rect);
+
+        let hit_result = crate::window::hit_test(
+          (rect.left, rect.top, rect.right, rect.bottom),
+          cx,
+          cy,
+          window_state.scale_factor,
+        )
+        .map(|d| d.to_win32())
+        .unwrap_or(HTCLIENT);
+
+        result = ProcResult::Value(LRESULT(hit_result as _));
       } else {
         result = ProcResult::DefSubclassProc;
       }
