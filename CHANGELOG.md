@@ -42,6 +42,7 @@
 - [`b31cb692`](https://github.com/tauri-apps/tao/commit/b31cb692df2b0a03d2fbdf2fbf7ba82591678e24)([#772](https://github.com/tauri-apps/tao/pull/772)) On macOS, fix `WindowExtMacOS::ns_view` returning an invalid pointer if the view was replaced by a call to `setContentView` later on.
 - [`4d0e1862`](https://github.com/tauri-apps/tao/commit/4d0e1862b6a2a7580631d637ef937d217f0797bf)([#762](https://github.com/tauri-apps/tao/pull/762)) Add `WindowExtWindows::set_rtl` and `WindowBuilderExtWindows::with_rtl` to set right-to-left layout on Windows.
 - [`75eb0c1e`](https://github.com/tauri-apps/tao/commit/75eb0c1e7e83a766af0e083ce09c761d1974cde4)([#769](https://github.com/tauri-apps/tao/pull/769)) Add `WindowBuilderExtWindows::with_window_classname` to set the name of the window class created/used to create windows.
+- [`494e4585`](https://github.com/tauri-apps/tao/commit/494e4585d1177b12bdaacbb3aa381d0514f5252f)([#775](https://github.com/tauri-apps/tao/pull/775)) Ensure the macOS app delegate is defined before accessing it.
 
 ## \[0.21.0]
 
