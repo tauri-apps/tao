@@ -710,9 +710,10 @@ impl Window {
 
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
     let display = self.window.display();
-    let monitor = display.primary_monitor().unwrap();
-    let handle = MonitorHandle { monitor };
-    Some(RootMonitorHandle { inner: handle })
+    display.primary_monitor().map(|monitor| {
+      let handle = MonitorHandle { monitor };
+      RootMonitorHandle { inner: handle }
+    })
   }
 
   #[inline]
