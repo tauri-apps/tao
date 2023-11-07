@@ -231,7 +231,7 @@ impl WindowFlags {
 
   pub fn to_window_styles(self) -> (WINDOW_STYLE, WINDOW_EX_STYLE) {
     let (mut style, mut style_ex) = (Default::default(), Default::default());
-    style |= WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_SYSMENU | WS_CAPTION;
+    style |= WS_CLIPSIBLINGS | WS_SYSMENU | WS_CAPTION;
     style_ex |= WS_EX_ACCEPTFILES | WS_EX_WINDOWEDGE;
 
     if self.contains(WindowFlags::RESIZABLE) {
