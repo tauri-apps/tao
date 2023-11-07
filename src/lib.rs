@@ -148,11 +148,11 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 
 #[cfg(feature = "rwh_04")]
-pub use rwh_04 as raw_window_handle;
+pub use rwh_04;
 #[cfg(feature = "rwh_05")]
-pub use rwh_05 as raw_window_handle;
+pub use rwh_05;
 #[cfg(feature = "rwh_06")]
-pub use rwh_06 as raw_window_handle;
+pub use rwh_06;
 
 #[allow(unused_imports)]
 #[macro_use]
