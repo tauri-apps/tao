@@ -1194,7 +1194,7 @@ pub unsafe fn inset_traffic_lights<W: NSWindow + Copy>(window: W, position: Logi
   let title_bar_container_view = close.superview().superview();
 
   let close_rect = NSView::frame(close);
-  let title_bar_frame_height = close_rect.size.height + y;
+  let title_bar_frame_height = close_rect.size.height + y + y;
   let mut title_bar_rect = NSView::frame(title_bar_container_view);
   title_bar_rect.size.height = title_bar_frame_height;
   title_bar_rect.origin.y = window.frame().size.height - title_bar_frame_height;
