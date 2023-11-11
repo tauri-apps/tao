@@ -11,7 +11,7 @@ use std::{
 };
 
 use cocoa::{
-  appkit::{NSApp, NSEvent, NSEventModifierFlags, NSEventPhase, NSView, NSWindow},
+  appkit::{NSApp, NSEvent, NSEventModifierFlags, NSEventPhase, NSView, NSWindow, NSWindowButton},
   base::{id, nil},
   foundation::{NSInteger, NSPoint, NSRect, NSSize, NSString, NSUInteger},
 };
@@ -70,6 +70,7 @@ pub(super) struct ViewState {
   pub(super) modifiers: ModifiersState,
   phys_modifiers: HashSet<KeyCode>,
   tracking_rect: Option<NSInteger>,
+  pub(super) traffic_light_inset: Option<LogicalPosition<f64>>,
 }
 
 impl ViewState {
@@ -91,6 +92,7 @@ pub fn new_view(ns_window: id) -> (IdRef, Weak<Mutex<CursorState>>) {
     modifiers: Default::default(),
     phys_modifiers: Default::default(),
     tracking_rect: None,
+    traffic_light_inset: None,
   };
   unsafe {
     // This is free'd in `dealloc`
@@ -383,6 +385,11 @@ extern "C" fn draw_rect(this: &Object, _sel: Sel, rect: NSRect) {
   unsafe {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
+
+    if let Some(position) = state.traffic_light_inset {
+      let window = state.ns_window;
+      inset_traffic_lights(window, position);
+    }
 
     AppState::handle_redraw(WindowId(get_window_id(state.ns_window)));
 
@@ -1175,4 +1182,30 @@ extern "C" fn wants_key_down_for_event(_this: &Object, _sel: Sel, _event: id) ->
 
 extern "C" fn accepts_first_mouse(_this: &Object, _sel: Sel, _event: id) -> BOOL {
   YES
+}
+
+pub unsafe fn inset_traffic_lights<W: NSWindow + Copy>(window: W, position: LogicalPosition<f64>) {
+  let (x, y) = (position.x, position.y);
+
+  let close = window.standardWindowButton_(NSWindowButton::NSWindowCloseButton);
+  let miniaturize = window.standardWindowButton_(NSWindowButton::NSWindowMiniaturizeButton);
+  let zoom = window.standardWindowButton_(NSWindowButton::NSWindowZoomButton);
+
+  let title_bar_container_view = close.superview().superview();
+
+  let close_rect = NSView::frame(close);
+  let title_bar_frame_height = close_rect.size.height + y;
+  let mut title_bar_rect = NSView::frame(title_bar_container_view);
+  title_bar_rect.size.height = title_bar_frame_height;
+  title_bar_rect.origin.y = window.frame().size.height - title_bar_frame_height;
+  let _: () = msg_send![title_bar_container_view, setFrame: title_bar_rect];
+
+  let window_buttons = vec![close, miniaturize, zoom];
+  let space_between = NSView::frame(miniaturize).origin.x - close_rect.origin.x;
+
+  for (i, button) in window_buttons.into_iter().enumerate() {
+    let mut rect = NSView::frame(button);
+    rect.origin.x = x + (i as f64 * space_between);
+    button.setFrameOrigin(rect.origin);
+  }
 }

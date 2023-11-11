@@ -751,14 +751,14 @@ impl Window {
   ///
   /// - **Windows:** Unsupported.
 
-  #[inline]
-  pub fn set_menu(&self, menu: Option<MenuBar>) {
-    if let Some(menu) = menu {
-      self.window.set_menu(Some(menu.0.menu_platform))
-    } else {
-      self.window.set_menu(None)
-    }
-  }
+  // #[inline]
+  // pub fn set_menu(&self, menu: Option<MenuBar>) {
+  //   if let Some(menu) = menu {
+  //     self.window.set_menu(Some(menu.0.menu_platform))
+  //   } else {
+  //     self.window.set_menu(None)
+  //   }
+  // }
 
   /// Modifies the window's visibility.
   ///
