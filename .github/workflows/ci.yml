@@ -108,6 +108,22 @@ jobs:
           !contains(matrix.platform.target, 'ios'))
         run: cargo $CMD test --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,$FEATURES
 
+      - uses: actions-rs/toolchain@v1
+        if: (
+          !contains(matrix.platform.target, 'android') &&
+          !contains(matrix.platform.target, 'ios'))
+        with:
+          toolchain: nightly
+          target: ${{ matrix.platform.target }}
+          components: miri
+
+      - name: Run tests with miri
+        if: (
+          !contains(matrix.platform.target, 'android') &&
+          !contains(matrix.platform.target, 'ios'))
+        shell: bash
+        run: cargo +nightly miri test --target ${{ matrix.platform.target }} $OPTIONS --features serde,$FEATURES
+
   test_tao_macros:
     runs-on: ubuntu-latest
     steps:
