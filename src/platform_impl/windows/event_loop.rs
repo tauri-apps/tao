@@ -107,6 +107,7 @@ pub(crate) struct SubclassInput<T: 'static> {
   pub _file_drop_handler: Option<IDropTarget>,
   pub subclass_removed: Cell<bool>,
   pub recurse_depth: Cell<u32>,
+  pub event_loop_preferred_theme: Option<Theme>,
 }
 
 impl<T> SubclassInput<T> {
@@ -161,7 +162,7 @@ impl Default for PlatformSpecificEventLoopAttributes {
 pub struct EventLoopWindowTarget<T: 'static> {
   thread_id: u32,
   thread_msg_target: HWND,
-  pub(crate) theme: Theme,
+  pub(crate) preferred_theme: Option<Theme>,
   pub(crate) runner_shared: EventLoopRunnerShared<T>,
 }
 
@@ -184,7 +185,7 @@ impl<T: 'static> EventLoop<T> {
 
     let thread_msg_target = create_event_target_window();
 
-    let theme = try_app_theme(attributes.preferred_theme);
+    try_app_theme(attributes.preferred_theme);
 
     let send_thread_msg_target = thread_msg_target;
     thread::spawn(move || wait_thread(thread_id, send_thread_msg_target));
@@ -202,7 +203,7 @@ impl<T: 'static> EventLoop<T> {
           thread_id,
           thread_msg_target,
           runner_shared,
-          theme,
+          preferred_theme: attributes.preferred_theme,
         },
         _marker: PhantomData,
       },
@@ -2056,7 +2057,10 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let preferred_theme = subclass_input.window_state.lock().preferred_theme;
 
       if preferred_theme.is_none() {
-        let new_theme = try_window_theme(window, preferred_theme);
+        let new_theme = try_window_theme(
+          window,
+          preferred_theme.or(subclass_input.event_loop_preferred_theme),
+        );
         let mut window_state = subclass_input.window_state.lock();
 
         if window_state.current_theme != new_theme {

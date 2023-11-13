@@ -21,7 +21,7 @@ pub(crate) use self::{
 
 pub use self::icon::WinIcon as PlatformIcon;
 
-use crate::{event::DeviceId as RootDeviceId, icon::Icon, keyboard::Key, window::Theme};
+use crate::{event::DeviceId as RootDeviceId, icon::Icon, keyboard::Key};
 mod keycode;
 
 #[non_exhaustive]
@@ -41,7 +41,6 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub window_classname: String,
   pub no_redirection_bitmap: bool,
   pub drag_and_drop: bool,
-  pub preferred_theme: Option<Theme>,
   pub decoration_shadow: bool,
   pub rtl: bool,
 }
@@ -54,7 +53,6 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       taskbar_icon: None,
       no_redirection_bitmap: false,
       drag_and_drop: true,
-      preferred_theme: None,
       skip_taskbar: false,
       window_classname: "Window Class".to_string(),
       decoration_shadow: true,
