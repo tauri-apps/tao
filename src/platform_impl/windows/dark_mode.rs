@@ -7,11 +7,11 @@ use once_cell::sync::Lazy;
 /// This is a simple implementation of support for Windows Dark Mode,
 /// which is inspired by the solution in https://github.com/ysc3839/win32-darkmode
 use windows::{
-  core::{s, w, PCSTR, PSTR},
+  core::{s, w, PCSTR, PCWSTR, PSTR},
   Win32::{
     Foundation::{BOOL, HANDLE, HMODULE, HWND},
     System::{LibraryLoader::*, SystemInformation::OSVERSIONINFOW},
-    UI::{Accessibility::*, WindowsAndMessaging::*},
+    UI::{Accessibility::*, Controls::SetWindowTheme, WindowsAndMessaging::*},
   },
 };
 
@@ -59,7 +59,7 @@ static DARK_MODE_SUPPORTED: Lazy<bool> = Lazy::new(|| {
 });
 
 /// Attempts to set dark mode for the app
-pub fn try_app_theme(preferred_theme: Option<Theme>) -> Theme {
+pub fn try_app_theme(preferred_theme: Option<Theme>) {
   if *DARK_MODE_SUPPORTED {
     let is_dark_mode = match preferred_theme {
       Some(theme) => theme == Theme::Dark,
@@ -68,12 +68,6 @@ pub fn try_app_theme(preferred_theme: Option<Theme>) -> Theme {
 
     allow_dark_mode_for_app(is_dark_mode);
     refresh_immersive_color_policy_state();
-    match is_dark_mode {
-      true => Theme::Dark,
-      false => Theme::Light,
-    }
-  } else {
-    Theme::Light
   }
 }
 
@@ -160,14 +154,19 @@ pub fn try_window_theme(hwnd: HWND, preferred_theme: Option<Theme>) -> Theme {
       None => should_use_dark_mode(),
     };
 
-    let theme = if is_dark_mode {
-      Theme::Dark
-    } else {
-      Theme::Light
+    let theme = match is_dark_mode {
+      true => Theme::Dark,
+      false => Theme::Light,
     };
 
+    let theme_name = match theme {
+      Theme::Dark => w!("DarkMode_Explorer"),
+      Theme::Light => w!(""),
+    };
+    let _ = unsafe { SetWindowTheme(hwnd, theme_name, PCWSTR::null()) };
+
     allow_dark_mode_for_window(hwnd, is_dark_mode);
-    refresh_titlebar_theme_color(hwnd);
+    refresh_titlebar_theme_color(hwnd, is_dark_mode);
 
     theme
   } else {
@@ -197,29 +196,6 @@ fn allow_dark_mode_for_window(hwnd: HWND, is_dark_mode: bool) {
   }
 }
 
-fn is_dark_mode_allowed_for_window(hwnd: HWND) -> bool {
-  const UXTHEME_ISDARKMODEALLOWEDFORWINDOW_ORDINAL: u16 = 137;
-  type IsDarkModeAllowedForWindow = unsafe extern "system" fn(HWND) -> bool;
-  static IS_DARK_MODE_ALLOWED_FOR_WINDOW: Lazy<Option<IsDarkModeAllowedForWindow>> =
-    Lazy::new(|| unsafe {
-      if HUXTHEME.is_invalid() {
-        return None;
-      }
-
-      GetProcAddress(
-        *HUXTHEME,
-        PCSTR::from_raw(UXTHEME_ISDARKMODEALLOWEDFORWINDOW_ORDINAL as usize as *mut _),
-      )
-      .map(|handle| std::mem::transmute(handle))
-    });
-
-  if let Some(_is_dark_mode_allowed_for_window) = *IS_DARK_MODE_ALLOWED_FOR_WINDOW {
-    unsafe { _is_dark_mode_allowed_for_window(hwnd) }
-  } else {
-    false
-  }
-}
-
 type SetWindowCompositionAttribute =
   unsafe extern "system" fn(HWND, *mut WINDOWCOMPOSITIONATTRIBDATA) -> BOOL;
 static SET_WINDOW_COMPOSITION_ATTRIBUTE: Lazy<Option<SetWindowCompositionAttribute>> =
@@ -234,9 +210,9 @@ struct WINDOWCOMPOSITIONATTRIBDATA {
   cbData: usize,
 }
 
-fn refresh_titlebar_theme_color(hwnd: HWND) {
-  let dark = should_use_dark_mode() && is_dark_mode_allowed_for_window(hwnd);
-  let mut is_dark_mode_bigbool: BOOL = dark.into();
+fn refresh_titlebar_theme_color(hwnd: HWND, is_dark_mode: bool) {
+  // SetWindowCompositionAttribute needs a bigbool (i32), not bool.
+  let mut is_dark_mode_bigbool: i32 = is_dark_mode.into();
 
   if let Some(ver) = *WIN10_BUILD_VERSION {
     if ver < 18362 {

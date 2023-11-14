@@ -122,6 +122,7 @@ impl Window {
           _file_drop_handler: file_drop_handler,
           subclass_removed: Cell::new(false),
           recurse_depth: Cell::new(0),
+          event_loop_preferred_theme: event_loop.preferred_theme,
         };
 
         event_loop::subclass_window(win.window.0, subclass_input);
@@ -1112,7 +1113,7 @@ unsafe fn init<T: 'static>(
   // window for the first time).
   let current_theme = try_window_theme(
     real_window.0,
-    attributes.preferred_theme.or(Some(event_loop.theme)),
+    attributes.preferred_theme.or(event_loop.preferred_theme),
   );
 
   let window_state = {
@@ -1121,7 +1122,7 @@ unsafe fn init<T: 'static>(
       None,
       scale_factor,
       current_theme,
-      pl_attribs.preferred_theme,
+      attributes.preferred_theme,
     );
     let window_state = Arc::new(Mutex::new(window_state));
     WindowState::set_window_flags(window_state.lock(), real_window.0, |f| *f = window_flags);
