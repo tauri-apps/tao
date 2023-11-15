@@ -80,7 +80,7 @@ image = { version = "0.24", default-features = false }
 windows-implement = "0.51"
 
   [target."cfg(target_os = \"windows\")".dependencies.windows]
-  version = "0.51"
+  version = "0.52"
   features = [
   "implement",
   "Win32_Devices_HumanInterfaceDevice",
