@@ -10,7 +10,7 @@ use windows::{
   core::{s, w, PCSTR, PCWSTR, PSTR},
   Win32::{
     Foundation::{BOOL, HANDLE, HMODULE, HWND},
-    System::{LibraryLoader::*, SystemInformation::OSVERSIONINFOW},
+    System::LibraryLoader::*,
     UI::{Accessibility::*, Controls::SetWindowTheme, WindowsAndMessaging::*},
   },
 };
@@ -23,27 +23,9 @@ static HUXTHEME: Lazy<HMODULE> =
   Lazy::new(|| unsafe { LoadLibraryA(s!("uxtheme.dll")).unwrap_or_default() });
 
 static WIN10_BUILD_VERSION: Lazy<Option<u32>> = Lazy::new(|| {
-  type RtlGetVersion = unsafe extern "system" fn(*mut OSVERSIONINFOW) -> i32;
-
-  let handle = get_function!("ntdll.dll", RtlGetVersion);
-
-  let mut vi = OSVERSIONINFOW {
-    dwOSVersionInfoSize: 0,
-    dwMajorVersion: 0,
-    dwMinorVersion: 0,
-    dwBuildNumber: 0,
-    dwPlatformId: 0,
-    szCSDVersion: [0; 128],
-  };
-
-  if let Some(rtl_get_version) = handle {
-    let status = unsafe { (rtl_get_version)(&mut vi as _) };
-
-    if status >= 0 && vi.dwMajorVersion == 10 && vi.dwMinorVersion == 0 {
-      Some(vi.dwBuildNumber)
-    } else {
-      None
-    }
+  let version = windows_version::OsVersion::current();
+  if version.major == 10 && version.minor == 0 {
+    Some(version.build)
   } else {
     None
   }
