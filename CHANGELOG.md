@@ -1,5 +1,22 @@
 # Changelog
 
+## \[0.24.0]
+
+- [`43c94f0b`](https://github.com/tauri-apps/tao/commit/43c94f0b2021d3831846c53bfd268cdda2c87b51)([#830](https://github.com/tauri-apps/tao/pull/830)) This patch contains a couple of changes to how the anroid macros:
+
+  - Changed `android_binding` macro 4th argument signature, which is a setup function that is called once when the event loop is first created, from `unsafe fn(JNIEnv, &ForeignLooper, GlobalRef)` to `unsafe fn(&str, JNIEnv, &ForeignLooper, GlobalRef)`.
+  - Moved `android_fn!` and `generate_package_name` macro from crate root `platform::android::prelude`
+- [`f497b5dc`](https://github.com/tauri-apps/tao/commit/f497b5dc828c202376f37ed835d5fd48b1a93530)([#829](https://github.com/tauri-apps/tao/pull/829)) Add `Window::drag_resize_window` and `ResizeDirection` enum to initialize window resizing. Supported on Windows and Linux only.
+- [`28b53f80`](https://github.com/tauri-apps/tao/commit/28b53f80c49bbf2ae8902b98a2e28f6451a5a8f1)([#705](https://github.com/tauri-apps/tao/pull/705)) Fix `Window::primary_monitor` panicking on Linux when there is no primary monitor, e.g. with Wayland.
+- [`e33104c2`](https://github.com/tauri-apps/tao/commit/e33104c2cf06fd1fcabba89332a48a06b975929e)([#831](https://github.com/tauri-apps/tao/pull/831)) On macOS, fix `WindowEvent::Destroyed` may fire twice.
+- [`853101be`](https://github.com/tauri-apps/tao/commit/853101bea465098e56756aa700c4d50f503ee95a)([#821](https://github.com/tauri-apps/tao/pull/821)) This release includes an update to `raw-window-handle` crate to `0.6` but will also provide a feature flags to select which `raw-window-handle` to use:
+
+  - `rwh_06` (default): `raw-window-handle@0.6`
+  - ` rwh_05:  `raw-window-handle@0.5\`
+  - ` rwh_04:  `raw-window-handle@0.4\`
+- [`fce9d260`](https://github.com/tauri-apps/tao/commit/fce9d2603e55f2b37ff69acfbbd484de6298351e)([#844](https://github.com/tauri-apps/tao/pull/844)) On Windows, fix `WindowBuilder::with_theme` has no effect when forcing light theme on a dark mode system.
+- [`c0278d83`](https://github.com/tauri-apps/tao/commit/c0278d83f93d8ee18d1e9eeee88e71d84c12357a)([#839](https://github.com/tauri-apps/tao/pull/839)) On Windows, remove `WS_CLIPCHILDREN` from window style
+
 ## \[0.23.0]
 
 - [`cf22c902`](https://github.com/tauri-apps/tao/commit/cf22c902d4c961be0f6cfba6a8c865e11073b027)([#85](https://github.com/tauri-apps/tao/pull/85)) **Breaking change**: Removed clipboard implementation. Use `arboard` crate instead.
