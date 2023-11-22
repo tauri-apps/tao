@@ -7,11 +7,11 @@ use once_cell::sync::Lazy;
 /// This is a simple implementation of support for Windows Dark Mode,
 /// which is inspired by the solution in https://github.com/ysc3839/win32-darkmode
 use windows::{
-  core::{s, w, PCSTR, PCWSTR, PSTR},
+  core::{s, w, PCSTR, PSTR},
   Win32::{
     Foundation::{BOOL, HANDLE, HMODULE, HWND},
     System::LibraryLoader::*,
-    UI::{Accessibility::*, Controls::SetWindowTheme, WindowsAndMessaging::*},
+    UI::{Accessibility::*, WindowsAndMessaging::*},
   },
 };
 
@@ -140,12 +140,6 @@ pub fn try_window_theme(hwnd: HWND, preferred_theme: Option<Theme>) -> Theme {
       true => Theme::Dark,
       false => Theme::Light,
     };
-
-    let theme_name = match theme {
-      Theme::Dark => w!("DarkMode_Explorer"),
-      Theme::Light => w!(""),
-    };
-    let _ = unsafe { SetWindowTheme(hwnd, theme_name, PCWSTR::null()) };
 
     allow_dark_mode_for_window(hwnd, is_dark_mode);
     refresh_titlebar_theme_color(hwnd, is_dark_mode);
