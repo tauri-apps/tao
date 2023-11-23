@@ -62,3 +62,19 @@ sudo apt install libgtk-3-dev
 
 This is a fork of [winit](https://crates.io/crates/winit) which replaces Linux's port to Gtk.
 In the future, we want to make these features more modular as separate crates. So we can switch back to winit and also benefit the whole community.
+
+## Partners
+
+<table>
+  <tbody>
+    <tr>
+      <td align="center" valign="middle">
+        <a href="https://crabnebula.dev" target="_blank">
+          <img src=".github/sponsors/crabnebula.svg" alt="CrabNebula" width="283">
+        </a>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+For the complete list of sponsors please visit our [website](https://tauri.app#sponsors) and [Open Collective](https://opencollective.com/tauri).
