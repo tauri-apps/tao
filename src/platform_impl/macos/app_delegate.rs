@@ -8,7 +8,7 @@ use cocoa::base::id;
 use cocoa::foundation::NSString;
 use objc::{
   declare::ClassDecl,
-  runtime::{Class, Object, Sel},
+  runtime::{Class, Object, Sel, BOOL},
 };
 use std::{
   cell::{RefCell, RefMut},
@@ -53,6 +53,10 @@ lazy_static! {
     decl.add_method(
       sel!(application:openURLs:),
       application_open_urls as extern "C" fn(&Object, Sel, id, id),
+    );
+    decl.add_method(
+      sel!(applicationSupportsSecureRestorableState:),
+      application_supports_secure_restorable_state as extern "C" fn(&Object, Sel, id) -> BOOL,
     );
     decl.add_ivar::<*mut c_void>(AUX_DELEGATE_STATE_NAME);
 
@@ -119,4 +123,10 @@ extern "C" fn application_open_urls(_: &Object, _: Sel, _: id, urls: id) -> () {
   trace!("Get `application:openURLs:` URLs: {:?}", urls);
   AppState::open_urls(urls);
   trace!("Completed `application:openURLs:`");
+}
+
+extern "C" fn application_supports_secure_restorable_state(_: &Object, _: Sel, _: id) -> BOOL {
+  trace!("Triggered `applicationSupportsSecureRestorableState`");
+  trace!("Completed `applicationSupportsSecureRestorableState`");
+  objc::runtime::YES
 }
