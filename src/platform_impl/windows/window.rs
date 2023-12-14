@@ -621,9 +621,19 @@ impl Window {
 
     let mut window_state_lock = window_state.lock();
     let old_fullscreen = window_state_lock.fullscreen.clone();
-    if window_state_lock.fullscreen == fullscreen {
-      return;
+
+    match (&old_fullscreen, &fullscreen) {
+      // Return if we already in the same fullscreen mode
+      _ if old_fullscreen == fullscreen => return,
+      // Return if saved Borderless(monitor) is the same as current monitor when requested fullscreen is Borderless(None)
+      (Some(Fullscreen::Borderless(Some(monitor))), Some(Fullscreen::Borderless(None)))
+        if monitor.inner == monitor::current_monitor(window.0) =>
+      {
+        return
+      }
+      _ => {}
     }
+
     window_state_lock.fullscreen = fullscreen.clone();
     drop(window_state_lock);
 
