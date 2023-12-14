@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.16.6]
+
+- [`3aa1200c`](https://github.com/tauri-apps/tao/commit/3aa1200c976c050b07a703d6620afc3f3c4c88fe)([#854](https://github.com/tauri-apps/tao/pull/854)) On Windows, fix consecutive calls to `window.set_fullscreen(Some(Fullscreen::Borderless(None)))` resulting in losing previous window state when eventually exiting fullscreen using `window.set_fullscreen(None)`.
+
 ## \[0.16.5]
 
 - [`496cbb7c`](https://github.com/tauri-apps/tao/commit/496cbb7cedb3e0020d5c7552ee36a20cd6cd0ad7)([#827](https://github.com/tauri-apps/tao/pull/827)) Fix documentation build for macOS.
