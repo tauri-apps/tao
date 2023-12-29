@@ -1903,10 +1903,21 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
         old_physical_inner_rect
       };
-      let old_physical_inner_size = PhysicalSize::new(
+      let mut old_physical_inner_size = PhysicalSize::new(
         (old_physical_inner_rect.right - old_physical_inner_rect.left) as u32,
         (old_physical_inner_rect.bottom - old_physical_inner_rect.top) as u32,
       );
+
+      if !is_show_window_contents_while_dragging_enabled() {
+        subclass_input.send_event(Event::WindowEvent {
+          window_id: RootWindowId(WindowId(window.0)),
+          event: ScaleFactorChanged {
+            scale_factor: new_scale_factor,
+            new_inner_size: &mut old_physical_inner_size,
+          },
+        });
+        return ;
+      }
 
       // `allow_resize` prevents us from re-applying DPI adjustment to the restored size after
       // exiting fullscreen (the restored size is already DPI adjusted).
@@ -2189,6 +2200,19 @@ unsafe fn public_window_callback_inner<T: 'static>(
     ProcResult::DefWindowProc => DefWindowProcW(window, msg, wparam, lparam),
     ProcResult::Value(val) => val,
   }
+}
+
+fn is_show_window_contents_while_dragging_enabled() -> bool {
+  let mut is_enabled: BOOL = BOOL(0);
+  unsafe {
+    SystemParametersInfoW(
+      SPI_GETDRAGFULLWINDOWS,
+      0,
+      Option::from(&mut is_enabled as *mut _ as *mut std::ffi::c_void),
+      SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
+    )
+  }.expect("error");
+  is_enabled.0 != 0
 }
 
 unsafe extern "system" fn thread_event_target_callback<T: 'static>(
