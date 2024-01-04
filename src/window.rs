@@ -1547,9 +1547,8 @@ impl WindowSizeConstraints {
   }
 }
 
-/// A constant used to determine how much inside the window, the resize handler should appear (only used in Linux(gtk) and Windows).
-/// You probably need to scale it by the scale_factor of the window.
-
+/// Defines the orientation that a window resize will be performed.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum ResizeDirection {
   East,
   North,
