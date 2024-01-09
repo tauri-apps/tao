@@ -1918,7 +1918,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           },
         });
         result = ProcResult::Value(LRESULT(0));
-        return ;
+        return;
       }
 
       // `allow_resize` prevents us from re-applying DPI adjustment to the restored size after
