@@ -1903,7 +1903,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
         old_physical_inner_rect
       };
-      let mut old_physical_inner_size = PhysicalSize::new(
+      let old_physical_inner_size = PhysicalSize::new(
         (old_physical_inner_rect.right - old_physical_inner_rect.left) as u32,
         (old_physical_inner_rect.bottom - old_physical_inner_rect.top) as u32,
       );
