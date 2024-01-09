@@ -1908,19 +1908,6 @@ unsafe fn public_window_callback_inner<T: 'static>(
         (old_physical_inner_rect.bottom - old_physical_inner_rect.top) as u32,
       );
 
-      // When the "Show window contents while dragging" is turned off, there is no need to adjust the window size.
-      if !is_show_window_contents_while_dragging_enabled() {
-        subclass_input.send_event(Event::WindowEvent {
-          window_id: RootWindowId(WindowId(window.0)),
-          event: ScaleFactorChanged {
-            scale_factor: new_scale_factor,
-            new_inner_size: &mut old_physical_inner_size,
-          },
-        });
-        result = ProcResult::Value(LRESULT(0));
-        return;
-      }
-
       // `allow_resize` prevents us from re-applying DPI adjustment to the restored size after
       // exiting fullscreen (the restored size is already DPI adjusted).
       let mut new_physical_inner_size = match allow_resize {
@@ -1931,6 +1918,11 @@ unsafe fn public_window_callback_inner<T: 'static>(
           .to_physical::<u32>(new_scale_factor),
         false => old_physical_inner_size,
       };
+
+      // When the "Show window contents while dragging" is turned off, there is no need to adjust the window size.
+      if !is_show_window_contents_while_dragging_enabled() {
+        new_physical_inner_size = old_physical_inner_size;
+      }
 
       subclass_input.send_event(Event::WindowEvent {
         window_id: RootWindowId(WindowId(window.0)),
