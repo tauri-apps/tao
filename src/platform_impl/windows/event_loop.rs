@@ -1919,6 +1919,11 @@ unsafe fn public_window_callback_inner<T: 'static>(
         false => old_physical_inner_size,
       };
 
+      // When the "Show window contents while dragging" is turned off, there is no need to adjust the window size.
+      if !is_show_window_contents_while_dragging_enabled() {
+        new_physical_inner_size = old_physical_inner_size;
+      }
+
       subclass_input.send_event(Event::WindowEvent {
         window_id: RootWindowId(WindowId(window.0)),
         event: ScaleFactorChanged {
@@ -2189,6 +2194,19 @@ unsafe fn public_window_callback_inner<T: 'static>(
     ProcResult::DefWindowProc => DefWindowProcW(window, msg, wparam, lparam),
     ProcResult::Value(val) => val,
   }
+}
+
+fn is_show_window_contents_while_dragging_enabled() -> bool {
+  let mut is_enabled: BOOL = BOOL(0);
+  let result = unsafe {
+    SystemParametersInfoW(
+      SPI_GETDRAGFULLWINDOWS,
+      0,
+      Option::from(&mut is_enabled as *mut _ as *mut std::ffi::c_void),
+      SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
+    )
+  };
+  result.is_ok() && is_enabled.0 != 0
 }
 
 unsafe extern "system" fn thread_event_target_callback<T: 'static>(
