@@ -297,6 +297,7 @@ pub unsafe fn save(_: JNIEnv, _: JClass, _: JObject) {
 
 pub unsafe fn destroy(_: JNIEnv, _: JClass, _: JObject) {
   wake(Event::Destroy);
+  ndk_context::release_android_context();
 }
 
 pub unsafe fn memory(_: JNIEnv, _: JClass, _: JObject) {
