@@ -1,5 +1,15 @@
 # Changelog
 
+## \[0.24.1]
+
+- [`25a8836b`](https://github.com/tauri-apps/tao/commit/25a8836b6493d1873d7c263bb5603c2a4e3364a1)([#860](https://github.com/tauri-apps/tao/pull/860)) Fix the app crash on restart due to Android context was not released. Release the Android context when the app is destroyed to avoid assertion failure.
+- [`5eb2124e`](https://github.com/tauri-apps/tao/commit/5eb2124e706b57f236a42503d530f9671cd0a2cf)([#852](https://github.com/tauri-apps/tao/pull/852)) Enable macOS secure state restoration on OS versions that support it. This avoids
+  'WARNING: Secure coding is not enabled for restorable state!' on macOS Sonoma.
+- [`f0bf850f`](https://github.com/tauri-apps/tao/commit/f0bf850fee4dddb045522257aa53719b3136f4ff)([#859](https://github.com/tauri-apps/tao/pull/859)) Derive `Debug, Copy, Clone, PartialEq, Eq, Hash` for `ResizeDirection`.
+- [`29b01bff`](https://github.com/tauri-apps/tao/commit/29b01bff2b547ca5b6bba57584c9c7cc2b93c098)([#849](https://github.com/tauri-apps/tao/pull/849)) On Windows, remove `SetWindowTheme` call with `DarkMode_Explorer` theme which fixes a glitch downstream in `muda` crate when manually drawing the menu bar.
+- [`60bbcac1`](https://github.com/tauri-apps/tao/commit/60bbcac168887eecbbddeb05d479347f9c9478d5)([#858](https://github.com/tauri-apps/tao/pull/858)) On Windows, fix when the `Show window contents while dragging` setting is turned off in Windows, there is a window size issue when dragging between multi-monitors with different scaling.
+- [`68803e67`](https://github.com/tauri-apps/tao/commit/68803e67480cfdc2e57cb13647328cd6539ce6fc)([#854](https://github.com/tauri-apps/tao/pull/854)) On Windows, fix consecutive calls to `window.set_fullscreen(Some(Fullscreen::Borderless(None)))` resulting in losing previous window state when eventually exiting fullscreen using `window.set_fullscreen(None)`.
+
 ## \[0.24.0]
 
 - [`43c94f0b`](https://github.com/tauri-apps/tao/commit/43c94f0b2021d3831846c53bfd268cdda2c87b51)([#830](https://github.com/tauri-apps/tao/pull/830)) This patch contains a couple of changes to how the anroid macros:
