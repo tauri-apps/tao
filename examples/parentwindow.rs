@@ -35,7 +35,7 @@ fn main() {
   let child_window_builder = child_window_builder.with_parent_window(parent_window.clone());
 
   #[cfg(target_os = "linux")]
-  let child_window_builder = child_window_builder.with_transient_for(parent_window.clone());
+  let child_window_builder = child_window_builder.with_transient_for(parent_window);
 
   let child_window = child_window_builder.build(&event_loop).unwrap();
 
