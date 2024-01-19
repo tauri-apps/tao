@@ -231,9 +231,14 @@ impl WindowFlags {
 
   pub fn to_window_styles(self) -> (WINDOW_STYLE, WINDOW_EX_STYLE) {
     let (mut style, mut style_ex) = (Default::default(), Default::default());
-    style |= WS_CLIPSIBLINGS | WS_SYSMENU | WS_CAPTION;
-    style_ex |= WS_EX_ACCEPTFILES | WS_EX_WINDOWEDGE;
-
+    style |= WS_CLIPSIBLINGS | WS_SYSMENU;
+    style_ex |= WS_EX_ACCEPTFILES;
+    if self.contains(WindowFlags::CHILD) {
+      style |= WS_CHILD; // This is incompatible with WS_POPUP if that gets added eventually.
+    } else {
+      style |= WS_CAPTION;
+      style_ex |= WS_EX_WINDOWEDGE;
+    }
     if self.contains(WindowFlags::RESIZABLE) {
       style |= WS_SIZEBOX;
     }
@@ -254,9 +259,6 @@ impl WindowFlags {
     }
     if self.contains(WindowFlags::NO_BACK_BUFFER) {
       style_ex |= WS_EX_NOREDIRECTIONBITMAP;
-    }
-    if self.contains(WindowFlags::CHILD) {
-      style |= WS_CHILD; // This is incompatible with WS_POPUP if that gets added eventually.
     }
     if self.contains(WindowFlags::POPUP) {
       style |= WS_POPUP;
