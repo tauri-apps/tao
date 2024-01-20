@@ -259,8 +259,8 @@ impl WindowFlags {
 
       // Remove decorations window styles for child
       if !self.contains(WindowFlags::MARKER_DECORATIONS) {
-        style |= WS_CAPTION;
-        style_ex |= WS_EX_WINDOWEDGE;
+        style &= !WS_CAPTION;
+        style_ex &= !WS_EX_WINDOWEDGE;
       }
     }
     if self.contains(WindowFlags::POPUP) {
