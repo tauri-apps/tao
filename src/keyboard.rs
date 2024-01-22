@@ -741,6 +741,7 @@ impl FromStr for KeyCode {
       "TAB" => KeyCode::Tab,
       "CONVERT" => KeyCode::Convert,
 
+      "INSERT" => KeyCode::Insert,
       "DELETE" => KeyCode::Delete,
       "END" => KeyCode::End,
       "HELP" => KeyCode::Help,
