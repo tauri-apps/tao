@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.16.7]
+
+- [`a785f2cb`](https://github.com/tauri-apps/tao/commit/a785f2cb4d7be2033471e7661f4a3b27fc511968)([#867](https://github.com/tauri-apps/tao/pull/867)) Support parsing `Insert` as a valid KeyCode for accelerators.
+
 ## \[0.16.6]
 
 - [`3aa1200c`](https://github.com/tauri-apps/tao/commit/3aa1200c976c050b07a703d6620afc3f3c4c88fe)([#854](https://github.com/tauri-apps/tao/pull/854)) On Windows, fix consecutive calls to `window.set_fullscreen(Some(Fullscreen::Borderless(None)))` resulting in losing previous window state when eventually exiting fullscreen using `window.set_fullscreen(None)`.
