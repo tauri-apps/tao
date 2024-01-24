@@ -77,10 +77,16 @@ impl Window {
     let app = &event_loop_window_target.app;
     let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
     let draw_tx = event_loop_window_target.draw_tx.clone();
-    let window = gtk::ApplicationWindow::builder()
+
+    let mut window_builder = gtk::ApplicationWindow::builder()
       .application(app)
-      .accept_focus(attributes.focused)
-      .build();
+      .accept_focus(attributes.focused);
+    if let Parent::ChildOf(parent) = pl_attribs.parent {
+      window_builder = window_builder.transient_for(&parent);
+    }
+
+    let window = window_builder.build();
+
     let window_id = WindowId(window.id());
     event_loop_window_target
       .windows
@@ -210,10 +216,6 @@ impl Window {
       window.show_all();
     } else {
       window.hide();
-    }
-
-    if let Parent::ChildOf(parent) = pl_attribs.parent {
-      window.set_transient_for(Some(&parent));
     }
 
     // restore accept-focus after the window has been drawn
