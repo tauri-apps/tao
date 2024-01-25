@@ -1,6 +1,6 @@
 [package]
 name = "tao"
-version = "0.24.1"
+version = "0.25.0"
 description = "Cross-platform window manager library."
 authors = [
   "Tauri Programme within The Commons Conservancy",
@@ -55,27 +55,6 @@ env_logger = "0.10"
 [target."cfg(target_os = \"windows\")".dev-dependencies]
 softbuffer = "0.4.1"
 
-[target."cfg(any(target_os = \"android\", target_os = \"windows\"))".dependencies]
-once_cell = "1"
-
-[target."cfg(target_os = \"android\")".dependencies]
-jni = "0.21"
-ndk = "0.7"
-ndk-sys = "0.4"
-ndk-context = "0.1"
-tao-macros = { version = "0.1.0", path = "./tao-macros" }
-
-[target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
-objc = "0.2"
-
-[target."cfg(target_os = \"macos\")".dependencies]
-cocoa = "0.25"
-core-foundation = "0.9"
-core-graphics = "0.23"
-dispatch = "0.2"
-scopeguard = "1.2"
-png = "0.17"
-
 [target."cfg(target_os = \"windows\")".dependencies]
 parking_lot = "0.12"
 unicode-segmentation = "1.10"
@@ -114,6 +93,27 @@ windows-version = "0.1"
   "Win32_UI_TextServices",
   "Win32_UI_WindowsAndMessaging"
 ]
+
+[target."cfg(any(target_os = \"android\", target_os = \"windows\"))".dependencies]
+once_cell = "1"
+
+[target."cfg(target_os = \"android\")".dependencies]
+jni = "0.21"
+ndk = "0.7"
+ndk-sys = "0.4"
+ndk-context = "0.1"
+tao-macros = { version = "0.1.0", path = "./tao-macros" }
+
+[target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
+objc = "0.2"
+
+[target."cfg(target_os = \"macos\")".dependencies]
+cocoa = "0.25"
+core-foundation = "0.9"
+core-graphics = "0.23"
+dispatch = "0.2"
+scopeguard = "1.2"
+png = "0.17"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = "0.18"
