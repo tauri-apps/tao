@@ -1019,10 +1019,12 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     win32wm::WM_EXITSIZEMOVE => {
-      subclass_input
-        .window_state
-        .lock()
-        .set_window_flags_in_place(|f| f.remove(WindowFlags::MARKER_IN_SIZE_MOVE));
+      let mut state = subclass_input.window_state.lock();
+      if state.dragging {
+        state.dragging = false;
+        let _ = unsafe { PostMessageW(window, WM_LBUTTONUP, WPARAM::default(), lparam) };
+      }
+      state.set_window_flags_in_place(|f| f.remove(WindowFlags::MARKER_IN_SIZE_MOVE));
       result = ProcResult::Value(LRESULT(0));
     }
 
