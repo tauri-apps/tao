@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.25.0]
+
+- [`ae4b693d`](https://github.com/tauri-apps/tao/commit/ae4b693dc0a5d4f556bb9e6dcdbbeb1cfbf8f862)([#864](https://github.com/tauri-apps/tao/pull/864)) On Windows, Remove `WS_CAPTION` and `WS_EX_WINDOWEDGE` window styles when creating a child window.
+- [`e10f6a68`](https://github.com/tauri-apps/tao/commit/e10f6a68287553c4bb8a62b71ee62dd543918681)([#862](https://github.com/tauri-apps/tao/pull/862)) **Breaking Change**: Changed `WindowBuilderExtUnix::with_transient_for` signature to take `&impl gtk::glib::IsA<gtk::Window>` instead of `gtk::ApplicationWindow` which covers more gtk window types and matches the underlying API call signature.
+
 ## \[0.24.1]
 
 - [`25a8836b`](https://github.com/tauri-apps/tao/commit/25a8836b6493d1873d7c263bb5603c2a4e3364a1)([#860](https://github.com/tauri-apps/tao/pull/860)) Fix the app crash on restart due to Android context was not released. Release the Android context when the app is destroyed to avoid assertion failure.
