@@ -428,6 +428,8 @@ impl<T> BufferedEvent<T> {
     match self {
       Self::Event(event) => dispatch(event),
       Self::ScaleFactorChanged(window_id, scale_factor, mut new_inner_size) => {
+        let os_inner_size = new_inner_size.clone();
+
         dispatch(Event::WindowEvent {
           window_id,
           event: WindowEvent::ScaleFactorChanged {
@@ -435,12 +437,15 @@ impl<T> BufferedEvent<T> {
             new_inner_size: &mut new_inner_size,
           },
         });
-        util::set_inner_size_physical(
-          HWND(window_id.0 .0),
-          new_inner_size.width as _,
-          new_inner_size.height as _,
-          true,
-        );
+
+        if new_inner_size != os_inner_size {
+          util::set_inner_size_physical(
+            HWND(window_id.0 .0),
+            new_inner_size.width as _,
+            new_inner_size.height as _,
+            true,
+          );
+        }
       }
     }
   }
