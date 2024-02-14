@@ -282,6 +282,7 @@ impl Window {
       window_id,
       WindowRequest::WireUpEvents {
         transparent,
+        fullscreen: attributes.fullscreen.is_some(),
         cursor_moved,
       },
     )) {
@@ -905,6 +906,7 @@ pub enum WindowRequest {
   CursorIgnoreEvents(bool),
   WireUpEvents {
     transparent: bool,
+    fullscreen: bool,
     cursor_moved: bool,
   },
   SetVisibleOnAllWorkspaces(bool),

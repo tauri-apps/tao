@@ -1560,11 +1560,12 @@ pub enum ResizeDirection {
   West,
 }
 
-pub fn hit_test(
+pub(crate) fn hit_test(
   (left, top, right, bottom): (i32, i32, i32, i32),
   cx: i32,
   cy: i32,
-  scale_factor: f64,
+  border_x: i32,
+  border_y: i32,
 ) -> Option<ResizeDirection> {
   const LEFT: isize = 0b0001;
   const RIGHT: isize = 0b0010;
@@ -1575,14 +1576,12 @@ pub fn hit_test(
   const BOTTOMLEFT: isize = BOTTOM | LEFT;
   const BOTTOMRIGHT: isize = BOTTOM | RIGHT;
 
-  let inset = (5 as f64 * scale_factor) as i32;
-
   #[rustfmt::skip]
       let result =
-          (LEFT * (if cx < (left + inset) { 1 } else { 0 }))
-        | (RIGHT * (if cx >= (right - inset) { 1 } else { 0 }))
-        | (TOP * (if cy < (top + inset) { 1 } else { 0 }))
-        | (BOTTOM * (if cy >= (bottom - inset) { 1 } else { 0 }));
+          (LEFT * (if cx < (left + border_x) { 1 } else { 0 }))
+        | (RIGHT * (if cx >= (right - border_x) { 1 } else { 0 }))
+        | (TOP * (if cy < (top + border_y) { 1 } else { 0 }))
+        | (BOTTOM * (if cy >= (bottom - border_y) { 1 } else { 0 }));
 
   match result {
     LEFT => Some(ResizeDirection::West),

@@ -2132,31 +2132,39 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
     win32wm::WM_NCHITTEST => {
       let window_state = subclass_input.window_state.lock();
-      // Allow resizing unmaximized borderless window
-      if !util::is_maximized(window).unwrap_or(false)
-        && !window_state
-          .window_flags()
-          .contains(WindowFlags::MARKER_DECORATIONS)
+      let window_flags = window_state.window_flags();
+
+      // Allow resizing unmaximized non-fullscreen undecorated window
+      if !window_flags.contains(WindowFlags::MARKER_DECORATIONS)
+        && window_flags.contains(WindowFlags::RESIZABLE)
+        && window_state.fullscreen.is_none()
+        && !util::is_maximized(window).unwrap_or(false)
       {
         // cursor location
         let (cx, cy) = (
-          i32::from(util::GET_X_LPARAM(lparam)),
-          i32::from(util::GET_Y_LPARAM(lparam)),
+          util::GET_X_LPARAM(lparam) as i32,
+          util::GET_Y_LPARAM(lparam) as i32,
         );
 
         let mut rect = RECT::default();
-        let _ = GetClientRect(window, &mut rect);
+        let _ = GetWindowRect(window, &mut rect);
+
+        let padded_border = GetSystemMetrics(SM_CXPADDEDBORDER);
+        let border_x = unsafe { GetSystemMetrics(SM_CXFRAME) + padded_border };
+        let border_y = unsafe { GetSystemMetrics(SM_CYFRAME) + padded_border };
 
         let hit_result = crate::window::hit_test(
           (rect.left, rect.top, rect.right, rect.bottom),
           cx,
           cy,
-          window_state.scale_factor,
+          border_x,
+          border_y,
         )
-        .map(|d| d.to_win32())
-        .unwrap_or(HTCLIENT);
+        .map(|d| d.to_win32());
 
-        result = ProcResult::Value(LRESULT(hit_result as _));
+        result = hit_result
+          .map(|r| ProcResult::Value(LRESULT(r as _)))
+          .unwrap_or(ProcResult::DefSubclassProc);
       } else {
         result = ProcResult::DefSubclassProc;
       }

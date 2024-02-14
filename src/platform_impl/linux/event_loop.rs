@@ -17,7 +17,11 @@ use crossbeam_channel::SendError;
 use gdk::{Cursor, CursorType, EventKey, EventMask, ScrollDirection, WindowEdge, WindowState};
 use gio::Cancellable;
 use glib::{source::Priority, MainContext};
-use gtk::{cairo, gdk, gio, glib, prelude::*};
+use gtk::{
+  cairo, gdk, gio,
+  glib::{self, bitflags::Flags},
+  prelude::*,
+};
 
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition},
@@ -388,6 +392,7 @@ impl<T: 'static> EventLoop<T> {
           WindowRequest::ProgressBarState(_) => unreachable!(),
           WindowRequest::WireUpEvents {
             transparent,
+            fullscreen,
             cursor_moved,
           } => {
             window.add_events(
@@ -400,19 +405,39 @@ impl<T: 'static> EventLoop<T> {
                 | EventMask::SCROLL_MASK,
             );
 
-            // Allow resizing unmaximized borderless window
-            window.connect_motion_notify_event(|window, event| {
-              if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
+            let fullscreen = Rc::new(AtomicBool::new(fullscreen));
+            let fullscreen_ = fullscreen.clone();
+            window.connect_window_state_event(move |_window, event| {
+              let state = event.changed_mask();
+              if state.contains(WindowState::FULLSCREEN) {
+                fullscreen_.store(
+                  event.new_window_state().contains(WindowState::FULLSCREEN),
+                  Ordering::Relaxed,
+                );
+              }
+              glib::Propagation::Proceed
+            });
+
+            // Allow resizing unmaximized non-fullscreen undecorated window
+            let fullscreen_ = fullscreen.clone();
+            window.connect_motion_notify_event(move |window, event| {
+              if !window.is_decorated()
+                && window.is_resizable()
+                && !window.is_maximized()
+                && !fullscreen_.load(Ordering::Relaxed)
+              {
                 if let Some(window) = window.window() {
                   let (cx, cy) = event.root();
                   let (left, top) = window.position();
                   let (w, h) = (window.width(), window.height());
                   let (right, bottom) = (left + w, top + h);
+                  let border = window.scale_factor() * 5;
                   let edge = crate::window::hit_test(
                     (left, top, right, bottom),
                     cx as _,
                     cy as _,
-                    window.scale_factor() as _,
+                    border,
+                    border,
                   );
                   let edge = match &edge {
                     Some(e) => e.to_cursor_str(),
@@ -423,18 +448,26 @@ impl<T: 'static> EventLoop<T> {
               }
               glib::Propagation::Proceed
             });
-            window.connect_button_press_event(|window, event| {
-              if !window.is_decorated() && window.is_resizable() && event.button() == 1 {
+            let fullscreen_ = fullscreen.clone();
+            window.connect_button_press_event(move |window, event| {
+              if !window.is_decorated()
+                && window.is_resizable()
+                && !window.is_maximized()
+                && !fullscreen_.load(Ordering::Relaxed)
+                && event.button() == 1
+              {
                 if let Some(window) = window.window() {
                   let (cx, cy) = event.root();
                   let (left, top) = window.position();
                   let (w, h) = (window.width(), window.height());
                   let (right, bottom) = (left + w, top + h);
+                  let border = window.scale_factor() * 5;
                   let edge = crate::window::hit_test(
                     (left, top, right, bottom),
                     cx as _,
                     cy as _,
-                    window.scale_factor() as _,
+                    border,
+                    border,
                   )
                   .map(|d| d.to_gtk_edge())
                   // we return `WindowEdge::__Unknown` to be ignored later.
@@ -453,19 +486,26 @@ impl<T: 'static> EventLoop<T> {
 
               glib::Propagation::Proceed
             });
-            window.connect_touch_event(|window, event| {
-              if !window.is_decorated() && window.is_resizable() {
+            let fullscreen_ = fullscreen.clone();
+            window.connect_touch_event(move |window, event| {
+              if !window.is_decorated()
+                && window.is_resizable()
+                && !window.is_maximized()
+                && !fullscreen_.load(Ordering::Relaxed)
+              {
                 if let Some(window) = window.window() {
                   if let Some((cx, cy)) = event.root_coords() {
                     if let Some(device) = event.device() {
                       let (left, top) = window.position();
                       let (w, h) = (window.width(), window.height());
                       let (right, bottom) = (left + w, top + h);
+                      let border = window.scale_factor() * 5;
                       let edge = crate::window::hit_test(
                         (left, top, right, bottom),
                         cx as _,
                         cy as _,
-                        window.scale_factor() as _,
+                        border,
+                        border,
                       )
                       .map(|d| d.to_gtk_edge())
                       // we return `WindowEdge::__Unknown` to be ignored later.
