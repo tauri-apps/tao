@@ -1577,10 +1577,10 @@ pub(crate) fn hit_test(
   const BOTTOMRIGHT: isize = BOTTOM | RIGHT;
 
   #[rustfmt::skip]
-  let result = LEFT * (cx < left + border_x) as isize
-             | RIGHT * (cx >= right - border_x) as isize
-             | TOP * (cy < top + border_y) as isize
-             | BOTTOM * (cy >= bottom - border_y) as isize;
+  let result = (LEFT * (x < left + border_x) as isize)
+             | (RIGHT * (x >= right - border_x) as isize)
+             | (TOP * (y < top + border_y) as isize)
+             | (BOTTOM * (y >= bottom - border_y) as isize);
 
   match result {
     LEFT => Some(ResizeDirection::West),
