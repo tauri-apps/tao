@@ -19,7 +19,7 @@ use gio::Cancellable;
 use glib::{source::Priority, MainContext};
 use gtk::{
   cairo, gdk, gio,
-  glib::{self, bitflags::Flags},
+  glib::{self},
   prelude::*,
 };
 
@@ -445,7 +445,6 @@ impl<T: 'static> EventLoop<T> {
               }
               glib::Propagation::Proceed
             });
-            let fullscreen_ = fullscreen.clone();
             window.connect_button_press_event(move |window, event| {
               if !window.is_decorated()
                 && window.is_resizable()
@@ -472,11 +471,10 @@ impl<T: 'static> EventLoop<T> {
                   // Ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
                   match edge {
                     WindowEdge::__Unknown(_) => (),
-                    _ if !fullscreen_.load(Ordering::Relaxed) => {
+                    _ => {
                       // FIXME: calling `window.begin_resize_drag` uses the default cursor, it should show a resizing cursor instead
                       window.begin_resize_drag(edge, 1, cx as i32, cy as i32, event.time())
                     }
-                    _ => (),
                   }
                 }
               }
@@ -507,16 +505,14 @@ impl<T: 'static> EventLoop<T> {
                       // Ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
                       match edge {
                         WindowEdge::__Unknown(_) => (),
-                        _ if !fullscreen.load(Ordering::Relaxed) => window
-                          .begin_resize_drag_for_device(
-                            edge,
-                            &device,
-                            0,
-                            cx as i32,
-                            cy as i32,
-                            event.time(),
-                          ),
-                        _ => (),
+                        _ => window.begin_resize_drag_for_device(
+                          edge,
+                          &device,
+                          0,
+                          cx as i32,
+                          cy as i32,
+                          event.time(),
+                        ),
                       }
                     }
                   }
