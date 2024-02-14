@@ -421,11 +421,7 @@ impl<T: 'static> EventLoop<T> {
             // Allow resizing unmaximized non-fullscreen undecorated window
             let fullscreen_ = fullscreen.clone();
             window.connect_motion_notify_event(move |window, event| {
-              if !window.is_decorated()
-                && window.is_resizable()
-                && !window.is_maximized()
-                && !fullscreen_.load(Ordering::Relaxed)
-              {
+              if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
                 if let Some(window) = window.window() {
                   let (cx, cy) = event.root();
                   let (left, top) = window.position();
@@ -439,9 +435,10 @@ impl<T: 'static> EventLoop<T> {
                     border,
                     border,
                   );
+
                   let edge = match &edge {
-                    Some(e) => e.to_cursor_str(),
-                    None => "default",
+                    Some(e) if !fullscreen_.load(Ordering::Relaxed) => e.to_cursor_str(),
+                    _ => "default",
                   };
                   window.set_cursor(Cursor::from_name(&window.display(), edge).as_ref());
                 }
@@ -453,7 +450,6 @@ impl<T: 'static> EventLoop<T> {
               if !window.is_decorated()
                 && window.is_resizable()
                 && !window.is_maximized()
-                && !fullscreen_.load(Ordering::Relaxed)
                 && event.button() == 1
               {
                 if let Some(window) = window.window() {
@@ -476,10 +472,11 @@ impl<T: 'static> EventLoop<T> {
                   // Ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
                   match edge {
                     WindowEdge::__Unknown(_) => (),
-                    _ => {
+                    _ if !fullscreen_.load(Ordering::Relaxed) => {
                       // FIXME: calling `window.begin_resize_drag` uses the default cursor, it should show a resizing cursor instead
                       window.begin_resize_drag(edge, 1, cx as i32, cy as i32, event.time())
                     }
+                    _ => (),
                   }
                 }
               }
@@ -488,11 +485,7 @@ impl<T: 'static> EventLoop<T> {
             });
             let fullscreen_ = fullscreen.clone();
             window.connect_touch_event(move |window, event| {
-              if !window.is_decorated()
-                && window.is_resizable()
-                && !window.is_maximized()
-                && !fullscreen_.load(Ordering::Relaxed)
-              {
+              if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
                 if let Some(window) = window.window() {
                   if let Some((cx, cy)) = event.root_coords() {
                     if let Some(device) = event.device() {
@@ -515,14 +508,16 @@ impl<T: 'static> EventLoop<T> {
                       // Ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
                       match edge {
                         WindowEdge::__Unknown(_) => (),
-                        _ => window.begin_resize_drag_for_device(
-                          edge,
-                          &device,
-                          0,
-                          cx as i32,
-                          cy as i32,
-                          event.time(),
-                        ),
+                        _ if !fullscreen_.load(Ordering::Relaxed) => window
+                          .begin_resize_drag_for_device(
+                            edge,
+                            &device,
+                            0,
+                            cx as i32,
+                            cy as i32,
+                            event.time(),
+                          ),
+                        _ => (),
                       }
                     }
                   }
