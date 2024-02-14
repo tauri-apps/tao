@@ -2150,8 +2150,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
         let _ = GetWindowRect(window, &mut rect);
 
         let padded_border = GetSystemMetrics(SM_CXPADDEDBORDER);
-        let border_x = unsafe { GetSystemMetrics(SM_CXFRAME) + padded_border };
-        let border_y = unsafe { GetSystemMetrics(SM_CYFRAME) + padded_border };
+        let border_x = GetSystemMetrics(SM_CXFRAME) + padded_border;
+        let border_y = GetSystemMetrics(SM_CYFRAME) + padded_border;
 
         let hit_result = crate::window::hit_test(
           (rect.left, rect.top, rect.right, rect.bottom),
