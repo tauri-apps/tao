@@ -483,7 +483,6 @@ impl<T: 'static> EventLoop<T> {
 
               glib::Propagation::Proceed
             });
-            let fullscreen_ = fullscreen.clone();
             window.connect_touch_event(move |window, event| {
               if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
                 if let Some(window) = window.window() {
@@ -508,7 +507,7 @@ impl<T: 'static> EventLoop<T> {
                       // Ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
                       match edge {
                         WindowEdge::__Unknown(_) => (),
-                        _ if !fullscreen_.load(Ordering::Relaxed) => window
+                        _ if !fullscreen.load(Ordering::Relaxed) => window
                           .begin_resize_drag_for_device(
                             edge,
                             &device,
