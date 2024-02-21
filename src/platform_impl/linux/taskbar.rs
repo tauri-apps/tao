@@ -3,7 +3,7 @@ use zbus::{
   blocking::Connection,
   fdo::Result,
   zvariant::{DeserializeDict, SerializeDict, Type},
-  MessageBuilder,
+  Message,
 };
 
 pub struct TaskbarIndicator {
@@ -47,10 +47,10 @@ impl TaskbarIndicator {
       properties.progress_visible = Some(!matches!(state, ProgressState::None));
     }
 
-    let signal = MessageBuilder::signal("/", "com.canonical.Unity.LauncherEntry", "Update")?
+    let signal = Message::signal("/", "com.canonical.Unity.LauncherEntry", "Update")?
       .build(&(self.app_uri.clone(), properties))?;
 
-    self.conn.send_message(signal)?;
+    self.conn.send(&signal)?;
     Ok(())
   }
 }
