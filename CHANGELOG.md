@@ -1,5 +1,14 @@
 # Changelog
 
+## \[0.26.0]
+
+- [`2af91313`](https://github.com/tauri-apps/tao/commit/2af91313b2e8c48ef3330568ca9da25150a7bdaa)([#880](https://github.com/tauri-apps/tao/pull/880)) Updated the minimum supported Rust version to 1.70.
+- [`90ad07b3`](https://github.com/tauri-apps/tao/commit/90ad07b324636d27cae267ad52751fb886aa92a0)([#878](https://github.com/tauri-apps/tao/pull/878)) **Breaking change**: Removed `window::hit_test` function.
+- [`2af91313`](https://github.com/tauri-apps/tao/commit/2af91313b2e8c48ef3330568ca9da25150a7bdaa)([#880](https://github.com/tauri-apps/tao/pull/880)) Progress bar on Linux no longer relies on zbus. Changed  `ProgressBarState`'s field `unity_uri` to `desktop_filename`.
+- [`90ad07b3`](https://github.com/tauri-apps/tao/commit/90ad07b324636d27cae267ad52751fb886aa92a0)([#878](https://github.com/tauri-apps/tao/pull/878)) On Windows and Linux, disable resizing undecorated windows when in fullscreen.
+- [`90ad07b3`](https://github.com/tauri-apps/tao/commit/90ad07b324636d27cae267ad52751fb886aa92a0)([#878](https://github.com/tauri-apps/tao/pull/878)) On Windows, fix undecorated window resizing.
+- [`89ce9d26`](https://github.com/tauri-apps/tao/commit/89ce9d26c3ac2483f93a386451b5a197cbfb684c)([#874](https://github.com/tauri-apps/tao/pull/874)) On Windows, apply `ScaleFactorChanged` if new size is different than what OS reported. This fixes an issue when moving the window to another monitor and immediately maximizing it, resulting in a maximized window (i.e have `WS_MAXIMIZE` window style) but doesn't cover the monitor work area.
+
 ## \[0.25.0]
 
 - [`ae4b693d`](https://github.com/tauri-apps/tao/commit/ae4b693dc0a5d4f556bb9e6dcdbbeb1cfbf8f862)([#864](https://github.com/tauri-apps/tao/pull/864)) On Windows, Remove `WS_CAPTION` and `WS_EX_WINDOWEDGE` window styles when creating a child window.
