@@ -32,9 +32,6 @@ default = [ "rwh_06" ]
 [workspace]
 members = [ "tao-macros" ]
 
-[build-dependencies]
-cc = "1"
-
 [dependencies]
 instant = "0.1"
 lazy_static = "1"
@@ -120,6 +117,6 @@ gtk = "0.18"
 gdkx11-sys = "0.18"
 gdkwayland-sys = "0.18.0"
 x11-dl = "2.21"
-zbus = "3"
 png = "0.17"
 parking_lot = "0.12"
+dlopen2 = "0.7.0"

@@ -61,7 +61,7 @@ fn main() {
             window.set_progress_bar(ProgressBarState {
               progress: Some(progress),
               state: Some(ProgressState::Normal),
-              unity_uri: None,
+              desktop_filename: None,
             });
           } else if modifiers.control_key() {
             let mut state = ProgressState::None;
@@ -77,7 +77,7 @@ fn main() {
             window.set_progress_bar(ProgressBarState {
               progress: None,
               state: Some(state),
-              unity_uri: None,
+              desktop_filename: None,
             });
           }
         }

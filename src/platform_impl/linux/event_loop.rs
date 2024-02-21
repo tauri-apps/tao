@@ -245,8 +245,7 @@ impl<T: 'static> EventLoop<T> {
       None
     };
 
-    let mut taskbar: Option<TaskbarIndicator> = None;
-    let supports_unity = util::is_unity();
+    let mut taskbar = TaskbarIndicator::new();
 
     // Window Request
     window_requests_rx.attach(Some(&context), move |(id, request)| {
@@ -853,19 +852,7 @@ impl<T: 'static> EventLoop<T> {
       } else if id == WindowId::dummy() {
         match request {
           WindowRequest::ProgressBarState(state) => {
-            if supports_unity {
-              if taskbar.is_none() {
-                if let Ok(indicator) = TaskbarIndicator::new() {
-                  taskbar.replace(indicator);
-                }
-              }
-
-              if let Some(taskbar) = &mut taskbar {
-                if let Err(e) = taskbar.update(state) {
-                  log::warn!("Failed to update taskbar progress {}", e);
-                }
-              }
-            }
+            taskbar.update(state);
           }
           _ => unreachable!(),
         }
