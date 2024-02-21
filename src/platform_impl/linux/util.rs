@@ -70,12 +70,3 @@ pub fn set_size_constraints<W: GtkWindowExt + WidgetExt>(
     geom_mask,
   )
 }
-
-pub fn is_unity() -> bool {
-  std::env::var("XDG_CURRENT_DESKTOP")
-    .map(|d| {
-      let d = d.to_lowercase();
-      d.contains("unity") || d.contains("gnome")
-    })
-    .unwrap_or(false)
-}

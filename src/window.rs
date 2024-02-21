@@ -33,8 +33,8 @@ pub struct ProgressBarState {
   pub state: Option<ProgressState>,
   /// The progress bar progress. This can be a value ranging from `0` to `100`
   pub progress: Option<u64>,
-  /// The identifier for your app to communicate with the Unity desktop window manager **Linux Only**
-  pub unity_uri: Option<String>,
+  /// The `.desktop` filename with the Unity desktop window manager, for example `myapp.desktop` **Linux Only**
+  pub desktop_filename: Option<String>,
 }
 
 /// Represents a window.
