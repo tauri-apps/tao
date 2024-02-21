@@ -1,5 +1,6 @@
 use std::ffi::CString;
 
+
 use dlopen2::wrapper::{Container, WrapperApi};
 
 use crate::window::{ProgressBarState, ProgressState};
@@ -125,6 +126,7 @@ impl TaskbarIndicator {
         }
       }
     }
+
   }
 }
 
