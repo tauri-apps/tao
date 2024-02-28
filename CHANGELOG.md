@@ -1,5 +1,11 @@
 # Changelog
 
+## \[0.26.1]
+
+### bug
+
+- [`f2ffb501`](https://github.com/tauri-apps/tao/commit/f2ffb501ebd6f456987f80791629893e37a5b31e)([#884](https://github.com/tauri-apps/tao/pull/884)) Fixed compile errors for Linux Arm64 targets.
+
 ## \[0.26.0]
 
 - [`2af91313`](https://github.com/tauri-apps/tao/commit/2af91313b2e8c48ef3330568ca9da25150a7bdaa)([#880](https://github.com/tauri-apps/tao/pull/880)) Updated the minimum supported Rust version to 1.70.
