@@ -22,7 +22,6 @@ use std::{
 use windows::{
   core::{s, PCWSTR},
   Win32::{
-    Devices::HumanInterfaceDevice::*,
     Foundation::{
       BOOL, HANDLE, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_TIMEOUT, WPARAM,
     },
@@ -2370,7 +2369,7 @@ unsafe fn handle_raw_input<T: 'static>(
   if data.header.dwType == RIM_TYPEMOUSE.0 {
     let mouse = data.data.mouse;
 
-    if util::has_flag(mouse.usFlags, MOUSE_MOVE_RELATIVE as u16) {
+    if util::has_flag(mouse.usFlags.0, MOUSE_MOVE_RELATIVE.0) {
       let x = mouse.lLastX as f64;
       let y = mouse.lLastY as f64;
 
