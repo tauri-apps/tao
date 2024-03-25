@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.16.8]
+
+- [`792176d3`](https://github.com/tauri-apps/tao/commit/792176d3c8bf50f3047000b3b0096e32074cdc10)([#893](https://github.com/tauri-apps/tao/pull/893)) Enable macOS secure state restoration on OS versions that support it. This avoids
+  'WARNING: Secure coding is not enabled for restorable state!' on macOS Sonoma.
+
 ## \[0.16.7]
 
 - [`a785f2cb`](https://github.com/tauri-apps/tao/commit/a785f2cb4d7be2033471e7661f4a3b27fc511968)([#867](https://github.com/tauri-apps/tao/pull/867)) Support parsing `Insert` as a valid KeyCode for accelerators.
