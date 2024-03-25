@@ -7,7 +7,7 @@ use crate::{platform::macos::ActivationPolicy, platform_impl::platform::app_stat
 use cocoa::base::id;
 use objc::{
   declare::ClassDecl,
-  runtime::{Class, Object, Sel},
+  runtime::{Class, Object, Sel, BOOL},
 };
 use std::{
   cell::{RefCell, RefMut},
@@ -46,6 +46,10 @@ lazy_static! {
     decl.add_method(
       sel!(applicationWillTerminate:),
       application_will_terminate as extern "C" fn(&Object, Sel, id),
+    );
+    decl.add_method(
+      sel!(applicationSupportsSecureRestorableState:),
+      application_supports_secure_restorable_state as extern "C" fn(&Object, Sel, id) -> BOOL,
     );
     decl.add_ivar::<*mut c_void>(AUX_DELEGATE_STATE_NAME);
 
@@ -95,4 +99,10 @@ extern "C" fn application_will_terminate(_: &Object, _: Sel, _: id) {
   trace!("Triggered `applicationWillTerminate`");
   AppState::exit();
   trace!("Completed `applicationWillTerminate`");
+}
+
+extern "C" fn application_supports_secure_restorable_state(_: &Object, _: Sel, _: id) -> BOOL {
+  trace!("Triggered `applicationSupportsSecureRestorableState`");
+  trace!("Completed `applicationSupportsSecureRestorableState`");
+  objc::runtime::YES
 }
