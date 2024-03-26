@@ -56,7 +56,7 @@ softbuffer = "0.4.1"
 parking_lot = "0.12"
 unicode-segmentation = "1.10"
 image = { version = "0.24", default-features = false }
-windows-implement = "0.52"
+windows-implement = "0.53"
 windows-version = "0.1"
 
   [target."cfg(target_os = \"windows\")".dependencies.windows]
