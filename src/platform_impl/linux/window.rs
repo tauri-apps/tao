@@ -399,16 +399,18 @@ impl Window {
   }
 
   pub fn set_min_inner_size(&self, size: Option<Size>) {
+    let (width, height) = size.map(crate::extract_width_height).unzip();
     let mut size_constraints = self.inner_size_constraints.borrow_mut();
-    size_constraints.min_width = size.map(|s| s.width());
-    size_constraints.min_height = size.map(|s| s.height());
+    size_constraints.min_width = width;
+    size_constraints.min_height = height;
     self.set_size_constraints(*size_constraints)
   }
 
   pub fn set_max_inner_size(&self, size: Option<Size>) {
+    let (width, height) = size.map(crate::extract_width_height).unzip();
     let mut size_constraints = self.inner_size_constraints.borrow_mut();
-    size_constraints.max_width = size.map(|s| s.width());
-    size_constraints.max_height = size.map(|s| s.height());
+    size_constraints.max_width = width;
+    size_constraints.max_height = height;
     self.set_size_constraints(*size_constraints)
   }
 
