@@ -5,7 +5,7 @@
 use cocoa::{
   appkit::{NSApp, NSApplication, NSButton, NSEventModifierFlags, NSImage, NSMenu, NSMenuItem},
   base::{id, nil, selector},
-  foundation::{NSAutoreleasePool, NSData, NSSize, NSString},
+  foundation::{NSArray, NSAutoreleasePool, NSData, NSDictionary, NSSize, NSString, NSUInteger},
 };
 use objc::{
   declare::ClassDecl,
@@ -18,7 +18,7 @@ use crate::{
   event::Event,
   icon::Icon,
   keyboard::{KeyCode, ModifiersState},
-  menu::{CustomMenuItem, MenuId, MenuItem, MenuType},
+  menu::{CustomMenuItem, MenuId, MenuItem, MenuType, SharingItem},
   platform::macos::NativeImage,
   window::WindowId,
 };
@@ -338,6 +338,29 @@ impl Menu {
         let () = msg_send![&*item, setSubmenu: services_menu];
         Some((None, item))
       },
+      MenuItem::Share(items) => unsafe {
+        let menu_item: id = NSMenuItem::alloc(nil).autorelease();
+        let () = msg_send![menu_item, setTitle: NSString::alloc(nil).init_str("Share")];
+
+        let share_menu = NSMenu::alloc(nil).autorelease();
+        let () = msg_send![share_menu, setAutoenablesItems: NO];
+
+        let ns_items: id /* NSMutableArray */ = convert_sharing_item_to_ns(items);
+        let ns_items_count: u64 = msg_send![ns_items, count];
+
+        if ns_items_count == 0 {
+          let () = msg_send![menu_item, setEnabled: NO];
+        } else {
+          let services: id /* NSArray */ = msg_send![class!(NSSharingService), sharingServicesForItems:ns_items];
+          let service_count: NSUInteger = msg_send![services, count];
+          for i in 0..service_count {
+            let service: id = msg_send![services, objectAtIndex: i];
+            let () = msg_send![share_menu, addItem: make_share_menu_item(service, ns_items)];
+          }
+          menu_item.setSubmenu_(share_menu);
+        }
+        Some((None, menu_item))
+      },
     };
 
     if let Some((menu_id, menu_item)) = menu_details {
@@ -507,6 +530,89 @@ extern "C" fn dealloc_custom_menuitem(this: &Object, _: Sel) {
       let _handler = Box::from_raw(obj);
     }
     let _: () = msg_send![super(this, class!(NSMenuItem)), dealloc];
+  }
+}
+
+pub(crate) fn make_share_menu_item(service: id, items: id) -> *mut Object {
+  unsafe {
+    let menu_item: id /* NSMenuItem */ = msg_send![make_share_menu_item_class(), alloc];
+
+    let title: id = msg_send![service, menuItemTitle];
+    let image: id = msg_send![service, image];
+    let menu_item: id = msg_send![menu_item, initWithTitle:title action:sel!(performShare:) keyEquivalent:NSString::alloc(nil).init_str("")];
+
+    let keys: id = NSArray::arrayWithObjects(
+      nil,
+      &[
+        NSString::alloc(nil).init_str("service"),
+        NSString::alloc(nil).init_str("items"),
+      ],
+    );
+    let values: id = NSArray::arrayWithObjects(nil, &[service, items]);
+    let perform_obj: id =
+      msg_send![class!(NSDictionary), dictionaryWithObjects:values forKeys:keys];
+
+    let () = msg_send![menu_item, setTarget:menu_item];
+    let () = msg_send![menu_item, setImage:image];
+    let () = msg_send![menu_item, setRepresentedObject:perform_obj];
+
+    menu_item
+  }
+}
+
+fn make_share_menu_item_class() -> *const Class {
+  static mut APP_CLASS: *const Class = 0 as *const Class;
+  static INIT: Once = Once::new();
+
+  INIT.call_once(|| unsafe {
+    let superclass = class!(NSMenuItem);
+    let mut decl = ClassDecl::new("TaoShareMenuItem", superclass).unwrap();
+
+    decl.add_method(
+      sel!(performShare:),
+      perform_share as extern "C" fn(&Object, _, id),
+    );
+
+    APP_CLASS = decl.register();
+  });
+
+  unsafe { APP_CLASS }
+}
+
+extern "C" fn perform_share(_: &Object, _: Sel, sender: id) {
+  unsafe {
+    let perform_obj: id /* NSDictionary */ = msg_send![sender, representedObject];
+    let service = perform_obj.objectForKey_(NSString::alloc(nil).init_str("service"));
+    let items = perform_obj.objectForKey_(NSString::alloc(nil).init_str("items"));
+
+    let () = msg_send![service, performWithItems:items];
+  }
+}
+
+fn convert_sharing_item_to_ns(items: SharingItem) -> id /* NSMutableArray */ {
+  unsafe {
+    let ns_items: id /* NSMutableArray */ = msg_send![class!(NSMutableArray), array];
+
+    if let Some(texts) = items.texts {
+      for text in texts {
+        let () = msg_send![ns_items, addObject: NSString::alloc(nil).init_str(&text)];
+      }
+    }
+    if let Some(urls) = items.urls {
+      for url in urls {
+        let url: id = msg_send![class!(NSURL), URLWithString:NSString::alloc(nil).init_str(&url)];
+        let () = msg_send![ns_items, addObject:url];
+      }
+    }
+    if let Some(file_paths) = items.file_paths {
+      for file_path in file_paths {
+        let path: id = NSString::alloc(nil).init_str(&file_path.display().to_string());
+        let url: id = msg_send![class!(NSURL), fileURLWithPath:path isDirectory:false];
+        let () = msg_send![ns_items, addObject:url];
+      }
+    }
+
+    ns_items
   }
 }
 

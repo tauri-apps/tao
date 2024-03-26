@@ -10,7 +10,7 @@ use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
   keyboard::KeyCode,
-  menu::{AboutMetadata, MenuBar as Menu, MenuItem, MenuItemAttributes, MenuType},
+  menu::{AboutMetadata, MenuBar as Menu, MenuItem, MenuItemAttributes, MenuType, SharingItem},
   window::WindowBuilder,
 };
 
@@ -50,6 +50,14 @@ fn main() {
   ));
 
   first_menu.add_native_item(MenuItem::Services);
+  first_menu.add_native_item(MenuItem::Share(SharingItem {
+    texts: Some(vec!["Foo".to_string(), " Bar!".to_string()]),
+    urls: Some(vec!["https://tauri.app".to_string()]),
+    file_paths: Some(vec![std::path::PathBuf::from(concat!(
+      env!("CARGO_MANIFEST_DIR"),
+      "/examples/icon.png"
+    ))]),
+  }));
 
   // Create custom Copy menu with our clipboard object
   let custom_insert_clipboard = first_menu.add_item(MenuItemAttributes::new("&Insert clipboard"));
