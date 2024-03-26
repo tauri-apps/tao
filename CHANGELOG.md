@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.26.2]
+
+- [`17f54d40`](https://github.com/tauri-apps/tao/commit/17f54d402838e20c05c05a1cf3db9e0f76e7fa68)([#887](https://github.com/tauri-apps/tao/pull/887)) Update `windows` crate to `0.54`
+
 ## \[0.26.1]
 
 ### bug
