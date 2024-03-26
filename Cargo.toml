@@ -55,13 +55,11 @@ softbuffer = "0.4.1"
 [target."cfg(target_os = \"windows\")".dependencies]
 parking_lot = "0.12"
 unicode-segmentation = "1.10"
-image = { version = "0.24", default-features = false }
-windows-implement = "0.52"
 windows-version = "0.1"
 
-  [target."cfg(target_os = \"windows\")".dependencies.windows]
-  version = "0.52"
-  features = [
+[target."cfg(target_os = \"windows\")".dependencies.windows]
+version = "0.54"
+features = [
   "implement",
   "Win32_Devices_HumanInterfaceDevice",
   "Win32_Foundation",
@@ -110,13 +108,11 @@ core-foundation = "0.9"
 core-graphics = "0.23"
 dispatch = "0.2"
 scopeguard = "1.2"
-png = "0.17"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = "0.18"
 gdkx11-sys = "0.18"
 gdkwayland-sys = "0.18.0"
 x11-dl = "2.21"
-png = "0.17"
 parking_lot = "0.12"
 dlopen2 = "0.7.0"

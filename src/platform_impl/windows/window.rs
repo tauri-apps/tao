@@ -1276,7 +1276,7 @@ impl Drop for ComInitialized {
 thread_local! {
     static COM_INITIALIZED: ComInitialized = {
         unsafe {
-            ComInitialized(match CoInitializeEx(None, COINIT_APARTMENTTHREADED) {
+            ComInitialized(match CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok() {
               Ok(()) => Some(()),
               Err(_) => None,
             })

@@ -4,17 +4,20 @@
 
 use std::{cell::UnsafeCell, ffi::OsString, os::windows::ffi::OsStringExt, path::PathBuf, ptr};
 
-use windows::Win32::{
-  Foundation::{self as win32f, HWND, POINTL},
-  System::{
-    Com::{IDataObject, DVASPECT_CONTENT, FORMATETC, TYMED_HGLOBAL},
-    Ole::{IDropTarget, IDropTarget_Impl, CF_HDROP, DROPEFFECT, DROPEFFECT_COPY, DROPEFFECT_NONE},
-    SystemServices::MODIFIERKEYS_FLAGS,
+use windows::{
+  core::implement,
+  Win32::{
+    Foundation::{self as win32f, HWND, POINTL},
+    System::{
+      Com::{IDataObject, DVASPECT_CONTENT, FORMATETC, TYMED_HGLOBAL},
+      Ole::{
+        IDropTarget, IDropTarget_Impl, CF_HDROP, DROPEFFECT, DROPEFFECT_COPY, DROPEFFECT_NONE,
+      },
+      SystemServices::MODIFIERKEYS_FLAGS,
+    },
+    UI::Shell::{DragFinish, DragQueryFileW, HDROP},
   },
-  UI::Shell::{DragFinish, DragQueryFileW, HDROP},
 };
-
-use windows_implement::implement;
 
 use crate::platform_impl::platform::WindowId;
 
