@@ -312,9 +312,10 @@ impl WindowBuilder {
   /// [`Window::set_min_inner_size`]: crate::window::Window::set_min_inner_size
   #[inline]
   pub fn with_min_inner_size<S: Into<Size>>(mut self, min_size: S) -> Self {
-    let size = min_size.into();
-    self.window.inner_size_constraints.min_width = Some(size.width());
-    self.window.inner_size_constraints.min_height = Some(size.height());
+    let size: Size = min_size.into();
+    let (width, height) = crate::extract_width_height(size);
+    self.window.inner_size_constraints.min_width = Some(width);
+    self.window.inner_size_constraints.min_height = Some(height);
     self
   }
 
@@ -325,9 +326,10 @@ impl WindowBuilder {
   /// [`Window::set_max_inner_size`]: crate::window::Window::set_max_inner_size
   #[inline]
   pub fn with_max_inner_size<S: Into<Size>>(mut self, max_size: S) -> Self {
-    let size = max_size.into();
-    self.window.inner_size_constraints.max_width = Some(size.width());
-    self.window.inner_size_constraints.max_height = Some(size.height());
+    let size: Size = max_size.into();
+    let (width, height) = crate::extract_width_height(size);
+    self.window.inner_size_constraints.max_width = Some(width);
+    self.window.inner_size_constraints.max_height = Some(height);
     self
   }
 
@@ -1431,7 +1433,7 @@ impl Default for UserAttentionType {
 }
 
 /// Window size constraints
-#[derive(Clone, Copy, PartialEq, PartialOrd, Debug, Default)]
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct WindowSizeConstraints {
   /// The minimum width a window can be, If this is `None`, the window will have no minimum width (aside from reserved).
   ///
@@ -1482,12 +1484,12 @@ impl WindowSizeConstraints {
         .min_width
         .unwrap_or(PixelUnit::MIN)
         .to_physical(scale_factor)
-        .value,
+        .0,
       self
         .min_height
         .unwrap_or(PixelUnit::MIN)
         .to_physical(scale_factor)
-        .value,
+        .0,
     )
   }
 
@@ -1498,12 +1500,12 @@ impl WindowSizeConstraints {
         .min_width
         .unwrap_or(PixelUnit::MIN)
         .to_logical(scale_factor)
-        .value,
+        .0,
       self
         .min_height
         .unwrap_or(PixelUnit::MIN)
         .to_logical(scale_factor)
-        .value,
+        .0,
     )
   }
 
@@ -1514,12 +1516,12 @@ impl WindowSizeConstraints {
         .max_width
         .unwrap_or(PixelUnit::MAX)
         .to_physical(scale_factor)
-        .value,
+        .0,
       self
         .max_height
         .unwrap_or(PixelUnit::MAX)
         .to_physical(scale_factor)
-        .value,
+        .0,
     )
   }
 
@@ -1530,12 +1532,12 @@ impl WindowSizeConstraints {
         .max_width
         .unwrap_or(PixelUnit::MAX)
         .to_logical(scale_factor)
-        .value,
+        .0,
       self
         .max_height
         .unwrap_or(PixelUnit::MAX)
         .to_logical(scale_factor)
-        .value,
+        .0,
     )
   }
 

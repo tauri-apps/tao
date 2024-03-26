@@ -28,6 +28,7 @@ targets = [
 
 [features]
 default = [ "rwh_06" ]
+serde = ["dep:serde", "dpi/serde"]
 
 [workspace]
 members = [ "tao-macros" ]
@@ -44,6 +45,7 @@ rwh_06 = { package = "raw-window-handle", version = "0.6", features = [ "std" ],
 bitflags = "1"
 crossbeam-channel = "0.5"
 url = "2"
+dpi = "0.1"
 
 [dev-dependencies]
 image = "0.24"
