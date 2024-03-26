@@ -1109,7 +1109,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
         let new_rect = if (window_pos.flags & NOMOVE_OR_NOSIZE) != SET_WINDOW_POS_FLAGS::default() {
           let cur_rect = util::get_window_rect(window)
-                        .expect("Unexpected GetWindowRect failure; please report this error to https://github.com/rust-windowing/tao");
+            .expect("Unexpected GetWindowRect failure; please report this error to tauri-apps/tao on GitHub");
 
           match window_pos.flags & NOMOVE_OR_NOSIZE {
             NOMOVE_OR_NOSIZE => None,
