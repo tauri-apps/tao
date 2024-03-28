@@ -1,6 +1,6 @@
 [package]
 name = "tao"
-version = "0.26.2"
+version = "0.27.0"
 description = "Cross-platform window manager library."
 authors = [
   "Tauri Programme within The Commons Conservancy",
@@ -28,7 +28,7 @@ targets = [
 
 [features]
 default = [ "rwh_06" ]
-serde = ["dep:serde", "dpi/serde"]
+serde = [ "dep:serde", "dpi/serde" ]
 
 [workspace]
 members = [ "tao-macros" ]
