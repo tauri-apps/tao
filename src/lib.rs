@@ -147,6 +147,7 @@
 )]
 #![deny(rustdoc::broken_intra_doc_links)]
 
+use dpi::PixelUnit;
 #[cfg(feature = "rwh_04")]
 pub use rwh_04;
 #[cfg(feature = "rwh_05")]
@@ -169,7 +170,8 @@ extern crate bitflags;
 #[macro_use]
 extern crate objc;
 
-pub mod dpi;
+pub use dpi;
+
 #[macro_use]
 pub mod error;
 pub mod event;
@@ -182,3 +184,16 @@ mod platform_impl;
 pub mod window;
 
 pub mod platform;
+
+pub(crate) fn extract_width_height(size: dpi::Size) -> (PixelUnit, PixelUnit) {
+  match size {
+    dpi::Size::Physical(size) => (
+      PixelUnit::Physical(size.width.into()),
+      PixelUnit::Physical(size.height.into()),
+    ),
+    dpi::Size::Logical(size) => (
+      PixelUnit::Logical(size.width.into()),
+      PixelUnit::Logical(size.height.into()),
+    ),
+  }
+}

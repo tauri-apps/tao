@@ -272,11 +272,14 @@ impl Window {
 
   #[inline]
   pub fn set_min_inner_size(&self, size: Option<Size>) {
+    let (width, height) = size.map(crate::extract_width_height).unzip();
+
     {
       let mut window_state = self.window_state.lock();
-      window_state.size_constraints.min_width = size.map(|s| s.width());
-      window_state.size_constraints.min_height = size.map(|s| s.height());
+      window_state.size_constraints.min_width = width;
+      window_state.size_constraints.min_height = height;
     }
+
     // Make windows re-check the window size bounds.
     let size = self.inner_size();
     self.set_inner_size(size.into());
@@ -284,11 +287,14 @@ impl Window {
 
   #[inline]
   pub fn set_max_inner_size(&self, size: Option<Size>) {
+    let (width, height) = size.map(crate::extract_width_height).unzip();
+
     {
       let mut window_state = self.window_state.lock();
-      window_state.size_constraints.max_width = size.map(|s| s.width());
-      window_state.size_constraints.max_height = size.map(|s| s.height());
+      window_state.size_constraints.max_width = width;
+      window_state.size_constraints.max_height = height;
     }
+
     // Make windows re-check the window size bounds.
     let size = self.inner_size();
     self.set_inner_size(size.into());

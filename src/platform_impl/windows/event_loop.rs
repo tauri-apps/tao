@@ -1109,7 +1109,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
         let new_rect = if (window_pos.flags & NOMOVE_OR_NOSIZE) != SET_WINDOW_POS_FLAGS::default() {
           let cur_rect = util::get_window_rect(window)
-                        .expect("Unexpected GetWindowRect failure; please report this error to https://github.com/rust-windowing/tao");
+            .expect("Unexpected GetWindowRect failure; please report this error to tauri-apps/tao on GitHub");
 
           match window_pos.flags & NOMOVE_OR_NOSIZE {
             NOMOVE_OR_NOSIZE => None,
@@ -1792,12 +1792,12 @@ unsafe fn public_window_callback_inner<T: 'static>(
             .min_width
             .unwrap_or_else(|| PixelUnit::Physical(GetSystemMetrics(SM_CXMINTRACK).into()))
             .to_physical(window_state.scale_factor)
-            .value,
+            .0,
           size_constraints
             .min_height
             .unwrap_or_else(|| PixelUnit::Physical(GetSystemMetrics(SM_CYMINTRACK).into()))
             .to_physical(window_state.scale_factor)
-            .value,
+            .0,
         );
         let (width, height): (u32, u32) = util::adjust_size(window, min_size, is_decorated).into();
         (*mmi).ptMinTrackSize = POINT {
@@ -1811,12 +1811,12 @@ unsafe fn public_window_callback_inner<T: 'static>(
             .max_width
             .unwrap_or_else(|| PixelUnit::Physical(GetSystemMetrics(SM_CXMAXTRACK).into()))
             .to_physical(window_state.scale_factor)
-            .value,
+            .0,
           size_constraints
             .max_height
             .unwrap_or_else(|| PixelUnit::Physical(GetSystemMetrics(SM_CYMAXTRACK).into()))
             .to_physical(window_state.scale_factor)
-            .value,
+            .0,
         );
         let (width, height): (u32, u32) = util::adjust_size(window, max_size, is_decorated).into();
         (*mmi).ptMaxTrackSize = POINT {
