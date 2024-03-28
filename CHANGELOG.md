@@ -1,5 +1,13 @@
 # Changelog
 
+## \[0.27.0]
+
+- [`c2357732`](https://github.com/tauri-apps/tao/commit/c23577325bd26e7e8eb46e17bbf533717e363e04)([#896](https://github.com/tauri-apps/tao/pull/896)) Replaced `dpi` module with a re-export of the `dpi` crate which has a few breaking changes:
+
+  - Replaced `LogicalPixel` with `LogicalUnit`
+  - Replaced `PhysicalPixel` with `PhysicalUnit`
+  - Removed `Size::width`, `Size::height`, `Position::x`, `Position::y` and `PixelUnit::value`.
+
 ## \[0.26.2]
 
 - [`17f54d40`](https://github.com/tauri-apps/tao/commit/17f54d402838e20c05c05a1cf3db9e0f76e7fa68)([#887](https://github.com/tauri-apps/tao/pull/887)) Update `windows` crate to `0.54`
