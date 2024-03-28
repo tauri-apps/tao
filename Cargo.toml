@@ -42,7 +42,7 @@ serde = { version = "1", optional = true, features = [ "serde_derive" ] }
 rwh_04 = { package = "raw-window-handle", version = "0.4", optional = true }
 rwh_05 = { package = "raw-window-handle", version = "0.5", features = [ "std" ], optional = true }
 rwh_06 = { package = "raw-window-handle", version = "0.6", features = [ "std" ], optional = true }
-bitflags = "1"
+bitflags = "2"
 crossbeam-channel = "0.5"
 url = "2"
 dpi = "0.1"
