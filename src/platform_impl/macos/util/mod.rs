@@ -25,7 +25,7 @@ use core_graphics::{
 use objc::class;
 use objc::runtime::{Class, Object, Sel, BOOL, YES};
 
-use crate::{dpi::LogicalPosition, error::ExternalError, platform_impl::platform::ffi};
+use crate::{dpi::{LogicalPosition, PhysicalPosition}, error::ExternalError, platform_impl::platform::ffi};
 
 // Replace with `!` once stable
 #[derive(Debug)]
@@ -112,7 +112,7 @@ pub fn window_position(position: LogicalPosition<f64>) -> NSPoint {
 }
 
 // FIXME: This is actually logical position.
-pub fn cursor_position() -> Result<LogicalPosition<f64>, ExternalError> {
+pub fn cursor_position() -> Result<PhysicalPosition<f64>, ExternalError> {
   let point: NSPoint = msg_send![class!(NSEvent), mouseLocation];
   let y = CGDisplay::main().pixels_high() as f64 - point.y;
   let point = LogicalPosition::new(point.x, point.y);
