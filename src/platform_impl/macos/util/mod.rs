@@ -17,11 +17,7 @@ use cocoa::{
   base::{id, nil},
   foundation::{NSAutoreleasePool, NSPoint, NSRect, NSString, NSUInteger},
 };
-use core_graphics::{
-  display::CGDisplay,
-  event::CGEvent,
-  event_source::{CGEventSource, CGEventSourceStateID},
-};
+use core_graphics::display::CGDisplay;
 use objc::class;
 use objc::runtime::{Class, Object, Sel, BOOL, YES};
 
@@ -115,11 +111,10 @@ pub fn window_position(position: LogicalPosition<f64>) -> NSPoint {
   )
 }
 
-// FIXME: This is actually logical position.
 pub fn cursor_position() -> Result<PhysicalPosition<f64>, ExternalError> {
-  let point: NSPoint = msg_send![class!(NSEvent), mouseLocation];
+  let point: NSPoint = unsafe { msg_send![class!(NSEvent), mouseLocation] };
   let y = CGDisplay::main().pixels_high() as f64 - point.y;
-  let point = LogicalPosition::new(point.x, point.y);
+  let point = LogicalPosition::new(point.x, y);
   Ok(point.to_physical(super::monitor::primary_monitor().scale_factor()))
 }
 
