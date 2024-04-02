@@ -25,7 +25,11 @@ use core_graphics::{
 use objc::class;
 use objc::runtime::{Class, Object, Sel, BOOL, YES};
 
-use crate::{dpi::{LogicalPosition, PhysicalPosition}, error::ExternalError, platform_impl::platform::ffi};
+use crate::{
+  dpi::{LogicalPosition, PhysicalPosition},
+  error::ExternalError,
+  platform_impl::platform::ffi,
+};
 
 // Replace with `!` once stable
 #[derive(Debug)]
