@@ -113,12 +113,7 @@ impl<T: 'static> EventLoopWindowTarget<T> {
   }
   #[inline]
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
-    let point = util::cursor_position()?;
-    if let Some(m) = self.monitor_from_point(point.x, point.y) {
-      Ok(point.to_physical(m.scale_factor()))
-    } else {
-      Err(ExternalError::Os(os_error!(super::OsError::CGError(0))))
-    }
+    util::cursor_position()
   }
 
   #[inline]

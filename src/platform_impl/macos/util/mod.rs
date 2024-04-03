@@ -17,14 +17,15 @@ use cocoa::{
   base::{id, nil},
   foundation::{NSAutoreleasePool, NSPoint, NSRect, NSString, NSUInteger},
 };
-use core_graphics::{
-  display::CGDisplay,
-  event::CGEvent,
-  event_source::{CGEventSource, CGEventSourceStateID},
-};
+use core_graphics::display::CGDisplay;
+use objc::class;
 use objc::runtime::{Class, Object, Sel, BOOL, YES};
 
-use crate::{dpi::LogicalPosition, error::ExternalError, platform_impl::platform::ffi};
+use crate::{
+  dpi::{LogicalPosition, PhysicalPosition},
+  error::ExternalError,
+  platform_impl::platform::ffi,
+};
 
 // Replace with `!` once stable
 #[derive(Debug)]
@@ -110,17 +111,11 @@ pub fn window_position(position: LogicalPosition<f64>) -> NSPoint {
   )
 }
 
-// FIXME: This is actually logical position.
-pub fn cursor_position() -> Result<LogicalPosition<f64>, ExternalError> {
-  if let Ok(s) = CGEventSource::new(CGEventSourceStateID::CombinedSessionState) {
-    if let Ok(e) = CGEvent::new(s) {
-      let pt = e.location();
-      let pos = LogicalPosition::new(pt.x, pt.y);
-      return Ok(pos);
-    }
-  }
-
-  return Err(ExternalError::Os(os_error!(super::OsError::CGError(0))));
+pub fn cursor_position() -> Result<PhysicalPosition<f64>, ExternalError> {
+  let point: NSPoint = unsafe { msg_send![class!(NSEvent), mouseLocation] };
+  let y = CGDisplay::main().pixels_high() as f64 - point.y;
+  let point = LogicalPosition::new(point.x, y);
+  Ok(point.to_physical(super::monitor::primary_monitor().scale_factor()))
 }
 
 pub unsafe fn ns_string_id_ref(s: &str) -> IdRef {
