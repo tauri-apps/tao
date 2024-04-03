@@ -744,7 +744,7 @@ impl UnownedWindow {
       } else {
         mask &= !NSWindowStyleMask::NSResizableWindowMask;
       }
-      self.set_style_mask_async(mask);
+      self.set_style_mask_sync(mask);
     } // Otherwise, we don't change the mask until we exit fullscreen.
   }
 
@@ -756,7 +756,7 @@ impl UnownedWindow {
     } else {
       mask &= !NSWindowStyleMask::NSMiniaturizableWindowMask;
     }
-    self.set_style_mask_async(mask);
+    self.set_style_mask_sync(mask);
   }
 
   #[inline]
@@ -777,7 +777,7 @@ impl UnownedWindow {
     } else {
       mask &= !NSWindowStyleMask::NSClosableWindowMask;
     }
-    self.set_style_mask_async(mask);
+    self.set_style_mask_sync(mask);
   }
 
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
