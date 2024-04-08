@@ -42,7 +42,7 @@ impl SystemTrayBuilder {
   ) -> Result<RootSystemTray, OsError> {
     let mut app_indicator = AppIndicator::new("tao application", "");
 
-    let (parent_path, icon_path) = temp_icon_path(self.temp_icon_dir.as_ref())?;
+    let (parent_path, icon_path) = temp_icon_path(self.temp_icon_dir.as_ref()).map_err(|e| os_error!(e.into()))?;
 
     self.icon.inner.write_to_png(&icon_path)?;
 
