@@ -86,12 +86,30 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
 unsafe impl Send for PlatformSpecificWindowBuilderAttributes {}
 unsafe impl Sync for PlatformSpecificWindowBuilderAttributes {}
 
-#[derive(Debug, Clone)]
-pub struct OsError;
+#[derive(Debug)]
+pub enum OsError {
+  IoError(std::io::Error),
+  PngEncodingError(png::EncodingError),
+}
 
 impl std::fmt::Display for OsError {
-  fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-    Ok(())
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+    match self {
+      OsError::IoError(e) => f.pad(&e.to_string()),
+      OsError::PngEncodingError(e) => f.pad(&e.to_string()),
+    }
+  }
+}
+
+impl From<std::io::Error> for OsError {
+  fn from(value: std::io::Error) -> OsError {
+    OsError::IoError(value)
+  }
+}
+
+impl From<png::EncodingError> for OsError {
+  fn from(value: png::EncodingError) -> OsError {
+    OsError::PngEncodingError(value)
   }
 }
 

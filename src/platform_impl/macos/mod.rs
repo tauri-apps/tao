@@ -70,6 +70,7 @@ pub struct Window {
 pub enum OsError {
   CGError(core_graphics::base::CGError),
   CreationError(&'static str),
+  PngEncodingError(png::EncodingError),
 }
 
 unsafe impl Send for Window {}
@@ -99,6 +100,13 @@ impl fmt::Display for OsError {
     match self {
       OsError::CGError(e) => f.pad(&format!("CGError {}", e)),
       OsError::CreationError(e) => f.pad(e),
+      OsError::PngEncodingError(e) => f.pad(&e.to_string()),
     }
+  }
+}
+
+impl From<png::EncodingError> for OsError {
+  fn from(value: png::EncodingError) -> OsError {
+    OsError::PngEncodingError(value)
   }
 }

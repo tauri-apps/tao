@@ -17,7 +17,7 @@ impl PlatformIcon {
     (self.0.width, self.0.height)
   }
 
-  pub fn to_png(&self) -> Vec<u8> {
+  pub fn to_png(&self) -> Result<Vec<u8>, crate::error::OsError> {
     let mut png = Vec::new();
 
     {
@@ -26,10 +26,12 @@ impl PlatformIcon {
       encoder.set_color(png::ColorType::Rgba);
       encoder.set_depth(png::BitDepth::Eight);
 
-      let mut writer = encoder.write_header().unwrap();
-      writer.write_image_data(&self.0.rgba).unwrap();
+      let mut writer = encoder.write_header().map_err(|e| os_error!(e.into()))?;
+      writer
+        .write_image_data(&self.0.rgba)
+        .map_err(|e| os_error!(e.into()))?;
     }
 
-    png
+    Ok(png)
   }
 }

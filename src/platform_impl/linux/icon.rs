@@ -47,15 +47,19 @@ impl PlatformIcon {
     })
   }
 
-  pub fn write_to_png(&self, path: impl AsRef<Path>) {
-    let png = File::create(path).unwrap();
+  pub fn write_to_png(&self, path: impl AsRef<Path>) -> Result<(), crate::error::OsError> {
+    let png = File::create(path).map_err(|e| os_error!(e.into()))?;
     let ref mut w = BufWriter::new(png);
 
     let mut encoder = png::Encoder::new(w, self.width as _, self.height as _);
     encoder.set_color(png::ColorType::Rgba);
     encoder.set_depth(png::BitDepth::Eight);
 
-    let mut writer = encoder.write_header().unwrap();
-    writer.write_image_data(&self.raw).unwrap();
+    let mut writer = encoder.write_header().map_err(|e| os_error!(e.into()))?;
+    writer
+      .write_image_data(&self.raw)
+      .map_err(|e| os_error!(e.into()))?;
+
+    Ok(())
   }
 }
