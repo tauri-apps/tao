@@ -43,9 +43,9 @@ impl SystemTrayBuilder {
     let mut app_indicator = AppIndicator::new("tao application", "");
 
     let (parent_path, icon_path) =
-      temp_icon_path(self.temp_icon_dir.as_ref()).expect("Failed to create a temp folder for icon");
+      temp_icon_path(self.temp_icon_dir.as_ref()).map_err(|e| os_error!(e.into()))?;
 
-    self.icon.inner.write_to_png(&icon_path);
+    self.icon.inner.write_to_png(&icon_path)?;
 
     app_indicator.set_icon_theme_path(&parent_path.to_string_lossy());
     app_indicator.set_icon_full(&icon_path.to_string_lossy(), "icon");
@@ -79,17 +79,16 @@ pub struct SystemTray {
 
 impl SystemTray {
   pub fn set_icon(&mut self, icon: Icon) {
-    let (parent_path, icon_path) =
-      temp_icon_path(self.temp_icon_dir.as_ref()).expect("Failed to create a temp folder for icon");
-    icon.inner.write_to_png(&icon_path);
-
-    self
-      .app_indicator
-      .set_icon_theme_path(&parent_path.to_string_lossy());
-    self
-      .app_indicator
-      .set_icon_full(&icon_path.to_string_lossy(), "icon");
-    self.path = icon_path;
+    if let Ok((parent_path, icon_path)) = temp_icon_path(self.temp_icon_dir.as_ref()) {
+      let _ = icon.inner.write_to_png(&icon_path);
+      self
+        .app_indicator
+        .set_icon_theme_path(&parent_path.to_string_lossy());
+      self
+        .app_indicator
+        .set_icon_full(&icon_path.to_string_lossy(), "icon");
+      self.path = icon_path;
+    }
   }
 
   pub fn set_tooltip(&self, _tooltip: &str) {}

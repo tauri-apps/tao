@@ -87,22 +87,22 @@ impl MenuItemAttributes {
 
   pub fn set_icon(&mut self, icon: Icon) {
     let (width, height) = icon.inner.get_size();
-    let icon = icon.inner.to_png();
+    if let Ok(icon) = icon.inner.to_png() {
+      let icon_height: f64 = 18.0;
+      let icon_width: f64 = (width as f64) / (height as f64 / icon_height);
 
-    let icon_height: f64 = 18.0;
-    let icon_width: f64 = (width as f64) / (height as f64 / icon_height);
+      unsafe {
+        let nsdata = NSData::dataWithBytes_length_(
+          nil,
+          icon.as_ptr() as *const std::os::raw::c_void,
+          icon.len() as u64,
+        );
 
-    unsafe {
-      let nsdata = NSData::dataWithBytes_length_(
-        nil,
-        icon.as_ptr() as *const std::os::raw::c_void,
-        icon.len() as u64,
-      );
-
-      let nsimage = NSImage::initWithData_(NSImage::alloc(nil), nsdata);
-      let new_size = NSSize::new(icon_width, icon_height);
-      let _: () = msg_send![nsimage, setSize: new_size];
-      let _: () = msg_send![self.1, setImage: nsimage];
+        let nsimage = NSImage::initWithData_(NSImage::alloc(nil), nsdata);
+        let new_size = NSSize::new(icon_width, icon_height);
+        let _: () = msg_send![nsimage, setSize: new_size];
+        let _: () = msg_send![self.1, setImage: nsimage];
+      }
     }
   }
 

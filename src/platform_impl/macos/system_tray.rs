@@ -73,7 +73,7 @@ impl SystemTrayBuilder {
         NSStatusBar::systemStatusBar(nil).statusItemWithLength_(NSVariableStatusItemLength);
       let _: () = msg_send![ns_status_item, retain];
 
-      set_icon_for_ns_status_item_button(ns_status_item, &self.icon, self.icon_is_template);
+      set_icon_for_ns_status_item_button(ns_status_item, &self.icon, self.icon_is_template)?;
 
       let button = ns_status_item.button();
       let frame: NSRect = msg_send![button, frame];
@@ -164,7 +164,7 @@ impl SystemTray {
   }
 
   pub fn set_icon(&mut self, icon: Icon) {
-    set_icon_for_ns_status_item_button(self.ns_status_bar, &icon, self.icon_is_template);
+    let _ = set_icon_for_ns_status_item_button(self.ns_status_bar, &icon, self.icon_is_template);
     unsafe {
       let _: () = msg_send![self.tray_target, updateDimensions];
     }
@@ -213,11 +213,15 @@ impl SystemTray {
   }
 }
 
-fn set_icon_for_ns_status_item_button(ns_status_item: id, icon: &Icon, icon_is_template: bool) {
+fn set_icon_for_ns_status_item_button(
+  ns_status_item: id,
+  icon: &Icon,
+  icon_is_template: bool,
+) -> Result<(), crate::error::OsError> {
   // The image is to the right of the title https://developer.apple.com/documentation/appkit/nscellimageposition/nsimageleft
   const NSIMAGE_LEFT: i32 = 2;
 
-  let png_icon = icon.inner.to_png();
+  let png_icon = icon.inner.to_png()?;
 
   let (width, height) = icon.inner.get_size();
 
@@ -243,6 +247,8 @@ fn set_icon_for_ns_status_item_button(ns_status_item: id, icon: &Icon, icon_is_t
     let _: () = msg_send![button, setImagePosition: NSIMAGE_LEFT];
     let _: () = msg_send![nsimage, setTemplate: icon_is_template as i8];
   }
+
+  Ok(())
 }
 
 /// Create a `TrayHandler` Class that handle button click event and also menu opening and closing.
