@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.16.9]
+
+- [`f87526e6`](https://github.com/tauri-apps/tao/commit/f87526e637c51bf5d50ffb7549b3a6ae7213b70e)([#903](https://github.com/tauri-apps/tao/pull/903)) Fix unexpected crashes on I/O or Png encoding errors on macOS and Linux.
+
 ## \[0.16.8]
 
 - [`792176d3`](https://github.com/tauri-apps/tao/commit/792176d3c8bf50f3047000b3b0096e32074cdc10)([#893](https://github.com/tauri-apps/tao/pull/893)) Enable macOS secure state restoration on OS versions that support it. This avoids
