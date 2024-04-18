@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.27.1]
+
+- [`9ef1379f`](https://github.com/tauri-apps/tao/commit/9ef1379fcc3e1bcd6ce54c11818bed52f0b9eb25)([#901](https://github.com/tauri-apps/tao/pull/901)) On macOS, fix an issue where the set minimize maximize and close buttons would interfere with each other.
+- [`5af059b1`](https://github.com/tauri-apps/tao/commit/5af059b1e5d79661cb9338676f132a6f36446f05)([#909](https://github.com/tauri-apps/tao/pull/909)) Update `windows` crate to `0.56`
+
 ## \[0.27.0]
 
 - [`c2357732`](https://github.com/tauri-apps/tao/commit/c23577325bd26e7e8eb46e17bbf533717e363e04)([#896](https://github.com/tauri-apps/tao/pull/896)) Replaced `dpi` module with a re-export of the `dpi` crate which has a few breaking changes:
