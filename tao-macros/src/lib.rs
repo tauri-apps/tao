@@ -46,7 +46,7 @@ impl Parse for AndroidFnInput {
 
     let args;
     let _: syn::token::Bracket = bracketed!(args in input);
-    let args = args.parse_terminated::<Type, Token![,]>(Type::parse)?;
+    let args = args.parse_terminated(Type::parse, Token![,])?;
     let _: syn::Result<Comma> = input.parse();
 
     let ret = if input.peek(Ident) {
@@ -64,7 +64,7 @@ impl Parse for AndroidFnInput {
     let non_jni_args = if input.peek(syn::token::Bracket) {
       let non_jni_args;
       let _: syn::token::Bracket = bracketed!(non_jni_args in input);
-      let non_jni_args = non_jni_args.parse_terminated::<Type, Token![,]>(Type::parse)?;
+      let non_jni_args = non_jni_args.parse_terminated(Type::parse, Token![,])?;
       let _: syn::Result<Comma> = input.parse();
       non_jni_args
     } else {

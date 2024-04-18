@@ -26,14 +26,14 @@ pub fn become_dpi_aware() {
         if !SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2).as_bool() {
           // V2 only works with Windows 10 Creators Update (1703). Try using the older
           // V1 if we can't set V2.
-          SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
+          let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
         }
       } else if let Some(SetProcessDpiAwareness) = *SET_PROCESS_DPI_AWARENESS {
         // We are on Windows 8.1 or later.
         let _ = SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
       } else if let Some(SetProcessDPIAware) = *SET_PROCESS_DPI_AWARE {
         // We are on Vista or later.
-        SetProcessDPIAware();
+        let _ = SetProcessDPIAware();
       }
     }
   });
@@ -42,7 +42,7 @@ pub fn become_dpi_aware() {
 pub fn enable_non_client_dpi_scaling(hwnd: HWND) {
   unsafe {
     if let Some(EnableNonClientDpiScaling) = *ENABLE_NON_CLIENT_DPI_SCALING {
-      EnableNonClientDpiScaling(hwnd);
+      let _ = EnableNonClientDpiScaling(hwnd);
     }
   }
 }

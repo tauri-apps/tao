@@ -205,7 +205,7 @@ fn refresh_titlebar_theme_color(hwnd: HWND, is_dark_mode: bool) {
         pvData: &mut is_dark_mode_bigbool as *mut _ as _,
         cbData: std::mem::size_of_val(&is_dark_mode_bigbool) as _,
       };
-      unsafe { set_window_composition_attribute(hwnd, &mut data as *mut _) };
+      let _ = unsafe { set_window_composition_attribute(hwnd, &mut data as *mut _) };
     }
   }
 }

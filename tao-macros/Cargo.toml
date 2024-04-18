@@ -19,4 +19,4 @@ default = [ ]
 [dependencies]
 proc-macro2 = "1"
 quote = "1"
-syn = { version = "1", features = [ "full" ] }
+syn = { version = "2", features = [ "full" ] }

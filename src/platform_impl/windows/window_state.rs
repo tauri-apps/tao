@@ -63,6 +63,7 @@ pub struct MouseProperties {
 }
 
 bitflags! {
+    #[derive(Clone, Copy)]
     pub struct CursorFlags: u8 {
         const GRABBED   = 1 << 0;
         const HIDDEN    = 1 << 1;
@@ -70,6 +71,7 @@ bitflags! {
     }
 }
 bitflags! {
+  #[derive(Clone, Copy, PartialEq)]
     pub struct WindowFlags: u32 {
         const RESIZABLE        = 1 << 0;
         const VISIBLE          = 1 << 1;
@@ -111,7 +113,7 @@ bitflags! {
 
         const RIGHT_TO_LEFT_LAYOUT = 1 << 22;
 
-        const EXCLUSIVE_FULLSCREEN_OR_MASK = WindowFlags::ALWAYS_ON_TOP.bits;
+        const EXCLUSIVE_FULLSCREEN_OR_MASK = WindowFlags::ALWAYS_ON_TOP.bits();
     }
 }
 
@@ -300,7 +302,7 @@ impl WindowFlags {
 
     if new.contains(WindowFlags::VISIBLE) {
       unsafe {
-        ShowWindow(
+        let _ = ShowWindow(
           window,
           if self.contains(WindowFlags::MARKER_DONT_FOCUS) {
             self.set(WindowFlags::MARKER_DONT_FOCUS, false);
@@ -326,7 +328,7 @@ impl WindowFlags {
           0,
           SWP_ASYNCWINDOWPOS | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
         );
-        InvalidateRgn(window, HRGN::default(), false);
+        let _ = InvalidateRgn(window, HRGN::default(), false);
       }
     }
 
@@ -344,13 +346,13 @@ impl WindowFlags {
           0,
           SWP_ASYNCWINDOWPOS | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
         );
-        InvalidateRgn(window, HRGN::default(), false);
+        let _ = InvalidateRgn(window, HRGN::default(), false);
       }
     }
 
     if diff.contains(WindowFlags::MAXIMIZED) || new.contains(WindowFlags::MAXIMIZED) {
       unsafe {
-        ShowWindow(
+        let _ = ShowWindow(
           window,
           match new.contains(WindowFlags::MAXIMIZED) {
             true => SW_MAXIMIZE,
@@ -363,7 +365,7 @@ impl WindowFlags {
     // Minimize operations should execute after maximize for proper window animations
     if diff.contains(WindowFlags::MINIMIZED) {
       unsafe {
-        ShowWindow(
+        let _ = ShowWindow(
           window,
           match new.contains(WindowFlags::MINIMIZED) {
             true => SW_MINIMIZE,
@@ -378,7 +380,7 @@ impl WindowFlags {
     if diff.contains(WindowFlags::CLOSABLE) || new.contains(WindowFlags::CLOSABLE) {
       unsafe {
         let system_menu = GetSystemMenu(window, false);
-        EnableMenuItem(
+        let _ = EnableMenuItem(
           system_menu,
           SC_CLOSE,
           MF_BYCOMMAND
@@ -393,7 +395,7 @@ impl WindowFlags {
 
     if !new.contains(WindowFlags::VISIBLE) {
       unsafe {
-        ShowWindow(window, SW_HIDE);
+        let _ = ShowWindow(window, SW_HIDE);
       }
     }
 

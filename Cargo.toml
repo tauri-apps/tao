@@ -42,25 +42,26 @@ serde = { version = "1", optional = true, features = [ "serde_derive" ] }
 rwh_04 = { package = "raw-window-handle", version = "0.4", optional = true }
 rwh_05 = { package = "raw-window-handle", version = "0.5", features = [ "std" ], optional = true }
 rwh_06 = { package = "raw-window-handle", version = "0.6", features = [ "std" ], optional = true }
-bitflags = "1"
+bitflags = "2"
 crossbeam-channel = "0.5"
 url = "2"
 dpi = "0.1"
 
 [dev-dependencies]
-image = "0.24"
-env_logger = "0.10"
+image = "0.25"
+env_logger = "0.11"
 
 [target."cfg(target_os = \"windows\")".dev-dependencies]
-softbuffer = "0.4.1"
+softbuffer = "0.4"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 parking_lot = "0.12"
-unicode-segmentation = "1.10"
+unicode-segmentation = "1.11"
 windows-version = "0.1"
+windows-core = "0.56"
 
   [target."cfg(target_os = \"windows\")".dependencies.windows]
-  version = "0.54"
+  version = "0.56"
   features = [
   "implement",
   "Win32_Devices_HumanInterfaceDevice",

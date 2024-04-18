@@ -395,7 +395,7 @@ impl<T> EventLoopRunner<T> {
     };
     self.call_event_handler(Event::NewEvents(start_cause));
     self.dispatch_buffered_events();
-    RedrawWindow(
+    let _ = RedrawWindow(
       self.thread_msg_target,
       None,
       HRGN::default(),
