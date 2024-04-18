@@ -319,7 +319,7 @@ bitflags! {
         const LEFT   = 1 << 1;
         const BOTTOM = 1 << 2;
         const RIGHT  = 1 << 3;
-        const ALL = ScreenEdge::TOP.bits | ScreenEdge::LEFT.bits
-            | ScreenEdge::BOTTOM.bits | ScreenEdge::RIGHT.bits;
+        const ALL = ScreenEdge::TOP.bits() | ScreenEdge::LEFT.bits()
+            | ScreenEdge::BOTTOM.bits() | ScreenEdge::RIGHT.bits();
     }
 }
