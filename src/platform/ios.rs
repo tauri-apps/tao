@@ -312,7 +312,7 @@ bitflags! {
     /// The [edges] of a screen.
     ///
     /// [edges]: https://developer.apple.com/documentation/uikit/uirectedge?language=objc
-    #[derive(Default)]
+    #[derive(Clone, Copy ,Default)]
     pub struct ScreenEdge: u8 {
         const NONE   = 0;
         const TOP    = 1 << 0;
