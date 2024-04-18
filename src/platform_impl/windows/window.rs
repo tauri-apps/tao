@@ -178,7 +178,7 @@ impl Window {
   #[inline]
   pub fn request_redraw(&self) {
     unsafe {
-      RedrawWindow(self.window.0, None, HRGN::default(), RDW_INTERNALPAINT);
+      let _ = RedrawWindow(self.window.0, None, HRGN::default(), RDW_INTERNALPAINT);
     }
   }
 
@@ -220,7 +220,7 @@ impl Window {
         0,
         SWP_ASYNCWINDOWPOS | SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE,
       );
-      InvalidateRgn(self.window.0, HRGN::default(), false);
+      let _ = InvalidateRgn(self.window.0, HRGN::default(), false);
     }
   }
 
@@ -703,7 +703,7 @@ impl Window {
         // fine, taking control back from the DWM and ensuring that the `SetWindowPos` call
         // below goes through.
         let mut msg = MSG::default();
-        PeekMessageW(&mut msg, HWND::default(), 0, 0, PM_NOREMOVE);
+        let _ = PeekMessageW(&mut msg, HWND::default(), 0, 0, PM_NOREMOVE);
       }
 
       // Update window style
@@ -751,7 +751,7 @@ impl Window {
               size.1 as i32,
               SWP_ASYNCWINDOWPOS | SWP_NOZORDER,
             );
-            InvalidateRgn(window.0, HRGN::default(), false);
+            let _ = InvalidateRgn(window.0, HRGN::default(), false);
           }
         }
         None => {
@@ -760,7 +760,7 @@ impl Window {
             drop(window_state_lock);
             unsafe {
               let _ = SetWindowPlacement(window.0, &placement);
-              InvalidateRgn(window.0, HRGN::default(), false);
+              let _ = InvalidateRgn(window.0, HRGN::default(), false);
             }
           }
         }
@@ -859,8 +859,8 @@ impl Window {
       };
       unsafe {
         let himc = ImmGetContext(self.window.0);
-        ImmSetCompositionWindow(himc, &composition_form);
-        ImmReleaseContext(self.window.0, himc);
+        let _ = ImmSetCompositionWindow(himc, &composition_form);
+        let _ = ImmReleaseContext(self.window.0, himc);
       }
     }
   }
@@ -894,7 +894,7 @@ impl Window {
         uCount: count,
         dwTimeout: 0,
       };
-      FlashWindowEx(&flash_info);
+      let _ = FlashWindowEx(&flash_info);
     });
   }
 
@@ -1121,7 +1121,7 @@ unsafe fn init<T: 'static>(
     };
 
     let _ = DwmEnableBlurBehindWindow(real_window.0, &bb);
-    DeleteObject(region);
+    let _ = DeleteObject(region);
   }
 
   // If the system theme is dark, we need to set the window theme now
@@ -1232,7 +1232,7 @@ unsafe extern "system" fn window_proc(
     win32wm::WM_NCCALCSIZE => {
       let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
       if userdata != 0 {
-        let window_flags = WindowFlags::from_bits_unchecked(userdata as _);
+        let window_flags = WindowFlags::from_bits_truncate(userdata as _);
 
         if wparam == WPARAM(0) || window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
           return DefWindowProcW(window, msg, wparam, lparam);
@@ -1358,7 +1358,7 @@ unsafe fn force_window_active(handle: HWND) {
   // Simulate a key press and release
   SendInput(&inputs, mem::size_of::<INPUT>() as _);
 
-  SetForegroundWindow(handle);
+  let _ = SetForegroundWindow(handle);
 }
 
 pub(crate) unsafe fn set_skip_taskbar(hwnd: HWND, skip: bool) {

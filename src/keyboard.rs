@@ -106,7 +106,7 @@ bitflags! {
     /// Represents the current state of the keyboard modifiers
     ///
     /// Each flag represents a modifier and is set if this modifier is active.
-    #[derive(Default)]
+    #[derive(Clone, Copy, Default, Debug, PartialEq)]
     pub struct ModifiersState: u32 {
         // left and right modifiers are currently commented out, but we should be able to support
         // them in a future release

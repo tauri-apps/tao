@@ -121,7 +121,7 @@ pub(crate) fn set_inner_size_physical(window: HWND, x: u32, y: u32, is_decorated
       outer_y,
       SWP_ASYNCWINDOWPOS | SWP_NOZORDER | SWP_NOREPOSITION | SWP_NOMOVE | SWP_NOACTIVATE,
     );
-    InvalidateRgn(window, HRGN::default(), BOOL::default());
+    let _ = InvalidateRgn(window, HRGN::default(), BOOL::default());
   }
 }
 

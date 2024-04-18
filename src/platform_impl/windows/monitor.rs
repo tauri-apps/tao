@@ -102,7 +102,7 @@ unsafe extern "system" fn monitor_enum_proc(
 pub fn available_monitors() -> VecDeque<MonitorHandle> {
   let mut monitors: VecDeque<MonitorHandle> = VecDeque::new();
   unsafe {
-    EnumDisplayMonitors(
+    let _ = EnumDisplayMonitors(
       HDC::default(),
       None,
       Some(monitor_enum_proc),

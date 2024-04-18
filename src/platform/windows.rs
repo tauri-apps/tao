@@ -199,7 +199,7 @@ impl WindowExtWindows for Window {
   #[inline]
   fn set_enable(&self, enabled: bool) {
     unsafe {
-      EnableWindow(self.window.hwnd(), enabled);
+      let _ = EnableWindow(self.window.hwnd(), enabled);
     }
   }
 
