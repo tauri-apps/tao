@@ -53,9 +53,20 @@ extern "C" fn send_event(this: &Object, _sel: Sel, event: id) {
       let key_window: id = msg_send![this, keyWindow];
       let _: () = msg_send![key_window, sendEvent: event];
     } else {
+      maybe_dispatch_app_event(event);
       maybe_dispatch_device_event(event);
       let superclass = util::superclass(this);
       let _: () = msg_send![super(this, superclass), sendEvent: event];
+    }
+  }
+}
+
+unsafe fn maybe_dispatch_app_event(event: id) {
+  let event_type = event.eventType();
+  if event_type == appkit::NSEventType::NSAppKitDefined {
+    let event_subtype = event.subtype();
+    if let appkit::NSEventSubtype::NSApplicationActivatedEventType = event_subtype {
+      AppState::queue_event(EventWrapper::StaticEvent(Event::Activated));
     }
   }
 }

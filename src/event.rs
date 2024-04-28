@@ -84,6 +84,12 @@ pub enum Event<'a, T: 'static> {
   /// Emitted when the application has been resumed.
   Resumed,
 
+  /// Emitted when the application has been activated.
+  /// ## Platform-specific
+  ///
+  /// - Only available on **macOS**.
+  Activated,
+
   /// Emitted when all of the event loop's input events have been processed and redraw processing
   /// is about to begin.
   ///
@@ -158,6 +164,7 @@ impl<T: Clone> Clone for Event<'static, T> {
       LoopDestroyed => LoopDestroyed,
       Suspended => Suspended,
       Resumed => Resumed,
+      Activated => Activated,
       Opened { urls } => Opened { urls: urls.clone() },
     }
   }
@@ -177,6 +184,7 @@ impl<'a, T> Event<'a, T> {
       LoopDestroyed => Ok(LoopDestroyed),
       Suspended => Ok(Suspended),
       Resumed => Ok(Resumed),
+      Activated => Ok(Activated),
       Opened { urls } => Ok(Opened { urls }),
     }
   }
@@ -198,6 +206,7 @@ impl<'a, T> Event<'a, T> {
       LoopDestroyed => Some(LoopDestroyed),
       Suspended => Some(Suspended),
       Resumed => Some(Resumed),
+      Activated => Some(Activated),
       Opened { urls } => Some(Opened { urls }),
     }
   }
