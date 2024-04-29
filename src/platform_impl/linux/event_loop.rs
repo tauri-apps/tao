@@ -171,9 +171,10 @@ pub struct EventLoop<T: 'static> {
   run_device_thread: Option<Rc<AtomicBool>>,
 }
 
-#[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct PlatformSpecificEventLoopAttributes {
   pub(crate) any_thread: bool,
+  pub(crate) app_id: Option<String>,
 }
 
 impl<T: 'static> EventLoop<T> {
@@ -184,13 +185,15 @@ impl<T: 'static> EventLoop<T> {
 
     let context = MainContext::default();
     context
-      .with_thread_default(|| EventLoop::new_gtk().expect("Failed to initialize gtk backend!"))
+      .with_thread_default(|| {
+        EventLoop::new_gtk(attrs.app_id.as_deref()).expect("Failed to initialize gtk backend!")
+      })
       .expect("Failed to initialize gtk backend!")
   }
 
-  fn new_gtk() -> Result<EventLoop<T>, Box<dyn Error>> {
+  fn new_gtk(app_id: Option<&str>) -> Result<EventLoop<T>, Box<dyn Error>> {
     let context = MainContext::default();
-    let app = gtk::Application::new(None, gio::ApplicationFlags::empty());
+    let app = gtk::Application::new(app_id, gio::ApplicationFlags::empty());
     let app_ = app.clone();
     let cancellable: Option<&Cancellable> = None;
     app.register(cancellable)?;
