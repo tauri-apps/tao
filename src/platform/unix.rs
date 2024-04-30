@@ -38,12 +38,22 @@ pub trait EventLoopBuilderExtUnix {
   /// terminates. Attempting to use a `Window` after its parent thread terminates has
   /// unspecified, although explicitly not undefined, behavior.
   fn with_any_thread(&mut self, any_thread: bool) -> &mut Self;
+
+  /// Set the gtk application id.
+  ///
+  /// If no application ID is given then some features (most notably application uniqueness) will be disabled.
+  fn with_app_id<S: Into<String>>(&mut self, id: S) -> &mut Self;
 }
 
 impl<T> EventLoopBuilderExtUnix for EventLoopBuilder<T> {
   #[inline]
   fn with_any_thread(&mut self, any_thread: bool) -> &mut Self {
     self.platform_specific.any_thread = any_thread;
+    self
+  }
+
+  fn with_app_id<S: Into<String>>(&mut self, id: S) -> &mut Self {
+    self.platform_specific.app_id = Some(id.into());
     self
   }
 }

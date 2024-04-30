@@ -2,8 +2,6 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{fs::File, io::BufWriter, path::Path};
-
 use gtk::gdk_pixbuf::{Colorspace, Pixbuf};
 
 use crate::window::BadIcon;
