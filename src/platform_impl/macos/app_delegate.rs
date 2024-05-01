@@ -4,8 +4,7 @@
 
 use crate::{platform::macos::ActivationPolicy, platform_impl::platform::app_state::AppState};
 
-use cocoa::base::id;
-use cocoa::foundation::NSString;
+use cocoa::{base::id, foundation::NSString};
 use objc::{
   declare::ClassDecl,
   runtime::{Class, Object, Sel, BOOL},
@@ -15,8 +14,7 @@ use std::{
   os::raw::c_void,
 };
 
-use cocoa::foundation::NSArray;
-use cocoa::foundation::NSURL;
+use cocoa::foundation::{NSArray, NSURL};
 use std::ffi::CStr;
 
 static AUX_DELEGATE_STATE_NAME: &str = "auxState";
@@ -53,6 +51,10 @@ lazy_static! {
     decl.add_method(
       sel!(application:openURLs:),
       application_open_urls as extern "C" fn(&Object, Sel, id, id),
+    );
+    decl.add_method(
+      sel!(applicationShouldHandleReopen:hasVisibleWindows:),
+      application_should_handle_reopen as extern "C" fn(&Object, Sel, id, BOOL) -> BOOL,
     );
     decl.add_method(
       sel!(applicationSupportsSecureRestorableState:),
@@ -123,6 +125,18 @@ extern "C" fn application_open_urls(_: &Object, _: Sel, _: id, urls: id) -> () {
   trace!("Get `application:openURLs:` URLs: {:?}", urls);
   AppState::open_urls(urls);
   trace!("Completed `application:openURLs:`");
+}
+
+extern "C" fn application_should_handle_reopen(
+  _: &Object,
+  _: Sel,
+  _: id,
+  has_visible_windows: BOOL,
+) -> BOOL {
+  trace!("Triggered `applicationShouldHandleReopen`");
+  AppState::reopen(has_visible_windows);
+  trace!("Completed `applicationShouldHandleReopen`");
+  has_visible_windows
 }
 
 extern "C" fn application_supports_secure_restorable_state(_: &Object, _: Sel, _: id) -> BOOL {

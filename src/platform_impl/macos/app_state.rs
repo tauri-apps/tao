@@ -306,6 +306,12 @@ impl AppState {
     HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls }));
   }
 
+  pub fn reopen(has_visible_windows: bool) {
+    HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::Reopen {
+      has_visible_windows,
+    }));
+  }
+
   pub fn wakeup(panic_info: Weak<PanicInfo>) {
     let panic_info = panic_info
       .upgrade()
