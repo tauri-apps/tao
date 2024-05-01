@@ -4,7 +4,10 @@
 
 use crate::{platform::macos::ActivationPolicy, platform_impl::platform::app_state::AppState};
 
-use cocoa::{base::id, foundation::NSString};
+use cocoa::{
+  base::{id, NO},
+  foundation::NSString,
+};
 use objc::{
   declare::ClassDecl,
   runtime::{Class, Object, Sel, BOOL},
@@ -134,7 +137,7 @@ extern "C" fn application_should_handle_reopen(
   has_visible_windows: BOOL,
 ) -> BOOL {
   trace!("Triggered `applicationShouldHandleReopen`");
-  AppState::reopen(has_visible_windows);
+  AppState::reopen(has_visible_windows != NO);
   trace!("Completed `applicationShouldHandleReopen`");
   has_visible_windows
 }
