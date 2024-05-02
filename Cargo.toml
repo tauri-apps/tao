@@ -45,7 +45,7 @@ rwh_06 = { package = "raw-window-handle", version = "0.6", features = [ "std" ],
 bitflags = "2"
 crossbeam-channel = "0.5"
 url = "2"
-dpi = "0.1"
+dpi = "0.1.1"
 
 [dev-dependencies]
 image = "0.25"
