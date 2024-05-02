@@ -136,6 +136,13 @@ pub enum Event<'a, T: 'static> {
 
   /// Emitted when the app is open by external resources, like opening a file or deeplink.
   Opened { urls: Vec<url::Url> },
+
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: https://developer.apple.com/documentation/appkit/nsapplicationdelegate/1428638-applicationshouldhandlereopen with return value same as hasVisibleWindows
+  /// - **Other**: Unsupported.
+  #[non_exhaustive]
+  Reopen { has_visible_windows: bool },
 }
 
 impl<T: Clone> Clone for Event<'static, T> {
@@ -159,6 +166,11 @@ impl<T: Clone> Clone for Event<'static, T> {
       Suspended => Suspended,
       Resumed => Resumed,
       Opened { urls } => Opened { urls: urls.clone() },
+      Reopen {
+        has_visible_windows,
+      } => Reopen {
+        has_visible_windows: *has_visible_windows,
+      },
     }
   }
 }
@@ -178,6 +190,11 @@ impl<'a, T> Event<'a, T> {
       Suspended => Ok(Suspended),
       Resumed => Ok(Resumed),
       Opened { urls } => Ok(Opened { urls }),
+      Reopen {
+        has_visible_windows,
+      } => Ok(Reopen {
+        has_visible_windows,
+      }),
     }
   }
 
@@ -199,6 +216,11 @@ impl<'a, T> Event<'a, T> {
       Suspended => Some(Suspended),
       Resumed => Some(Resumed),
       Opened { urls } => Some(Opened { urls }),
+      Reopen {
+        has_visible_windows,
+      } => Some(Reopen {
+        has_visible_windows,
+      }),
     }
   }
 }
@@ -692,7 +714,6 @@ pub struct KeyEvent {
   /// ## Platform-specific
   /// - **Web:** Dead keys might be reported as the real key instead
   /// of `Dead` depending on the browser/OS.
-  ///
   pub logical_key: keyboard::Key<'static>,
 
   /// Contains the text produced by this keypress.

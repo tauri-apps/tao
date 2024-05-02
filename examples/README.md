@@ -24,6 +24,7 @@ Run the `cargo run --example <file_name>` to see how each example works.
 - `multithreaded`: same as multiwindow but multithreaded.
 - `multiwindow`: create multiple windows
 - `parentwindow`: a window inside another window.
+- `reopen_event`: handle click on dock icon on macOS
 - `resizable`: allow resizing window or not.
 - `set_ime_position`: set IME (input method editor) position when click.
 - `transparent`: make a transparent window.
