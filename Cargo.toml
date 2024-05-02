@@ -113,7 +113,7 @@ dispatch = "0.2"
 scopeguard = "1.2"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = "0.18"
+gtk = "0.18.1"
 gdkx11-sys = "0.18"
 gdkwayland-sys = "0.18.0"
 x11-dl = "2.21"
