@@ -30,7 +30,9 @@ fn main() {
         ..
       } => {
         println!("on reopen, has visible windows: {has_visible_windows}");
-        window = Some(Window::new(&event_loop).unwrap())
+        if !has_visible_windows {
+          window = Some(Window::new(&event_loop).unwrap())
+        }
       }
       Event::MainEventsCleared => {
         if let Some(w) = &window {
