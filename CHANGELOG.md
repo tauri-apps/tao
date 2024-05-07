@@ -1,5 +1,11 @@
 # Changelog
 
+## \[0.28.0]
+
+- [`cd38f237`](https://github.com/tauri-apps/tao/commit/cd38f237481b58585cc2da98c3bb9a0ce8e64b9f)([#912](https://github.com/tauri-apps/tao/pull/912)) Add `EventLoopBuilderExtUnix::with_app_id` on Linux to allow setting a unique app id for the underlying gtk application.
+- [`2d6ad2de`](https://github.com/tauri-apps/tao/commit/2d6ad2ded633c33d05a35a69ef657600444004b9)([#923](https://github.com/tauri-apps/tao/pull/923)) Fix unwanted deviation when dragging window around monitor boundaries on macOS.
+- [`f06843be`](https://github.com/tauri-apps/tao/commit/f06843be442c4ad06e66166d1a7924347739c204)([#517](https://github.com/tauri-apps/tao/pull/517)) Add `event::Reopen` for handle click on dock icon on macOS.
+
 ## \[0.27.1]
 
 - [`9ef1379f`](https://github.com/tauri-apps/tao/commit/9ef1379fcc3e1bcd6ce54c11818bed52f0b9eb25)([#901](https://github.com/tauri-apps/tao/pull/901)) On macOS, fix an issue where the set minimize maximize and close buttons would interfere with each other.
