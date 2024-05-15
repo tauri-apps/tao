@@ -1628,7 +1628,9 @@ impl WindowExtMacOS for UnownedWindow {
   #[inline]
   fn set_titlebar_transparent(&self, transparent: bool) {
     unsafe {
-      self.ns_window.setTitlebarAppearsTransparent_(transparent);
+      self
+        .ns_window
+        .setTitlebarAppearsTransparent_(transparent as BOOL);
     }
   }
 }
