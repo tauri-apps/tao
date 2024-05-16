@@ -40,20 +40,7 @@ static DARK_MODE_SUPPORTED: Lazy<bool> = Lazy::new(|| {
   }
 });
 
-/// Attempts to set dark mode for the app
-pub fn try_app_theme(preferred_theme: Option<Theme>) {
-  if *DARK_MODE_SUPPORTED {
-    let is_dark_mode = match preferred_theme {
-      Some(theme) => theme == Theme::Dark,
-      None => should_use_dark_mode(),
-    };
-
-    allow_dark_mode_for_app(is_dark_mode);
-    refresh_immersive_color_policy_state();
-  }
-}
-
-fn allow_dark_mode_for_app(is_dark_mode: bool) {
+pub fn allow_dark_mode_for_app(is_dark_mode: bool) {
   const UXTHEME_ALLOWDARKMODEFORAPP_ORDINAL: u16 = 135;
   type AllowDarkModeForApp = unsafe extern "system" fn(bool) -> bool;
   static ALLOW_DARK_MODE_FOR_APP: Lazy<Option<AllowDarkModeForApp>> = Lazy::new(|| unsafe {
@@ -104,6 +91,8 @@ fn allow_dark_mode_for_app(is_dark_mode: bool) {
       unsafe { _set_preferred_app_mode(mode) };
     }
   }
+
+  refresh_immersive_color_policy_state();
 }
 
 fn refresh_immersive_color_policy_state() {
@@ -141,7 +130,6 @@ pub fn try_window_theme(hwnd: HWND, preferred_theme: Option<Theme>) -> Theme {
       false => Theme::Light,
     };
 
-    allow_dark_mode_for_window(hwnd, is_dark_mode);
     refresh_titlebar_theme_color(hwnd, is_dark_mode);
 
     theme
@@ -150,7 +138,7 @@ pub fn try_window_theme(hwnd: HWND, preferred_theme: Option<Theme>) -> Theme {
   }
 }
 
-fn allow_dark_mode_for_window(hwnd: HWND, is_dark_mode: bool) {
+pub fn allow_dark_mode_for_window(hwnd: HWND, is_dark_mode: bool) {
   const UXTHEME_ALLOWDARKMODEFORWINDOW_ORDINAL: u16 = 133;
   type AllowDarkModeForWindow = unsafe extern "system" fn(HWND, bool) -> bool;
   static ALLOW_DARK_MODE_FOR_WINDOW: Lazy<Option<AllowDarkModeForWindow>> = Lazy::new(|| unsafe {
