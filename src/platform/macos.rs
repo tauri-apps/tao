@@ -74,6 +74,16 @@ pub trait WindowExtMacOS {
 
   /// Returns the window's tabbing identifier.
   fn tabbing_identifier(&self) -> String;
+
+  /// The content view consumes the full size of the window.
+  ///
+  /// <https://developer.apple.com/documentation/appkit/nsfullsizecontentviewwindowmask>
+  fn set_fullsize_content_view(&self, fullsize: bool);
+
+  /// A Boolean value that indicates whether the title bar draws its background.
+  ///
+  /// <https://developer.apple.com/documentation/appkit/nswindow/1419167-titlebarappearstransparent>
+  fn set_titlebar_transparent(&self, transparent: bool);
 }
 
 impl WindowExtMacOS for Window {
@@ -140,6 +150,16 @@ impl WindowExtMacOS for Window {
   #[inline]
   fn tabbing_identifier(&self) -> String {
     self.window.tabbing_identifier()
+  }
+
+  #[inline]
+  fn set_fullsize_content_view(&self, fullsize: bool) {
+    self.window.set_fullsize_content_view(fullsize);
+  }
+
+  #[inline]
+  fn set_titlebar_transparent(&self, transparent: bool) {
+    self.window.set_titlebar_transparent(transparent);
   }
 }
 

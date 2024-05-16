@@ -1613,6 +1613,26 @@ impl WindowExtMacOS for UnownedWindow {
       ns_string_to_rust(tabbing_identifier)
     }
   }
+
+  #[inline]
+  fn set_fullsize_content_view(&self, fullsize: bool) {
+    let mut mask = unsafe { self.ns_window.styleMask() };
+    if fullsize {
+      mask |= NSWindowStyleMask::NSFullSizeContentViewWindowMask;
+    } else {
+      mask &= !NSWindowStyleMask::NSFullSizeContentViewWindowMask;
+    }
+    self.set_style_mask_sync(mask);
+  }
+
+  #[inline]
+  fn set_titlebar_transparent(&self, transparent: bool) {
+    unsafe {
+      self
+        .ns_window
+        .setTitlebarAppearsTransparent_(transparent as BOOL);
+    }
+  }
 }
 
 impl Drop for UnownedWindow {
