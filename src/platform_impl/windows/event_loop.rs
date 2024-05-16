@@ -51,7 +51,7 @@ use crate::{
   keyboard::{KeyCode, ModifiersState},
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{
-    dark_mode::{try_app_theme, try_window_theme},
+    dark_mode::try_window_theme,
     dpi::{become_dpi_aware, dpi_to_scale_factor, enable_non_client_dpi_scaling},
     keyboard::is_msg_keyboard_related,
     keyboard_layout::LAYOUT_CACHE,
@@ -184,7 +184,7 @@ impl<T: 'static> EventLoop<T> {
 
     let thread_msg_target = create_event_target_window();
 
-    try_app_theme(attributes.preferred_theme);
+    super::dark_mode::allow_dark_mode_for_app(true);
 
     let send_thread_msg_target = thread_msg_target;
     thread::spawn(move || wait_thread(thread_id, send_thread_msg_target));

@@ -1094,6 +1094,8 @@ unsafe fn init<T: 'static>(
       return Err(os_error!(OsError::IoError(io::Error::last_os_error())));
     }
 
+    super::dark_mode::allow_dark_mode_for_window(handle, true);
+
     WindowWrapper(handle)
   };
 
