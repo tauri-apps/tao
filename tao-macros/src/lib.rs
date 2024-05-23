@@ -212,9 +212,8 @@ pub fn android_fn(tokens: TokenStream) -> TokenStream {
   let non_jni_args = non_jni_args.into_iter().collect::<Vec<_>>();
 
   let java_fn_name = format_ident!(
-    "Java_{domain}_{package}_{class}_{function}",
+    "Java_{domain}_{class}_{function}",
     domain = domain,
-    package = package,
     class = class,
     function = function,
   );
@@ -293,13 +292,11 @@ impl Parse for GeneratePackageNameInput {
 #[proc_macro]
 pub fn generate_package_name(tokens: TokenStream) -> TokenStream {
   let tokens = parse_macro_input!(tokens as GeneratePackageNameInput);
-  let GeneratePackageNameInput { domain, package } = tokens;
+  let GeneratePackageNameInput { domain, package: _ } = tokens;
 
   let domain = domain.to_string().replace('_', "/");
-  let package = package.to_string().replace('-', "_");
 
-  let path = format!("{}/{}", domain, package);
-  let litstr = LitStr::new(&path, proc_macro2::Span::call_site());
+  let litstr = LitStr::new(&domain, proc_macro2::Span::call_site());
 
   quote! {#litstr}.into()
 }
