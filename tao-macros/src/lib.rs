@@ -11,7 +11,6 @@ use syn::{
 
 struct AndroidFnInput {
   domain: Ident,
-  package: Ident,
   class: Ident,
   function: Ident,
   args: Punctuated<Type, Comma>,
@@ -36,8 +35,6 @@ impl ToTokens for IdentArgPair {
 impl Parse for AndroidFnInput {
   fn parse(input: ParseStream) -> syn::Result<Self> {
     let domain: Ident = input.parse()?;
-    let _: Comma = input.parse()?;
-    let package: Ident = input.parse()?;
     let _: Comma = input.parse()?;
     let class: Ident = input.parse()?;
     let _: Comma = input.parse()?;
@@ -80,7 +77,6 @@ impl Parse for AndroidFnInput {
     };
     Ok(Self {
       domain,
-      package,
       class,
       function,
       ret,
@@ -117,7 +113,7 @@ impl Parse for AndroidFnInput {
 /// #  _marker: &'a std::marker::PhantomData<()>,
 /// # }
 /// # type JClass<'a> = JNIEnv<'a>;
-/// android_fn![com_example, tao, OperationsClass, add, [i32, i32], i32];
+/// android_fn![com_example_tao, OperationsClass, add, [i32, i32], i32];
 /// unsafe fn add(_env: JNIEnv, _class: JClass, a: i32, b: i32) -> i32 {
 ///   a + b
 /// }
@@ -159,7 +155,7 @@ impl Parse for AndroidFnInput {
 /// # }
 /// # type JClass<'a> = JNIEnv<'a>;
 /// # type JObject<'a> = JNIEnv<'a>;
-/// android_fn![com_example, tao, OperationsClass, add, [JObject<'local>], JClass<'local>];
+/// android_fn![com_example_tao, OperationsClass, add, [JObject<'local>], JClass<'local>];
 /// unsafe fn add<'local>(mut _env: JNIEnv<'local>, class: JClass<'local>, obj: JObject<'local>) -> JClass<'local> {
 ///   class
 /// }
@@ -192,7 +188,6 @@ pub fn android_fn(tokens: TokenStream) -> TokenStream {
   let tokens = parse_macro_input!(tokens as AndroidFnInput);
   let AndroidFnInput {
     domain,
-    package,
     class,
     function,
     ret,
@@ -202,7 +197,6 @@ pub fn android_fn(tokens: TokenStream) -> TokenStream {
   } = tokens;
 
   let domain = domain.to_string();
-  let package = package.to_string().replace('_', "_1").replace('-', "_1");
   let class = class.to_string();
   let args = args
     .into_iter()
@@ -252,17 +246,14 @@ pub fn android_fn(tokens: TokenStream) -> TokenStream {
 
 struct GeneratePackageNameInput {
   domain: Ident,
-  package: Ident,
 }
 
 impl Parse for GeneratePackageNameInput {
   fn parse(input: ParseStream) -> syn::Result<Self> {
     let domain: Ident = input.parse()?;
-    let _: Comma = input.parse()?;
-    let package: Ident = input.parse()?;
     let _: syn::Result<Comma> = input.parse();
 
-    Ok(Self { domain, package })
+    Ok(Self { domain })
   }
 }
 
@@ -277,7 +268,7 @@ impl Parse for GeneratePackageNameInput {
 /// ```
 /// # use tao_macros::generate_package_name;
 ///
-/// const PACKAGE_NAME: &str = generate_package_name!(com_example, tao_app);
+/// const PACKAGE_NAME: &str = generate_package_name!(com_example_tao_app);
 /// ```
 /// which can be used later on with JNI:
 /// ```
@@ -286,13 +277,13 @@ impl Parse for GeneratePackageNameInput {
 /// # let env = 0;
 /// # let activity = 0;
 ///
-/// const PACKAGE_NAME: &str = generate_package_name!(com_example, tao_app); // constructs `com/example/tao_app`
+/// const PACKAGE_NAME: &str = generate_package_name!(com_example_tao_app); // constructs `com/example/tao_app`
 /// let ipc_class = find_my_class(env, activity, format!("{}/Ipc", PACKAGE_NAME)).unwrap();
 /// ```
 #[proc_macro]
 pub fn generate_package_name(tokens: TokenStream) -> TokenStream {
   let tokens = parse_macro_input!(tokens as GeneratePackageNameInput);
-  let GeneratePackageNameInput { domain, package: _ } = tokens;
+  let GeneratePackageNameInput { domain } = tokens;
 
   let domain = domain.to_string().replace('_', "/");
 

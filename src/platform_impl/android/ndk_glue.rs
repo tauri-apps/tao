@@ -48,18 +48,17 @@ pub static PACKAGE: OnceCell<&str> = OnceCell::new();
 /// 5. the main entry point of your android application.
 #[macro_export]
 macro_rules! android_binding {
-  ($domain:ident, $package:ident, $activity:ident, $setup:path, $main:ident) => {
-    ::tao::android_binding!($domain, $package, $activity, $setup, $main, ::tao)
+  ($domain:ident, $activity:ident, $setup:path, $main:ident) => {
+    ::tao::android_binding!($domain, $activity, $setup, $main, ::tao)
   };
-  ($domain:ident, $package:ident, $activity:ident, $setup:path, $main:ident, $tao:path) => {{
+  ($domain:ident, $activity:ident, $setup:path, $main:ident, $tao:path) => {{
     use $tao::{platform::android::prelude::android_fn, platform::android::prelude::*};
     fn _____tao_store_package_name__() {
-      PACKAGE.get_or_init(move || generate_package_name!($domain, $package));
+      PACKAGE.get_or_init(move || generate_package_name!($domain));
     }
 
     android_fn!(
       $domain,
-      $package,
       $activity,
       create,
       [JObject],
@@ -67,14 +66,14 @@ macro_rules! android_binding {
       [$setup, $main],
       _____tao_store_package_name__,
     );
-    android_fn!($domain, $package, $activity, start, [JObject]);
-    android_fn!($domain, $package, $activity, stop, [JObject]);
-    android_fn!($domain, $package, $activity, resume, [JObject]);
-    android_fn!($domain, $package, $activity, pause, [JObject]);
-    android_fn!($domain, $package, $activity, save, [JObject]);
-    android_fn!($domain, $package, $activity, destroy, [JObject]);
-    android_fn!($domain, $package, $activity, memory, [JObject]);
-    android_fn!($domain, $package, $activity, focus, [i32]);
+    android_fn!($domain, $activity, start, [JObject]);
+    android_fn!($domain, $activity, stop, [JObject]);
+    android_fn!($domain, $activity, resume, [JObject]);
+    android_fn!($domain, $activity, pause, [JObject]);
+    android_fn!($domain, $activity, save, [JObject]);
+    android_fn!($domain, $activity, destroy, [JObject]);
+    android_fn!($domain, $activity, memory, [JObject]);
+    android_fn!($domain, $activity, focus, [i32]);
   }};
 }
 
