@@ -883,7 +883,7 @@ impl Window {
       let (flags, count) = request_type
         .map(|ty| match ty {
           UserAttentionType::Critical => (FLASHW_ALL | FLASHW_TIMERNOFG, u32::MAX),
-          UserAttentionType::Informational => (FLASHW_TRAY | FLASHW_TIMERNOFG, 0),
+          UserAttentionType::Informational => (FLASHW_TRAY, 3),
         })
         .unwrap_or((FLASHW_STOP, 0));
 
