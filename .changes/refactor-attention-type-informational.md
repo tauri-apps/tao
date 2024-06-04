@@ -2,4 +2,4 @@
 "tao": "patch"
 ---
 
-**Breaking Change**: Replace `UserAttentionType::Informational => (FLASHW_TRAY | FLASHW_TIMERNOFG, 0)` with `UserAttentionType::Informational => (FLASHW_TRAY, 3)`
+**Breaking Change**: On Windows, `UserAttentionType::Informational` will flash the taskbar icon 4 times only and not until the app recieves focus.
