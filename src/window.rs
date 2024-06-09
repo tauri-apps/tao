@@ -1106,6 +1106,17 @@ impl Window {
     self.window.theme()
   }
 
+  /// Returns the current window theme.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS/ Linux / iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_theme(&self, theme: Option<Theme>) {
+    #[cfg(target_os = "windows")]
+    self.window.set_theme(theme)
+  }
+
   /// Prevents the window contents from being captured by other apps.
   ///
   /// ## Platform-specific

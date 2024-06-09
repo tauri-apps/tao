@@ -9,7 +9,8 @@ use once_cell::sync::Lazy;
 use windows::{
   core::{s, w, PCSTR, PSTR},
   Win32::{
-    Foundation::{BOOL, HANDLE, HMODULE, HWND},
+    Foundation::{BOOL, HANDLE, HMODULE, HWND, WPARAM},
+    Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_USE_IMMERSIVE_DARK_MODE},
     System::LibraryLoader::*,
     UI::{Accessibility::*, WindowsAndMessaging::*},
   },
@@ -118,7 +119,11 @@ fn refresh_immersive_color_policy_state() {
 
 /// Attempt to set a theme on a window, if necessary.
 /// Returns the theme that was picked
-pub fn try_window_theme(hwnd: HWND, preferred_theme: Option<Theme>) -> Theme {
+pub fn try_window_theme(
+  hwnd: HWND,
+  preferred_theme: Option<Theme>,
+  refresh_titilebar: bool,
+) -> Theme {
   if *DARK_MODE_SUPPORTED {
     let is_dark_mode = match preferred_theme {
       Some(theme) => theme == Theme::Dark,
@@ -130,7 +135,32 @@ pub fn try_window_theme(hwnd: HWND, preferred_theme: Option<Theme>) -> Theme {
       false => Theme::Light,
     };
 
-    refresh_titlebar_theme_color(hwnd, is_dark_mode);
+    if let Some(ver) = *WIN10_BUILD_VERSION {
+      if ver < 18362 {
+        let mut is_dark_mode_bigbool: i32 = is_dark_mode.into();
+        unsafe {
+          let _ = SetPropW(
+            hwnd,
+            w!("UseImmersiveDarkModeColors"),
+            HANDLE(&mut is_dark_mode_bigbool as *mut _ as _),
+          );
+        }
+      } else {
+        let dark_mode = BOOL::from(is_dark_mode);
+        unsafe {
+          let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_USE_IMMERSIVE_DARK_MODE,
+            &dark_mode as *const BOOL as *const c_void,
+            std::mem::size_of::<BOOL>() as u32,
+          );
+        }
+        if refresh_titilebar {
+          unsafe { DefWindowProcW(hwnd, WM_NCACTIVATE, None, None) };
+          unsafe { DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM(true.into()), None) };
+        }
+      }
+    }
 
     theme
   } else {
@@ -156,44 +186,6 @@ pub fn allow_dark_mode_for_window(hwnd: HWND, is_dark_mode: bool) {
   if *DARK_MODE_SUPPORTED {
     if let Some(_allow_dark_mode_for_window) = *ALLOW_DARK_MODE_FOR_WINDOW {
       unsafe { _allow_dark_mode_for_window(hwnd, is_dark_mode) };
-    }
-  }
-}
-
-type SetWindowCompositionAttribute =
-  unsafe extern "system" fn(HWND, *mut WINDOWCOMPOSITIONATTRIBDATA) -> BOOL;
-static SET_WINDOW_COMPOSITION_ATTRIBUTE: Lazy<Option<SetWindowCompositionAttribute>> =
-  Lazy::new(|| get_function!("user32.dll", SetWindowCompositionAttribute));
-
-type WINDOWCOMPOSITIONATTRIB = u32;
-const WCA_USEDARKMODECOLORS: WINDOWCOMPOSITIONATTRIB = 26;
-#[repr(C)]
-struct WINDOWCOMPOSITIONATTRIBDATA {
-  Attrib: WINDOWCOMPOSITIONATTRIB,
-  pvData: *mut c_void,
-  cbData: usize,
-}
-
-fn refresh_titlebar_theme_color(hwnd: HWND, is_dark_mode: bool) {
-  // SetWindowCompositionAttribute needs a bigbool (i32), not bool.
-  let mut is_dark_mode_bigbool: i32 = is_dark_mode.into();
-
-  if let Some(ver) = *WIN10_BUILD_VERSION {
-    if ver < 18362 {
-      unsafe {
-        let _ = SetPropW(
-          hwnd,
-          w!("UseImmersiveDarkModeColors"),
-          HANDLE(&mut is_dark_mode_bigbool as *mut _ as _),
-        );
-      }
-    } else if let Some(set_window_composition_attribute) = *SET_WINDOW_COMPOSITION_ATTRIBUTE {
-      let mut data = WINDOWCOMPOSITIONATTRIBDATA {
-        Attrib: WCA_USEDARKMODECOLORS,
-        pvData: &mut is_dark_mode_bigbool as *mut _ as _,
-        cbData: std::mem::size_of_val(&is_dark_mode_bigbool) as _,
-      };
-      let _ = unsafe { set_window_composition_attribute(hwnd, &mut data as *mut _) };
     }
   }
 }
