@@ -5,9 +5,9 @@
 #[allow(clippy::single_match)]
 fn main() {
   use tao::{
-    event::{Event, WindowEvent},
+    event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
+    window::{Theme, WindowBuilder},
   };
 
   env_logger::init();
@@ -21,10 +21,24 @@ fn main() {
 
   println!("Initial theme: {:?}", window.theme());
 
+  let mut theme = true;
+
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Wait;
 
     match event {
+      Event::WindowEvent {
+        event:
+          WindowEvent::MouseInput {
+            button: MouseButton::Left,
+            state: ElementState::Pressed,
+            ..
+          },
+        ..
+      } => {
+        theme = !theme;
+        window.set_theme(if theme { None } else { Some(Theme::Dark) })
+      }
       Event::WindowEvent {
         event: WindowEvent::CloseRequested,
         ..
@@ -34,7 +48,7 @@ fn main() {
         window_id,
         ..
       } if window_id == window.id() => {
-        println!("Theme is changed: {:?}", theme)
+        println!("Theme is changed: {theme:?}")
       }
       _ => (),
     }
