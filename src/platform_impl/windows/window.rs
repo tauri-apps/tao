@@ -909,16 +909,10 @@ impl Window {
       return;
     }
     window_state.preferred_theme = theme;
-    if theme.is_none() {
-      unsafe {
-        let _ = PostMessageW(self.hwnd(), WM_WININICHANGE, WPARAM(0), LPARAM(0));
-      };
-    } else {
-      let new_theme = try_window_theme(self.hwnd(), theme);
-      if window_state.current_theme != new_theme {
-        window_state.current_theme = new_theme;
-      };
-    }
+    let new_theme = try_window_theme(self.hwnd(), theme);
+    if window_state.current_theme != new_theme {
+      window_state.current_theme = new_theme;
+    };
   }
 
   #[inline]

@@ -2055,7 +2055,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(LRESULT(0));
     }
 
-    win32wm::WM_WININICHANGE => {
+    win32wm::WM_SETTINGCHANGE => {
       use crate::event::WindowEvent::ThemeChanged;
 
       let preferred_theme = subclass_input.window_state.lock().preferred_theme;
