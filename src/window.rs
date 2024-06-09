@@ -1106,7 +1106,7 @@ impl Window {
     self.window.theme()
   }
 
-  /// Returns the current window theme.
+  /// Sets the theme for this window.
   ///
   /// ## Platform-specific
   ///
