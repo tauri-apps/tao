@@ -185,7 +185,7 @@ impl Window {
   #[inline]
   pub fn outer_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
     unsafe { util::get_window_rect(self.window.0) }
-      .map(|rect| Ok(PhysicalPosition::new(rect.left as i32, rect.top as i32)))
+      .map(|rect| Ok(PhysicalPosition::new(rect.left, rect.top)))
       .expect("Unexpected GetWindowRect failure")
   }
 
@@ -195,7 +195,7 @@ impl Window {
     if !unsafe { ClientToScreen(self.window.0, &mut position) }.as_bool() {
       panic!("Unexpected ClientToScreen failure")
     }
-    Ok(PhysicalPosition::new(position.x as i32, position.y as i32))
+    Ok(PhysicalPosition::new(position.x, position.y))
   }
 
   #[inline]
@@ -214,8 +214,8 @@ impl Window {
       let _ = SetWindowPos(
         self.window.0,
         HWND::default(),
-        x as i32,
-        y as i32,
+        x,
+        y,
         0,
         0,
         SWP_ASYNCWINDOWPOS | SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE,
@@ -914,7 +914,7 @@ impl Window {
         let _ = PostMessageW(self.hwnd(), WM_WININICHANGE, WPARAM(0), LPARAM(0));
       };
     } else {
-      let new_theme = try_window_theme(self.hwnd(), theme, true);
+      let new_theme = try_window_theme(self.hwnd(), theme);
       if window_state.current_theme != new_theme {
         window_state.current_theme = new_theme;
       };
@@ -1150,7 +1150,6 @@ unsafe fn init<T: 'static>(
   let current_theme = try_window_theme(
     real_window.0,
     attributes.preferred_theme.or(event_loop.preferred_theme),
-    false,
   );
 
   let window_state = {

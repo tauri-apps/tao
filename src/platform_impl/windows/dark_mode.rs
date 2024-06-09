@@ -119,11 +119,7 @@ fn refresh_immersive_color_policy_state() {
 
 /// Attempt to set a theme on a window, if necessary.
 /// Returns the theme that was picked
-pub fn try_window_theme(
-  hwnd: HWND,
-  preferred_theme: Option<Theme>,
-  refresh_titilebar: bool,
-) -> Theme {
+pub fn try_window_theme(hwnd: HWND, preferred_theme: Option<Theme>) -> Theme {
   if *DARK_MODE_SUPPORTED {
     let is_dark_mode = match preferred_theme {
       Some(theme) => theme == Theme::Dark,
@@ -135,32 +131,7 @@ pub fn try_window_theme(
       false => Theme::Light,
     };
 
-    if let Some(ver) = *WIN10_BUILD_VERSION {
-      if ver < 18362 {
-        let mut is_dark_mode_bigbool: i32 = is_dark_mode.into();
-        unsafe {
-          let _ = SetPropW(
-            hwnd,
-            w!("UseImmersiveDarkModeColors"),
-            HANDLE(&mut is_dark_mode_bigbool as *mut _ as _),
-          );
-        }
-      } else {
-        let dark_mode = BOOL::from(is_dark_mode);
-        unsafe {
-          let _ = DwmSetWindowAttribute(
-            hwnd,
-            DWMWA_USE_IMMERSIVE_DARK_MODE,
-            &dark_mode as *const BOOL as *const c_void,
-            std::mem::size_of::<BOOL>() as u32,
-          );
-        }
-        if refresh_titilebar {
-          unsafe { DefWindowProcW(hwnd, WM_NCACTIVATE, None, None) };
-          unsafe { DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM(true.into()), None) };
-        }
-      }
-    }
+    refresh_titlebar_theme_color(hwnd, is_dark_mode);
 
     theme
   } else {
@@ -186,6 +157,33 @@ pub fn allow_dark_mode_for_window(hwnd: HWND, is_dark_mode: bool) {
   if *DARK_MODE_SUPPORTED {
     if let Some(_allow_dark_mode_for_window) = *ALLOW_DARK_MODE_FOR_WINDOW {
       unsafe { _allow_dark_mode_for_window(hwnd, is_dark_mode) };
+    }
+  }
+}
+
+fn refresh_titlebar_theme_color(hwnd: HWND, is_dark_mode: bool) {
+  if let Some(ver) = *WIN10_BUILD_VERSION {
+    if ver < 18362 {
+      let mut is_dark_mode_bigbool: i32 = is_dark_mode.into();
+      unsafe {
+        let _ = SetPropW(
+          hwnd,
+          w!("UseImmersiveDarkModeColors"),
+          HANDLE(&mut is_dark_mode_bigbool as *mut _ as _),
+        );
+      }
+    } else {
+      let dark_mode = BOOL::from(is_dark_mode);
+      unsafe {
+        let _ = DwmSetWindowAttribute(
+          hwnd,
+          DWMWA_USE_IMMERSIVE_DARK_MODE,
+          &dark_mode as *const BOOL as *const c_void,
+          std::mem::size_of::<BOOL>() as u32,
+        );
+      }
+      unsafe { DefWindowProcW(hwnd, WM_NCACTIVATE, None, None) };
+      unsafe { DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM(true.into()), None) };
     }
   }
 }

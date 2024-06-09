@@ -1185,7 +1185,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
       let windowpos = lparam.0 as *const WINDOWPOS;
       if (*windowpos).flags & SWP_NOMOVE != SWP_NOMOVE {
-        let physical_position = PhysicalPosition::new((*windowpos).x as i32, (*windowpos).y as i32);
+        let physical_position = PhysicalPosition::new((*windowpos).x, (*windowpos).y);
         subclass_input.send_event(Event::WindowEvent {
           window_id: RootWindowId(WindowId(window.0)),
           event: Moved(physical_position),
@@ -2064,7 +2064,6 @@ unsafe fn public_window_callback_inner<T: 'static>(
         let new_theme = try_window_theme(
           window,
           preferred_theme.or(subclass_input.event_loop_preferred_theme),
-          false,
         );
         let mut window_state = subclass_input.window_state.lock();
 
