@@ -1416,7 +1416,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     win32wm::WM_RBUTTONDOWN => {
       use crate::event::{ElementState::Pressed, MouseButton::Right, WindowEvent::MouseInput};
 
-      capture_mouse(window, &mut *subclass_input.window_state.lock());
+      capture_mouse(window, &mut subclass_input.window_state.lock());
 
       let modifiers = update_modifiers(window, subclass_input);
 
