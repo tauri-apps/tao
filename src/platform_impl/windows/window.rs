@@ -55,7 +55,10 @@ use crate::{
   },
 };
 
-use super::keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS};
+use super::{
+  event_loop::SET_THEME_MSG_ID,
+  keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS},
+};
 
 /// The Win32 implementation of the main `Window` object.
 pub struct Window {
@@ -912,6 +915,17 @@ impl Window {
     let new_theme = try_window_theme(self.hwnd(), theme);
     if window_state.current_theme != new_theme {
       window_state.current_theme = new_theme;
+      let _ = unsafe {
+        PostMessageW(
+          self.hwnd(),
+          *SET_THEME_MSG_ID,
+          WPARAM(match new_theme {
+            Theme::Dark => 1,
+            Theme::Light => 0,
+          }),
+          LPARAM(0),
+        )
+      };
     };
   }
 

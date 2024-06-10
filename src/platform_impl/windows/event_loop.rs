@@ -611,6 +611,14 @@ lazy_static! {
             RegisterWindowMessageA(s!("Tao::DestroyMsg"))
         }
     };
+    /// Message sent by a `Window` when a new theme is set.
+    /// WPARAM is 1 for dark mode and 0 for light mode.
+    /// and LPARAM is unused.
+    pub static ref SET_THEME_MSG_ID: u32 = {
+        unsafe {
+            RegisterWindowMessageA(s!("Tao::SetTheme"))
+        }
+    };
     /// WPARAM is a bool specifying the `WindowFlags::MARKER_RETAIN_STATE_ON_SIZE` flag. See the
     /// documentation in the `window_state` module for more information.
     pub static ref SET_RETAIN_STATE_ON_SIZE_MSG_ID: u32 = unsafe {
@@ -2182,6 +2190,16 @@ unsafe fn public_window_callback_inner<T: 'static>(
         let mut window_state = subclass_input.window_state.lock();
         window_state.set_window_flags_in_place(|f| {
           f.set(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE, wparam.0 != 0)
+        });
+        result = ProcResult::Value(LRESULT(0));
+      } else if msg == *SET_THEME_MSG_ID {
+        subclass_input.send_event(Event::WindowEvent {
+          window_id: RootWindowId(WindowId(window.0)),
+          event: WindowEvent::ThemeChanged(if wparam == WPARAM(1) {
+            Theme::Dark
+          } else {
+            Theme::Light
+          }),
         });
         result = ProcResult::Value(LRESULT(0));
       } else if msg == *S_U_TASKBAR_RESTART {
