@@ -611,19 +611,19 @@ lazy_static! {
             RegisterWindowMessageA(s!("Tao::DestroyMsg"))
         }
     };
-    /// Message sent by a `Window` when a new theme is set.
-    /// WPARAM is 1 for dark mode and 0 for light mode.
-    /// and LPARAM is unused.
-    pub static ref SET_THEME_MSG_ID: u32 = {
-        unsafe {
-            RegisterWindowMessageA(s!("Tao::SetTheme"))
-        }
-    };
     /// WPARAM is a bool specifying the `WindowFlags::MARKER_RETAIN_STATE_ON_SIZE` flag. See the
     /// documentation in the `window_state` module for more information.
     pub static ref SET_RETAIN_STATE_ON_SIZE_MSG_ID: u32 = unsafe {
         RegisterWindowMessageA(s!("Tao::SetRetainMaximized"))
     };
+    /// Message sent by a `Window` when a new theme is set.
+    /// WPARAM is 1 for dark mode and 0 for light mode.
+    /// and LPARAM is unused.
+    pub static ref SET_THEME_MSG_ID: u32 = {
+      unsafe {
+          RegisterWindowMessageA(s!("Tao::SetTheme"))
+      }
+  };
     /// When the taskbar is created, it registers a message with the "TaskbarCreated" string and then broadcasts this message to all top-level windows
     /// When the application receives this message, it should assume that any taskbar icons it added have been removed and add them again.
     pub static ref S_U_TASKBAR_RESTART: u32 = unsafe {
