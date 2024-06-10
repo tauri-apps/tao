@@ -912,7 +912,7 @@ impl Window {
       return;
     }
     window_state.preferred_theme = theme;
-    let new_theme = try_window_theme(self.hwnd(), theme);
+    let new_theme = try_window_theme(self.hwnd(), theme, true);
     if window_state.current_theme != new_theme {
       window_state.current_theme = new_theme;
       let _ = unsafe {
@@ -1158,6 +1158,7 @@ unsafe fn init<T: 'static>(
   let current_theme = try_window_theme(
     real_window.0,
     attributes.preferred_theme.or(event_loop.preferred_theme),
+    false,
   );
 
   let window_state = {
