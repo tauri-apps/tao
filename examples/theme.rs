@@ -28,28 +28,24 @@ fn main() {
 
     match event {
       Event::WindowEvent {
-        event:
-          WindowEvent::MouseInput {
-            button: MouseButton::Left,
-            state: ElementState::Pressed,
-            ..
-          },
-        ..
-      } => {
-        theme = !theme;
-        window.set_theme(if theme { None } else { Some(Theme::Dark) })
-      }
-      Event::WindowEvent {
-        event: WindowEvent::CloseRequested,
-        ..
-      } => *control_flow = ControlFlow::Exit,
-      Event::WindowEvent {
-        event: WindowEvent::ThemeChanged(theme),
-        window_id,
-        ..
-      } if window_id == window.id() => {
-        println!("Theme is changed: {theme:?}")
-      }
+        event, window_id, ..
+      } => match event {
+        WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+        WindowEvent::MouseInput {
+          button: MouseButton::Left,
+          state: ElementState::Pressed,
+          ..
+        } => {
+          theme = !theme;
+          window.set_theme(if theme { None } else { Some(Theme::Dark) })
+        }
+        WindowEvent::ThemeChanged(theme) => {
+          if window_id == window.id() {
+            println!("Theme is changed: {theme:?}")
+          }
+        }
+        _ => (),
+      },
       _ => (),
     }
   });
