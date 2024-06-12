@@ -80,99 +80,6 @@ pub struct FromGtkWindowAttributes {
 }
 
 impl Window {
-  /// Create a new Tao window from an existing GTK window. Generally you should use
-  /// the non-Linux `WindowBuilder`, this is for those who need lower level window access
-  /// and know what they're doing.
-  pub fn new_from_gtk_window<T>(
-    event_loop_window_target: &EventLoopWindowTarget<T>,
-    window: gtk::ApplicationWindow,
-    attributes: FromGtkWindowAttributes,
-  ) -> Self {
-    let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
-    let draw_tx = event_loop_window_target.draw_tx.clone();
-
-    let window_id = WindowId(window.id());
-    event_loop_window_target
-      .windows
-      .borrow_mut()
-      .insert(window_id);
-
-    let win_scale_factor = window.scale_factor();
-
-    let w_pos = window.position();
-    let position: Rc<(AtomicI32, AtomicI32)> = Rc::new((w_pos.0.into(), w_pos.1.into()));
-    let position_clone = position.clone();
-
-    let w_size = window.size();
-    let size: Rc<(AtomicI32, AtomicI32)> = Rc::new((w_size.0.into(), w_size.1.into()));
-    let size_clone = size.clone();
-
-    window.connect_configure_event(move |_, event| {
-      let (x, y) = event.position();
-      position_clone.0.store(x, Ordering::Release);
-      position_clone.1.store(y, Ordering::Release);
-
-      let (w, h) = event.size();
-      size_clone.0.store(w as i32, Ordering::Release);
-      size_clone.1.store(h as i32, Ordering::Release);
-
-      false
-    });
-
-    let w_max = window.is_maximized();
-    let maximized: Rc<AtomicBool> = Rc::new(w_max.into());
-    let max_clone = maximized.clone();
-    let minimized = Rc::new(AtomicBool::new(false));
-    let minimized_clone = minimized.clone();
-
-    window.connect_window_state_event(move |_, event| {
-      let state = event.new_window_state();
-      max_clone.store(state.contains(WindowState::MAXIMIZED), Ordering::Release);
-      minimized_clone.store(state.contains(WindowState::ICONIFIED), Ordering::Release);
-      glib::Propagation::Proceed
-    });
-
-    let scale_factor: Rc<AtomicI32> = Rc::new(win_scale_factor.into());
-    let scale_factor_clone = scale_factor.clone();
-    window.connect_scale_factor_notify(move |window| {
-      scale_factor_clone.store(window.scale_factor(), Ordering::Release);
-    });
-
-    // Check if we should paint the transparent background ourselves.
-    if let Err(e) = window_requests_tx.send((
-      window_id,
-      WindowRequest::WireUpEvents {
-        transparent: attributes.transparent,
-        fullscreen: attributes.fullscreen.is_some(),
-        cursor_moved: attributes.cursor_moved,
-      },
-    )) {
-      log::warn!("Fail to send wire up events request: {}", e);
-    }
-
-    if let Err(e) = draw_tx.send(window_id) {
-      log::warn!("Failed to send redraw event to event channel: {}", e);
-    }
-
-    let win = Self {
-      window_id,
-      window,
-      default_vbox: None,
-      window_requests_tx,
-      draw_tx,
-      scale_factor,
-      position,
-      size,
-      maximized,
-      minimized,
-      fullscreen: RefCell::new(attributes.fullscreen),
-      inner_size_constraints: RefCell::new(attributes.inner_size_constraints),
-      preferred_theme: None,
-    };
-
-    win
-  }
-
   pub(crate) fn new<T>(
     event_loop_window_target: &EventLoopWindowTarget<T>,
     attributes: WindowAttributes,
@@ -351,6 +258,99 @@ impl Window {
     win.set_skip_taskbar(pl_attribs.skip_taskbar);
 
     Ok(win)
+  }
+
+  /// Create a new Tao window from an existing GTK window. Generally you should use
+  /// the non-Linux `WindowBuilder`, this is for those who need lower level window access
+  /// and know what they're doing.
+  pub fn new_from_gtk_window<T>(
+    event_loop_window_target: &EventLoopWindowTarget<T>,
+    window: gtk::ApplicationWindow,
+    attributes: FromGtkWindowAttributes,
+  ) -> Self {
+    let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
+    let draw_tx = event_loop_window_target.draw_tx.clone();
+
+    let window_id = WindowId(window.id());
+    event_loop_window_target
+      .windows
+      .borrow_mut()
+      .insert(window_id);
+
+    let win_scale_factor = window.scale_factor();
+
+    let w_pos = window.position();
+    let position: Rc<(AtomicI32, AtomicI32)> = Rc::new((w_pos.0.into(), w_pos.1.into()));
+    let position_clone = position.clone();
+
+    let w_size = window.size();
+    let size: Rc<(AtomicI32, AtomicI32)> = Rc::new((w_size.0.into(), w_size.1.into()));
+    let size_clone = size.clone();
+
+    window.connect_configure_event(move |_, event| {
+      let (x, y) = event.position();
+      position_clone.0.store(x, Ordering::Release);
+      position_clone.1.store(y, Ordering::Release);
+
+      let (w, h) = event.size();
+      size_clone.0.store(w as i32, Ordering::Release);
+      size_clone.1.store(h as i32, Ordering::Release);
+
+      false
+    });
+
+    let w_max = window.is_maximized();
+    let maximized: Rc<AtomicBool> = Rc::new(w_max.into());
+    let max_clone = maximized.clone();
+    let minimized = Rc::new(AtomicBool::new(false));
+    let minimized_clone = minimized.clone();
+
+    window.connect_window_state_event(move |_, event| {
+      let state = event.new_window_state();
+      max_clone.store(state.contains(WindowState::MAXIMIZED), Ordering::Release);
+      minimized_clone.store(state.contains(WindowState::ICONIFIED), Ordering::Release);
+      glib::Propagation::Proceed
+    });
+
+    let scale_factor: Rc<AtomicI32> = Rc::new(win_scale_factor.into());
+    let scale_factor_clone = scale_factor.clone();
+    window.connect_scale_factor_notify(move |window| {
+      scale_factor_clone.store(window.scale_factor(), Ordering::Release);
+    });
+
+    // Check if we should paint the transparent background ourselves.
+    if let Err(e) = window_requests_tx.send((
+      window_id,
+      WindowRequest::WireUpEvents {
+        transparent: attributes.transparent,
+        fullscreen: attributes.fullscreen.is_some(),
+        cursor_moved: attributes.cursor_moved,
+      },
+    )) {
+      log::warn!("Fail to send wire up events request: {}", e);
+    }
+
+    if let Err(e) = draw_tx.send(window_id) {
+      log::warn!("Failed to send redraw event to event channel: {}", e);
+    }
+
+    let win = Self {
+      window_id,
+      window,
+      default_vbox: None,
+      window_requests_tx,
+      draw_tx,
+      scale_factor,
+      position,
+      size,
+      maximized,
+      minimized,
+      fullscreen: RefCell::new(attributes.fullscreen),
+      inner_size_constraints: RefCell::new(attributes.inner_size_constraints),
+      preferred_theme: None,
+    };
+
+    win
   }
 
   pub fn id(&self) -> WindowId {
