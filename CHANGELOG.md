@@ -1,5 +1,12 @@
 # Changelog
 
+## \[0.28.1]
+
+- [`7e8f75e9`](https://github.com/tauri-apps/tao/commit/7e8f75e916ad502e00b5f6dff6cfb6bfadb92118) ([#926](https://github.com/tauri-apps/tao/pull/926) by [@pewsheen](https://github.com/tauri-apps/tao/../../pewsheen)) On macOS, add `set_fullsize_content_view` and `set_titlebar_transparent` to `Window` to set the title bar style.
+- [`3bbddc64`](https://github.com/tauri-apps/tao/commit/3bbddc64d824df5b502f1c165e2b3cdf8a684886) ([#931](https://github.com/tauri-apps/tao/pull/931) by [@muwoo](https://github.com/tauri-apps/tao/../../muwoo)) **Breaking Change**: On Windows, `UserAttentionType::Informational` will flash the taskbar icon 4 times only and not until the app recieves focus.
+- [`29bee151`](https://github.com/tauri-apps/tao/commit/29bee15103b6beeec617f103d475d2b707c35d83) ([#935](https://github.com/tauri-apps/tao/pull/935) by [@renovate](https://github.com/tauri-apps/tao/../../renovate)) Update `windows` crate to `0.57`
+- [`ab792dbd`](https://github.com/tauri-apps/tao/commit/ab792dbd6c5f0a708c818b20eaff1d9a7534c7c1) ([#928](https://github.com/tauri-apps/tao/pull/928) by [@amrbashir](https://github.com/tauri-apps/tao/../../amrbashir)) On Windows, always allow dark theme for app and window through `AllowDarkModeForApp` and `AllowDarkModeForWindow`, which fixes an issue when calling `IsDarkModeAllowedForWindow()`
+
 ## \[0.28.0]
 
 - [`cd38f237`](https://github.com/tauri-apps/tao/commit/cd38f237481b58585cc2da98c3bb9a0ce8e64b9f)([#912](https://github.com/tauri-apps/tao/pull/912)) Add `EventLoopBuilderExtUnix::with_app_id` on Linux to allow setting a unique app id for the underlying gtk application.
