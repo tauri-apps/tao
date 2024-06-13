@@ -64,7 +64,7 @@ impl<T> EventLoopWindowTarget<T> {
   /// Returns the gtk application for this event loop
   #[inline]
   pub fn app(&self) -> &gtk::Application {
-      return &self.app;
+    return &self.app;
   }
 
   #[inline]

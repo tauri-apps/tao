@@ -230,7 +230,7 @@ impl<T> EventLoopWindowTarget<T> {
   /// Returns the platform-specific window target struct
   #[inline]
   pub fn platform_window_target(&self) -> &platform_impl::EventLoopWindowTarget<T> {
-      return &self.p;
+    return &self.p;
   }
 
   /// Returns the list of all the monitors available on the system.
