@@ -19,7 +19,10 @@ pub use crate::platform_impl::x11;
 pub use crate::platform_impl::EventLoop as UnixEventLoop;
 use crate::{
   event_loop::{EventLoopBuilder, EventLoopWindowTarget},
-  platform_impl::{x11::xdisplay::XError, Parent},
+  platform_impl::{
+    x11::xdisplay::XError, EventLoopWindowTarget as UnixEventLoopWindowTarget, Parent,
+    Window as UnixWindow,
+  },
   window::{Window, WindowBuilder},
 };
 
@@ -59,7 +62,15 @@ impl<T> EventLoopBuilderExtUnix for EventLoopBuilder<T> {
 }
 
 /// Additional methods on `Window` that are specific to Unix.
-pub trait WindowExtUnix {
+pub trait WindowExtUnix<T> {
+  /// Create a new Tao window from an existing GTK window. Generally you should use
+  /// the non-Linux `WindowBuilder`, this is for those who need lower level window access
+  /// and know what they're doing.
+  fn new_from_gtk_window(
+    event_loop_window_target: &UnixEventLoopWindowTarget<T>,
+    window: gtk::ApplicationWindow,
+  ) -> UnixWindow;
+
   /// Returns the `gtk::ApplicatonWindow` from gtk crate that is used by this window.
   fn gtk_window(&self) -> &gtk::ApplicationWindow;
 
@@ -71,7 +82,7 @@ pub trait WindowExtUnix {
   fn set_skip_taskbar(&self, skip: bool);
 }
 
-impl WindowExtUnix for Window {
+impl<T> WindowExtUnix<T> for Window {
   fn gtk_window(&self) -> &gtk::ApplicationWindow {
     &self.window.window
   }
@@ -82,6 +93,13 @@ impl WindowExtUnix for Window {
 
   fn set_skip_taskbar(&self, skip: bool) {
     self.window.set_skip_taskbar(skip);
+  }
+
+  fn new_from_gtk_window(
+    event_loop_window_target: &UnixEventLoopWindowTarget<T>,
+    window: gtk::ApplicationWindow,
+  ) -> UnixWindow {
+    UnixWindow::new_from_gtk_window(event_loop_window_target, window)
   }
 }
 
@@ -172,7 +190,7 @@ impl WindowBuilderExtUnix for WindowBuilder {
 }
 
 /// Additional methods on `EventLoopWindowTarget` that are specific to Unix.
-pub trait EventLoopWindowTargetExtUnix {
+pub trait EventLoopWindowTargetExtUnix<T> {
   /// True if the `EventLoopWindowTarget` uses Wayland.
   fn is_wayland(&self) -> bool;
 
@@ -188,9 +206,15 @@ pub trait EventLoopWindowTargetExtUnix {
   // ///
   // /// The pointer will become invalid when the winit `EventLoop` is destroyed.
   // fn wayland_display(&self) -> Option<*mut raw::c_void>;
+
+  /// Returns the linux-specific window target struct
+  fn window_target(&self) -> &UnixEventLoopWindowTarget<T>;
+
+  /// Returns the gtk application for this event loop
+  fn gtk_app(&self) -> &gtk::Application;
 }
 
-impl<T> EventLoopWindowTargetExtUnix for EventLoopWindowTarget<T> {
+impl<T> EventLoopWindowTargetExtUnix<T> for EventLoopWindowTarget<T> {
   #[inline]
   fn is_wayland(&self) -> bool {
     self.p.is_wayland()
@@ -224,6 +248,15 @@ impl<T> EventLoopWindowTargetExtUnix for EventLoopWindowTarget<T> {
   //         _ => None,
   //     }
   // }
+  #[inline]
+  fn window_target(&self) -> &UnixEventLoopWindowTarget<T> {
+    return &self.p;
+  }
+
+  #[inline]
+  fn gtk_app(&self) -> &gtk::Application {
+    return &self.p.app;
+  }
 }
 
 unsafe extern "C" fn x_error_callback(

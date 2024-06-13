@@ -61,12 +61,6 @@ pub struct EventLoopWindowTarget<T> {
 }
 
 impl<T> EventLoopWindowTarget<T> {
-  /// Returns the gtk application for this event loop
-  #[inline]
-  pub fn app(&self) -> &gtk::Application {
-    return &self.app;
-  }
-
   #[inline]
   pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<MonitorHandle> {
     monitor::from_point(&self.display, x, y)

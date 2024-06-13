@@ -314,10 +314,7 @@ impl Window {
     Ok(win)
   }
 
-  /// Create a new Tao window from an existing GTK window. Generally you should use
-  /// the non-Linux `WindowBuilder`, this is for those who need lower level window access
-  /// and know what they're doing.
-  pub fn new_from_gtk_window<T>(
+  pub(crate) fn new_from_gtk_window<T>(
     event_loop_window_target: &EventLoopWindowTarget<T>,
     window: gtk::ApplicationWindow,
   ) -> Self {

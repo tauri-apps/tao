@@ -27,7 +27,7 @@ fn main() {
   #[cfg(target_os = "windows")]
   let parent_window = main_window.hwnd();
   #[cfg(target_os = "linux")]
-  let parent_window = main_window.gtk_window();
+  let parent_window = <tao::window::Window as WindowExtUnix<()>>::gtk_window(&main_window);
 
   let child_window_builder = WindowBuilder::new().with_inner_size(LogicalSize::new(200, 200));
 

@@ -179,7 +179,7 @@ pub mod event_loop;
 mod icon;
 pub mod keyboard;
 pub mod monitor;
-pub mod platform_impl;
+mod platform_impl;
 
 pub mod window;
 
