@@ -68,17 +68,6 @@ pub struct Window {
   preferred_theme: Option<Theme>,
 }
 
-pub struct FromGtkWindowAttributes {
-  pub transparent: bool,
-  /// Whether the window should be set as fullscreen upon creation.
-  ///
-  /// The default is `None`.
-  pub fullscreen: Option<Fullscreen>,
-  pub cursor_moved: bool,
-  /// The window size constraints
-  pub inner_size_constraints: WindowSizeConstraints,
-}
-
 impl Window {
   pub(crate) fn new<T>(
     event_loop_window_target: &EventLoopWindowTarget<T>,
@@ -86,6 +75,8 @@ impl Window {
     pl_attribs: PlatformSpecificWindowBuilderAttributes,
   ) -> Result<Self, RootOsError> {
     let app = &event_loop_window_target.app;
+    let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
+    let draw_tx = event_loop_window_target.draw_tx.clone();
 
     let mut window_builder = gtk::ApplicationWindow::builder()
       .application(app)
@@ -242,18 +233,81 @@ impl Window {
       signal_id.borrow_mut().replace(id);
     }
 
-    let mut win = Self::new_from_gtk_window(
-      event_loop_window_target,
-      window,
-      FromGtkWindowAttributes {
-        transparent: attributes.transparent && pl_attribs.auto_transparent,
-        fullscreen: attributes.fullscreen,
-        cursor_moved: pl_attribs.cursor_moved,
-        inner_size_constraints: attributes.inner_size_constraints,
+    let w_pos = window.position();
+    let position: Rc<(AtomicI32, AtomicI32)> = Rc::new((w_pos.0.into(), w_pos.1.into()));
+    let position_clone = position.clone();
+
+    let w_size = window.size();
+    let size: Rc<(AtomicI32, AtomicI32)> = Rc::new((w_size.0.into(), w_size.1.into()));
+    let size_clone = size.clone();
+
+    window.connect_configure_event(move |_, event| {
+      let (x, y) = event.position();
+      position_clone.0.store(x, Ordering::Release);
+      position_clone.1.store(y, Ordering::Release);
+
+      let (w, h) = event.size();
+      size_clone.0.store(w as i32, Ordering::Release);
+      size_clone.1.store(h as i32, Ordering::Release);
+
+      false
+    });
+
+    let w_max = window.is_maximized();
+    let maximized: Rc<AtomicBool> = Rc::new(w_max.into());
+    let max_clone = maximized.clone();
+    let minimized = Rc::new(AtomicBool::new(false));
+    let minimized_clone = minimized.clone();
+
+    window.connect_window_state_event(move |_, event| {
+      let state = event.new_window_state();
+      max_clone.store(state.contains(WindowState::MAXIMIZED), Ordering::Release);
+      minimized_clone.store(state.contains(WindowState::ICONIFIED), Ordering::Release);
+      glib::Propagation::Proceed
+    });
+
+    let scale_factor: Rc<AtomicI32> = Rc::new(win_scale_factor.into());
+    let scale_factor_clone = scale_factor.clone();
+    window.connect_scale_factor_notify(move |window| {
+      scale_factor_clone.store(window.scale_factor(), Ordering::Release);
+    });
+
+    // Check if we should paint the transparent background ourselves.
+    let mut transparent = false;
+    if attributes.transparent && pl_attribs.auto_transparent {
+      transparent = true;
+    }
+    let cursor_moved = pl_attribs.cursor_moved;
+    if let Err(e) = window_requests_tx.send((
+      window_id,
+      WindowRequest::WireUpEvents {
+        transparent,
+        fullscreen: attributes.fullscreen.is_some(),
+        cursor_moved,
       },
-    );
-    win.default_vbox = default_vbox;
-    win.preferred_theme = preferred_theme;
+    )) {
+      log::warn!("Fail to send wire up events request: {}", e);
+    }
+
+    if let Err(e) = draw_tx.send(window_id) {
+      log::warn!("Failed to send redraw event to event channel: {}", e);
+    }
+
+    let win = Self {
+      window_id,
+      window,
+      default_vbox,
+      window_requests_tx,
+      draw_tx,
+      scale_factor,
+      position,
+      size,
+      maximized,
+      minimized,
+      fullscreen: RefCell::new(attributes.fullscreen),
+      inner_size_constraints: RefCell::new(attributes.inner_size_constraints),
+      preferred_theme,
+    };
 
     win.set_skip_taskbar(pl_attribs.skip_taskbar);
 
@@ -266,7 +320,6 @@ impl Window {
   pub fn new_from_gtk_window<T>(
     event_loop_window_target: &EventLoopWindowTarget<T>,
     window: gtk::ApplicationWindow,
-    attributes: FromGtkWindowAttributes,
   ) -> Self {
     let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
     let draw_tx = event_loop_window_target.draw_tx.clone();
@@ -318,18 +371,6 @@ impl Window {
       scale_factor_clone.store(window.scale_factor(), Ordering::Release);
     });
 
-    // Check if we should paint the transparent background ourselves.
-    if let Err(e) = window_requests_tx.send((
-      window_id,
-      WindowRequest::WireUpEvents {
-        transparent: attributes.transparent,
-        fullscreen: attributes.fullscreen.is_some(),
-        cursor_moved: attributes.cursor_moved,
-      },
-    )) {
-      log::warn!("Fail to send wire up events request: {}", e);
-    }
-
     if let Err(e) = draw_tx.send(window_id) {
       log::warn!("Failed to send redraw event to event channel: {}", e);
     }
@@ -345,8 +386,8 @@ impl Window {
       size,
       maximized,
       minimized,
-      fullscreen: RefCell::new(attributes.fullscreen),
-      inner_size_constraints: RefCell::new(attributes.inner_size_constraints),
+      fullscreen: RefCell::new(None),
+      inner_size_constraints: RefCell::new(WindowSizeConstraints::default()),
       preferred_theme: None,
     };
 
