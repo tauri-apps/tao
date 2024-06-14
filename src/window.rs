@@ -1110,10 +1110,10 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS/ Linux / iOS / Android:** Unsupported.
+  /// - **Linux / iOS / Android:** Unsupported.
   #[inline]
   pub fn set_theme(&self, theme: Option<Theme>) {
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     self.window.set_theme(theme)
   }
 

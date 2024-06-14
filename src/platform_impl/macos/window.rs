@@ -337,10 +337,11 @@ pub(super) fn get_ns_theme() -> Theme {
   }
 }
 
-pub(super) fn set_ns_theme(theme: Theme) {
+pub(super) fn set_ns_theme(theme: Option<Theme>) {
   let name = match theme {
-    Theme::Dark => "NSAppearanceNameDarkAqua",
-    Theme::Light => "NSAppearanceNameAqua",
+    Some(Theme::Dark) => "NSAppearanceNameDarkAqua",
+    Some(Theme::Light) => "NSAppearanceNameAqua",
+    None => nil,
   };
   unsafe {
     let app_class = class!(NSApplication);
@@ -547,7 +548,7 @@ impl UnownedWindow {
 
     match cloned_preferred_theme {
       Some(theme) => {
-        set_ns_theme(theme);
+        set_ns_theme(Some(theme));
         let mut state = window.shared_state.lock().unwrap();
         state.current_theme = theme.clone();
       }
@@ -1415,6 +1416,10 @@ impl UnownedWindow {
   pub fn theme(&self) -> Theme {
     let state = self.shared_state.lock().unwrap();
     state.current_theme
+  }
+
+  pub fn set_theme(&self, theme: Option<Theme>) {
+    set_ns_theme(theme);
   }
 
   pub fn set_content_protection(&self, enabled: bool) {
