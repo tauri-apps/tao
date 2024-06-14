@@ -338,17 +338,19 @@ pub(super) fn get_ns_theme() -> Theme {
 }
 
 pub(super) fn set_ns_theme(theme: Option<Theme>) {
-  let name = match theme {
-    Some(Theme::Dark) => "NSAppearanceNameDarkAqua",
-    Some(Theme::Light) => "NSAppearanceNameAqua",
-    None => nil,
-  };
   unsafe {
     let app_class = class!(NSApplication);
     let app: id = msg_send![app_class, sharedApplication];
     let has_theme: BOOL = msg_send![app, respondsToSelector: sel!(effectiveAppearance)];
     if has_theme == YES {
-      let name = NSString::alloc(nil).init_str(name);
+      let name = if let Some(theme) = theme {
+        NSString::alloc(nil).init_str(match theme {
+          Theme::Dark => "NSAppearanceNameDarkAqua",
+          Theme::Light => "NSAppearanceNameAqua",
+        })
+      } else {
+        nil
+      };
       let appearance: id = msg_send![class!(NSAppearance), appearanceNamed: name];
       let _: () = msg_send![app, setAppearance: appearance];
     }
