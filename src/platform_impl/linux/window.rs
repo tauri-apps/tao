@@ -32,7 +32,7 @@ use crate::{
 use super::{
   event_loop::EventLoopWindowTarget,
   monitor::{self, MonitorHandle},
-  util, Parent, PlatformSpecificWindowBuilderAttributes,
+  util, OsError, Parent, PlatformSpecificWindowBuilderAttributes,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -317,7 +317,7 @@ impl Window {
   pub(crate) fn new_from_gtk_window<T>(
     event_loop_window_target: &EventLoopWindowTarget<T>,
     window: gtk::ApplicationWindow,
-  ) -> Self {
+  ) -> Result<Self, OsError> {
     let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
     let draw_tx = event_loop_window_target.draw_tx.clone();
 
@@ -388,7 +388,7 @@ impl Window {
       preferred_theme: None,
     };
 
-    win
+    Ok(win)
   }
 
   pub fn id(&self) -> WindowId {
