@@ -640,7 +640,7 @@ impl<T: 'static> EventLoop<T> {
                   }
                 }
               }
-              glib::Propagation::Proceed
+              glib::Propagation::Stop
             });
 
             let tx_clone = event_tx.clone();
@@ -675,11 +675,11 @@ impl<T: 'static> EventLoop<T> {
                 },
               }) {
                 log::warn!(
-                  "Failed to send mouse input preseed event to event channel: {}",
+                  "Failed to send mouse input pressed event to event channel: {}",
                   e
                 );
               }
-              glib::Propagation::Proceed
+              glib::Propagation::Stop
             });
 
             let tx_clone = event_tx.clone();
@@ -705,7 +705,7 @@ impl<T: 'static> EventLoop<T> {
                   e
                 );
               }
-              glib::Propagation::Proceed
+              glib::Propagation::Stop
             });
 
             let tx_clone = event_tx.clone();
