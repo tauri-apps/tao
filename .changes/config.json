@@ -1,13 +1,16 @@
 {
   "gitSiteUrl": "https://github.com/tauri-apps/tao/",
   "timeout": 3600000,
-  "additionalBumpTypes": [
-    "housekeeping"
-  ],
+  "additionalBumpTypes": ["housekeeping"],
   "pkgManagers": {
     "rust": {
       "version": true,
-      "getPublishedVersion": "cargo search ${ pkg.pkg } --limit 1 | sed -nE 's/^[^\"]*\"//; s/\".*//1p'",
+      "getPublishedVersion": {
+        "use": "fetch:check",
+        "options": {
+          "url": "https://crates.io/api/v1/crates/${ pkg.pkg }/${ pkg.pkgFile.version }"
+        }
+      },
       "prepublish": [
         "sudo apt-get update",
         "sudo apt-get install -y libgtk-3-dev libayatana-appindicator3-dev",
@@ -46,13 +49,8 @@
           "pipe": true
         },
         {
-          "command": "echo \"\\`\\`\\`\"",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "cargo publish --no-verify",
-          "dryRunCommand": "cargo publish --no-verify --dry-run --allow-dirty",
+          "command": "cargo publish --no-verify --allow-dirty",
+          "dryRunCommand": "cargo publish --no-verify --dry-run",
           "pipe": true
         },
         {
