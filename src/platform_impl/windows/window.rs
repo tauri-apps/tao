@@ -881,7 +881,7 @@ impl Window {
       let window_flags = self.window_state.lock().window_flags();
       let is_minimized = window_flags.contains(WindowFlags::MINIMIZED);
       if !is_minimized {
-        return
+        return;
       }
     }
 
