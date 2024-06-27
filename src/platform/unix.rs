@@ -18,8 +18,9 @@ pub use crate::platform_impl::x11;
 
 pub use crate::platform_impl::EventLoop as UnixEventLoop;
 use crate::{
+  error::OsError,
   event_loop::{EventLoopBuilder, EventLoopWindowTarget},
-  platform_impl::{x11::xdisplay::XError, Parent},
+  platform_impl::{x11::xdisplay::XError, Parent, Window as UnixWindow},
   window::{Window, WindowBuilder},
 };
 
@@ -60,6 +61,14 @@ impl<T> EventLoopBuilderExtUnix for EventLoopBuilder<T> {
 
 /// Additional methods on `Window` that are specific to Unix.
 pub trait WindowExtUnix {
+  /// Create a new Tao window from an existing GTK window. Generally you should use
+  /// the non-Linux `WindowBuilder`, this is for those who need lower level window access
+  /// and know what they're doing.
+  fn new_from_gtk_window<T: 'static>(
+    event_loop_window_target: &EventLoopWindowTarget<T>,
+    window: gtk::ApplicationWindow,
+  ) -> Result<Window, OsError>;
+
   /// Returns the `gtk::ApplicatonWindow` from gtk crate that is used by this window.
   fn gtk_window(&self) -> &gtk::ApplicationWindow;
 
@@ -82,6 +91,14 @@ impl WindowExtUnix for Window {
 
   fn set_skip_taskbar(&self, skip: bool) {
     self.window.set_skip_taskbar(skip);
+  }
+
+  fn new_from_gtk_window<T: 'static>(
+    event_loop_window_target: &EventLoopWindowTarget<T>,
+    window: gtk::ApplicationWindow,
+  ) -> Result<Window, OsError> {
+    let window = UnixWindow::new_from_gtk_window(&event_loop_window_target.p, window)?;
+    Ok(Window { window: window })
   }
 }
 
@@ -188,6 +205,9 @@ pub trait EventLoopWindowTargetExtUnix {
   // ///
   // /// The pointer will become invalid when the winit `EventLoop` is destroyed.
   // fn wayland_display(&self) -> Option<*mut raw::c_void>;
+
+  /// Returns the gtk application for this event loop.
+  fn gtk_app(&self) -> &gtk::Application;
 }
 
 impl<T> EventLoopWindowTargetExtUnix for EventLoopWindowTarget<T> {
@@ -224,6 +244,11 @@ impl<T> EventLoopWindowTargetExtUnix for EventLoopWindowTarget<T> {
   //         _ => None,
   //     }
   // }
+
+  #[inline]
+  fn gtk_app(&self) -> &gtk::Application {
+    &self.p.app
+  }
 }
 
 unsafe extern "C" fn x_error_callback(

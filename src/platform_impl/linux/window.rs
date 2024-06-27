@@ -314,6 +314,83 @@ impl Window {
     Ok(win)
   }
 
+  pub(crate) fn new_from_gtk_window<T>(
+    event_loop_window_target: &EventLoopWindowTarget<T>,
+    window: gtk::ApplicationWindow,
+  ) -> Result<Self, RootOsError> {
+    let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
+    let draw_tx = event_loop_window_target.draw_tx.clone();
+
+    let window_id = WindowId(window.id());
+    event_loop_window_target
+      .windows
+      .borrow_mut()
+      .insert(window_id);
+
+    let win_scale_factor = window.scale_factor();
+
+    let w_pos = window.position();
+    let position: Rc<(AtomicI32, AtomicI32)> = Rc::new((w_pos.0.into(), w_pos.1.into()));
+    let position_clone = position.clone();
+
+    let w_size = window.size();
+    let size: Rc<(AtomicI32, AtomicI32)> = Rc::new((w_size.0.into(), w_size.1.into()));
+    let size_clone = size.clone();
+
+    window.connect_configure_event(move |_, event| {
+      let (x, y) = event.position();
+      position_clone.0.store(x, Ordering::Release);
+      position_clone.1.store(y, Ordering::Release);
+
+      let (w, h) = event.size();
+      size_clone.0.store(w as i32, Ordering::Release);
+      size_clone.1.store(h as i32, Ordering::Release);
+
+      false
+    });
+
+    let w_max = window.is_maximized();
+    let maximized: Rc<AtomicBool> = Rc::new(w_max.into());
+    let max_clone = maximized.clone();
+    let minimized = Rc::new(AtomicBool::new(false));
+    let minimized_clone = minimized.clone();
+
+    window.connect_window_state_event(move |_, event| {
+      let state = event.new_window_state();
+      max_clone.store(state.contains(WindowState::MAXIMIZED), Ordering::Release);
+      minimized_clone.store(state.contains(WindowState::ICONIFIED), Ordering::Release);
+      glib::Propagation::Proceed
+    });
+
+    let scale_factor: Rc<AtomicI32> = Rc::new(win_scale_factor.into());
+    let scale_factor_clone = scale_factor.clone();
+    window.connect_scale_factor_notify(move |window| {
+      scale_factor_clone.store(window.scale_factor(), Ordering::Release);
+    });
+
+    if let Err(e) = draw_tx.send(window_id) {
+      log::warn!("Failed to send redraw event to event channel: {}", e);
+    }
+
+    let win = Self {
+      window_id,
+      window,
+      default_vbox: None,
+      window_requests_tx,
+      draw_tx,
+      scale_factor,
+      position,
+      size,
+      maximized,
+      minimized,
+      fullscreen: RefCell::new(None),
+      inner_size_constraints: RefCell::new(WindowSizeConstraints::default()),
+      preferred_theme: None,
+    };
+
+    Ok(win)
+  }
+
   pub fn id(&self) -> WindowId {
     self.window_id
   }
@@ -843,7 +920,7 @@ impl Window {
     }
   }
 
-  pub(crate) fn set_skip_taskbar(&self, skip: bool) {
+  pub fn set_skip_taskbar(&self, skip: bool) {
     if let Err(e) = self
       .window_requests_tx
       .send((self.window_id, WindowRequest::SetSkipTaskbar(skip)))
