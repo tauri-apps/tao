@@ -97,12 +97,7 @@ impl WindowExtUnix for Window {
     event_loop_window_target: &EventLoopWindowTarget<T>,
     window: gtk::ApplicationWindow,
   ) -> Result<Window, OsError> {
-    let window = match UnixWindow::new_from_gtk_window(&event_loop_window_target.p, window) {
-      Ok(w) => w,
-      Err(e) => {
-        return Err(os_error!(e));
-      }
-    };
+    let window = UnixWindow::new_from_gtk_window(&event_loop_window_target.p, window)?;
     Ok(Window { window: window })
   }
 }
@@ -252,7 +247,7 @@ impl<T> EventLoopWindowTargetExtUnix for EventLoopWindowTarget<T> {
 
   #[inline]
   fn gtk_app(&self) -> &gtk::Application {
-    return &self.p.app;
+    &self.p.app
   }
 }
 
