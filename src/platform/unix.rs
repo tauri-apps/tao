@@ -206,7 +206,7 @@ pub trait EventLoopWindowTargetExtUnix {
   // /// The pointer will become invalid when the winit `EventLoop` is destroyed.
   // fn wayland_display(&self) -> Option<*mut raw::c_void>;
 
-  /// Returns the gtk application for this event loop
+  /// Returns the gtk application for this event loop.
   fn gtk_app(&self) -> &gtk::Application;
 }
 
