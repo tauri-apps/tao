@@ -876,7 +876,13 @@ impl Window {
     let window = self.window.clone();
     let active_window_handle = unsafe { GetActiveWindow() };
     if window.0 == active_window_handle {
-      return;
+      // active window could be minimized, so we skip requesting attention
+      // if it is not minimized
+      let window_flags = self.window_state.lock().window_flags();
+      let is_minimized = window_flags.contains(WindowFlags::MINIMIZED);
+      if !is_minimized {
+        return;
+      }
     }
 
     self.thread_executor.execute_in_thread(move || unsafe {
