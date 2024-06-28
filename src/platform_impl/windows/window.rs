@@ -875,9 +875,9 @@ impl Window {
   pub fn request_user_attention(&self, request_type: Option<UserAttentionType>) {
     let window = self.window.clone();
     let active_window_handle = unsafe { GetActiveWindow() };
-    // If the window is already active and not minimized, we don't need to do anything.
-    // but if the window is minimized, we need to attention the user.
     if window.0 == active_window_handle {
+      // active window could be minimized, so we skip requesting attention
+      // if it is not minimized
       let window_flags = self.window_state.lock().window_flags();
       let is_minimized = window_flags.contains(WindowFlags::MINIMIZED);
       if !is_minimized {
