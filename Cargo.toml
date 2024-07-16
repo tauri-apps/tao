@@ -98,7 +98,7 @@ once_cell = "1"
 [target."cfg(target_os = \"android\")".dependencies]
 jni = "0.21"
 ndk = "0.7"
-ndk-sys = "0.4"
+ndk-sys = "0.6"
 ndk-context = "0.1"
 tao-macros = { version = "0.1.0", path = "./tao-macros" }
 
