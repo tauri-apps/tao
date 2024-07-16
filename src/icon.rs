@@ -33,6 +33,9 @@ pub enum BadIcon {
     width_x_height: usize,
     pixel_count: usize,
   },
+  /// Produced when the provided icon width or height is equal to zero.
+  #[non_exhaustive]
+  DimensionsZero { width: u32, height: u32 },
   /// Produced when underlying OS functionality failed to create the icon
   OsError(io::Error),
 }
@@ -53,6 +56,13 @@ impl fmt::Display for BadIcon {
                 "The specified dimensions ({:?}x{:?}) don't match the number of pixels supplied by the `rgba` argument ({:?}). For those dimensions, the expected pixel count is {:?}.",
                 width, height, pixel_count, width_x_height,
             ),
+            BadIcon::DimensionsZero {
+              width,
+              height,
+          } => write!(f,
+              "The specified dimensions ({:?}x{:?}) must be greater than zero.",
+              width, height
+          ),
             BadIcon::OsError(e) => write!(f, "OS error when instantiating the icon: {:?}", e),
         }
   }
@@ -85,17 +95,21 @@ mod constructors {
     /// The length of `rgba` must be divisible by 4, and `width * height` must equal
     /// `rgba.len() / 4`. Otherwise, this will return a `BadIcon` error.
     pub fn from_rgba(rgba: Vec<u8>, width: u32, height: u32) -> Result<Self, BadIcon> {
+      if width == 0 || height == 0 {
+        return Err(BadIcon::DimensionsZero { width, height });
+      }
+
       if rgba.len() % PIXEL_SIZE != 0 {
         return Err(BadIcon::ByteCountNotDivisibleBy4 {
           byte_count: rgba.len(),
         });
       }
       let pixel_count = rgba.len() / PIXEL_SIZE;
-      if pixel_count != (width * height) as usize {
+      if pixel_count != width as usize * height as usize {
         Err(BadIcon::DimensionsVsPixelCount {
           width,
           height,
-          width_x_height: (width * height) as usize,
+          width_x_height: width as usize * height as usize,
           pixel_count,
         })
       } else {
