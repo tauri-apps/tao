@@ -20,7 +20,6 @@ use ndk::{
 use ndk_sys::AKeyEvent_getKeyCode;
 use std::{
   collections::VecDeque,
-  convert::TryInto,
   sync::RwLock,
   time::{Duration, Instant},
 };
@@ -190,7 +189,7 @@ impl<T: 'static> EventLoop<T> {
         },
         Some(EventSource::InputQueue) => {
           if let Some(input_queue) = ndk_glue::input_queue().as_ref() {
-            while let Ok(Some(event)) = input_queue.get_event() {
+            while let Ok(Some(event)) = input_queue.event() {
               if let Some(event) = input_queue.pre_dispatch(event) {
                 let mut handled = true;
                 let window_id = window::WindowId(WindowId);
@@ -256,13 +255,10 @@ impl<T: 'static> EventLoop<T> {
                     // We use the unsafe function directly because
                     // we want to forward the keycode value even if it doesn't have a variant
                     // defined in the ndk crate.
-                    let keycode_u32 = unsafe { AKeyEvent_getKeyCode(key.ptr().as_ptr()) as u32 };
-                    let keycode = keycode_u32
-                      .try_into()
-                      .unwrap_or(ndk::event::Keycode::Unknown);
-                    let physical_key =
-                      KeyCode::Unidentified(NativeKeyCode::Android(keycode.into()));
-                    let native = NativeKeyCode::Android(keycode_u32);
+                    let keycode_i32 = unsafe { AKeyEvent_getKeyCode(key.ptr().as_ptr()) };
+                    let keycode = ndk::event::Keycode::from(keycode_i32);
+                    let physical_key = KeyCode::Unidentified(NativeKeyCode::Android(keycode_i32));
+                    let native = NativeKeyCode::Android(keycode_i32);
                     let logical_key = keycode_to_logical(keycode, native);
                     // TODO: maybe use getUnicodeChar to get the logical key
 
@@ -284,6 +280,7 @@ impl<T: 'static> EventLoop<T> {
                     };
                     call_event_handler!(event_handler, self.window_target(), control_flow, event);
                   }
+                  _ => {}
                 };
                 input_queue.finish_event(event, handled);
               }
@@ -1202,6 +1199,7 @@ fn keycode_to_logical(keycode: ndk::event::Keycode, native: NativeKeyCode) -> Ke
     ThumbsUp => Key::Unidentified(native),
     ThumbsDown => Key::Unidentified(native),
     ProfileSwitch => Key::Unidentified(native),
+    _ => Key::Unidentified(native),
   }
 }
 

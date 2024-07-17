@@ -33,9 +33,9 @@ pub static PACKAGE: OnceCell<&str> = OnceCell::new();
 ///
 /// Arguments in order:
 /// 1. android app domain name in reverse snake_case as an ident (for ex: com_example)
-/// 2. android package anme (for ex: wryapp)
+/// 2. android package name (for ex: wryapp)
 /// 3. the android activity that has external linking for the following functions and calls them:
-///       - `private external fun create(activity: WryActivity)``
+///       - `private external fun create(activity: WryActivity)`
 ///       - `private external fun start()`
 ///       - `private external fun resume()`
 ///       - `private external fun pause()`
@@ -120,17 +120,19 @@ pub fn content_rect() -> Rect {
   CONTENT_RECT.read().unwrap().clone()
 }
 
-static PIPE: Lazy<[RawFd; 2]> = Lazy::new(|| {
+static PIPE: Lazy<[OwnedFd; 2]> = Lazy::new(|| {
   let mut pipe: [RawFd; 2] = Default::default();
   unsafe { libc::pipe(pipe.as_mut_ptr()) };
-  pipe
+  unsafe { pipe.map(|fd| OwnedFd::from_raw_fd(fd)) }
 });
 
 pub fn poll_events() -> Option<Event> {
   unsafe {
     let size = std::mem::size_of::<Event>();
     let mut event = Event::Start;
-    if libc::read(PIPE[0], &mut event as *mut _ as *mut _, size) == size as libc::ssize_t {
+    if libc::read(PIPE[0].as_raw_fd(), &mut event as *mut _ as *mut _, size)
+      == size as libc::ssize_t
+    {
       Some(event)
     } else {
       None
@@ -141,7 +143,7 @@ pub fn poll_events() -> Option<Event> {
 unsafe fn wake(event: Event) {
   log::trace!("{:?}", event);
   let size = std::mem::size_of::<Event>();
-  let res = libc::write(PIPE[1], &event as *const _ as *const _, size);
+  let res = libc::write(PIPE[1].as_raw_fd(), &event as *const _ as *const _, size);
   assert_eq!(res, size as libc::ssize_t);
 }
 
@@ -236,7 +238,7 @@ pub unsafe fn create(
     let foreign = looper.into_foreign();
     foreign
       .add_fd(
-        PIPE[0],
+        PIPE[0].as_fd(),
         NDK_GLUE_LOOPER_EVENT_PIPE_IDENT,
         FdEvent::INPUT,
         std::ptr::null_mut(),
