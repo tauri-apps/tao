@@ -120,17 +120,19 @@ pub fn content_rect() -> Rect {
   CONTENT_RECT.read().unwrap().clone()
 }
 
-static PIPE: Lazy<[RawFd; 2]> = Lazy::new(|| {
+pub static PIPE: Lazy<[OwnedFd; 2]> = Lazy::new(|| {
   let mut pipe: [RawFd; 2] = Default::default();
   unsafe { libc::pipe(pipe.as_mut_ptr()) };
-  pipe
+  pipe.map(|fd| unsafe { OwnedFd::from_raw_fd(fd) })
 });
 
 pub fn poll_events() -> Option<Event> {
   unsafe {
     let size = std::mem::size_of::<Event>();
     let mut event = Event::Start;
-    if libc::read(PIPE[0], &mut event as *mut _ as *mut _, size) == size as libc::ssize_t {
+    if libc::read(PIPE[0].as_raw_fd(), &mut event as *mut _ as *mut _, size)
+      == size as libc::ssize_t
+    {
       Some(event)
     } else {
       None
@@ -141,7 +143,7 @@ pub fn poll_events() -> Option<Event> {
 unsafe fn wake(event: Event) {
   log::trace!("{:?}", event);
   let size = std::mem::size_of::<Event>();
-  let res = libc::write(PIPE[1], &event as *const _ as *const _, size);
+  let res = libc::write(PIPE[1].as_raw_fd(), &event as *const _ as *const _, size);
   assert_eq!(res, size as libc::ssize_t);
 }
 
@@ -179,7 +181,7 @@ pub unsafe fn create(
   mut env: JNIEnv,
   _jclass: JClass,
   jobject: JObject,
-  setup: unsafe fn(&str, JNIEnv, &ForeignLooper, GlobalRef),
+  setup: unsafe fn(&str, JNIEnv, &ThreadLooper, GlobalRef),
   main: fn(),
 ) {
   //-> jobjectArray {
@@ -204,16 +206,20 @@ pub unsafe fn create(
     activity.as_obj().as_raw() as *mut _,
   );
 
-  let looper = ThreadLooper::for_thread().unwrap().into_foreign();
+  let looper = ThreadLooper::for_thread().unwrap();
   setup(PACKAGE.get().unwrap(), env, &looper, activity);
 
-  let mut logpipe: [RawFd; 2] = Default::default();
-  libc::pipe(logpipe.as_mut_ptr());
-  libc::dup2(logpipe[1], libc::STDOUT_FILENO);
-  libc::dup2(logpipe[1], libc::STDERR_FILENO);
+  let logpipe = {
+    let mut logpipe: [RawFd; 2] = Default::default();
+    libc::pipe(logpipe.as_mut_ptr());
+    libc::dup2(logpipe[1], libc::STDOUT_FILENO);
+    libc::dup2(logpipe[1], libc::STDERR_FILENO);
+
+    logpipe.map(|fd| unsafe { OwnedFd::from_raw_fd(fd) })
+  };
   thread::spawn(move || {
     let tag = CStr::from_bytes_with_nul(b"RustStdoutStderr\0").unwrap();
-    let file = File::from_raw_fd(logpipe[0]);
+    let file = File::from_raw_fd(logpipe[0].as_raw_fd());
     let mut reader = BufReader::new(file);
     let mut buffer = String::new();
     loop {
@@ -236,7 +242,7 @@ pub unsafe fn create(
     let foreign = looper.into_foreign();
     foreign
       .add_fd(
-        PIPE[0],
+        PIPE[0].as_fd(),
         NDK_GLUE_LOOPER_EVENT_PIPE_IDENT,
         FdEvent::INPUT,
         std::ptr::null_mut(),
