@@ -7,7 +7,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust_version: [stable]
         platform:
           # Windows
           - { id: windows, target: x86_64-pc-windows-msvc, os: windows-latest }
@@ -48,12 +47,11 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.cargo
-          key: ${{ matrix.platform.target }}-cargo-${{ matrix.rust_version }}
+          key: ${{ matrix.platform.target }}-cargo-stable
 
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform.target }}
-          toolchain: ${{ matrix.rust_version }}
 
       - name: Install Gtk (ubuntu only)
         if: matrix.platform.os == 'ubuntu-latest'
@@ -108,12 +106,11 @@ jobs:
           !contains(matrix.platform.target, 'ios'))
         run: cargo $CMD test --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,$FEATURES
 
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@nightly
         if: (
           !contains(matrix.platform.target, 'android') &&
           !contains(matrix.platform.target, 'ios'))
         with:
-          toolchain: nightly
           targets: ${{ matrix.platform.target }}
           components: miri
 
@@ -133,7 +130,7 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.cargo
-          key: ${{ matrix.platform.target }}-cargo-${{ matrix.rust_version }}
+          key: ${{ matrix.platform.target }}-cargo-stable
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -146,7 +143,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
+      - uses: dtolnay/rust-toolchain@stable
       - run: cargo fmt --all -- --check
