@@ -70,7 +70,7 @@ impl fmt::Display for BadIcon {
               width,
               height,
             } => write!(f,
-                "The specified dimensions multiplication overflow ({:?}x{:?}).",
+                "The specified dimensions multiplication has overflowed ({:?}x{:?}).",
                 width, height
             ),
             BadIcon::OsError(e) => write!(f, "OS error when instantiating the icon: {:?}", e),
