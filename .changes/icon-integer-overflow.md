@@ -2,4 +2,4 @@
 "tao": "patch"
 ---
 
-Fix integer overflow when validating the icon data in `Icon::from_rgba`
+Return a new `BadIcon::DimensionsMultiplyOverflow` error variant in `Icon::from_rgba` if dimensions multiplication overflowed.

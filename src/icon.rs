@@ -36,6 +36,9 @@ pub enum BadIcon {
   /// Produced when the provided icon width or height is equal to zero.
   #[non_exhaustive]
   DimensionsZero { width: u32, height: u32 },
+  /// Produced when the provided icon width or height is equal to zero.
+  #[non_exhaustive]
+  DimensionsMultiplyOverflow { width: u32, height: u32 },
   /// Produced when underlying OS functionality failed to create the icon
   OsError(io::Error),
 }
@@ -59,10 +62,17 @@ impl fmt::Display for BadIcon {
             BadIcon::DimensionsZero {
               width,
               height,
-          } => write!(f,
-              "The specified dimensions ({:?}x{:?}) must be greater than zero.",
-              width, height
-          ),
+            } => write!(f,
+                "The specified dimensions ({:?}x{:?}) must be greater than zero.",
+                width, height
+            ),
+            BadIcon::DimensionsMultiplyOverflow {
+              width,
+              height,
+            } => write!(f,
+                "The specified dimensions multiplication overflow ({:?}x{:?}).",
+                width, height
+            ),
             BadIcon::OsError(e) => write!(f, "OS error when instantiating the icon: {:?}", e),
         }
   }
@@ -104,12 +114,19 @@ mod constructors {
           byte_count: rgba.len(),
         });
       }
+      let width_usize = width as usize;
+      let height_usize = height as usize;
+      let width_x_height = match width_usize.checked_mul(height_usize) {
+        Some(v) => v,
+        None => return Err(BadIcon::DimensionsMultiplyOverflow { width, height }),
+      };
+
       let pixel_count = rgba.len() / PIXEL_SIZE;
-      if pixel_count != width as usize * height as usize {
+      if pixel_count != width_x_height {
         Err(BadIcon::DimensionsVsPixelCount {
           width,
           height,
-          width_x_height: width as usize * height as usize,
+          width_x_height,
           pixel_count,
         })
       } else {
