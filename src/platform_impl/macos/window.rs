@@ -1422,6 +1422,8 @@ impl UnownedWindow {
 
   pub fn set_theme(&self, theme: Option<Theme>) {
     set_ns_theme(theme);
+    let mut state = self.shared_state.lock().unwrap();
+    state.current_theme = theme.unwrap_or_else(get_ns_theme);
   }
 
   pub fn set_content_protection(&self, enabled: bool) {
