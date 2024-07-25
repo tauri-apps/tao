@@ -939,7 +939,7 @@ impl Window {
   }
 
   pub fn theme(&self) -> Theme {
-    if let Some(theme) = self.preferred_theme.lock().unwrap() {
+    if let Some(theme) = *self.preferred_theme.lock().unwrap() {
       return theme;
     }
 
@@ -954,7 +954,10 @@ impl Window {
   }
 
   pub fn set_theme(&self, theme: Option<Theme>) {
-    self.preferred_theme.lock().unwrap().replace(theme);
+    {
+      let preferred_theme = self.preferred_theme.lock().unwrap();
+      preferred_theme = theme;
+    }
     if let Err(e) = self
       .window_requests_tx
       .send((WindowId::dummy(), WindowRequest::SetTheme(theme)))
