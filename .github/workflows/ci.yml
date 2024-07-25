@@ -7,7 +7,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust_version: [stable]
         platform:
           # Windows
           - { id: windows, target: x86_64-pc-windows-msvc, os: windows-latest }
@@ -42,18 +41,17 @@ jobs:
 
     runs-on: ${{ matrix.platform.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Cache cargo folder
         uses: actions/cache@v1
         with:
           path: ~/.cargo
-          key: ${{ matrix.platform.target }}-cargo-${{ matrix.rust_version }}
+          key: ${{ matrix.platform.target }}-cargo-stable
 
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          target: ${{ matrix.platform.target }}
-          toolchain: ${{ matrix.rust_version }}
+          targets: ${{ matrix.platform.target }}
 
       - name: Install Gtk (ubuntu only)
         if: matrix.platform.os == 'ubuntu-latest'
@@ -108,13 +106,12 @@ jobs:
           !contains(matrix.platform.target, 'ios'))
         run: cargo $CMD test --verbose --target ${{ matrix.platform.target }} $OPTIONS --features serde,$FEATURES
 
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@nightly
         if: (
           !contains(matrix.platform.target, 'android') &&
           !contains(matrix.platform.target, 'ios'))
         with:
-          toolchain: nightly
-          target: ${{ matrix.platform.target }}
+          targets: ${{ matrix.platform.target }}
           components: miri
 
       - name: Run tests with miri
@@ -127,17 +124,15 @@ jobs:
   test_tao_macros:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Cache cargo folder
         uses: actions/cache@v1
         with:
           path: ~/.cargo
-          key: ${{ matrix.platform.target }}-cargo-${{ matrix.rust_version }}
+          key: ${{ matrix.platform.target }}-cargo-stable
 
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Run tests
         shell: bash
@@ -147,12 +142,6 @@ jobs:
     name: fmt check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-      - name: fmt check
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo fmt --all -- --check

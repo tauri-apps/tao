@@ -2,6 +2,7 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(windows)]
 use std::{num::NonZeroU32, rc::Rc};
 
 use tao::{
