@@ -58,7 +58,7 @@ softbuffer = "0.4"
 parking_lot = "0.12"
 unicode-segmentation = "1.11"
 windows-version = "0.1"
-windows-core = "0.57"
+windows-core = "0.58"
 
   [target."cfg(target_os = \"windows\")".dependencies.windows]
   version = "0.57"
