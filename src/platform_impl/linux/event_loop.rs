@@ -21,6 +21,7 @@ use gtk::{
   cairo, gdk, gio,
   glib::{self},
   prelude::*,
+  Settings,
 };
 
 use crate::{
@@ -33,7 +34,9 @@ use crate::{
   keyboard::ModifiersState,
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{device, DEVICE_ID},
-  window::{CursorIcon, Fullscreen, ProgressBarState, ResizeDirection, WindowId as RootWindowId},
+  window::{
+    CursorIcon, Fullscreen, ProgressBarState, ResizeDirection, Theme, WindowId as RootWindowId,
+  },
 };
 
 use super::{
