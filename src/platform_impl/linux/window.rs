@@ -955,8 +955,8 @@ impl Window {
 
   pub fn set_theme(&self, theme: Option<Theme>) {
     {
-      let preferred_theme = self.preferred_theme.lock().unwrap();
-      preferred_theme = theme;
+      let mut preferred_theme = self.preferred_theme.lock().unwrap();
+      *preferred_theme = theme;
     }
     if let Err(e) = self
       .window_requests_tx
