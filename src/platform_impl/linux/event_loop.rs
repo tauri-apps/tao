@@ -392,6 +392,7 @@ impl<T: 'static> EventLoop<T> {
             };
           }
           WindowRequest::ProgressBarState(_) => unreachable!(),
+          WindowRequest::SetTheme(_) => unreachable!(),
           WindowRequest::WireUpEvents {
             transparent,
             fullscreen,
@@ -856,6 +857,14 @@ impl<T: 'static> EventLoop<T> {
         match request {
           WindowRequest::ProgressBarState(state) => {
             taskbar.update(state);
+          }
+          WindowRequest::SetTheme(theme) => {
+            if let Some(settings) = Settings::default() {
+              match theme {
+                Some(Theme::Dark) => settings.set_gtk_application_prefer_dark_theme(true),
+                Some(Theme::Light) | None => settings.set_gtk_application_prefer_dark_theme(false),
+              }
+            }
           }
           _ => unreachable!(),
         }

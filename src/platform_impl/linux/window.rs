@@ -65,7 +65,7 @@ pub struct Window {
   inner_size_constraints: RefCell<WindowSizeConstraints>,
   /// Draw event Sender
   draw_tx: crossbeam_channel::Sender<WindowId>,
-  preferred_theme: Option<Theme>,
+  preferred_theme: std::sync::Mutex<Option<Theme>>,
 }
 
 impl Window {
@@ -306,7 +306,7 @@ impl Window {
       minimized,
       fullscreen: RefCell::new(attributes.fullscreen),
       inner_size_constraints: RefCell::new(attributes.inner_size_constraints),
-      preferred_theme,
+      preferred_theme: std::sync::Mutex::new(preferred_theme),
     };
 
     win.set_skip_taskbar(pl_attribs.skip_taskbar);
@@ -385,7 +385,7 @@ impl Window {
       minimized,
       fullscreen: RefCell::new(None),
       inner_size_constraints: RefCell::new(WindowSizeConstraints::default()),
-      preferred_theme: None,
+      preferred_theme: std::sync::Mutex::new(None),
     };
 
     Ok(win)
@@ -939,7 +939,7 @@ impl Window {
   }
 
   pub fn theme(&self) -> Theme {
-    if let Some(theme) = self.preferred_theme {
+    if let Some(theme) = self.preferred_theme.lock().unwrap() {
       return theme;
     }
 
@@ -951,6 +951,16 @@ impl Window {
     }
 
     Theme::Light
+  }
+
+  pub fn set_theme(&self, theme: Option<Theme>) {
+    self.preferred_theme.lock().unwrap().replace(theme);
+    if let Err(e) = self
+      .window_requests_tx
+      .send((WindowId::dummy(), WindowRequest::SetTheme(theme)))
+    {
+      log::warn!("Fail to send set theme request: {e}");
+    }
   }
 }
 
@@ -990,6 +1000,7 @@ pub enum WindowRequest {
   },
   SetVisibleOnAllWorkspaces(bool),
   ProgressBarState(ProgressBarState),
+  SetTheme(Option<Theme>),
 }
 
 impl Drop for Window {
