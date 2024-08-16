@@ -19,8 +19,8 @@ use std::ffi::c_void;
 
 use crate::window::Theme;
 
-static HUXTHEME: Lazy<HMODULE> =
-  Lazy::new(|| unsafe { LoadLibraryA(s!("uxtheme.dll")).unwrap_or_default() });
+static HUXTHEME: Lazy<isize> =
+  Lazy::new(|| unsafe { LoadLibraryA(s!("uxtheme.dll")).unwrap_or_default().0 as _ });
 
 static WIN10_BUILD_VERSION: Lazy<Option<u32>> = Lazy::new(|| {
   let version = windows_version::OsVersion::current();
@@ -44,12 +44,12 @@ pub fn allow_dark_mode_for_app(is_dark_mode: bool) {
   const UXTHEME_ALLOWDARKMODEFORAPP_ORDINAL: u16 = 135;
   type AllowDarkModeForApp = unsafe extern "system" fn(bool) -> bool;
   static ALLOW_DARK_MODE_FOR_APP: Lazy<Option<AllowDarkModeForApp>> = Lazy::new(|| unsafe {
-    if HUXTHEME.is_invalid() {
+    if HMODULE(*HUXTHEME as _).is_invalid() {
       return None;
     }
 
     GetProcAddress(
-      *HUXTHEME,
+      HMODULE(*HUXTHEME as _),
       PCSTR::from_raw(UXTHEME_ALLOWDARKMODEFORAPP_ORDINAL as usize as *mut _),
     )
     .map(|handle| std::mem::transmute(handle))
@@ -66,12 +66,12 @@ pub fn allow_dark_mode_for_app(is_dark_mode: bool) {
   const UXTHEME_SETPREFERREDAPPMODE_ORDINAL: u16 = 135;
   type SetPreferredAppMode = unsafe extern "system" fn(PreferredAppMode) -> PreferredAppMode;
   static SET_PREFERRED_APP_MODE: Lazy<Option<SetPreferredAppMode>> = Lazy::new(|| unsafe {
-    if HUXTHEME.is_invalid() {
+    if HMODULE(*HUXTHEME as _).is_invalid() {
       return None;
     }
 
     GetProcAddress(
-      *HUXTHEME,
+      HMODULE(*HUXTHEME as _),
       PCSTR::from_raw(UXTHEME_SETPREFERREDAPPMODE_ORDINAL as usize as *mut _),
     )
     .map(|handle| std::mem::transmute(handle))
@@ -100,12 +100,12 @@ fn refresh_immersive_color_policy_state() {
   type RefreshImmersiveColorPolicyState = unsafe extern "system" fn();
   static REFRESH_IMMERSIVE_COLOR_POLICY_STATE: Lazy<Option<RefreshImmersiveColorPolicyState>> =
     Lazy::new(|| unsafe {
-      if HUXTHEME.is_invalid() {
+      if HMODULE(*HUXTHEME as _).is_invalid() {
         return None;
       }
 
       GetProcAddress(
-        *HUXTHEME,
+        HMODULE(*HUXTHEME as _),
         PCSTR::from_raw(UXTHEME_REFRESHIMMERSIVECOLORPOLICYSTATE_ORDINAL as usize as *mut _),
       )
       .map(|handle| std::mem::transmute(handle))
@@ -142,12 +142,12 @@ pub fn allow_dark_mode_for_window(hwnd: HWND, is_dark_mode: bool) {
   const UXTHEME_ALLOWDARKMODEFORWINDOW_ORDINAL: u16 = 133;
   type AllowDarkModeForWindow = unsafe extern "system" fn(HWND, bool) -> bool;
   static ALLOW_DARK_MODE_FOR_WINDOW: Lazy<Option<AllowDarkModeForWindow>> = Lazy::new(|| unsafe {
-    if HUXTHEME.is_invalid() {
+    if HMODULE(*HUXTHEME as _).is_invalid() {
       return None;
     }
 
     GetProcAddress(
-      *HUXTHEME,
+      HMODULE(*HUXTHEME as _),
       PCSTR::from_raw(UXTHEME_ALLOWDARKMODEFORWINDOW_ORDINAL as usize as *mut _),
     )
     .map(|handle| std::mem::transmute(handle))
@@ -206,12 +206,12 @@ fn should_apps_use_dark_mode() -> bool {
   const UXTHEME_SHOULDAPPSUSEDARKMODE_ORDINAL: u16 = 132;
   type ShouldAppsUseDarkMode = unsafe extern "system" fn() -> bool;
   static SHOULD_APPS_USE_DARK_MODE: Lazy<Option<ShouldAppsUseDarkMode>> = Lazy::new(|| unsafe {
-    if HUXTHEME.is_invalid() {
+    if HMODULE(*HUXTHEME as _).is_invalid() {
       return None;
     }
 
     GetProcAddress(
-      *HUXTHEME,
+      HMODULE(*HUXTHEME as _),
       PCSTR::from_raw(UXTHEME_SHOULDAPPSUSEDARKMODE_ORDINAL as usize as *mut _),
     )
     .map(|handle| std::mem::transmute(handle))

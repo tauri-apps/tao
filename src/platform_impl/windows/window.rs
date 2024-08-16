@@ -57,6 +57,17 @@ use crate::{
 
 use super::keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS};
 
+/// A simple non-owning wrapper around a window.
+#[derive(Clone, Copy)]
+pub struct WindowWrapper(pub HWND);
+
+// Send and Sync are not implemented for HWND and HDC, we have to wrap it and implement them manually.
+// For more info see:
+// https://github.com/retep998/winapi-rs/issues/360
+// https://github.com/retep998/winapi-rs/issues/396
+unsafe impl Sync for WindowWrapper {}
+unsafe impl Send for WindowWrapper {}
+
 /// The Win32 implementation of the main `Window` object.
 pub struct Window {
   /// Main handle for the window.
@@ -146,10 +157,10 @@ impl Window {
   }
   #[inline]
   pub fn set_visible(&self, visible: bool) {
-    let window = self.window.clone();
+    let window = self.window.0 .0 as isize;
     let window_state = Arc::clone(&self.window_state);
     self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+      WindowState::set_window_flags(window_state.lock(), HWND(window as _), |f| {
         f.set(WindowFlags::VISIBLE, visible)
       });
     });
@@ -203,9 +214,9 @@ impl Window {
     let (x, y): (i32, i32) = position.to_physical::<i32>(self.scale_factor()).into();
 
     let window_state = Arc::clone(&self.window_state);
-    let window = self.window.clone();
+    let window = self.window.0 .0 as isize;
     self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+      WindowState::set_window_flags(window_state.lock(), HWND(window as _), |f| {
         f.set(WindowFlags::MAXIMIZED, false)
       });
     });
@@ -260,9 +271,9 @@ impl Window {
       .window_flags
       .contains(WindowFlags::MARKER_DECORATIONS);
 
-    let window = self.window.clone();
+    let window = self.window.0 .0 as isize;
     self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+      WindowState::set_window_flags(window_state.lock(), HWND(window as _), |f| {
         f.set(WindowFlags::MAXIMIZED, false)
       });
     });
@@ -310,11 +321,11 @@ impl Window {
 
   #[inline]
   pub fn set_resizable(&self, resizable: bool) {
-    let window = self.window.clone();
+    let window = self.window.0 .0 as isize;
     let window_state = Arc::clone(&self.window_state);
 
     self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+      WindowState::set_window_flags(window_state.lock(), HWND(window as _), |f| {
         f.set(WindowFlags::RESIZABLE, resizable)
       });
     });
@@ -322,11 +333,11 @@ impl Window {
 
   #[inline]
   pub fn set_minimizable(&self, minimizable: bool) {
-    let window = self.window.clone();
+    let window = self.window.0 .0 as isize;
     let window_state = Arc::clone(&self.window_state);
 
     self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+      WindowState::set_window_flags(window_state.lock(), HWND(window as _), |f| {
         f.set(WindowFlags::MINIMIZABLE, minimizable)
       });
     });
@@ -334,11 +345,11 @@ impl Window {
 
   #[inline]
   pub fn set_maximizable(&self, maximizable: bool) {
-    let window = self.window.clone();
+    let window = self.window.0 .0 as isize;
     let window_state = Arc::clone(&self.window_state);
 
     self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+      WindowState::set_window_flags(window_state.lock(), HWND(window as _), |f| {
         f.set(WindowFlags::MAXIMIZABLE, maximizable)
       });
     });
@@ -346,10 +357,10 @@ impl Window {
 
   #[inline]
   pub fn set_closable(&self, closable: bool) {
-    let window = self.window.clone();
+    let window = self.window.0 .0 as isize;
     let window_state = Arc::clone(&self.window_state);
     self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+      WindowState::set_window_flags(window_state.lock(), HWND(window as _), |f| {
         f.set(WindowFlags::CLOSABLE, closable)
       });
     });
@@ -398,7 +409,7 @@ impl Window {
     let mut window_handle = rwh_06::Win32WindowHandle::new(unsafe {
       // SAFETY: Handle will never be zero.
       let window = self.window.0 .0;
-      std::num::NonZeroIsize::new_unchecked(window)
+      std::num::NonZeroIsize::new_unchecked(window as _)
     });
     let hinstance = util::GetWindowLongPtrW(self.hwnd(), GWLP_HINSTANCE);
     window_handle.hinstance = std::num::NonZeroIsize::new(hinstance);
@@ -424,7 +435,7 @@ impl Window {
 
   #[inline]
   pub fn set_cursor_grab(&self, grab: bool) -> Result<(), ExternalError> {
-    let window = self.window.clone();
+    let window = self.window.0 .0 as isize;
     let window_state = Arc::clone(&self.window_state);
     let (tx, rx) = channel::unbounded();
 
@@ -432,7 +443,7 @@ impl Window {
       let result = window_state
         .lock()
         .mouse
-        .set_cursor_flags(window.0, |f| f.set(CursorFlags::GRABBED, grab))
+        .set_cursor_flags(HWND(window as _), |f| f.set(CursorFlags::GRABBED, grab))
         .map_err(|e| ExternalError::Os(os_error!(OsError::IoError(e))));
       let _ = tx.send(result);
     });
@@ -441,7 +452,7 @@ impl Window {
 
   #[inline]
   pub fn set_cursor_visible(&self, visible: bool) {
-    let window = self.window.clone();
+    let window = self.window.0 .0 as isize;
     let window_state = Arc::clone(&self.window_state);
     let (tx, rx) = channel::unbounded();
 
@@ -449,7 +460,7 @@ impl Window {
       let result = window_state
         .lock()
         .mouse
-        .set_cursor_flags(window.0, |f| f.set(CursorFlags::HIDDEN, !visible))
+        .set_cursor_flags(HWND(window as _), |f| f.set(CursorFlags::HIDDEN, !visible))
         .map_err(|e| e.to_string());
       let _ = tx.send(result);
     });
@@ -521,10 +532,10 @@ impl Window {
 
   #[inline]
   pub fn set_ignore_cursor_events(&self, ignore: bool) -> Result<(), ExternalError> {
-    let window = self.window.clone();
+    let window = self.window.0 .0 as isize;
     let window_state = Arc::clone(&self.window_state);
     self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+      WindowState::set_window_flags(window_state.lock(), HWND(window as _), |f| {
         f.set(WindowFlags::IGNORE_CURSOR_EVENT, ignore)
       });
     });
@@ -534,12 +545,12 @@ impl Window {
 
   #[inline]
   pub fn id(&self) -> WindowId {
-    WindowId(self.window.0 .0)
+    WindowId(self.window.0 .0 as _)
   }
 
   #[inline]
   pub fn set_minimized(&self, minimized: bool) {
-    let window = self.window.clone();
+    let window = self.window.0 .0 as isize;
     let window_state = Arc::clone(&self.window_state);
 
     let is_minimized = self.is_minimized();
@@ -548,7 +559,7 @@ impl Window {
       WindowState::set_window_flags_in_place(&mut window_state.lock(), |f| {
         f.set(WindowFlags::MINIMIZED, is_minimized)
       });
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+      WindowState::set_window_flags(window_state.lock(), HWND(window as _), |f| {
         f.set(WindowFlags::MINIMIZED, minimized)
       });
     });
@@ -556,11 +567,11 @@ impl Window {
 
   #[inline]
   pub fn set_maximized(&self, maximized: bool) {
-    let window = self.window.clone();
+    let window = self.window.0 .0 as isize;
     let window_state = Arc::clone(&self.window_state);
 
     self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+      WindowState::set_window_flags(window_state.lock(), HWND(window as _), |f| {
         f.set(WindowFlags::MAXIMIZED, maximized)
       });
     });
@@ -643,7 +654,9 @@ impl Window {
     window_state_lock.fullscreen = fullscreen.clone();
     drop(window_state_lock);
 
+    let window_isize = window.0 .0 as isize;
     self.thread_executor.execute_in_thread(move || {
+      let hwnd = HWND(window_isize as _);
       // Change video mode if we're transitioning to or from exclusive
       // fullscreen
       match (&old_fullscreen, &fullscreen) {
@@ -707,7 +720,7 @@ impl Window {
       }
 
       // Update window style
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+      WindowState::set_window_flags(window_state.lock(), HWND(window_isize as _), |f| {
         f.set(
           WindowFlags::MARKER_EXCLUSIVE_FULLSCREEN,
           matches!(fullscreen, Some(Fullscreen::Exclusive(_))),
@@ -724,7 +737,7 @@ impl Window {
           // Save window bounds before entering fullscreen
           let placement = unsafe {
             let mut placement = WINDOWPLACEMENT::default();
-            let _ = GetWindowPlacement(window.0, &mut placement);
+            let _ = GetWindowPlacement(hwnd, &mut placement);
             placement
           };
 
@@ -734,7 +747,7 @@ impl Window {
             Fullscreen::Exclusive(video_mode) => video_mode.monitor(),
             Fullscreen::Borderless(Some(monitor)) => monitor.clone(),
             Fullscreen::Borderless(None) => RootMonitorHandle {
-              inner: monitor::current_monitor(window.0),
+              inner: monitor::current_monitor(hwnd),
             },
           };
 
@@ -743,7 +756,7 @@ impl Window {
 
           unsafe {
             let _ = SetWindowPos(
-              window.0,
+              hwnd,
               HWND::default(),
               position.0,
               position.1,
@@ -751,7 +764,7 @@ impl Window {
               size.1 as i32,
               SWP_ASYNCWINDOWPOS | SWP_NOZORDER,
             );
-            let _ = InvalidateRgn(window.0, HRGN::default(), false);
+            let _ = InvalidateRgn(hwnd, HRGN::default(), false);
           }
         }
         None => {
@@ -759,26 +772,26 @@ impl Window {
           if let Some(SavedWindow { placement }) = window_state_lock.saved_window.take() {
             drop(window_state_lock);
             unsafe {
-              let _ = SetWindowPlacement(window.0, &placement);
-              let _ = InvalidateRgn(window.0, HRGN::default(), false);
+              let _ = SetWindowPlacement(hwnd, &placement);
+              let _ = InvalidateRgn(hwnd, HRGN::default(), false);
             }
           }
         }
       }
 
       unsafe {
-        taskbar_mark_fullscreen(window.0, fullscreen.is_some());
+        taskbar_mark_fullscreen(hwnd, fullscreen.is_some());
       }
     });
   }
 
   #[inline]
   pub fn set_decorations(&self, decorations: bool) {
-    let window = self.window.clone();
+    let window = self.window.0 .0 as isize;
     let window_state = Arc::clone(&self.window_state);
 
     self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+      WindowState::set_window_flags(window_state.lock(), HWND(window as _), |f| {
         f.set(WindowFlags::MARKER_DECORATIONS, decorations)
       });
     });
@@ -786,11 +799,11 @@ impl Window {
 
   #[inline]
   pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
-    let window = self.window.clone();
+    let window = self.window.0 .0 as isize;
     let window_state = Arc::clone(&self.window_state);
 
     self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+      WindowState::set_window_flags(window_state.lock(), HWND(window as _), |f| {
         f.set(WindowFlags::ALWAYS_ON_BOTTOM, always_on_bottom)
       });
     });
@@ -798,22 +811,22 @@ impl Window {
 
   #[inline]
   pub fn set_always_on_top(&self, always_on_top: bool) {
-    let window = self.window.clone();
+    let window = self.window.0 .0 as isize;
     let window_state = Arc::clone(&self.window_state);
 
     self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+      WindowState::set_window_flags(window_state.lock(), HWND(window as _), |f| {
         f.set(WindowFlags::ALWAYS_ON_TOP, always_on_top)
       });
     });
   }
 
   pub fn set_rtl(&self, rtl: bool) {
-    let window = self.window.clone();
+    let window = self.window.0 .0 as isize;
     let window_state = Arc::clone(&self.window_state);
 
     self.thread_executor.execute_in_thread(move || {
-      WindowState::set_window_flags(window_state.lock(), window.0, |f| {
+      WindowState::set_window_flags(window_state.lock(), HWND(window as _), |f| {
         f.set(WindowFlags::RIGHT_TO_LEFT_LAYOUT, rtl)
       });
     });
@@ -885,6 +898,8 @@ impl Window {
       }
     }
 
+    let window_isize = window.0 .0 as isize;
+
     self.thread_executor.execute_in_thread(move || unsafe {
       let (flags, count) = request_type
         .map(|ty| match ty {
@@ -895,7 +910,7 @@ impl Window {
 
       let flash_info = FLASHWINFO {
         cbSize: mem::size_of::<FLASHWINFO>() as u32,
-        hwnd: window.0,
+        hwnd: HWND(window_isize as _),
         dwFlags: flags,
         uCount: count,
         dwTimeout: 0,
@@ -1015,17 +1030,6 @@ impl Drop for Window {
   }
 }
 
-/// A simple non-owning wrapper around a window.
-#[derive(Clone)]
-pub struct WindowWrapper(HWND);
-
-// Send and Sync are not implemented for HWND and HDC, we have to wrap it and implement them manually.
-// For more info see:
-// https://github.com/retep998/winapi-rs/issues/360
-// https://github.com/retep998/winapi-rs/issues/396
-unsafe impl Sync for WindowWrapper {}
-unsafe impl Send for WindowWrapper {}
-
 unsafe fn init<T: 'static>(
   attributes: WindowAttributes,
   pl_attribs: PlatformSpecificWindowBuilderAttributes,
@@ -1094,7 +1098,7 @@ unsafe fn init<T: 'static>(
       pl_attribs.menu.unwrap_or_default(),
       GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
       Some(Box::into_raw(Box::new(window_flags)) as _),
-    );
+    )?;
 
     if !IsWindow(handle).as_bool() {
       return Err(os_error!(OsError::IoError(io::Error::last_os_error())));

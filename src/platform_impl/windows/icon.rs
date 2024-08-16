@@ -134,7 +134,7 @@ impl WinIcon {
         hwnd,
         WM_SETICON,
         WPARAM(icon_type as _),
-        LPARAM(self.as_raw_handle().0),
+        LPARAM(self.as_raw_handle().0 as _),
       );
     }
   }
