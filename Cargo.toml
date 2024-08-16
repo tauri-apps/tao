@@ -106,7 +106,7 @@ tao-macros = { version = "0.1.0", path = "./tao-macros" }
 objc = "0.2"
 
 [target."cfg(target_os = \"macos\")".dependencies]
-cocoa = "0.25"
+cocoa = "0.26"
 core-foundation = "0.9"
 core-graphics = "0.23"
 dispatch = "0.2"
