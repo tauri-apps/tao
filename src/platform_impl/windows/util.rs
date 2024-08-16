@@ -27,7 +27,6 @@ use windows::{
     UI::{
       HiDpi::*,
       Input::KeyboardAndMouse::*,
-      TextServices::HKL,
       WindowsAndMessaging::{self as win32wm, *},
     },
   },

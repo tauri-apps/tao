@@ -102,7 +102,7 @@ impl FileDropHandler {
 }
 
 #[allow(non_snake_case)]
-impl IDropTarget_Impl for FileDropHandler {
+impl IDropTarget_Impl for FileDropHandler_Impl {
   fn DragEnter(
     &self,
     pDataObj: Option<&IDataObject>,
@@ -112,9 +112,9 @@ impl IDropTarget_Impl for FileDropHandler {
   ) -> windows::core::Result<()> {
     use crate::event::WindowEvent::HoveredFile;
     unsafe {
-      let hdrop = Self::iterate_filenames(pDataObj, |filename| {
+      let hdrop = FileDropHandler::iterate_filenames(pDataObj, |filename| {
         (self.send_event)(Event::WindowEvent {
-          window_id: SuperWindowId(WindowId(self.window.0)),
+          window_id: SuperWindowId(WindowId(self.window.0 as _)),
           event: HoveredFile(filename),
         });
       });
@@ -147,7 +147,7 @@ impl IDropTarget_Impl for FileDropHandler {
     use crate::event::WindowEvent::HoveredFileCancelled;
     if unsafe { *self.hovered_is_valid.get() } {
       (self.send_event)(Event::WindowEvent {
-        window_id: SuperWindowId(WindowId(self.window.0)),
+        window_id: SuperWindowId(WindowId(self.window.0 as _)),
         event: HoveredFileCancelled,
       });
     }
@@ -163,9 +163,9 @@ impl IDropTarget_Impl for FileDropHandler {
   ) -> windows::core::Result<()> {
     use crate::event::WindowEvent::DroppedFile;
     unsafe {
-      let hdrop = Self::iterate_filenames(pDataObj, |filename| {
+      let hdrop = FileDropHandler::iterate_filenames(pDataObj, |filename| {
         (self.send_event)(Event::WindowEvent {
-          window_id: SuperWindowId(WindowId(self.window.0)),
+          window_id: SuperWindowId(WindowId(self.window.0 as _)),
           event: DroppedFile(filename),
         });
       });

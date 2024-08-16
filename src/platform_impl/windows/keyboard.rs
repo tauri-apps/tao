@@ -11,7 +11,6 @@ use windows::Win32::{
   Foundation::{HWND, LPARAM, LRESULT, WPARAM},
   UI::{
     Input::KeyboardAndMouse::{self as win32km, *},
-    TextServices::HKL,
     WindowsAndMessaging::{self as win32wm, *},
   },
 };
@@ -451,7 +450,7 @@ impl KeyEventBuilder {
     } else {
       WindowsModifiers::empty()
     };
-    let layout = layouts.layouts.get(&locale_id.0).unwrap();
+    let layout = layouts.layouts.get(&(locale_id.0 as _)).unwrap();
     let logical_key = layout.get_key(mods, num_lock_on, vk, scancode, code);
     let key_without_modifiers =
       layout.get_key(WindowsModifiers::empty(), false, vk, scancode, code);
@@ -533,12 +532,14 @@ impl PartialKeyEventInfo {
     let scancode = if lparam_struct.scancode == 0 {
       // In some cases (often with media keys) the device reports a scancode of 0 but a
       // valid virtual key. In these cases we obtain the scancode from the virtual key.
-      unsafe { MapVirtualKeyExW(u32::from(vkey.0), MAPVK_VK_TO_VSC_EX, layout.hkl) as u16 }
+      unsafe {
+        MapVirtualKeyExW(u32::from(vkey.0), MAPVK_VK_TO_VSC_EX, HKL(layout.hkl as _)) as u16
+      }
     } else {
       new_ex_scancode(lparam_struct.scancode, lparam_struct.extended)
     };
     let code = KeyCode::from_scancode(scancode as u32);
-    let location = get_location(scancode, layout.hkl);
+    let location = get_location(scancode, HKL(layout.hkl as _));
 
     let kbd_state = get_kbd_state();
     let mods = WindowsModifiers::active_modifiers(&kbd_state);

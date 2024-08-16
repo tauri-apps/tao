@@ -188,12 +188,12 @@ pub trait WindowExtWindows {
 impl WindowExtWindows for Window {
   #[inline]
   fn hinstance(&self) -> isize {
-    self.window.hinstance().0
+    self.window.hinstance().0 as _
   }
 
   #[inline]
   fn hwnd(&self) -> isize {
-    self.window.hwnd().0
+    self.window.hwnd().0 as _
   }
 
   #[inline]
@@ -380,7 +380,7 @@ impl MonitorHandleExtWindows for MonitorHandle {
 
   #[inline]
   fn hmonitor(&self) -> isize {
-    self.inner.hmonitor().0
+    self.inner.hmonitor().0 as _
   }
 }
 

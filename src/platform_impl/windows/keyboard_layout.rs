@@ -9,10 +9,7 @@ use lazy_static::lazy_static;
 
 use windows::Win32::{
   System::SystemServices::{LANG_JAPANESE, LANG_KOREAN},
-  UI::{
-    Input::KeyboardAndMouse::{self as win32km, *},
-    TextServices::HKL,
-  },
+  UI::Input::KeyboardAndMouse::{self as win32km, *},
 };
 
 use super::keyboard::ExScancode;
@@ -156,7 +153,7 @@ impl WindowsModifiers {
 }
 
 pub(crate) struct Layout {
-  pub hkl: HKL,
+  pub hkl: isize,
 
   /// Maps numpad keys from Windows virtual key to a `Key`.
   ///
@@ -206,7 +203,8 @@ impl Layout {
       // building the keys map) sometimes maps virtual keys to odd scancodes that don't match
       // the scancode coming from the KEYDOWN message for the same key. For example: `VK_LEFT`
       // is mapped to `0x004B`, but the scancode for the left arrow is `0xE04B`.
-      let key_from_vkey = vkey_to_non_char_key(vkey, native_code, self.hkl, self.has_alt_graph);
+      let key_from_vkey =
+        vkey_to_non_char_key(vkey, native_code, HKL(self.hkl as _), self.has_alt_graph);
 
       if !matches!(key_from_vkey, Key::Unidentified(_)) {
         return key_from_vkey;
@@ -242,7 +240,7 @@ impl LayoutCache {
   /// The current layout is then returned.
   pub fn get_current_layout<'a>(&'a mut self) -> (HKL, &'a Layout) {
     let locale_id = unsafe { GetKeyboardLayout(0) };
-    match self.layouts.entry(locale_id.0) {
+    match self.layouts.entry(locale_id.0 as _) {
       Entry::Occupied(entry) => (locale_id, entry.into_mut()),
       Entry::Vacant(entry) => {
         let layout = Self::prepare_layout(&mut self.strings, locale_id);
@@ -273,7 +271,7 @@ impl LayoutCache {
 
   fn prepare_layout(strings: &mut HashSet<&'static str>, locale_id: HKL) -> Layout {
     let mut layout = Layout {
-      hkl: locale_id,
+      hkl: locale_id.0 as _,
       numlock_on_keys: Default::default(),
       numlock_off_keys: Default::default(),
       keys: Default::default(),

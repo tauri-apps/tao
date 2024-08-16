@@ -38,7 +38,6 @@ pub struct WindowState {
   pub fullscreen: Option<Fullscreen>,
   pub current_theme: Theme,
   pub preferred_theme: Option<Theme>,
-  pub high_surrogate: Option<u16>,
 
   pub ime_handler: MinimalIme,
 
@@ -48,6 +47,9 @@ pub struct WindowState {
   pub is_active: bool,
   pub is_focused: bool,
 }
+
+unsafe impl Send for WindowState {}
+unsafe impl Sync for WindowState {}
 
 #[derive(Clone)]
 pub struct SavedWindow {
@@ -149,7 +151,6 @@ impl WindowState {
       fullscreen: None,
       current_theme,
       preferred_theme,
-      high_surrogate: None,
       ime_handler: MinimalIme::default(),
       window_flags: WindowFlags::empty(),
       is_active: false,
