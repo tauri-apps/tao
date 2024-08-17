@@ -2201,7 +2201,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         result = ProcResult::Value(LRESULT(0));
       } else if msg == *SET_THEME_MSG_ID {
         subclass_input.send_event(Event::WindowEvent {
-          window_id: RootWindowId(WindowId(window.0)),
+          window_id: RootWindowId(WindowId(window.0 as _)),
           event: WindowEvent::ThemeChanged(if wparam == WPARAM(1) {
             Theme::Dark
           } else {
