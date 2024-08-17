@@ -173,7 +173,7 @@ pub(crate) fn get_monitor_info(hmonitor: HMONITOR) -> Result<MONITORINFOEXW, io:
 
 impl MonitorHandle {
   pub(crate) fn new(hmonitor: HMONITOR) -> Self {
-    MonitorHandle(hmonitor.0)
+    MonitorHandle(hmonitor.0 as _)
   }
 
   #[inline]
@@ -191,7 +191,7 @@ impl MonitorHandle {
 
   #[inline]
   pub fn hmonitor(&self) -> HMONITOR {
-    HMONITOR(self.0)
+    HMONITOR(self.0 as _)
   }
 
   #[inline]

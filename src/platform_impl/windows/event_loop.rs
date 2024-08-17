@@ -186,8 +186,8 @@ impl<T: 'static> EventLoop<T> {
 
     super::dark_mode::allow_dark_mode_for_app(true);
 
-    let send_thread_msg_target = thread_msg_target;
-    thread::spawn(move || wait_thread(thread_id, send_thread_msg_target));
+    let send_thread_msg_target = thread_msg_target.0 as isize;
+    thread::spawn(move || wait_thread(thread_id, HWND(send_thread_msg_target as _)));
     let wait_thread_id = get_wait_thread_id();
 
     let runner_shared = Rc::new(EventLoopRunner::new(thread_msg_target, wait_thread_id));
@@ -676,6 +676,12 @@ fn create_event_target_window() -> HWND {
       None,
     )
   };
+
+  let window = match window {
+    Ok(w) => w,
+    Err(_) => return HWND::default(),
+  };
+
   util::SetWindowLongPtrW(
     window,
     GWL_STYLE,
@@ -858,7 +864,7 @@ fn update_modifiers<T>(window: HWND, subclass_input: &SubclassInput<T>) -> Modif
 
     unsafe {
       subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
+        window_id: RootWindowId(WindowId(window.0 as _)),
         event: ModifiersChanged(modifiers),
       });
     }
@@ -871,7 +877,7 @@ unsafe fn gain_active_focus<T>(window: HWND, subclass_input: &SubclassInput<T>) 
   update_modifiers(window, subclass_input);
 
   subclass_input.send_event(Event::WindowEvent {
-    window_id: RootWindowId(WindowId(window.0)),
+    window_id: RootWindowId(WindowId(window.0 as _)),
     event: Focused(true),
   });
 }
@@ -881,12 +887,12 @@ unsafe fn lose_active_focus<T>(window: HWND, subclass_input: &SubclassInput<T>) 
 
   subclass_input.window_state.lock().modifiers_state = ModifiersState::empty();
   subclass_input.send_event(Event::WindowEvent {
-    window_id: RootWindowId(WindowId(window.0)),
+    window_id: RootWindowId(WindowId(window.0 as _)),
     event: ModifiersChanged(ModifiersState::empty()),
   });
 
   subclass_input.send_event(Event::WindowEvent {
-    window_id: RootWindowId(WindowId(window.0)),
+    window_id: RootWindowId(WindowId(window.0 as _)),
     event: Focused(false),
   });
 }
@@ -974,7 +980,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     let events = {
       let mut key_event_builders =
         crate::platform_impl::platform::keyboard::KEY_EVENT_BUILDERS.lock();
-      if let Some(key_event_builder) = key_event_builders.get_mut(&WindowId(window.0)) {
+      if let Some(key_event_builder) = key_event_builders.get_mut(&WindowId(window.0 as _)) {
         key_event_builder.process_message(window, msg, wparam, lparam, &mut result)
       } else {
         Vec::new()
@@ -982,7 +988,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     };
     for event in events {
       subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
+        window_id: RootWindowId(WindowId(window.0 as _)),
         event: KeyboardInput {
           device_id: DEVICE_ID,
           event: event.event,
@@ -1010,7 +1016,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     };
     if let Some(str) = text {
       subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
+        window_id: RootWindowId(WindowId(window.0 as _)),
         event: ReceivedImeText(str),
       });
     }
@@ -1052,7 +1058,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
       use crate::event::WindowEvent::DecorationsClick;
       subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
+        window_id: RootWindowId(WindowId(window.0 as _)),
         event: DecorationsClick,
       });
     }
@@ -1060,7 +1066,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     win32wm::WM_CLOSE => {
       use crate::event::WindowEvent::CloseRequested;
       subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
+        window_id: RootWindowId(WindowId(window.0 as _)),
         event: CloseRequested,
       });
       result = ProcResult::Value(LRESULT(0));
@@ -1070,7 +1076,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       use crate::event::WindowEvent::Destroyed;
       let _ = RevokeDragDrop(window);
       subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
+        window_id: RootWindowId(WindowId(window.0 as _)),
         event: Destroyed,
       });
       subclass_input.event_loop_runner.remove_window(window);
@@ -1090,7 +1096,9 @@ unsafe fn public_window_callback_inner<T: 'static>(
         let _ = RedrawWindow(window, None, HRGN::default(), RDW_INTERNALPAINT);
       } else {
         let managing_redraw = flush_paint_messages(Some(window), &subclass_input.event_loop_runner);
-        subclass_input.send_event(Event::RedrawRequested(RootWindowId(WindowId(window.0))));
+        subclass_input.send_event(Event::RedrawRequested(RootWindowId(WindowId(
+          window.0 as _,
+        ))));
         if managing_redraw {
           subclass_input.event_loop_runner.redraw_events_cleared();
           process_control_flow(&subclass_input.event_loop_runner);
@@ -1193,7 +1201,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       if (*windowpos).flags & SWP_NOMOVE != SWP_NOMOVE {
         let physical_position = PhysicalPosition::new((*windowpos).x, (*windowpos).y);
         subclass_input.send_event(Event::WindowEvent {
-          window_id: RootWindowId(WindowId(window.0)),
+          window_id: RootWindowId(WindowId(window.0 as _)),
           event: Moved(physical_position),
         });
       }
@@ -1209,7 +1217,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
       let physical_size = PhysicalSize::new(w, h);
       let event = Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
+        window_id: RootWindowId(WindowId(window.0 as _)),
         event: Resized(physical_size),
       };
 
@@ -1266,7 +1274,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
       if mouse_was_outside_window {
         subclass_input.send_event(Event::WindowEvent {
-          window_id: RootWindowId(WindowId(window.0)),
+          window_id: RootWindowId(WindowId(window.0 as _)),
           event: CursorEntered {
             device_id: DEVICE_ID,
           },
@@ -1296,7 +1304,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       if cursor_moved {
         let modifiers = update_modifiers(window, subclass_input);
         subclass_input.send_event(Event::WindowEvent {
-          window_id: RootWindowId(WindowId(window.0)),
+          window_id: RootWindowId(WindowId(window.0 as _)),
           event: CursorMoved {
             device_id: DEVICE_ID,
             position,
@@ -1318,7 +1326,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       }
 
       subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
+        window_id: RootWindowId(WindowId(window.0 as _)),
         event: CursorLeft {
           device_id: DEVICE_ID,
         },
@@ -1336,7 +1344,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let modifiers = update_modifiers(window, subclass_input);
 
       subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
+        window_id: RootWindowId(WindowId(window.0 as _)),
         event: WindowEvent::MouseWheel {
           device_id: DEVICE_ID,
           delta: LineDelta(0.0, value),
@@ -1357,7 +1365,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let modifiers = update_modifiers(window, subclass_input);
 
       subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
+        window_id: RootWindowId(WindowId(window.0 as _)),
         event: WindowEvent::MouseWheel {
           device_id: DEVICE_ID,
           delta: LineDelta(value, 0.0),
@@ -1383,7 +1391,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let modifiers = update_modifiers(window, subclass_input);
 
       subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
+        window_id: RootWindowId(WindowId(window.0 as _)),
         event: MouseInput {
           device_id: DEVICE_ID,
           state: Pressed,
@@ -1402,7 +1410,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let modifiers = update_modifiers(window, subclass_input);
 
       subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
+        window_id: RootWindowId(WindowId(window.0 as _)),
         event: MouseInput {
           device_id: DEVICE_ID,
           state: Released,
@@ -1421,7 +1429,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let modifiers = update_modifiers(window, subclass_input);
 
       subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
+        window_id: RootWindowId(WindowId(window.0 as _)),
         event: MouseInput {
           device_id: DEVICE_ID,
           state: Pressed,
@@ -1440,7 +1448,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let modifiers = update_modifiers(window, subclass_input);
 
       subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
+        window_id: RootWindowId(WindowId(window.0 as _)),
         event: MouseInput {
           device_id: DEVICE_ID,
           state: Released,
@@ -1459,7 +1467,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let modifiers = update_modifiers(window, subclass_input);
 
       subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
+        window_id: RootWindowId(WindowId(window.0 as _)),
         event: MouseInput {
           device_id: DEVICE_ID,
           state: Pressed,
@@ -1478,7 +1486,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let modifiers = update_modifiers(window, subclass_input);
 
       subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
+        window_id: RootWindowId(WindowId(window.0 as _)),
         event: MouseInput {
           device_id: DEVICE_ID,
           state: Released,
@@ -1498,7 +1506,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let modifiers = update_modifiers(window, subclass_input);
 
       subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
+        window_id: RootWindowId(WindowId(window.0 as _)),
         event: MouseInput {
           device_id: DEVICE_ID,
           state: Pressed,
@@ -1518,7 +1526,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let modifiers = update_modifiers(window, subclass_input);
 
       subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
+        window_id: RootWindowId(WindowId(window.0 as _)),
         event: MouseInput {
           device_id: DEVICE_ID,
           state: Released,
@@ -1534,7 +1542,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       // If it is the same as our window, then we're essentially retaining the capture. This
       // can happen if `SetCapture` is called on our window when it already has the mouse
       // capture.
-      if lparam.0 != window.0 {
+      if lparam.0 != window.0 as _ {
         subclass_input.window_state.lock().mouse.capture_count = 0;
       }
       result = ProcResult::Value(LRESULT(0));
@@ -1544,7 +1552,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let pcount = usize::from(util::LOWORD(wparam.0 as u32));
       let mut inputs: Vec<TOUCHINPUT> = Vec::with_capacity(pcount);
       let uninit_inputs = inputs.spare_capacity_mut();
-      let htouch = HTOUCHINPUT(lparam.0);
+      let htouch = HTOUCHINPUT(lparam.0 as _);
       if GetTouchInputInfo(
         htouch,
         mem::transmute(uninit_inputs),
@@ -1567,7 +1575,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           let y = location.y as f64 + (input.y % 100) as f64 / 100f64;
           let location = PhysicalPosition::new(x, y);
           subclass_input.send_event(Event::WindowEvent {
-            window_id: RootWindowId(WindowId(window.0)),
+            window_id: RootWindowId(WindowId(window.0 as _)),
             event: WindowEvent::Touch(Touch {
               phase: if (input.dwFlags & TOUCHEVENTF_DOWN) != Default::default() {
                 TouchPhase::Started
@@ -1703,7 +1711,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           let y = location.y as f64 + y.fract();
           let location = PhysicalPosition::new(x, y);
           subclass_input.send_event(Event::WindowEvent {
-            window_id: RootWindowId(WindowId(window.0)),
+            window_id: RootWindowId(WindowId(window.0 as _)),
             event: WindowEvent::Touch(Touch {
               phase: if (pointer_info.pointerFlags & POINTER_FLAG_DOWN) != Default::default() {
                 TouchPhase::Started
@@ -1930,7 +1938,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       }
 
       subclass_input.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0)),
+        window_id: RootWindowId(WindowId(window.0 as _)),
         event: ScaleFactorChanged {
           scale_factor: new_scale_factor,
           new_inner_size: &mut new_physical_inner_size,
@@ -2078,7 +2086,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           window_state.current_theme = new_theme;
           mem::drop(window_state);
           subclass_input.send_event(Event::WindowEvent {
-            window_id: RootWindowId(WindowId(window.0)),
+            window_id: RootWindowId(WindowId(window.0 as _)),
             event: ThemeChanged(new_theme),
           });
         }
@@ -2300,7 +2308,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
     }
 
     win32wm::WM_INPUT => {
-      if let Some(data) = raw_input::get_raw_input_data(HRAWINPUT(lparam.0)) {
+      if let Some(data) = raw_input::get_raw_input_data(HRAWINPUT(lparam.0 as _)) {
         handle_raw_input(&subclass_input, data);
         let _ = RedrawWindow(window, None, HRGN::default(), RDW_INTERNALPAINT);
       }

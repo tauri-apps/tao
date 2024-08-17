@@ -133,7 +133,7 @@ pub fn register_all_mice_and_keyboards_for_raw_input(
   // RIDEV_REMOVE: don't receive device events (requires NULL hwndTarget)
   let flags = match filter {
     DeviceEventFilter::Always => {
-      window_handle = HWND(0);
+      window_handle = HWND(std::ptr::null_mut());
       RIDEV_REMOVE
     }
     DeviceEventFilter::Unfocused => RIDEV_DEVNOTIFY,

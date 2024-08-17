@@ -1,5 +1,18 @@
 # Changelog
 
+## \[0.29.0]
+
+- [`e67cf1b2`](https://github.com/tauri-apps/tao/commit/e67cf1b2826d32b8eb58f6d111271a1c42b62978) ([#941](https://github.com/tauri-apps/tao/pull/941) by [@Sanae6](https://github.com/tauri-apps/tao/../../Sanae6)) Prevent duplicate mouse press, release, and motion events from firing on Linux (fixes #939)
+- [`b7dab732`](https://github.com/tauri-apps/tao/commit/b7dab732a9b8c71e7433c8f1b69e55c9c49f4e50) ([#947](https://github.com/tauri-apps/tao/pull/947) by [@muwoo](https://github.com/tauri-apps/tao/../../muwoo)) Fix `Window::request_user_attention` not taking effect after minimizing the window by clicking the taskbar icon
+- [`f54cc11e`](https://github.com/tauri-apps/tao/commit/f54cc11e4441a706a276c05f0e65f48a69f779bd) ([#938](https://github.com/tauri-apps/tao/pull/938) by [@andrewbaxter](https://github.com/tauri-apps/tao/../../andrewbaxter)) Add `EventLoopWindowTargetExtUnix::gtk_app` getter.
+- [\`\`](https://github.com/tauri-apps/tao/commit/undefined) Return a new `BadIcon::DimensionsZero` error variant in `Icon::from_rgba` if one of the passed icon dimensions is zero.
+- [`80e10084`](https://github.com/tauri-apps/tao/commit/80e1008438d57b72921192ff44ffc252ab676edb) ([#954](https://github.com/tauri-apps/tao/pull/954) by [@amrbashir](https://github.com/tauri-apps/tao/../../amrbashir)) Return a new `BadIcon::DimensionsZero` error variant in `Icon::from_rgba` if one of the passed icon dimensions is zero.
+- [`80e10084`](https://github.com/tauri-apps/tao/commit/80e1008438d57b72921192ff44ffc252ab676edb) ([#954](https://github.com/tauri-apps/tao/pull/954) by [@amrbashir](https://github.com/tauri-apps/tao/../../amrbashir)) Return a new `BadIcon::DimensionsMultiplyOverflow` error variant in `Icon::from_rgba` if dimensions multiplication overflowed.
+- [`f5756196`](https://github.com/tauri-apps/tao/commit/f57561964cde6f3ff77c26ffec54b92116f49921) ([#956](https://github.com/tauri-apps/tao/pull/956) by [@MarijnS95](https://github.com/tauri-apps/tao/../../MarijnS95)) **Breaking change**: Upgrade `ndk` crate to `0.9` and `ndk-sys` crate to `0.6`.  Types from the `ndk` crate are used in public API surface.
+  **Breaking change**: Change `NativeKeyCode::Android(u32)` type to use `i32`, which is the native type used by all Android API.
+  **Breaking change**: The `setup` function passed to `android_binding!()` must now take a `&ThreadLooper` instead of `&ForeignLooper`, matching the `wry` change in https://github.com/tauri-apps/wry/pull/1296.
+- [`f54cc11e`](https://github.com/tauri-apps/tao/commit/f54cc11e4441a706a276c05f0e65f48a69f779bd) ([#938](https://github.com/tauri-apps/tao/pull/938) by [@andrewbaxter](https://github.com/tauri-apps/tao/../../andrewbaxter)) Add `WindowExtUnix::new_from_gtk_window`.
+
 ## \[0.28.1]
 
 - [`7e8f75e9`](https://github.com/tauri-apps/tao/commit/7e8f75e916ad502e00b5f6dff6cfb6bfadb92118) ([#926](https://github.com/tauri-apps/tao/pull/926) by [@pewsheen](https://github.com/tauri-apps/tao/../../pewsheen)) On macOS, add `set_fullsize_content_view` and `set_titlebar_transparent` to `Window` to set the title bar style.

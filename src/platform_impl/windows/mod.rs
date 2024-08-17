@@ -64,12 +64,6 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
 unsafe impl Send for PlatformSpecificWindowBuilderAttributes {}
 unsafe impl Sync for PlatformSpecificWindowBuilderAttributes {}
 
-// Cursor name in UTF-16. Used to set cursor in `WM_SETCURSOR`.
-// #[derive(Debug, Clone, Copy)]
-// pub struct Cursor(pub *const u16);
-// unsafe impl Send for Cursor {}
-// unsafe impl Sync for Cursor {}
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DeviceId(isize);
 
@@ -82,7 +76,7 @@ impl DeviceId {
 impl DeviceId {
   pub fn persistent_identifier(&self) -> Option<String> {
     if self.0 != 0 {
-      raw_input::get_raw_input_device_name(HANDLE(self.0))
+      raw_input::get_raw_input_device_name(HANDLE(self.0 as _))
     } else {
       None
     }
