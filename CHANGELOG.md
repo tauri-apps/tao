@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.29.1]
+
+- [`4cd53415`](https://github.com/tauri-apps/tao/commit/4cd534151a2d7a14ade906f960ec02655a91feae) ([#964](https://github.com/tauri-apps/tao/pull/964) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Allow Android domain names to include `_1` as escaped `_` characters - required because `_` is the separator for domain parts.
+
 ## \[0.29.0]
 
 - [`e67cf1b2`](https://github.com/tauri-apps/tao/commit/e67cf1b2826d32b8eb58f6d111271a1c42b62978) ([#941](https://github.com/tauri-apps/tao/pull/941) by [@Sanae6](https://github.com/tauri-apps/tao/../../Sanae6)) Prevent duplicate mouse press, release, and motion events from firing on Linux (fixes #939)
