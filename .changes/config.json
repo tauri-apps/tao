@@ -70,7 +70,8 @@
     },
     "tao": {
       "path": "./",
-      "manager": "rust"
+      "manager": "rust",
+      "dependencies": ["tao-macros"]
     }
   }
 }
