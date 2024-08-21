@@ -308,7 +308,7 @@ pub fn generate_package_name(tokens: TokenStream) -> TokenStream {
     .replace("_1", TEMP_ESCAPE_UNDERSCORE_REPLACEMENT)
     .replace('_', "/")
     .replace(TEMP_ESCAPE_UNDERSCORE_REPLACEMENT, "_");
-  let package = package.to_string().replace("_1", "_");
+  let package = package.to_string();
 
   let path = format!("{}/{}", domain, package);
   let litstr = LitStr::new(&path, proc_macro2::Span::call_site());
