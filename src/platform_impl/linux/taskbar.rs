@@ -18,7 +18,6 @@ pub struct TaskbarIndicator {
   desktop_filename: Option<String>,
   desktop_filename_c_str: Option<CString>,
 
-  is_supported: bool,
   unity_lib: Option<Container<UnityLib>>,
   attempted_load: bool,
 
@@ -32,7 +31,6 @@ impl TaskbarIndicator {
       desktop_filename: None,
       desktop_filename_c_str: None,
 
-      is_supported: is_supported(),
       unity_lib: None,
       attempted_load: false,
 
@@ -89,10 +87,6 @@ impl TaskbarIndicator {
       self.desktop_filename = Some(uri);
     }
 
-    if !self.is_supported {
-      return;
-    }
-
     self.ensure_lib_load();
 
     if !self.is_unity_running() {
@@ -126,13 +120,4 @@ impl TaskbarIndicator {
       }
     }
   }
-}
-
-pub fn is_supported() -> bool {
-  std::env::var("XDG_CURRENT_DESKTOP")
-    .map(|d| {
-      let d = d.to_lowercase();
-      d.contains("unity") || d.contains("gnome")
-    })
-    .unwrap_or(false)
 }
