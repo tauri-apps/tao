@@ -928,7 +928,7 @@ impl Window {
       log::warn!("Fail to send skip taskbar request: {}", e);
     }
 
-    ok(())
+    Ok(())
   }
 
   pub fn set_progress_bar(&self, progress: ProgressBarState) {
