@@ -18,7 +18,7 @@ pub use crate::platform_impl::x11;
 
 pub use crate::platform_impl::EventLoop as UnixEventLoop;
 use crate::{
-  error::OsError,
+  error::{OsError, ExternalError},
   event_loop::{EventLoopBuilder, EventLoopWindowTarget},
   platform_impl::{x11::xdisplay::XError, Parent, Window as UnixWindow},
   window::{Window, WindowBuilder},
