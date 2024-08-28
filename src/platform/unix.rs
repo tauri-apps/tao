@@ -77,7 +77,7 @@ pub trait WindowExtUnix {
   fn default_vbox(&self) -> Option<&gtk::Box>;
 
   /// Whether to show the window icon in the taskbar or not.
-  fn set_skip_taskbar(&self, skip: bool);
+  fn set_skip_taskbar(&self, skip: bool) -> Result<(), ExternalError>;
 }
 
 impl WindowExtUnix for Window {
@@ -89,8 +89,8 @@ impl WindowExtUnix for Window {
     self.window.default_vbox.as_ref()
   }
 
-  fn set_skip_taskbar(&self, skip: bool) {
-    self.window.set_skip_taskbar(skip);
+  fn set_skip_taskbar(&self, skip: bool) -> Result<(), ExternalError> {
+    self.window.set_skip_taskbar(skip)
   }
 
   fn new_from_gtk_window<T: 'static>(

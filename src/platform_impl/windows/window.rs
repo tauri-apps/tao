@@ -955,9 +955,9 @@ impl Window {
   }
 
   #[inline]
-  pub(crate) fn set_skip_taskbar(&self, skip: bool) {
+  pub(crate) fn set_skip_taskbar(&self, skip: bool) -> Result<(), ExternalError> {
     self.window_state.lock().skip_taskbar = skip;
-    unsafe { set_skip_taskbar(self.hwnd(), skip) };
+    unsafe { set_skip_taskbar(self.hwnd(), skip) }
   }
 
   #[inline]
@@ -1167,7 +1167,7 @@ unsafe fn init<T: 'static>(
     .lock()
     .insert(win.id(), KeyEventBuilder::default());
 
-  win.set_skip_taskbar(pl_attribs.skip_taskbar);
+  let _ = win.set_skip_taskbar(pl_attribs.skip_taskbar);
   win.set_window_icon(attributes.window_icon);
   win.set_taskbar_icon(pl_attribs.taskbar_icon);
 
@@ -1373,15 +1373,16 @@ unsafe fn force_window_active(handle: HWND) {
   let _ = SetForegroundWindow(handle);
 }
 
-pub(crate) unsafe fn set_skip_taskbar(hwnd: HWND, skip: bool) {
+pub(crate) unsafe fn set_skip_taskbar(hwnd: HWND, skip: bool) -> Result<(), ExternalError> {
   com_initialized();
-  let taskbar_list: ITaskbarList =
-    CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).expect("failed to create TaskBarList");
+  let taskbar_list: ITaskbarList = CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER)?;
   if skip {
-    taskbar_list.DeleteTab(hwnd).expect("DeleteTab failed");
+    taskbar_list.DeleteTab(hwnd)?;
   } else {
-    taskbar_list.AddTab(hwnd).expect("AddTab failed");
+    taskbar_list.AddTab(hwnd)?;
   }
+
+  Ok(())
 }
 
 impl ResizeDirection {

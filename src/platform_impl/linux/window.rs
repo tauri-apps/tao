@@ -920,13 +920,15 @@ impl Window {
     }
   }
 
-  pub fn set_skip_taskbar(&self, skip: bool) {
+  pub fn set_skip_taskbar(&self, skip: bool) -> Result<(), ExternalError> {
     if let Err(e) = self
       .window_requests_tx
       .send((self.window_id, WindowRequest::SetSkipTaskbar(skip)))
     {
       log::warn!("Fail to send skip taskbar request: {}", e);
     }
+
+    ok(())
   }
 
   pub fn set_progress_bar(&self, progress: ProgressBarState) {
