@@ -1,5 +1,11 @@
 # Changelog
 
+## \[0.30.0]
+
+- [`222d5786`](https://github.com/tauri-apps/tao/commit/222d57862b24511eda733812524df1736cd1f64d) ([#971](https://github.com/tauri-apps/tao/pull/971) by [@amrbashir](https://github.com/tauri-apps/tao/../../amrbashir)) On Windows, fix `Window::monitor_from_point` and `EventLoopTargetWindow::monitor_from_point` returning invalid monitor handle.
+- [`e47d4c4a`](https://github.com/tauri-apps/tao/commit/e47d4c4aa08cb1d0f431c6bdf8f81cc82ecc72d1) ([#967](https://github.com/tauri-apps/tao/pull/967) by [@amrbashir](https://github.com/tauri-apps/tao/../../amrbashir)) On Linux, removed internal check for current desktop environment before applying `Window::set_progress_bar` API. This should allow `Window::set_progress_bar` to work on KDE Plasma and similar environments that support `libunity` APIs.
+- [`9b5aa60b`](https://github.com/tauri-apps/tao/commit/9b5aa60ba6f6e45ac3fc42dc715d7e071d29bb2b) ([#970](https://github.com/tauri-apps/tao/pull/970) by [@amrbashir](https://github.com/tauri-apps/tao/../../amrbashir)) Changed `WindowExtWindows::set_skip_taskbar` and `WindowExtUnix::set_skip_taskbar` to return a result instead of panicing internally.
+
 ## \[0.29.1]
 
 - [`4cd53415`](https://github.com/tauri-apps/tao/commit/4cd534151a2d7a14ade906f960ec02655a91feae) ([#964](https://github.com/tauri-apps/tao/pull/964) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Allow Android domain names to include `_1` as escaped `_` characters - required because `_` is the separator for domain parts.
