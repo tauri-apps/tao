@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.16.10]
+
+- [`431887cd`](https://github.com/tauri-apps/tao/commit/431887cd16641cae68a32f3ee3ebad8b29f0a171) ([#972](https://github.com/tauri-apps/tao/pull/972) by [@amrbashir](https://github.com/tauri-apps/tao/../../amrbashir)) On Windows, fix `Window::monitor_from_point` and `EventLoopTargetWindow::monitor_from_point` returning invalid monitor handle.
+
 ## \[0.16.9]
 
 - [`f87526e6`](https://github.com/tauri-apps/tao/commit/f87526e637c51bf5d50ffb7549b3a6ae7213b70e)([#903](https://github.com/tauri-apps/tao/pull/903)) Fix unexpected crashes on I/O or Png encoding errors on macOS and Linux.
