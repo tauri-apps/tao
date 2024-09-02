@@ -133,7 +133,7 @@ pub fn from_point(x: f64, y: f64) -> Option<MonitorHandle> {
       MONITOR_DEFAULTTONULL,
     )
   };
-  if hmonitor.is_invalid() {
+  if !hmonitor.is_invalid() {
     Some(MonitorHandle::new(hmonitor))
   } else {
     None
