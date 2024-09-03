@@ -22,6 +22,7 @@
 use std::{
   collections::hash_map::DefaultHasher,
   hash::{Hash, Hasher},
+  path::PathBuf,
 };
 
 use crate::{
@@ -233,6 +234,14 @@ pub struct AboutMetadata {
   pub website_label: Option<String>,
 }
 
+/// Contents to share to other services.
+#[derive(Debug, Clone)]
+pub struct SharingItem {
+  pub texts: Option<Vec<String>>,
+  pub urls: Option<Vec<String>>,
+  pub file_paths: Option<Vec<PathBuf>>,
+}
+
 /// A menu item, bound to a pre-defined native action.
 ///
 /// Note some platforms might not support some of the variants.
@@ -381,6 +390,14 @@ pub enum MenuItem {
   /// - **Android / iOS:** Unsupported
   ///
   Separator,
+
+  /// A menu item for listing available services to share contents.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows / Linux / Android / iOS:** Unsupported
+  ///
+  Share(SharingItem),
 }
 
 /// Custom menu item, when clicked an event is emitted in the EventLoop.
