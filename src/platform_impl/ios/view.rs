@@ -555,20 +555,9 @@ pub fn create_delegate_class() {
     YES
   }
 
-  // universal links
-  extern "C" fn application_continue(
-    _: &mut Object,
-    _: Sel,
-    _application: id,
-    user_activity: id,
-    _restoration_handler: id,
-  ) -> BOOL {
+  fn handle_deep_link(url: id) {
     unsafe {
-      let webpage_url: id = msg_send![user_activity, webpageURL];
-      if webpage_url == nil {
-        return NO;
-      }
-      let absolute_url: id = msg_send![webpage_url, absoluteString];
+      let absolute_url: id = msg_send![url, absoluteString];
       let bytes = {
         let bytes: *const c_char = msg_send![absolute_url, UTF8String];
         bytes as *const u8
@@ -581,6 +570,39 @@ pub fn create_delegate_class() {
       let url = url::Url::parse(std::str::from_utf8(bytes).unwrap()).unwrap();
 
       app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls: vec![url] }));
+    }
+  }
+
+  // custom URL schemes
+  // https://developer.apple.com/documentation/xcode/defining-a-custom-url-scheme-for-your-app
+  extern "C" fn application_open_url(
+    _self: &mut Object,
+    _cmd: Sel,
+    _app: id,
+    url: id,
+    _options: id,
+  ) -> BOOL {
+    handle_deep_link(url);
+
+    YES
+  }
+
+  // universal links
+  // https://developer.apple.com/documentation/xcode/supporting-universal-links-in-your-app
+  extern "C" fn application_continue(
+    _: &mut Object,
+    _: Sel,
+    _application: id,
+    user_activity: id,
+    _restoration_handler: id,
+  ) -> BOOL {
+    unsafe {
+      let webpage_url: id = msg_send![user_activity, webpageURL];
+      if webpage_url == nil {
+        return NO;
+      }
+
+      handle_deep_link(webpage_url);
 
       YES
     }
@@ -629,6 +651,11 @@ pub fn create_delegate_class() {
     decl.add_method(
       sel!(application:didFinishLaunchingWithOptions:),
       did_finish_launching as extern "C" fn(&mut Object, Sel, id, id) -> BOOL,
+    );
+
+    decl.add_method(
+      sel!(application:openURL:options:),
+      application_open_url as extern "C" fn(&mut Object, Sel, id, id, id) -> BOOL,
     );
 
     decl.add_method(

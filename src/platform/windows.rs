@@ -8,6 +8,7 @@ use std::path::Path;
 
 use crate::{
   dpi::PhysicalSize,
+  error::ExternalError,
   event::DeviceId,
   event_loop::EventLoopBuilder,
   monitor::MonitorHandle,
@@ -172,7 +173,7 @@ pub trait WindowExtWindows {
   fn begin_resize_drag(&self, edge: isize, button: u32, x: i32, y: i32);
 
   /// Whether to show the window icon in the taskbar or not.
-  fn set_skip_taskbar(&self, skip: bool);
+  fn set_skip_taskbar(&self, skip: bool) -> Result<(), ExternalError>;
 
   /// Shows or hides the background drop shadow for undecorated windows.
   ///
@@ -224,8 +225,8 @@ impl WindowExtWindows for Window {
   }
 
   #[inline]
-  fn set_skip_taskbar(&self, skip: bool) {
-    self.window.set_skip_taskbar(skip);
+  fn set_skip_taskbar(&self, skip: bool) -> Result<(), ExternalError> {
+    self.window.set_skip_taskbar(skip)
   }
 
   #[inline]

@@ -2211,7 +2211,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         result = ProcResult::Value(LRESULT(0));
       } else if msg == *S_U_TASKBAR_RESTART {
         let window_state = subclass_input.window_state.lock();
-        set_skip_taskbar(window, window_state.skip_taskbar);
+        let _ = set_skip_taskbar(window, window_state.skip_taskbar);
       }
     }
   };
