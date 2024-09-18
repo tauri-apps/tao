@@ -37,8 +37,10 @@ use crate::{
     util::{self, IdRef},
   },
   platform_impl::set_progress_indicator,
-  window::{set_ns_theme, ProgressBarState, Theme},
+  window::{ProgressBarState, Theme},
 };
+
+use super::window::set_ns_theme;
 
 #[derive(Default)]
 pub struct PanicInfo {
