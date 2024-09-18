@@ -620,7 +620,7 @@ lazy_static! {
     /// WPARAM is 1 for dark mode and 0 for light mode.
     /// and LPARAM is unused.
     pub static ref SET_THEME_MSG_ID: u32 = unsafe {
-        RegisterWindowMessageA(s!("Tao::SetTheme"))
+        RegisterWindowMessageA(s!("Tao::EmitTheme"))
     };
     /// When the taskbar is created, it registers a message with the "TaskbarCreated" string and then broadcasts this message to all top-level windows
     /// When the application receives this message, it should assume that any taskbar icons it added have been removed and add them again.
