@@ -17,6 +17,7 @@ use gtk::{
   glib::{self, translate::ToGlibPtr},
 };
 use gtk::{prelude::*, Settings};
+use parking_lot::Mutex;
 
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
@@ -65,7 +66,7 @@ pub struct Window {
   inner_size_constraints: RefCell<WindowSizeConstraints>,
   /// Draw event Sender
   draw_tx: crossbeam_channel::Sender<WindowId>,
-  preferred_theme: std::sync::Mutex<Option<Theme>>,
+  preferred_theme: Mutex<Option<Theme>>,
 }
 
 impl Window {
@@ -306,7 +307,7 @@ impl Window {
       minimized,
       fullscreen: RefCell::new(attributes.fullscreen),
       inner_size_constraints: RefCell::new(attributes.inner_size_constraints),
-      preferred_theme: std::sync::Mutex::new(preferred_theme),
+      preferred_theme: Mutex::new(preferred_theme),
     };
 
     win.set_skip_taskbar(pl_attribs.skip_taskbar);
@@ -385,7 +386,7 @@ impl Window {
       minimized,
       fullscreen: RefCell::new(None),
       inner_size_constraints: RefCell::new(WindowSizeConstraints::default()),
-      preferred_theme: std::sync::Mutex::new(None),
+      preferred_theme: Mutex::new(None),
     };
 
     Ok(win)
