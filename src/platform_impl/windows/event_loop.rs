@@ -619,7 +619,7 @@ lazy_static! {
     /// Message sent by a `Window` when a new theme is set.
     /// WPARAM is 1 for dark mode and 0 for light mode.
     /// and LPARAM is unused.
-    pub static ref SET_THEME_MSG_ID: u32 = unsafe {
+    pub static ref EMIT_THEME_MSG_ID: u32 = unsafe {
         RegisterWindowMessageA(s!("Tao::EmitTheme"))
     };
     /// When the taskbar is created, it registers a message with the "TaskbarCreated" string and then broadcasts this message to all top-level windows
@@ -2199,7 +2199,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
           f.set(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE, wparam.0 != 0)
         });
         result = ProcResult::Value(LRESULT(0));
-      } else if msg == *SET_THEME_MSG_ID {
+      } else if msg == *EMIT_THEME_MSG_ID {
         subclass_input.send_event(Event::WindowEvent {
           window_id: RootWindowId(WindowId(window.0 as _)),
           event: WindowEvent::ThemeChanged(if wparam == WPARAM(1) {

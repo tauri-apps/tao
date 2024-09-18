@@ -56,7 +56,7 @@ use crate::{
 };
 
 use super::{
-  event_loop::SET_THEME_MSG_ID,
+  event_loop::EMIT_THEME_MSG_ID,
   keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS},
 };
 
@@ -939,7 +939,7 @@ impl Window {
       let _ = unsafe {
         PostMessageW(
           self.hwnd(),
-          *SET_THEME_MSG_ID,
+          *EMIT_THEME_MSG_ID,
           WPARAM(match new_theme {
             Theme::Dark => 1,
             Theme::Light => 0,
