@@ -156,7 +156,17 @@ impl<T> EventLoopWindowTarget<T> {
       .window_requests_tx
       .send((WindowId::dummy(), WindowRequest::ProgressBarState(progress)))
     {
-      log::warn!("Fail to send update progress bar request: {}", e);
+      log::warn!("Fail to send update progress bar request: {e}");
+    }
+  }
+
+  #[inline]
+  pub fn set_theme(&self, theme: Option<Theme>) {
+    if let Err(e) = self
+      .window_requests_tx
+      .send((WindowId::dummy(), WindowRequest::SetTheme(theme)))
+    {
+      log::warn!("Fail to send update theme request: {e}");
     }
   }
 }

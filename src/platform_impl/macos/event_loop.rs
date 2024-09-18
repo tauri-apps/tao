@@ -36,7 +36,7 @@ use crate::{
     observer::*,
     util::{self, IdRef},
   },
-  platform_impl::set_progress_indicator,
+  platform_impl::{set_ns_theme, set_progress_indicator},
   window::ProgressBarState,
 };
 
@@ -119,6 +119,11 @@ impl<T: 'static> EventLoopWindowTarget<T> {
   #[inline]
   pub fn set_progress_bar(&self, progress: ProgressBarState) {
     set_progress_indicator(progress);
+  }
+
+  #[inline]
+  pub fn set_theme(&self, theme: Option<Theme>) {
+    set_ns_theme(theme)
   }
 }
 
