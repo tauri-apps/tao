@@ -308,6 +308,15 @@ impl<T> EventLoopWindowTarget<T> {
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_theme(&self, theme: Option<Theme>) {
+    #[cfg(any(
+      windows,
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd",
+      target_os = "macos",
+    ))]
     self.p.set_theme(theme)
   }
 }
