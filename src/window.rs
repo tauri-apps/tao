@@ -1110,6 +1110,7 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
+  /// - **Linux / macOS**: Theme is app-wide and not specific to this window.
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_theme(&self, #[allow(unused)] theme: Option<Theme>) {
