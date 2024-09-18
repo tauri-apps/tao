@@ -305,11 +305,9 @@ impl<T> EventLoopWindowTarget<T> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows:** Unsupported. Use the set_theme function available in Window (Windows can have different themes for different windows)
   /// - **iOS / Android:** Unsupported.
   #[inline]
-  pub fn set_theme(&self, #[allow(unused)] theme: Option<Theme>) {
-    #[cfg(any(target_os = "linux", target_os = "macos"))]
+  pub fn set_theme(&self, theme: Option<Theme>) {
     self.p.set_theme(theme)
   }
 }

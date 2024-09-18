@@ -1421,16 +1421,11 @@ pub enum Fullscreen {
 }
 
 #[non_exhaustive]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub enum Theme {
+  #[default]
   Light,
   Dark,
-}
-
-impl Default for Theme {
-  fn default() -> Self {
-    Theme::Light
-  }
 }
 
 #[non_exhaustive]

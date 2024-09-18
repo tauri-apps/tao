@@ -106,7 +106,7 @@ pub(crate) struct SubclassInput<T: 'static> {
   pub _file_drop_handler: Option<IDropTarget>,
   pub subclass_removed: Cell<bool>,
   pub recurse_depth: Cell<u32>,
-  pub event_loop_preferred_theme: Option<Theme>,
+  pub event_loop_preferred_theme: Arc<Mutex<Option<Theme>>>,
 }
 
 impl<T> SubclassInput<T> {
@@ -161,7 +161,7 @@ impl Default for PlatformSpecificEventLoopAttributes {
 pub struct EventLoopWindowTarget<T: 'static> {
   thread_id: u32,
   thread_msg_target: HWND,
-  pub(crate) preferred_theme: Option<Theme>,
+  pub(crate) preferred_theme: Arc<Mutex<Option<Theme>>>,
   pub(crate) runner_shared: EventLoopRunnerShared<T>,
 }
 
@@ -202,7 +202,7 @@ impl<T: 'static> EventLoop<T> {
           thread_id,
           thread_msg_target,
           runner_shared,
-          preferred_theme: attributes.preferred_theme,
+          preferred_theme: Arc::new(Mutex::new(attributes.preferred_theme)),
         },
         _marker: PhantomData,
       },
@@ -329,6 +329,12 @@ impl<T> EventLoopWindowTarget<T> {
   #[inline]
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
     util::cursor_position().map_err(Into::into)
+  }
+
+  #[inline]
+  pub fn set_theme(&self, theme: Option<Theme>) {
+    *self.preferred_theme.lock() = theme;
+    unsafe { PostMessageW(HWND_BROADCAST, *CHANGE_THEME_MSG_ID, WPARAM(0), LPARAM(0)).unwrap() };
   }
 }
 
@@ -615,6 +621,11 @@ lazy_static! {
     /// documentation in the `window_state` module for more information.
     pub static ref SET_RETAIN_STATE_ON_SIZE_MSG_ID: u32 = unsafe {
         RegisterWindowMessageA(s!("Tao::SetRetainMaximized"))
+    };
+    /// Message sent by event loop when event loop's prefered theme changed.
+    /// WPARAM and LPARAM are unused.
+    pub static ref CHANGE_THEME_MSG_ID: u32 = unsafe {
+        RegisterWindowMessageA(s!("Tao::ChangeTheme"))
     };
     /// Message sent by a `Window` when a new theme is set.
     /// WPARAM is 1 for dark mode and 0 for light mode.
@@ -2077,7 +2088,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       if preferred_theme.is_none() {
         let new_theme = try_window_theme(
           window,
-          preferred_theme.or(subclass_input.event_loop_preferred_theme),
+          preferred_theme.or(*subclass_input.event_loop_preferred_theme.lock()),
           false,
         );
         let mut window_state = subclass_input.window_state.lock();
@@ -2198,6 +2209,27 @@ unsafe fn public_window_callback_inner<T: 'static>(
         window_state.set_window_flags_in_place(|f| {
           f.set(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE, wparam.0 != 0)
         });
+        result = ProcResult::Value(LRESULT(0));
+      } else if msg == *CHANGE_THEME_MSG_ID {
+        let preferred_theme = subclass_input.window_state.lock().preferred_theme;
+
+        if preferred_theme.is_none() {
+          let new_theme = try_window_theme(
+            window,
+            preferred_theme.or(*subclass_input.event_loop_preferred_theme.lock()),
+            true,
+          );
+          let mut window_state = subclass_input.window_state.lock();
+
+          if window_state.current_theme != new_theme {
+            window_state.current_theme = new_theme;
+            mem::drop(window_state);
+            subclass_input.send_event(Event::WindowEvent {
+              window_id: RootWindowId(WindowId(window.0 as _)),
+              event: WindowEvent::ThemeChanged(new_theme),
+            });
+          }
+        }
         result = ProcResult::Value(LRESULT(0));
       } else if msg == *EMIT_THEME_MSG_ID {
         subclass_input.send_event(Event::WindowEvent {
