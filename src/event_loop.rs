@@ -301,11 +301,10 @@ impl<T> EventLoopWindowTarget<T> {
     self.p.set_progress_bar(_progress)
   }
 
-  /// Sets the theme for this window.
+  /// Sets the theme for the application.
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux / macOS**: Theme is app-wide and not specific to this window.
   /// - **Windows:** Unsupported. Use the set_theme function available in Window (Windows can have different themes for different windows)
   /// - **iOS / Android:** Unsupported.
   #[inline]
