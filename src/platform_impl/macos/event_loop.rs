@@ -36,8 +36,8 @@ use crate::{
     observer::*,
     util::{self, IdRef},
   },
-  platform_impl::{set_ns_theme, set_progress_indicator},
-  window::{ProgressBarState, Theme},
+  platform_impl::set_progress_indicator,
+  window::{set_ns_theme, ProgressBarState, Theme},
 };
 
 #[derive(Default)]
