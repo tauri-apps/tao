@@ -10,7 +10,7 @@ use windows::{
   core::{s, w, PCSTR, PSTR},
   Win32::{
     Foundation::{BOOL, HANDLE, HMODULE, HWND, WPARAM},
-    Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_USE_IMMERSIVE_DARK_MODE},
+    Graphics::Dwm::{DwmSetWindowAttribute, DWMWINDOWATTRIBUTE},
     System::LibraryLoader::*,
     UI::{Accessibility::*, WindowsAndMessaging::*},
   },
@@ -167,7 +167,7 @@ pub fn allow_dark_mode_for_window(hwnd: HWND, is_dark_mode: bool) {
 
 fn refresh_titlebar_theme_color(hwnd: HWND, is_dark_mode: bool, redraw_title_bar: bool) {
   if let Some(ver) = *WIN10_BUILD_VERSION {
-    if ver < 18362 {
+    if ver < 17763 {
       let mut is_dark_mode_bigbool: i32 = is_dark_mode.into();
       unsafe {
         let _ = SetPropW(
@@ -177,11 +177,17 @@ fn refresh_titlebar_theme_color(hwnd: HWND, is_dark_mode: bool, redraw_title_bar
         );
       }
     } else {
+      // https://github.com/MicrosoftDocs/sdk-api/pull/966/files
+      let dwmwa_use_immersive_dark_mode = if ver > 18985 {
+        DWMWINDOWATTRIBUTE(20)
+      } else {
+        DWMWINDOWATTRIBUTE(19)
+      };
       let dark_mode = BOOL::from(is_dark_mode);
       unsafe {
         let _ = DwmSetWindowAttribute(
           hwnd,
-          DWMWA_USE_IMMERSIVE_DARK_MODE,
+          dwmwa_use_immersive_dark_mode,
           &dark_mode as *const BOOL as *const c_void,
           std::mem::size_of::<BOOL>() as u32,
         );
