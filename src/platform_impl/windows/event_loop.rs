@@ -334,7 +334,9 @@ impl<T> EventLoopWindowTarget<T> {
   #[inline]
   pub fn set_theme(&self, theme: Option<Theme>) {
     *self.preferred_theme.lock() = theme;
-    let _ = unsafe { PostMessageW(HWND_BROADCAST, *CHANGE_THEME_MSG_ID, WPARAM(0), LPARAM(0)) };
+    self.runner_shared.owned_windows(|window| {
+      let _ = unsafe { PostMessageW(window, *CHANGE_THEME_MSG_ID, WPARAM(0), LPARAM(0)) };
+    });
   }
 }
 
