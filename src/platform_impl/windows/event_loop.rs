@@ -335,7 +335,7 @@ impl<T> EventLoopWindowTarget<T> {
   pub fn set_theme(&self, theme: Option<Theme>) {
     *self.preferred_theme.lock() = theme;
     self.runner_shared.owned_windows(|window| {
-      let _ = unsafe { PostMessageW(window, *CHANGE_THEME_MSG_ID, WPARAM(0), LPARAM(0)) };
+      let _ = unsafe { SendMessageW(window, WM_SETTINGCHANGE, WPARAM(0), LPARAM(0)) };
     });
   }
 }
@@ -623,11 +623,6 @@ lazy_static! {
     /// documentation in the `window_state` module for more information.
     pub static ref SET_RETAIN_STATE_ON_SIZE_MSG_ID: u32 = unsafe {
         RegisterWindowMessageA(s!("Tao::SetRetainMaximized"))
-    };
-    /// Message sent by event loop when event loop's prefered theme changed.
-    /// WPARAM and LPARAM are unused.
-    pub static ref CHANGE_THEME_MSG_ID: u32 = unsafe {
-        RegisterWindowMessageA(s!("Tao::ChangeTheme"))
     };
     /// Message sent by a `Window` when a new theme is set.
     /// WPARAM is 1 for dark mode and 0 for light mode.
@@ -2211,27 +2206,6 @@ unsafe fn public_window_callback_inner<T: 'static>(
         window_state.set_window_flags_in_place(|f| {
           f.set(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE, wparam.0 != 0)
         });
-        result = ProcResult::Value(LRESULT(0));
-      } else if msg == *CHANGE_THEME_MSG_ID {
-        let preferred_theme = subclass_input.window_state.lock().preferred_theme;
-
-        if preferred_theme.is_none() {
-          let new_theme = try_window_theme(
-            window,
-            preferred_theme.or(*subclass_input.event_loop_preferred_theme.lock()),
-            true,
-          );
-          let mut window_state = subclass_input.window_state.lock();
-
-          if window_state.current_theme != new_theme {
-            window_state.current_theme = new_theme;
-            mem::drop(window_state);
-            subclass_input.send_event(Event::WindowEvent {
-              window_id: RootWindowId(WindowId(window.0 as _)),
-              event: WindowEvent::ThemeChanged(new_theme),
-            });
-          }
-        }
         result = ProcResult::Value(LRESULT(0));
       } else if msg == *EMIT_THEME_MSG_ID {
         subclass_input.send_event(Event::WindowEvent {
