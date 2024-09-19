@@ -29,9 +29,7 @@ fn main() {
     *control_flow = ControlFlow::Wait;
 
     match event {
-      Event::WindowEvent {
-        event, window_id, ..
-      } => match event {
+      Event::WindowEvent { event, .. } => match event {
         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
         WindowEvent::KeyboardInput {
           event: KeyEvent { physical_key, .. },
@@ -43,9 +41,7 @@ fn main() {
           _ => {}
         },
         WindowEvent::ThemeChanged(theme) => {
-          if window_id == window.id() {
-            println!("Theme is changed: {theme:?}")
-          }
+          println!("Theme is changed: {theme:?}")
         }
         _ => (),
       },
