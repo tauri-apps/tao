@@ -55,10 +55,7 @@ use crate::{
   },
 };
 
-use super::{
-  event_loop::EMIT_THEME_MSG_ID,
-  keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS},
-};
+use super::keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS};
 
 /// A simple non-owning wrapper around a window.
 #[derive(Clone, Copy)]
@@ -928,26 +925,14 @@ impl Window {
   }
 
   pub fn set_theme(&self, theme: Option<Theme>) {
-    let mut window_state = self.window_state.lock();
-    if window_state.preferred_theme == theme {
-      return;
+    {
+      let mut window_state = self.window_state.lock();
+      if window_state.preferred_theme == theme {
+        return;
+      }
+      window_state.preferred_theme = theme;
     }
-    window_state.preferred_theme = theme;
-    let new_theme = try_window_theme(self.hwnd(), theme, true);
-    if window_state.current_theme != new_theme {
-      window_state.current_theme = new_theme;
-      let _ = unsafe {
-        PostMessageW(
-          self.hwnd(),
-          *EMIT_THEME_MSG_ID,
-          WPARAM(match new_theme {
-            Theme::Dark => 1,
-            Theme::Light => 0,
-          }),
-          LPARAM(0),
-        )
-      };
-    };
+    unsafe { SendMessageW(self.hwnd(), WM_SETTINGCHANGE, WPARAM(0), LPARAM(0)) };
   }
 
   #[inline]

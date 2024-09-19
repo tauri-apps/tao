@@ -2,10 +2,11 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-#[allow(clippy::single_match)]
+use tao::{event::KeyEvent, keyboard::KeyCode};
+
 fn main() {
   use tao::{
-    event::{ElementState, Event, MouseButton, WindowEvent},
+    event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::{Theme, WindowBuilder},
   };
@@ -20,8 +21,9 @@ fn main() {
     .unwrap();
 
   println!("Initial theme: {:?}", window.theme());
-
-  let mut theme = true;
+  println!("Press D for Dark Mode");
+  println!("Press L for Light Mode");
+  println!("Press A for Auto Mode");
 
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Wait;
@@ -31,14 +33,15 @@ fn main() {
         event, window_id, ..
       } => match event {
         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-        WindowEvent::MouseInput {
-          button: MouseButton::Left,
-          state: ElementState::Pressed,
+        WindowEvent::KeyboardInput {
+          event: KeyEvent { physical_key, .. },
           ..
-        } => {
-          theme = !theme;
-          window.set_theme(if theme { None } else { Some(Theme::Dark) })
-        }
+        } => match physical_key {
+          KeyCode::KeyD => window.set_theme(Some(Theme::Dark)),
+          KeyCode::KeyL => window.set_theme(Some(Theme::Light)),
+          KeyCode::KeyA => window.set_theme(None),
+          _ => {}
+        },
         WindowEvent::ThemeChanged(theme) => {
           if window_id == window.id() {
             println!("Theme is changed: {theme:?}")

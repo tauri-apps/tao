@@ -624,12 +624,6 @@ lazy_static! {
     pub static ref SET_RETAIN_STATE_ON_SIZE_MSG_ID: u32 = unsafe {
         RegisterWindowMessageA(s!("Tao::SetRetainMaximized"))
     };
-    /// Message sent by a `Window` when a new theme is set.
-    /// WPARAM is 1 for dark mode and 0 for light mode.
-    /// and LPARAM is unused.
-    pub static ref EMIT_THEME_MSG_ID: u32 = unsafe {
-        RegisterWindowMessageA(s!("Tao::EmitTheme"))
-    };
     /// When the taskbar is created, it registers a message with the "TaskbarCreated" string and then broadcasts this message to all top-level windows
     /// When the application receives this message, it should assume that any taskbar icons it added have been removed and add them again.
     pub static ref S_U_TASKBAR_RESTART: u32 = unsafe {
@@ -2081,23 +2075,20 @@ unsafe fn public_window_callback_inner<T: 'static>(
       use crate::event::WindowEvent::ThemeChanged;
 
       let preferred_theme = subclass_input.window_state.lock().preferred_theme;
+      let new_theme = try_window_theme(
+        window,
+        preferred_theme.or(*subclass_input.event_loop_preferred_theme.lock()),
+        false,
+      );
+      let mut window_state = subclass_input.window_state.lock();
 
-      if preferred_theme.is_none() {
-        let new_theme = try_window_theme(
-          window,
-          preferred_theme.or(*subclass_input.event_loop_preferred_theme.lock()),
-          false,
-        );
-        let mut window_state = subclass_input.window_state.lock();
-
-        if window_state.current_theme != new_theme {
-          window_state.current_theme = new_theme;
-          mem::drop(window_state);
-          subclass_input.send_event(Event::WindowEvent {
-            window_id: RootWindowId(WindowId(window.0 as _)),
-            event: ThemeChanged(new_theme),
-          });
-        }
+      if window_state.current_theme != new_theme {
+        window_state.current_theme = new_theme;
+        mem::drop(window_state);
+        subclass_input.send_event(Event::WindowEvent {
+          window_id: RootWindowId(WindowId(window.0 as _)),
+          event: ThemeChanged(new_theme),
+        });
       }
     }
 
@@ -2205,16 +2196,6 @@ unsafe fn public_window_callback_inner<T: 'static>(
         let mut window_state = subclass_input.window_state.lock();
         window_state.set_window_flags_in_place(|f| {
           f.set(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE, wparam.0 != 0)
-        });
-        result = ProcResult::Value(LRESULT(0));
-      } else if msg == *EMIT_THEME_MSG_ID {
-        subclass_input.send_event(Event::WindowEvent {
-          window_id: RootWindowId(WindowId(window.0 as _)),
-          event: WindowEvent::ThemeChanged(if wparam == WPARAM(1) {
-            Theme::Dark
-          } else {
-            Theme::Light
-          }),
         });
         result = ProcResult::Value(LRESULT(0));
       } else if msg == *S_U_TASKBAR_RESTART {
