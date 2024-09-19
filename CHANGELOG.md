@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.30.1]
+
+- [`ad652e50`](https://github.com/tauri-apps/tao/commit/ad652e50bfca1195481cd347ccaa486818f9334d) ([#969](https://github.com/tauri-apps/tao/pull/969) by [@CampioneDev](https://github.com/tauri-apps/tao/../../CampioneDev)) On iOS, implement `application:openURL:options:` to handle custom URL schemes.
+- [`1a085ade`](https://github.com/tauri-apps/tao/commit/1a085ade59dcebdd3a6da4e8a8433be4702fe997) ([#937](https://github.com/tauri-apps/tao/pull/937) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Add a function `Window::set_theme` and `EventLoopWindowTarget::set_them`to set theme after window or event loop creation.
+
 ## \[0.30.0]
 
 - [`222d5786`](https://github.com/tauri-apps/tao/commit/222d57862b24511eda733812524df1736cd1f64d) ([#971](https://github.com/tauri-apps/tao/pull/971) by [@amrbashir](https://github.com/tauri-apps/tao/../../amrbashir)) On Windows, fix `Window::monitor_from_point` and `EventLoopTargetWindow::monitor_from_point` returning invalid monitor handle.
