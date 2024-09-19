@@ -21,6 +21,7 @@ use gtk::{
   cairo, gdk, gio,
   glib::{self},
   prelude::*,
+  Settings,
 };
 
 use crate::{
@@ -33,7 +34,9 @@ use crate::{
   keyboard::ModifiersState,
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{device, DEVICE_ID},
-  window::{CursorIcon, Fullscreen, ProgressBarState, ResizeDirection, WindowId as RootWindowId},
+  window::{
+    CursorIcon, Fullscreen, ProgressBarState, ResizeDirection, Theme, WindowId as RootWindowId,
+  },
 };
 
 use super::{
@@ -153,7 +156,17 @@ impl<T> EventLoopWindowTarget<T> {
       .window_requests_tx
       .send((WindowId::dummy(), WindowRequest::ProgressBarState(progress)))
     {
-      log::warn!("Fail to send update progress bar request: {}", e);
+      log::warn!("Fail to send update progress bar request: {e}");
+    }
+  }
+
+  #[inline]
+  pub fn set_theme(&self, theme: Option<Theme>) {
+    if let Err(e) = self
+      .window_requests_tx
+      .send((WindowId::dummy(), WindowRequest::SetTheme(theme)))
+    {
+      log::warn!("Fail to send update theme request: {e}");
     }
   }
 }
@@ -392,6 +405,7 @@ impl<T: 'static> EventLoop<T> {
             };
           }
           WindowRequest::ProgressBarState(_) => unreachable!(),
+          WindowRequest::SetTheme(_) => unreachable!(),
           WindowRequest::WireUpEvents {
             transparent,
             fullscreen,
@@ -856,6 +870,14 @@ impl<T: 'static> EventLoop<T> {
         match request {
           WindowRequest::ProgressBarState(state) => {
             taskbar.update(state);
+          }
+          WindowRequest::SetTheme(theme) => {
+            if let Some(settings) = Settings::default() {
+              match theme {
+                Some(Theme::Dark) => settings.set_gtk_application_prefer_dark_theme(true),
+                Some(Theme::Light) | None => settings.set_gtk_application_prefer_dark_theme(false),
+              }
+            }
           }
           _ => unreachable!(),
         }

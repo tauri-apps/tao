@@ -337,17 +337,20 @@ pub(super) fn get_ns_theme() -> Theme {
   }
 }
 
-pub(super) fn set_ns_theme(theme: Theme) {
-  let name = match theme {
-    Theme::Dark => "NSAppearanceNameDarkAqua",
-    Theme::Light => "NSAppearanceNameAqua",
-  };
+pub(super) fn set_ns_theme(theme: Option<Theme>) {
   unsafe {
     let app_class = class!(NSApplication);
     let app: id = msg_send![app_class, sharedApplication];
     let has_theme: BOOL = msg_send![app, respondsToSelector: sel!(effectiveAppearance)];
     if has_theme == YES {
-      let name = NSString::alloc(nil).init_str(name);
+      let name = if let Some(theme) = theme {
+        NSString::alloc(nil).init_str(match theme {
+          Theme::Dark => "NSAppearanceNameDarkAqua",
+          Theme::Light => "NSAppearanceNameAqua",
+        })
+      } else {
+        nil
+      };
       let appearance: id = msg_send![class!(NSAppearance), appearanceNamed: name];
       let _: () = msg_send![app, setAppearance: appearance];
     }
@@ -547,7 +550,7 @@ impl UnownedWindow {
 
     match cloned_preferred_theme {
       Some(theme) => {
-        set_ns_theme(theme);
+        set_ns_theme(Some(theme));
         let mut state = window.shared_state.lock().unwrap();
         state.current_theme = theme.clone();
       }
@@ -1415,6 +1418,12 @@ impl UnownedWindow {
   pub fn theme(&self) -> Theme {
     let state = self.shared_state.lock().unwrap();
     state.current_theme
+  }
+
+  pub fn set_theme(&self, theme: Option<Theme>) {
+    set_ns_theme(theme);
+    let mut state = self.shared_state.lock().unwrap();
+    state.current_theme = theme.unwrap_or_else(get_ns_theme);
   }
 
   pub fn set_content_protection(&self, enabled: bool) {

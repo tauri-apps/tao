@@ -1106,6 +1106,26 @@ impl Window {
     self.window.theme()
   }
 
+  /// Sets the theme for this window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / macOS**: Theme is app-wide and not specific to this window.
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_theme(&self, #[allow(unused)] theme: Option<Theme>) {
+    #[cfg(any(
+      windows,
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd",
+      target_os = "macos",
+    ))]
+    self.window.set_theme(theme)
+  }
+
   /// Prevents the window contents from being captured by other apps.
   ///
   /// ## Platform-specific
@@ -1401,16 +1421,11 @@ pub enum Fullscreen {
 }
 
 #[non_exhaustive]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub enum Theme {
+  #[default]
   Light,
   Dark,
-}
-
-impl Default for Theme {
-  fn default() -> Self {
-    Theme::Light
-  }
 }
 
 #[non_exhaustive]

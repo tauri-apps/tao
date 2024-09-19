@@ -17,8 +17,12 @@ use instant::Instant;
 use std::{error, fmt, marker::PhantomData, ops::Deref};
 
 use crate::{
-  dpi::PhysicalPosition, error::ExternalError, event::Event, monitor::MonitorHandle, platform_impl,
-  window::ProgressBarState,
+  dpi::PhysicalPosition,
+  error::ExternalError,
+  event::Event,
+  monitor::MonitorHandle,
+  platform_impl,
+  window::{ProgressBarState, Theme},
 };
 
 /// Provides a way to retrieve events from the system and from the windows that were registered to
@@ -295,6 +299,25 @@ impl<T> EventLoopWindowTarget<T> {
   pub fn set_progress_bar(&self, _progress: ProgressBarState) {
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     self.p.set_progress_bar(_progress)
+  }
+
+  /// Sets the theme for the application.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_theme(&self, theme: Option<Theme>) {
+    #[cfg(any(
+      windows,
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd",
+      target_os = "macos",
+    ))]
+    self.p.set_theme(theme)
   }
 }
 

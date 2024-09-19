@@ -133,7 +133,7 @@ impl Window {
           _file_drop_handler: file_drop_handler,
           subclass_removed: Cell::new(false),
           recurse_depth: Cell::new(0),
-          event_loop_preferred_theme: event_loop.preferred_theme,
+          event_loop_preferred_theme: event_loop.preferred_theme.clone(),
         };
 
         event_loop::subclass_window(win.window.0, subclass_input);
@@ -196,7 +196,7 @@ impl Window {
   #[inline]
   pub fn outer_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
     unsafe { util::get_window_rect(self.window.0) }
-      .map(|rect| Ok(PhysicalPosition::new(rect.left as i32, rect.top as i32)))
+      .map(|rect| Ok(PhysicalPosition::new(rect.left, rect.top)))
       .expect("Unexpected GetWindowRect failure")
   }
 
@@ -206,7 +206,7 @@ impl Window {
     if !unsafe { ClientToScreen(self.window.0, &mut position) }.as_bool() {
       panic!("Unexpected ClientToScreen failure")
     }
-    Ok(PhysicalPosition::new(position.x as i32, position.y as i32))
+    Ok(PhysicalPosition::new(position.x, position.y))
   }
 
   #[inline]
@@ -225,8 +225,8 @@ impl Window {
       let _ = SetWindowPos(
         self.window.0,
         HWND::default(),
-        x as i32,
-        y as i32,
+        x,
+        y,
         0,
         0,
         SWP_ASYNCWINDOWPOS | SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE,
@@ -924,6 +924,17 @@ impl Window {
     self.window_state.lock().current_theme
   }
 
+  pub fn set_theme(&self, theme: Option<Theme>) {
+    {
+      let mut window_state = self.window_state.lock();
+      if window_state.preferred_theme == theme {
+        return;
+      }
+      window_state.preferred_theme = theme;
+    }
+    unsafe { SendMessageW(self.hwnd(), WM_SETTINGCHANGE, WPARAM(0), LPARAM(0)) };
+  }
+
   #[inline]
   pub fn reset_dead_keys(&self) {
     // `ToUnicode` consumes the dead-key by default, so we are constructing a fake (but valid)
@@ -1141,7 +1152,9 @@ unsafe fn init<T: 'static>(
   // window for the first time).
   let current_theme = try_window_theme(
     real_window.0,
-    attributes.preferred_theme.or(event_loop.preferred_theme),
+    attributes
+      .preferred_theme
+      .or(*event_loop.preferred_theme.lock()),
   );
 
   let window_state = {
