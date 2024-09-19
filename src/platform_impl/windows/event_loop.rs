@@ -2078,7 +2078,6 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let new_theme = try_window_theme(
         window,
         preferred_theme.or(*subclass_input.event_loop_preferred_theme.lock()),
-        false,
       );
       let mut window_state = subclass_input.window_state.lock();
 

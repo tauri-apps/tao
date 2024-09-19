@@ -1155,7 +1155,6 @@ unsafe fn init<T: 'static>(
     attributes
       .preferred_theme
       .or(*event_loop.preferred_theme.lock()),
-    false,
   );
 
   let window_state = {
