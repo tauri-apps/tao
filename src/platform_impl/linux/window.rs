@@ -17,7 +17,6 @@ use gtk::{
   glib::{self, translate::ToGlibPtr},
 };
 use gtk::{prelude::*, Settings};
-use parking_lot::Mutex;
 
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
@@ -66,7 +65,7 @@ pub struct Window {
   inner_size_constraints: RefCell<WindowSizeConstraints>,
   /// Draw event Sender
   draw_tx: crossbeam_channel::Sender<WindowId>,
-  preferred_theme: Mutex<Option<Theme>>,
+  preferred_theme: RefCell<Option<Theme>>,
 }
 
 impl Window {
@@ -307,7 +306,7 @@ impl Window {
       minimized,
       fullscreen: RefCell::new(attributes.fullscreen),
       inner_size_constraints: RefCell::new(attributes.inner_size_constraints),
-      preferred_theme: Mutex::new(preferred_theme),
+      preferred_theme: RefCell::new(preferred_theme),
     };
 
     win.set_skip_taskbar(pl_attribs.skip_taskbar);
@@ -386,7 +385,7 @@ impl Window {
       minimized,
       fullscreen: RefCell::new(None),
       inner_size_constraints: RefCell::new(WindowSizeConstraints::default()),
-      preferred_theme: Mutex::new(None),
+      preferred_theme: RefCell::new(None),
     };
 
     Ok(win)
@@ -942,7 +941,7 @@ impl Window {
   }
 
   pub fn theme(&self) -> Theme {
-    if let Some(theme) = *self.preferred_theme.lock() {
+    if let Some(theme) = *self.preferred_theme.borrow() {
       return theme;
     }
 
@@ -957,7 +956,7 @@ impl Window {
   }
 
   pub fn set_theme(&self, theme: Option<Theme>) {
-    *self.preferred_theme.lock() = theme;
+    *self.preferred_theme.borrow_mut() = theme;
     if let Err(e) = self
       .window_requests_tx
       .send((WindowId::dummy(), WindowRequest::SetTheme(theme)))
