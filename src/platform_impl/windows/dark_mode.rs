@@ -187,13 +187,13 @@ fn refresh_titlebar_theme_color(hwnd: HWND, is_dark_mode: bool) {
           &dark_mode as *const BOOL as *const c_void,
           std::mem::size_of::<BOOL>() as u32,
         );
-      }
-      if unsafe { GetActiveWindow() } == hwnd {
-        unsafe { DefWindowProcW(hwnd, WM_NCACTIVATE, None, None) };
-        unsafe { DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM(true.into()), None) };
-      } else {
-        unsafe { DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM(true.into()), None) };
-        unsafe { DefWindowProcW(hwnd, WM_NCACTIVATE, None, None) };
+        if GetActiveWindow() == hwnd {
+          DefWindowProcW(hwnd, WM_NCACTIVATE, None, None);
+          DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM(true.into()), None);
+        } else {
+          DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM(true.into()), None);
+          DefWindowProcW(hwnd, WM_NCACTIVATE, None, None);
+        }
       }
     }
   }
