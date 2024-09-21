@@ -27,6 +27,7 @@ use crate::{
     CursorIcon, Fullscreen, ProgressBarState, ResizeDirection, Theme, UserAttentionType,
     WindowAttributes, WindowSizeConstraints,
   },
+  platform_impl::wayland::display::WlHeader,
 };
 
 use super::{
@@ -77,6 +78,7 @@ impl Window {
     let app = &event_loop_window_target.app;
     let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
     let draw_tx = event_loop_window_target.draw_tx.clone();
+    let is_wayland = event_loop_window_target.is_wayland();
 
     let mut window_builder = gtk::ApplicationWindow::builder()
       .application(app)
@@ -86,6 +88,10 @@ impl Window {
     }
 
     let window = window_builder.build();
+
+    if is_wayland {
+      WlHeader::setup(&window);
+    }
 
     let window_id = WindowId(window.id());
     event_loop_window_target
@@ -103,6 +109,9 @@ impl Window {
     window.resize(width, height);
 
     if attributes.maximized {
+      if is_wayland {
+        window.set_resizable(true);
+      }
       window.maximize();
     }
 
