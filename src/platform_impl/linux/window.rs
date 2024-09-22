@@ -108,7 +108,7 @@ impl Window {
     window.set_default_size(1, 1);
     window.resize(width, height);
 
-    if attributes.maximized {
+    if attributes.maximized && attributes.resizable {
       if is_wayland {
         window.set_resizable(true);
       }
@@ -578,9 +578,12 @@ impl Window {
   }
 
   pub fn set_maximized(&self, maximized: bool) {
+    let resizable = self.is_resizable();
+    let should_maximize = maximized && resizable;
+
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::Maximized(maximized)))
+      .send((self.window_id, WindowRequest::Maximized(should_maximize)))
     {
       log::warn!("Fail to send maximized request: {}", e);
     }
@@ -603,7 +606,7 @@ impl Window {
   }
 
   pub fn is_maximizable(&self) -> bool {
-    true
+    self.window.is_resizable() && self.maximized.load(Ordering::Acquire)
   }
 
   pub fn is_closable(&self) -> bool {

@@ -262,6 +262,7 @@ impl<T: 'static> EventLoop<T> {
     };
 
     let mut taskbar = TaskbarIndicator::new();
+    let is_wayland = window_target.is_wayland();
 
     // Window Request
     window_requests_rx.attach(Some(&context), move |(id, request)| {
@@ -293,7 +294,7 @@ impl<T: 'static> EventLoop<T> {
             }
           }
           WindowRequest::Maximized(maximized) => {
-            if maximized {
+            if maximized && window.is_resizable() {
               window.maximize();
             } else {
               window.unmaximize();
@@ -421,6 +422,33 @@ impl<T: 'static> EventLoop<T> {
                 | EventMask::SCROLL_MASK,
             );
 
+            const TITLEBAR_HEIGHT: f64 = 30.0;
+            const LMB: u32 = 1;
+            // Wayland add Events
+            if is_wayland {
+              window.connect_button_press_event(move |window, event| {
+                if event.button() == LMB {
+                    let (x, y) = event.root();
+                    let (window_x, window_y) = window.position();
+                    let (window_x, window_y) = (window_x as f64, window_y as f64);
+                    
+                    let border_width = window.border_width() as f64;
+                    let (window_width, _) = window.size();
+                    let window_width = window_width as f64;
+        
+                    if x > window_x + border_width && 
+                    x < window_x + window_width - border_width &&
+                    y > window_y + border_width && 
+                    y < window_y + border_width + TITLEBAR_HEIGHT 
+                  {
+                      window.begin_move_drag(LMB as i32, x as i32, y as i32, event.time());
+                     return glib::Propagation::Stop;
+                  }
+                }
+                glib::Propagation::Proceed
+              });
+            }
+
             let fullscreen = Rc::new(AtomicBool::new(fullscreen));
             let fullscreen_ = fullscreen.clone();
             window.connect_window_state_event(move |_window, event| {
@@ -462,15 +490,10 @@ impl<T: 'static> EventLoop<T> {
               glib::Propagation::Proceed
             });
             window.connect_button_press_event(move |window, event| {
-              if !window.is_decorated()
-                && window.is_resizable()
-                && !window.is_maximized()
-                && event.button() == 1
-              {
-                if let Some(window) = window.window() {
+              if event.button() == LMB {
                   let (cx, cy) = event.root();
                   let (left, top) = window.position();
-                  let (w, h) = (window.width(), window.height());
+                  let (w, h) = window.size();
                   let (right, bottom) = (left + w, top + h);
                   let border = window.scale_factor() * 5;
                   let edge = crate::window::hit_test(
@@ -489,11 +512,10 @@ impl<T: 'static> EventLoop<T> {
                     WindowEdge::__Unknown(_) => (),
                     _ => {
                       // FIXME: calling `window.begin_resize_drag` uses the default cursor, it should show a resizing cursor instead
-                      window.begin_resize_drag(edge, 1, cx as i32, cy as i32, event.time())
+                      window.begin_resize_drag(edge, LMB as i32, cx as i32, cy as i32, event.time())
                     }
                   }
                 }
-              }
 
               glib::Propagation::Proceed
             });
