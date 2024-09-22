@@ -20,8 +20,8 @@ mod util;
 mod window;
 
 pub mod taskbar;
-pub mod x11;
 pub mod wayland;
+pub mod x11;
 
 pub use self::keycode::{keycode_from_scancode, keycode_to_scancode};
 pub(crate) use event_loop::PlatformSpecificEventLoopAttributes;

@@ -23,11 +23,11 @@ use crate::{
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
   monitor::MonitorHandle as RootMonitorHandle,
+  platform_impl::wayland::display::WlHeader,
   window::{
     CursorIcon, Fullscreen, ProgressBarState, ResizeDirection, Theme, UserAttentionType,
     WindowAttributes, WindowSizeConstraints,
   },
-  platform_impl::wayland::display::WlHeader,
 };
 
 use super::{
