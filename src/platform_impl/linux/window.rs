@@ -109,9 +109,6 @@ impl Window {
     window.resize(width, height);
 
     if attributes.maximized && attributes.resizable {
-      if is_wayland {
-        window.set_resizable(true);
-      }
       window.maximize();
     }
 

@@ -47,7 +47,7 @@ use super::{
 };
 
 use taskbar::TaskbarIndicator;
-
+  
 #[derive(Clone)]
 pub struct EventLoopWindowTarget<T> {
   /// Gdk display
@@ -294,7 +294,7 @@ impl<T: 'static> EventLoop<T> {
             }
           }
           WindowRequest::Maximized(maximized) => {
-            if maximized && window.is_resizable() {
+            if maximized {
               window.maximize();
             } else {
               window.unmaximize();
