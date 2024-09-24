@@ -108,11 +108,12 @@ impl Window {
     window.set_default_size(1, 1);
     window.resize(width, height);
 
-    if attributes.maximized && attributes.resizable {
-      window.maximize();
-    }
+    let maximize_process = util::WindowMaximizeProcess::new(window.clone(), attributes.maximized, attributes.resizable);
+    glib::timeout_add_local(std::time::Duration::from_millis(25), move || {
+        let mut maximize_process = maximize_process.borrow_mut();
+        maximize_process.next_step()
+    });
 
-    window.set_resizable(attributes.resizable);
     window.set_deletable(attributes.closable);
 
     // Set Min/Max Size
@@ -576,11 +577,10 @@ impl Window {
 
   pub fn set_maximized(&self, maximized: bool) {
     let resizable = self.is_resizable();
-    let should_maximize = maximized && resizable;
 
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::Maximized(should_maximize)))
+      .send((self.window_id, WindowRequest::Maximized(maximized, resizable)))
     {
       log::warn!("Fail to send maximized request: {}", e);
     }
@@ -603,9 +603,8 @@ impl Window {
   }
 
   pub fn is_maximizable(&self) -> bool {
-    self.window.is_resizable() && self.maximized.load(Ordering::Acquire)
+    true
   }
-
   pub fn is_closable(&self) -> bool {
     self.window.is_deletable()
   }
@@ -991,7 +990,7 @@ pub enum WindowRequest {
   Resizable(bool),
   Closable(bool),
   Minimized(bool),
-  Maximized(bool),
+  Maximized(bool, bool),
   DragWindow,
   DragResizeWindow(ResizeDirection),
   Fullscreen(Option<Fullscreen>),

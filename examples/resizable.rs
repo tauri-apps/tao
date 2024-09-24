@@ -16,11 +16,13 @@ fn main() {
   let event_loop = EventLoop::new();
 
   let mut resizable = false;
+  let mut maximized = true;
 
   let window = WindowBuilder::new()
     .with_title("Hit space to toggle resizability.")
     .with_inner_size(LogicalSize::new(400.0, 200.0))
     .with_resizable(resizable)
+    .with_maximized(maximized)
     .build(&event_loop)
     .unwrap();
 
@@ -42,6 +44,19 @@ fn main() {
           resizable = !resizable;
           println!("Resizable: {}", resizable);
           window.set_resizable(resizable);
+        }
+        WindowEvent::KeyboardInput {
+          event:
+            KeyEvent {
+              physical_key: KeyCode::Enter,
+              state: ElementState::Released,
+              ..
+            },
+          ..
+        } => {
+          maximized = !maximized;
+          println!("Maximized: {}", maximized);
+          window.set_maximized(maximized);
         }
         _ => (),
       },

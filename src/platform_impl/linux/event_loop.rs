@@ -293,9 +293,13 @@ impl<T: 'static> EventLoop<T> {
               window.deiconify();
             }
           }
-          WindowRequest::Maximized(maximized) => {
+          WindowRequest::Maximized(maximized, resizable) => {
             if maximized {
-              window.maximize();
+              let maximize_process = util::WindowMaximizeProcess::new(window.clone(), maximized, resizable);
+              glib::timeout_add_local(std::time::Duration::from_millis(10), move || {
+                let mut maximize_process = maximize_process.borrow_mut();
+                maximize_process.next_step()
+              });
             } else {
               window.unmaximize();
             }
@@ -427,19 +431,18 @@ impl<T: 'static> EventLoop<T> {
             // Wayland add Events
             if is_wayland {
               window.connect_button_press_event(move |window, event| {
+                let header_bar = window.titlebar().and_downcast::<gtk::HeaderBar>().unwrap();
+                let header_height = header_bar.allocated_height();
                 if event.button() == LMB {
                   let (x, y) = event.root();
                   let (window_x, window_y) = window.position();
                   let (window_x, window_y) = (window_x as f64, window_y as f64);
 
-                  let border_width = window.border_width() as f64;
                   let (window_width, _) = window.size();
                   let window_width = window_width as f64;
 
-                  if x > window_x + border_width
-                    && x < window_x + window_width - border_width
-                    && y > window_y + border_width
-                    && y < window_y + border_width + TITLEBAR_HEIGHT
+                  if x >= window_x && x <= window_x + window_width &&
+                  y >= window_y && y <= window_y + header_height as f64
                   {
                     window.begin_move_drag(LMB as i32, x as i32, y as i32, event.time());
                     return glib::Propagation::Stop;

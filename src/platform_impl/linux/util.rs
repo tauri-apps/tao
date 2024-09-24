@@ -1,15 +1,19 @@
-use gtk::gdk::{
-  self,
-  prelude::{DeviceExt, SeatExt},
-  Display,
-};
-use gtk::traits::{GtkWindowExt, WidgetExt};
-
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition},
   error::ExternalError,
   window::WindowSizeConstraints,
 };
+use gtk::gdk::{
+  self,
+  prelude::{DeviceExt, SeatExt},
+  Display,
+};
+use gtk::{
+  glib::{self},
+  traits::{GtkWindowExt, WidgetExt},
+};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 #[inline]
 pub fn cursor_position(is_wayland: bool) -> Result<PhysicalPosition<f64>, ExternalError> {
@@ -70,3 +74,40 @@ pub fn set_size_constraints<W: GtkWindowExt + WidgetExt>(
     geom_mask,
   )
 }
+
+impl<W: GtkWindowExt + WidgetExt> WindowMaximizeProcess<W> {
+  pub fn new(window: W, maximized: bool, resizable: bool) -> Rc<RefCell<Self>> {
+    Rc::new(RefCell::new(Self {
+      window,
+      maximized,
+      resizable,
+      step: 0,
+    }))
+  }
+
+  pub fn next_step(&mut self) -> glib::ControlFlow {
+    match self.step {
+      0 => {
+        if self.maximized {
+          self.window.set_resizable(true);
+          self.step += 1;
+          glib::ControlFlow::Continue
+        } else {
+          self.step = 2;
+          glib::ControlFlow::Continue
+        }
+      }
+      1 => {
+        self.window.maximize();
+        self.step += 1;
+        glib::ControlFlow::Continue
+      }
+      2 => {
+        self.window.set_resizable(self.resizable);
+        glib::ControlFlow::Break
+      }
+      _ => glib::ControlFlow::Break,
+    }
+  }
+}
+
