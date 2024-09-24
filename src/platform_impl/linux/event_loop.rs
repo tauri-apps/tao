@@ -427,7 +427,6 @@ impl<T: 'static> EventLoop<T> {
                 | EventMask::SCROLL_MASK,
             );
 
-            const TITLEBAR_HEIGHT: f64 = 30.0;
             const LMB: u32 = 1;
             // Wayland add Events
             if is_wayland {
