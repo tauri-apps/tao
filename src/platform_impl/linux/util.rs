@@ -75,6 +75,13 @@ pub fn set_size_constraints<W: GtkWindowExt + WidgetExt>(
   )
 }
 
+pub struct WindowMaximizeProcess<W: GtkWindowExt + WidgetExt> {
+  window: W,
+  maximized: bool,
+  resizable: bool,
+  step: u8,
+}
+
 impl<W: GtkWindowExt + WidgetExt> WindowMaximizeProcess<W> {
   pub fn new(window: W, maximized: bool, resizable: bool) -> Rc<RefCell<Self>> {
     Rc::new(RefCell::new(Self {
