@@ -110,4 +110,3 @@ impl<W: GtkWindowExt + WidgetExt> WindowMaximizeProcess<W> {
     }
   }
 }
-

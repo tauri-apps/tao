@@ -108,10 +108,11 @@ impl Window {
     window.set_default_size(1, 1);
     window.resize(width, height);
 
-    let maximize_process = util::WindowMaximizeProcess::new(window.clone(), attributes.maximized, attributes.resizable);
+    let maximize_process =
+      util::WindowMaximizeProcess::new(window.clone(), attributes.maximized, attributes.resizable);
     glib::timeout_add_local(std::time::Duration::from_millis(25), move || {
-        let mut maximize_process = maximize_process.borrow_mut();
-        maximize_process.next_step()
+      let mut maximize_process = maximize_process.borrow_mut();
+      maximize_process.next_step()
     });
 
     window.set_deletable(attributes.closable);
@@ -578,10 +579,10 @@ impl Window {
   pub fn set_maximized(&self, maximized: bool) {
     let resizable = self.is_resizable();
 
-    if let Err(e) = self
-      .window_requests_tx
-      .send((self.window_id, WindowRequest::Maximized(maximized, resizable)))
-    {
+    if let Err(e) = self.window_requests_tx.send((
+      self.window_id,
+      WindowRequest::Maximized(maximized, resizable),
+    )) {
       log::warn!("Fail to send maximized request: {}", e);
     }
   }

@@ -47,7 +47,7 @@ use super::{
 };
 
 use taskbar::TaskbarIndicator;
-  
+
 #[derive(Clone)]
 pub struct EventLoopWindowTarget<T> {
   /// Gdk display
@@ -295,7 +295,8 @@ impl<T: 'static> EventLoop<T> {
           }
           WindowRequest::Maximized(maximized, resizable) => {
             if maximized {
-              let maximize_process = util::WindowMaximizeProcess::new(window.clone(), maximized, resizable);
+              let maximize_process =
+                util::WindowMaximizeProcess::new(window.clone(), maximized, resizable);
               glib::timeout_add_local(std::time::Duration::from_millis(10), move || {
                 let mut maximize_process = maximize_process.borrow_mut();
                 maximize_process.next_step()
@@ -441,8 +442,10 @@ impl<T: 'static> EventLoop<T> {
                   let (window_width, _) = window.size();
                   let window_width = window_width as f64;
 
-                  if x >= window_x && x <= window_x + window_width &&
-                  y >= window_y && y <= window_y + header_height as f64
+                  if x >= window_x
+                    && x <= window_x + window_width
+                    && y >= window_y
+                    && y <= window_y + header_height as f64
                   {
                     window.begin_move_drag(LMB as i32, x as i32, y as i32, event.time());
                     return glib::Propagation::Stop;
