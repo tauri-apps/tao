@@ -991,6 +991,11 @@ impl UnownedWindow {
   }
 
   #[inline]
+  pub fn is_always_on_top(&self) -> bool {
+    unsafe { self.ns_window.level() == ffi::kCGFloatingWindowLevelKey }
+  }
+
+  #[inline]
   pub fn is_maximized(&self) -> bool {
     self.is_zoomed()
   }

@@ -77,6 +77,11 @@ impl Inner {
     false
   }
 
+  pub fn is_always_on_top(&self) -> bool {
+    log::warn!("`Window::is_always_on_top` is ignored on iOS");
+    false
+  }
+
   pub fn request_redraw(&self) {
     unsafe {
       if self.gl_or_metal_backed {
