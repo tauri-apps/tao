@@ -813,7 +813,7 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **iOS / Android:** Unsupported.
+  /// - **Linux / iOS / Android:** Unsupported.
   #[inline]
   pub fn is_always_on_top(&self) -> bool {
     self.window.is_always_on_top()
