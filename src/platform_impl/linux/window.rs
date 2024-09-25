@@ -23,7 +23,7 @@ use crate::{
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
   monitor::MonitorHandle as RootMonitorHandle,
-  platform_impl::wayland::display::WlHeader,
+  platform_impl::wayland::header::WlHeader,
   window::{
     CursorIcon, Fullscreen, ProgressBarState, ResizeDirection, Theme, UserAttentionType,
     WindowAttributes, WindowSizeConstraints,
