@@ -262,7 +262,6 @@ impl<T: 'static> EventLoop<T> {
     };
 
     let mut taskbar = TaskbarIndicator::new();
-    let is_wayland = window_target.is_wayland();
 
     // Window Request
     window_requests_rx.attach(Some(&context), move |(id, request)| {
@@ -297,7 +296,7 @@ impl<T: 'static> EventLoop<T> {
             if maximized {
               let maximize_process =
                 util::WindowMaximizeProcess::new(window.clone(), maximized, resizable);
-              glib::timeout_add_local(std::time::Duration::from_millis(10), move || {
+              glib::idle_add_local_full(glib::Priority::DEFAULT_IDLE, move || {
                 let mut maximize_process = maximize_process.borrow_mut();
                 maximize_process.next_step()
               });
@@ -427,33 +426,6 @@ impl<T: 'static> EventLoop<T> {
                 | EventMask::SCROLL_MASK,
             );
 
-            const LMB: u32 = 1;
-            // Wayland add Events
-            if is_wayland {
-              window.connect_button_press_event(move |window, event| {
-                let header_bar = window.titlebar().and_downcast::<gtk::HeaderBar>().unwrap();
-                let header_height = header_bar.allocated_height();
-                if event.button() == LMB {
-                  let (x, y) = event.root();
-                  let (window_x, window_y) = window.position();
-                  let (window_x, window_y) = (window_x as f64, window_y as f64);
-
-                  let (window_width, _) = window.size();
-                  let window_width = window_width as f64;
-
-                  if x >= window_x
-                    && x <= window_x + window_width
-                    && y >= window_y
-                    && y <= window_y + header_height as f64
-                  {
-                    window.begin_move_drag(LMB as i32, x as i32, y as i32, event.time());
-                    return glib::Propagation::Stop;
-                  }
-                }
-                glib::Propagation::Proceed
-              });
-            }
-
             let fullscreen = Rc::new(AtomicBool::new(fullscreen));
             let fullscreen_ = fullscreen.clone();
             window.connect_window_state_event(move |_window, event| {
@@ -495,6 +467,7 @@ impl<T: 'static> EventLoop<T> {
               glib::Propagation::Proceed
             });
             window.connect_button_press_event(move |window, event| {
+              const LMB: u32 = 1;
               if event.button() == LMB {
                 let (cx, cy) = event.root();
                 let (left, top) = window.position();
