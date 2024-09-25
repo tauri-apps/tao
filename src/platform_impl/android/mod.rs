@@ -569,6 +569,11 @@ impl Window {
     false
   }
 
+  pub fn is_always_on_top(&self) -> bool {
+    log::warn!("`Window::is_always_on_top` is ignored on Android");
+    false
+  }
+
   pub fn set_resizable(&self, _resizeable: bool) {
     warn!("`Window::set_resizable` is ignored on Android")
   }
