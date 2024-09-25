@@ -584,6 +584,14 @@ impl Window {
   }
 
   #[inline]
+  pub fn is_always_on_top(&self) -> bool {
+    let window_state = self.window_state.lock();
+    window_state
+      .window_flags
+      .contains(WindowFlags::ALWAYS_ON_TOP)
+  }
+
+  #[inline]
   pub fn is_minimized(&self) -> bool {
     unsafe { IsIconic(self.hwnd()) }.as_bool()
   }
