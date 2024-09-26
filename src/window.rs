@@ -809,6 +809,16 @@ impl Window {
     self.window.is_focused()
   }
 
+  /// Indicates whether the window is always on top of other windows.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn is_always_on_top(&self) -> bool {
+    self.window.is_always_on_top()
+  }
+
   /// Sets whether the window is resizable or not.
   ///
   /// Note that making the window unresizable doesn't exempt you from handling `Resized`, as that event can still be

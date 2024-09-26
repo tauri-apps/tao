@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.30.2]
+
+- [`016e122c`](https://github.com/tauri-apps/tao/commit/016e122c5f10eb61f8abe052a888950a460e0804) ([#978](https://github.com/tauri-apps/tao/pull/978) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Fix changing the theme activates the window on Windows
+
 ## \[0.30.1]
 
 - [`ad652e50`](https://github.com/tauri-apps/tao/commit/ad652e50bfca1195481cd347ccaa486818f9334d) ([#969](https://github.com/tauri-apps/tao/pull/969) by [@CampioneDev](https://github.com/tauri-apps/tao/../../CampioneDev)) On iOS, implement `application:openURL:options:` to handle custom URL schemes.

@@ -61,6 +61,7 @@ pub struct Window {
   position: Rc<(AtomicI32, AtomicI32)>,
   size: Rc<(AtomicI32, AtomicI32)>,
   maximized: Rc<AtomicBool>,
+  is_always_on_top: Rc<AtomicBool>,
   minimized: Rc<AtomicBool>,
   fullscreen: RefCell<Option<Fullscreen>>,
   inner_size_constraints: RefCell<WindowSizeConstraints>,
@@ -273,11 +274,14 @@ impl Window {
     let max_clone = maximized.clone();
     let minimized = Rc::new(AtomicBool::new(false));
     let minimized_clone = minimized.clone();
+    let is_always_on_top = Rc::new(AtomicBool::new(attributes.always_on_top));
+    let is_always_on_top_clone = is_always_on_top.clone();
 
     window.connect_window_state_event(move |_, event| {
       let state = event.new_window_state();
       max_clone.store(state.contains(WindowState::MAXIMIZED), Ordering::Release);
       minimized_clone.store(state.contains(WindowState::ICONIFIED), Ordering::Release);
+      is_always_on_top_clone.store(state.contains(WindowState::ABOVE), Ordering::Release);
       glib::Propagation::Proceed
     });
 
@@ -319,6 +323,7 @@ impl Window {
       size,
       maximized,
       minimized,
+      is_always_on_top,
       fullscreen: RefCell::new(attributes.fullscreen),
       inner_size_constraints: RefCell::new(attributes.inner_size_constraints),
       preferred_theme: RefCell::new(preferred_theme),
@@ -369,11 +374,14 @@ impl Window {
     let max_clone = maximized.clone();
     let minimized = Rc::new(AtomicBool::new(false));
     let minimized_clone = minimized.clone();
+    let is_always_on_top = Rc::new(AtomicBool::new(false));
+    let is_always_on_top_clone = is_always_on_top.clone();
 
     window.connect_window_state_event(move |_, event| {
       let state = event.new_window_state();
       max_clone.store(state.contains(WindowState::MAXIMIZED), Ordering::Release);
       minimized_clone.store(state.contains(WindowState::ICONIFIED), Ordering::Release);
+      is_always_on_top_clone.store(state.contains(WindowState::ABOVE), Ordering::Release);
       glib::Propagation::Proceed
     });
 
@@ -398,6 +406,7 @@ impl Window {
       size,
       maximized,
       minimized,
+      is_always_on_top,
       fullscreen: RefCell::new(None),
       inner_size_constraints: RefCell::new(WindowSizeConstraints::default()),
       preferred_theme: RefCell::new(None),
@@ -592,6 +601,10 @@ impl Window {
     )) {
       log::warn!("Fail to send maximized request: {}", e);
     }
+  }
+
+  pub fn is_always_on_top(&self) -> bool {
+    self.is_always_on_top.load(Ordering::Acquire)
   }
 
   pub fn is_maximized(&self) -> bool {
