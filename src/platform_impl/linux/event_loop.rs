@@ -262,6 +262,7 @@ impl<T: 'static> EventLoop<T> {
     };
 
     let mut taskbar = TaskbarIndicator::new();
+    let is_wayland = window_target.is_wayland();
 
     // Window Request
     window_requests_rx.attach(Some(&context), move |(id, request)| {
@@ -292,9 +293,13 @@ impl<T: 'static> EventLoop<T> {
               window.deiconify();
             }
           }
-          WindowRequest::Maximized(maximized) => {
+          WindowRequest::Maximized(maximized, resizable) => {
             if maximized {
-              window.maximize();
+              let maximize_process = util::WindowMaximizeProcess::new(window.clone(), resizable);
+              glib::idle_add_local_full(glib::Priority::DEFAULT_IDLE, move || {
+                let mut maximize_process = maximize_process.borrow_mut();
+                maximize_process.next_step()
+              });
             } else {
               window.unmaximize();
             }
@@ -462,35 +467,34 @@ impl<T: 'static> EventLoop<T> {
               glib::Propagation::Proceed
             });
             window.connect_button_press_event(move |window, event| {
-              if !window.is_decorated()
+              const LMB: u32 = 1;
+              if (is_wayland || !window.is_decorated())
                 && window.is_resizable()
                 && !window.is_maximized()
-                && event.button() == 1
+                && event.button() == LMB
               {
-                if let Some(window) = window.window() {
-                  let (cx, cy) = event.root();
-                  let (left, top) = window.position();
-                  let (w, h) = (window.width(), window.height());
-                  let (right, bottom) = (left + w, top + h);
-                  let border = window.scale_factor() * 5;
-                  let edge = crate::window::hit_test(
-                    (left, top, right, bottom),
-                    cx as _,
-                    cy as _,
-                    border,
-                    border,
-                  )
-                  .map(|d| d.to_gtk_edge())
-                  // we return `WindowEdge::__Unknown` to be ignored later.
-                  // we must return 8 or bigger, otherwise it will be the same as one of the other 7 variants of `WindowEdge` enum.
-                  .unwrap_or(WindowEdge::__Unknown(8));
-                  // Ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
-                  match edge {
-                    WindowEdge::__Unknown(_) => (),
-                    _ => {
-                      // FIXME: calling `window.begin_resize_drag` uses the default cursor, it should show a resizing cursor instead
-                      window.begin_resize_drag(edge, 1, cx as i32, cy as i32, event.time())
-                    }
+                let (cx, cy) = event.root();
+                let (left, top) = window.position();
+                let (w, h) = window.size();
+                let (right, bottom) = (left + w, top + h);
+                let border = window.scale_factor() * 5;
+                let edge = crate::window::hit_test(
+                  (left, top, right, bottom),
+                  cx as _,
+                  cy as _,
+                  border,
+                  border,
+                )
+                .map(|d| d.to_gtk_edge())
+                // we return `WindowEdge::__Unknown` to be ignored later.
+                // we must return 8 or bigger, otherwise it will be the same as one of the other 7 variants of `WindowEdge` enum.
+                .unwrap_or(WindowEdge::__Unknown(8));
+                // Ignore the `__Unknown` variant so the window receives the click correctly if it is not on the edges.
+                match edge {
+                  WindowEdge::__Unknown(_) => (),
+                  _ => {
+                    // FIXME: calling `window.begin_resize_drag` uses the default cursor, it should show a resizing cursor instead
+                    window.begin_resize_drag(edge, LMB as i32, cx as i32, cy as i32, event.time())
                   }
                 }
               }

@@ -23,6 +23,7 @@ use crate::{
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
   monitor::MonitorHandle as RootMonitorHandle,
+  platform_impl::wayland::header::WlHeader,
   window::{
     CursorIcon, Fullscreen, ProgressBarState, ResizeDirection, Theme, UserAttentionType,
     WindowAttributes, WindowSizeConstraints,
@@ -78,6 +79,7 @@ impl Window {
     let app = &event_loop_window_target.app;
     let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
     let draw_tx = event_loop_window_target.draw_tx.clone();
+    let is_wayland = event_loop_window_target.is_wayland();
 
     let mut window_builder = gtk::ApplicationWindow::builder()
       .application(app)
@@ -87,6 +89,10 @@ impl Window {
     }
 
     let window = window_builder.build();
+
+    if is_wayland {
+      WlHeader::setup(&window, &attributes.title);
+    }
 
     let window_id = WindowId(window.id());
     event_loop_window_target
@@ -104,10 +110,15 @@ impl Window {
     window.resize(width, height);
 
     if attributes.maximized {
-      window.maximize();
+      let maximize_process = util::WindowMaximizeProcess::new(window.clone(), attributes.resizable);
+      glib::idle_add_local_full(glib::Priority::HIGH_IDLE, move || {
+        let mut maximize_process = maximize_process.borrow_mut();
+        maximize_process.next_step()
+      });
+    } else {
+      window.set_resizable(attributes.resizable);
     }
 
-    window.set_resizable(attributes.resizable);
     window.set_deletable(attributes.closable);
 
     // Set Min/Max Size
@@ -578,10 +589,12 @@ impl Window {
   }
 
   pub fn set_maximized(&self, maximized: bool) {
-    if let Err(e) = self
-      .window_requests_tx
-      .send((self.window_id, WindowRequest::Maximized(maximized)))
-    {
+    let resizable = self.is_resizable();
+
+    if let Err(e) = self.window_requests_tx.send((
+      self.window_id,
+      WindowRequest::Maximized(maximized, resizable),
+    )) {
       log::warn!("Fail to send maximized request: {}", e);
     }
   }
@@ -609,7 +622,6 @@ impl Window {
   pub fn is_maximizable(&self) -> bool {
     true
   }
-
   pub fn is_closable(&self) -> bool {
     self.window.is_deletable()
   }
@@ -995,7 +1007,7 @@ pub enum WindowRequest {
   Resizable(bool),
   Closable(bool),
   Minimized(bool),
-  Maximized(bool),
+  Maximized(bool, bool),
   DragWindow,
   DragResizeWindow(ResizeDirection),
   Fullscreen(Option<Fullscreen>),

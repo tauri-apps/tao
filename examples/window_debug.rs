@@ -33,6 +33,7 @@ fn main() {
   eprintln!("  (T) Toggle always on top");
   eprintln!("  (B) Toggle always on bottom");
   eprintln!("  (C) Toggle content protection");
+  eprintln!("  (R) Toggle resizable");
   eprintln!("  (M) Toggle minimized");
   eprintln!("  (X) Toggle maximized");
   eprintln!("  (Q) Quit event loop");
@@ -44,6 +45,7 @@ fn main() {
   let mut always_on_top = false;
   let mut visible = true;
   let mut content_protection = false;
+  let mut resizable = false;
 
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Wait;
@@ -118,6 +120,11 @@ fn main() {
           } else {
             window.set_fullscreen(Some(Fullscreen::Borderless(None)));
           }
+        }
+        "r" => {
+          resizable = !resizable;
+          window.set_resizable(resizable);
+          println!("Resizable: {}", resizable);
         }
         "m" => {
           window.set_minimized(!window.is_minimized());
