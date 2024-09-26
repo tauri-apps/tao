@@ -1,7 +1,6 @@
 use gtk::{
-  glib::{self},
   prelude::*,
-  ApplicationWindow, EventBox, HeaderBar,
+  ApplicationWindow, EventBox, HeaderBar
 };
 
 pub struct WlHeader;
@@ -21,23 +20,7 @@ impl WlHeader {
     event_box.add(&header);
 
     window.set_titlebar(Some(&event_box));
-    Self::connect_move_window(&event_box, &window);
     Self::connect_resize_window(&header, window);
-  }
-
-  fn connect_move_window(event_box: &EventBox, window: &ApplicationWindow) {
-    let window_weak = window.downgrade();
-    event_box.connect_button_press_event(move |_, event| {
-      const LMB: u32 = 1;
-      if event.button() == LMB {
-        if let Some(window) = window_weak.upgrade() {
-          let (x, y) = event.root();
-          window.begin_move_drag(LMB as i32, x as i32, y as i32, event.time());
-          return glib::Propagation::Stop;
-        }
-      }
-      glib::Propagation::Proceed
-    });
   }
 
   fn connect_resize_window(header: &HeaderBar, window: &ApplicationWindow) {
