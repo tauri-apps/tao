@@ -1,7 +1,4 @@
-use gtk::{
-  prelude::*,
-  ApplicationWindow, EventBox, HeaderBar
-};
+use gtk::{prelude::*, ApplicationWindow, EventBox, HeaderBar};
 
 pub struct WlHeader;
 
