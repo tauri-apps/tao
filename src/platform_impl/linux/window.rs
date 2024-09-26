@@ -110,10 +110,7 @@ impl Window {
     window.resize(width, height);
 
     if attributes.maximized {
-      let maximize_process = util::WindowMaximizeProcess::new(
-        window.clone(),
-        attributes.resizable,
-      );
+      let maximize_process = util::WindowMaximizeProcess::new(window.clone(), attributes.resizable);
       glib::idle_add_local_full(glib::Priority::HIGH_IDLE, move || {
         let mut maximize_process = maximize_process.borrow_mut();
         maximize_process.next_step()
