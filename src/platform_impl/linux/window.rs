@@ -112,7 +112,6 @@ impl Window {
     if attributes.maximized {
       let maximize_process = util::WindowMaximizeProcess::new(
         window.clone(),
-        attributes.maximized,
         attributes.resizable,
       );
       glib::idle_add_local_full(glib::Priority::HIGH_IDLE, move || {
