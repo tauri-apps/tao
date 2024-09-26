@@ -90,7 +90,7 @@ impl Window {
     let window = window_builder.build();
 
     if is_wayland {
-      WlHeader::setup(&window);
+      WlHeader::setup(&window, &attributes.title);
     }
 
     let window_id = WindowId(window.id());

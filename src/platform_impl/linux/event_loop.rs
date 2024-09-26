@@ -262,6 +262,7 @@ impl<T: 'static> EventLoop<T> {
     };
 
     let mut taskbar = TaskbarIndicator::new();
+    let is_wayland = window_target.is_wayland();
 
     // Window Request
     window_requests_rx.attach(Some(&context), move |(id, request)| {
@@ -468,7 +469,11 @@ impl<T: 'static> EventLoop<T> {
             });
             window.connect_button_press_event(move |window, event| {
               const LMB: u32 = 1;
-              if event.button() == LMB {
+              if (is_wayland && window.is_decorated())
+                && window.is_resizable()
+                && !window.is_maximized()
+                && event.button() == LMB
+              {
                 let (cx, cy) = event.root();
                 let (left, top) = window.position();
                 let (w, h) = window.size();
