@@ -469,7 +469,7 @@ impl<T: 'static> EventLoop<T> {
             });
             window.connect_button_press_event(move |window, event| {
               const LMB: u32 = 1;
-              if (is_wayland && window.is_decorated())
+              if (is_wayland || !window.is_decorated())
                 && window.is_resizable()
                 && !window.is_maximized()
                 && event.button() == LMB

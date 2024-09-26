@@ -100,6 +100,7 @@ impl<W: GtkWindowExt + WidgetExt> WindowMaximizeProcess<W> {
           self.step += 1;
           glib::ControlFlow::Continue
         } else {
+          //It should still revert to the previous resizable state.
           self.step = 2;
           glib::ControlFlow::Continue
         }
