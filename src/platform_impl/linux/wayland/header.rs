@@ -22,6 +22,7 @@ impl WlHeader {
 
     window.set_titlebar(Some(&event_box));
     Self::connect_move_window(&event_box, &window);
+    Self::connect_resize_window(&header, window);
   }
 
   fn connect_move_window(event_box: &EventBox, window: &ApplicationWindow) {
@@ -36,6 +37,20 @@ impl WlHeader {
         }
       }
       glib::Propagation::Proceed
+    });
+  }
+
+  fn connect_resize_window(header: &HeaderBar, window: &ApplicationWindow) {
+    let header_weak = header.downgrade();
+    window.connect_resizable_notify(move |window| {
+      if let Some(header) = header_weak.upgrade() {
+        let is_resizable = window.is_resizable();
+        header.set_decoration_layout(if !is_resizable {
+          Some("menu:minimize,close")
+        } else {
+          Some("menu:minimize,maximize,close")
+        });
+      }
     });
   }
 }
