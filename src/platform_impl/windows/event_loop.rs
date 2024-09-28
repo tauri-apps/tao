@@ -2077,7 +2077,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     win32wm::WM_SETTINGCHANGE => {
-      set_theme(subclass_input, window, false);
+      update_theme(subclass_input, window, true);
     }
 
     win32wm::WM_NCCALCSIZE => {
@@ -2187,7 +2187,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         });
         result = ProcResult::Value(LRESULT(0));
       } else if msg == *CHANGE_THEME_MSG_ID {
-        set_theme(subclass_input, window, true);
+        update_theme(subclass_input, window, false);
         result = ProcResult::Value(LRESULT(0));
       } else if msg == *S_U_TASKBAR_RESTART {
         let window_state = subclass_input.window_state.lock();
@@ -2208,15 +2208,19 @@ unsafe fn public_window_callback_inner<T: 'static>(
   }
 }
 
-fn set_theme<T>(subclass_input: &SubclassInput<T>, window: HWND, redraw_title_bar: bool) {
-  let preferred_theme = subclass_input.window_state.lock().preferred_theme;
-  let new_theme = try_window_theme(
-    window,
-    preferred_theme.or(*subclass_input.event_loop_preferred_theme.lock()),
-    redraw_title_bar,
-  );
+fn update_theme<T>(
+  subclass_input: &SubclassInput<T>,
+  window: HWND,
+  from_settings_change_event: bool,
+) {
   let mut window_state = subclass_input.window_state.lock();
-
+  let preferred_theme = window_state
+    .preferred_theme
+    .or(*subclass_input.event_loop_preferred_theme.lock());
+  if from_settings_change_event && preferred_theme.is_some() {
+    return;
+  }
+  let new_theme = try_window_theme(window, preferred_theme, !from_settings_change_event);
   if window_state.current_theme != new_theme {
     window_state.current_theme = new_theme;
     mem::drop(window_state);
