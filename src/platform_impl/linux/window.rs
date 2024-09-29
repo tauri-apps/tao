@@ -106,7 +106,7 @@ impl Window {
       .inner_size
       .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
       .unwrap_or((800, 600));
-    
+
     window.set_default_size(1, 1);
 
     let default_vbox = if pl_attribs.default_vbox {
