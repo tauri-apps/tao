@@ -108,15 +108,7 @@ impl Window {
       .unwrap_or((800, 600));
 
     window.set_default_size(1, 1);
-
-    let default_vbox = if pl_attribs.default_vbox {
-      let box_ = gtk::Box::new(gtk::Orientation::Vertical, 0);
-      box_.set_size_request(width, height);
-      window.add(&box_);
-      Some(box_)
-    } else {
-      None
-    };
+    window.resize(width, height);
 
     if attributes.maximized {
       let maximize_process = util::WindowMaximizeProcess::new(window.clone(), attributes.resizable);
@@ -132,6 +124,18 @@ impl Window {
 
     // Set Min/Max Size
     util::set_size_constraints(&window, attributes.inner_size_constraints);
+
+    let min_inner_size = attributes
+      .inner_size_constraints
+      .min_size_physical::<f64>(win_scale_factor as f64);
+    let default_vbox = if pl_attribs.default_vbox {
+      let box_ = gtk::Box::new(gtk::Orientation::Vertical, 0);
+      box_.set_size_request(min_inner_size.width as i32, min_inner_size.height as i32);
+      window.add(&box_);
+      Some(box_)
+    } else {
+      None
+    };
 
     // Set Position
     if let Some(position) = attributes.position {
