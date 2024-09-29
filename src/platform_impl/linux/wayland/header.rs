@@ -14,6 +14,7 @@ impl WlHeader {
     event_box.set_above_child(true);
     event_box.set_visible(true);
     event_box.set_can_focus(false);
+    event_box.set_height_request(40);
     event_box.add(&header);
 
     window.set_titlebar(Some(&event_box));
@@ -33,4 +34,6 @@ impl WlHeader {
       }
     });
   }
+
+
 }
