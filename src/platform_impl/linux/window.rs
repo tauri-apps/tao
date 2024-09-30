@@ -107,8 +107,12 @@ impl Window {
       .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
       .unwrap_or((800, 600));
 
-    window.set_default_size(1, 1);
-    window.resize(width, height);
+    let window_clone = window.clone();
+    glib::idle_add_local(move || {
+      window_clone.set_default_size(1, 1);
+      window_clone.resize(width, height);
+      glib::ControlFlow::Break
+    });
 
     if attributes.maximized {
       let maximize_process = util::WindowMaximizeProcess::new(window.clone(), attributes.resizable);

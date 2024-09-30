@@ -1,4 +1,8 @@
-use gtk::{prelude::*, ApplicationWindow, EventBox, HeaderBar};
+use gtk::{
+  glib::{self},
+  prelude::*,
+  ApplicationWindow, EventBox, HeaderBar,
+};
 
 pub struct WlHeader;
 
@@ -14,9 +18,17 @@ impl WlHeader {
     event_box.set_above_child(true);
     event_box.set_visible(true);
     event_box.set_can_focus(false);
-    event_box.set_height_request(40);
-    event_box.add(&header);
 
+    let header_clone = header.clone();
+    let event_box_clone = event_box.clone();
+    glib::idle_add_local(move || {
+      let allocated_height = header_clone.allocated_height();
+      event_box_clone.set_height_request(allocated_height);
+      header_clone.set_height_request(allocated_height);
+      glib::ControlFlow::Break
+    });
+
+    event_box.add(&header);
     window.set_titlebar(Some(&event_box));
     Self::connect_resize_window(&header, window);
   }
