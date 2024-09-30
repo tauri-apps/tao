@@ -7,7 +7,7 @@ use gtk::{
 pub struct WlHeader;
 
 impl WlHeader {
-  pub fn setup(window: &ApplicationWindow, title: &str) {
+  pub fn setup(window: &ApplicationWindow, title: &str, min_width: i32) {
     let header = HeaderBar::builder()
       .show_close_button(true)
       .decoration_layout("menu:minimize,maximize,close")
@@ -23,8 +23,8 @@ impl WlHeader {
     let event_box_clone = event_box.clone();
     glib::idle_add_local(move || {
       let allocated_height = header_clone.allocated_height();
-      event_box_clone.set_height_request(allocated_height);
-      header_clone.set_height_request(allocated_height);
+      event_box_clone.set_size_request(min_width, allocated_height);
+      header_clone.set_size_request(min_width, allocated_height);
       glib::ControlFlow::Break
     });
 
