@@ -113,10 +113,9 @@ impl Window {
       .unwrap_or((800, 600));
 
     let window_clone = window.clone();
-    glib::idle_add_local(move || {
+    glib::idle_add_local_once(move || {
       window_clone.set_default_size(min_width, min_height);
       window_clone.resize(width, height);
-      glib::ControlFlow::Break
     });
 
     if attributes.maximized {

@@ -21,11 +21,10 @@ impl WlHeader {
 
     let header_clone = header.clone();
     let event_box_clone = event_box.clone();
-    glib::idle_add_local(move || {
+    glib::idle_add_local_once(move || {
       let allocated_height = header_clone.allocated_height();
       event_box_clone.set_size_request(min_width, allocated_height);
       header_clone.set_size_request(min_width, allocated_height);
-      glib::ControlFlow::Break
     });
 
     event_box.add(&header);
