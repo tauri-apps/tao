@@ -55,7 +55,10 @@ use crate::{
   },
 };
 
-use super::keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS};
+use super::{
+  event_loop::CHANGE_THEME_MSG_ID,
+  keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS},
+};
 
 /// A simple non-owning wrapper around a window.
 #[derive(Clone, Copy)]
@@ -940,7 +943,7 @@ impl Window {
       }
       window_state.preferred_theme = theme;
     }
-    unsafe { SendMessageW(self.hwnd(), WM_SETTINGCHANGE, WPARAM(0), LPARAM(0)) };
+    unsafe { SendMessageW(self.hwnd(), *CHANGE_THEME_MSG_ID, WPARAM(0), LPARAM(0)) };
   }
 
   #[inline]
@@ -1163,6 +1166,7 @@ unsafe fn init<T: 'static>(
     attributes
       .preferred_theme
       .or(*event_loop.preferred_theme.lock()),
+    false,
   );
 
   let window_state = {
