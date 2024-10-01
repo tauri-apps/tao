@@ -573,7 +573,7 @@ impl<T: 'static> EventLoop<T> {
               } else {
                 event.size()
               };
-              
+
               if let Err(e) = tx_clone.send(Event::WindowEvent {
                 window_id: RootWindowId(id),
                 event: WindowEvent::Resized(
