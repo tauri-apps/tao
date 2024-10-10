@@ -28,15 +28,17 @@ use crate::{
   event::Event,
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootWindowTarget},
   monitor::MonitorHandle as RootMonitorHandle,
-  platform_impl::platform::{
-    app::APP_CLASS,
-    app_delegate::APP_DELEGATE_CLASS,
-    app_state::AppState,
-    monitor::{self, MonitorHandle},
-    observer::*,
-    util::{self, IdRef},
+  platform_impl::{
+    platform::{
+      app::APP_CLASS,
+      app_delegate::APP_DELEGATE_CLASS,
+      app_state::AppState,
+      monitor::{self, MonitorHandle},
+      observer::*,
+      util::{self, IdRef},
+    },
+    set_progress_indicator,
   },
-  platform_impl::set_progress_indicator,
   window::{ProgressBarState, Theme},
 };
 

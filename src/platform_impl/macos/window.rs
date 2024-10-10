@@ -21,16 +21,18 @@ use crate::{
   icon::Icon,
   monitor::{MonitorHandle as RootMonitorHandle, VideoMode as RootVideoMode},
   platform::macos::WindowExtMacOS,
-  platform_impl::platform::{
-    app_state::AppState,
-    ffi,
-    monitor::{self, MonitorHandle, VideoMode},
-    util::{self, IdRef},
-    view::{self, new_view, CursorState},
-    window_delegate::new_delegate,
-    OsError,
+  platform_impl::{
+    platform::{
+      app_state::AppState,
+      ffi,
+      monitor::{self, MonitorHandle, VideoMode},
+      util::{self, IdRef},
+      view::{self, new_view, CursorState},
+      window_delegate::new_delegate,
+      OsError,
+    },
+    set_progress_indicator,
   },
-  platform_impl::set_progress_indicator,
   window::{
     CursorIcon, Fullscreen, ProgressBarState, ResizeDirection, Theme, UserAttentionType,
     WindowAttributes, WindowId as RootWindowId, WindowSizeConstraints,
