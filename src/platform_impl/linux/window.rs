@@ -90,9 +90,15 @@ impl Window {
     }
 
     let window = window_builder.build();
+    let win_scale_factor = window.scale_factor();
+    let min_inner_size = attributes
+      .inner_size_constraints
+      .min_size_physical::<i32>(win_scale_factor as f64);
+    let min_width = min_inner_size.width.max(1);
+    let min_height = min_inner_size.height.max(1);
 
     if is_wayland {
-      WlHeader::setup(&window, &attributes.title);
+      WlHeader::setup(&window, &attributes.title, min_width);
     }
 
     let window_id = WindowId(window.id());
@@ -102,17 +108,20 @@ impl Window {
       .insert(window_id);
 
     // Set Width/Height & Resizable
-    let win_scale_factor = window.scale_factor();
     let (width, height) = attributes
       .inner_size
       .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
       .unwrap_or((800, 600));
-    window.set_default_size(1, 1);
-    window.resize(width, height);
+
+    let window_clone = window.clone();
+    glib::idle_add_local_once(move || {
+      window_clone.set_default_size(min_width, min_height);
+      window_clone.resize(width, height);
+    });
 
     if attributes.maximized {
       let maximize_process = util::WindowMaximizeProcess::new(window.clone(), attributes.resizable);
-      glib::idle_add_local_full(glib::Priority::HIGH_IDLE, move || {
+      glib::idle_add_local_full(glib::Priority::DEFAULT_IDLE, move || {
         let mut maximize_process = maximize_process.borrow_mut();
         maximize_process.next_step()
       });
@@ -124,6 +133,15 @@ impl Window {
 
     // Set Min/Max Size
     util::set_size_constraints(&window, attributes.inner_size_constraints);
+
+    let default_vbox = if pl_attribs.default_vbox {
+      let box_ = gtk::Box::new(gtk::Orientation::Vertical, 0);
+      box_.set_size_request(min_width, min_height);
+      window.add(&box_);
+      Some(box_)
+    } else {
+      None
+    };
 
     // Set Position
     if let Some(position) = attributes.position {
@@ -155,14 +173,6 @@ impl Window {
         }
       }
     }
-
-    let default_vbox = if pl_attribs.default_vbox {
-      let box_ = gtk::Box::new(gtk::Orientation::Vertical, 0);
-      window.add(&box_);
-      Some(box_)
-    } else {
-      None
-    };
 
     // Rest attributes
     window.set_title(&attributes.title);
@@ -326,7 +336,7 @@ impl Window {
       preferred_theme: RefCell::new(preferred_theme),
     };
 
-    win.set_skip_taskbar(pl_attribs.skip_taskbar);
+    let _ = win.set_skip_taskbar(pl_attribs.skip_taskbar);
 
     Ok(win)
   }
