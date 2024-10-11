@@ -1124,8 +1124,7 @@ fn assert_is_main_thread(suggested_method: &str) {
     is_main_thread(),
     "Initializing the event loop outside of the main thread is a significant \
              cross-platform compatibility hazard. If you really, absolutely need to create an \
-             EventLoop on a different thread, please use the `EventLoopExtUnix::{}` function.",
-    suggested_method
+             EventLoop on a different thread, please use the `EventLoopExtUnix::{suggested_method}` function."
   );
 }
 

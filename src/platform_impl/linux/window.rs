@@ -15,8 +15,9 @@ use std::{
 use gtk::{
   gdk::WindowState,
   glib::{self, translate::ToGlibPtr},
+  prelude::*,
+  Settings,
 };
-use gtk::{prelude::*, Settings};
 
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
