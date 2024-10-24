@@ -861,7 +861,7 @@ impl UnownedWindow {
   }
 
   #[inline]
-  pub fn set_background_color(&self, color: Option<RGBA>) {
+  pub fn set_background_color(&self, color: Option<crate::window::RGBA>) {
     let color = color
       .map(|(r, g, b, a)| {
         NSColor::colorWithRed_green_blue_alpha_(r as f64, g as f64, b as f64, a as f64 / 255.0)
