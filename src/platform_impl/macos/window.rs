@@ -507,7 +507,13 @@ impl UnownedWindow {
         let color = win_attribs
           .background_color
           .map(|(r, g, b, a)| {
-            NSColor::colorWithRed_green_blue_alpha_(r as f64, g as f64, b as f64, a as f64 / 255.0)
+            NSColor::colorWithRed_green_blue_alpha_(
+              nil,
+              r as f64,
+              g as f64,
+              b as f64,
+              a as f64 / 255.0,
+            )
           })
           .unwrap_or_else(|| NSColor::clearColor(nil));
         ns_window.setBackgroundColor_(NSColor::clearColor(nil));
@@ -864,11 +870,11 @@ impl UnownedWindow {
   pub fn set_background_color(&self, color: Option<crate::window::RGBA>) {
     let color = color
       .map(|(r, g, b, a)| {
-        NSColor::colorWithRed_green_blue_alpha_(r as f64, g as f64, b as f64, a as f64 / 255.0)
+        NSColor::colorWithRed_green_blue_alpha_(nil, r as f64, g as f64, b as f64, a as f64 / 255.0)
       })
-      .or_else(|| {
+      .unwrap_or_else(|| {
         if self.transparent {
-          Some(NSColor::clearColor(nil))
+          NSColor::clearColor(nil)
         } else {
           nil
         }
