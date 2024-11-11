@@ -245,7 +245,7 @@ extern "C" fn application_should_handle_reopen(
 extern "C" fn application_supports_secure_restorable_state(_: &Object, _: Sel, _: id) -> BOOL {
   trace!("Triggered `applicationSupportsSecureRestorableState`");
   trace!("Completed `applicationSupportsSecureRestorableState`");
-  YES
+  YES 
 }
 
 // application(_:didRegisterForRemoteNotificationsWithDeviceToken:)
