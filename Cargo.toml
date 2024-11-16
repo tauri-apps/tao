@@ -66,6 +66,7 @@ unicode-segmentation = "1.11"
 windows-version = "0.1"
 windows-async = "0.1.1"
 windows-core = "0.61"
+windows-async = "0.1.1"
 
   [target."cfg(target_os = \"windows\")".dependencies.windows]
   version = "0.61"

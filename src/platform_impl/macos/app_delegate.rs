@@ -15,7 +15,8 @@ use objc2::runtime::{
 };
 use objc2_foundation::{
   NSArray, NSError, NSString, NSUserActivity, NSUserActivityTypeBrowsingWeb, NSURL,
-};
+  };
+
 use std::{
   cell::{RefCell, RefMut},
   ffi::{CStr, CString},
@@ -85,11 +86,11 @@ lazy_static! {
     );
     decl.add_method(
       sel!(application:didRegisterForRemoteNotificationsWithDeviceToken:),
-      did_register_for_apns as extern "C" fn(&Object, Sel, id, id),
+      did_register_for_apns as extern "C" fn(_, _, _, _),
     );
     decl.add_method(
       sel!(application:didFailToRegisterForRemoteNotificationsWithError:),
-      did_fail_to_register_for_apns as extern "C" fn(&Object, _: Sel, id, id),
+      did_fail_to_register_for_apns as extern "C" fn(_, _, _, _),
     );
     decl.add_ivar::<*mut c_void>(&CString::new(AUX_DELEGATE_STATE_NAME).unwrap());
 

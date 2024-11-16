@@ -13,10 +13,7 @@
 
 /// The push token type.
 pub type PushToken = Vec<u8>;
-<<<<<<< HEAD
 
 /// Push notifications features and utilities. On most platforms, this consists of obtaining
 /// the token (which may be triggered at app start), then exposing it to the developer.
 pub trait PushNotifications {}
-=======
->>>>>>> 01fbf337 (feat: push notifications (wip))
