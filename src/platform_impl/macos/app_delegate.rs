@@ -303,7 +303,7 @@ extern "C" fn did_fail_to_register_for_apns(_: &Object, _: Sel, _: id, err: *mut
   AppState::did_fail_to_register_push_token(error_string);
   trace!("Completed `didFailToRegisterForRemoteNotificationsWithError`");
 }
-
+#[cfg(feature = "push-notifications")]
 fn get_shared_application() -> *mut Object {
   unsafe { msg_send![class!(NSApplication), sharedApplication] }
 }
