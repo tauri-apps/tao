@@ -91,9 +91,7 @@ use runner::{EventLoopRunner, EventLoopRunnerShared};
 use super::{dpi::hwnd_dpi, util::get_system_metrics_for_dpi};
 
 #[cfg(feature = "push-notifications")]
-use {
-  windows::Networking::PushNotifications::PushNotificationChannel,
-};
+use windows::Networking::PushNotifications::PushNotificationChannel;
 
 type GetPointerFrameInfoHistory = unsafe extern "system" fn(
   pointerId: u32,
