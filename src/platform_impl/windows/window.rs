@@ -193,7 +193,7 @@ impl Window {
   #[inline]
   pub fn request_redraw(&self) {
     unsafe {
-      let _ = RedrawWindow(self.window.0, None, HRGN::default(), RDW_INTERNALPAINT);
+      let _ = RedrawWindow(Some(self.window.0), None, None, RDW_INTERNALPAINT);
     }
   }
 
@@ -228,14 +228,14 @@ impl Window {
     unsafe {
       let _ = SetWindowPos(
         self.window.0,
-        HWND::default(),
+        None,
         x,
         y,
         0,
         0,
         SWP_ASYNCWINDOWPOS | SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE,
       );
-      let _ = InvalidateRgn(self.window.0, HRGN::default(), false);
+      let _ = InvalidateRgn(self.window.0, None, false);
     }
   }
 
@@ -474,7 +474,7 @@ impl Window {
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
     self.window_state.lock().mouse.cursor = cursor;
     self.thread_executor.execute_in_thread(move || unsafe {
-      let cursor = LoadCursorW(HMODULE::default(), cursor.to_windows_cursor()).unwrap_or_default();
+      let cursor = LoadCursorW(None, cursor.to_windows_cursor()).ok();
       SetCursor(cursor);
     });
   }
@@ -556,7 +556,7 @@ impl Window {
 
     unsafe {
       PostMessageW(
-        self.hwnd(),
+        Some(self.hwnd()),
         WM_NCLBUTTONDOWN,
         wparam,
         LPARAM(&points as *const _ as _),
@@ -733,7 +733,7 @@ impl Window {
             ChangeDisplaySettingsExW(
               PCWSTR::from_raw(display_name.as_ptr()),
               Some(&native_video_mode),
-              HWND::default(),
+              None,
               CDS_FULLSCREEN,
               None,
             )
@@ -747,9 +747,8 @@ impl Window {
         }
         (&Some(Fullscreen::Exclusive(_)), &None)
         | (&Some(Fullscreen::Exclusive(_)), &Some(Fullscreen::Borderless(_))) => {
-          let res = unsafe {
-            ChangeDisplaySettingsExW(PCWSTR::null(), None, HWND::default(), CDS_FULLSCREEN, None)
-          };
+          let res =
+            unsafe { ChangeDisplaySettingsExW(PCWSTR::null(), None, None, CDS_FULLSCREEN, None) };
 
           debug_assert!(res != DISP_CHANGE_BADFLAGS);
           debug_assert!(res != DISP_CHANGE_BADMODE);
@@ -770,7 +769,7 @@ impl Window {
         // fine, taking control back from the DWM and ensuring that the `SetWindowPos` call
         // below goes through.
         let mut msg = MSG::default();
-        let _ = PeekMessageW(&mut msg, HWND::default(), 0, 0, PM_NOREMOVE);
+        let _ = PeekMessageW(&mut msg, None, 0, 0, PM_NOREMOVE);
       }
 
       // Update window style
@@ -811,14 +810,14 @@ impl Window {
           unsafe {
             let _ = SetWindowPos(
               hwnd,
-              HWND::default(),
+              None,
               position.0,
               position.1,
               size.0 as i32,
               size.1 as i32,
               SWP_ASYNCWINDOWPOS | SWP_NOZORDER,
             );
-            let _ = InvalidateRgn(hwnd, HRGN::default(), false);
+            let _ = InvalidateRgn(hwnd, None, false);
           }
         }
         None => {
@@ -827,7 +826,7 @@ impl Window {
             drop(window_state_lock);
             unsafe {
               let _ = SetWindowPlacement(hwnd, &placement);
-              let _ = InvalidateRgn(hwnd, HRGN::default(), false);
+              let _ = InvalidateRgn(hwnd, None, false);
             }
           }
         }
@@ -986,7 +985,7 @@ impl Window {
       }
       window_state.preferred_theme = theme;
     }
-    unsafe { SendMessageW(self.hwnd(), *CHANGE_THEME_MSG_ID, WPARAM(0), LPARAM(0)) };
+    unsafe { SendMessageW(self.hwnd(), *CHANGE_THEME_MSG_ID, None, None) };
   }
 
   #[inline]
@@ -1015,7 +1014,7 @@ impl Window {
       let l_param = util::MAKELPARAM(x as i16, y as i16);
 
       let _ = ReleaseCapture();
-      let _ = PostMessageW(self.hwnd(), button, w_param, l_param);
+      let _ = PostMessageW(Some(self.hwnd()), button, w_param, l_param);
     }
   }
 
@@ -1030,7 +1029,7 @@ impl Window {
     self.window_state.lock().background_color = color;
 
     unsafe {
-      let _ = InvalidateRect(self.hwnd(), None, true);
+      let _ = InvalidateRect(Some(self.hwnd()), None, true);
       let _ = UpdateWindow(self.hwnd());
     }
   }
@@ -1116,7 +1115,7 @@ impl Drop for Window {
     unsafe {
       // The window must be destroyed from the same thread that created it, so we send a
       // custom message to be handled by our callback to do the actual work.
-      let _ = PostMessageW(self.window.0, *DESTROY_MSG_ID, WPARAM(0), LPARAM(0));
+      let _ = PostMessageW(Some(self.window.0), *DESTROY_MSG_ID, WPARAM(0), LPARAM(0));
     }
   }
 }
@@ -1248,13 +1247,13 @@ unsafe fn init<T: 'static>(
       position.1,
       adjusted_size.0,
       adjusted_size.1,
-      parent.unwrap_or_default(),
-      pl_attribs.menu.unwrap_or_default(),
-      GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
+      parent,
+      pl_attribs.menu,
+      GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
       Some(Box::into_raw(Box::new(window_flags)) as _),
     )?;
 
-    if !IsWindow(handle).as_bool() {
+    if !IsWindow(Some(handle)).as_bool() {
       return Err(os_error!(OsError::IoError(io::Error::last_os_error())));
     }
 
@@ -1287,7 +1286,7 @@ unsafe fn init<T: 'static>(
     };
 
     let _ = DwmEnableBlurBehindWindow(real_window.0, &bb);
-    let _ = DeleteObject(region);
+    let _ = DeleteObject(region.into());
   }
 
   // If the system theme is dark, we need to set the window theme now

@@ -23,7 +23,7 @@ use windows::{
   core::{s, PCWSTR},
   Win32::{
     Foundation::{
-      BOOL, HANDLE, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_TIMEOUT, WPARAM,
+      BOOL, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_TIMEOUT, WPARAM,
     },
     Graphics::Gdi::*,
     System::{
@@ -245,7 +245,7 @@ impl<T: 'static> EventLoop<T> {
 
       runner.poll();
       'main: loop {
-        if !GetMessageW(&mut msg, HWND::default(), 0, 0).as_bool() {
+        if !GetMessageW(&mut msg, None, 0, 0).as_bool() {
           break 'main 0;
         }
 
@@ -335,7 +335,7 @@ impl<T> EventLoopWindowTarget<T> {
   pub fn set_theme(&self, theme: Option<Theme>) {
     *self.preferred_theme.lock() = theme;
     self.runner_shared.owned_windows(|window| {
-      let _ = unsafe { SendMessageW(window, *CHANGE_THEME_MSG_ID, WPARAM(0), LPARAM(0)) };
+      let _ = unsafe { SendMessageW(window, *CHANGE_THEME_MSG_ID, None, None) };
     });
   }
 }
@@ -360,7 +360,7 @@ fn get_wait_thread_id() -> u32 {
     let mut msg = MSG::default();
     let result = GetMessageW(
       &mut msg,
-      HWND::default(),
+      None,
       *SEND_WAIT_THREAD_ID_MSG_ID,
       *SEND_WAIT_THREAD_ID_MSG_ID,
     );
@@ -393,11 +393,11 @@ fn wait_thread(parent_thread_id: u32, msg_window_id: HWND) {
       msg = MSG::default();
 
       if wait_until_opt.is_some() {
-        if PeekMessageW(&mut msg, HWND::default(), 0, 0, PM_REMOVE).as_bool() {
+        if PeekMessageW(&mut msg, None, 0, 0, PM_REMOVE).as_bool() {
           let _ = TranslateMessage(&msg);
           DispatchMessageW(&msg);
         }
-      } else if !GetMessageW(&mut msg, HWND::default(), 0, 0).as_bool() {
+      } else if !GetMessageW(&mut msg, None, 0, 0).as_bool() {
         break 'main;
       } else {
         let _ = TranslateMessage(&msg);
@@ -424,7 +424,7 @@ fn wait_thread(parent_thread_id: u32, msg_window_id: HWND) {
           );
           if resume_reason == WAIT_TIMEOUT {
             let _ = PostMessageW(
-              msg_window_id,
+              Some(msg_window_id),
               *PROCESS_NEW_EVENTS_MSG_ID,
               WPARAM(0),
               LPARAM(0),
@@ -433,7 +433,7 @@ fn wait_thread(parent_thread_id: u32, msg_window_id: HWND) {
           }
         } else {
           let _ = PostMessageW(
-            msg_window_id,
+            Some(msg_window_id),
             *PROCESS_NEW_EVENTS_MSG_ID,
             WPARAM(0),
             LPARAM(0),
@@ -526,7 +526,7 @@ impl EventLoopThreadExecutor {
         let raw = Box::into_raw(boxed2);
 
         let res = PostMessageW(
-          self.target_window,
+          Some(self.target_window),
           *EXEC_MSG_ID,
           WPARAM(raw as _),
           LPARAM(0),
@@ -561,7 +561,14 @@ impl<T: 'static> Clone for EventLoopProxy<T> {
 impl<T: 'static> EventLoopProxy<T> {
   pub fn send_event(&self, event: T) -> Result<(), EventLoopClosed<T>> {
     unsafe {
-      if PostMessageW(self.target_window, *USER_EVENT_MSG_ID, WPARAM(0), LPARAM(0)).is_ok() {
+      if PostMessageW(
+        Some(self.target_window),
+        *USER_EVENT_MSG_ID,
+        WPARAM(0),
+        LPARAM(0),
+      )
+      .is_ok()
+      {
         self.event_send.send(event).ok();
         Ok(())
       } else {
@@ -677,9 +684,9 @@ fn create_event_target_window() -> HWND {
       0,
       0,
       0,
-      HWND::default(),
-      HMENU::default(),
-      GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
+      None,
+      None,
+      GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
       None,
     )
   };
@@ -814,7 +821,7 @@ unsafe fn flush_paint_messages<T: 'static>(
 
       if !PeekMessageW(
         &mut msg,
-        redraw_window,
+        Some(redraw_window),
         WM_PAINT,
         WM_PAINT,
         PM_REMOVE | PM_QS_PAINT,
@@ -837,7 +844,7 @@ unsafe fn process_control_flow<T: 'static>(runner: &EventLoopRunner<T>) {
   match runner.control_flow() {
     ControlFlow::Poll => {
       let _ = PostMessageW(
-        runner.thread_msg_target(),
+        Some(runner.thread_msg_target()),
         *PROCESS_NEW_EVENTS_MSG_ID,
         WPARAM(0),
         LPARAM(0),
@@ -955,9 +962,9 @@ unsafe fn public_window_callback_inner<T: 'static>(
   subclass_input: &SubclassInput<T>,
 ) -> LRESULT {
   let _ = RedrawWindow(
-    subclass_input.event_loop_runner.thread_msg_target(),
+    Some(subclass_input.event_loop_runner.thread_msg_target()),
     None,
-    HRGN::default(),
+    None,
     RDW_INTERNALPAINT,
   );
 
@@ -1049,7 +1056,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let mut state = subclass_input.window_state.lock();
       if state.dragging {
         state.dragging = false;
-        let _ = unsafe { PostMessageW(window, WM_LBUTTONUP, WPARAM::default(), lparam) };
+        let _ = unsafe { PostMessageW(Some(window), WM_LBUTTONUP, WPARAM::default(), lparam) };
       }
       state.set_window_flags_in_place(|f| f.remove(WindowFlags::MARKER_IN_SIZE_MOVE));
       result = ProcResult::Value(LRESULT(0));
@@ -1060,7 +1067,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
     win32wm::WM_NCLBUTTONDOWN => {
       if wparam.0 == HTCAPTION as _ {
-        let _ = PostMessageW(window, WM_MOUSEMOVE, WPARAM(0), lparam);
+        let _ = PostMessageW(Some(window), WM_MOUSEMOVE, WPARAM(0), lparam);
       }
 
       use crate::event::WindowEvent::DecorationsClick;
@@ -1100,7 +1107,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
       if subclass_input.event_loop_runner.should_buffer() {
         // this branch can happen in response to `UpdateWindow`, if win32 decides to
         // redraw the window outside the normal flow of the event loop.
-        let _ = RedrawWindow(window, None, HRGN::default(), RDW_INTERNALPAINT);
+        let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
       } else {
         let managing_redraw = flush_paint_messages(Some(window), &subclass_input.event_loop_runner);
         subclass_input.send_event(Event::RedrawRequested(RootWindowId(WindowId(
@@ -1121,7 +1128,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         if GetClientRect(window, &mut rc).is_ok() {
           let brush = CreateSolidBrush(util::RGB(color.0, color.1, color.2));
           FillRect(hdc, &rc, brush);
-          let _ = DeleteObject(brush);
+          let _ = DeleteObject(brush.into());
 
           result = ProcResult::Value(LRESULT(1));
         } else {
@@ -1807,8 +1814,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
       match set_cursor_to {
         Some(cursor) => {
-          if let Ok(cursor) = LoadCursorW(HMODULE::default(), cursor.to_windows_cursor()) {
-            SetCursor(cursor);
+          if let Ok(cursor) = LoadCursorW(None, cursor.to_windows_cursor()) {
+            SetCursor(Some(cursor));
           }
           result = ProcResult::Value(LRESULT(0));
         }
@@ -2084,7 +2091,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
       let _ = SetWindowPos(
         window,
-        HWND::default(),
+        None,
         new_outer_rect.left,
         new_outer_rect.top,
         new_outer_rect.right - new_outer_rect.left,
@@ -2287,13 +2294,13 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
     win32wm::WM_NCDESTROY => {
       remove_event_target_window_subclass::<T>(window);
       subclass_removed = true;
-      let _ = RedrawWindow(window, None, HRGN::default(), RDW_INTERNALPAINT);
+      let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
       LRESULT(0)
     }
     // Because WM_PAINT comes after all other messages, we use it during modal loops to detect
     // when the event queue has been emptied. See `process_event` for more details.
     win32wm::WM_PAINT => {
-      let _ = ValidateRect(window, None);
+      let _ = ValidateRect(Some(window), None);
       // If the WM_PAINT handler in `public_window_callback` has already flushed the redraw
       // events, `handling_events` will return false and we won't emit a second
       // `RedrawEventsCleared` event.
@@ -2301,7 +2308,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
         if subclass_input.event_loop_runner.should_buffer() {
           // This branch can be triggered when a nested win32 event loop is triggered
           // inside of the `event_handler` callback.
-          let _ = RedrawWindow(window, None, HRGN::default(), RDW_INTERNALPAINT);
+          let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
         } else {
           // This WM_PAINT handler will never be re-entrant because `flush_paint_messages`
           // doesn't call WM_PAINT for the thread event target (i.e. this window).
@@ -2329,7 +2336,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
         device_id: wrap_device_id(lparam.0),
         event,
       });
-      let _ = RedrawWindow(window, None, HRGN::default(), RDW_INTERNALPAINT);
+      let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
 
       LRESULT(0)
     }
@@ -2337,7 +2344,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
     win32wm::WM_INPUT => {
       if let Some(data) = raw_input::get_raw_input_data(HRAWINPUT(lparam.0 as _)) {
         handle_raw_input(&subclass_input, data);
-        let _ = RedrawWindow(window, None, HRGN::default(), RDW_INTERNALPAINT);
+        let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
       }
 
       DefSubclassProc(window, msg, wparam, lparam)
@@ -2347,13 +2354,13 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       if let Ok(event) = subclass_input.user_event_receiver.recv() {
         subclass_input.send_event(Event::UserEvent(event));
       }
-      let _ = RedrawWindow(window, None, HRGN::default(), RDW_INTERNALPAINT);
+      let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
       LRESULT(0)
     }
     _ if msg == *EXEC_MSG_ID => {
       let mut function: ThreadExecFn = Box::from_raw(wparam.0 as *mut _);
       function();
-      let _ = RedrawWindow(window, None, HRGN::default(), RDW_INTERNALPAINT);
+      let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
       LRESULT(0)
     }
     _ if msg == *PROCESS_NEW_EVENTS_MSG_ID => {
@@ -2369,7 +2376,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       if let ControlFlow::WaitUntil(wait_until) = subclass_input.event_loop_runner.control_flow() {
         let mut msg = MSG::default();
         while Instant::now() < wait_until {
-          if PeekMessageW(&mut msg, HWND::default(), 0, 0, PM_NOREMOVE).as_bool() {
+          if PeekMessageW(&mut msg, None, 0, 0, PM_NOREMOVE).as_bool() {
             // This works around a "feature" in PeekMessageW. If the message PeekMessageW
             // gets is a WM_PAINT message that had RDW_INTERNALPAINT set (i.e. doesn't
             // have an update region), PeekMessageW will remove that window from the
@@ -2379,7 +2386,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
             if msg.message == WM_PAINT {
               let mut rect = RECT::default();
               if !GetUpdateRect(msg.hwnd, Some(&mut rect), false).as_bool() {
-                let _ = RedrawWindow(msg.hwnd, None, HRGN::default(), RDW_INTERNALPAINT);
+                let _ = RedrawWindow(Some(msg.hwnd), None, None, RDW_INTERNALPAINT);
               }
             }
 
@@ -2388,7 +2395,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
         }
       }
       subclass_input.event_loop_runner.poll();
-      let _ = RedrawWindow(window, None, HRGN::default(), RDW_INTERNALPAINT);
+      let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
       LRESULT(0)
     }
     _ => DefSubclassProc(window, msg, wparam, lparam),

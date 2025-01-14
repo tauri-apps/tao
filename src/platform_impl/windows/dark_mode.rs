@@ -9,7 +9,7 @@ use once_cell::sync::Lazy;
 use windows::{
   core::{s, w, PCSTR, PSTR},
   Win32::{
-    Foundation::{BOOL, HANDLE, HMODULE, HWND, WPARAM},
+    Foundation::{BOOL, HANDLE, HMODULE, HWND, LPARAM, WPARAM},
     Graphics::Dwm::{DwmSetWindowAttribute, DWMWINDOWATTRIBUTE},
     System::LibraryLoader::*,
     UI::{Accessibility::*, Input::KeyboardAndMouse::GetActiveWindow, WindowsAndMessaging::*},
@@ -175,7 +175,7 @@ fn refresh_titlebar_theme_color(hwnd: HWND, is_dark_mode: bool, redraw_title_bar
         let _ = SetPropW(
           hwnd,
           w!("UseImmersiveDarkModeColors"),
-          HANDLE(&mut is_dark_mode_bigbool as *mut _ as _),
+          Some(HANDLE(&mut is_dark_mode_bigbool as *mut _ as _)),
         );
       }
     } else {
@@ -195,11 +195,11 @@ fn refresh_titlebar_theme_color(hwnd: HWND, is_dark_mode: bool, redraw_title_bar
         );
         if redraw_title_bar {
           if GetActiveWindow() == hwnd {
-            DefWindowProcW(hwnd, WM_NCACTIVATE, None, None);
-            DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM(true.into()), None);
+            DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM::default(), LPARAM::default());
+            DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM(true.into()), LPARAM::default());
           } else {
-            DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM(true.into()), None);
-            DefWindowProcW(hwnd, WM_NCACTIVATE, None, None);
+            DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM(true.into()), LPARAM::default());
+            DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM::default(), LPARAM::default());
           }
         }
       }

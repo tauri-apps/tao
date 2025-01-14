@@ -13,7 +13,7 @@ use parking_lot::MutexGuard;
 use std::io;
 use windows::Win32::{
   Foundation::{HWND, LPARAM, RECT, WPARAM},
-  Graphics::Gdi::{InvalidateRgn, HRGN},
+  Graphics::Gdi::InvalidateRgn,
   UI::WindowsAndMessaging::*,
 };
 
@@ -335,17 +335,18 @@ impl WindowFlags {
       unsafe {
         let _ = SetWindowPos(
           window,
-          match new.contains(WindowFlags::ALWAYS_ON_TOP) {
-            true => HWND_TOPMOST,
-            false => HWND_NOTOPMOST,
-          },
+          Some(if new.contains(WindowFlags::ALWAYS_ON_TOP) {
+            HWND_TOPMOST
+          } else {
+            HWND_NOTOPMOST
+          }),
           0,
           0,
           0,
           0,
           SWP_ASYNCWINDOWPOS | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
         );
-        let _ = InvalidateRgn(window, HRGN::default(), false);
+        let _ = InvalidateRgn(window, None, false);
       }
     }
 
@@ -353,17 +354,18 @@ impl WindowFlags {
       unsafe {
         let _ = SetWindowPos(
           window,
-          match new.contains(WindowFlags::ALWAYS_ON_BOTTOM) {
-            true => HWND_BOTTOM,
-            false => HWND_NOTOPMOST,
-          },
+          Some(if new.contains(WindowFlags::ALWAYS_ON_BOTTOM) {
+            HWND_BOTTOM
+          } else {
+            HWND_NOTOPMOST
+          }),
           0,
           0,
           0,
           0,
           SWP_ASYNCWINDOWPOS | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
         );
-        let _ = InvalidateRgn(window, HRGN::default(), false);
+        let _ = InvalidateRgn(window, None, false);
       }
     }
 
@@ -423,8 +425,8 @@ impl WindowFlags {
         SendMessageW(
           window,
           *event_loop::SET_RETAIN_STATE_ON_SIZE_MSG_ID,
-          WPARAM(1),
-          LPARAM(0),
+          Some(WPARAM(1)),
+          Some(LPARAM(0)),
         );
 
         // This condition is necessary to avoid having an unrestorable window
@@ -445,12 +447,12 @@ impl WindowFlags {
         }
 
         // Refresh the window frame
-        let _ = SetWindowPos(window, HWND::default(), 0, 0, 0, 0, flags);
+        let _ = SetWindowPos(window, None, 0, 0, 0, 0, flags);
         SendMessageW(
           window,
           *event_loop::SET_RETAIN_STATE_ON_SIZE_MSG_ID,
-          WPARAM(0),
-          LPARAM(0),
+          Some(WPARAM(0)),
+          Some(LPARAM(0)),
         );
       }
     }

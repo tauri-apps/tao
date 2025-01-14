@@ -41,7 +41,10 @@ impl FileDropHandler {
     }
   }
 
-  unsafe fn iterate_filenames<F>(data_obj: Option<&IDataObject>, callback: F) -> Option<HDROP>
+  unsafe fn iterate_filenames<F>(
+    data_obj: windows_core::Ref<'_, IDataObject>,
+    callback: F,
+  ) -> Option<HDROP>
   where
     F: Fn(PathBuf),
   {
@@ -105,7 +108,7 @@ impl FileDropHandler {
 impl IDropTarget_Impl for FileDropHandler_Impl {
   fn DragEnter(
     &self,
-    pDataObj: Option<&IDataObject>,
+    pDataObj: windows_core::Ref<'_, IDataObject>,
     _grfKeyState: MODIFIERKEYS_FLAGS,
     _pt: &POINTL,
     pdwEffect: *mut DROPEFFECT,
@@ -156,7 +159,7 @@ impl IDropTarget_Impl for FileDropHandler_Impl {
 
   fn Drop(
     &self,
-    pDataObj: Option<&IDataObject>,
+    pDataObj: windows_core::Ref<'_, IDataObject>,
     _grfKeyState: MODIFIERKEYS_FLAGS,
     _pt: &POINTL,
     _pdwEffect: *mut DROPEFFECT,

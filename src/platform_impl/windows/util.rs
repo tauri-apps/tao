@@ -22,7 +22,7 @@ use windows::{
   Win32::{
     Foundation::{BOOL, COLORREF, FARPROC, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
     Globalization::lstrlenW,
-    Graphics::Gdi::{ClientToScreen, InvalidateRgn, HMONITOR, HRGN},
+    Graphics::Gdi::{ClientToScreen, InvalidateRgn, HMONITOR},
     System::LibraryLoader::*,
     UI::{
       HiDpi::*,
@@ -113,14 +113,14 @@ pub(crate) fn set_inner_size_physical(window: HWND, x: i32, y: i32, is_decorated
     let outer_y = (rect.top - rect.bottom).abs();
     let _ = SetWindowPos(
       window,
-      HWND::default(),
+      None,
       0,
       0,
       outer_x,
       outer_y,
       SWP_ASYNCWINDOWPOS | SWP_NOZORDER | SWP_NOREPOSITION | SWP_NOMOVE | SWP_NOACTIVATE,
     );
-    let _ = InvalidateRgn(window, HRGN::default(), BOOL::default());
+    let _ = InvalidateRgn(window, None, false);
   }
 }
 
@@ -145,13 +145,15 @@ pub fn adjust_window_rect_with_styles(
   style_ex: WINDOW_EX_STYLE,
   mut rect: RECT,
 ) -> Option<RECT> {
-  let b_menu: BOOL = (!unsafe { GetMenu(hwnd) }.is_invalid()).into();
+  let b_menu = !unsafe { GetMenu(hwnd) }.is_invalid();
 
   if let (Some(get_dpi_for_window), Some(adjust_window_rect_ex_for_dpi)) =
     (*GET_DPI_FOR_WINDOW, *ADJUST_WINDOW_RECT_EX_FOR_DPI)
   {
     let dpi = unsafe { get_dpi_for_window(hwnd) };
-    if unsafe { adjust_window_rect_ex_for_dpi(&mut rect, style, b_menu, style_ex, dpi) }.as_bool() {
+    if unsafe { adjust_window_rect_ex_for_dpi(&mut rect, style, b_menu.into(), style_ex, dpi) }
+      .as_bool()
+    {
       Some(rect)
     } else {
       None

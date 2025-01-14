@@ -103,7 +103,7 @@ pub fn available_monitors() -> VecDeque<MonitorHandle> {
   let mut monitors: VecDeque<MonitorHandle> = VecDeque::new();
   unsafe {
     let _ = EnumDisplayMonitors(
-      HDC::default(),
+      None,
       None,
       Some(monitor_enum_proc),
       LPARAM(&mut monitors as *mut _ as _),
