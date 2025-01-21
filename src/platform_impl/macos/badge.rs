@@ -1,12 +1,16 @@
-use cocoa::{appkit::NSApp, base::nil, foundation::NSString};
+use super::ffi::id;
+use objc2_app_kit::NSApp;
+use objc2_foundation::{MainThreadMarker, NSString};
 
 pub fn set_badge_label(label: Option<String>) {
+  // SAFETY: TODO
+  let mtm = unsafe { MainThreadMarker::new_unchecked() };
   unsafe {
     let label = match label {
-      None => nil,
-      Some(label) => NSString::alloc(nil).init_str(&label),
+      None => None,
+      Some(label) => Some(NSString::from_str(&label)),
     };
-    let dock_tile: cocoa::base::id = msg_send![NSApp(), dockTile];
-    let _: cocoa::base::id = msg_send![dock_tile, setBadgeLabel: label];
+    let dock_tile: id = msg_send![&NSApp(mtm), dockTile];
+    let _: () = msg_send![dock_tile, setBadgeLabel: label.as_deref()];
   }
 }

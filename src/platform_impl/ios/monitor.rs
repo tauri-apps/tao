@@ -192,7 +192,7 @@ impl MonitorHandle {
   pub fn retained_new(uiscreen: id) -> MonitorHandle {
     unsafe {
       assert_main_thread!("`MonitorHandle` can only be cloned on the main thread on iOS");
-      let () = msg_send![uiscreen, retain];
+      let _: id = msg_send![uiscreen, retain];
     }
     MonitorHandle {
       inner: Inner { uiscreen },

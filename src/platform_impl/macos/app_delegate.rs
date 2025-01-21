@@ -2,23 +2,20 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{platform::macos::ActivationPolicy, platform_impl::platform::app_state::AppState};
+use crate::{
+  platform::macos::ActivationPolicy,
+  platform_impl::platform::{
+    app_state::AppState,
+    ffi::{id, BOOL, YES},
+  },
+};
 
-use cocoa::{
-  base::{id, NO},
-  foundation::NSString,
-};
-use objc::{
-  declare::ClassDecl,
-  runtime::{Class, Object, Sel, BOOL},
-};
+use objc2::runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel};
+use objc2_foundation::{NSArray, NSURL};
 use std::{
   cell::{RefCell, RefMut},
   os::raw::c_void,
 };
-
-use cocoa::foundation::{NSArray, NSURL};
-use std::ffi::CStr;
 
 static AUX_DELEGATE_STATE_NAME: &str = "auxState";
 
@@ -40,28 +37,28 @@ lazy_static! {
     let superclass = class!(NSResponder);
     let mut decl = ClassDecl::new("TaoAppDelegateParent", superclass).unwrap();
 
-    decl.add_class_method(sel!(new), new as extern "C" fn(&Class, Sel) -> id);
-    decl.add_method(sel!(dealloc), dealloc as extern "C" fn(&Object, Sel));
+    decl.add_class_method(sel!(new), new as extern "C" fn(_, _) -> _);
+    decl.add_method(sel!(dealloc), dealloc as extern "C" fn(_, _));
 
     decl.add_method(
       sel!(applicationDidFinishLaunching:),
-      did_finish_launching as extern "C" fn(&Object, Sel, id),
+      did_finish_launching as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(applicationWillTerminate:),
-      application_will_terminate as extern "C" fn(&Object, Sel, id),
+      application_will_terminate as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(application:openURLs:),
-      application_open_urls as extern "C" fn(&Object, Sel, id, id),
+      application_open_urls as extern "C" fn(_, _, _, _),
     );
     decl.add_method(
       sel!(applicationShouldHandleReopen:hasVisibleWindows:),
-      application_should_handle_reopen as extern "C" fn(&Object, Sel, id, BOOL) -> BOOL,
+      application_should_handle_reopen as extern "C" fn(_, _, _, _) -> _,
     );
     decl.add_method(
       sel!(applicationSupportsSecureRestorableState:),
-      application_supports_secure_restorable_state as extern "C" fn(&Object, Sel, id) -> BOOL,
+      application_supports_secure_restorable_state as extern "C" fn(_, _, _) -> _,
     );
     decl.add_ivar::<*mut c_void>(AUX_DELEGATE_STATE_NAME);
 
@@ -70,6 +67,7 @@ lazy_static! {
 }
 
 /// Safety: Assumes that Object is an instance of APP_DELEGATE_CLASS
+#[allow(deprecated)] // TODO: Use define_class!
 pub unsafe fn get_aux_state_mut(this: &Object) -> RefMut<'_, AuxDelegateState> {
   let ptr: *mut c_void = *this.get_ivar(AUX_DELEGATE_STATE_NAME);
   // Watch out that this needs to be the correct type
@@ -77,21 +75,21 @@ pub unsafe fn get_aux_state_mut(this: &Object) -> RefMut<'_, AuxDelegateState> {
 }
 
 extern "C" fn new(class: &Class, _: Sel) -> id {
+  #[allow(deprecated)] // TODO: Use define_class!
   unsafe {
     let this: id = msg_send![class, alloc];
     let this: id = msg_send![this, init];
-    (*this).set_ivar(
-      AUX_DELEGATE_STATE_NAME,
+    *(*this).get_mut_ivar(AUX_DELEGATE_STATE_NAME) =
       Box::into_raw(Box::new(RefCell::new(AuxDelegateState {
         activation_policy: ActivationPolicy::Regular,
         activate_ignoring_other_apps: true,
-      }))) as *mut c_void,
-    );
+      }))) as *mut c_void;
     this
   }
 }
 
 extern "C" fn dealloc(this: &Object, _: Sel) {
+  #[allow(deprecated)] // TODO: Use define_class!
   unsafe {
     let state_ptr: *mut c_void = *(this.get_ivar(AUX_DELEGATE_STATE_NAME));
     // As soon as the box is constructed it is immediately dropped, releasing the underlying
@@ -112,16 +110,12 @@ extern "C" fn application_will_terminate(_: &Object, _: Sel, _: id) {
   trace!("Completed `applicationWillTerminate`");
 }
 
-extern "C" fn application_open_urls(_: &Object, _: Sel, _: id, urls: id) -> () {
+extern "C" fn application_open_urls(_: &Object, _: Sel, _: id, urls: &NSArray<NSURL>) -> () {
   trace!("Trigger `application:openURLs:`");
 
   let urls = unsafe {
     (0..urls.count())
-      .map(|i| {
-        url::Url::parse(
-          &CStr::from_ptr(urls.objectAtIndex(i).absoluteString().UTF8String()).to_string_lossy(),
-        )
-      })
+      .map(|i| url::Url::parse(&urls.objectAtIndex(i).absoluteString().unwrap().to_string()))
       .flatten()
       .collect::<Vec<_>>()
   };
@@ -137,7 +131,7 @@ extern "C" fn application_should_handle_reopen(
   has_visible_windows: BOOL,
 ) -> BOOL {
   trace!("Triggered `applicationShouldHandleReopen`");
-  AppState::reopen(has_visible_windows != NO);
+  AppState::reopen(has_visible_windows.as_bool());
   trace!("Completed `applicationShouldHandleReopen`");
   has_visible_windows
 }
@@ -145,5 +139,5 @@ extern "C" fn application_should_handle_reopen(
 extern "C" fn application_supports_secure_restorable_state(_: &Object, _: Sel, _: id) -> BOOL {
   trace!("Triggered `applicationSupportsSecureRestorableState`");
   trace!("Completed `applicationSupportsSecureRestorableState`");
-  objc::runtime::YES
+  YES
 }

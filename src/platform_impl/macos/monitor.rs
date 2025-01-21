@@ -4,25 +4,23 @@
 
 use std::{collections::VecDeque, fmt};
 
-use super::{
-  ffi::{self, CGRectContainsPoint},
-  util,
-};
+use super::ffi::{self, id, nil, CGRectContainsPoint};
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize},
   monitor::{MonitorHandle as RootMonitorHandle, VideoMode as RootVideoMode},
-};
-use cocoa::{
-  appkit::{CGPoint, NSScreen},
-  base::{id, nil},
-  foundation::NSUInteger,
 };
 use core_foundation::{
   array::{CFArrayGetCount, CFArrayGetValueAtIndex},
   base::{CFRelease, TCFType},
   string::CFString,
 };
-use core_graphics::display::{CGDirectDisplayID, CGDisplay, CGDisplayBounds};
+use core_graphics::{
+  display::{CGDirectDisplayID, CGDisplay, CGDisplayBounds},
+  geometry::CGPoint,
+};
+use objc2::{msg_send_id, rc::Retained};
+use objc2_app_kit::NSScreen;
+use objc2_foundation::{MainThreadMarker, NSString, NSUInteger};
 
 #[derive(Clone)]
 pub struct VideoMode {
@@ -237,7 +235,7 @@ impl MonitorHandle {
       Some(screen) => screen,
       None => return 1.0, // default to 1.0 when we can't find the screen
     };
-    unsafe { NSScreen::backingScaleFactor(screen) as f64 }
+    NSScreen::backingScaleFactor(&screen) as f64
   }
 
   pub fn video_modes(&self) -> impl Iterator<Item = RootVideoMode> {
@@ -313,16 +311,18 @@ impl MonitorHandle {
     }
   }
 
-  pub(crate) fn ns_screen(&self) -> Option<id> {
+  pub(crate) fn ns_screen(&self) -> Option<Retained<NSScreen>> {
+    // SAFETY: TODO.
+    let mtm = unsafe { MainThreadMarker::new_unchecked() };
     unsafe {
       let uuid = ffi::CGDisplayCreateUUIDFromDisplayID(self.0);
-      let screens = NSScreen::screens(nil);
-      let count: NSUInteger = msg_send![screens, count];
-      let key = util::ns_string_id_ref("NSScreenNumber");
+      let screens = NSScreen::screens(mtm);
+      let count: NSUInteger = msg_send![&screens, count];
+      let key = NSString::from_str("NSScreenNumber");
       for i in 0..count {
-        let screen = msg_send![screens, objectAtIndex: i as NSUInteger];
-        let device_description = NSScreen::deviceDescription(screen);
-        let value: id = msg_send![device_description, objectForKey:*key];
+        let screen: Retained<NSScreen> = msg_send_id![&screens, objectAtIndex: i as NSUInteger];
+        let device_description = NSScreen::deviceDescription(&screen);
+        let value: id = msg_send![&device_description, objectForKey: &*key];
         if value != nil {
           let other_native_id: NSUInteger = msg_send![value, unsignedIntegerValue];
           let other_uuid =

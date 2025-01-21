@@ -104,10 +104,41 @@ ndk-context = "0.1"
 tao-macros = { version = "0.1.0", path = "./tao-macros" }
 
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
-objc = "0.2"
+objc2 = "0.5"
 
 [target."cfg(target_os = \"macos\")".dependencies]
-cocoa = "0.26"
+objc2-foundation = { version = "0.2", default-features = false, features = [
+  "std",
+  "NSArray",
+  "NSAttributedString",
+  "NSAutoreleasePool",
+  "NSDate",
+  "NSDictionary",
+  "NSEnumerator",
+  "NSGeometry",
+  "NSObjCRuntime",
+  "NSRange",
+  "NSString",
+  "NSThread",
+  "NSURL",
+] }
+objc2-app-kit = { version = "0.2", default-features = false, features = [
+  "std",
+  "NSApplication",
+  "NSButton",
+  "NSColor",
+  "NSControl",
+  "NSEvent",
+  "NSGraphics",
+  "NSImage",
+  "NSOpenGLView",
+  "NSPasteboard",
+  "NSResponder",
+  "NSRunningApplication",
+  "NSScreen",
+  "NSView",
+  "NSWindow",
+] }
 core-foundation = "0.10"
 core-graphics = "0.24"
 dispatch = "0.2"

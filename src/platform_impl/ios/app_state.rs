@@ -13,7 +13,7 @@ use std::{
   time::Instant,
 };
 
-use objc::runtime::{BOOL, YES};
+use objc2::runtime::AnyObject;
 
 use crate::{
   dpi::LogicalSize,
@@ -475,10 +475,7 @@ impl AppState {
 // retains window
 pub unsafe fn set_key_window(window: id) {
   bug_assert!(
-    {
-      let is_window: BOOL = msg_send![window, isKindOfClass: class!(UIWindow)];
-      is_window == YES
-    },
+    msg_send![window, isKindOfClass: class!(UIWindow)],
     "set_key_window called with an incorrect type"
   );
   let mut this = AppState::get_mut();
@@ -505,10 +502,7 @@ pub unsafe fn set_key_window(window: id) {
 // retains window
 pub unsafe fn queue_gl_or_metal_redraw(window: id) {
   bug_assert!(
-    {
-      let is_window: BOOL = msg_send![window, isKindOfClass: class!(UIWindow)];
-      is_window == YES
-    },
+    msg_send![window, isKindOfClass: class!(UIWindow)],
     "set_key_window called with an incorrect type"
   );
   let mut this = AppState::get_mut();
@@ -582,7 +576,7 @@ pub unsafe fn did_finish_launching() {
       let () = msg_send![window, setScreen: screen];
       let () = msg_send![screen, release];
       let controller: id = msg_send![window, rootViewController];
-      let () = msg_send![window, setRootViewController:ptr::null::<()>()];
+      let () = msg_send![window, setRootViewController: ptr::null::<AnyObject>()];
       let () = msg_send![window, setRootViewController: controller];
       let () = msg_send![window, makeKeyAndVisible];
     }
@@ -1019,7 +1013,7 @@ pub fn os_capabilities() -> OSCapabilities {
       static ref OS_CAPABILITIES: OSCapabilities = {
           let version: NSOperatingSystemVersion = unsafe {
               let process_info: id = msg_send![class!(NSProcessInfo), processInfo];
-              let atleast_ios_8: BOOL = msg_send![
+              let atleast_ios_8: bool = msg_send![
                   process_info,
                   respondsToSelector: sel!(operatingSystemVersion)
               ];
@@ -1031,7 +1025,7 @@ pub fn os_capabilities() -> OSCapabilities {
               //
               // The minimum required iOS version is likely to grow in the future.
               assert!(
-                  atleast_ios_8 == YES,
+                  atleast_ios_8,
                   "`tao` requires iOS version 8 or greater"
               );
               msg_send![process_info, operatingSystemVersion]

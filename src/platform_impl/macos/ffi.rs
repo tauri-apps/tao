@@ -11,13 +11,8 @@
   clippy::enum_variant_names
 )]
 
-use std::ffi::c_void;
+use std::{ffi::c_void, ptr};
 
-use cocoa::{
-  appkit::CGPoint,
-  base::id,
-  foundation::{NSInteger, NSUInteger},
-};
 use core_foundation::{
   array::CFArrayRef, data::CFDataRef, dictionary::CFDictionaryRef, string::CFStringRef,
   uuid::CFUUIDRef,
@@ -25,74 +20,26 @@ use core_foundation::{
 use core_graphics::{
   base::CGError,
   display::{boolean_t, CGDirectDisplayID, CGDisplayConfigRef},
-  geometry::CGRect,
+  geometry::{CGPoint, CGRect},
 };
+use objc2::{
+  encode::{Encode, Encoding},
+  runtime::{AnyObject, Bool},
+};
+use objc2_foundation::NSInteger;
+
+#[allow(non_camel_case_types)]
+pub type id = *mut AnyObject;
+pub const nil: id = ptr::null_mut();
+
+#[allow(non_camel_case_types)]
+pub type BOOL = Bool;
+#[allow(deprecated)]
+pub const YES: Bool = Bool::YES;
+#[allow(deprecated)]
+pub const NO: Bool = Bool::NO;
+
 pub const NSNotFound: NSInteger = NSInteger::max_value();
-
-#[repr(C)]
-pub struct NSRange {
-  pub location: NSUInteger,
-  pub length: NSUInteger,
-}
-
-impl NSRange {
-  #[inline]
-  pub fn new(location: NSUInteger, length: NSUInteger) -> NSRange {
-    NSRange { location, length }
-  }
-}
-
-unsafe impl objc::Encode for NSRange {
-  fn encode() -> objc::Encoding {
-    let encoding = format!(
-      // TODO: Verify that this is correct
-      "{{NSRange={}{}}}",
-      NSUInteger::encode().as_str(),
-      NSUInteger::encode().as_str(),
-    );
-    unsafe { objc::Encoding::from_str(&encoding) }
-  }
-}
-
-pub trait NSMutableAttributedString: Sized {
-  unsafe fn alloc(_: Self) -> id {
-    msg_send![class!(NSMutableAttributedString), alloc]
-  }
-
-  unsafe fn init(self) -> id; // *mut NSMutableAttributedString
-  unsafe fn initWithString(self, string: id) -> id;
-  unsafe fn initWithAttributedString(self, string: id) -> id;
-
-  unsafe fn string(self) -> id; // *mut NSString
-  unsafe fn mutableString(self) -> id; // *mut NSMutableString
-  unsafe fn length(self) -> NSUInteger;
-}
-
-impl NSMutableAttributedString for id {
-  unsafe fn init(self) -> id {
-    msg_send![self, init]
-  }
-
-  unsafe fn initWithString(self, string: id) -> id {
-    msg_send![self, initWithString: string]
-  }
-
-  unsafe fn initWithAttributedString(self, string: id) -> id {
-    msg_send![self, initWithAttributedString: string]
-  }
-
-  unsafe fn string(self) -> id {
-    msg_send![self, string]
-  }
-
-  unsafe fn mutableString(self) -> id {
-    msg_send![self, mutableString]
-  }
-
-  unsafe fn length(self) -> NSUInteger {
-    msg_send![self, length]
-  }
-}
 
 pub const kCGBaseWindowLevelKey: NSInteger = 0;
 pub const kCGMinimumWindowLevelKey: NSInteger = 1;
@@ -128,6 +75,10 @@ pub enum NSWindowLevel {
   NSStatusWindowLevel = kCGStatusWindowLevelKey as _,
   NSPopUpMenuWindowLevel = kCGPopUpMenuWindowLevelKey as _,
   NSScreenSaverWindowLevel = kCGScreenSaverWindowLevelKey as _,
+}
+
+unsafe impl Encode for NSWindowLevel {
+  const ENCODING: Encoding = isize::ENCODING;
 }
 
 pub type CGDisplayFadeInterval = f32;

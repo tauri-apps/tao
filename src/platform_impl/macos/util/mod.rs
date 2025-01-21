@@ -7,26 +7,20 @@ mod cursor;
 
 pub use self::{cursor::*, r#async::*};
 
-use std::{
-  ops::{BitAnd, Deref},
-  slice, str,
-};
+use std::ops::{BitAnd, Deref};
 
-use cocoa::{
-  appkit::{NSApp, NSWindowStyleMask},
-  base::{id, nil},
-  foundation::{NSAutoreleasePool, NSPoint, NSRect, NSString, NSUInteger},
-};
 use core_graphics::display::CGDisplay;
-use objc::{
+use objc2::{
   class,
-  runtime::{Class, Object, Sel, BOOL, YES},
+  runtime::{AnyClass as Class, AnyObject as Object, Sel},
 };
+use objc2_app_kit::{NSApp, NSView, NSWindow, NSWindowStyleMask};
+use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSPoint, NSRange, NSRect, NSUInteger};
 
 use crate::{
   dpi::{LogicalPosition, PhysicalPosition},
   error::ExternalError,
-  platform_impl::platform::ffi,
+  platform_impl::platform::ffi::{self, id, nil, BOOL, YES},
 };
 
 // Replace with `!` once stable
@@ -40,7 +34,7 @@ where
   bitset & flag == flag
 }
 
-pub const EMPTY_RANGE: ffi::NSRange = ffi::NSRange {
+pub const EMPTY_RANGE: NSRange = NSRange {
   location: ffi::NSNotFound as NSUInteger,
   length: 0,
 };
@@ -60,23 +54,14 @@ impl IdRef {
     }
     IdRef(inner)
   }
-
-  pub fn non_nil(self) -> Option<IdRef> {
-    if self.0 == nil {
-      None
-    } else {
-      Some(self)
-    }
-  }
 }
 
 impl Drop for IdRef {
   fn drop(&mut self) {
     if self.0 != nil {
       unsafe {
-        let pool = NSAutoreleasePool::new(nil);
+        let _pool = NSAutoreleasePool::new();
         let () = msg_send![self.0, release];
-        pool.drain();
       };
     }
   }
@@ -120,23 +105,12 @@ pub fn cursor_position() -> Result<PhysicalPosition<f64>, ExternalError> {
   Ok(point.to_physical(super::monitor::primary_monitor().scale_factor()))
 }
 
-pub unsafe fn ns_string_id_ref(s: &str) -> IdRef {
-  IdRef::new(NSString::alloc(nil).init_str(s))
-}
-
-/// Copies the contents of the ns string into a `String` which gets returned.
-pub unsafe fn ns_string_to_rust(ns_string: id) -> String {
-  let slice = slice::from_raw_parts(ns_string.UTF8String() as *mut u8, ns_string.len());
-  let string = str::from_utf8_unchecked(slice);
-  string.to_owned()
-}
-
 pub unsafe fn superclass<'a>(this: &'a Object) -> &'a Class {
   let superclass: *const Class = msg_send![this, superclass];
   &*superclass
 }
 
-pub unsafe fn create_input_context(view: id) -> IdRef {
+pub unsafe fn create_input_context(view: &NSView) -> IdRef {
   let input_context: id = msg_send![class!(NSTextInputContext), alloc];
   let input_context: id = msg_send![input_context, initWithClient: view];
   IdRef::new(input_context)
@@ -144,23 +118,28 @@ pub unsafe fn create_input_context(view: id) -> IdRef {
 
 #[allow(dead_code)]
 pub unsafe fn open_emoji_picker() {
-  let () = msg_send![NSApp(), orderFrontCharacterPalette: nil];
+  // SAFETY: TODO
+  let mtm = unsafe { MainThreadMarker::new_unchecked() };
+  let () = msg_send![&NSApp(mtm), orderFrontCharacterPalette: nil];
 }
 
 pub extern "C" fn yes(_: &Object, _: Sel) -> BOOL {
   YES
 }
 
-pub unsafe fn toggle_style_mask(window: id, view: id, mask: NSWindowStyleMask, on: bool) {
-  use cocoa::appkit::NSWindow;
-
+pub unsafe fn toggle_style_mask(
+  window: &NSWindow,
+  view: &NSView,
+  mask: NSWindowStyleMask,
+  on: bool,
+) {
   let current_style_mask = window.styleMask();
   if on {
-    window.setStyleMask_(current_style_mask | mask);
+    window.setStyleMask(current_style_mask | mask);
   } else {
-    window.setStyleMask_(current_style_mask & (!mask));
+    window.setStyleMask(current_style_mask & (!mask));
   }
 
   // If we don't do this, key handling will break. Therefore, never call `setStyleMask` directly!
-  window.makeFirstResponder_(view);
+  window.makeFirstResponder(Some(view));
 }

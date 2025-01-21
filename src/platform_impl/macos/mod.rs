@@ -25,7 +25,7 @@ use std::{fmt, ops::Deref, sync::Arc};
 
 pub(crate) use self::event_loop::PlatformSpecificEventLoopAttributes;
 pub use self::{
-  app_delegate::{get_aux_state_mut, AuxDelegateState},
+  app_delegate::get_aux_state_mut,
   event::KeyEventExtra,
   event_loop::{EventLoop, EventLoopWindowTarget, Proxy as EventLoopProxy},
   keycode::{keycode_from_scancode, keycode_to_scancode},
