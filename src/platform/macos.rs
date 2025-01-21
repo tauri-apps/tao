@@ -14,11 +14,6 @@ use crate::{
   window::{Window, WindowBuilder},
 };
 
-use cocoa::appkit::{
-  NSApplicationActivationPolicy, NSApplicationActivationPolicyAccessory,
-  NSApplicationActivationPolicyProhibited, NSApplicationActivationPolicyRegular,
-};
-
 /// Additional methods on `Window` that are specific to MacOS.
 pub trait WindowExtMacOS {
   /// Returns a pointer to the cocoa `NSWindow` that is used by this window.
@@ -186,16 +181,6 @@ pub enum ActivationPolicy {
 impl Default for ActivationPolicy {
   fn default() -> Self {
     ActivationPolicy::Regular
-  }
-}
-
-impl From<ActivationPolicy> for NSApplicationActivationPolicy {
-  fn from(act_pol: ActivationPolicy) -> Self {
-    match act_pol {
-      ActivationPolicy::Regular => NSApplicationActivationPolicyRegular,
-      ActivationPolicy::Accessory => NSApplicationActivationPolicyAccessory,
-      ActivationPolicy::Prohibited => NSApplicationActivationPolicyProhibited,
-    }
   }
 }
 
@@ -421,9 +406,17 @@ impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
   }
 
   fn set_activation_policy_at_runtime(&self, activation_policy: ActivationPolicy) {
+    use cocoa::appkit;
+
     let cls = objc::runtime::Class::get("NSApplication").unwrap();
     let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
-    let ns_activation_policy: NSApplicationActivationPolicy = activation_policy.into();
+
+    let ns_activation_policy = match activation_policy {
+      ActivationPolicy::Regular => appkit::NSApplicationActivationPolicyRegular,
+      ActivationPolicy::Accessory => appkit::NSApplicationActivationPolicyAccessory,
+      ActivationPolicy::Prohibited => appkit::NSApplicationActivationPolicyProhibited,
+    };
+
     unsafe { msg_send![app, setActivationPolicy: ns_activation_policy] }
   }
 
