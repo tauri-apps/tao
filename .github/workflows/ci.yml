@@ -46,7 +46,7 @@ jobs:
           path: ~/.cargo
           key: ${{ matrix.platform.target }}-cargo-stable
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.71
         with:
           targets: ${{ matrix.platform.target }}
 
