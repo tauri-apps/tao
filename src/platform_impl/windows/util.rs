@@ -449,7 +449,7 @@ pub fn calculate_insets_for_dpi(dpi: u32) -> RECT {
   let frame_thickness = get_frame_thickness(dpi);
 
   let top_inset = match WIN_VERSION.build {
-    v if v >= 2200 => (dpi as f32 / USER_DEFAULT_SCREEN_DPI as f32).round() as i32,
+    v if v >= 22000 => (dpi as f32 / USER_DEFAULT_SCREEN_DPI as f32).round() as i32,
     _ => 0,
   };
 
