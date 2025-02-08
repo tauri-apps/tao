@@ -20,25 +20,16 @@ use std::ffi::c_void;
 
 use crate::window::Theme;
 
+use super::util;
+
 static HUXTHEME: Lazy<isize> =
   Lazy::new(|| unsafe { LoadLibraryA(s!("uxtheme.dll")).unwrap_or_default().0 as _ });
-
-static WIN10_BUILD_VERSION: Lazy<Option<u32>> = Lazy::new(|| {
-  let version = windows_version::OsVersion::current();
-  if version.major == 10 && version.minor == 0 {
-    Some(version.build)
-  } else {
-    None
-  }
-});
 
 static DARK_MODE_SUPPORTED: Lazy<bool> = Lazy::new(|| {
   // We won't try to do anything for windows versions < 17763
   // (Windows 10 October 2018 update)
-  match *WIN10_BUILD_VERSION {
-    Some(v) => v >= 17763,
-    None => false,
-  }
+  let v = *util::WIN_VERSION;
+  v.major == 10 && v.minor == 0 && v.build >= 17763
 });
 
 pub fn allow_dark_mode_for_app(is_dark_mode: bool) {
@@ -79,19 +70,17 @@ pub fn allow_dark_mode_for_app(is_dark_mode: bool) {
       .map(|handle| std::mem::transmute(handle))
     });
 
-    if let Some(ver) = *WIN10_BUILD_VERSION {
-      if ver < 18362 {
-        if let Some(_allow_dark_mode_for_app) = *ALLOW_DARK_MODE_FOR_APP {
-          unsafe { _allow_dark_mode_for_app(is_dark_mode) };
-        }
-      } else if let Some(_set_preferred_app_mode) = *SET_PREFERRED_APP_MODE {
-        let mode = if is_dark_mode {
-          PreferredAppMode::AllowDark
-        } else {
-          PreferredAppMode::Default
-        };
-        unsafe { _set_preferred_app_mode(mode) };
+    if util::WIN_VERSION.build < 18362 {
+      if let Some(_allow_dark_mode_for_app) = *ALLOW_DARK_MODE_FOR_APP {
+        unsafe { _allow_dark_mode_for_app(is_dark_mode) };
       }
+    } else if let Some(_set_preferred_app_mode) = *SET_PREFERRED_APP_MODE {
+      let mode = if is_dark_mode {
+        PreferredAppMode::AllowDark
+      } else {
+        PreferredAppMode::Default
+      };
+      unsafe { _set_preferred_app_mode(mode) };
     }
 
     refresh_immersive_color_policy_state();
@@ -168,39 +157,37 @@ pub fn allow_dark_mode_for_window(hwnd: HWND, is_dark_mode: bool) {
 }
 
 fn refresh_titlebar_theme_color(hwnd: HWND, is_dark_mode: bool, redraw_title_bar: bool) {
-  if let Some(ver) = *WIN10_BUILD_VERSION {
-    if ver < 17763 {
-      let mut is_dark_mode_bigbool: i32 = is_dark_mode.into();
-      unsafe {
-        let _ = SetPropW(
-          hwnd,
-          w!("UseImmersiveDarkModeColors"),
-          Some(HANDLE(&mut is_dark_mode_bigbool as *mut _ as _)),
-        );
-      }
+  if util::WIN_VERSION.build < 17763 {
+    let mut is_dark_mode_bigbool: i32 = is_dark_mode.into();
+    unsafe {
+      let _ = SetPropW(
+        hwnd,
+        w!("UseImmersiveDarkModeColors"),
+        Some(HANDLE(&mut is_dark_mode_bigbool as *mut _ as _)),
+      );
+    }
+  } else {
+    // https://github.com/MicrosoftDocs/sdk-api/pull/966/files
+    let dwmwa_use_immersive_dark_mode = if util::WIN_VERSION.build > 18985 {
+      DWMWINDOWATTRIBUTE(20)
     } else {
-      // https://github.com/MicrosoftDocs/sdk-api/pull/966/files
-      let dwmwa_use_immersive_dark_mode = if ver > 18985 {
-        DWMWINDOWATTRIBUTE(20)
-      } else {
-        DWMWINDOWATTRIBUTE(19)
-      };
-      let dark_mode = BOOL::from(is_dark_mode);
-      unsafe {
-        let _ = DwmSetWindowAttribute(
-          hwnd,
-          dwmwa_use_immersive_dark_mode,
-          &dark_mode as *const BOOL as *const c_void,
-          std::mem::size_of::<BOOL>() as u32,
-        );
-        if redraw_title_bar {
-          if GetActiveWindow() == hwnd {
-            DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM::default(), LPARAM::default());
-            DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM(true.into()), LPARAM::default());
-          } else {
-            DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM(true.into()), LPARAM::default());
-            DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM::default(), LPARAM::default());
-          }
+      DWMWINDOWATTRIBUTE(19)
+    };
+    let dark_mode = BOOL::from(is_dark_mode);
+    unsafe {
+      let _ = DwmSetWindowAttribute(
+        hwnd,
+        dwmwa_use_immersive_dark_mode,
+        &dark_mode as *const BOOL as *const c_void,
+        std::mem::size_of::<BOOL>() as u32,
+      );
+      if redraw_title_bar {
+        if GetActiveWindow() == hwnd {
+          DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM::default(), LPARAM::default());
+          DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM(true.into()), LPARAM::default());
+        } else {
+          DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM(true.into()), LPARAM::default());
+          DefWindowProcW(hwnd, WM_NCACTIVATE, WPARAM::default(), LPARAM::default());
         }
       }
     }

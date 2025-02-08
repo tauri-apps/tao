@@ -2151,10 +2151,13 @@ unsafe fn public_window_callback_inner<T: 'static>(
           }
         } else if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) && !is_fullscreen {
           let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
-          params.rgrc[0].top += 1;
-          params.rgrc[0].bottom += 1;
-          params.rgrc[0].left += 1;
-          params.rgrc[0].right += 1;
+
+          let insets = util::calculate_window_insets(window);
+
+          params.rgrc[0].left += insets.left;
+          params.rgrc[0].top += insets.top;
+          params.rgrc[0].right -= insets.right;
+          params.rgrc[0].bottom -= insets.bottom;
         }
         result = ProcResult::Value(LRESULT(0)); // return 0 here to make the window borderless
       }
@@ -2164,8 +2167,9 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let window_state = subclass_input.window_state.lock();
       let window_flags = window_state.window_flags();
 
-      // Allow resizing unmaximized non-fullscreen undecorated window
+      // Allow resizing unmaximized non-fullscreen undecorated window without shadows
       if !window_flags.contains(WindowFlags::MARKER_DECORATIONS)
+        && !window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW)
         && window_flags.contains(WindowFlags::RESIZABLE)
         && window_state.fullscreen.is_none()
         && !util::is_maximized(window).unwrap_or(false)

@@ -57,8 +57,10 @@ use crate::{
 };
 
 use super::{
+  dpi::get_monitor_dpi,
   event_loop::CHANGE_THEME_MSG_ID,
   keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS},
+  util::calculate_insets_for_dpi,
 };
 
 /// A simple non-owning wrapper around a window.
@@ -241,32 +243,53 @@ impl Window {
 
   #[inline]
   pub fn inner_size(&self) -> PhysicalSize<u32> {
-    let mut rect = RECT::default();
-    if unsafe { GetClientRect(self.window.0, &mut rect) }.is_err() {
-      panic!("Unexpected GetClientRect failure")
-    }
+    let hwnd = self.hwnd();
 
-    let mut width = rect.right - rect.left;
-    let mut height = rect.bottom - rect.top;
+    let client_rect = util::client_rect(hwnd);
 
-    let window_flags = self.window_state.lock().window_flags();
+    let mut width = client_rect.right - client_rect.left;
+    let mut height = client_rect.bottom - client_rect.top;
 
-    if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW)
-      && !window_flags.contains(WindowFlags::MARKER_DECORATIONS)
-    {
-      let mut pt: POINT = unsafe { mem::zeroed() };
-      if unsafe { ClientToScreen(self.hwnd(), &mut pt) }.as_bool() == true {
-        let mut window_rc: RECT = unsafe { mem::zeroed() };
-        if unsafe { GetWindowRect(self.hwnd(), &mut window_rc) }.is_ok() {
-          let left_b = pt.x - window_rc.left;
-          let right_b = pt.x + width - window_rc.right;
-          let top_b = pt.y - window_rc.top;
-          let bottom_b = pt.y + height - window_rc.bottom;
+    let window_flags = self.window_state.lock().window_flags;
 
-          width = width - left_b - right_b;
-          height = height - top_b - bottom_b;
-        }
-      }
+    // undecorated windows with shadows have hidden offsets
+    // we need to calculate them and account for them in returned size
+    //
+    // implementation derived from GPUI
+    // see <https://github.com/zed-industries/zed/blob/7bddb390cabefb177d9996dc580749d64e6ca3b6/crates/gpui/src/platform/windows/window.rs#L1167-L1180>
+    if window_flags.undecorated_with_shadows() {
+      let window_rect = util::window_rect(hwnd);
+
+      let width_offset =
+        (window_rect.right - window_rect.left) - (client_rect.right - client_rect.left);
+      let height_offset =
+        (window_rect.bottom - window_rect.top) - (client_rect.bottom - client_rect.top);
+
+      let placement = unsafe {
+        let mut placement = WINDOWPLACEMENT {
+          length: std::mem::size_of::<WINDOWPLACEMENT>() as u32,
+          ..std::mem::zeroed()
+        };
+        if GetWindowPlacement(hwnd, &mut placement).is_err() {
+          panic!(
+            "Unexpected GetWindowPlacement failure: please report this error to \
+                   tauri-apps/tao"
+          )
+        };
+        placement
+      };
+
+      let rect = placement.rcNormalPosition;
+
+      let left_offset = width_offset / 2;
+      let top_offset = height_offset / 2;
+      let right_offset = width_offset - left_offset;
+      let bottom_offset = height_offset - top_offset;
+      let left = rect.left + left_offset;
+      let top = rect.top + top_offset;
+      let right = rect.right - right_offset;
+      let bottom = rect.bottom - bottom_offset;
+      (width, height) = (right - left, bottom - top);
     }
 
     PhysicalSize::new(width as u32, height as u32)
@@ -287,36 +310,32 @@ impl Window {
   #[inline]
   pub fn set_inner_size(&self, size: Size) {
     let scale_factor = self.scale_factor();
+
     let (mut desired_width, mut desired_height) = size.to_physical::<i32>(scale_factor).into();
 
-    let window_state = Arc::clone(&self.window_state);
+    let window_flags = self.window_state.lock().window_flags;
 
-    let window_flags = self.window_state.lock().window_flags();
+    // undecorated windows with shadows have hidden offsets
+    // we need to calculate them and account for them in new size
+    //
+    // implementation derived from GPUI
+    // see <https://github.com/zed-industries/zed/blob/7bddb390cabefb177d9996dc580749d64e6ca3b6/crates/gpui/src/platform/windows/window.rs#L1167-L1180>
+    if window_flags.undecorated_with_shadows() {
+      let hwnd = self.hwnd();
 
-    let is_decorated = window_flags.contains(WindowFlags::MARKER_DECORATIONS);
+      let client_rect = util::client_rect(hwnd);
+      let window_rect = util::window_rect(hwnd);
 
-    if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) && !is_decorated {
-      let mut pt: POINT = unsafe { mem::zeroed() };
-      if unsafe { ClientToScreen(self.hwnd(), &mut pt) }.as_bool() == true {
-        let mut window_rc: RECT = unsafe { mem::zeroed() };
-        if unsafe { GetWindowRect(self.hwnd(), &mut window_rc) }.is_ok() {
-          let mut client_rc: RECT = unsafe { mem::zeroed() };
-          if unsafe { GetClientRect(self.hwnd(), &mut client_rc) }.is_ok() {
-            let curr_width = client_rc.right - client_rc.left;
-            let curr_height = client_rc.bottom - client_rc.top;
+      let width_offset =
+        (window_rect.right - window_rect.left) - (client_rect.right - client_rect.left);
+      let height_offset =
+        (window_rect.bottom - window_rect.top) - (client_rect.bottom - client_rect.top);
 
-            let left_b = pt.x - window_rc.left;
-            let right_b: i32 = (pt.x + curr_width) - window_rc.right;
-            let top_b = pt.y - window_rc.top;
-            let bottom_b: i32 = (pt.y + curr_height) - window_rc.bottom;
-
-            desired_width = desired_width + left_b + right_b.abs();
-            desired_height = desired_height + top_b + bottom_b.abs();
-          }
-        }
-      }
+      desired_width += width_offset;
+      desired_height += height_offset;
     }
 
+    let window_state = Arc::clone(&self.window_state);
     let window = self.window.0 .0 as isize;
     self.thread_executor.execute_in_thread(move || {
       WindowState::set_window_flags(window_state.lock(), HWND(window as _), |f| {
@@ -324,7 +343,12 @@ impl Window {
       });
     });
 
-    util::set_inner_size_physical(self.window.0, desired_width, desired_height, is_decorated);
+    util::set_inner_size_physical(
+      self.window.0,
+      desired_width,
+      desired_height,
+      window_flags.contains(WindowFlags::MARKER_DECORATIONS),
+    );
   }
 
   #[inline]
@@ -1208,34 +1232,37 @@ unsafe fn init<T: 'static>(
 
     // Best effort: try to create the window with the requested inner size
     let adjusted_size = {
-      let (w, h): (i32, i32) = clamped_size
+      let (mut w, mut h): (i32, i32) = clamped_size
         .to_physical::<u32>(target_monitor.scale_factor())
         .into();
-      let mut rect = RECT {
-        left: 0,
-        top: 0,
-        right: w,
-        bottom: h,
-      };
-      unsafe {
-        AdjustWindowRectEx(
-          &mut rect,
-          window_flags.to_adjusted_window_styles().0,
-          pl_attribs.menu.is_some(),
-          ex_style,
-        )?;
+
+      if window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
+        let mut rect = RECT {
+          left: 0,
+          top: 0,
+          right: w,
+          bottom: h,
+        };
+
+        unsafe {
+          AdjustWindowRectEx(
+            &mut rect,
+            window_flags.to_adjusted_window_styles().0,
+            pl_attribs.menu.is_some(),
+            ex_style,
+          )?;
+        }
+
+        w = rect.right - rect.left;
+        h = rect.bottom - rect.top;
+      } else if window_flags.undecorated_with_shadows() {
+        let dpi = get_monitor_dpi(target_monitor.hmonitor()).unwrap_or(USER_DEFAULT_SCREEN_DPI);
+        let insets = calculate_insets_for_dpi(dpi);
+        w += insets.left + insets.right;
+        h += insets.top + insets.bottom;
       }
 
-      // account for the 1px we add on each side in WM_NCCALCSIZE
-      // to add shadow for undecorated windows
-      if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW)
-        && !window_flags.contains(WindowFlags::MARKER_DECORATIONS)
-      {
-        rect.right += 2;
-        rect.bottom += 2;
-      }
-
-      (rect.right - rect.left, rect.bottom - rect.top)
+      (w, h)
     };
 
     let handle = CreateWindowExW(
@@ -1401,10 +1428,13 @@ unsafe extern "system" fn window_proc(
           }
         } else if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) {
           let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
-          params.rgrc[0].top += 1;
-          params.rgrc[0].bottom += 1;
-          params.rgrc[0].left += 1;
-          params.rgrc[0].right += 1;
+
+          let insets = util::calculate_window_insets(window);
+
+          params.rgrc[0].left += insets.left;
+          params.rgrc[0].top += insets.top;
+          params.rgrc[0].right -= insets.right;
+          params.rgrc[0].bottom -= insets.bottom;
         }
         return LRESULT(0); // return 0 here to make the window borderless
       }

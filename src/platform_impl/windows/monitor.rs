@@ -7,6 +7,7 @@ use windows::{
   Win32::{
     Foundation::{BOOL, HWND, LPARAM, POINT, RECT},
     Graphics::Gdi::*,
+    UI::WindowsAndMessaging::USER_DEFAULT_SCREEN_DPI,
   },
 };
 
@@ -216,7 +217,7 @@ impl MonitorHandle {
 
   #[inline]
   pub fn scale_factor(&self) -> f64 {
-    dpi_to_scale_factor(get_monitor_dpi(self.hmonitor()).unwrap_or(96))
+    dpi_to_scale_factor(get_monitor_dpi(self.hmonitor()).unwrap_or(USER_DEFAULT_SCREEN_DPI))
   }
 
   #[inline]
