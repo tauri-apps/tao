@@ -11,7 +11,6 @@ impl WlHeader {
       .build();
 
     let event_box = EventBox::new();
-    event_box.set_above_child(true);
     event_box.set_visible(true);
     event_box.set_can_focus(false);
     event_box.add(&header);
