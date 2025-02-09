@@ -185,7 +185,6 @@ impl Window {
         window.fullscreen();
       }
     }
-    window.set_visible(attributes.visible);
     window.set_decorated(attributes.decorations);
 
     if attributes.always_on_bottom {
