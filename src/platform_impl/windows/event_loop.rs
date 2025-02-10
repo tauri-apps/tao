@@ -1998,99 +1998,107 @@ unsafe fn public_window_callback_inner<T: 'static>(
       }
 
       let new_outer_rect: RECT;
-      {
-        let suggested_ul = (
-          suggested_rect.left + margin_left,
-          suggested_rect.top + margin_top,
-        );
+      if util::WIN_VERSION.build < 22000 {
+        // The window position needs adjustment on Windows 10.
+        {
+          let suggested_ul = (
+            suggested_rect.left + margin_left,
+            suggested_rect.top + margin_top,
+          );
 
-        let mut conservative_rect = RECT {
-          left: suggested_ul.0,
-          top: suggested_ul.1,
-          right: suggested_ul.0 + new_physical_inner_size.width as i32,
-          bottom: suggested_ul.1 + new_physical_inner_size.height as i32,
-        };
-
-        conservative_rect =
-          util::adjust_window_rect_with_styles(window, style, style_ex, conservative_rect)
-            .unwrap_or(conservative_rect);
-
-        // If we're dragging the window, offset the window so that the cursor's
-        // relative horizontal position in the title bar is preserved.
-        if dragging_window {
-          let bias = {
-            let cursor_pos = {
-              let mut pos = POINT::default();
-              let _ = GetCursorPos(&mut pos);
-              pos
-            };
-            let suggested_cursor_horizontal_ratio = (cursor_pos.x - suggested_rect.left) as f64
-              / (suggested_rect.right - suggested_rect.left) as f64;
-
-            (cursor_pos.x
-              - (suggested_cursor_horizontal_ratio
-                * (conservative_rect.right - conservative_rect.left) as f64) as i32)
-              - conservative_rect.left
+          let mut conservative_rect = RECT {
+            left: suggested_ul.0,
+            top: suggested_ul.1,
+            right: suggested_ul.0 + new_physical_inner_size.width as i32,
+            bottom: suggested_ul.1 + new_physical_inner_size.height as i32,
           };
-          conservative_rect.left += bias;
-          conservative_rect.right += bias;
-        }
 
-        // Check to see if the new window rect is on the monitor with the new DPI factor.
-        // If it isn't, offset the window so that it is.
-        let new_dpi_monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONULL);
-        let conservative_rect_monitor = MonitorFromRect(&conservative_rect, MONITOR_DEFAULTTONULL);
-        new_outer_rect = {
-          if conservative_rect_monitor != new_dpi_monitor {
-            let get_monitor_rect = |monitor| {
-              let mut monitor_info = MONITORINFO {
-                cbSize: mem::size_of::<MONITORINFO>() as _,
-                ..Default::default()
+          conservative_rect =
+            util::adjust_window_rect_with_styles(window, style, style_ex, conservative_rect)
+              .unwrap_or(conservative_rect);
+
+          // If we're dragging the window, offset the window so that the cursor's
+          // relative horizontal position in the title bar is preserved.
+          if dragging_window {
+            let bias = {
+              let cursor_pos = {
+                let mut pos = POINT::default();
+                let _ = GetCursorPos(&mut pos);
+                pos
               };
-              let _ = GetMonitorInfoW(monitor, &mut monitor_info);
-              monitor_info.rcMonitor
+              let suggested_cursor_horizontal_ratio = (cursor_pos.x - suggested_rect.left) as f64
+                / (suggested_rect.right - suggested_rect.left) as f64;
+
+              (cursor_pos.x
+                - (suggested_cursor_horizontal_ratio
+                  * (conservative_rect.right - conservative_rect.left) as f64)
+                  as i32)
+                - conservative_rect.left
             };
-            let wrong_monitor = conservative_rect_monitor;
-            let wrong_monitor_rect = get_monitor_rect(wrong_monitor);
-            let new_monitor_rect = get_monitor_rect(new_dpi_monitor);
-
-            // The direction to nudge the window in to get the window onto the monitor with
-            // the new DPI factor. We calculate this by seeing which monitor edges are
-            // shared and nudging away from the wrong monitor based on those.
-            let delta_nudge_to_dpi_monitor = (
-              if wrong_monitor_rect.left == new_monitor_rect.right {
-                -1
-              } else if wrong_monitor_rect.right == new_monitor_rect.left {
-                1
-              } else {
-                0
-              },
-              if wrong_monitor_rect.bottom == new_monitor_rect.top {
-                1
-              } else if wrong_monitor_rect.top == new_monitor_rect.bottom {
-                -1
-              } else {
-                0
-              },
-            );
-
-            let abort_after_iterations = new_monitor_rect.right - new_monitor_rect.left
-              + new_monitor_rect.bottom
-              - new_monitor_rect.top;
-            for _ in 0..abort_after_iterations {
-              conservative_rect.left += delta_nudge_to_dpi_monitor.0;
-              conservative_rect.right += delta_nudge_to_dpi_monitor.0;
-              conservative_rect.top += delta_nudge_to_dpi_monitor.1;
-              conservative_rect.bottom += delta_nudge_to_dpi_monitor.1;
-
-              if MonitorFromRect(&conservative_rect, MONITOR_DEFAULTTONULL) == new_dpi_monitor {
-                break;
-              }
-            }
+            conservative_rect.left += bias;
+            conservative_rect.right += bias;
           }
 
-          conservative_rect
-        };
+          // Check to see if the new window rect is on the monitor with the new DPI factor.
+          // If it isn't, offset the window so that it is.
+          let new_dpi_monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONULL);
+          let conservative_rect_monitor =
+            MonitorFromRect(&conservative_rect, MONITOR_DEFAULTTONULL);
+          new_outer_rect = {
+            if conservative_rect_monitor != new_dpi_monitor {
+              let get_monitor_rect = |monitor| {
+                let mut monitor_info = MONITORINFO {
+                  cbSize: mem::size_of::<MONITORINFO>() as _,
+                  ..Default::default()
+                };
+                let _ = GetMonitorInfoW(monitor, &mut monitor_info);
+                monitor_info.rcMonitor
+              };
+              let wrong_monitor = conservative_rect_monitor;
+              let wrong_monitor_rect = get_monitor_rect(wrong_monitor);
+              let new_monitor_rect = get_monitor_rect(new_dpi_monitor);
+
+              // The direction to nudge the window in to get the window onto the monitor with
+              // the new DPI factor. We calculate this by seeing which monitor edges are
+              // shared and nudging away from the wrong monitor based on those.
+              let delta_nudge_to_dpi_monitor = (
+                if wrong_monitor_rect.left == new_monitor_rect.right {
+                  -1
+                } else if wrong_monitor_rect.right == new_monitor_rect.left {
+                  1
+                } else {
+                  0
+                },
+                if wrong_monitor_rect.bottom == new_monitor_rect.top {
+                  1
+                } else if wrong_monitor_rect.top == new_monitor_rect.bottom {
+                  -1
+                } else {
+                  0
+                },
+              );
+
+              let abort_after_iterations = new_monitor_rect.right - new_monitor_rect.left
+                + new_monitor_rect.bottom
+                - new_monitor_rect.top;
+              for _ in 0..abort_after_iterations {
+                conservative_rect.left += delta_nudge_to_dpi_monitor.0;
+                conservative_rect.right += delta_nudge_to_dpi_monitor.0;
+                conservative_rect.top += delta_nudge_to_dpi_monitor.1;
+                conservative_rect.bottom += delta_nudge_to_dpi_monitor.1;
+
+                if MonitorFromRect(&conservative_rect, MONITOR_DEFAULTTONULL) == new_dpi_monitor {
+                  break;
+                }
+              }
+            }
+
+            conservative_rect
+          };
+        }
+      } else {
+        // The suggested position is fine w/o adjustment on Windows 11.
+        new_outer_rect = suggested_rect
       }
 
       let _ = SetWindowPos(
