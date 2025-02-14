@@ -349,7 +349,6 @@ impl<T> EventLoopExtMacOS for EventLoop<T> {
 
   #[inline]
   fn set_dock_visibility(&mut self, visible: bool) {
-    eprintln!("call set_dock_visibilityset_dock_visibility");
     unsafe {
       get_aux_state_mut(&**self.event_loop.delegate).dock_visibility = visible;
     }
