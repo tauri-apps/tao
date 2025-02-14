@@ -10,7 +10,7 @@ use crate::{
   dpi::{LogicalSize, Position},
   event_loop::{EventLoop, EventLoopWindowTarget},
   monitor::MonitorHandle,
-  platform_impl::{get_aux_state_mut, set_badge_label, Parent},
+  platform_impl::{get_aux_state_mut, set_badge_label, set_dock_visibility, Parent},
   window::{Window, WindowBuilder},
 };
 
@@ -321,6 +321,13 @@ pub trait EventLoopExtMacOS {
   /// [`EventLoopWindowTargetExtMacOS::set_activation_policy_at_runtime`](crate::platform::macos::EventLoopWindowTargetExtMacOS::set_activation_policy_at_runtime).
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
+  /// Sets the visibility of the application in the dock.
+  ///
+  /// This function only takes effect if it's called before calling
+  /// [`run`](crate::event_loop::EventLoop::run) or
+  /// [`run_return`](crate::platform::run_return::EventLoopExtRunReturn::run_return).
+  fn set_dock_visibility(&mut self, visible: bool);
+
   /// Used to prevent the application from automatically activating when launched if
   /// another application is already active
   ///
@@ -337,6 +344,14 @@ impl<T> EventLoopExtMacOS for EventLoop<T> {
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
     unsafe {
       get_aux_state_mut(&**self.event_loop.delegate).activation_policy = activation_policy;
+    }
+  }
+
+  #[inline]
+  fn set_dock_visibility(&mut self, visible: bool) {
+    eprintln!("call set_dock_visibilityset_dock_visibility");
+    unsafe {
+      get_aux_state_mut(&**self.event_loop.delegate).dock_visibility = visible;
     }
   }
 
@@ -382,6 +397,12 @@ pub trait EventLoopWindowTargetExtMacOS {
   /// [`EventLoopExtMacOS::set_activation_policy`](crate::platform::macos::EventLoopExtMacOS::set_activation_policy).
   fn set_activation_policy_at_runtime(&self, activation_policy: ActivationPolicy);
 
+  /// Sets the visibility of the application in the dock.
+  ///
+  /// To set the dock visibility before the app starts running, see
+  /// [`EventLoopExtMacOS::set_dock_visibility`](crate::platform::macos::EventLoopExtMacOS::set_dock_visibility).
+  fn set_dock_visibility_at_runtime(&self, visible: bool);
+
   /// Sets the badge label on macos dock
   fn set_badge_label(&self, label: Option<String>);
 }
@@ -418,6 +439,10 @@ impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
     };
 
     unsafe { msg_send![app, setActivationPolicy: ns_activation_policy] }
+  }
+
+  fn set_dock_visibility_at_runtime(&self, visible: bool) {
+    set_dock_visibility(visible);
   }
 
   fn set_badge_label(&self, label: Option<String>) {

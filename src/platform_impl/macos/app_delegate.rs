@@ -28,6 +28,9 @@ pub struct AuxDelegateState {
   /// menubar is initially unresponsive on macOS 10.15 for example.
   pub activation_policy: ActivationPolicy,
 
+  /// Whether the application is visible in the dock.
+  pub dock_visibility: bool,
+
   pub activate_ignoring_other_apps: bool,
 }
 
@@ -85,6 +88,7 @@ extern "C" fn new(class: &Class, _: Sel) -> id {
       Box::into_raw(Box::new(RefCell::new(AuxDelegateState {
         activation_policy: ActivationPolicy::Regular,
         activate_ignoring_other_apps: true,
+        dock_visibility: true,
       }))) as *mut c_void,
     );
     this

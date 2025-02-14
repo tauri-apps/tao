@@ -1,0 +1,87 @@
+#![allow(non_snake_case, non_upper_case_globals)]
+
+use std::{
+  sync::Mutex,
+  time::{Duration, Instant},
+};
+
+use cocoa::base::{id, NO};
+
+#[link(name = "ApplicationServices", kind = "framework")]
+extern "C" {
+  fn TransformProcessType(psn: *const ProcessSerialNumber, transformState: i32) -> i32;
+}
+
+#[repr(C)]
+struct ProcessSerialNumber {
+  highLongOfPSN: u32,
+  lowLongOfPSN: u32,
+}
+
+/// https://developer.apple.com/documentation/applicationservices/1501096-anonymous/kcurrentprocess?language=objc
+pub const kCurrentProcess: u32 = 2;
+/// https://developer.apple.com/documentation/applicationservices/1501117-anonymous/kprocesstransformtouielementapplication?language=objc
+pub const kProcessTransformToUIElementApplication: i32 = 4;
+/// https://developer.apple.com/documentation/applicationservices/1501117-anonymous/kprocesstransformtoforegroundapplication?language=objc
+pub const kProcessTransformToForegroundApplication: i32 = 1;
+
+lazy_static! {
+  static ref LAST_DOCK_SHOW: Mutex<Option<Instant>> = Mutex::new(None);
+}
+
+pub fn set_dock_visibility(visible: bool) {
+  if visible {
+    set_dock_show();
+  } else {
+    set_dock_hide();
+  }
+}
+
+fn set_dock_hide() {
+  // Transforming application state from UIElement to Foreground is an
+  // asynchronous operation, and unfortunately there is currently no way to know
+  // when it is finished.
+  // So if we call DockHide => DockShow => DockHide => DockShow in a very short
+  // time, we would trigger a bug of macOS that, there would be multiple dock
+  // icons of the app left in system.
+  // To work around this, we make sure DockHide does nothing if it is called
+  // immediately after DockShow. After some experiments, 1 second seems to be
+  // a proper interval.
+  let now = Instant::now();
+  let last_dock_show = LAST_DOCK_SHOW.lock().unwrap();
+  if let Some(last_dock_show_time) = *last_dock_show {
+    if now.duration_since(last_dock_show_time) < Duration::new(1, 0) {
+      return;
+    }
+  }
+
+  unsafe {
+    let app: id = msg_send![class!(NSApplication), sharedApplication];
+    let windows: id = msg_send![app, windows];
+
+    // Assuming windows is an NSArray, and calling setCanHide on each window
+    let selector = sel!(setCanHide:);
+    let _: () = msg_send![windows, makeObjectsPerformSelector:selector withObject:NO];
+
+    let psn = ProcessSerialNumber {
+      highLongOfPSN: 0,
+      lowLongOfPSN: kCurrentProcess,
+    };
+    TransformProcessType(&psn, kProcessTransformToUIElementApplication);
+  }
+}
+
+fn set_dock_show() {
+  let now = Instant::now();
+  let mut last_dock_show = LAST_DOCK_SHOW.lock().unwrap();
+  *last_dock_show = Some(now);
+
+  unsafe {
+    let psn = ProcessSerialNumber {
+      highLongOfPSN: 0,
+      lowLongOfPSN: kCurrentProcess,
+    };
+
+    TransformProcessType(&psn, kProcessTransformToForegroundApplication);
+  }
+}
