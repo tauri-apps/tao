@@ -293,6 +293,7 @@ impl UIScreenOverscanCompensation {
   pub const None: UIScreenOverscanCompensation = UIScreenOverscanCompensation(2);
 }
 
+#[allow(clippy::duplicated_attributes)]
 #[link(name = "UIKit", kind = "framework")]
 #[link(name = "CoreFoundation", kind = "framework")]
 extern "C" {

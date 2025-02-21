@@ -66,7 +66,7 @@ impl<T: 'static> EventLoopWindowTarget<T> {
   #[inline]
   pub fn monitor_from_point(&self, _x: f64, _y: f64) -> Option<MonitorHandle> {
     warn!("`Window::monitor_from_point` is ignored on iOS");
-    return None;
+    None
   }
 
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
@@ -218,7 +218,7 @@ impl<T> EventLoopProxy<T> {
       // we want all the members of context to be zero/null, except one
       let mut context: CFRunLoopSourceContext = mem::zeroed();
       context.perform = Some(event_loop_proxy_handler);
-      let source = CFRunLoopSourceCreate(ptr::null_mut(), CFIndex::max_value() - 1, &mut context);
+      let source = CFRunLoopSourceCreate(ptr::null_mut(), CFIndex::MAX - 1, &mut context);
       CFRunLoopAddSource(rl, source, kCFRunLoopCommonModes);
       CFRunLoopWakeUp(rl);
 
@@ -307,7 +307,7 @@ fn setup_control_flow_observers() {
       ptr::null_mut(),
       kCFRunLoopEntry | kCFRunLoopAfterWaiting,
       1, // repeat = true
-      CFIndex::min_value(),
+      CFIndex::MIN,
       control_flow_begin_handler,
       ptr::null_mut(),
     );
@@ -327,7 +327,7 @@ fn setup_control_flow_observers() {
       ptr::null_mut(),
       kCFRunLoopExit | kCFRunLoopBeforeWaiting,
       1, // repeat = true
-      CFIndex::max_value(),
+      CFIndex::MAX,
       control_flow_end_handler,
       ptr::null_mut(),
     );

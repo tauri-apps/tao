@@ -2,7 +2,10 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashMap, ffi::c_char};
+use std::{
+  collections::HashMap,
+  ffi::{c_char, CStr, CString},
+};
 
 use objc2::runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel};
 
@@ -45,7 +48,7 @@ macro_rules! add_property {
     ) => {
         {
             const VAR_NAME: &'static str = concat!("_", stringify!($name));
-            $decl.add_ivar::<$t>(VAR_NAME);
+            $decl.add_ivar::<$t>(&CString::new(VAR_NAME).unwrap());
             let setter = if $capability {
                 #[allow(non_snake_case)]
                 extern "C" fn $setter_name($object: &mut Object, _: Sel, value: $t) {
@@ -128,7 +131,7 @@ unsafe fn get_view_class(root_view_class: &'static Class) -> &'static Class {
         let screen: id = msg_send![window, screen];
         let screen_space: id = msg_send![screen, coordinateSpace];
         let screen_frame: CGRect =
-          msg_send![object, convertRect:window_bounds toCoordinateSpace:screen_space];
+          msg_send![object, convertRect:window_bounds, toCoordinateSpace:screen_space];
         let scale_factor: CGFloat = msg_send![screen, scale];
         let size = crate::dpi::LogicalSize {
           width: screen_frame.size.width as f64,
@@ -186,7 +189,7 @@ unsafe fn get_view_class(root_view_class: &'static Class) -> &'static Class {
         let screen: id = msg_send![window, screen];
         let screen_space: id = msg_send![screen, coordinateSpace];
         let screen_frame: CGRect =
-          msg_send![object, convertRect:bounds toCoordinateSpace:screen_space];
+          msg_send![object, convertRect:bounds, toCoordinateSpace:screen_space];
         let size = crate::dpi::LogicalSize {
           width: screen_frame.size.width as _,
           height: screen_frame.size.height as _,
@@ -280,8 +283,11 @@ unsafe fn get_view_class(root_view_class: &'static Class) -> &'static Class {
       }
     }
 
-    let mut decl = ClassDecl::new(&format!("TaoUIView{}", ID), root_view_class)
-      .expect("Failed to declare class `TaoUIView`");
+    let mut decl = ClassDecl::new(
+      &CString::new(format!("TaoUIView{}", ID)).unwrap(),
+      root_view_class,
+    )
+    .expect("Failed to declare class `TaoUIView`");
     ID += 1;
     decl.add_method(sel!(drawRect:), draw_rect as extern "C" fn(_, _, _));
     decl.add_method(sel!(layoutSubviews), layout_subviews as extern "C" fn(_, _));
@@ -323,8 +329,11 @@ unsafe fn get_view_controller_class() -> &'static Class {
       YES
     }
 
-    let mut decl = ClassDecl::new("TaoUIViewController", uiviewcontroller_class)
-      .expect("Failed to declare class `TaoUIViewController`");
+    let mut decl = ClassDecl::new(
+      CStr::from_bytes_with_nul(b"TaoUIViewController\0").unwrap(),
+      uiviewcontroller_class,
+    )
+    .expect("Failed to declare class `TaoUIViewController`");
     decl.add_method(
       sel!(shouldAutorotate),
       should_autorotate as extern "C" fn(_, _) -> _,
@@ -406,8 +415,11 @@ unsafe fn get_window_class() -> &'static Class {
       }
     }
 
-    let mut decl =
-      ClassDecl::new("TaoUIWindow", uiwindow_class).expect("Failed to declare class `TaoUIWindow`");
+    let mut decl = ClassDecl::new(
+      CStr::from_bytes_with_nul(b"TaoUIWindow\0").unwrap(),
+      uiwindow_class,
+    )
+    .expect("Failed to declare class `TaoUIWindow`");
     decl.add_method(
       sel!(becomeKeyWindow),
       become_key_window as extern "C" fn(_, _),
@@ -635,8 +647,11 @@ pub fn create_delegate_class() {
   }
 
   let ui_responder = class!(UIResponder);
-  let mut decl =
-    ClassDecl::new("AppDelegate", ui_responder).expect("Failed to declare class `AppDelegate`");
+  let mut decl = ClassDecl::new(
+    CStr::from_bytes_with_nul(b"AppDelegate\0").unwrap(),
+    ui_responder,
+  )
+  .expect("Failed to declare class `AppDelegate`");
 
   unsafe {
     decl.add_method(
