@@ -143,7 +143,7 @@ impl<T: 'static> EventLoop<T> {
     F: 'static + FnMut(Event<'_, T>, &RootEventLoopWindowTarget<T>, &mut ControlFlow),
   {
     unsafe {
-      let application: *mut c_void = msg_send![class!(UIApplication), sharedApplication];
+      let application: id = msg_send![class!(UIApplication), sharedApplication];
       assert_eq!(
         application,
         ptr::null_mut(),

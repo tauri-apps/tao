@@ -2,13 +2,16 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use cocoa::{
-  appkit::NSImage,
-  base::{id, nil},
-  foundation::{NSDictionary, NSPoint, NSString},
+use crate::platform_impl::platform::ffi::{id, nil, NO};
+use objc2::{
+  msg_send_id,
+  rc::Retained,
+  runtime::{AnyObject, Sel},
+  ClassType,
 };
-use objc::runtime::{Sel, NO};
-use std::{cell::RefCell, ptr::null_mut};
+use objc2_app_kit::NSImage;
+use objc2_foundation::{NSDictionary, NSPoint, NSString};
+use std::{cell::RefCell, ffi::c_void, ptr::null_mut};
 
 use crate::window::CursorIcon;
 
@@ -108,26 +111,32 @@ impl Cursor {
 // instead you'll just get them all in a column.
 pub unsafe fn load_webkit_cursor(cursor_name: &str) -> id {
   static CURSOR_ROOT: &str = "/System/Library/Frameworks/ApplicationServices.framework/Versions/A/Frameworks/HIServices.framework/Versions/A/Resources/cursors";
-  let cursor_root = NSString::alloc(nil).init_str(CURSOR_ROOT);
-  let cursor_name = NSString::alloc(nil).init_str(cursor_name);
-  let cursor_pdf = NSString::alloc(nil).init_str("cursor.pdf");
-  let cursor_plist = NSString::alloc(nil).init_str("info.plist");
-  let key_x = NSString::alloc(nil).init_str("hotx");
-  let key_y = NSString::alloc(nil).init_str("hoty");
+  let cursor_root = NSString::from_str(CURSOR_ROOT);
+  let cursor_name = NSString::from_str(cursor_name);
+  let cursor_pdf = NSString::from_str("cursor.pdf");
+  let cursor_plist = NSString::from_str("info.plist");
+  let key_x = NSString::from_str("hotx");
+  let key_y = NSString::from_str("hoty");
 
-  let cursor_path: id = msg_send![cursor_root, stringByAppendingPathComponent: cursor_name];
-  let pdf_path: id = msg_send![cursor_path, stringByAppendingPathComponent: cursor_pdf];
-  let info_path: id = msg_send![cursor_path, stringByAppendingPathComponent: cursor_plist];
+  let cursor_path: Retained<NSString> =
+    msg_send_id![&cursor_root, stringByAppendingPathComponent: &*cursor_name];
+  let pdf_path: Retained<NSString> =
+    msg_send_id![&cursor_path, stringByAppendingPathComponent: &*cursor_pdf];
+  let info_path: Retained<NSString> =
+    msg_send_id![&cursor_path, stringByAppendingPathComponent: &*cursor_plist];
 
-  let image = NSImage::alloc(nil).initByReferencingFile_(pdf_path);
-  let info = NSDictionary::dictionaryWithContentsOfFile_(nil, info_path);
-  let x = info.valueForKey_(key_x);
-  let y = info.valueForKey_(key_y);
-  let point = NSPoint::new(msg_send![x, doubleValue], msg_send![y, doubleValue]);
+  let image = NSImage::initByReferencingFile(NSImage::alloc(), &pdf_path).unwrap();
+  #[allow(deprecated)]
+  let info =
+    NSDictionary::<AnyObject, AnyObject>::dictionaryWithContentsOfFile(&info_path).unwrap();
+  let x = info.objectForKey(&key_x).unwrap();
+  let y = info.objectForKey(&key_y).unwrap();
+  let point = NSPoint::new(msg_send![&x, doubleValue], msg_send![&y, doubleValue]);
   let cursor: id = msg_send![class!(NSCursor), alloc];
-  msg_send![cursor,
-      initWithImage:image
-      hotSpot:point
+  msg_send![
+    cursor,
+    initWithImage:&*image,
+    hotSpot:point,
   ]
 }
 
@@ -150,10 +159,11 @@ pub unsafe fn invisible_cursor() -> id {
   CURSOR_OBJECT.with(|cursor_obj| {
     if *cursor_obj.borrow() == nil {
       // Create a cursor from `CURSOR_BYTES`
-      let cursor_data: id = msg_send![class!(NSData),
-          dataWithBytesNoCopy:CURSOR_BYTES as *const [u8]
-          length:CURSOR_BYTES.len()
-          freeWhenDone:NO
+      let cursor_data: id = msg_send![
+        class!(NSData),
+        dataWithBytesNoCopy:CURSOR_BYTES.as_ptr().cast::<c_void>(),
+        length:CURSOR_BYTES.len(),
+        freeWhenDone:NO,
       ];
 
       let ns_image: id = msg_send![class!(NSImage), alloc];

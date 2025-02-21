@@ -7,7 +7,7 @@ use std::{
   ops::{Deref, DerefMut},
 };
 
-use objc::runtime::{Class, Object, BOOL, NO, YES};
+use objc2::runtime::{AnyClass, AnyObject};
 
 use crate::{
   dpi::{self, LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
@@ -21,7 +21,7 @@ use crate::{
     event_loop::{self, EventProxy, EventWrapper},
     ffi::{
       id, CGFloat, CGPoint, CGRect, CGSize, UIEdgeInsets, UIInterfaceOrientationMask, UIRectEdge,
-      UIScreenOverscanCompensation,
+      UIScreenOverscanCompensation, NO, YES,
     },
     monitor, set_badge_count, view, EventLoopWindowTarget, MonitorHandle,
   },
@@ -522,11 +522,11 @@ impl Window {
       let view = view::create_view(&window_attributes, &platform_attributes, frame.clone());
 
       let gl_or_metal_backed = {
-        let view_class: id = msg_send![view, class];
-        let layer_class: id = msg_send![view_class, layerClass];
-        let is_metal: BOOL = msg_send![layer_class, isSubclassOfClass: class!(CAMetalLayer)];
-        let is_gl: BOOL = msg_send![layer_class, isSubclassOfClass: class!(CAEAGLLayer)];
-        is_metal == YES || is_gl == YES
+        let view_class: *const AnyClass = msg_send![view, class];
+        let layer_class: *const AnyClass = msg_send![view_class, layerClass];
+        let is_metal: bool = msg_send![layer_class, isSubclassOfClass: class!(CAMetalLayer)];
+        let is_gl: bool = msg_send![layer_class, isSubclassOfClass: class!(CAEAGLLayer)];
+        is_metal || is_gl
       };
 
       let view_controller =
@@ -740,16 +740,16 @@ impl WindowId {
 unsafe impl Send for WindowId {}
 unsafe impl Sync for WindowId {}
 
-impl From<&Object> for WindowId {
-  fn from(window: &Object) -> WindowId {
+impl From<&AnyObject> for WindowId {
+  fn from(window: &AnyObject) -> WindowId {
     WindowId {
       window: window as *const _ as _,
     }
   }
 }
 
-impl From<&mut Object> for WindowId {
-  fn from(window: &mut Object) -> WindowId {
+impl From<&mut AnyObject> for WindowId {
+  fn from(window: &mut AnyObject) -> WindowId {
     WindowId {
       window: window as _,
     }
@@ -764,7 +764,7 @@ impl From<id> for WindowId {
 
 #[derive(Clone)]
 pub struct PlatformSpecificWindowBuilderAttributes {
-  pub root_view_class: &'static Class,
+  pub root_view_class: &'static AnyClass,
   pub scale_factor: Option<f64>,
   pub valid_orientations: ValidOrientations,
   pub prefers_home_indicator_hidden: bool,

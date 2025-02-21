@@ -4,19 +4,20 @@
 
 use std::{
   f64,
+  ffi::CStr,
   os::raw::c_void,
   sync::{Arc, Weak},
 };
 
-use cocoa::{
-  appkit::{self, NSApplicationPresentationOptions, NSView, NSWindow},
-  base::{id, nil},
-  foundation::{NSAutoreleasePool, NSString, NSUInteger},
+use objc2::{
+  msg_send_id,
+  rc::Retained,
+  runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel},
 };
-use objc::{
-  declare::ClassDecl,
-  runtime::{Class, Object, Sel, BOOL, NO, YES},
+use objc2_app_kit::{
+  self as appkit, NSApplicationPresentationOptions, NSPasteboard, NSView, NSWindow,
 };
+use objc2_foundation::{NSArray, NSAutoreleasePool, NSString, NSUInteger};
 
 use crate::{
   dpi::{LogicalPosition, LogicalSize},
@@ -25,6 +26,7 @@ use crate::{
   platform_impl::platform::{
     app_state::AppState,
     event::{EventProxy, EventWrapper},
+    ffi::{id, nil, BOOL, NO, YES},
     util::{self, IdRef},
     view::ViewState,
     window::{get_ns_theme, get_window_id, UnownedWindow},
@@ -33,10 +35,10 @@ use crate::{
 };
 
 pub struct WindowDelegateState {
-  ns_window: IdRef, // never changes
+  ns_window: Retained<NSWindow>, // never changes
   // We keep this ns_view because we still need its view state for some extern function
   // like didResignKey
-  ns_view: IdRef, // never changes
+  ns_view: Retained<NSView>, // never changes
 
   window: Weak<UnownedWindow>,
 
@@ -77,8 +79,8 @@ impl WindowDelegateState {
     delegate_state
   }
 
-  fn ns_view(&self) -> id {
-    unsafe { (*self.ns_window).contentView() }
+  fn ns_view(&self) -> Retained<NSView> {
+    self.ns_window.contentView().unwrap()
   }
 
   fn with_window<F, T>(&mut self, callback: F) -> Option<T>
@@ -90,7 +92,7 @@ impl WindowDelegateState {
 
   pub fn emit_event(&mut self, event: WindowEvent<'static>) {
     let event = Event::WindowEvent {
-      window_id: WindowId(get_window_id(*self.ns_window)),
+      window_id: WindowId(get_window_id(&self.ns_window)),
       event,
     };
     AppState::queue_event(EventWrapper::StaticEvent(event));
@@ -104,7 +106,7 @@ impl WindowDelegateState {
 
     self.previous_scale_factor = scale_factor;
     let wrapper = EventWrapper::EventProxy(EventProxy::DpiChangedProxy {
-      ns_window: IdRef::retain(*self.ns_window),
+      ns_window: self.ns_window.clone(),
       suggested_size: self.view_size(),
       scale_factor,
     });
@@ -112,7 +114,7 @@ impl WindowDelegateState {
   }
 
   pub fn emit_resize_event(&mut self) {
-    let rect = unsafe { NSView::frame(self.ns_view()) };
+    let rect = NSView::frame(&self.ns_view());
     let scale_factor = self.get_scale_factor();
     let logical_size = LogicalSize::new(rect.size.width as f64, rect.size.height as f64);
     let size = logical_size.to_physical(scale_factor);
@@ -120,7 +122,7 @@ impl WindowDelegateState {
   }
 
   fn emit_move_event(&mut self) {
-    let rect = unsafe { NSWindow::frame(*self.ns_window) };
+    let rect = NSWindow::frame(&self.ns_window);
     let x = rect.origin.x as f64;
     let y = util::bottom_left_to_top_left(rect);
     let moved = self.previous_position != Some((x, y));
@@ -133,11 +135,11 @@ impl WindowDelegateState {
   }
 
   fn get_scale_factor(&self) -> f64 {
-    (unsafe { NSWindow::backingScaleFactor(*self.ns_window) }) as f64
+    NSWindow::backingScaleFactor(&self.ns_window) as f64
   }
 
   fn view_size(&self) -> LogicalSize<f64> {
-    let ns_size = unsafe { NSView::frame(self.ns_view()).size };
+    let ns_size = NSView::frame(&self.ns_view()).size;
     LogicalSize::new(ns_size.width as f64, ns_size.height as f64)
   }
 }
@@ -161,102 +163,101 @@ lazy_static! {
     let superclass = class!(NSResponder);
     let mut decl = ClassDecl::new("TaoWindowDelegate", superclass).unwrap();
 
-    decl.add_method(sel!(dealloc), dealloc as extern "C" fn(&Object, Sel));
+    decl.add_method(sel!(dealloc), dealloc as extern "C" fn(_, _));
     decl.add_method(
       sel!(initWithTao:),
-      init_with_tao as extern "C" fn(&Object, Sel, *mut c_void) -> id,
+      init_with_tao as extern "C" fn(_, _, _) -> _,
     );
     decl.add_method(
       sel!(markIsCheckingZoomedIn),
-      mark_is_checking_zoomed_in as extern "C" fn(&Object, Sel),
+      mark_is_checking_zoomed_in as extern "C" fn(_, _),
     );
     decl.add_method(
       sel!(clearIsCheckingZoomedIn),
-      clear_is_checking_zoomed_in as extern "C" fn(&Object, Sel),
+      clear_is_checking_zoomed_in as extern "C" fn(_, _),
     );
 
     decl.add_method(
       sel!(windowShouldClose:),
-      window_should_close as extern "C" fn(&Object, Sel, id) -> BOOL,
+      window_should_close as extern "C" fn(_, _, _) -> _,
     );
     decl.add_method(
       sel!(windowWillClose:),
-      window_will_close as extern "C" fn(&Object, Sel, id),
+      window_will_close as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(windowDidResize:),
-      window_did_resize as extern "C" fn(&Object, Sel, id),
+      window_did_resize as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(windowDidMove:),
-      window_did_move as extern "C" fn(&Object, Sel, id),
+      window_did_move as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(windowDidChangeBackingProperties:),
-      window_did_change_backing_properties as extern "C" fn(&Object, Sel, id),
+      window_did_change_backing_properties as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(windowDidBecomeKey:),
-      window_did_become_key as extern "C" fn(&Object, Sel, id),
+      window_did_become_key as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(windowDidResignKey:),
-      window_did_resign_key as extern "C" fn(&Object, Sel, id),
+      window_did_resign_key as extern "C" fn(_, _, _),
     );
 
     decl.add_method(
       sel!(draggingEntered:),
-      dragging_entered as extern "C" fn(&Object, Sel, id) -> BOOL,
+      dragging_entered as extern "C" fn(_, _, _) -> _,
     );
     decl.add_method(
       sel!(prepareForDragOperation:),
-      prepare_for_drag_operation as extern "C" fn(&Object, Sel, id) -> BOOL,
+      prepare_for_drag_operation as extern "C" fn(_, _, _) -> _,
     );
     decl.add_method(
       sel!(performDragOperation:),
-      perform_drag_operation as extern "C" fn(&Object, Sel, id) -> BOOL,
+      perform_drag_operation as extern "C" fn(_, _, _) -> _,
     );
     decl.add_method(
       sel!(concludeDragOperation:),
-      conclude_drag_operation as extern "C" fn(&Object, Sel, id),
+      conclude_drag_operation as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(draggingExited:),
-      dragging_exited as extern "C" fn(&Object, Sel, id),
+      dragging_exited as extern "C" fn(_, _, _),
     );
 
     decl.add_method(
       sel!(window:willUseFullScreenPresentationOptions:),
-      window_will_use_fullscreen_presentation_options
-        as extern "C" fn(&Object, Sel, id, NSUInteger) -> NSUInteger,
+      window_will_use_fullscreen_presentation_options as extern "C" fn(_, _, _, _) -> _,
     );
     decl.add_method(
       sel!(windowDidEnterFullScreen:),
-      window_did_enter_fullscreen as extern "C" fn(&Object, Sel, id),
+      window_did_enter_fullscreen as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(windowWillEnterFullScreen:),
-      window_will_enter_fullscreen as extern "C" fn(&Object, Sel, id),
+      window_will_enter_fullscreen as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(windowDidExitFullScreen:),
-      window_did_exit_fullscreen as extern "C" fn(&Object, Sel, id),
+      window_did_exit_fullscreen as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(windowWillExitFullScreen:),
-      window_will_exit_fullscreen as extern "C" fn(&Object, Sel, id),
+      window_will_exit_fullscreen as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(windowDidFailToEnterFullScreen:),
-      window_did_fail_to_enter_fullscreen as extern "C" fn(&Object, Sel, id),
+      window_did_fail_to_enter_fullscreen as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(effectiveAppearanceDidChange:),
-      effective_appearance_did_change as extern "C" fn(&Object, Sel, id),
+      effective_appearance_did_change as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(effectiveAppearanceDidChangedOnMainThread:),
-      effective_appearance_did_changed_on_main_thread as extern "C" fn(&Object, Sel, id),
+      effective_appearance_did_changed_on_main_thread as extern "C" fn(_, _, _),
     );
 
     decl.add_ivar::<*mut c_void>("taoState");
@@ -267,6 +268,7 @@ lazy_static! {
 // This function is definitely unsafe, but labeling that would increase
 // boilerplate and wouldn't really clarify anything...
 fn with_state<F: FnOnce(&mut WindowDelegateState) -> T, T>(this: &Object, callback: F) {
+  #[allow(deprecated)] // TODO: Use define_class!
   let state_ptr = unsafe {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
     &mut *(state_ptr as *mut WindowDelegateState)
@@ -281,23 +283,24 @@ extern "C" fn dealloc(this: &Object, _sel: Sel) {
 }
 
 extern "C" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void) -> id {
+  #[allow(deprecated)] // TODO: Use define_class!
   unsafe {
     let this: id = msg_send![this, init];
     if this != nil {
-      (*this).set_ivar("taoState", state);
+      *(*this).get_mut_ivar("taoState") = state;
       with_state(&*this, |state| {
-        let () = msg_send![*state.ns_window, setDelegate: this];
+        let () = msg_send![&state.ns_window, setDelegate: this];
       });
     }
 
     let notification_center: &Object =
       msg_send![class!(NSDistributedNotificationCenter), defaultCenter];
-    let notification_name = NSString::alloc(nil).init_str("AppleInterfaceThemeChangedNotification");
+    let notification_name = NSString::from_str("AppleInterfaceThemeChangedNotification");
     let _: () = msg_send![
         notification_center,
         addObserver: this
         selector: sel!(effectiveAppearanceDidChange:)
-        name: notification_name
+        name: &*notification_name
         object: nil
     ];
 
@@ -328,11 +331,10 @@ extern "C" fn window_will_close(this: &Object, _: Sel, _: id) {
   trace!("Triggered `windowWillClose:`");
   with_state(this, |state| unsafe {
     // `setDelegate:` retains the previous value and then autoreleases it
-    let pool = NSAutoreleasePool::new(nil);
+    let _pool = NSAutoreleasePool::new();
     // Since El Capitan, we need to be careful that delegate methods can't
     // be called after the window closes.
-    let () = msg_send![*state.ns_window, setDelegate: nil];
-    pool.drain();
+    let () = msg_send![&state.ns_window, setDelegate: nil];
     state.emit_event(WindowEvent::Destroyed);
   });
   trace!("Completed `windowWillClose:`");
@@ -390,8 +392,9 @@ extern "C" fn window_did_resign_key(this: &Object, _: Sel, _: id) {
     // Here we (very unsafely) acquire the taoState (a ViewState) from the
     // Object referenced by state.ns_view (an IdRef, which is dereferenced
     // to an id)
+    #[allow(deprecated)] // TODO: Use define_class!
     let view_state: &mut ViewState = unsafe {
-      let ns_view: &Object = (*state.ns_view).as_ref().expect("failed to deref");
+      let ns_view: &Object = &state.ns_view;
       let state_ptr: *mut c_void = *ns_view.get_ivar("taoState");
       &mut *(state_ptr as *mut ViewState)
     };
@@ -411,17 +414,17 @@ extern "C" fn window_did_resign_key(this: &Object, _: Sel, _: id) {
 extern "C" fn dragging_entered(this: &Object, _: Sel, sender: id) -> BOOL {
   trace!("Triggered `draggingEntered:`");
 
-  use cocoa::{appkit::NSPasteboard, foundation::NSFastEnumeration};
   use std::path::PathBuf;
 
-  let pb: id = unsafe { msg_send![sender, draggingPasteboard] };
-  let filenames = unsafe { NSPasteboard::propertyListForType(pb, appkit::NSFilenamesPboardType) };
+  let pb: Retained<NSPasteboard> = unsafe { msg_send_id![sender, draggingPasteboard] };
+  let filenames =
+    unsafe { NSPasteboard::propertyListForType(&pb, appkit::NSFilenamesPboardType) }.unwrap();
 
-  for file in unsafe { filenames.iter() } {
-    use std::ffi::CStr;
+  for file in unsafe { Retained::cast::<NSArray>(filenames) } {
+    let file = unsafe { Retained::cast::<NSString>(file) };
 
     unsafe {
-      let f = NSString::UTF8String(file);
+      let f = NSString::UTF8String(&file);
       let path = CStr::from_ptr(f).to_string_lossy().into_owned();
 
       with_state(this, |state| {
@@ -445,17 +448,17 @@ extern "C" fn prepare_for_drag_operation(_: &Object, _: Sel, _: id) -> BOOL {
 extern "C" fn perform_drag_operation(this: &Object, _: Sel, sender: id) -> BOOL {
   trace!("Triggered `performDragOperation:`");
 
-  use cocoa::{appkit::NSPasteboard, foundation::NSFastEnumeration};
   use std::path::PathBuf;
 
-  let pb: id = unsafe { msg_send![sender, draggingPasteboard] };
-  let filenames = unsafe { NSPasteboard::propertyListForType(pb, appkit::NSFilenamesPboardType) };
+  let pb: Retained<NSPasteboard> = unsafe { msg_send_id![sender, draggingPasteboard] };
+  let filenames =
+    unsafe { NSPasteboard::propertyListForType(&pb, appkit::NSFilenamesPboardType) }.unwrap();
 
-  for file in unsafe { filenames.iter() } {
-    use std::ffi::CStr;
+  for file in unsafe { Retained::cast::<NSArray>(filenames) } {
+    let file = unsafe { Retained::cast::<NSString>(file) };
 
     unsafe {
-      let f = NSString::UTF8String(file);
+      let f = NSString::UTF8String(&file);
       let path = CStr::from_ptr(f).to_string_lossy().into_owned();
 
       with_state(this, |state| {
@@ -634,7 +637,8 @@ extern "C" fn window_did_fail_to_enter_fullscreen(this: &Object, _: Sel, _: id) 
     });
     if state.initial_fullscreen {
       let _: () = unsafe {
-        msg_send![*state.ns_window,
+        msg_send![
+            &state.ns_window,
             performSelector:sel!(toggleFullScreen:)
             withObject:nil
             afterDelay: 0.5

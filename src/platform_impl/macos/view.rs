@@ -1,23 +1,31 @@
 // Copyright 2014-2021 The winit contributors
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
+#![allow(unused_unsafe)]
+#![allow(deprecated)] // TODO: Use define_class!
 
 use std::{
   boxed::Box,
   collections::{HashSet, VecDeque},
   os::raw::*,
-  ptr, slice, str,
+  ptr,
   sync::{Arc, Mutex, Weak},
 };
 
-use cocoa::{
-  appkit::{NSApp, NSEvent, NSEventModifierFlags, NSEventPhase, NSView, NSWindow, NSWindowButton},
-  base::{id, nil},
-  foundation::{NSInteger, NSPoint, NSRect, NSSize, NSString, NSUInteger},
+use objc2::{
+  msg_send_id,
+  rc::Retained,
+  runtime::{
+    AnyClass as Class, AnyObject as Object, AnyProtocol as Protocol, ClassBuilder as ClassDecl, Sel,
+  },
+  ClassType,
 };
-use objc::{
-  declare::ClassDecl,
-  runtime::{Class, Object, Protocol, Sel, BOOL, NO, YES},
+use objc2_app_kit::{
+  NSApp, NSEvent, NSEventModifierFlags, NSEventPhase, NSView, NSWindow, NSWindowButton,
+};
+use objc2_foundation::{
+  MainThreadMarker, NSAttributedString, NSInteger, NSMutableAttributedString, NSPoint, NSRange,
+  NSRect, NSSize, NSString, NSUInteger,
 };
 
 use crate::{
@@ -30,7 +38,7 @@ use crate::{
     app_state::AppState,
     event::{code_to_key, create_key_event, event_mods, get_scancode, EventWrapper},
     ffi::*,
-    util::{self, IdRef},
+    util::{self},
     window::get_window_id,
     DEVICE_ID,
   },
@@ -52,7 +60,7 @@ impl Default for CursorState {
 }
 
 pub(super) struct ViewState {
-  ns_window: id,
+  ns_window: objc2::rc::Weak<NSWindow>,
   pub cursor_state: Arc<Mutex<CursorState>>,
   ime_spot: Option<(f64, f64)>,
 
@@ -75,15 +83,15 @@ pub(super) struct ViewState {
 
 impl ViewState {
   fn get_scale_factor(&self) -> f64 {
-    (unsafe { NSWindow::backingScaleFactor(self.ns_window) }) as f64
+    (unsafe { NSWindow::backingScaleFactor(&self.ns_window.load().unwrap()) }) as f64
   }
 }
 
-pub fn new_view(ns_window: id) -> (IdRef, Weak<Mutex<CursorState>>) {
+pub fn new_view(ns_window: &NSWindow) -> (Option<Retained<NSView>>, Weak<Mutex<CursorState>>) {
   let cursor_state = Default::default();
   let cursor_access = Arc::downgrade(&cursor_state);
   let state = ViewState {
-    ns_window,
+    ns_window: objc2::rc::Weak::from(ns_window),
     cursor_state,
     ime_spot: None,
     in_ime_preedit: false,
@@ -97,19 +105,18 @@ pub fn new_view(ns_window: id) -> (IdRef, Weak<Mutex<CursorState>>) {
   unsafe {
     // This is free'd in `dealloc`
     let state_ptr = Box::into_raw(Box::new(state)) as *mut c_void;
-    let ns_view: id = msg_send![VIEW_CLASS.0, alloc];
-    (
-      IdRef::new(msg_send![ns_view, initWithTao: state_ptr]),
-      cursor_access,
-    )
+    let ns_view = msg_send_id![VIEW_CLASS.0, alloc];
+    (msg_send_id![ns_view, initWithTao: state_ptr], cursor_access)
   }
 }
 
-pub unsafe fn set_ime_position(ns_view: id, input_context: id, x: f64, y: f64) {
-  let state_ptr: *mut c_void = *(*ns_view).get_mut_ivar("taoState");
+pub unsafe fn set_ime_position(ns_view: &NSView, input_context: id, x: f64, y: f64) {
+  let state_ptr: *mut c_void = *ns_view.get_ivar("taoState");
   let state = &mut *(state_ptr as *mut ViewState);
-  let content_rect =
-    NSWindow::contentRectForFrameRect_(state.ns_window, NSWindow::frame(state.ns_window));
+  let content_rect = NSWindow::contentRectForFrameRect(
+    &state.ns_window.load().unwrap(),
+    NSWindow::frame(&state.ns_window.load().unwrap()),
+  );
   let base_x = content_rect.origin.x as f64;
   let base_y = (content_rect.origin.y + content_rect.size.height) as f64;
   state.ime_spot = Some((base_x + x, base_y - y));
@@ -123,17 +130,7 @@ fn is_arrow_key(keycode: KeyCode) -> bool {
   )
 }
 
-/// `view` must be the reference to the `TaoView` class
-///
-/// Returns the mutable reference to the `markedText` field.
-unsafe fn clear_marked_text(view: &mut Object) -> &mut id {
-  let marked_text_ref: &mut id = view.get_mut_ivar("markedText");
-  let () = msg_send![(*marked_text_ref), release];
-  *marked_text_ref = NSMutableAttributedString::alloc(nil);
-  marked_text_ref
-}
-
-struct ViewClass(*const Class);
+struct ViewClass(&'static Class);
 unsafe impl Send for ViewClass {}
 unsafe impl Sync for ViewClass {}
 
@@ -141,161 +138,121 @@ lazy_static! {
   static ref VIEW_CLASS: ViewClass = unsafe {
     let superclass = class!(NSView);
     let mut decl = ClassDecl::new("TaoView", superclass).unwrap();
-    decl.add_method(sel!(dealloc), dealloc as extern "C" fn(&Object, Sel));
+    decl.add_method(sel!(dealloc), dealloc as extern "C" fn(_, _));
     decl.add_method(
       sel!(initWithTao:),
-      init_with_tao as extern "C" fn(&Object, Sel, *mut c_void) -> id,
+      init_with_tao as extern "C" fn(_, _, _) -> _,
     );
     decl.add_method(
       sel!(viewDidMoveToWindow),
-      view_did_move_to_window as extern "C" fn(&Object, Sel),
+      view_did_move_to_window as extern "C" fn(_, _),
     );
-    decl.add_method(
-      sel!(drawRect:),
-      draw_rect as extern "C" fn(&Object, Sel, NSRect),
-    );
+    decl.add_method(sel!(drawRect:), draw_rect as extern "C" fn(_, _, _));
     decl.add_method(
       sel!(acceptsFirstResponder),
-      accepts_first_responder as extern "C" fn(&Object, Sel) -> BOOL,
+      accepts_first_responder as extern "C" fn(_, _) -> _,
     );
-    decl.add_method(
-      sel!(touchBar),
-      touch_bar as extern "C" fn(&Object, Sel) -> BOOL,
-    );
+    decl.add_method(sel!(touchBar), touch_bar as extern "C" fn(_, _) -> _);
     decl.add_method(
       sel!(resetCursorRects),
-      reset_cursor_rects as extern "C" fn(&Object, Sel),
+      reset_cursor_rects as extern "C" fn(_, _),
     );
     decl.add_method(
       sel!(hasMarkedText),
-      has_marked_text as extern "C" fn(&Object, Sel) -> BOOL,
+      has_marked_text as extern "C" fn(_, _) -> _,
     );
-    decl.add_method(
-      sel!(markedRange),
-      marked_range as extern "C" fn(&Object, Sel) -> NSRange,
-    );
+    decl.add_method(sel!(markedRange), marked_range as extern "C" fn(_, _) -> _);
     decl.add_method(
       sel!(selectedRange),
-      selected_range as extern "C" fn(&Object, Sel) -> NSRange,
+      selected_range as extern "C" fn(_, _) -> _,
     );
     decl.add_method(
       sel!(setMarkedText:selectedRange:replacementRange:),
-      set_marked_text as extern "C" fn(&mut Object, Sel, id, NSRange, NSRange),
+      set_marked_text as extern "C" fn(_, _, _, _, _),
     );
-    decl.add_method(
-      sel!(unmarkText),
-      unmark_text as extern "C" fn(&mut Object, Sel),
-    );
+    decl.add_method(sel!(unmarkText), unmark_text as extern "C" fn(_, _));
     decl.add_method(
       sel!(validAttributesForMarkedText),
-      valid_attributes_for_marked_text as extern "C" fn(&Object, Sel) -> id,
+      valid_attributes_for_marked_text as extern "C" fn(_, _) -> _,
     );
     decl.add_method(
       sel!(attributedSubstringForProposedRange:actualRange:),
-      attributed_substring_for_proposed_range
-        as extern "C" fn(&Object, Sel, NSRange, *mut c_void) -> id,
+      attributed_substring_for_proposed_range as extern "C" fn(_, _, _, _) -> _,
     );
     decl.add_method(
       sel!(insertText:replacementRange:),
-      insert_text as extern "C" fn(&Object, Sel, id, NSRange),
+      insert_text as extern "C" fn(_, _, _, _),
     );
     decl.add_method(
       sel!(characterIndexForPoint:),
-      character_index_for_point as extern "C" fn(&Object, Sel, NSPoint) -> NSUInteger,
+      character_index_for_point as extern "C" fn(_, _, _) -> _,
     );
     decl.add_method(
       sel!(firstRectForCharacterRange:actualRange:),
-      first_rect_for_character_range as extern "C" fn(&Object, Sel, NSRange, *mut c_void) -> NSRect,
+      first_rect_for_character_range as extern "C" fn(_, _, _, _) -> _,
     );
     decl.add_method(
       sel!(doCommandBySelector:),
-      do_command_by_selector as extern "C" fn(&Object, Sel, Sel),
+      do_command_by_selector as extern "C" fn(_, _, _),
     );
-    decl.add_method(
-      sel!(keyDown:),
-      key_down as extern "C" fn(&mut Object, Sel, id),
-    );
-    decl.add_method(sel!(keyUp:), key_up as extern "C" fn(&Object, Sel, id));
-    decl.add_method(
-      sel!(flagsChanged:),
-      flags_changed as extern "C" fn(&Object, Sel, id),
-    );
-    decl.add_method(
-      sel!(insertTab:),
-      insert_tab as extern "C" fn(&Object, Sel, id),
-    );
+    decl.add_method(sel!(keyDown:), key_down as extern "C" fn(_, _, _));
+    decl.add_method(sel!(keyUp:), key_up as extern "C" fn(_, _, _));
+    decl.add_method(sel!(flagsChanged:), flags_changed as extern "C" fn(_, _, _));
+    decl.add_method(sel!(insertTab:), insert_tab as extern "C" fn(_, _, _));
     decl.add_method(
       sel!(insertBackTab:),
-      insert_back_tab as extern "C" fn(&Object, Sel, id),
+      insert_back_tab as extern "C" fn(_, _, _),
     );
-    decl.add_method(
-      sel!(mouseDown:),
-      mouse_down as extern "C" fn(&Object, Sel, id),
-    );
-    decl.add_method(sel!(mouseUp:), mouse_up as extern "C" fn(&Object, Sel, id));
+    decl.add_method(sel!(mouseDown:), mouse_down as extern "C" fn(_, _, _));
+    decl.add_method(sel!(mouseUp:), mouse_up as extern "C" fn(_, _, _));
     decl.add_method(
       sel!(rightMouseDown:),
-      right_mouse_down as extern "C" fn(&Object, Sel, id),
+      right_mouse_down as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(rightMouseUp:),
-      right_mouse_up as extern "C" fn(&Object, Sel, id),
+      right_mouse_up as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(otherMouseDown:),
-      other_mouse_down as extern "C" fn(&Object, Sel, id),
+      other_mouse_down as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(otherMouseUp:),
-      other_mouse_up as extern "C" fn(&Object, Sel, id),
+      other_mouse_up as extern "C" fn(_, _, _),
     );
-    decl.add_method(
-      sel!(mouseMoved:),
-      mouse_moved as extern "C" fn(&Object, Sel, id),
-    );
-    decl.add_method(
-      sel!(mouseDragged:),
-      mouse_dragged as extern "C" fn(&Object, Sel, id),
-    );
+    decl.add_method(sel!(mouseMoved:), mouse_moved as extern "C" fn(_, _, _));
+    decl.add_method(sel!(mouseDragged:), mouse_dragged as extern "C" fn(_, _, _));
     decl.add_method(
       sel!(rightMouseDragged:),
-      right_mouse_dragged as extern "C" fn(&Object, Sel, id),
+      right_mouse_dragged as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(otherMouseDragged:),
-      other_mouse_dragged as extern "C" fn(&Object, Sel, id),
+      other_mouse_dragged as extern "C" fn(_, _, _),
     );
-    decl.add_method(
-      sel!(mouseEntered:),
-      mouse_entered as extern "C" fn(&Object, Sel, id),
-    );
-    decl.add_method(
-      sel!(mouseExited:),
-      mouse_exited as extern "C" fn(&Object, Sel, id),
-    );
-    decl.add_method(
-      sel!(scrollWheel:),
-      scroll_wheel as extern "C" fn(&Object, Sel, id),
-    );
+    decl.add_method(sel!(mouseEntered:), mouse_entered as extern "C" fn(_, _, _));
+    decl.add_method(sel!(mouseExited:), mouse_exited as extern "C" fn(_, _, _));
+    decl.add_method(sel!(scrollWheel:), scroll_wheel as extern "C" fn(_, _, _));
     decl.add_method(
       sel!(pressureChangeWithEvent:),
-      pressure_change_with_event as extern "C" fn(&Object, Sel, id),
+      pressure_change_with_event as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(_wantsKeyDownForEvent:),
-      wants_key_down_for_event as extern "C" fn(&Object, Sel, id) -> BOOL,
+      wants_key_down_for_event as extern "C" fn(_, _, _) -> _,
     );
     decl.add_method(
       sel!(cancelOperation:),
-      cancel_operation as extern "C" fn(&Object, Sel, id),
+      cancel_operation as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(frameDidChange:),
-      frame_did_change as extern "C" fn(&Object, Sel, id),
+      frame_did_change as extern "C" fn(_, _, _),
     );
     decl.add_method(
       sel!(acceptsFirstMouse:),
-      accepts_first_mouse as extern "C" fn(&Object, Sel, id) -> BOOL,
+      accepts_first_mouse as extern "C" fn(_, _, _) -> _,
     );
     decl.add_ivar::<*mut c_void>("taoState");
     decl.add_ivar::<id>("markedText");
@@ -308,7 +265,7 @@ lazy_static! {
 extern "C" fn dealloc(this: &Object, _sel: Sel) {
   unsafe {
     let state: *mut c_void = *this.get_ivar("taoState");
-    let marked_text: id = *this.get_ivar("markedText");
+    let marked_text: *mut NSMutableAttributedString = *this.get_ivar("markedText");
     let _: () = msg_send![marked_text, release];
     drop(Box::from_raw(state as *mut ViewState));
   }
@@ -318,19 +275,18 @@ extern "C" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void) -> id 
   unsafe {
     let this: id = msg_send![this, init];
     if this != nil {
-      (*this).set_ivar("taoState", state);
-      let marked_text =
-        <id as NSMutableAttributedString>::init(NSMutableAttributedString::alloc(nil));
-      (*this).set_ivar("markedText", marked_text);
+      *(*this).get_mut_ivar("taoState") = state;
+      let marked_text = Retained::into_raw(NSMutableAttributedString::new());
+      *(*this).get_mut_ivar("markedText") = marked_text;
       let _: () = msg_send![this, setPostsFrameChangedNotifications: YES];
 
       let notification_center: &Object = msg_send![class!(NSNotificationCenter), defaultCenter];
-      let notification_name = NSString::alloc(nil).init_str("NSViewFrameDidChangeNotification");
+      let notification_name = NSString::from_str("NSViewFrameDidChangeNotification");
       let _: () = msg_send![
           notification_center,
           addObserver: this
           selector: sel!(frameDidChange:)
-          name: notification_name
+          name: &*notification_name
           object: this
       ];
     }
@@ -387,11 +343,11 @@ extern "C" fn draw_rect(this: &Object, _sel: Sel, rect: NSRect) {
     let state = &mut *(state_ptr as *mut ViewState);
 
     if let Some(position) = state.traffic_light_inset {
-      let window = state.ns_window;
-      inset_traffic_lights(window, position);
+      let window = state.ns_window.load().unwrap();
+      inset_traffic_lights(&window, position);
     }
 
-    AppState::handle_redraw(WindowId(get_window_id(state.ns_window)));
+    AppState::handle_redraw(WindowId(get_window_id(&state.ns_window.load().unwrap())));
 
     let superclass = util::superclass(this);
     let () = msg_send![super(this, superclass), drawRect: rect];
@@ -405,8 +361,8 @@ extern "C" fn accepts_first_responder(_this: &Object, _sel: Sel) -> BOOL {
 // This is necessary to prevent a beefy terminal error on MacBook Pros:
 // IMKInputSession [0x7fc573576ff0 presentFunctionRowItemTextInputViewWithEndpoint:completionHandler:] : [self textInputContext]=0x7fc573558e10 *NO* NSRemoteViewController to client, NSError=Error Domain=NSCocoaErrorDomain Code=4099 "The connection from pid 0 was invalidated from this process." UserInfo={NSDebugDescription=The connection from pid 0 was invalidated from this process.}, com.apple.inputmethod.EmojiFunctionRowItem
 // TODO: Add an API extension for using `NSTouchBar`
-extern "C" fn touch_bar(_this: &Object, _sel: Sel) -> BOOL {
-  NO
+extern "C" fn touch_bar(_this: &Object, _sel: Sel) -> id {
+  nil
 }
 
 extern "C" fn reset_cursor_rects(this: &Object, _sel: Sel) {
@@ -434,16 +390,16 @@ extern "C" fn reset_cursor_rects(this: &Object, _sel: Sel) {
 extern "C" fn has_marked_text(this: &Object, _sel: Sel) -> BOOL {
   unsafe {
     trace!("Triggered `hasMarkedText`");
-    let marked_text: id = *this.get_ivar("markedText");
+    let marked_text: &NSMutableAttributedString = *this.get_ivar("markedText");
     trace!("Completed `hasMarkedText`");
-    (marked_text.length() > 0) as BOOL
+    (marked_text.length() > 0).into()
   }
 }
 
 extern "C" fn marked_range(this: &Object, _sel: Sel) -> NSRange {
   unsafe {
     trace!("Triggered `markedRange`");
-    let marked_text: id = *this.get_ivar("markedText");
+    let marked_text: &NSMutableAttributedString = *this.get_ivar("markedText");
     let length = marked_text.length();
     trace!("Completed `markedRange`");
     if length > 0 {
@@ -472,13 +428,21 @@ extern "C" fn set_marked_text(
 ) {
   trace!("Triggered `setMarkedText`");
   unsafe {
-    let marked_text_ref = clear_marked_text(this);
-    let has_attr: BOOL = msg_send![string, isKindOfClass: class!(NSAttributedString)];
-    if has_attr != NO {
-      marked_text_ref.initWithAttributedString(string);
+    let has_attr: bool = msg_send![string, isKindOfClass: class!(NSAttributedString)];
+    let marked_text = if has_attr {
+      NSMutableAttributedString::initWithAttributedString(
+        NSMutableAttributedString::alloc(),
+        &*(string as *const NSAttributedString),
+      )
     } else {
-      marked_text_ref.initWithString(string);
+      NSMutableAttributedString::initWithString(
+        NSMutableAttributedString::alloc(),
+        &*(string as *const NSString),
+      )
     };
+    let marked_text_ref: &mut *mut NSMutableAttributedString = this.get_mut_ivar("markedText");
+    let () = msg_send![(*marked_text_ref), release];
+    *marked_text_ref = Retained::into_raw(marked_text);
 
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
@@ -491,7 +455,9 @@ extern "C" fn set_marked_text(
 extern "C" fn unmark_text(this: &mut Object, _sel: Sel) {
   trace!("Triggered `unmarkText`");
   unsafe {
-    clear_marked_text(this);
+    let marked_text_ref: &mut *mut NSMutableAttributedString = this.get_mut_ivar("markedText");
+    let () = msg_send![(*marked_text_ref), release];
+    *marked_text_ref = Retained::into_raw(NSMutableAttributedString::new());
     let input_context: id = msg_send![this, inputContext];
     let _: () = msg_send![input_context, discardMarkedText];
   }
@@ -532,8 +498,10 @@ extern "C" fn first_rect_for_character_range(
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
     let (x, y) = state.ime_spot.unwrap_or_else(|| {
-      let content_rect =
-        NSWindow::contentRectForFrameRect_(state.ns_window, NSWindow::frame(state.ns_window));
+      let content_rect = NSWindow::contentRectForFrameRect(
+        &state.ns_window.load().unwrap(),
+        NSWindow::frame(&state.ns_window.load().unwrap()),
+      );
       let x = content_rect.origin.x;
       let y = util::bottom_left_to_top_left(content_rect);
       (x, y)
@@ -543,14 +511,19 @@ extern "C" fn first_rect_for_character_range(
   }
 }
 
-extern "C" fn insert_text(this: &Object, _sel: Sel, string: id, _replacement_range: NSRange) {
+extern "C" fn insert_text(
+  this: &Object,
+  _sel: Sel,
+  string: &NSString,
+  _replacement_range: NSRange,
+) {
   trace!("Triggered `insertText`");
   unsafe {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
-    let has_attr: BOOL = msg_send![string, isKindOfClass: class!(NSAttributedString)];
-    let characters = if has_attr != NO {
+    let has_attr: bool = msg_send![string, isKindOfClass: class!(NSAttributedString)];
+    let characters = if has_attr {
       // This is a *mut NSAttributedString
       msg_send![string, string]
     } else {
@@ -558,8 +531,8 @@ extern "C" fn insert_text(this: &Object, _sel: Sel, string: id, _replacement_ran
       string
     };
 
-    let slice = slice::from_raw_parts(characters.UTF8String() as *const c_uchar, characters.len());
-    let string: String = str::from_utf8_unchecked(slice)
+    let string: String = characters
+      .to_string()
       .chars()
       .filter(|c| !is_corporate_character(*c))
       .collect();
@@ -569,7 +542,7 @@ extern "C" fn insert_text(this: &Object, _sel: Sel, string: id, _replacement_ran
     //let event: id = msg_send![NSApp(), currentEvent];
 
     AppState::queue_event(EventWrapper::StaticEvent(Event::WindowEvent {
-      window_id: WindowId(get_window_id(state.ns_window)),
+      window_id: WindowId(get_window_id(&state.ns_window.load().unwrap())),
       event: WindowEvent::ReceivedImeText(string),
     }));
     if state.in_ime_preedit {
@@ -598,7 +571,7 @@ extern "C" fn do_command_by_selector(_this: &Object, _sel: Sel, _command: Sel) {
   //         // 1) as a reminder for how `doCommandBySelector` works
   //         // 2) to make our use of carriage return explicit
   //         events.push_back(EventWrapper::StaticEvent(Event::WindowEvent {
-  //             window_id: WindowId(get_window_id(state.ns_window)),
+  //             window_id: WindowId(get_window_id(&state.ns_window.load().unwrap())),
   //             event: WindowEvent::ReceivedCharacter('\r'),
   //         }));
   //     } else {
@@ -609,7 +582,7 @@ extern "C" fn do_command_by_selector(_this: &Object, _sel: Sel, _command: Sel) {
   //                 .filter(|c| !is_corporate_character(*c))
   //             {
   //                 events.push_back(EventWrapper::StaticEvent(Event::WindowEvent {
-  //                     window_id: WindowId(get_window_id(state.ns_window)),
+  //                     window_id: WindowId(get_window_id(&state.ns_window.load().unwrap())),
   //                     event: WindowEvent::ReceivedCharacter(character),
   //                 }));
   //             }
@@ -679,45 +652,46 @@ fn is_corporate_character(c: char) -> bool {
 // }
 
 // Update `state.modifiers` if `event` has something different
-fn update_potentially_stale_modifiers(state: &mut ViewState, event: id) {
+fn update_potentially_stale_modifiers(state: &mut ViewState, event: &NSEvent) {
   let event_modifiers = event_mods(event);
   if state.modifiers != event_modifiers {
     state.modifiers = event_modifiers;
 
     AppState::queue_event(EventWrapper::StaticEvent(Event::WindowEvent {
-      window_id: WindowId(get_window_id(state.ns_window)),
+      window_id: WindowId(get_window_id(&state.ns_window.load().unwrap())),
       event: WindowEvent::ModifiersChanged(state.modifiers),
     }));
   }
 }
 
-extern "C" fn key_down(this: &mut Object, _sel: Sel, event: id) {
+extern "C" fn key_down(this: &mut Object, _sel: Sel, event: &NSEvent) {
   trace!("Triggered `keyDown`");
   unsafe {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
-    let window_id = WindowId(get_window_id(state.ns_window));
+    let window_id = WindowId(get_window_id(&state.ns_window.load().unwrap()));
 
     // keyboard refactor: don't seems to be needed anymore
     // let characters = get_characters(event, false);
     //state.raw_characters = Some(characters);
 
-    let is_repeat: BOOL = msg_send![event, isARepeat];
-    let is_repeat = is_repeat == YES;
+    let is_repeat: bool = msg_send![event, isARepeat];
 
     update_potentially_stale_modifiers(state, event);
 
     let pass_along = !is_repeat || !state.is_key_down;
     if pass_along {
       // See below for why we do this.
-      clear_marked_text(this);
+      let marked_text_ref: &mut *mut NSMutableAttributedString = this.get_mut_ivar("markedText");
+      let () = msg_send![(*marked_text_ref), release];
+      *marked_text_ref = Retained::into_raw(NSMutableAttributedString::new());
       state.key_triggered_ime = false;
 
       // Some keys (and only *some*, with no known reason) don't trigger `insertText`, while others do...
       // So, we don't give repeats the opportunity to trigger that, since otherwise our hack will cause some
       // keys to generate twice as many characters.
       let array: id = msg_send![class!(NSArray), arrayWithObject: event];
-      let () = msg_send![this, interpretKeyEvents: array];
+      let () = msg_send![&*this, interpretKeyEvents: array];
     }
     // The `interpretKeyEvents` above, may invoke `set_marked_text` or `insert_text`,
     // if the event corresponds to an IME event.
@@ -751,7 +725,7 @@ extern "C" fn key_down(this: &mut Object, _sel: Sel, event: id) {
   trace!("Completed `keyDown`");
 }
 
-extern "C" fn key_up(this: &Object, _sel: Sel, event: id) {
+extern "C" fn key_up(this: &Object, _sel: Sel, event: &NSEvent) {
   trace!("Triggered `keyUp`");
   unsafe {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
@@ -762,7 +736,7 @@ extern "C" fn key_up(this: &Object, _sel: Sel, event: id) {
     update_potentially_stale_modifiers(state, event);
 
     let window_event = Event::WindowEvent {
-      window_id: WindowId(get_window_id(state.ns_window)),
+      window_id: WindowId(get_window_id(&state.ns_window.load().unwrap())),
       event: WindowEvent::KeyboardInput {
         device_id: DEVICE_ID,
         event: create_key_event(event, false, false, false, None),
@@ -774,7 +748,7 @@ extern "C" fn key_up(this: &Object, _sel: Sel, event: id) {
   trace!("Completed `keyUp`");
 }
 
-extern "C" fn flags_changed(this: &Object, _sel: Sel, ns_event: id) {
+extern "C" fn flags_changed(this: &Object, _sel: Sel, ns_event: &NSEvent) {
   use KeyCode::{
     AltLeft, AltRight, ControlLeft, ControlRight, ShiftLeft, ShiftRight, SuperLeft, SuperRight,
   };
@@ -844,46 +818,46 @@ extern "C" fn flags_changed(this: &Object, _sel: Sel, ns_event: id) {
     }
     process_event!(
       ModifiersState::SHIFT,
-      NSEventModifierFlags::NSShiftKeyMask,
+      NSEventModifierFlags::NSEventModifierFlagShift,
       ShiftLeft
     );
     process_event!(
       ModifiersState::SHIFT,
-      NSEventModifierFlags::NSShiftKeyMask,
+      NSEventModifierFlags::NSEventModifierFlagShift,
       ShiftRight
     );
     process_event!(
       ModifiersState::CONTROL,
-      NSEventModifierFlags::NSControlKeyMask,
+      NSEventModifierFlags::NSEventModifierFlagControl,
       ControlLeft
     );
     process_event!(
       ModifiersState::CONTROL,
-      NSEventModifierFlags::NSControlKeyMask,
+      NSEventModifierFlags::NSEventModifierFlagControl,
       ControlRight
     );
     process_event!(
       ModifiersState::ALT,
-      NSEventModifierFlags::NSAlternateKeyMask,
+      NSEventModifierFlags::NSEventModifierFlagOption,
       AltLeft
     );
     process_event!(
       ModifiersState::ALT,
-      NSEventModifierFlags::NSAlternateKeyMask,
+      NSEventModifierFlags::NSEventModifierFlagOption,
       AltRight
     );
     process_event!(
       ModifiersState::SUPER,
-      NSEventModifierFlags::NSCommandKeyMask,
+      NSEventModifierFlags::NSEventModifierFlagCommand,
       SuperLeft
     );
     process_event!(
       ModifiersState::SUPER,
-      NSEventModifierFlags::NSCommandKeyMask,
+      NSEventModifierFlags::NSEventModifierFlagCommand,
       SuperRight
     );
 
-    let window_id = WindowId(get_window_id(state.ns_window));
+    let window_id = WindowId(get_window_id(&state.ns_window.load().unwrap()));
 
     for event in events {
       AppState::queue_event(EventWrapper::StaticEvent(Event::WindowEvent {
@@ -927,21 +901,22 @@ extern "C" fn insert_back_tab(this: &Object, _sel: Sel, _sender: id) {
 extern "C" fn cancel_operation(this: &Object, _sel: Sel, _sender: id) {
   trace!("Triggered `cancelOperation`");
   unsafe {
+    let mtm = MainThreadMarker::new_unchecked();
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
-    let event: id = msg_send![NSApp(), currentEvent];
-    update_potentially_stale_modifiers(state, event);
+    let event: Retained<NSEvent> = msg_send_id![&NSApp(mtm), currentEvent];
+    update_potentially_stale_modifiers(state, &event);
 
     let scancode = 0x2f;
     let key = KeyCode::from_scancode(scancode);
     debug_assert_eq!(key, KeyCode::Period);
 
     let window_event = Event::WindowEvent {
-      window_id: WindowId(get_window_id(state.ns_window)),
+      window_id: WindowId(get_window_id(&state.ns_window.load().unwrap())),
       event: WindowEvent::KeyboardInput {
         device_id: DEVICE_ID,
-        event: create_key_event(event, true, false, false, Some(key)),
+        event: create_key_event(&event, true, false, false, Some(key)),
         is_synthetic: false,
       },
     };
@@ -950,7 +925,7 @@ extern "C" fn cancel_operation(this: &Object, _sel: Sel, _sender: id) {
   trace!("Completed `cancelOperation`");
 }
 
-fn mouse_click(this: &Object, event: id, button: MouseButton, button_state: ElementState) {
+fn mouse_click(this: &Object, event: &NSEvent, button: MouseButton, button_state: ElementState) {
   unsafe {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
@@ -958,7 +933,7 @@ fn mouse_click(this: &Object, event: id, button: MouseButton, button_state: Elem
     update_potentially_stale_modifiers(state, event);
 
     let window_event = Event::WindowEvent {
-      window_id: WindowId(get_window_id(state.ns_window)),
+      window_id: WindowId(get_window_id(&state.ns_window.load().unwrap())),
       event: WindowEvent::MouseInput {
         device_id: DEVICE_ID,
         state: button_state,
@@ -971,47 +946,44 @@ fn mouse_click(this: &Object, event: id, button: MouseButton, button_state: Elem
   }
 }
 
-extern "C" fn mouse_down(this: &Object, _sel: Sel, event: id) {
+extern "C" fn mouse_down(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
   mouse_click(this, event, MouseButton::Left, ElementState::Pressed);
 }
 
-extern "C" fn mouse_up(this: &Object, _sel: Sel, event: id) {
+extern "C" fn mouse_up(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
   mouse_click(this, event, MouseButton::Left, ElementState::Released);
 }
 
-extern "C" fn right_mouse_down(this: &Object, _sel: Sel, event: id) {
+extern "C" fn right_mouse_down(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
   mouse_click(this, event, MouseButton::Right, ElementState::Pressed);
 }
 
-extern "C" fn right_mouse_up(this: &Object, _sel: Sel, event: id) {
+extern "C" fn right_mouse_up(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
   mouse_click(this, event, MouseButton::Right, ElementState::Released);
 }
 
-extern "C" fn other_mouse_down(this: &Object, _sel: Sel, event: id) {
+extern "C" fn other_mouse_down(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
   mouse_click(this, event, MouseButton::Middle, ElementState::Pressed);
 }
 
-extern "C" fn other_mouse_up(this: &Object, _sel: Sel, event: id) {
+extern "C" fn other_mouse_up(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
   mouse_click(this, event, MouseButton::Middle, ElementState::Released);
 }
 
-fn mouse_motion(this: &Object, event: id) {
+fn mouse_motion(this: &NSView, event: &NSEvent) {
   unsafe {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
-    // We have to do this to have access to the `NSView` trait...
-    let view: id = this as *const _ as *mut _;
-
     let window_point = event.locationInWindow();
-    let view_point = view.convertPoint_fromView_(window_point, nil);
-    let view_rect = NSView::frame(view);
+    let view_point = this.convertPoint_fromView(window_point, None);
+    let view_rect = NSView::frame(this);
 
     if view_point.x.is_sign_negative()
       || view_point.y.is_sign_negative()
@@ -1032,7 +1004,7 @@ fn mouse_motion(this: &Object, event: id) {
     update_potentially_stale_modifiers(state, event);
 
     let window_event = Event::WindowEvent {
-      window_id: WindowId(get_window_id(state.ns_window)),
+      window_id: WindowId(get_window_id(&state.ns_window.load().unwrap())),
       event: WindowEvent::CursorMoved {
         device_id: DEVICE_ID,
         position: logical_position.to_physical(state.get_scale_factor()),
@@ -1044,19 +1016,19 @@ fn mouse_motion(this: &Object, event: id) {
   }
 }
 
-extern "C" fn mouse_moved(this: &Object, _sel: Sel, event: id) {
+extern "C" fn mouse_moved(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
 }
 
-extern "C" fn mouse_dragged(this: &Object, _sel: Sel, event: id) {
+extern "C" fn mouse_dragged(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
 }
 
-extern "C" fn right_mouse_dragged(this: &Object, _sel: Sel, event: id) {
+extern "C" fn right_mouse_dragged(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
 }
 
-extern "C" fn other_mouse_dragged(this: &Object, _sel: Sel, event: id) {
+extern "C" fn other_mouse_dragged(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
 }
 
@@ -1067,7 +1039,7 @@ extern "C" fn mouse_entered(this: &Object, _sel: Sel, _event: id) {
     let state = &mut *(state_ptr as *mut ViewState);
 
     let enter_event = Event::WindowEvent {
-      window_id: WindowId(get_window_id(state.ns_window)),
+      window_id: WindowId(get_window_id(&state.ns_window.load().unwrap())),
       event: WindowEvent::CursorEntered {
         device_id: DEVICE_ID,
       },
@@ -1085,7 +1057,7 @@ extern "C" fn mouse_exited(this: &Object, _sel: Sel, _event: id) {
     let state = &mut *(state_ptr as *mut ViewState);
 
     let window_event = Event::WindowEvent {
-      window_id: WindowId(get_window_id(state.ns_window)),
+      window_id: WindowId(get_window_id(&state.ns_window.load().unwrap())),
       event: WindowEvent::CursorLeft {
         device_id: DEVICE_ID,
       },
@@ -1096,7 +1068,7 @@ extern "C" fn mouse_exited(this: &Object, _sel: Sel, _event: id) {
   trace!("Completed `mouseExited`");
 }
 
-extern "C" fn scroll_wheel(this: &Object, _sel: Sel, event: id) {
+extern "C" fn scroll_wheel(this: &NSView, _sel: Sel, event: &NSEvent) {
   trace!("Triggered `scrollWheel`");
 
   mouse_motion(this, event);
@@ -1108,7 +1080,7 @@ extern "C" fn scroll_wheel(this: &Object, _sel: Sel, event: id) {
     let delta = {
       // macOS horizontal sign convention is the inverse of tao.
       let (x, y) = (event.scrollingDeltaX() * -1.0, event.scrollingDeltaY());
-      if event.hasPreciseScrollingDeltas() == YES {
+      if event.hasPreciseScrollingDeltas() {
         let delta = LogicalPosition::new(x, y).to_physical(state.get_scale_factor());
         MouseScrollDelta::PixelDelta(delta)
       } else {
@@ -1116,8 +1088,8 @@ extern "C" fn scroll_wheel(this: &Object, _sel: Sel, event: id) {
       }
     };
     let phase = match event.phase() {
-      NSEventPhase::NSEventPhaseMayBegin | NSEventPhase::NSEventPhaseBegan => TouchPhase::Started,
-      NSEventPhase::NSEventPhaseEnded => TouchPhase::Ended,
+      NSEventPhase::MayBegin | NSEventPhase::Began => TouchPhase::Started,
+      NSEventPhase::Ended => TouchPhase::Ended,
       _ => TouchPhase::Moved,
     };
 
@@ -1132,7 +1104,7 @@ extern "C" fn scroll_wheel(this: &Object, _sel: Sel, event: id) {
     update_potentially_stale_modifiers(state, event);
 
     let window_event = Event::WindowEvent {
-      window_id: WindowId(get_window_id(state.ns_window)),
+      window_id: WindowId(get_window_id(&state.ns_window.load().unwrap())),
       event: WindowEvent::MouseWheel {
         device_id: DEVICE_ID,
         delta,
@@ -1147,7 +1119,7 @@ extern "C" fn scroll_wheel(this: &Object, _sel: Sel, event: id) {
   trace!("Completed `scrollWheel`");
 }
 
-extern "C" fn pressure_change_with_event(this: &Object, _sel: Sel, event: id) {
+extern "C" fn pressure_change_with_event(this: &NSView, _sel: Sel, event: &NSEvent) {
   trace!("Triggered `pressureChangeWithEvent`");
 
   mouse_motion(this, event);
@@ -1160,11 +1132,11 @@ extern "C" fn pressure_change_with_event(this: &Object, _sel: Sel, event: id) {
     let stage = event.stage();
 
     let window_event = Event::WindowEvent {
-      window_id: WindowId(get_window_id(state.ns_window)),
+      window_id: WindowId(get_window_id(&state.ns_window.load().unwrap())),
       event: WindowEvent::TouchpadPressure {
         device_id: DEVICE_ID,
         pressure,
-        stage,
+        stage: stage as i64,
       },
     };
 
@@ -1184,27 +1156,33 @@ extern "C" fn accepts_first_mouse(_this: &Object, _sel: Sel, _event: id) -> BOOL
   YES
 }
 
-pub unsafe fn inset_traffic_lights<W: NSWindow + Copy>(window: W, position: LogicalPosition<f64>) {
+pub unsafe fn inset_traffic_lights(window: &NSWindow, position: LogicalPosition<f64>) {
   let (x, y) = (position.x, position.y);
 
-  let close = window.standardWindowButton_(NSWindowButton::NSWindowCloseButton);
-  let miniaturize = window.standardWindowButton_(NSWindowButton::NSWindowMiniaturizeButton);
-  let zoom = window.standardWindowButton_(NSWindowButton::NSWindowZoomButton);
+  let close = window
+    .standardWindowButton(NSWindowButton::NSWindowCloseButton)
+    .unwrap();
+  let miniaturize = window
+    .standardWindowButton(NSWindowButton::NSWindowMiniaturizeButton)
+    .unwrap();
+  let zoom = window
+    .standardWindowButton(NSWindowButton::NSWindowZoomButton)
+    .unwrap();
 
-  let title_bar_container_view = close.superview().superview();
+  let title_bar_container_view = close.superview().unwrap().superview().unwrap();
 
-  let close_rect = NSView::frame(close);
+  let close_rect = NSView::frame(&close);
   let title_bar_frame_height = close_rect.size.height + y;
-  let mut title_bar_rect = NSView::frame(title_bar_container_view);
+  let mut title_bar_rect = NSView::frame(&title_bar_container_view);
   title_bar_rect.size.height = title_bar_frame_height;
   title_bar_rect.origin.y = window.frame().size.height - title_bar_frame_height;
-  let _: () = msg_send![title_bar_container_view, setFrame: title_bar_rect];
+  let _: () = msg_send![&title_bar_container_view, setFrame: title_bar_rect];
 
-  let window_buttons = vec![close, miniaturize, zoom];
-  let space_between = NSView::frame(miniaturize).origin.x - close_rect.origin.x;
+  let window_buttons = vec![close, miniaturize.clone(), zoom];
+  let space_between = NSView::frame(&miniaturize).origin.x - close_rect.origin.x;
 
   for (i, button) in window_buttons.into_iter().enumerate() {
-    let mut rect = NSView::frame(button);
+    let mut rect = NSView::frame(&button);
     rect.origin.x = x + (i as f64 * space_between);
     button.setFrameOrigin(rect.origin);
   }

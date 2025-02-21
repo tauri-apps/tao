@@ -14,12 +14,10 @@ use std::{
   rc::{Rc, Weak},
 };
 
-use cocoa::{
-  appkit::{NSApp, NSEventModifierFlags, NSEventSubtype, NSEventType::NSApplicationDefined},
-  base::{id, nil, YES},
-  foundation::{NSAutoreleasePool, NSInteger, NSPoint, NSTimeInterval},
-};
 use crossbeam_channel::{self as channel, Receiver, Sender};
+use objc2::{msg_send_id, rc::Retained};
+use objc2_app_kit::{NSApp, NSApplication, NSEventModifierFlags, NSEventSubtype, NSEventType};
+use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSInteger, NSPoint, NSTimeInterval};
 use scopeguard::defer;
 
 use crate::{
@@ -33,6 +31,7 @@ use crate::{
       app::APP_CLASS,
       app_delegate::APP_DELEGATE_CLASS,
       app_state::AppState,
+      ffi::{id, nil, YES},
       monitor::{self, MonitorHandle},
       observer::*,
       util::{self, IdRef},
@@ -176,9 +175,8 @@ impl<T> EventLoop<T> {
       let app: id = msg_send![APP_CLASS.0, sharedApplication];
 
       let delegate = IdRef::new(msg_send![APP_DELEGATE_CLASS.0, new]);
-      let pool = NSAutoreleasePool::new(nil);
+      let _pool = NSAutoreleasePool::new();
       let _: () = msg_send![app, setDelegate:*delegate];
-      let _: () = msg_send![pool, drain];
       delegate
     };
 
@@ -222,11 +220,11 @@ impl<T> EventLoop<T> {
 
     self._callback = Some(Rc::clone(&callback));
 
+    let mtm = MainThreadMarker::new().unwrap();
+
     let exit_code = unsafe {
-      let pool = NSAutoreleasePool::new(nil);
-      defer!(pool.drain());
-      let app = NSApp();
-      assert_ne!(app, nil);
+      let _pool = NSAutoreleasePool::new();
+      let app = NSApp(mtm);
 
       // A bit of juggling with the callback references to make sure
       // that `self.callback` is the only owner of the callback.
@@ -234,7 +232,7 @@ impl<T> EventLoop<T> {
       mem::drop(callback);
 
       AppState::set_callback(weak_cb, Rc::clone(&self.window_target));
-      let () = msg_send![app, run];
+      let () = msg_send![&app, run];
 
       if let Some(panic) = self.panic_info.take() {
         drop(self._callback.take());
@@ -253,17 +251,17 @@ impl<T> EventLoop<T> {
 }
 
 #[inline]
-pub unsafe fn post_dummy_event(target: id) {
+pub unsafe fn post_dummy_event(target: &NSApplication) {
   let event_class = class!(NSEvent);
   let dummy_event: id = msg_send![
       event_class,
-      otherEventWithType: NSApplicationDefined
+      otherEventWithType: NSEventType::ApplicationDefined
       location: NSPoint::new(0.0, 0.0)
       modifierFlags: NSEventModifierFlags::empty()
       timestamp: 0 as NSTimeInterval
       windowNumber: 0 as NSInteger
       context: nil
-      subtype: NSEventSubtype::NSWindowExposedEventType
+      subtype: NSEventSubtype::WindowExposed
       data1: 0 as NSInteger
       data2: 0 as NSInteger
   ];
@@ -290,12 +288,12 @@ pub fn stop_app_on_panic<F: FnOnce() -> R + UnwindSafe, R>(
       }
       unsafe {
         let app_class = class!(NSApplication);
-        let app: id = msg_send![app_class, sharedApplication];
-        let () = msg_send![app, stop: nil];
+        let app: Retained<NSApplication> = msg_send_id![app_class, sharedApplication];
+        let () = msg_send![&app, stop: nil];
 
         // Posting a dummy event to get `stop` to take effect immediately.
         // See: https://stackoverflow.com/questions/48041279/stopping-the-nsapplication-main-event-loop/48064752#48064752
-        post_dummy_event(app);
+        post_dummy_event(&app);
       }
       None
     }

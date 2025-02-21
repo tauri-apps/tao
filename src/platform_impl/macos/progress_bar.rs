@@ -1,14 +1,13 @@
 use std::sync::Once;
 
-use cocoa::{
-  base::{id, nil},
-  foundation::{NSArray, NSPoint, NSRect, NSSize},
+use objc2::{
+  msg_send_id,
+  rc::Retained,
+  runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel},
 };
-use objc::{
-  declare::ClassDecl,
-  runtime::{Class, Object, Sel, NO},
-};
+use objc2_foundation::{NSArray, NSInsetRect, NSPoint, NSRect, NSSize};
 
+use super::ffi::{id, nil, NO};
 use crate::window::{ProgressBarState, ProgressState};
 
 /// Set progress indicator in the Dock.
@@ -30,8 +29,9 @@ pub fn set_progress_indicator(progress_state: ProgressBarState) {
       let _: () = msg_send![progress_indicator, setDoubleValue: progress];
       let _: () = msg_send![progress_indicator, setHidden: NO];
     }
+    #[allow(deprecated)] // TODO: Use define_class!
     if let Some(state) = progress_state.state {
-      (*progress_indicator).set_ivar("state", state as u8);
+      *(*progress_indicator).get_mut_ivar("state") = state as u8;
       let _: () = msg_send![
         progress_indicator,
         setHidden: matches!(state, ProgressState::None)
@@ -61,7 +61,7 @@ fn create_progress_indicator(ns_app: id, dock_tile: id) -> id {
     let progress_class = create_progress_indicator_class();
     let progress_indicator: id = msg_send![progress_class, alloc];
     let progress_indicator: id = msg_send![progress_indicator, initWithFrame: frame];
-    let _: () = msg_send![progress_indicator, autorelease];
+    let _: id = msg_send![progress_indicator, autorelease];
 
     // set progress indicator to the dock tile
     let _: () = msg_send![image_view, addSubview: progress_indicator];
@@ -76,13 +76,14 @@ fn get_exist_progress_indicator(dock_tile: id) -> Option<id> {
     if content_view == nil {
       return None;
     }
-    let subviews: id /* NSArray */ = msg_send![content_view, subviews];
-    if subviews == nil {
+    let subviews: Option<Retained<NSArray>> = msg_send_id![content_view, subviews];
+    if subviews.is_none() {
       return None;
     }
+    let subviews = subviews.unwrap();
 
     for idx in 0..subviews.count() {
-      let subview: id = msg_send![subviews, objectAtIndex: idx];
+      let subview: id = msg_send![&subviews, objectAtIndex: idx];
 
       let is_progress_indicator: bool =
         msg_send![subview, isKindOfClass: class!(NSProgressIndicator)];
@@ -102,10 +103,7 @@ fn create_progress_indicator_class() -> *const Class {
     let superclass = class!(NSProgressIndicator);
     let mut decl = ClassDecl::new("TaoProgressIndicator", superclass).unwrap();
 
-    decl.add_method(
-      sel!(drawRect:),
-      draw_progress_bar as extern "C" fn(&Object, _, NSRect),
-    );
+    decl.add_method(sel!(drawRect:), draw_progress_bar as extern "C" fn(_, _, _));
 
     // progress bar states, follows ProgressState
     decl.add_ivar::<u8>("state");
@@ -117,6 +115,7 @@ fn create_progress_indicator_class() -> *const Class {
 }
 
 extern "C" fn draw_progress_bar(this: &Object, _: Sel, rect: NSRect) {
+  #[allow(deprecated)] // TODO: Use define_class!
   unsafe {
     let bar = NSRect::new(
       NSPoint { x: 0.0, y: 4.0 },
@@ -125,8 +124,8 @@ extern "C" fn draw_progress_bar(this: &Object, _: Sel, rect: NSRect) {
         height: 8.0,
       },
     );
-    let bar_inner = bar.inset(0.5, 0.5);
-    let mut bar_progress = bar.inset(1.0, 1.0);
+    let bar_inner = NSInsetRect(bar, 0.5, 0.5);
+    let mut bar_progress = NSInsetRect(bar, 1.0, 1.0);
 
     // set progress width
     let current_progress: f64 = msg_send![this, doubleValue];

@@ -16,12 +16,9 @@ use std::{
   time::Instant,
 };
 
-use cocoa::{
-  appkit::{NSApp, NSApplication, NSWindow},
-  base::{id, nil},
-  foundation::{NSAutoreleasePool, NSSize},
-};
-use objc::runtime::{Object, NO, YES};
+use objc2::{msg_send_id, rc::Retained, runtime::AnyObject as Object};
+use objc2_app_kit::{NSApp, NSApplication, NSApplicationActivationPolicy, NSWindow};
+use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSSize};
 
 use crate::{
   dpi::LogicalSize,
@@ -33,8 +30,9 @@ use crate::{
     platform::{
       event::{EventProxy, EventWrapper},
       event_loop::{post_dummy_event, PanicInfo},
+      ffi::{id, nil},
       observer::{CFRunLoopGetMain, CFRunLoopWakeUp, EventLoopWaker},
-      util::{self, IdRef, Never},
+      util::{self, Never},
       window::get_window_id,
     },
   },
@@ -221,14 +219,14 @@ impl Handler {
   fn handle_scale_factor_changed_event(
     &self,
     callback: &mut Box<dyn EventHandler + 'static>,
-    ns_window: IdRef,
+    ns_window: &NSWindow,
     suggested_size: LogicalSize<f64>,
     scale_factor: f64,
   ) {
     let mut size = suggested_size.to_physical(scale_factor);
     let old_size = size.clone();
     let event = Event::WindowEvent {
-      window_id: WindowId(get_window_id(*ns_window)),
+      window_id: WindowId(get_window_id(ns_window)),
       event: WindowEvent::ScaleFactorChanged {
         scale_factor,
         new_inner_size: &mut size,
@@ -240,7 +238,7 @@ impl Handler {
     if old_size != size {
       let logical_size = size.to_logical(scale_factor);
       let size = NSSize::new(logical_size.width, logical_size.height);
-      unsafe { NSWindow::setContentSize_(*ns_window, size) };
+      NSWindow::setContentSize(ns_window, size);
     }
   }
 
@@ -251,7 +249,7 @@ impl Handler {
         suggested_size,
         scale_factor,
       } => {
-        self.handle_scale_factor_changed_event(callback, ns_window, suggested_size, scale_factor)
+        self.handle_scale_factor_changed_event(callback, &ns_window, suggested_size, scale_factor)
       }
     }
   }
@@ -285,14 +283,12 @@ impl AppState {
   pub fn launched(app_delegate: &Object) {
     apply_activation_policy(app_delegate);
     unsafe {
-      let ns_app = NSApp();
-      window_activation_hack(ns_app);
-      let ignore = if get_aux_state_mut(app_delegate).activate_ignoring_other_apps {
-        YES
-      } else {
-        NO
-      };
-      ns_app.activateIgnoringOtherApps_(ignore);
+      let mtm = MainThreadMarker::new().unwrap();
+      let ns_app = NSApp(mtm);
+      window_activation_hack(&ns_app);
+      let ignore = get_aux_state_mut(app_delegate).activate_ignoring_other_apps;
+      #[allow(deprecated)]
+      ns_app.activateIgnoringOtherApps(ignore);
     };
     HANDLER.set_ready();
     HANDLER.waker().start();
@@ -399,12 +395,12 @@ impl AppState {
     HANDLER.set_in_callback(false);
     if HANDLER.should_exit() {
       unsafe {
-        let app: id = NSApp();
-        let pool = NSAutoreleasePool::new(nil);
-        let () = msg_send![app, stop: nil];
+        let mtm = MainThreadMarker::new().unwrap();
+        let app = NSApp(mtm);
+        let _pool = NSAutoreleasePool::new();
+        let () = msg_send![&app, stop: nil];
         // To stop event loop immediately, we need to post some event here.
-        post_dummy_event(app);
-        pool.drain();
+        post_dummy_event(&app);
       };
     }
     HANDLER.update_start_time();
@@ -426,23 +422,24 @@ impl AppState {
 ///
 /// If this becomes too bothersome to maintain, it can probably be removed
 /// without too much damage.
-unsafe fn window_activation_hack(ns_app: id) {
+unsafe fn window_activation_hack(ns_app: &NSApplication) {
   // Get the application's windows
   // TODO: Proper ordering of the windows
   let ns_windows: id = msg_send![ns_app, windows];
   let ns_enumerator: id = msg_send![ns_windows, objectEnumerator];
   loop {
     // Enumerate over the windows
-    let ns_window: id = msg_send![ns_enumerator, nextObject];
-    if ns_window == nil {
+    let ns_window: Option<Retained<NSWindow>> = msg_send_id![ns_enumerator, nextObject];
+    if ns_window.is_none() {
       break;
     }
+    let ns_window = ns_window.unwrap();
     // And call `makeKeyAndOrderFront` if it was called on the window in `UnownedWindow::new`
     // This way we preserve the user's desired initial visiblity status
     // TODO: Also filter on the type/"level" of the window, and maybe other things?
-    if ns_window.isVisible() == YES {
+    if ns_window.isVisible() == true {
       trace!("Activating visible window");
-      ns_window.makeKeyAndOrderFront_(nil);
+      ns_window.makeKeyAndOrderFront(None);
     } else {
       trace!("Skipping activating invisible window");
     }
@@ -450,16 +447,16 @@ unsafe fn window_activation_hack(ns_app: id) {
 }
 fn apply_activation_policy(app_delegate: &Object) {
   unsafe {
-    use cocoa::appkit::NSApplicationActivationPolicy::*;
-    let ns_app = NSApp();
+    let mtm = MainThreadMarker::new().unwrap();
+    let ns_app = NSApp(mtm);
     // We need to delay setting the activation policy and activating the app
     // until `applicationDidFinishLaunching` has been called. Otherwise the
     // menu bar won't be interactable.
     let act_pol = get_aux_state_mut(app_delegate).activation_policy;
-    ns_app.setActivationPolicy_(match act_pol {
-      ActivationPolicy::Regular => NSApplicationActivationPolicyRegular,
-      ActivationPolicy::Accessory => NSApplicationActivationPolicyAccessory,
-      ActivationPolicy::Prohibited => NSApplicationActivationPolicyProhibited,
+    ns_app.setActivationPolicy(match act_pol {
+      ActivationPolicy::Regular => NSApplicationActivationPolicy::Regular,
+      ActivationPolicy::Accessory => NSApplicationActivationPolicy::Accessory,
+      ActivationPolicy::Prohibited => NSApplicationActivationPolicy::Prohibited,
     });
   }
 }
