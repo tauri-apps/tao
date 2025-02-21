@@ -2,7 +2,7 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::VecDeque;
+use std::{collections::VecDeque, ffi::CStr};
 
 use objc2::runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel};
 use objc2_app_kit::{self as appkit, NSEvent, NSEventType};
@@ -17,7 +17,8 @@ unsafe impl Sync for AppClass {}
 lazy_static! {
   pub static ref APP_CLASS: AppClass = unsafe {
     let superclass = class!(NSApplication);
-    let mut decl = ClassDecl::new("TaoApp", superclass).unwrap();
+    let mut decl =
+      ClassDecl::new(CStr::from_bytes_with_nul(b"TaoApp\0").unwrap(), superclass).unwrap();
 
     decl.add_method(sel!(sendEvent:), send_event as extern "C" fn(_, _, _));
 
@@ -36,10 +37,7 @@ extern "C" fn send_event(this: &Object, _sel: Sel, event: &NSEvent) {
     let event_type = event.r#type();
     let modifier_flags = event.modifierFlags();
     if event_type == appkit::NSKeyUp
-      && util::has_flag(
-        modifier_flags,
-        appkit::NSEventModifierFlags::NSEventModifierFlagCommand,
-      )
+      && util::has_flag(modifier_flags, appkit::NSEventModifierFlags::Command)
     {
       let key_window: id = msg_send![this, keyWindow];
       let _: () = msg_send![key_window, sendEvent: event];

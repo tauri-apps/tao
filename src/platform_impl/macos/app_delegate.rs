@@ -14,10 +14,11 @@ use objc2::runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as Cla
 use objc2_foundation::{NSArray, NSURL};
 use std::{
   cell::{RefCell, RefMut},
+  ffi::{CStr, CString},
   os::raw::c_void,
 };
 
-static AUX_DELEGATE_STATE_NAME: &str = "auxState";
+const AUX_DELEGATE_STATE_NAME: &str = "auxState";
 
 pub struct AuxDelegateState {
   /// We store this value in order to be able to defer setting the activation policy until
@@ -35,7 +36,11 @@ unsafe impl Sync for AppDelegateClass {}
 lazy_static! {
   pub static ref APP_DELEGATE_CLASS: AppDelegateClass = unsafe {
     let superclass = class!(NSResponder);
-    let mut decl = ClassDecl::new("TaoAppDelegateParent", superclass).unwrap();
+    let mut decl = ClassDecl::new(
+      CStr::from_bytes_with_nul(b"TaoAppDelegateParent\0").unwrap(),
+      superclass,
+    )
+    .unwrap();
 
     decl.add_class_method(sel!(new), new as extern "C" fn(_, _) -> _);
     decl.add_method(sel!(dealloc), dealloc as extern "C" fn(_, _));
@@ -60,7 +65,7 @@ lazy_static! {
       sel!(applicationSupportsSecureRestorableState:),
       application_supports_secure_restorable_state as extern "C" fn(_, _, _) -> _,
     );
-    decl.add_ivar::<*mut c_void>(AUX_DELEGATE_STATE_NAME);
+    decl.add_ivar::<*mut c_void>(&CString::new(AUX_DELEGATE_STATE_NAME).unwrap());
 
     AppDelegateClass(decl.register())
   };

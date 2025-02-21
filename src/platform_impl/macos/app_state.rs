@@ -16,7 +16,7 @@ use std::{
   time::Instant,
 };
 
-use objc2::{msg_send_id, rc::Retained, runtime::AnyObject as Object};
+use objc2::{msg_send, rc::Retained, runtime::AnyObject as Object};
 use objc2_app_kit::{NSApp, NSApplication, NSApplicationActivationPolicy, NSWindow};
 use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSSize};
 
@@ -429,7 +429,7 @@ unsafe fn window_activation_hack(ns_app: &NSApplication) {
   let ns_enumerator: id = msg_send![ns_windows, objectEnumerator];
   loop {
     // Enumerate over the windows
-    let ns_window: Option<Retained<NSWindow>> = msg_send_id![ns_enumerator, nextObject];
+    let ns_window: Option<Retained<NSWindow>> = msg_send![ns_enumerator, nextObject];
     if ns_window.is_none() {
       break;
     }

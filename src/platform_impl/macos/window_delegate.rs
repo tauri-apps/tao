@@ -10,7 +10,7 @@ use std::{
 };
 
 use objc2::{
-  msg_send_id,
+  msg_send,
   rc::Retained,
   runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel},
 };
@@ -161,7 +161,11 @@ unsafe impl Sync for WindowDelegateClass {}
 lazy_static! {
   static ref WINDOW_DELEGATE_CLASS: WindowDelegateClass = unsafe {
     let superclass = class!(NSResponder);
-    let mut decl = ClassDecl::new("TaoWindowDelegate", superclass).unwrap();
+    let mut decl = ClassDecl::new(
+      CStr::from_bytes_with_nul(b"TaoWindowDelegate\0").unwrap(),
+      superclass,
+    )
+    .unwrap();
 
     decl.add_method(sel!(dealloc), dealloc as extern "C" fn(_, _));
     decl.add_method(
@@ -260,7 +264,7 @@ lazy_static! {
       effective_appearance_did_changed_on_main_thread as extern "C" fn(_, _, _),
     );
 
-    decl.add_ivar::<*mut c_void>("taoState");
+    decl.add_ivar::<*mut c_void>(CStr::from_bytes_with_nul(b"taoState\0").unwrap());
     WindowDelegateClass(decl.register())
   };
 }
@@ -416,12 +420,12 @@ extern "C" fn dragging_entered(this: &Object, _: Sel, sender: id) -> BOOL {
 
   use std::path::PathBuf;
 
-  let pb: Retained<NSPasteboard> = unsafe { msg_send_id![sender, draggingPasteboard] };
+  let pb: Retained<NSPasteboard> = unsafe { msg_send![sender, draggingPasteboard] };
   let filenames =
     unsafe { NSPasteboard::propertyListForType(&pb, appkit::NSFilenamesPboardType) }.unwrap();
 
-  for file in unsafe { Retained::cast::<NSArray>(filenames) } {
-    let file = unsafe { Retained::cast::<NSString>(file) };
+  for file in unsafe { Retained::cast_unchecked::<NSArray>(filenames) } {
+    let file = unsafe { Retained::cast_unchecked::<NSString>(file) };
 
     unsafe {
       let f = NSString::UTF8String(&file);
@@ -450,12 +454,12 @@ extern "C" fn perform_drag_operation(this: &Object, _: Sel, sender: id) -> BOOL 
 
   use std::path::PathBuf;
 
-  let pb: Retained<NSPasteboard> = unsafe { msg_send_id![sender, draggingPasteboard] };
+  let pb: Retained<NSPasteboard> = unsafe { msg_send![sender, draggingPasteboard] };
   let filenames =
     unsafe { NSPasteboard::propertyListForType(&pb, appkit::NSFilenamesPboardType) }.unwrap();
 
-  for file in unsafe { Retained::cast::<NSArray>(filenames) } {
-    let file = unsafe { Retained::cast::<NSString>(file) };
+  for file in unsafe { Retained::cast_unchecked::<NSArray>(filenames) } {
+    let file = unsafe { Retained::cast_unchecked::<NSString>(file) };
 
     unsafe {
       let f = NSString::UTF8String(&file);
@@ -553,9 +557,9 @@ extern "C" fn window_will_use_fullscreen_presentation_options(
       trace!("Locked shared state in `window_will_use_fullscreen_presentation_options`");
       let shared_state = window.shared_state.lock().unwrap();
       if let Some(Fullscreen::Exclusive(_)) = shared_state.fullscreen {
-        options = (NSApplicationPresentationOptions::NSApplicationPresentationFullScreen
-          | NSApplicationPresentationOptions::NSApplicationPresentationHideDock
-          | NSApplicationPresentationOptions::NSApplicationPresentationHideMenuBar)
+        options = (NSApplicationPresentationOptions::FullScreen
+          | NSApplicationPresentationOptions::HideDock
+          | NSApplicationPresentationOptions::HideMenuBar)
           .bits();
       }
       trace!("Unlocked shared state in `window_will_use_fullscreen_presentation_options`");
@@ -639,9 +643,9 @@ extern "C" fn window_did_fail_to_enter_fullscreen(this: &Object, _: Sel, _: id) 
       let _: () = unsafe {
         msg_send![
             &state.ns_window,
-            performSelector:sel!(toggleFullScreen:)
-            withObject:nil
-            afterDelay: 0.5
+            performSelector:sel!(toggleFullScreen:),
+            withObject:nil,
+            afterDelay: 0.5,
         ]
       };
     } else {
@@ -655,7 +659,7 @@ extern "C" fn window_did_fail_to_enter_fullscreen(this: &Object, _: Sel, _: id) 
 extern "C" fn effective_appearance_did_change(this: &Object, _: Sel, _: id) {
   trace!("Triggered `effectiveAppearDidChange:`");
   unsafe {
-    let _: () = msg_send![this, performSelectorOnMainThread: sel!(effectiveAppearanceDidChangedOnMainThread:) withObject:nil waitUntilDone:false];
+    let _: () = msg_send![this, performSelectorOnMainThread: sel!(effectiveAppearanceDidChangedOnMainThread:), withObject:nil, waitUntilDone:false];
   }
 }
 extern "C" fn effective_appearance_did_changed_on_main_thread(this: &Object, _: Sel, _: id) {
