@@ -125,7 +125,6 @@ impl<T> EventLoopBuilderExtWindows for EventLoopBuilder<T> {
   }
 
   #[inline]
-
   fn with_theme(&mut self, theme: Option<Theme>) -> &mut Self {
     self.platform_specific.preferred_theme = theme;
     self

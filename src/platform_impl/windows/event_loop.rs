@@ -1591,7 +1591,10 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let htouch = HTOUCHINPUT(lparam.0 as _);
       if GetTouchInputInfo(
         htouch,
-        mem::transmute(uninit_inputs),
+        mem::transmute::<
+          &mut [std::mem::MaybeUninit<windows::Win32::UI::Input::Touch::TOUCHINPUT>],
+          &mut [windows::Win32::UI::Input::Touch::TOUCHINPUT],
+        >(uninit_inputs),
         mem::size_of::<TOUCHINPUT>() as i32,
       )
       .is_ok()
@@ -2429,6 +2432,8 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
   if subclass_removed {
     mem::drop(subclass_input);
   } else {
+    // FIXME: this seems to leak intentionally?
+    #[allow(unused_must_use)]
     Box::into_raw(subclass_input);
   }
   result

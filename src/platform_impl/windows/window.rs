@@ -1025,7 +1025,7 @@ impl Window {
         vk,
         scancode,
         Some(&kbd_state),
-        mem::transmute(char_buff.as_mut()),
+        mem::transmute::<&mut [std::mem::MaybeUninit<u16>], &mut [u16]>(char_buff.as_mut()),
         0,
       );
     }
@@ -1094,9 +1094,7 @@ impl Window {
     let taskbar: ITaskbarList =
       unsafe { CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).unwrap() };
 
-    let icon = icon
-      .map(|i| i.inner.as_raw_handle())
-      .unwrap_or_default();
+    let icon = icon.map(|i| i.inner.as_raw_handle()).unwrap_or_default();
 
     unsafe {
       taskbar
