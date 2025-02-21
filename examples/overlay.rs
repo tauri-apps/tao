@@ -79,7 +79,7 @@ fn main() {
           if modifiers.is_empty() {
             #[cfg(windows)]
             {
-              let mut path = current_dir().unwrap();
+              let mut path = std::env::current_dir().unwrap();
               path.push("./examples/icon.ico");
               let icon = Icon::from_path(path, Some(PhysicalSize::new(32, 32))).unwrap();
 
