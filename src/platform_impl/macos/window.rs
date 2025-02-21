@@ -1267,7 +1267,7 @@ impl UnownedWindow {
         let presentation_options = shared_state_lock.save_presentation_opts.unwrap_or_else(|| {
           NSApplicationPresentationOptions::FullScreen
             | NSApplicationPresentationOptions::AutoHideDock
-            | NSApplicationPresentationOptions::HideMenuBar
+            | NSApplicationPresentationOptions::AutoHideMenuBar
         });
         NSApp(mtm).setPresentationOptions(presentation_options);
 
