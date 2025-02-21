@@ -469,7 +469,7 @@ fn dur2timeout(dur: Duration) -> u32 {
       })
     })
     .map(|ms| {
-      if ms > u32::max_value() as u64 {
+      if ms > u32::MAX as u64 {
         INFINITE
       } else {
         ms as u32
@@ -2140,6 +2140,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
             if edges & ABE_BOTTOM != 0 {
               rect.bottom -= 1;
             }
+            // FIXME:
+            #[allow(clippy::bad_bit_mask)]
             if edges & ABE_LEFT != 0 {
               rect.left += 1;
             }
