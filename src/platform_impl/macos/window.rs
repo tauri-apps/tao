@@ -241,7 +241,8 @@ fn create_window(
       backing: NSBackingStoreType::NSBackingStoreBuffered,
       defer: NO,
     ];
-    let res = ns_window.map(|ns_window| {
+
+    ns_window.map(|ns_window| {
       let title = NSString::from_str(&attrs.title);
       ns_window.setReleasedWhenClosed(false);
       ns_window.setTitle(&title);
@@ -323,16 +324,16 @@ fn create_window(
       }
 
       ns_window
-    });
-    res
+    })
   }
 }
 
 pub(super) fn get_ns_theme() -> Theme {
   unsafe {
-    let mut appearances: Vec<Retained<NSString>> = Vec::new();
-    appearances.push(NSString::from_str("NSAppearanceNameAqua"));
-    appearances.push(NSString::from_str("NSAppearanceNameDarkAqua"));
+    let appearances: Vec<Retained<NSString>> = vec![
+      NSString::from_str("NSAppearanceNameAqua"),
+      NSString::from_str("NSAppearanceNameDarkAqua"),
+    ];
     let app_class = class!(NSApplication);
     let app: id = msg_send![app_class, sharedApplication];
     let has_theme: bool = msg_send![app, respondsToSelector: sel!(effectiveAppearance)];
@@ -396,16 +397,13 @@ lazy_static! {
 extern "C" fn send_event(this: &Object, _sel: Sel, event: &NSEvent) {
   unsafe {
     let event_type = event.r#type();
-    match event_type {
-      NSEventType::LeftMouseDown => {
-        // When wkwebview is set on NSWindow, `WindowBuilder::with_movable_by_window_background` is not working.
-        // Because of this, we need to invoke `[NSWindow performWindowDragWithEvent]` in NSLeftMouseDown event.
-        let is_movable_window: bool = msg_send![this, isMovableByWindowBackground];
-        if is_movable_window {
-          let _: () = msg_send![this, performWindowDragWithEvent: event];
-        }
+    if event_type == NSEventType::LeftMouseDown {
+      // When wkwebview is set on NSWindow, `WindowBuilder::with_movable_by_window_background` is not working.
+      // Because of this, we need to invoke `[NSWindow performWindowDragWithEvent]` in NSLeftMouseDown event.
+      let is_movable_window: bool = msg_send![this, isMovableByWindowBackground];
+      if is_movable_window {
+        let _: () = msg_send![this, performWindowDragWithEvent: event];
       }
-      _ => (),
     }
     let superclass = util::superclass(this);
     let _: () = msg_send![super(this, superclass), sendEvent: event];
@@ -554,7 +552,7 @@ impl UnownedWindow {
       .inner_size
       .map(|size| size.to_physical(scale_factor));
 
-    let cloned_preferred_theme = win_attribs.preferred_theme.clone();
+    let cloned_preferred_theme = win_attribs.preferred_theme;
 
     let window = Arc::new(UnownedWindow {
       ns_view,
@@ -726,8 +724,8 @@ impl UnownedWindow {
 
   pub fn set_max_inner_size(&self, dimensions: Option<Size>) {
     let dimensions = dimensions.unwrap_or(Logical(LogicalSize {
-      width: std::f32::MAX as f64,
-      height: std::f32::MAX as f64,
+      width: f32::MAX as f64,
+      height: f32::MAX as f64,
     }));
     let scale_factor = self.scale_factor();
     unsafe {

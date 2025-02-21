@@ -18,7 +18,6 @@ use crossbeam_channel::{self as channel, Receiver, Sender};
 use objc2::{msg_send_id, rc::Retained};
 use objc2_app_kit::{NSApp, NSApplication, NSEventModifierFlags, NSEventSubtype, NSEventType};
 use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSInteger, NSPoint, NSTimeInterval};
-use scopeguard::defer;
 
 use crate::{
   dpi::PhysicalPosition,
@@ -333,7 +332,7 @@ impl<T> Proxy<T> {
       let rl = CFRunLoopGetMain();
       let mut context: CFRunLoopSourceContext = mem::zeroed();
       context.perform = Some(event_loop_proxy_handler);
-      let source = CFRunLoopSourceCreate(ptr::null_mut(), CFIndex::max_value() - 1, &mut context);
+      let source = CFRunLoopSourceCreate(ptr::null_mut(), CFIndex::MAX - 1, &mut context);
       CFRunLoopAddSource(rl, source, kCFRunLoopCommonModes);
       CFRunLoopWakeUp(rl);
 

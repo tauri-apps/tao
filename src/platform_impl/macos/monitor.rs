@@ -169,7 +169,7 @@ pub fn from_point(x: f64, y: f64) -> Option<MonitorHandle> {
       }
     }
   }
-  return None;
+  None
 }
 
 impl fmt::Debug for MonitorHandle {

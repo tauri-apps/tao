@@ -203,7 +203,7 @@ impl Handler {
     if let Some(ref mut callback) = *self.callback.lock().unwrap() {
       match wrapper {
         EventWrapper::StaticEvent(event) => {
-          callback.handle_nonuser_event(event, &mut *self.control_flow.lock().unwrap())
+          callback.handle_nonuser_event(event, &mut self.control_flow.lock().unwrap())
         }
         EventWrapper::EventProxy(proxy) => self.handle_proxy(proxy, callback),
       }
@@ -212,7 +212,7 @@ impl Handler {
 
   fn handle_user_events(&self) {
     if let Some(ref mut callback) = *self.callback.lock().unwrap() {
-      callback.handle_user_events(&mut *self.control_flow.lock().unwrap());
+      callback.handle_user_events(&mut self.control_flow.lock().unwrap());
     }
   }
 
@@ -224,7 +224,7 @@ impl Handler {
     scale_factor: f64,
   ) {
     let mut size = suggested_size.to_physical(scale_factor);
-    let old_size = size.clone();
+    let old_size = size;
     let event = Event::WindowEvent {
       window_id: WindowId(get_window_id(ns_window)),
       event: WindowEvent::ScaleFactorChanged {
@@ -233,7 +233,7 @@ impl Handler {
       },
     };
 
-    callback.handle_nonuser_event(event, &mut *self.control_flow.lock().unwrap());
+    callback.handle_nonuser_event(event, &mut self.control_flow.lock().unwrap());
 
     if old_size != size {
       let logical_size = size.to_logical(scale_factor);
@@ -437,7 +437,7 @@ unsafe fn window_activation_hack(ns_app: &NSApplication) {
     // And call `makeKeyAndOrderFront` if it was called on the window in `UnownedWindow::new`
     // This way we preserve the user's desired initial visiblity status
     // TODO: Also filter on the type/"level" of the window, and maybe other things?
-    if ns_window.isVisible() == true {
+    if ns_window.isVisible() {
       trace!("Activating visible window");
       ns_window.makeKeyAndOrderFront(None);
     } else {

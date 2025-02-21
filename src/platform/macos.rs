@@ -168,20 +168,15 @@ impl WindowExtMacOS for Window {
 
 /// Corresponds to `NSApplicationActivationPolicy`.
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum ActivationPolicy {
   /// Corresponds to `NSApplicationActivationPolicyRegular`.
+  #[default]
   Regular,
   /// Corresponds to `NSApplicationActivationPolicyAccessory`.
   Accessory,
   /// Corresponds to `NSApplicationActivationPolicyProhibited`.
   Prohibited,
-}
-
-impl Default for ActivationPolicy {
-  fn default() -> Self {
-    ActivationPolicy::Regular
-  }
 }
 
 /// Additional methods on `WindowBuilder` that are specific to MacOS.

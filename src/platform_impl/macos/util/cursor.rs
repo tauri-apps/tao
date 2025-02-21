@@ -15,7 +15,9 @@ use std::{cell::RefCell, ffi::c_void, ptr::null_mut};
 
 use crate::window::CursorIcon;
 
+#[derive(Default)]
 pub enum Cursor {
+  #[default]
   Default,
   Native(&'static str),
   Undocumented(&'static str),
@@ -74,12 +76,6 @@ impl From<CursorIcon> for Cursor {
       CursorIcon::Move | CursorIcon::AllScroll => Cursor::WebKit("move"),
       CursorIcon::Cell => Cursor::WebKit("cell"),
     }
-  }
-}
-
-impl Default for Cursor {
-  fn default() -> Self {
-    Cursor::Default
   }
 }
 
@@ -153,7 +149,7 @@ pub unsafe fn invisible_cursor() -> id {
 
   thread_local! {
       // We can't initialize this at startup.
-      static CURSOR_OBJECT: RefCell<id> = RefCell::new(nil);
+      static CURSOR_OBJECT: RefCell<id> = const { RefCell::new(nil) };
   }
 
   CURSOR_OBJECT.with(|cursor_obj| {

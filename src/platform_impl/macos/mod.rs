@@ -2,8 +2,6 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-#![cfg(target_os = "macos")]
-
 mod app;
 mod app_delegate;
 mod app_state;
@@ -73,7 +71,7 @@ impl Deref for Window {
   type Target = UnownedWindow;
   #[inline]
   fn deref(&self) -> &Self::Target {
-    &*self.window
+    &self.window
   }
 }
 

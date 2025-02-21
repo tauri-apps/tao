@@ -67,7 +67,7 @@ pub unsafe fn set_style_mask_async(
   let ns_window = MainThreadSafe(ns_window.retain());
   let ns_view = MainThreadSafe(ns_view.retain());
   Queue::main().exec_async(move || {
-    set_style_mask(&*ns_window, &*ns_view, mask);
+    set_style_mask(&ns_window, &ns_view, mask);
   });
 }
 pub unsafe fn set_style_mask_sync(ns_window: &NSWindow, ns_view: &NSView, mask: NSWindowStyleMask) {
@@ -77,7 +77,7 @@ pub unsafe fn set_style_mask_sync(ns_window: &NSWindow, ns_view: &NSView, mask: 
     let ns_window = MainThreadSafe(ns_window.retain());
     let ns_view = MainThreadSafe(ns_view.retain());
     Queue::main().exec_sync(move || {
-      set_style_mask(&*ns_window, &*ns_view, mask);
+      set_style_mask(&ns_window, &ns_view, mask);
     })
   }
 }
@@ -131,7 +131,7 @@ pub unsafe fn toggle_full_screen_async(
         if let Some(shared_state) = shared_state.upgrade() {
           trace!("Locked shared state in `toggle_full_screen_callback`");
           let mut shared_state_lock = shared_state.lock().unwrap();
-          (*shared_state_lock).saved_style = Some(curr_mask);
+          shared_state_lock.saved_style = Some(curr_mask);
           trace!("Unlocked shared state in `toggle_full_screen_callback`");
         }
       }

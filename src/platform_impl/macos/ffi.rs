@@ -39,7 +39,7 @@ pub const YES: Bool = Bool::YES;
 #[allow(deprecated)]
 pub const NO: Bool = Bool::NO;
 
-pub const NSNotFound: NSInteger = NSInteger::max_value();
+pub const NSNotFound: NSInteger = NSInteger::MAX;
 
 pub const kCGBaseWindowLevelKey: NSInteger = 0;
 pub const kCGMinimumWindowLevelKey: NSInteger = 1;

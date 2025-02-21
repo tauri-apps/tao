@@ -77,10 +77,7 @@ fn get_exist_progress_indicator(dock_tile: id) -> Option<id> {
       return None;
     }
     let subviews: Option<Retained<NSArray>> = msg_send_id![content_view, subviews];
-    if subviews.is_none() {
-      return None;
-    }
-    let subviews = subviews.unwrap();
+    let subviews = subviews?;
 
     for idx in 0..subviews.count() {
       let subview: id = msg_send![&subviews, objectAtIndex: idx];
