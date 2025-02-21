@@ -33,6 +33,7 @@ use windows::{
     },
     UI::{
       Controls::{self as win32c, HOVER_DEFAULT},
+      HiDpi::GetSystemMetricsForDpi,
       Input::{KeyboardAndMouse::*, Pointer::*, Touch::*, *},
       Shell::{
         DefSubclassProc, RemoveWindowSubclass, SHAppBarMessage, SetWindowSubclass, ABE_BOTTOM,
@@ -65,6 +66,8 @@ use crate::{
   window::{Fullscreen, Theme, WindowId as RootWindowId},
 };
 use runner::{EventLoopRunner, EventLoopRunnerShared};
+
+use super::dpi::hwnd_dpi;
 
 type GetPointerFrameInfoHistory = unsafe extern "system" fn(
   pointerId: u32,
@@ -2151,10 +2154,13 @@ unsafe fn public_window_callback_inner<T: 'static>(
           }
         } else if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) && !is_fullscreen {
           let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
-          params.rgrc[0].top += 1;
-          params.rgrc[0].bottom += 1;
-          params.rgrc[0].left += 1;
-          params.rgrc[0].right += 1;
+
+          let insets = util::calculate_window_insets(window);
+
+          params.rgrc[0].left += insets.left;
+          params.rgrc[0].top += insets.top;
+          params.rgrc[0].right -= insets.right;
+          params.rgrc[0].bottom -= insets.bottom;
         }
         result = ProcResult::Value(LRESULT(0)); // return 0 here to make the window borderless
       }
@@ -2176,25 +2182,38 @@ unsafe fn public_window_callback_inner<T: 'static>(
           util::GET_Y_LPARAM(lparam) as i32,
         );
 
-        let mut rect = RECT::default();
-        let _ = GetWindowRect(window, &mut rect);
+        let dpi = hwnd_dpi(window);
+        let border_y = GetSystemMetricsForDpi(SM_CYFRAME, dpi);
 
-        let padded_border = GetSystemMetrics(SM_CXPADDEDBORDER);
-        let border_x = GetSystemMetrics(SM_CXFRAME) + padded_border;
-        let border_y = GetSystemMetrics(SM_CYFRAME) + padded_border;
+        // if we have undecorated shadows, we only need to handle the top edge
+        if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) {
+          let mut cursor_pt = POINT { x: cx, y: cy };
+          if ScreenToClient(window, &mut cursor_pt).as_bool()
+            && cursor_pt.y >= 0
+            && cursor_pt.y <= border_y
+          {
+            result = ProcResult::Value(LRESULT(HTTOP as _));
+          }
+        } else {
+          //otherwise do full hit testing
+          let border_x = GetSystemMetricsForDpi(SM_CXFRAME, dpi);
 
-        let hit_result = crate::window::hit_test(
-          (rect.left, rect.top, rect.right, rect.bottom),
-          cx,
-          cy,
-          border_x,
-          border_y,
-        )
-        .map(|d| d.to_win32());
+          let mut rect = RECT::default();
+          let _ = GetWindowRect(window, &mut rect);
 
-        result = hit_result
-          .map(|r| ProcResult::Value(LRESULT(r as _)))
-          .unwrap_or(ProcResult::DefSubclassProc);
+          let hit_result = crate::window::hit_test(
+            (rect.left, rect.top, rect.right, rect.bottom),
+            cx,
+            cy,
+            border_x,
+            border_y,
+          )
+          .map(|d| d.to_win32());
+
+          result = hit_result
+            .map(|r| ProcResult::Value(LRESULT(r as _)))
+            .unwrap_or(ProcResult::DefSubclassProc);
+        }
       } else {
         result = ProcResult::DefSubclassProc;
       }

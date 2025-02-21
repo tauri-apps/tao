@@ -17,6 +17,7 @@ use crate::{
   window::CursorIcon,
 };
 
+use once_cell::sync::Lazy;
 use windows::{
   core::{HRESULT, PCSTR, PCWSTR},
   Win32::{
@@ -424,4 +425,73 @@ pub fn get_instance_handle() -> windows::Win32::Foundation::HMODULE {
   }
 
   windows::Win32::Foundation::HMODULE(unsafe { &__ImageBase as *const _ as _ })
+}
+
+pub static WIN_VERSION: Lazy<windows_version::OsVersion> =
+  Lazy::new(windows_version::OsVersion::current);
+
+pub fn get_frame_thickness(dpi: u32) -> i32 {
+  let resize_frame_thickness = unsafe { GetSystemMetricsForDpi(SM_CXSIZEFRAME, dpi) };
+  let padding_thickness = unsafe { GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi) };
+  resize_frame_thickness + padding_thickness
+}
+
+pub fn calculate_insets_for_dpi(dpi: u32) -> RECT {
+  // - On Windows 10
+  // The top inset must be zero, since if there is any nonclient area, Windows will draw
+  // a full native titlebar outside the client area. (This doesn't occur in the maximized
+  // case.)
+  //
+  // - On Windows 11
+  // The top inset is calculated using an empirical formula that I derived through various
+  // tests. Without this, the top 1-2 rows of pixels in our window would be obscured.
+
+  let frame_thickness = get_frame_thickness(dpi);
+
+  let top_inset = match WIN_VERSION.build {
+    v if v >= 22000 => (dpi as f32 / USER_DEFAULT_SCREEN_DPI as f32).round() as i32,
+    _ => 0,
+  };
+
+  RECT {
+    left: frame_thickness,
+    top: top_inset,
+    right: frame_thickness,
+    bottom: frame_thickness,
+  }
+}
+
+/// Calcuclate window insets, used in WM_NCCALCSIZE
+///
+/// Derived of GPUI implementation
+/// see <https://github.com/zed-industries/zed/blob/7bddb390cabefb177d9996dc580749d64e6ca3b6/crates/gpui/src/platform/windows/events.rs#L1418-L1454>
+pub fn calculate_window_insets(window: HWND) -> RECT {
+  let dpi = unsafe { super::dpi::hwnd_dpi(window) };
+  calculate_insets_for_dpi(dpi)
+}
+
+pub fn window_rect(hwnd: HWND) -> RECT {
+  unsafe {
+    let mut rect = RECT::default();
+    if GetWindowRect(hwnd, &mut rect).is_err() {
+      panic!(
+        "Unexpected GetWindowRect failure: please report this error to \
+               tauri-apps/tao"
+      )
+    }
+    rect
+  }
+}
+
+pub fn client_rect(hwnd: HWND) -> RECT {
+  unsafe {
+    let mut rect = RECT::default();
+    if GetClientRect(hwnd, &mut rect).is_err() {
+      panic!(
+        "Unexpected GetClientRect failure: please report this error to \
+               tauri-apps/tao"
+      )
+    }
+    rect
+  }
 }
