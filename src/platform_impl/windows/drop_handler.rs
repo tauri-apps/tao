@@ -49,9 +49,9 @@ impl FileDropHandler {
     F: Fn(PathBuf),
   {
     let drop_format = FORMATETC {
-      cfFormat: CF_HDROP.0,
+      cfFormat: CF_HDROP.0 as u16,
       ptd: ptr::null_mut(),
-      dwAspect: DVASPECT_CONTENT.0,
+      dwAspect: DVASPECT_CONTENT.0 as u32,
       lindex: -1,
       tymed: TYMED_HGLOBAL.0 as u32,
     };
@@ -78,13 +78,7 @@ impl FileDropHandler {
 
           // Fill path_buf with the null-terminated file name
           let mut path_buf = Vec::with_capacity(str_len);
-          DragQueryFileW(
-            hdrop,
-            i,
-            std::mem::transmute::<&mut [std::mem::MaybeUninit<u16>], std::option::Option<&mut [u16]>>(
-              path_buf.spare_capacity_mut(),
-            ),
-          );
+          DragQueryFileW(hdrop, i, std::mem::transmute(path_buf.spare_capacity_mut()));
           path_buf.set_len(str_len);
 
           callback(OsString::from_wide(&path_buf[0..character_count]).into());
