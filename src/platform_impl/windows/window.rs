@@ -174,7 +174,7 @@ impl Window {
 
   #[inline]
   pub fn set_focus(&self) {
-    let window = self.window.clone();
+    let window = self.window;
     let window_flags = self.window_state.lock().window_flags();
 
     let is_visible = window_flags.contains(WindowFlags::VISIBLE);
@@ -711,7 +711,7 @@ impl Window {
 
   #[inline]
   pub fn set_fullscreen(&self, fullscreen: Option<Fullscreen>) {
-    let window = self.window.clone();
+    let window = self.window;
     let window_state = Arc::clone(&self.window_state);
 
     let mut window_state_lock = window_state.lock();
@@ -963,7 +963,7 @@ impl Window {
 
   #[inline]
   pub fn request_user_attention(&self, request_type: Option<UserAttentionType>) {
-    let window = self.window.clone();
+    let window = self.window;
     let active_window_handle = unsafe { GetActiveWindow() };
     if window.0 == active_window_handle {
       // active window could be minimized, so we skip requesting attention
@@ -1096,7 +1096,7 @@ impl Window {
 
     let icon = icon
       .map(|i| i.inner.as_raw_handle())
-      .unwrap_or(HICON::default());
+      .unwrap_or_default();
 
     unsafe {
       taskbar
@@ -1107,7 +1107,7 @@ impl Window {
 
   #[inline]
   pub fn set_undecorated_shadow(&self, shadow: bool) {
-    let window = self.window.clone();
+    let window = self.window;
     let window_state = Arc::clone(&self.window_state);
 
     self.thread_executor.execute_in_thread(move || {
@@ -1474,7 +1474,7 @@ thread_local! {
         }
     };
 
-    static TASKBAR_LIST: RefCell<Option<ITaskbarList2>> = RefCell::new(None);
+    static TASKBAR_LIST: RefCell<Option<ITaskbarList2>> = const { RefCell::new(None) };
 }
 
 pub fn com_initialized() {

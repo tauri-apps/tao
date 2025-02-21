@@ -400,7 +400,7 @@ pub fn PRIMARYLANGID(hkl: HKL) -> u32 {
 #[allow(non_snake_case)]
 #[inline]
 pub fn RGB<T: Into<u32>>(r: T, g: T, b: T) -> COLORREF {
-  COLORREF(r.into() | g.into() << 8 | b.into() << 16)
+  COLORREF(r.into() | (g.into() << 8) | (b.into() << 16))
 }
 
 pub unsafe extern "system" fn call_default_window_proc(

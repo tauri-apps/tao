@@ -423,7 +423,7 @@ impl<T> BufferedEvent<T> {
     match self {
       Self::Event(event) => dispatch(event),
       Self::ScaleFactorChanged(window_id, scale_factor, mut new_inner_size) => {
-        let os_inner_size = new_inner_size.clone();
+        let os_inner_size = new_inner_size;
 
         dispatch(Event::WindowEvent {
           window_id,

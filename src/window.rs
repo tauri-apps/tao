@@ -1394,8 +1394,10 @@ impl rwh_06::HasDisplayHandle for Window {
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Default)]
 pub enum CursorIcon {
   /// The platform-dependent default cursor.
+  #[default]
   Default,
   /// A simple crosshair.
   Crosshair,
@@ -1450,11 +1452,6 @@ pub enum CursorIcon {
   RowResize,
 }
 
-impl Default for CursorIcon {
-  fn default() -> Self {
-    CursorIcon::Default
-  }
-}
 
 /// Fullscreen modes.
 #[non_exhaustive]
@@ -1477,6 +1474,7 @@ pub enum Theme {
 
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Default)]
 pub enum UserAttentionType {
   /// ## Platform-specific
   /// - **macOS:** Bounces the dock icon until the application is in focus.
@@ -1485,14 +1483,10 @@ pub enum UserAttentionType {
   /// ## Platform-specific
   /// - **macOS:** Bounces the dock icon once.
   /// - **Windows:** Flashes the taskbar button until the application is in focus.
+  #[default]
   Informational,
 }
 
-impl Default for UserAttentionType {
-  fn default() -> Self {
-    UserAttentionType::Informational
-  }
-}
 
 /// Window size constraints
 #[derive(Clone, Copy, PartialEq, Debug, Default)]

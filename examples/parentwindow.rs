@@ -32,7 +32,7 @@ fn main() {
   let child_window_builder = WindowBuilder::new().with_inner_size(LogicalSize::new(200, 200));
 
   #[cfg(any(target_os = "windows", target_os = "macos"))]
-  let child_window_builder = child_window_builder.with_parent_window(parent_window.clone());
+  let child_window_builder = child_window_builder.with_parent_window(parent_window);
 
   #[cfg(target_os = "linux")]
   let child_window_builder = child_window_builder.with_transient_for(parent_window);
