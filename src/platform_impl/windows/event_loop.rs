@@ -20,11 +20,9 @@ use std::{
   time::{Duration, Instant},
 };
 use windows::{
-  core::{s, PCWSTR},
+  core::{s, BOOL, PCWSTR},
   Win32::{
-    Foundation::{
-      BOOL, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_TIMEOUT, WPARAM,
-    },
+    Foundation::{HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_TIMEOUT, WPARAM},
     Graphics::Gdi::*,
     System::{
       LibraryLoader::GetModuleHandleW,
