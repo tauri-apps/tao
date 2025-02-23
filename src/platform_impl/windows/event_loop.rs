@@ -2190,20 +2190,21 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
         // if we have undecorated shadows, we only need to handle the top edge
         if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) {
+          let rect = util::client_rect(window);
           let mut cursor_pt = POINT { x: cx, y: cy };
           if ScreenToClient(window, &mut cursor_pt).as_bool()
             && cursor_pt.y >= 0
             && cursor_pt.y <= border_y
+            && cursor_pt.x >= 0
+            && cursor_pt.x <= rect.right
           {
             result = ProcResult::Value(LRESULT(HTTOP as _));
           }
-        } else {
-          //otherwise do full hit testing
+        }
+        // otherwise do full hit testing
+        else {
           let border_x = GetSystemMetricsForDpi(SM_CXFRAME, dpi);
-
-          let mut rect = RECT::default();
-          let _ = GetWindowRect(window, &mut rect);
-
+          let rect = util::window_rect(window);
           let hit_result = crate::window::hit_test(
             (rect.left, rect.top, rect.right, rect.bottom),
             cx,
