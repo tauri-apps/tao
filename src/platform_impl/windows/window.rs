@@ -1116,6 +1116,15 @@ impl Window {
     });
   }
 
+  #[inline]
+  pub fn has_undecorated_shadow(&self) -> bool {
+    self
+      .window_state
+      .lock()
+      .window_flags
+      .contains(WindowFlags::MARKER_UNDECORATED_SHADOW)
+  }
+
   pub fn set_content_protection(&self, enabled: bool) {
     unsafe {
       let _ = SetWindowDisplayAffinity(
