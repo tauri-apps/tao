@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.32.1]
+
+- [`1be722db`](https://github.com/tauri-apps/tao/commit/1be722dbc2a4341f576d9aa0c0bfc01825da8200) ([#1071](https://github.com/tauri-apps/tao/pull/1071) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Fix content protection on macOS crashing the app.
+
 ## \[0.32.0]
 
 - [`94afde98`](https://github.com/tauri-apps/tao/commit/94afde98436bf743719205f5b9aed0d2ee78169d) ([#1040](https://github.com/tauri-apps/tao/pull/1040) by [@Teddytrombone](https://github.com/tauri-apps/tao/../../Teddytrombone)) Add missing function keys F13-F24 to linux implementation
