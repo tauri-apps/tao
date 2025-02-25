@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.32.2]
+
+- [`b296cf53`](https://github.com/tauri-apps/tao/commit/b296cf53f43c99a5cabdb443c489f2acb5d1e853) ([#1074](https://github.com/tauri-apps/tao/pull/1074) by [@amrbashir](https://github.com/tauri-apps/tao/../../amrbashir)) On Windows, add `WindowExtWindows::has_undecorated_shadow` to check if window has shadows for undecorated window or not.
+- [`f4ec11d7`](https://github.com/tauri-apps/tao/commit/f4ec11d795ea3ffbc66514e28fd973a2e73c83da) ([#1070](https://github.com/tauri-apps/tao/pull/1070) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Fix undecorated top left and right border resizing direction on Windows
+
 ## \[0.32.1]
 
 - [`1be722db`](https://github.com/tauri-apps/tao/commit/1be722dbc2a4341f576d9aa0c0bfc01825da8200) ([#1071](https://github.com/tauri-apps/tao/pull/1071) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Fix content protection on macOS crashing the app.
