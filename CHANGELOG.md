@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.32.3]
+
+- [`c91dcde7`](https://github.com/tauri-apps/tao/commit/c91dcde76f9c451aff8a295ccfe9741fc1b9dbba) ([#1075](https://github.com/tauri-apps/tao/pull/1075) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) On Windows, fix `Window::inner_size` always returns the restore size instead of the current size for maximized undecorated window
+
 ## \[0.32.2]
 
 - [`b296cf53`](https://github.com/tauri-apps/tao/commit/b296cf53f43c99a5cabdb443c489f2acb5d1e853) ([#1074](https://github.com/tauri-apps/tao/pull/1074) by [@amrbashir](https://github.com/tauri-apps/tao/../../amrbashir)) On Windows, add `WindowExtWindows::has_undecorated_shadow` to check if window has shadows for undecorated window or not.
