@@ -7,9 +7,9 @@ use once_cell::sync::Lazy;
 /// This is a simple implementation of support for Windows Dark Mode,
 /// which is inspired by the solution in https://github.com/ysc3839/win32-darkmode
 use windows::{
-  core::{s, w, PCSTR, PSTR},
+  core::{s, w, BOOL, PCSTR, PSTR},
   Win32::{
-    Foundation::{BOOL, HANDLE, HMODULE, HWND, LPARAM, WPARAM},
+    Foundation::{HANDLE, HMODULE, HWND, LPARAM, WPARAM},
     Graphics::Dwm::{DwmSetWindowAttribute, DWMWINDOWATTRIBUTE},
     System::LibraryLoader::*,
     UI::{Accessibility::*, Input::KeyboardAndMouse::GetActiveWindow, WindowsAndMessaging::*},

@@ -4,7 +4,7 @@
 
 use std::{collections::HashSet, ffi::c_void, os::raw::c_ushort, sync::Mutex};
 
-use objc2::{msg_send_id, rc::Retained};
+use objc2::{msg_send, rc::Retained};
 use objc2_app_kit::{NSEvent, NSEventModifierFlags, NSWindow};
 
 use core_foundation::{base::CFRelease, data::CFDataGetBytePtr};
@@ -112,8 +112,7 @@ pub fn get_modifierless_char(scancode: u16) -> Key<'static> {
 }
 
 fn get_logical_key_char(ns_event: &NSEvent, modifierless_chars: &str) -> Key<'static> {
-  let characters: Retained<NSString> =
-    unsafe { msg_send_id![ns_event, charactersIgnoringModifiers] };
+  let characters: Retained<NSString> = unsafe { msg_send![ns_event, charactersIgnoringModifiers] };
   let string = characters.to_string();
   if string.is_empty() {
     // Probably a dead key
@@ -141,7 +140,7 @@ pub fn create_key_event(
     if key_override.is_some() {
       None
     } else {
-      let characters: Retained<NSString> = unsafe { msg_send_id![ns_event, characters] };
+      let characters: Retained<NSString> = unsafe { msg_send![ns_event, characters] };
       let characters = characters.to_string();
       if characters.is_empty() {
         None
@@ -165,8 +164,8 @@ pub fn create_key_event(
     key_without_modifiers = get_modifierless_char(scancode);
 
     let modifiers = unsafe { NSEvent::modifierFlags(ns_event) };
-    let has_alt = modifiers.contains(NSEventModifierFlags::NSEventModifierFlagOption);
-    let has_ctrl = modifiers.contains(NSEventModifierFlags::NSEventModifierFlagControl);
+    let has_alt = modifiers.contains(NSEventModifierFlags::Option);
+    let has_ctrl = modifiers.contains(NSEventModifierFlags::Control);
     if has_alt || has_ctrl || text_with_all_modifiers.is_none() || !is_press {
       let modifierless_chars = match key_without_modifiers.clone() {
         Key::Character(ch) => ch,
@@ -310,19 +309,19 @@ pub fn event_mods(event: &NSEvent) -> ModifiersState {
   let mut m = ModifiersState::empty();
   m.set(
     ModifiersState::SHIFT,
-    flags.contains(NSEventModifierFlags::NSEventModifierFlagShift),
+    flags.contains(NSEventModifierFlags::Shift),
   );
   m.set(
     ModifiersState::CONTROL,
-    flags.contains(NSEventModifierFlags::NSEventModifierFlagControl),
+    flags.contains(NSEventModifierFlags::Control),
   );
   m.set(
     ModifiersState::ALT,
-    flags.contains(NSEventModifierFlags::NSEventModifierFlagOption),
+    flags.contains(NSEventModifierFlags::Option),
   );
   m.set(
     ModifiersState::SUPER,
-    flags.contains(NSEventModifierFlags::NSEventModifierFlagCommand),
+    flags.contains(NSEventModifierFlags::Command),
   );
   m
 }

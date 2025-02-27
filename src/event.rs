@@ -771,7 +771,7 @@ impl KeyEvent {
 impl KeyEvent {
   /// Identical to `KeyEvent::text`.
   pub fn text_with_all_modifiers(&self) -> Option<&str> {
-    self.text.clone()
+    self.text
   }
 
   /// Identical to `KeyEvent::logical_key`.

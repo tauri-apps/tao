@@ -7,18 +7,19 @@
 use std::{
   boxed::Box,
   collections::{HashSet, VecDeque},
+  ffi::CStr,
   os::raw::*,
   ptr,
   sync::{Arc, Mutex, Weak},
 };
 
 use objc2::{
-  msg_send_id,
+  msg_send,
   rc::Retained,
   runtime::{
     AnyClass as Class, AnyObject as Object, AnyProtocol as Protocol, ClassBuilder as ClassDecl, Sel,
   },
-  ClassType,
+  AllocAnyThread,
 };
 use objc2_app_kit::{
   NSApp, NSEvent, NSEventModifierFlags, NSEventPhase, NSView, NSWindow, NSWindowButton,
@@ -105,8 +106,8 @@ pub fn new_view(ns_window: &NSWindow) -> (Option<Retained<NSView>>, Weak<Mutex<C
   unsafe {
     // This is free'd in `dealloc`
     let state_ptr = Box::into_raw(Box::new(state)) as *mut c_void;
-    let ns_view = msg_send_id![VIEW_CLASS.0, alloc];
-    (msg_send_id![ns_view, initWithTao: state_ptr], cursor_access)
+    let ns_view = msg_send![VIEW_CLASS.0, alloc];
+    (msg_send![ns_view, initWithTao: state_ptr], cursor_access)
   }
 }
 
@@ -137,7 +138,8 @@ unsafe impl Sync for ViewClass {}
 lazy_static! {
   static ref VIEW_CLASS: ViewClass = unsafe {
     let superclass = class!(NSView);
-    let mut decl = ClassDecl::new("TaoView", superclass).unwrap();
+    let mut decl =
+      ClassDecl::new(CStr::from_bytes_with_nul(b"TaoView\0").unwrap(), superclass).unwrap();
     decl.add_method(sel!(dealloc), dealloc as extern "C" fn(_, _));
     decl.add_method(
       sel!(initWithTao:),
@@ -254,9 +256,10 @@ lazy_static! {
       sel!(acceptsFirstMouse:),
       accepts_first_mouse as extern "C" fn(_, _, _) -> _,
     );
-    decl.add_ivar::<*mut c_void>("taoState");
-    decl.add_ivar::<id>("markedText");
-    let protocol = Protocol::get("NSTextInputClient").unwrap();
+    decl.add_ivar::<*mut c_void>(CStr::from_bytes_with_nul(b"taoState\0").unwrap());
+    decl.add_ivar::<id>(CStr::from_bytes_with_nul(b"markedText\0").unwrap());
+    let protocol =
+      Protocol::get(CStr::from_bytes_with_nul(b"NSTextInputClient\0").unwrap()).unwrap();
     decl.add_protocol(protocol);
     ViewClass(decl.register())
   };
@@ -818,42 +821,34 @@ extern "C" fn flags_changed(this: &Object, _sel: Sel, ns_event: &NSEvent) {
     }
     process_event!(
       ModifiersState::SHIFT,
-      NSEventModifierFlags::NSEventModifierFlagShift,
+      NSEventModifierFlags::Shift,
       ShiftLeft
     );
     process_event!(
       ModifiersState::SHIFT,
-      NSEventModifierFlags::NSEventModifierFlagShift,
+      NSEventModifierFlags::Shift,
       ShiftRight
     );
     process_event!(
       ModifiersState::CONTROL,
-      NSEventModifierFlags::NSEventModifierFlagControl,
+      NSEventModifierFlags::Control,
       ControlLeft
     );
     process_event!(
       ModifiersState::CONTROL,
-      NSEventModifierFlags::NSEventModifierFlagControl,
+      NSEventModifierFlags::Control,
       ControlRight
     );
-    process_event!(
-      ModifiersState::ALT,
-      NSEventModifierFlags::NSEventModifierFlagOption,
-      AltLeft
-    );
-    process_event!(
-      ModifiersState::ALT,
-      NSEventModifierFlags::NSEventModifierFlagOption,
-      AltRight
-    );
+    process_event!(ModifiersState::ALT, NSEventModifierFlags::Option, AltLeft);
+    process_event!(ModifiersState::ALT, NSEventModifierFlags::Option, AltRight);
     process_event!(
       ModifiersState::SUPER,
-      NSEventModifierFlags::NSEventModifierFlagCommand,
+      NSEventModifierFlags::Command,
       SuperLeft
     );
     process_event!(
       ModifiersState::SUPER,
-      NSEventModifierFlags::NSEventModifierFlagCommand,
+      NSEventModifierFlags::Command,
       SuperRight
     );
 
@@ -905,7 +900,7 @@ extern "C" fn cancel_operation(this: &Object, _sel: Sel, _sender: id) {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
-    let event: Retained<NSEvent> = msg_send_id![&NSApp(mtm), currentEvent];
+    let event: Retained<NSEvent> = msg_send![&NSApp(mtm), currentEvent];
     update_potentially_stale_modifiers(state, &event);
 
     let scancode = 0x2f;
@@ -1160,13 +1155,13 @@ pub unsafe fn inset_traffic_lights(window: &NSWindow, position: LogicalPosition<
   let (x, y) = (position.x, position.y);
 
   let close = window
-    .standardWindowButton(NSWindowButton::NSWindowCloseButton)
+    .standardWindowButton(NSWindowButton::CloseButton)
     .unwrap();
   let miniaturize = window
-    .standardWindowButton(NSWindowButton::NSWindowMiniaturizeButton)
+    .standardWindowButton(NSWindowButton::MiniaturizeButton)
     .unwrap();
   let zoom = window
-    .standardWindowButton(NSWindowButton::NSWindowZoomButton)
+    .standardWindowButton(NSWindowButton::ZoomButton)
     .unwrap();
 
   let title_bar_container_view = close.superview().unwrap().superview().unwrap();

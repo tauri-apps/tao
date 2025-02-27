@@ -519,7 +519,7 @@ impl Window {
         None => screen_bounds,
       };
 
-      let view = view::create_view(&window_attributes, &platform_attributes, frame.clone());
+      let view = view::create_view(&window_attributes, &platform_attributes, frame);
 
       let gl_or_metal_backed = {
         let view_class: *const AnyClass = msg_send![view, class];
@@ -557,7 +557,7 @@ impl Window {
         let screen: id = msg_send![window, screen];
         let screen_space: id = msg_send![screen, coordinateSpace];
         let screen_frame: CGRect =
-          msg_send![view, convertRect:bounds toCoordinateSpace:screen_space];
+          msg_send![view, convertRect:bounds, toCoordinateSpace:screen_space];
         let size = crate::dpi::LogicalSize {
           width: screen_frame.size.width as _,
           height: screen_frame.size.height as _,
@@ -659,7 +659,7 @@ impl Inner {
     let screen: id = msg_send![self.window, screen];
     if !screen.is_null() {
       let screen_space: id = msg_send![screen, coordinateSpace];
-      msg_send![self.window, convertRect:rect toCoordinateSpace:screen_space]
+      msg_send![self.window, convertRect:rect, toCoordinateSpace:screen_space]
     } else {
       rect
     }
@@ -670,7 +670,7 @@ impl Inner {
     let screen: id = msg_send![self.window, screen];
     if !screen.is_null() {
       let screen_space: id = msg_send![screen, coordinateSpace];
-      msg_send![self.window, convertRect:rect fromCoordinateSpace:screen_space]
+      msg_send![self.window, convertRect:rect, fromCoordinateSpace:screen_space]
     } else {
       rect
     }

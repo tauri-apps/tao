@@ -4,14 +4,18 @@
 
 use crate::platform_impl::platform::ffi::{id, nil, NO};
 use objc2::{
-  msg_send_id,
+  msg_send,
   rc::Retained,
   runtime::{AnyObject, Sel},
-  ClassType,
+  AllocAnyThread,
 };
 use objc2_app_kit::NSImage;
 use objc2_foundation::{NSDictionary, NSPoint, NSString};
-use std::{cell::RefCell, ffi::c_void, ptr::null_mut};
+use std::{
+  cell::RefCell,
+  ffi::{c_void, CString},
+  ptr::null_mut,
+};
 
 use crate::window::CursorIcon;
 
@@ -84,12 +88,12 @@ impl Cursor {
     match self {
       Cursor::Default => null_mut(),
       Cursor::Native(cursor_name) => {
-        let sel = Sel::register(cursor_name);
+        let sel = Sel::register(&CString::new(*cursor_name).unwrap());
         msg_send![class!(NSCursor), performSelector: sel]
       }
       Cursor::Undocumented(cursor_name) => {
         let class = class!(NSCursor);
-        let sel = Sel::register(cursor_name);
+        let sel = Sel::register(&CString::new(*cursor_name).unwrap());
         let sel = if msg_send![class, respondsToSelector: sel] {
           sel
         } else {
@@ -115,11 +119,11 @@ pub unsafe fn load_webkit_cursor(cursor_name: &str) -> id {
   let key_y = NSString::from_str("hoty");
 
   let cursor_path: Retained<NSString> =
-    msg_send_id![&cursor_root, stringByAppendingPathComponent: &*cursor_name];
+    msg_send![&cursor_root, stringByAppendingPathComponent: &*cursor_name];
   let pdf_path: Retained<NSString> =
-    msg_send_id![&cursor_path, stringByAppendingPathComponent: &*cursor_pdf];
+    msg_send![&cursor_path, stringByAppendingPathComponent: &*cursor_pdf];
   let info_path: Retained<NSString> =
-    msg_send_id![&cursor_path, stringByAppendingPathComponent: &*cursor_plist];
+    msg_send![&cursor_path, stringByAppendingPathComponent: &*cursor_plist];
 
   let image = NSImage::initByReferencingFile(NSImage::alloc(), &pdf_path).unwrap();
   #[allow(deprecated)]
@@ -166,7 +170,7 @@ pub unsafe fn invisible_cursor() -> id {
       let _: id = msg_send![ns_image, initWithData: cursor_data];
       let cursor: id = msg_send![class!(NSCursor), alloc];
       *cursor_obj.borrow_mut() =
-        msg_send![cursor, initWithImage:ns_image hotSpot: NSPoint::new(0.0, 0.0)];
+        msg_send![cursor, initWithImage:ns_image, hotSpot: NSPoint::new(0.0, 0.0)];
     }
     *cursor_obj.borrow()
   })

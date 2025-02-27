@@ -1,5 +1,32 @@
 # Changelog
 
+## \[0.32.4]
+
+- [`4679d683`](https://github.com/tauri-apps/tao/commit/4679d6835ab3ea5ea125dcf812d4c504330ec12e) ([#1056](https://github.com/tauri-apps/tao/pull/1056) by [@dgerhardt](https://github.com/tauri-apps/tao/../../dgerhardt)) On Windows 11, fix incorrect window positioning and sizing on `WM_DPICHANGED`.
+
+## \[0.32.3]
+
+- [`c91dcde7`](https://github.com/tauri-apps/tao/commit/c91dcde76f9c451aff8a295ccfe9741fc1b9dbba) ([#1075](https://github.com/tauri-apps/tao/pull/1075) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) On Windows, fix `Window::inner_size` always returns the restore size instead of the current size for maximized undecorated window
+
+## \[0.32.2]
+
+- [`b296cf53`](https://github.com/tauri-apps/tao/commit/b296cf53f43c99a5cabdb443c489f2acb5d1e853) ([#1074](https://github.com/tauri-apps/tao/pull/1074) by [@amrbashir](https://github.com/tauri-apps/tao/../../amrbashir)) On Windows, add `WindowExtWindows::has_undecorated_shadow` to check if window has shadows for undecorated window or not.
+- [`f4ec11d7`](https://github.com/tauri-apps/tao/commit/f4ec11d795ea3ffbc66514e28fd973a2e73c83da) ([#1070](https://github.com/tauri-apps/tao/pull/1070) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Fix undecorated top left and right border resizing direction on Windows
+
+## \[0.32.1]
+
+- [`1be722db`](https://github.com/tauri-apps/tao/commit/1be722dbc2a4341f576d9aa0c0bfc01825da8200) ([#1071](https://github.com/tauri-apps/tao/pull/1071) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Fix content protection on macOS crashing the app.
+
+## \[0.32.0]
+
+- [`94afde98`](https://github.com/tauri-apps/tao/commit/94afde98436bf743719205f5b9aed0d2ee78169d) ([#1040](https://github.com/tauri-apps/tao/pull/1040) by [@Teddytrombone](https://github.com/tauri-apps/tao/../../Teddytrombone)) Add missing function keys F13-F24 to linux implementation
+- [`36645136`](https://github.com/tauri-apps/tao/commit/3664513621459cbb3909d82f9abf8fb402525150) ([#1050](https://github.com/tauri-apps/tao/pull/1050) by [@FabianLars](https://github.com/tauri-apps/tao/../../FabianLars)) Raised MSRV to 1.74
+- [`8c8f0e8b`](https://github.com/tauri-apps/tao/commit/8c8f0e8b79dfb09c3775cf87be212eb382fa7589) ([#1049](https://github.com/tauri-apps/tao/pull/1049) by [@madsmtm](https://github.com/tauri-apps/tao/../../madsmtm)) Use `objc2`.
+- [`6fda4984`](https://github.com/tauri-apps/tao/commit/6fda49843e61c6adb650e5af8311feb55cf019cf) ([#1048](https://github.com/tauri-apps/tao/pull/1048) by [@madsmtm](https://github.com/tauri-apps/tao/../../madsmtm)) macOS: Remove `From<ActivationPolicy>` implementation for `cocoa::appkit::NSApplicationActivationPolicy`.
+- [`28f728c7`](https://github.com/tauri-apps/tao/commit/28f728c7bf6b6fe9c66098515ac780b3bee320b1) ([#1068](https://github.com/tauri-apps/tao/pull/1068) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Update `windows` to 0.60
+- [`5cc92980`](https://github.com/tauri-apps/tao/commit/5cc92980c4b112125668e83c436524d53402e983) ([#1052](https://github.com/tauri-apps/tao/pull/1052) by [@amrbashir](https://github.com/tauri-apps/tao/../../amrbashir)) On Windows, fix regression `Window::inner_size` reporting larger size than what's visible for undecorated window.
+- [`5cc92980`](https://github.com/tauri-apps/tao/commit/5cc92980c4b112125668e83c436524d53402e983) ([#1052](https://github.com/tauri-apps/tao/pull/1052) by [@amrbashir](https://github.com/tauri-apps/tao/../../amrbashir)) On Windows, undecorated window with shadows, now have native resize handles outside of the window client area.
+
 ## \[0.31.1]
 
 - [`83e35e96`](https://github.com/tauri-apps/tao/commit/83e35e961f4893790b913ee2efc15ae33fd16fb2) ([#1036](https://github.com/tauri-apps/tao/pull/1036) by [@FabioGNR](https://github.com/tauri-apps/tao/../../FabioGNR)) Call `gtk::init` when creating the eventloop to fix crashes with some gtk APIs.

@@ -19,9 +19,9 @@ use crate::{
 
 use once_cell::sync::Lazy;
 use windows::{
-  core::{HRESULT, PCSTR, PCWSTR},
+  core::{BOOL, HRESULT, PCSTR, PCWSTR},
   Win32::{
-    Foundation::{BOOL, COLORREF, FARPROC, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
+    Foundation::{COLORREF, FARPROC, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
     Globalization::lstrlenW,
     Graphics::Gdi::{ClientToScreen, InvalidateRgn, HMONITOR},
     System::LibraryLoader::*,

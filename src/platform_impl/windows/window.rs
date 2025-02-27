@@ -243,68 +243,20 @@ impl Window {
 
   #[inline]
   pub fn inner_size(&self) -> PhysicalSize<u32> {
-    let hwnd = self.hwnd();
-
-    let client_rect = util::client_rect(hwnd);
-
-    let mut width = client_rect.right - client_rect.left;
-    let mut height = client_rect.bottom - client_rect.top;
-
-    let window_flags = self.window_state.lock().window_flags;
-
-    // undecorated windows with shadows have hidden offsets
-    // we need to calculate them and account for them in returned size
-    //
-    // implementation derived from GPUI
-    // see <https://github.com/zed-industries/zed/blob/7bddb390cabefb177d9996dc580749d64e6ca3b6/crates/gpui/src/platform/windows/window.rs#L1167-L1180>
-    if window_flags.undecorated_with_shadows() {
-      let window_rect = util::window_rect(hwnd);
-
-      let width_offset =
-        (window_rect.right - window_rect.left) - (client_rect.right - client_rect.left);
-      let height_offset =
-        (window_rect.bottom - window_rect.top) - (client_rect.bottom - client_rect.top);
-
-      let placement = unsafe {
-        let mut placement = WINDOWPLACEMENT {
-          length: std::mem::size_of::<WINDOWPLACEMENT>() as u32,
-          ..std::mem::zeroed()
-        };
-        if GetWindowPlacement(hwnd, &mut placement).is_err() {
-          panic!(
-            "Unexpected GetWindowPlacement failure: please report this error to \
-                   tauri-apps/tao"
-          )
-        };
-        placement
-      };
-
-      let rect = placement.rcNormalPosition;
-
-      let left_offset = width_offset / 2;
-      let top_offset = height_offset / 2;
-      let right_offset = width_offset - left_offset;
-      let bottom_offset = height_offset - top_offset;
-      let left = rect.left + left_offset;
-      let top = rect.top + top_offset;
-      let right = rect.right - right_offset;
-      let bottom = rect.bottom - bottom_offset;
-      (width, height) = (right - left, bottom - top);
-    }
-
-    PhysicalSize::new(width as u32, height as u32)
+    let client_rect = util::client_rect(self.hwnd());
+    PhysicalSize::new(
+      (client_rect.right - client_rect.left) as u32,
+      (client_rect.bottom - client_rect.top) as u32,
+    )
   }
 
   #[inline]
   pub fn outer_size(&self) -> PhysicalSize<u32> {
-    unsafe { util::get_window_rect(self.window.0) }
-      .map(|rect| {
-        PhysicalSize::new(
-          (rect.right - rect.left) as u32,
-          (rect.bottom - rect.top) as u32,
-        )
-      })
-      .unwrap()
+    let window_rect = util::window_rect(self.hwnd());
+    PhysicalSize::new(
+      (window_rect.right - window_rect.left) as u32,
+      (window_rect.bottom - window_rect.top) as u32,
+    )
   }
 
   #[inline]
@@ -1114,6 +1066,15 @@ impl Window {
         f.set(WindowFlags::MARKER_UNDECORATED_SHADOW, shadow)
       });
     });
+  }
+
+  #[inline]
+  pub fn has_undecorated_shadow(&self) -> bool {
+    self
+      .window_state
+      .lock()
+      .window_flags
+      .contains(WindowFlags::MARKER_UNDECORATED_SHADOW)
   }
 
   pub fn set_content_protection(&self, enabled: bool) {

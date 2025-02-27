@@ -18,7 +18,7 @@ use core_graphics::{
   display::{CGDirectDisplayID, CGDisplay, CGDisplayBounds},
   geometry::CGPoint,
 };
-use objc2::{msg_send_id, rc::Retained};
+use objc2::{msg_send, rc::Retained};
 use objc2_app_kit::NSScreen;
 use objc2_foundation::{MainThreadMarker, NSString, NSUInteger};
 
@@ -320,7 +320,7 @@ impl MonitorHandle {
       let count: NSUInteger = msg_send![&screens, count];
       let key = NSString::from_str("NSScreenNumber");
       for i in 0..count {
-        let screen: Retained<NSScreen> = msg_send_id![&screens, objectAtIndex: i as NSUInteger];
+        let screen: Retained<NSScreen> = msg_send![&screens, objectAtIndex: i as NSUInteger];
         let device_description = NSScreen::deviceDescription(&screen);
         let value: id = msg_send![&device_description, objectForKey: &*key];
         if value != nil {

@@ -9,7 +9,7 @@ use std::{
 
 use core_graphics::base::CGFloat;
 use dispatch::Queue;
-use objc2::{rc::autoreleasepool, ClassType};
+use objc2::{rc::autoreleasepool, Message};
 use objc2_app_kit::{NSScreen, NSView, NSWindow, NSWindowStyleMask};
 use objc2_foundation::{MainThreadMarker, NSPoint, NSSize, NSString};
 
@@ -190,7 +190,7 @@ pub unsafe fn set_maximized_async(
         } else {
           shared_state_lock.saved_standard_frame()
         };
-        let _: () = msg_send![&*ns_window, setFrame:new_rect display:NO animate: YES];
+        let _: () = msg_send![&*ns_window, setFrame:new_rect, display:NO, animate: YES];
       }
 
       trace!("Unlocked shared state in `set_maximized`");

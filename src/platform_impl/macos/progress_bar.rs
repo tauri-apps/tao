@@ -1,7 +1,7 @@
-use std::sync::Once;
+use std::{ffi::CStr, sync::Once};
 
 use objc2::{
-  msg_send_id,
+  msg_send,
   rc::Retained,
   runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel},
 };
@@ -76,7 +76,7 @@ fn get_exist_progress_indicator(dock_tile: id) -> Option<id> {
     if content_view == nil {
       return None;
     }
-    let subviews: Option<Retained<NSArray>> = msg_send_id![content_view, subviews];
+    let subviews: Option<Retained<NSArray>> = msg_send![content_view, subviews];
     let subviews = subviews?;
 
     for idx in 0..subviews.count() {
@@ -98,12 +98,16 @@ fn create_progress_indicator_class() -> *const Class {
 
   INIT.call_once(|| unsafe {
     let superclass = class!(NSProgressIndicator);
-    let mut decl = ClassDecl::new("TaoProgressIndicator", superclass).unwrap();
+    let mut decl = ClassDecl::new(
+      CStr::from_bytes_with_nul(b"TaoProgressIndicator\0").unwrap(),
+      superclass,
+    )
+    .unwrap();
 
     decl.add_method(sel!(drawRect:), draw_progress_bar as extern "C" fn(_, _, _));
 
     // progress bar states, follows ProgressState
-    decl.add_ivar::<u8>("state");
+    decl.add_ivar::<u8>(CStr::from_bytes_with_nul(b"state\0").unwrap());
 
     APP_CLASS = decl.register();
   });
@@ -151,8 +155,7 @@ extern "C" fn draw_progress_bar(this: &Object, _: Sel, rect: NSRect) {
 fn draw_rounded_rect(rect: NSRect) {
   unsafe {
     let raduis = rect.size.height / 2.0;
-    let bezier_path: id =
-      msg_send![class!(NSBezierPath), bezierPathWithRoundedRect:rect xRadius:raduis yRadius:raduis];
+    let bezier_path: id = msg_send![class!(NSBezierPath), bezierPathWithRoundedRect:rect, xRadius:raduis, yRadius:raduis];
     let _: () = msg_send![bezier_path, fill];
   }
 }

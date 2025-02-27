@@ -93,8 +93,8 @@ impl WinIcon {
         None,
         PCWSTR::from_raw(wide_path.as_ptr()),
         IMAGE_ICON,
-        width as i32,
-        height as i32,
+        width,
+        height,
         LR_DEFAULTSIZE | LR_LOADFROMFILE,
       )
     }
@@ -112,8 +112,8 @@ impl WinIcon {
         GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
         PCWSTR::from_raw(resource_id as usize as *const u16),
         IMAGE_ICON,
-        width as i32,
-        height as i32,
+        width,
+        height,
         LR_DEFAULTSIZE,
       )
     }
