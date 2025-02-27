@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.32.4]
+
+- [`4679d683`](https://github.com/tauri-apps/tao/commit/4679d6835ab3ea5ea125dcf812d4c504330ec12e) ([#1056](https://github.com/tauri-apps/tao/pull/1056) by [@dgerhardt](https://github.com/tauri-apps/tao/../../dgerhardt)) On Windows 11, fix incorrect window positioning and sizing on `WM_DPICHANGED`.
+
 ## \[0.32.3]
 
 - [`c91dcde7`](https://github.com/tauri-apps/tao/commit/c91dcde76f9c451aff8a295ccfe9741fc1b9dbba) ([#1075](https://github.com/tauri-apps/tao/pull/1075) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) On Windows, fix `Window::inner_size` always returns the restore size instead of the current size for maximized undecorated window
