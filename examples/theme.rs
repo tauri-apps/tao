@@ -28,8 +28,8 @@ fn main() {
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Wait;
 
-    match event {
-      Event::WindowEvent { event, .. } => match event {
+    if let Event::WindowEvent { event, .. } = event {
+      match event {
         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
         WindowEvent::KeyboardInput {
           event: KeyEvent { physical_key, .. },
@@ -44,8 +44,7 @@ fn main() {
           println!("Theme is changed: {theme:?}")
         }
         _ => (),
-      },
-      _ => (),
+      }
     }
   });
 }

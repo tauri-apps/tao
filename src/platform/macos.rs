@@ -168,20 +168,15 @@ impl WindowExtMacOS for Window {
 
 /// Corresponds to `NSApplicationActivationPolicy`.
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum ActivationPolicy {
   /// Corresponds to `NSApplicationActivationPolicyRegular`.
+  #[default]
   Regular,
   /// Corresponds to `NSApplicationActivationPolicyAccessory`.
   Accessory,
   /// Corresponds to `NSApplicationActivationPolicyProhibited`.
   Prohibited,
-}
-
-impl Default for ActivationPolicy {
-  fn default() -> Self {
-    ActivationPolicy::Regular
-  }
 }
 
 /// Additional methods on `WindowBuilder` that are specific to MacOS.
@@ -363,7 +358,10 @@ impl MonitorHandleExtMacOS for MonitorHandle {
   }
 
   fn ns_screen(&self) -> Option<*mut c_void> {
-    self.inner.ns_screen().map(|s| s as *mut c_void)
+    self
+      .inner
+      .ns_screen()
+      .map(|s| objc2::rc::Retained::into_raw(s) as *mut c_void)
   }
 }
 
@@ -388,36 +386,35 @@ pub trait EventLoopWindowTargetExtMacOS {
 
 impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
   fn hide_application(&self) {
-    let cls = objc::runtime::Class::get("NSApplication").unwrap();
-    let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
-    unsafe { msg_send![app, hide: 0] }
+    // TODO: Safety.
+    let mtm = unsafe { objc2_foundation::MainThreadMarker::new_unchecked() };
+    objc2_app_kit::NSApplication::sharedApplication(mtm).hide(None)
   }
 
   fn show_application(&self) {
-    let cls = objc::runtime::Class::get("NSApplication").unwrap();
-    let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
-    unsafe { msg_send![app, unhide: 0] }
+    // TODO: Safety.
+    let mtm = unsafe { objc2_foundation::MainThreadMarker::new_unchecked() };
+    unsafe { objc2_app_kit::NSApplication::sharedApplication(mtm).unhide(None) }
   }
 
   fn hide_other_applications(&self) {
-    let cls = objc::runtime::Class::get("NSApplication").unwrap();
-    let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
-    unsafe { msg_send![app, hideOtherApplications: 0] }
+    // TODO: Safety.
+    let mtm = unsafe { objc2_foundation::MainThreadMarker::new_unchecked() };
+    objc2_app_kit::NSApplication::sharedApplication(mtm).hideOtherApplications(None)
   }
 
   fn set_activation_policy_at_runtime(&self, activation_policy: ActivationPolicy) {
-    use cocoa::appkit;
-
-    let cls = objc::runtime::Class::get("NSApplication").unwrap();
-    let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
+    use objc2_app_kit::NSApplicationActivationPolicy;
 
     let ns_activation_policy = match activation_policy {
-      ActivationPolicy::Regular => appkit::NSApplicationActivationPolicyRegular,
-      ActivationPolicy::Accessory => appkit::NSApplicationActivationPolicyAccessory,
-      ActivationPolicy::Prohibited => appkit::NSApplicationActivationPolicyProhibited,
+      ActivationPolicy::Regular => NSApplicationActivationPolicy::Regular,
+      ActivationPolicy::Accessory => NSApplicationActivationPolicy::Accessory,
+      ActivationPolicy::Prohibited => NSApplicationActivationPolicy::Prohibited,
     };
 
-    unsafe { msg_send![app, setActivationPolicy: ns_activation_policy] }
+    // TODO: Safety.
+    let mtm = unsafe { objc2_foundation::MainThreadMarker::new_unchecked() };
+    objc2_app_kit::NSApplication::sharedApplication(mtm).setActivationPolicy(ns_activation_policy);
   }
 
   fn set_badge_label(&self, label: Option<String>) {

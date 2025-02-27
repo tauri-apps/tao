@@ -64,9 +64,8 @@ pub fn get_monitor_dpi(hmonitor: HMONITOR) -> Option<u32> {
   None
 }
 
-pub const BASE_DPI: u32 = 96;
 pub fn dpi_to_scale_factor(dpi: u32) -> f64 {
-  dpi as f64 / BASE_DPI as f64
+  dpi as f64 / USER_DEFAULT_SCREEN_DPI as f64
 }
 
 pub unsafe fn hwnd_dpi(hwnd: HWND) -> u32 {
@@ -77,14 +76,14 @@ pub unsafe fn hwnd_dpi(hwnd: HWND) -> u32 {
   if let Some(GetDpiForWindow) = *GET_DPI_FOR_WINDOW {
     // We are on Windows 10 Anniversary Update (1607) or later.
     match GetDpiForWindow(hwnd) {
-      0 => BASE_DPI, // 0 is returned if hwnd is invalid
+      0 => USER_DEFAULT_SCREEN_DPI, // 0 is returned if hwnd is invalid
       dpi => dpi as u32,
     }
   } else if let Some(GetDpiForMonitor) = *GET_DPI_FOR_MONITOR {
     // We are on Windows 8.1 or later.
     let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
     if monitor.is_invalid() {
-      return BASE_DPI;
+      return USER_DEFAULT_SCREEN_DPI;
     }
 
     let mut dpi_x = 0;
@@ -92,7 +91,7 @@ pub unsafe fn hwnd_dpi(hwnd: HWND) -> u32 {
     if GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y).is_ok() {
       dpi_x as u32
     } else {
-      BASE_DPI
+      USER_DEFAULT_SCREEN_DPI
     }
   } else {
     // We are on Vista or later.
@@ -104,7 +103,7 @@ pub unsafe fn hwnd_dpi(hwnd: HWND) -> u32 {
       // If the process is DPI unaware, then scaling is performed by the OS; we thus return
       // 96 (scale factor 1.0) to prevent the window from being re-scaled by both the
       // application and the WM.
-      BASE_DPI
+      USER_DEFAULT_SCREEN_DPI
     }
   }
 }

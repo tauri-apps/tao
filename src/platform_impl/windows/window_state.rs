@@ -457,6 +457,11 @@ impl WindowFlags {
       }
     }
   }
+
+  pub fn undecorated_with_shadows(&self) -> bool {
+    self.contains(WindowFlags::MARKER_UNDECORATED_SHADOW)
+      && !self.contains(WindowFlags::MARKER_DECORATIONS)
+  }
 }
 
 impl CursorFlags {

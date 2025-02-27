@@ -232,13 +232,13 @@ pub fn setup_control_flow_observers(panic_info: Weak<PanicInfo>) {
     let run_loop = RunLoop::get();
     run_loop.add_observer(
       kCFRunLoopEntry | kCFRunLoopAfterWaiting,
-      CFIndex::min_value(),
+      CFIndex::MIN,
       control_flow_begin_handler,
       &mut context as *mut _,
     );
     run_loop.add_observer(
       kCFRunLoopExit | kCFRunLoopBeforeWaiting,
-      CFIndex::max_value(),
+      CFIndex::MAX,
       control_flow_end_handler,
       &mut context as *mut _,
     );
@@ -267,7 +267,7 @@ impl Default for EventLoopWaker {
       // future, but that gets changed to fire immediately in did_finish_launching
       let timer = CFRunLoopTimerCreate(
         ptr::null_mut(),
-        std::f64::MAX,
+        f64::MAX,
         0.000_000_1,
         0,
         0,
@@ -282,11 +282,11 @@ impl Default for EventLoopWaker {
 
 impl EventLoopWaker {
   pub fn stop(&mut self) {
-    unsafe { CFRunLoopTimerSetNextFireDate(self.timer, std::f64::MAX) }
+    unsafe { CFRunLoopTimerSetNextFireDate(self.timer, f64::MAX) }
   }
 
   pub fn start(&mut self) {
-    unsafe { CFRunLoopTimerSetNextFireDate(self.timer, std::f64::MIN) }
+    unsafe { CFRunLoopTimerSetNextFireDate(self.timer, f64::MIN) }
   }
 
   pub fn start_at(&mut self, instant: Instant) {

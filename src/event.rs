@@ -37,8 +37,7 @@
 //! describes what happens in what order.
 //!
 //! [event_loop_run]: crate::event_loop::EventLoop::run
-use std::path::PathBuf;
-use std::time::Instant;
+use std::{path::PathBuf, time::Instant};
 
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize},
@@ -113,9 +112,9 @@ pub enum Event<'a, T: 'static> {
   /// ## Platform-specific
   ///
   /// - **Linux: This is triggered by `draw` signal of the gtk window. It can be used to detect if
-  /// the window is requested to redraw. But widgets it contains are usually not tied to its signal.
-  /// So if you really want to draw each component, please consider using `connect_draw` method
-  /// from [`WidgetExt`] directly.**
+  ///   the window is requested to redraw. But widgets it contains are usually not tied to its signal.
+  ///   So if you really want to draw each component, please consider using `connect_draw` method
+  ///   from [`WidgetExt`] directly.**
   ///
   /// [`WidgetExt`]: https://gtk-rs.org/gtk3-rs/stable/latest/docs/gtk/prelude/trait.WidgetExt.html
   RedrawRequested(WindowId),
@@ -427,7 +426,7 @@ pub enum WindowEvent<'a> {
 impl Clone for WindowEvent<'static> {
   fn clone(&self) -> Self {
     use self::WindowEvent::*;
-    return match self {
+    match self {
       Resized(size) => Resized(*size),
       Moved(pos) => Moved(*pos),
       CloseRequested => CloseRequested,
@@ -512,7 +511,7 @@ impl Clone for WindowEvent<'static> {
         unreachable!("Static event can't be about scale factor changing")
       }
       DecorationsClick => DecorationsClick,
-    };
+    }
   }
 }
 
@@ -709,11 +708,11 @@ pub struct KeyEvent {
   /// This has two use cases:
   /// - Allows querying whether the current input is a Dead key.
   /// - Allows handling key-bindings on platforms which don't
-  /// support `key_without_modifiers`.
+  ///   support `key_without_modifiers`.
   ///
   /// ## Platform-specific
   /// - **Web:** Dead keys might be reported as the real key instead
-  /// of `Dead` depending on the browser/OS.
+  ///   of `Dead` depending on the browser/OS.
   pub logical_key: keyboard::Key<'static>,
 
   /// Contains the text produced by this keypress.
@@ -853,7 +852,7 @@ pub enum Force {
     altitude_angle: Option<f64>,
   },
   /// If the platform reports the force as normalized, we have no way of
-  /// knowing how much pressure 1.0 corresponds to – we know it's the maximum
+  /// knowing how much pressure 1.0 corresponds to - we know it's the maximum
   /// amount of force, but as to how much force, you might either have to
   /// press really really hard, or not hard at all, depending on the device.
   Normalized(f64),

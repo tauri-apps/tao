@@ -167,8 +167,8 @@ extern crate serde;
 #[macro_use]
 extern crate bitflags;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
-#[macro_use]
-extern crate objc;
+#[macro_use(class, msg_send, sel)]
+extern crate objc2;
 
 pub use dpi;
 

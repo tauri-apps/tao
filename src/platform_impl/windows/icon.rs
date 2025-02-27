@@ -29,7 +29,7 @@ impl RgbaIcon {
     let pixels =
       unsafe { std::slice::from_raw_parts_mut(rgba.as_mut_ptr() as *mut Pixel, pixel_count) };
     for pixel in pixels {
-      and_mask.push(pixel.a.wrapping_sub(std::u8::MAX)); // invert alpha channel
+      and_mask.push(pixel.a.wrapping_sub(u8::MAX)); // invert alpha channel
       pixel.to_bgra();
     }
     assert_eq!(and_mask.len(), pixel_count);

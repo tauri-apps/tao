@@ -2,8 +2,6 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-#![cfg(target_os = "macos")]
-
 mod app;
 mod app_delegate;
 mod app_state;
@@ -25,7 +23,7 @@ use std::{fmt, ops::Deref, sync::Arc};
 
 pub(crate) use self::event_loop::PlatformSpecificEventLoopAttributes;
 pub use self::{
-  app_delegate::{get_aux_state_mut, AuxDelegateState},
+  app_delegate::get_aux_state_mut,
   event::KeyEventExtra,
   event_loop::{EventLoop, EventLoopWindowTarget, Proxy as EventLoopProxy},
   keycode::{keycode_from_scancode, keycode_to_scancode},
@@ -73,7 +71,7 @@ impl Deref for Window {
   type Target = UnownedWindow;
   #[inline]
   fn deref(&self) -> &Self::Target {
-    &*self.window
+    &self.window
   }
 }
 

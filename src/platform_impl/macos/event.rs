@@ -4,21 +4,17 @@
 
 use std::{collections::HashSet, ffi::c_void, os::raw::c_ushort, sync::Mutex};
 
-use cocoa::{
-  appkit::{NSEvent, NSEventModifierFlags},
-  base::id,
-};
+use objc2::{msg_send_id, rc::Retained};
+use objc2_app_kit::{NSEvent, NSEventModifierFlags, NSWindow};
 
 use core_foundation::{base::CFRelease, data::CFDataGetBytePtr};
+use objc2_foundation::NSString;
 
 use crate::{
   dpi::LogicalSize,
   event::{ElementState, Event, KeyEvent},
   keyboard::{Key, KeyCode, KeyLocation, ModifiersState, NativeKeyCode},
-  platform_impl::platform::{
-    ffi,
-    util::{ns_string_to_rust, IdRef, Never},
-  },
+  platform_impl::platform::{ffi, util::Never},
 };
 
 lazy_static! {
@@ -47,7 +43,7 @@ pub enum EventWrapper {
 pub enum EventProxy {
   #[non_exhaustive]
   DpiChangedProxy {
-    ns_window: IdRef,
+    ns_window: Retained<NSWindow>,
     suggested_size: LogicalSize<f64>,
     scale_factor: f64,
   },
@@ -115,9 +111,10 @@ pub fn get_modifierless_char(scancode: u16) -> Key<'static> {
   Key::Character(insert_or_get_key_str(chars))
 }
 
-fn get_logical_key_char(ns_event: id, modifierless_chars: &str) -> Key<'static> {
-  let characters: id = unsafe { msg_send![ns_event, charactersIgnoringModifiers] };
-  let string = unsafe { ns_string_to_rust(characters) };
+fn get_logical_key_char(ns_event: &NSEvent, modifierless_chars: &str) -> Key<'static> {
+  let characters: Retained<NSString> =
+    unsafe { msg_send_id![ns_event, charactersIgnoringModifiers] };
+  let string = characters.to_string();
   if string.is_empty() {
     // Probably a dead key
     let first_char = modifierless_chars.chars().next();
@@ -128,7 +125,7 @@ fn get_logical_key_char(ns_event: id, modifierless_chars: &str) -> Key<'static> 
 
 #[allow(clippy::unnecessary_unwrap)]
 pub fn create_key_event(
-  ns_event: id,
+  ns_event: &NSEvent,
   is_press: bool,
   is_repeat: bool,
   in_ime: bool,
@@ -144,8 +141,8 @@ pub fn create_key_event(
     if key_override.is_some() {
       None
     } else {
-      let characters: id = unsafe { msg_send![ns_event, characters] };
-      let characters = unsafe { ns_string_to_rust(characters) };
+      let characters: Retained<NSString> = unsafe { msg_send_id![ns_event, characters] };
+      let characters = characters.to_string();
       if characters.is_empty() {
         None
       } else {
@@ -168,8 +165,8 @@ pub fn create_key_event(
     key_without_modifiers = get_modifierless_char(scancode);
 
     let modifiers = unsafe { NSEvent::modifierFlags(ns_event) };
-    let has_alt = modifiers.contains(NSEventModifierFlags::NSAlternateKeyMask);
-    let has_ctrl = modifiers.contains(NSEventModifierFlags::NSControlKeyMask);
+    let has_alt = modifiers.contains(NSEventModifierFlags::NSEventModifierFlagOption);
+    let has_ctrl = modifiers.contains(NSEventModifierFlags::NSEventModifierFlagControl);
     if has_alt || has_ctrl || text_with_all_modifiers.is_none() || !is_press {
       let modifierless_chars = match key_without_modifiers.clone() {
         Key::Character(ch) => ch,
@@ -308,29 +305,29 @@ pub fn extra_function_key_to_code(scancode: u16, string: &str) -> KeyCode {
   }
 }
 
-pub fn event_mods(event: id) -> ModifiersState {
+pub fn event_mods(event: &NSEvent) -> ModifiersState {
   let flags = unsafe { NSEvent::modifierFlags(event) };
   let mut m = ModifiersState::empty();
   m.set(
     ModifiersState::SHIFT,
-    flags.contains(NSEventModifierFlags::NSShiftKeyMask),
+    flags.contains(NSEventModifierFlags::NSEventModifierFlagShift),
   );
   m.set(
     ModifiersState::CONTROL,
-    flags.contains(NSEventModifierFlags::NSControlKeyMask),
+    flags.contains(NSEventModifierFlags::NSEventModifierFlagControl),
   );
   m.set(
     ModifiersState::ALT,
-    flags.contains(NSEventModifierFlags::NSAlternateKeyMask),
+    flags.contains(NSEventModifierFlags::NSEventModifierFlagOption),
   );
   m.set(
     ModifiersState::SUPER,
-    flags.contains(NSEventModifierFlags::NSCommandKeyMask),
+    flags.contains(NSEventModifierFlags::NSEventModifierFlagCommand),
   );
   m
 }
 
-pub fn get_scancode(event: cocoa::base::id) -> c_ushort {
+pub fn get_scancode(event: &NSEvent) -> c_ushort {
   // In AppKit, `keyCode` refers to the position (scancode) of a key rather than its character,
   // and there is no easy way to navtively retrieve the layout-dependent character.
   // In tao, we use keycode to refer to the key's character, and so this function aligns

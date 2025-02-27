@@ -185,8 +185,8 @@ impl Parse for AndroidFnInput {
 /// }
 /// ```
 ///
-/// - [`JNIEnv`]: https://docs.rs/jni/latest/jni/struct.JNIEnv.html
-/// - [`JClass`]: https://docs.rs/jni/latest/jni/objects/struct.JClass.html
+/// [`JNIEnv`]: https://docs.rs/jni/latest/jni/struct.JNIEnv.html
+/// [`JClass`]: https://docs.rs/jni/latest/jni/objects/struct.JClass.html
 #[proc_macro]
 pub fn android_fn(tokens: TokenStream) -> TokenStream {
   let tokens = parse_macro_input!(tokens as AndroidFnInput);
