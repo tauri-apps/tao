@@ -6,25 +6,16 @@ use std::{
   cell::RefCell,
   collections::VecDeque,
   rc::Rc,
-  sync::{
-    atomic::{AtomicBool, AtomicI32, Ordering},
-    Arc,
-  },
+  sync::atomic::{AtomicBool, AtomicI32, Ordering},
 };
 
-use gtk::{
-  gdk::WindowState,
-  glib::{self, translate::ToGlibPtr},
-  prelude::*,
-  CssProvider, Settings,
-};
+use gtk::{gdk, glib, prelude::*, CssProvider, Settings};
 
 use crate::{
-  dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
+  dpi::{LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
   monitor::MonitorHandle as RootMonitorHandle,
-  platform_impl::wayland::header::WlHeader,
   window::{
     CursorIcon, Fullscreen, ProgressBarState, ResizeDirection, Theme, UserAttentionType,
     WindowAttributes, WindowSizeConstraints, RGBA,
@@ -33,8 +24,9 @@ use crate::{
 
 use super::{
   event_loop::EventLoopWindowTarget,
+  gtk_window::ApplicationWindow,
   monitor::{self, MonitorHandle},
-  util, Parent, PlatformSpecificWindowBuilderAttributes,
+  util, PlatformSpecificWindowBuilderAttributes,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -46,30 +38,21 @@ impl WindowId {
   }
 }
 
-// Currently GTK doesn't provide feature for detect theme, so we need to check theme manually.
-// ref: https://github.com/WebKit/WebKit/blob/e44ffaa0d999a9807f76f1805943eea204cfdfbc/Source/WebKit/UIProcess/API/gtk/PageClientImpl.cpp#L587
-const GTK_THEME_SUFFIX_LIST: [&'static str; 3] = ["-dark", "-Dark", "-Darker"];
-
 pub struct Window {
   /// Window id.
   pub(crate) window_id: WindowId,
   /// Gtk application window.
-  pub(crate) window: gtk::ApplicationWindow,
+  pub(crate) window: ApplicationWindow,
   pub(crate) default_vbox: Option<gtk::Box>,
   /// Window requests sender
-  pub(crate) window_requests_tx: glib::Sender<(WindowId, WindowRequest)>,
+  pub(crate) window_requests_tx: async_channel::Sender<(WindowId, WindowRequest)>,
   scale_factor: Rc<AtomicI32>,
-  inner_position: Rc<(AtomicI32, AtomicI32)>,
-  outer_position: Rc<(AtomicI32, AtomicI32)>,
-  outer_size: Rc<(AtomicI32, AtomicI32)>,
-  inner_size: Rc<(AtomicI32, AtomicI32)>,
   maximized: Rc<AtomicBool>,
-  is_always_on_top: Rc<AtomicBool>,
   minimized: Rc<AtomicBool>,
   fullscreen: RefCell<Option<Fullscreen>>,
   inner_size_constraints: RefCell<WindowSizeConstraints>,
   /// Draw event Sender
-  draw_tx: crossbeam_channel::Sender<WindowId>,
+  draw_tx: async_channel::Sender<WindowId>,
   preferred_theme: RefCell<Option<Theme>>,
   css_provider: CssProvider,
 }
@@ -83,20 +66,17 @@ impl Window {
     let app = &event_loop_window_target.app;
     let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
     let draw_tx = event_loop_window_target.draw_tx.clone();
-    let is_wayland = event_loop_window_target.is_wayland();
+    //let is_wayland = event_loop_window_target.is_wayland();
 
-    let mut window_builder = gtk::ApplicationWindow::builder()
-      .application(app)
-      .accept_focus(attributes.focused);
-    if let Parent::ChildOf(parent) = pl_attribs.parent {
-      window_builder = window_builder.transient_for(&parent);
-    }
+    let window = ApplicationWindow::new(app, &attributes, &pl_attribs);
 
-    let window = window_builder.build();
-
-    if is_wayland {
-      WlHeader::setup(&window, &attributes.title);
-    }
+    let default_vbox = if pl_attribs.default_vbox {
+      let box_ = gtk::Box::new(gtk::Orientation::Vertical, 0);
+      window.set_child(Some(&box_));
+      Some(box_)
+    } else {
+      None
+    };
 
     let window_id = WindowId(window.id());
     event_loop_window_target
@@ -110,8 +90,7 @@ impl Window {
       .inner_size
       .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
       .unwrap_or((800, 600));
-    window.set_default_size(1, 1);
-    window.resize(width, height);
+    window.set_default_size(width, height);
 
     if attributes.maximized {
       let maximize_process = util::WindowMaximizeProcess::new(window.clone(), attributes.resizable);
@@ -123,126 +102,31 @@ impl Window {
       window.set_resizable(attributes.resizable);
     }
 
-    window.set_deletable(attributes.closable);
-
     // Set Min/Max Size
     util::set_size_constraints(&window, attributes.inner_size_constraints);
 
-    // Set Position
-    if let Some(position) = attributes.position {
-      let (x, y): (i32, i32) = position.to_logical::<i32>(win_scale_factor as f64).into();
-      window.move_(x, y);
-    }
-
-    // Set GDK Visual
-    if pl_attribs.rgba_visual || attributes.transparent {
-      if let Some(screen) = GtkWindowExt::screen(&window) {
-        if let Some(visual) = screen.rgba_visual() {
-          window.set_visual(Some(&visual));
-        }
-      }
-    }
-
-    if pl_attribs.app_paintable || attributes.transparent {
-      // Set a few attributes to make the window can be painted.
-      // See Gtk drawing model for more info:
-      // https://docs.gtk.org/gtk3/drawing-model.html
-      window.set_app_paintable(true);
-    }
-
-    if !pl_attribs.double_buffered {
-      let widget = window.upcast_ref::<gtk::Widget>();
-      if !event_loop_window_target.is_wayland() {
-        unsafe {
-          gtk::ffi::gtk_widget_set_double_buffered(widget.to_glib_none().0, 0);
-        }
-      }
-    }
-
-    let default_vbox = if pl_attribs.default_vbox {
-      let box_ = gtk::Box::new(gtk::Orientation::Vertical, 0);
-      window.add(&box_);
-      Some(box_)
-    } else {
-      None
-    };
-
     // Rest attributes
-    window.set_title(&attributes.title);
     if let Some(Fullscreen::Borderless(m)) = &attributes.fullscreen {
       if let Some(monitor) = m {
-        let display = window.display();
-        let monitor = &monitor.inner;
-        let monitors = display.n_monitors();
-        for i in 0..monitors {
-          let m = display.monitor(i).unwrap();
-          if m == monitor.monitor {
-            let screen = display.default_screen();
-            window.fullscreen_on_monitor(&screen, i);
-          }
-        }
+        window.fullscreen_on_monitor(&monitor.inner.monitor);
       } else {
         window.fullscreen();
       }
     }
-    window.set_visible(attributes.visible);
-    window.set_decorated(attributes.decorations);
-
-    if attributes.always_on_bottom {
-      window.set_keep_below(attributes.always_on_bottom);
-    }
-
-    if attributes.always_on_top {
-      window.set_keep_above(attributes.always_on_top);
-    }
-
-    if attributes.visible_on_all_workspaces {
-      window.stick();
-    }
 
     let preferred_theme = if let Some(settings) = Settings::default() {
       if let Some(preferred_theme) = attributes.preferred_theme {
-        match preferred_theme {
-          Theme::Dark => settings.set_gtk_application_prefer_dark_theme(true),
-          Theme::Light => {
-            if let Some(theme) = settings.gtk_theme_name() {
-              let theme = theme.as_str();
-              // Remove dark variant.
-              if let Some(theme) = GTK_THEME_SUFFIX_LIST
-                .iter()
-                .find(|t| theme.ends_with(*t))
-                .map(|v| theme.strip_suffix(v))
-              {
-                settings.set_gtk_theme_name(theme);
-              }
-            }
-          }
-        }
+        settings.set_gtk_application_prefer_dark_theme(preferred_theme == Theme::Dark);
       }
       attributes.preferred_theme
     } else {
       None
     };
 
-    if attributes.visible {
-      window.show_all();
-    } else {
-      window.hide();
-    }
+    window.present();
 
-    // restore accept-focus after the window has been drawn
-    // if the window was initially created without focus
-    if !attributes.focused {
-      let signal_id = Arc::new(RefCell::new(None));
-      let signal_id_ = signal_id.clone();
-      let id = window.connect_draw(move |window, _| {
-        if let Some(id) = signal_id_.take() {
-          window.set_accept_focus(true);
-          window.disconnect(id);
-        }
-        glib::Propagation::Proceed
-      });
-      signal_id.borrow_mut().replace(id);
+    if !attributes.visible {
+      window.set_visible(false);
     }
 
     // Check if we should paint the transparent background ourselves.
@@ -251,7 +135,7 @@ impl Window {
       transparent = true;
     }
     let cursor_moved = pl_attribs.cursor_moved;
-    if let Err(e) = window_requests_tx.send((
+    if let Err(e) = window_requests_tx.send_blocking((
       window_id,
       WindowRequest::WireUpEvents {
         transparent,
@@ -262,20 +146,7 @@ impl Window {
       log::warn!("Fail to send wire up events request: {}", e);
     }
 
-    let (
-      scale_factor,
-      outer_position,
-      inner_position,
-      outer_size,
-      inner_size,
-      maximized,
-      minimized,
-      is_always_on_top,
-    ) = Self::setup_signals(&window, Some(&attributes));
-
-    if let Some(icon) = attributes.window_icon {
-      window.set_icon(Some(&icon.inner.into()));
-    }
+    let (scale_factor, maximized, minimized) = Self::setup_signals(&window);
 
     let win = Self {
       window_id,
@@ -284,98 +155,48 @@ impl Window {
       window_requests_tx,
       draw_tx,
       scale_factor,
-      outer_position,
-      inner_position,
-      outer_size,
-      inner_size,
       maximized,
       minimized,
-      is_always_on_top,
       fullscreen: RefCell::new(attributes.fullscreen),
       inner_size_constraints: RefCell::new(attributes.inner_size_constraints),
       preferred_theme: RefCell::new(preferred_theme),
       css_provider: CssProvider::new(),
     };
 
-    let _ = win.set_skip_taskbar(pl_attribs.skip_taskbar);
     win.set_background_color(attributes.background_color);
 
     Ok(win)
   }
 
-  fn setup_signals(
-    window: &gtk::ApplicationWindow,
-    attributes: Option<&WindowAttributes>,
-  ) -> (
-    Rc<AtomicI32>,
-    Rc<(AtomicI32, AtomicI32)>,
-    Rc<(AtomicI32, AtomicI32)>,
-    Rc<(AtomicI32, AtomicI32)>,
-    Rc<(AtomicI32, AtomicI32)>,
-    Rc<AtomicBool>,
-    Rc<AtomicBool>,
-    Rc<AtomicBool>,
-  ) {
+  fn setup_signals(window: &ApplicationWindow) -> (Rc<AtomicI32>, Rc<AtomicBool>, Rc<AtomicBool>) {
     let win_scale_factor = window.scale_factor();
-
-    let w_pos = window.position();
-    let inner_position: Rc<(AtomicI32, AtomicI32)> = Rc::new((w_pos.0.into(), w_pos.1.into()));
-    let inner_position_clone = inner_position.clone();
-
-    let o_pos = window.window().map(|w| w.root_origin()).unwrap_or(w_pos);
-    let outer_position: Rc<(AtomicI32, AtomicI32)> = Rc::new((o_pos.0.into(), o_pos.1.into()));
-    let outer_position_clone = outer_position.clone();
-
-    let w_size = window.size();
-    let inner_size: Rc<(AtomicI32, AtomicI32)> = Rc::new((w_size.0.into(), w_size.1.into()));
-    let inner_size_clone = inner_size.clone();
-
-    let o_size = window.window().map(|w| w.root_origin()).unwrap_or(w_pos);
-    let outer_size: Rc<(AtomicI32, AtomicI32)> = Rc::new((o_size.0.into(), o_size.1.into()));
-    let outer_size_clone = outer_size.clone();
-
-    window.connect_configure_event(move |window, event| {
-      let (x, y) = event.position();
-      inner_position_clone.0.store(x, Ordering::Release);
-      inner_position_clone.1.store(y, Ordering::Release);
-
-      let (w, h) = event.size();
-      inner_size_clone.0.store(w as i32, Ordering::Release);
-      inner_size_clone.1.store(h as i32, Ordering::Release);
-
-      let (x, y, w, h) = window
-        .window()
-        .map(|w| {
-          let rect = w.frame_extents();
-          (rect.x(), rect.y(), rect.width(), rect.height())
-        })
-        .unwrap_or((x, y, w as i32, h as i32));
-
-      outer_position_clone.0.store(x, Ordering::Release);
-      outer_position_clone.1.store(y, Ordering::Release);
-
-      outer_size_clone.0.store(w, Ordering::Release);
-      outer_size_clone.1.store(h, Ordering::Release);
-
-      false
-    });
 
     let w_max = window.is_maximized();
     let maximized: Rc<AtomicBool> = Rc::new(w_max.into());
-    let max_clone = maximized.clone();
     let minimized = Rc::new(AtomicBool::new(false));
+    let max_clone = maximized.clone();
     let minimized_clone = minimized.clone();
-    let is_always_on_top = Rc::new(AtomicBool::new(
-      attributes.map(|a| a.always_on_top).unwrap_or(false),
-    ));
-    let is_always_on_top_clone = is_always_on_top.clone();
 
-    window.connect_window_state_event(move |_, event| {
-      let state = event.new_window_state();
-      max_clone.store(state.contains(WindowState::MAXIMIZED), Ordering::Release);
-      minimized_clone.store(state.contains(WindowState::ICONIFIED), Ordering::Release);
-      is_always_on_top_clone.store(state.contains(WindowState::ABOVE), Ordering::Release);
-      glib::Propagation::Proceed
+    // When a window is realized a new surface is created.
+    // All signal handlers on the surface must be re-added when this happens.
+    util::on_window_realized(window, move |window| {
+      let surface = window.surface().unwrap();
+
+      let toplevel = util::surface_as_toplevel(surface).unwrap();
+      let max_clone = max_clone.clone();
+      let minimized_clone = minimized_clone.clone();
+      toplevel.connect_state_notify(move |t| {
+        let state = t.state();
+        // Not available on wayland
+        minimized_clone.store(
+          state.contains(gdk::ToplevelState::MINIMIZED),
+          Ordering::Release,
+        );
+        max_clone.store(
+          state.contains(gdk::ToplevelState::MAXIMIZED),
+          Ordering::Release,
+        );
+      });
     });
 
     let scale_factor: Rc<AtomicI32> = Rc::new(win_scale_factor.into());
@@ -384,21 +205,12 @@ impl Window {
       scale_factor_clone.store(window.scale_factor(), Ordering::Release);
     });
 
-    (
-      scale_factor,
-      outer_position,
-      inner_position,
-      outer_size,
-      inner_size,
-      maximized,
-      minimized,
-      is_always_on_top,
-    )
+    (scale_factor, maximized, minimized)
   }
 
   pub(crate) fn new_from_gtk_window<T>(
     event_loop_window_target: &EventLoopWindowTarget<T>,
-    window: gtk::ApplicationWindow,
+    window: ApplicationWindow,
   ) -> Result<Self, RootOsError> {
     let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
     let draw_tx = event_loop_window_target.draw_tx.clone();
@@ -409,16 +221,7 @@ impl Window {
       .borrow_mut()
       .insert(window_id);
 
-    let (
-      scale_factor,
-      outer_position,
-      inner_position,
-      outer_size,
-      inner_size,
-      maximized,
-      minimized,
-      is_always_on_top,
-    ) = Self::setup_signals(&window, None);
+    let (scale_factor, maximized, minimized) = Self::setup_signals(&window);
 
     let win = Self {
       window_id,
@@ -427,13 +230,8 @@ impl Window {
       window_requests_tx,
       draw_tx,
       scale_factor,
-      outer_position,
-      inner_position,
-      outer_size,
-      inner_size,
       maximized,
       minimized,
-      is_always_on_top,
       fullscreen: RefCell::new(None),
       inner_size_constraints: RefCell::new(WindowSizeConstraints::default()),
       preferred_theme: RefCell::new(None),
@@ -452,43 +250,23 @@ impl Window {
   }
 
   pub fn request_redraw(&self) {
-    if let Err(e) = self.draw_tx.send(self.window_id) {
+    if let Err(e) = self.draw_tx.send_blocking(self.window_id) {
       log::warn!("Failed to send redraw event to event channel: {}", e);
     }
   }
 
   pub fn inner_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
-    let (x, y) = &*self.inner_position;
-    Ok(
-      LogicalPosition::new(x.load(Ordering::Acquire), y.load(Ordering::Acquire))
-        .to_physical(self.scale_factor.load(Ordering::Acquire) as f64),
-    )
+    Ok(PhysicalPosition::new(0, 0))
   }
 
   pub fn outer_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
-    let (x, y) = &*self.outer_position;
-    Ok(
-      LogicalPosition::new(x.load(Ordering::Acquire), y.load(Ordering::Acquire))
-        .to_physical(self.scale_factor.load(Ordering::Acquire) as f64),
-    )
+    Ok(PhysicalPosition::new(0, 0))
   }
 
-  pub fn set_outer_position<P: Into<Position>>(&self, position: P) {
-    let (x, y): (i32, i32) = position
-      .into()
-      .to_logical::<i32>(self.scale_factor())
-      .into();
-
-    if let Err(e) = self
-      .window_requests_tx
-      .send((self.window_id, WindowRequest::Position((x, y))))
-    {
-      log::warn!("Fail to send position request: {}", e);
-    }
-  }
+  pub fn set_outer_position<P: Into<Position>>(&self, _: P) {}
 
   pub fn set_background_color(&self, color: Option<RGBA>) {
-    if let Err(e) = self.window_requests_tx.send((
+    if let Err(e) = self.window_requests_tx.send_blocking((
       self.window_id,
       WindowRequest::BackgroundColor(self.css_provider.clone(), color),
     )) {
@@ -497,7 +275,7 @@ impl Window {
   }
 
   pub fn inner_size(&self) -> PhysicalSize<u32> {
-    let (width, height) = &*self.inner_size;
+    let (width, height) = &**self.window.inner_size();
 
     LogicalSize::new(
       width.load(Ordering::Acquire) as u32,
@@ -511,14 +289,14 @@ impl Window {
 
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::Size((width, height))))
+      .send_blocking((self.window_id, WindowRequest::Size((width, height))))
     {
       log::warn!("Fail to send size request: {}", e);
     }
   }
 
   pub fn outer_size(&self) -> PhysicalSize<u32> {
-    let (width, height) = &*self.outer_size;
+    let (width, height) = &**self.window.outer_size();
 
     LogicalSize::new(
       width.load(Ordering::Acquire) as u32,
@@ -530,7 +308,7 @@ impl Window {
   fn set_size_constraints(&self, constraints: WindowSizeConstraints) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::SizeConstraints(constraints)))
+      .send_blocking((self.window_id, WindowRequest::SizeConstraints(constraints)))
     {
       log::warn!("Fail to send size constraint request: {}", e);
     }
@@ -560,7 +338,7 @@ impl Window {
   pub fn set_title(&self, title: &str) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::Title(title.to_string())))
+      .send_blocking((self.window_id, WindowRequest::Title(title.to_string())))
     {
       log::warn!("Fail to send title request: {}", e);
     }
@@ -577,7 +355,7 @@ impl Window {
   pub fn set_visible(&self, visible: bool) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::Visible(visible)))
+      .send_blocking((self.window_id, WindowRequest::Visible(visible)))
     {
       log::warn!("Fail to send visible request: {}", e);
     }
@@ -587,7 +365,7 @@ impl Window {
     if !self.minimized.load(Ordering::Acquire) && self.window.get_visible() {
       if let Err(e) = self
         .window_requests_tx
-        .send((self.window_id, WindowRequest::Focus))
+        .send_blocking((self.window_id, WindowRequest::Focus))
       {
         log::warn!("Fail to send visible request: {}", e);
       }
@@ -601,7 +379,7 @@ impl Window {
   pub fn set_resizable(&self, resizable: bool) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::Resizable(resizable)))
+      .send_blocking((self.window_id, WindowRequest::Resizable(resizable)))
     {
       log::warn!("Fail to send resizable request: {}", e);
     }
@@ -614,7 +392,7 @@ impl Window {
   pub fn set_closable(&self, closable: bool) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::Closable(closable)))
+      .send_blocking((self.window_id, WindowRequest::Closable(closable)))
     {
       log::warn!("Fail to send closable request: {}", e);
     }
@@ -623,7 +401,7 @@ impl Window {
   pub fn set_minimized(&self, minimized: bool) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::Minimized(minimized)))
+      .send_blocking((self.window_id, WindowRequest::Minimized(minimized)))
     {
       log::warn!("Fail to send minimized request: {}", e);
     }
@@ -632,7 +410,7 @@ impl Window {
   pub fn set_maximized(&self, maximized: bool) {
     let resizable = self.is_resizable();
 
-    if let Err(e) = self.window_requests_tx.send((
+    if let Err(e) = self.window_requests_tx.send_blocking((
       self.window_id,
       WindowRequest::Maximized(maximized, resizable),
     )) {
@@ -641,7 +419,7 @@ impl Window {
   }
 
   pub fn is_always_on_top(&self) -> bool {
-    self.is_always_on_top.load(Ordering::Acquire)
+    false
   }
 
   pub fn is_maximized(&self) -> bool {
@@ -679,7 +457,7 @@ impl Window {
   pub fn drag_window(&self) -> Result<(), ExternalError> {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::DragWindow))
+      .send_blocking((self.window_id, WindowRequest::DragWindow))
     {
       log::warn!("Fail to send drag window request: {}", e);
     }
@@ -689,7 +467,7 @@ impl Window {
   pub fn drag_resize_window(&self, direction: ResizeDirection) -> Result<(), ExternalError> {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::DragResizeWindow(direction)))
+      .send_blocking((self.window_id, WindowRequest::DragResizeWindow(direction)))
     {
       log::warn!("Fail to send drag window request: {}", e);
     }
@@ -700,7 +478,7 @@ impl Window {
     self.fullscreen.replace(fullscreen.clone());
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::Fullscreen(fullscreen)))
+      .send_blocking((self.window_id, WindowRequest::Fullscreen(fullscreen)))
     {
       log::warn!("Fail to send fullscreen request: {}", e);
     }
@@ -713,38 +491,17 @@ impl Window {
   pub fn set_decorations(&self, decorations: bool) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::Decorations(decorations)))
+      .send_blocking((self.window_id, WindowRequest::Decorations(decorations)))
     {
       log::warn!("Fail to send decorations request: {}", e);
     }
   }
 
-  pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
-    if let Err(e) = self.window_requests_tx.send((
-      self.window_id,
-      WindowRequest::AlwaysOnBottom(always_on_bottom),
-    )) {
-      log::warn!("Fail to send always on bottom request: {}", e);
-    }
-  }
+  pub fn set_always_on_bottom(&self, _always_on_bottom: bool) {}
 
-  pub fn set_always_on_top(&self, always_on_top: bool) {
-    if let Err(e) = self
-      .window_requests_tx
-      .send((self.window_id, WindowRequest::AlwaysOnTop(always_on_top)))
-    {
-      log::warn!("Fail to send always on top request: {}", e);
-    }
-  }
+  pub fn set_always_on_top(&self, _always_on_top: bool) {}
 
-  pub fn set_window_icon(&self, window_icon: Option<Icon>) {
-    if let Err(e) = self
-      .window_requests_tx
-      .send((self.window_id, WindowRequest::WindowIcon(window_icon)))
-    {
-      log::warn!("Fail to send window icon request: {}", e);
-    }
-  }
+  pub fn set_window_icon(&self, _window_icon: Option<Icon>) {}
 
   pub fn set_ime_position<P: Into<Position>>(&self, _position: P) {
     //TODO
@@ -753,44 +510,23 @@ impl Window {
   pub fn request_user_attention(&self, request_type: Option<UserAttentionType>) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::UserAttention(request_type)))
+      .send_blocking((self.window_id, WindowRequest::UserAttention(request_type)))
     {
       log::warn!("Fail to send user attention request: {}", e);
     }
   }
 
-  pub fn set_visible_on_all_workspaces(&self, visible: bool) {
-    if let Err(e) = self.window_requests_tx.send((
-      self.window_id,
-      WindowRequest::SetVisibleOnAllWorkspaces(visible),
-    )) {
-      log::warn!("Fail to send visible on all workspaces request: {}", e);
-    }
-  }
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::CursorIcon(Some(cursor))))
+      .send_blocking((self.window_id, WindowRequest::CursorIcon(Some(cursor))))
     {
       log::warn!("Fail to send cursor icon request: {}", e);
     }
   }
 
-  pub fn set_cursor_position<P: Into<Position>>(&self, position: P) -> Result<(), ExternalError> {
-    let inner_pos = self.inner_position().unwrap_or_default();
-    let (x, y): (i32, i32) = position
-      .into()
-      .to_logical::<i32>(self.scale_factor())
-      .into();
-
-    if let Err(e) = self.window_requests_tx.send((
-      self.window_id,
-      WindowRequest::CursorPosition((x + inner_pos.x, y + inner_pos.y)),
-    )) {
-      log::warn!("Fail to send cursor position request: {}", e);
-    }
-
-    Ok(())
+  pub fn set_cursor_position<P: Into<Position>>(&self, _position: P) -> Result<(), ExternalError> {
+    Err(ExternalError::NotSupported(NotSupportedError::new()))
   }
 
   pub fn set_cursor_grab(&self, _grab: bool) -> Result<(), ExternalError> {
@@ -800,7 +536,7 @@ impl Window {
   pub fn set_ignore_cursor_events(&self, ignore: bool) -> Result<(), ExternalError> {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::CursorIgnoreEvents(ignore)))
+      .send_blocking((self.window_id, WindowRequest::CursorIgnoreEvents(ignore)))
     {
       log::warn!("Fail to send cursor position request: {}", e);
     }
@@ -816,7 +552,7 @@ impl Window {
     };
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::CursorIcon(cursor)))
+      .send_blocking((self.window_id, WindowRequest::CursorIcon(cursor)))
     {
       log::warn!("Fail to send cursor visibility request: {}", e);
     }
@@ -824,74 +560,64 @@ impl Window {
 
   #[inline]
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
-    util::cursor_position(self.is_wayland())
+    util::cursor_position(&self.window)
   }
 
+  #[inline]
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
-    let display = self.window.display();
-    // `.window()` returns `None` if the window is invisible;
-    // we fallback to the primary monitor
-    let monitor = self
-      .window
-      .window()
-      .and_then(|window| display.monitor_at_window(&window))
-      .or_else(|| display.primary_monitor());
-
-    monitor.map(|monitor| RootMonitorHandle {
-      inner: MonitorHandle { monitor },
-    })
+    monitor::current_monitor(&self.window)
   }
 
   #[inline]
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
-    let mut handles = VecDeque::new();
-    let display = self.window.display();
-    let numbers = display.n_monitors();
-
-    for i in 0..numbers {
-      let monitor = MonitorHandle::new(&display, i);
-      handles.push_back(monitor);
-    }
-
-    handles
-  }
-
-  pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
-    let display = self.window.display();
-    display.primary_monitor().map(|monitor| {
-      let handle = MonitorHandle { monitor };
-      RootMonitorHandle { inner: handle }
-    })
+    monitor::available_monitors(&self.display())
   }
 
   #[inline]
-  pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<RootMonitorHandle> {
-    let display = &self.window.display();
-    monitor::from_point(display, x, y).map(|inner| RootMonitorHandle { inner })
+  pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
+    monitor::primary_monitor(&self.display())
+  }
+
+  #[inline]
+  pub fn monitor_from_point(&self, _: f64, _: f64) -> Option<RootMonitorHandle> {
+    None
+  }
+
+  #[inline]
+  fn display(&self) -> gdk::Display {
+    RootExt::display(&self.window)
   }
 
   fn is_wayland(&self) -> bool {
-    self.window.display().backend().is_wayland()
+    self.display().backend().is_wayland()
   }
 
   #[cfg(feature = "rwh_04")]
   #[inline]
   pub fn raw_window_handle_rwh_04(&self) -> rwh_04::RawWindowHandle {
     if self.is_wayland() {
+      use gdk_wayland::prelude::WaylandSurfaceExtManual;
+      use gdk_wayland::wayland_client::Proxy;
+
       let mut window_handle = rwh_04::WaylandHandle::empty();
-      if let Some(window) = self.window.window() {
-        window_handle.surface =
-          unsafe { gdk_wayland_sys::gdk_wayland_window_get_wl_surface(window.as_ptr() as *mut _) };
+      if let Some(surface) = self.window.surface() {
+        let ptr = surface
+          .downcast::<gdk_wayland::WaylandSurface>()
+          .unwrap()
+          .wl_surface()
+          .unwrap()
+          .id()
+          .as_ptr();
+        window_handle.surface = ptr as *mut _;
       }
 
       rwh_04::RawWindowHandle::Wayland(window_handle)
     } else {
       let mut window_handle = rwh_04::XlibHandle::empty();
-      unsafe {
-        if let Some(window) = self.window.window() {
-          window_handle.window = gdk_x11_sys::gdk_x11_window_get_xid(window.as_ptr() as *mut _);
-        }
+      if let Some(surface) = self.window.surface() {
+        window_handle.window = surface.downcast::<gdk_x11::X11Surface>().unwrap().xid();
       }
+
       rwh_04::RawWindowHandle::Xlib(window_handle)
     }
   }
@@ -900,61 +626,85 @@ impl Window {
   #[inline]
   pub fn raw_window_handle_rwh_05(&self) -> rwh_05::RawWindowHandle {
     if self.is_wayland() {
+      use gdk_wayland::prelude::WaylandSurfaceExtManual;
+      use gdk_wayland::wayland_client::Proxy;
+
       let mut window_handle = rwh_05::WaylandWindowHandle::empty();
-      if let Some(window) = self.window.window() {
-        window_handle.surface =
-          unsafe { gdk_wayland_sys::gdk_wayland_window_get_wl_surface(window.as_ptr() as *mut _) };
+      if let Some(surface) = self.window.surface() {
+        let ptr = surface
+          .downcast::<gdk_wayland::WaylandSurface>()
+          .unwrap()
+          .wl_surface()
+          .unwrap()
+          .id()
+          .as_ptr();
+        window_handle.surface = ptr as *mut _;
       }
 
-      rwh_05::RawWindowHandle::Wayland(window_handle)
+      window_handle.into()
     } else {
       let mut window_handle = rwh_05::XlibWindowHandle::empty();
-      unsafe {
-        if let Some(window) = self.window.window() {
-          window_handle.window = gdk_x11_sys::gdk_x11_window_get_xid(window.as_ptr() as *mut _);
-        }
+      if let Some(surface) = self.window.surface() {
+        window_handle.window = surface.downcast::<gdk_x11::X11Surface>().unwrap().xid();
       }
-      rwh_05::RawWindowHandle::Xlib(window_handle)
+      window_handle.into()
     }
   }
 
   #[cfg(feature = "rwh_05")]
   #[inline]
   pub fn raw_display_handle_rwh_05(&self) -> rwh_05::RawDisplayHandle {
+    let display = self.display();
     if self.is_wayland() {
-      let mut display_handle = rwh_05::WaylandDisplayHandle::empty();
-      display_handle.display = unsafe {
-        gdk_wayland_sys::gdk_wayland_display_get_wl_display(self.window.display().as_ptr() as *mut _)
-      };
-      rwh_05::RawDisplayHandle::Wayland(display_handle)
-    } else {
-      let mut display_handle = rwh_05::XlibDisplayHandle::empty();
-      unsafe {
-        if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
-          let display = (xlib.XOpenDisplay)(std::ptr::null());
-          display_handle.display = display as _;
-          display_handle.screen = (xlib.XDefaultScreen)(display) as _;
-        }
-      }
+      use gdk_wayland::wayland_client::Proxy;
+      let display = display
+        .downcast::<gdk_wayland::WaylandDisplay>()
+        .unwrap()
+        .wl_display()
+        .unwrap()
+        .id()
+        .as_ptr();
 
-      rwh_05::RawDisplayHandle::Xlib(display_handle)
+      let mut display_handle = rwh_05::WaylandDisplayHandle::empty();
+      display_handle.display = display as *mut _;
+      display_handle.into()
+    } else {
+      let display = display.downcast::<gdk_x11::X11Display>().unwrap();
+
+      let mut display_handle = rwh_05::XlibDisplayHandle::empty();
+      display_handle.display =
+        unsafe { gdk_x11::ffi::gdk_x11_display_get_xdisplay(display.as_ptr() as *mut _) };
+      display_handle.screen = display.screen().screen_number();
+      display_handle.into()
     }
   }
 
   #[cfg(feature = "rwh_06")]
   #[inline]
   pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
-    if let Some(window) = self.window.window() {
+    if let Some(surface) = self.window.surface() {
       if self.is_wayland() {
-        let surface =
-          unsafe { gdk_wayland_sys::gdk_wayland_window_get_wl_surface(window.as_ptr() as *mut _) };
-        let surface = unsafe { std::ptr::NonNull::new_unchecked(surface) };
-        let window_handle = rwh_06::WaylandWindowHandle::new(surface);
-        Ok(rwh_06::RawWindowHandle::Wayland(window_handle))
+        use gdk_wayland::prelude::WaylandSurfaceExtManual;
+        use gdk_wayland::wayland_client::Proxy;
+
+        Ok(
+          rwh_06::WaylandWindowHandle::new({
+            let ptr = surface
+              .downcast::<gdk_wayland::WaylandSurface>()
+              .unwrap()
+              .wl_surface()
+              .unwrap()
+              .id()
+              .as_ptr();
+            std::ptr::NonNull::new(ptr as *mut _).expect("wl_surface will never be null")
+          })
+          .into(),
+        )
       } else {
-        let xid = unsafe { gdk_x11_sys::gdk_x11_window_get_xid(window.as_ptr() as *mut _) };
-        let window_handle = rwh_06::XlibWindowHandle::new(xid);
-        Ok(rwh_06::RawWindowHandle::Xlib(window_handle))
+        Ok(
+          rwh_06::XlibWindowHandle::new(surface.downcast::<gdk_x11::X11Surface>().unwrap().xid())
+            .into(),
+        )
       }
     } else {
       Err(rwh_06::HandleError::Unavailable)
@@ -964,50 +714,56 @@ impl Window {
   #[cfg(feature = "rwh_06")]
   #[inline]
   pub fn raw_display_handle_rwh_06(&self) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
+    let display = self.display();
     if self.is_wayland() {
-      let display = unsafe {
-        gdk_wayland_sys::gdk_wayland_display_get_wl_display(self.window.display().as_ptr() as *mut _)
-      };
-      let display = unsafe { std::ptr::NonNull::new_unchecked(display) };
-      let display_handle = rwh_06::WaylandDisplayHandle::new(display);
-      Ok(rwh_06::RawDisplayHandle::Wayland(display_handle))
+      use gdk_wayland::wayland_client::Proxy;
+
+      Ok(
+        rwh_06::WaylandDisplayHandle::new({
+          let ptr = display
+            .downcast::<gdk_wayland::WaylandDisplay>()
+            .unwrap()
+            .wl_display()
+            .unwrap()
+            .id()
+            .as_ptr();
+          std::ptr::NonNull::new(ptr as *mut _).expect("wl_display will never be null")
+        })
+        .into(),
+      )
     } else {
-      if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
-        unsafe {
-          let display = (xlib.XOpenDisplay)(std::ptr::null());
-          let screen = (xlib.XDefaultScreen)(display) as _;
-          let display = std::ptr::NonNull::new_unchecked(display as _);
-          let display_handle = rwh_06::XlibDisplayHandle::new(Some(display), screen);
-          Ok(rwh_06::RawDisplayHandle::Xlib(display_handle))
-        }
-      } else {
-        Err(rwh_06::HandleError::Unavailable)
-      }
+      let display = display.downcast::<gdk_x11::X11Display>().unwrap();
+
+      Ok(
+        rwh_06::XlibDisplayHandle::new(
+          Some(
+            std::ptr::NonNull::new(unsafe {
+              gdk_x11::ffi::gdk_x11_display_get_xdisplay(display.as_ptr() as *mut _)
+            })
+            .expect("X11 display should never be null"),
+          ),
+          display.screen().screen_number(),
+        )
+        .into(),
+      )
     }
   }
 
-  pub fn set_skip_taskbar(&self, skip: bool) -> Result<(), ExternalError> {
-    if let Err(e) = self
-      .window_requests_tx
-      .send((self.window_id, WindowRequest::SetSkipTaskbar(skip)))
-    {
-      log::warn!("Fail to send skip taskbar request: {}", e);
-    }
-
-    Ok(())
+  pub fn set_skip_taskbar(&self, _: bool) -> Result<(), ExternalError> {
+    Err(ExternalError::NotSupported(NotSupportedError::new()))
   }
 
   pub fn set_progress_bar(&self, progress: ProgressBarState) {
     if let Err(e) = self
       .window_requests_tx
-      .send((WindowId::dummy(), WindowRequest::ProgressBarState(progress)))
+      .send_blocking((WindowId::dummy(), WindowRequest::ProgressBarState(progress)))
     {
       log::warn!("Fail to send update progress bar request: {}", e);
     }
   }
 
   pub fn set_badge_count(&self, count: Option<i64>, desktop_filename: Option<String>) {
-    if let Err(e) = self.window_requests_tx.send((
+    if let Err(e) = self.window_requests_tx.send_blocking((
       WindowId::dummy(),
       WindowRequest::BadgeCount(count, desktop_filename),
     )) {
@@ -1020,9 +776,10 @@ impl Window {
       return theme;
     }
 
-    if let Some(theme) = Settings::default().and_then(|s| s.gtk_theme_name()) {
-      let theme = theme.as_str();
-      if GTK_THEME_SUFFIX_LIST.iter().any(|t| theme.ends_with(t)) {
+    if let Some(prefers_dark) =
+      Settings::default().map(|s| s.is_gtk_application_prefer_dark_theme())
+    {
+      if prefers_dark {
         return Theme::Dark;
       }
     }
@@ -1034,7 +791,7 @@ impl Window {
     *self.preferred_theme.borrow_mut() = theme;
     if let Err(e) = self
       .window_requests_tx
-      .send((WindowId::dummy(), WindowRequest::SetTheme(theme)))
+      .send_blocking((WindowId::dummy(), WindowRequest::SetTheme(theme)))
     {
       log::warn!("Fail to send set theme request: {e}");
     }
@@ -1049,7 +806,6 @@ unsafe impl Sync for Window {}
 #[non_exhaustive]
 pub enum WindowRequest {
   Title(String),
-  Position((i32, i32)),
   Size((i32, i32)),
   SizeConstraints(WindowSizeConstraints),
   Visible(bool),
@@ -1062,20 +818,14 @@ pub enum WindowRequest {
   DragResizeWindow(ResizeDirection),
   Fullscreen(Option<Fullscreen>),
   Decorations(bool),
-  AlwaysOnBottom(bool),
-  AlwaysOnTop(bool),
-  WindowIcon(Option<Icon>),
   UserAttention(Option<UserAttentionType>),
-  SetSkipTaskbar(bool),
   CursorIcon(Option<CursorIcon>),
-  CursorPosition((i32, i32)),
   CursorIgnoreEvents(bool),
   WireUpEvents {
     transparent: bool,
     fullscreen: bool,
     cursor_moved: bool,
   },
-  SetVisibleOnAllWorkspaces(bool),
   ProgressBarState(ProgressBarState),
   BadgeCount(Option<i64>, Option<String>),
   SetTheme(Option<Theme>),
@@ -1084,8 +834,6 @@ pub enum WindowRequest {
 
 impl Drop for Window {
   fn drop(&mut self) {
-    unsafe {
-      self.window.destroy();
-    }
+    self.window.destroy();
   }
 }

@@ -49,13 +49,13 @@ Gtk and its related libraries are used to build the support of Linux. Be sure to
 #### Arch Linux / Manjaro:
 
 ```bash
-sudo pacman -S gtk3
+sudo pacman -S gtk4
 ```
 
 #### Debian / Ubuntu:
 
 ```bash
-sudo apt install libgtk-3-dev
+sudo apt install libgtk-4-dev
 ```
 
 ### Acknowledgement
