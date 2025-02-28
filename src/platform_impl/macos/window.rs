@@ -632,7 +632,7 @@ impl UnownedWindow {
     unsafe {
       let is_minimized = self.ns_window.isMiniaturized();
       let is_visible = self.ns_window.isVisible();
-      if is_minimized && is_visible {
+      if !is_minimized && is_visible {
         util::set_focus(&self.ns_window);
       }
     }
