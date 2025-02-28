@@ -64,7 +64,7 @@ use crate::{
 };
 use runner::{EventLoopRunner, EventLoopRunnerShared};
 
-use super::dpi::hwnd_dpi;
+use super::{dpi::hwnd_dpi, util::get_system_metrics_for_dpi};
 
 type GetPointerFrameInfoHistory = unsafe extern "system" fn(
   pointerId: u32,
