@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.32.6]
+
+- [`9d1da74b`](https://github.com/tauri-apps/tao/commit/9d1da74bb70f7bb17a4d41532c2b94c709b65ec8) ([#1080](https://github.com/tauri-apps/tao/pull/1080) by [@amrbashir](https://github.com/tauri-apps/tao/../../amrbashir)) Fix crash on Windows because of missing functions on older Windows systems, regression in 0.32
+
 ## \[0.32.5]
 
 - [`08c9c4c6`](https://github.com/tauri-apps/tao/commit/08c9c4c6e4ffa7a96ed6888d11f0b49f5819705d) ([#1078](https://github.com/tauri-apps/tao/pull/1078) by [@amrbashir](https://github.com/tauri-apps/tao/../../amrbashir)) Fix `Window::set_focus` regression on macOS
