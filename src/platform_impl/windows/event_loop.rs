@@ -31,7 +31,6 @@ use windows::{
     },
     UI::{
       Controls::{self as win32c, HOVER_DEFAULT},
-      HiDpi::GetSystemMetricsForDpi,
       Input::{KeyboardAndMouse::*, Pointer::*, Touch::*, *},
       Shell::{
         DefSubclassProc, RemoveWindowSubclass, SHAppBarMessage, SetWindowSubclass, ABE_BOTTOM,
@@ -2194,7 +2193,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         );
 
         let dpi = hwnd_dpi(window);
-        let border_y = GetSystemMetricsForDpi(SM_CYFRAME, dpi);
+        let border_y = get_system_metrics_for_dpi(SM_CYFRAME, dpi);
 
         // if we have undecorated shadows, we only need to handle the top edge
         if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) {
@@ -2211,7 +2210,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         }
         // otherwise do full hit testing
         else {
-          let border_x = GetSystemMetricsForDpi(SM_CXFRAME, dpi);
+          let border_x = get_system_metrics_for_dpi(SM_CXFRAME, dpi);
           let rect = util::window_rect(window);
           let hit_result = crate::window::hit_test(
             (rect.left, rect.top, rect.right, rect.bottom),
