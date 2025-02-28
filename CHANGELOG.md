@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.32.5]
+
+- [`08c9c4c6`](https://github.com/tauri-apps/tao/commit/08c9c4c6e4ffa7a96ed6888d11f0b49f5819705d) ([#1078](https://github.com/tauri-apps/tao/pull/1078) by [@amrbashir](https://github.com/tauri-apps/tao/../../amrbashir)) Fix `Window::set_focus` regression on macOS
+
 ## \[0.32.4]
 
 - [`4679d683`](https://github.com/tauri-apps/tao/commit/4679d6835ab3ea5ea125dcf812d4c504330ec12e) ([#1056](https://github.com/tauri-apps/tao/pull/1056) by [@dgerhardt](https://github.com/tauri-apps/tao/../../dgerhardt)) On Windows 11, fix incorrect window positioning and sizing on `WM_DPICHANGED`.
