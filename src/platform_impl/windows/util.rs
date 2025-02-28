@@ -288,6 +288,8 @@ pub type GetDpiForMonitor = unsafe extern "system" fn(
   dpi_x: *mut u32,
   dpi_y: *mut u32,
 ) -> HRESULT;
+type GetSystemMetricsForDpi =
+  unsafe extern "system" fn(nindex: SYSTEM_METRICS_INDEX, dpi: u32) -> i32;
 pub type EnableNonClientDpiScaling = unsafe extern "system" fn(hwnd: HWND) -> BOOL;
 pub type AdjustWindowRectExForDpi = unsafe extern "system" fn(
   rect: *mut RECT,
@@ -304,6 +306,8 @@ lazy_static! {
     get_function!("user32.dll", AdjustWindowRectExForDpi);
   pub static ref GET_DPI_FOR_MONITOR: Option<GetDpiForMonitor> =
     get_function!("shcore.dll", GetDpiForMonitor);
+  pub static ref GET_SYSTEM_METRICS_FOR_DPI: Option<GetSystemMetricsForDpi> =
+    get_function!("user32.dll", GetSystemMetricsForDpi);
   pub static ref ENABLE_NON_CLIENT_DPI_SCALING: Option<EnableNonClientDpiScaling> =
     get_function!("user32.dll", EnableNonClientDpiScaling);
   pub static ref SET_PROCESS_DPI_AWARENESS_CONTEXT: Option<SetProcessDpiAwarenessContext> =
@@ -431,8 +435,8 @@ pub static WIN_VERSION: Lazy<windows_version::OsVersion> =
   Lazy::new(windows_version::OsVersion::current);
 
 pub fn get_frame_thickness(dpi: u32) -> i32 {
-  let resize_frame_thickness = unsafe { GetSystemMetricsForDpi(SM_CXSIZEFRAME, dpi) };
-  let padding_thickness = unsafe { GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi) };
+  let resize_frame_thickness = unsafe { get_system_metrics_for_dpi(SM_CXSIZEFRAME, dpi) };
+  let padding_thickness = unsafe { get_system_metrics_for_dpi(SM_CXPADDEDBORDER, dpi) };
   resize_frame_thickness + padding_thickness
 }
 
@@ -493,5 +497,14 @@ pub fn client_rect(hwnd: HWND) -> RECT {
       )
     }
     rect
+  }
+}
+
+pub unsafe fn get_system_metrics_for_dpi(nindex: SYSTEM_METRICS_INDEX, dpi: u32) -> i32 {
+  #[allow(non_snake_case)]
+  if let Some(GetSystemMetricsForDpi) = *GET_SYSTEM_METRICS_FOR_DPI {
+    GetSystemMetricsForDpi(nindex, dpi)
+  } else {
+    GetSystemMetrics(nindex)
   }
 }
