@@ -964,7 +964,7 @@ impl UnownedWindow {
     let mask = self.saved_style(&mut *shared_state_lock);
 
     drop(shared_state_lock);
-    trace!("Unocked shared state in `restore_state_from_fullscreen`");
+    trace!("Unlocked shared state in `restore_state_from_fullscreen`");
 
     self.set_style_mask_async(mask);
     self.set_maximized(maximized);
