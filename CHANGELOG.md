@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.32.7]
+
+- [`1951b9ab`](https://github.com/tauri-apps/tao/commit/1951b9abbb4bf424e573c75161db40e68c4c603d) ([#1083](https://github.com/tauri-apps/tao/pull/1083) by [@gezihuzi](https://github.com/tauri-apps/tao/../../gezihuzi)) Fixed application crash during startup when certain window buttons are disabled on macOS.
+
 ## \[0.32.6]
 
 - [`9d1da74b`](https://github.com/tauri-apps/tao/commit/9d1da74bb70f7bb17a4d41532c2b94c709b65ec8) ([#1080](https://github.com/tauri-apps/tao/pull/1080) by [@amrbashir](https://github.com/tauri-apps/tao/../../amrbashir)) Fix crash on Windows because of missing functions on older Windows systems, regression in 0.32
