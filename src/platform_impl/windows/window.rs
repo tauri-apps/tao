@@ -767,9 +767,10 @@ impl Window {
           let placement = unsafe {
             let mut placement = WINDOWPLACEMENT::default();
             let _ = GetWindowPlacement(hwnd, &mut placement);
+            // set the `showCmd` to your needs when you use this placement below.
+            placement.showCmd = SW_NORMAL.0 as u32;
             placement
           };
-
           window_state.lock().saved_window = Some(SavedWindow { placement });
 
           let monitor = match &fullscreen {
@@ -798,7 +799,13 @@ impl Window {
         }
         None => {
           let mut window_state_lock = window_state.lock();
-          if let Some(SavedWindow { placement }) = window_state_lock.saved_window.take() {
+          if let Some(SavedWindow { mut placement }) = window_state_lock.saved_window.take() {
+            if window_state_lock
+              .window_flags
+              .contains(WindowFlags::MAXIMIZED)
+            {
+              placement.showCmd = SW_MAXIMIZE.0 as u32;
+            }
             drop(window_state_lock);
             unsafe {
               let _ = SetWindowPlacement(hwnd, &placement);
