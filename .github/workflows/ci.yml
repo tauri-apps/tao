@@ -40,13 +40,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache cargo folder
-        uses: actions/cache@v1
-        with:
-          path: ~/.cargo
-          key: ${{ matrix.platform.target }}-cargo-stable
-
       - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
 
       - name: Install Gtk (ubuntu only)
         if: matrix.platform.os == 'ubuntu-latest'
@@ -120,13 +116,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache cargo folder
-        uses: actions/cache@v1
-        with:
-          path: ~/.cargo
-          key: ${{ matrix.platform.target }}-cargo-stable
-
       - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
 
       - name: Run tests
         shell: bash
