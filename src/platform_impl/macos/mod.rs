@@ -6,6 +6,7 @@ mod app;
 mod app_delegate;
 mod app_state;
 mod badge;
+mod dock;
 mod event;
 mod event_loop;
 mod ffi;
@@ -35,7 +36,7 @@ use crate::{
   error::OsError as RootOsError, event::DeviceId as RootDeviceId, window::WindowAttributes,
 };
 pub(crate) use badge::set_badge_label;
-
+pub(crate) use dock::set_dock_visibility;
 pub(crate) use icon::PlatformIcon;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
