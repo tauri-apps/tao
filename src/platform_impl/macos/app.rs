@@ -4,10 +4,10 @@
 
 use std::{collections::VecDeque, ffi::CStr};
 
-use objc2::runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel};
-use objc2_app_kit::{self as appkit, NSEvent, NSEventType};
+use objc2::runtime::{AnyClass as Class, ClassBuilder as ClassDecl, Sel};
+use objc2_app_kit::{self as appkit, NSApplication, NSEvent, NSEventType};
 
-use super::{app_state::AppState, event::EventWrapper, ffi::id, util, DEVICE_ID};
+use super::{app_state::AppState, event::EventWrapper, util, DEVICE_ID};
 use crate::event::{DeviceEvent, ElementState, Event};
 
 pub struct AppClass(pub *const Class);
@@ -29,7 +29,7 @@ lazy_static! {
 // Normally, holding Cmd + any key never sends us a `keyUp` event for that key.
 // Overriding `sendEvent:` like this fixes that. (https://stackoverflow.com/a/15294196)
 // Fun fact: Firefox still has this bug! (https://bugzilla.mozilla.org/show_bug.cgi?id=1299553)
-extern "C" fn send_event(this: &Object, _sel: Sel, event: &NSEvent) {
+extern "C" fn send_event(this: &NSApplication, _sel: Sel, event: &NSEvent) {
   unsafe {
     // For posterity, there are some undocumented event types
     // (https://github.com/servo/cocoa-rs/issues/155)
@@ -39,8 +39,11 @@ extern "C" fn send_event(this: &Object, _sel: Sel, event: &NSEvent) {
     if event_type == appkit::NSKeyUp
       && util::has_flag(modifier_flags, appkit::NSEventModifierFlags::Command)
     {
-      let key_window: id = msg_send![this, keyWindow];
-      let _: () = msg_send![key_window, sendEvent: event];
+      if let Some(key_window) = this.keyWindow() {
+        key_window.sendEvent(event);
+      } else {
+        log::debug!("skip sending CMD keyEvent - app has no keyWindow");
+      }
     } else {
       maybe_dispatch_device_event(event);
       let superclass = util::superclass(this);
