@@ -10,6 +10,8 @@ use objc2_app_kit::NSApplication;
 
 use super::get_aux_state_mut;
 
+const DOCK_SHOW_TIMEOUT: Duration = Duration::from_secs(1);
+
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
   fn TransformProcessType(psn: *const ProcessSerialNumber, transformState: i32) -> i32;
@@ -50,7 +52,7 @@ fn set_dock_hide(last_dock_show: &Mutex<Option<Instant>>) {
   let now = Instant::now();
   let last_dock_show = last_dock_show.lock().unwrap();
   if let Some(last_dock_show_time) = *last_dock_show {
-    if now.duration_since(last_dock_show_time) < Duration::new(1, 0) {
+    if now.duration_since(last_dock_show_time) < DOCK_SHOW_TIMEOUT {
       return;
     }
   }
