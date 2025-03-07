@@ -59,15 +59,13 @@
 //!
 //! Also note that app may not receive the LoopDestroyed event if suspended; it might be SIGKILL'ed.
 
-#![cfg(target_os = "ios")]
-
 // TODO: (mtak-) UIKit requires main thread for virtually all function/method calls. This could be
 // worked around in the future by using GCD (grand central dispatch) and/or caching of values like
 // window size/position.
 macro_rules! assert_main_thread {
     ($($t:tt)*) => {
-        let is_main_thread: ::objc::runtime::BOOL = msg_send!(class!(NSThread), isMainThread);
-        if is_main_thread == ::objc::runtime::NO {
+        let is_main_thread: bool = msg_send![class!(NSThread), isMainThread];
+        if !is_main_thread {
             panic!($($t)*);
         }
     };
@@ -120,8 +118,6 @@ pub enum OsError {}
 
 impl fmt::Display for OsError {
   fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self {
-      _ => unreachable!(),
-    }
+    unreachable!()
   }
 }

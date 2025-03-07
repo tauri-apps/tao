@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use windows::{
-  core::PCWSTR,
+  core::{BOOL, PCWSTR},
   Win32::{
-    Foundation::{BOOL, HWND, LPARAM, POINT, RECT},
+    Foundation::{HWND, LPARAM, POINT, RECT},
     Graphics::Gdi::*,
     UI::WindowsAndMessaging::USER_DEFAULT_SCREEN_DPI,
   },

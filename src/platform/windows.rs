@@ -125,7 +125,6 @@ impl<T> EventLoopBuilderExtWindows for EventLoopBuilder<T> {
   }
 
   #[inline]
-
   fn with_theme(&mut self, theme: Option<Theme>) -> &mut Self {
     self.platform_specific.preferred_theme = theme;
     self
@@ -183,6 +182,9 @@ pub trait WindowExtWindows {
   /// Enabling the shadow causes a thin 1px line to appear on the top of the window.
   fn set_undecorated_shadow(&self, shadow: bool);
 
+  /// Returns whether this window has shadow for undecorated windows.
+  fn has_undecorated_shadow(&self) -> bool;
+
   /// Sets right-to-left layout.
   ///
   /// Enabling this mainly flips the orientation of menus and title bar buttons
@@ -235,6 +237,11 @@ impl WindowExtWindows for Window {
   #[inline]
   fn set_undecorated_shadow(&self, shadow: bool) {
     self.window.set_undecorated_shadow(shadow)
+  }
+
+  #[inline]
+  fn has_undecorated_shadow(&self) -> bool {
+    self.window.has_undecorated_shadow()
   }
 
   #[inline]

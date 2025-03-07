@@ -47,8 +47,6 @@ jobs:
           key: ${{ matrix.platform.target }}-cargo-stable
 
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform.target }}
 
       - name: Install Gtk (ubuntu only)
         if: matrix.platform.os == 'ubuntu-latest'
@@ -63,6 +61,10 @@ jobs:
       - name: Install cargo-apk
         if: contains(matrix.platform.target, 'android')
         run: cargo install cargo-apk
+
+      - uses: dtolnay/rust-toolchain@1.74
+        with:
+          targets: ${{ matrix.platform.target }}
 
       - name: Check documentation
         shell: bash

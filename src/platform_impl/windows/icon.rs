@@ -29,7 +29,7 @@ impl RgbaIcon {
     let pixels =
       unsafe { std::slice::from_raw_parts_mut(rgba.as_mut_ptr() as *mut Pixel, pixel_count) };
     for pixel in pixels {
-      and_mask.push(pixel.a.wrapping_sub(std::u8::MAX)); // invert alpha channel
+      and_mask.push(pixel.a.wrapping_sub(u8::MAX)); // invert alpha channel
       pixel.to_bgra();
     }
     assert_eq!(and_mask.len(), pixel_count);
@@ -93,8 +93,8 @@ impl WinIcon {
         None,
         PCWSTR::from_raw(wide_path.as_ptr()),
         IMAGE_ICON,
-        width as i32,
-        height as i32,
+        width,
+        height,
         LR_DEFAULTSIZE | LR_LOADFROMFILE,
       )
     }
@@ -112,8 +112,8 @@ impl WinIcon {
         GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
         PCWSTR::from_raw(resource_id as usize as *const u16),
         IMAGE_ICON,
-        width as i32,
-        height as i32,
+        width,
+        height,
         LR_DEFAULTSIZE,
       )
     }

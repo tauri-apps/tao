@@ -32,7 +32,7 @@ fn main() {
   let child_window_builder = WindowBuilder::new().with_inner_size(LogicalSize::new(200, 200));
 
   #[cfg(any(target_os = "windows", target_os = "macos"))]
-  let child_window_builder = child_window_builder.with_parent_window(parent_window.clone());
+  let child_window_builder = child_window_builder.with_parent_window(parent_window);
 
   #[cfg(target_os = "linux")]
   let child_window_builder = child_window_builder.with_transient_for(parent_window);
@@ -48,8 +48,10 @@ fn main() {
     match event {
       Event::NewEvents(StartCause::Init) => println!("TAO application started!"),
       Event::WindowEvent {
-        event, window_id, ..
-      } if event == WindowEvent::CloseRequested => {
+        event: WindowEvent::CloseRequested,
+        window_id,
+        ..
+      } => {
         println!("Window {window_id:?} has received the signal to close");
         // This drop the window, causing it to close.
         windows.remove(&window_id);

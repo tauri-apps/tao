@@ -20,11 +20,9 @@ use std::{
   time::{Duration, Instant},
 };
 use windows::{
-  core::{s, PCWSTR},
+  core::{s, BOOL, PCWSTR},
   Win32::{
-    Foundation::{
-      BOOL, HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_TIMEOUT, WPARAM,
-    },
+    Foundation::{HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_TIMEOUT, WPARAM},
     Graphics::Gdi::*,
     System::{
       LibraryLoader::GetModuleHandleW,
@@ -33,7 +31,6 @@ use windows::{
     },
     UI::{
       Controls::{self as win32c, HOVER_DEFAULT},
-      HiDpi::GetSystemMetricsForDpi,
       Input::{KeyboardAndMouse::*, Pointer::*, Touch::*, *},
       Shell::{
         DefSubclassProc, RemoveWindowSubclass, SHAppBarMessage, SetWindowSubclass, ABE_BOTTOM,
@@ -67,7 +64,7 @@ use crate::{
 };
 use runner::{EventLoopRunner, EventLoopRunnerShared};
 
-use super::dpi::hwnd_dpi;
+use super::{dpi::hwnd_dpi, util::get_system_metrics_for_dpi};
 
 type GetPointerFrameInfoHistory = unsafe extern "system" fn(
   pointerId: u32,
@@ -469,7 +466,7 @@ fn dur2timeout(dur: Duration) -> u32 {
       })
     })
     .map(|ms| {
-      if ms > u32::max_value() as u64 {
+      if ms > u32::MAX as u64 {
         INFINITE
       } else {
         ms as u32
@@ -1591,7 +1588,10 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let htouch = HTOUCHINPUT(lparam.0 as _);
       if GetTouchInputInfo(
         htouch,
-        mem::transmute(uninit_inputs),
+        mem::transmute::<
+          &mut [std::mem::MaybeUninit<windows::Win32::UI::Input::Touch::TOUCHINPUT>],
+          &mut [windows::Win32::UI::Input::Touch::TOUCHINPUT],
+        >(uninit_inputs),
         mem::size_of::<TOUCHINPUT>() as i32,
       )
       .is_ok()
@@ -1997,99 +1997,107 @@ unsafe fn public_window_callback_inner<T: 'static>(
       }
 
       let new_outer_rect: RECT;
-      {
-        let suggested_ul = (
-          suggested_rect.left + margin_left,
-          suggested_rect.top + margin_top,
-        );
+      if util::WIN_VERSION.build < 22000 {
+        // The window position needs adjustment on Windows 10.
+        {
+          let suggested_ul = (
+            suggested_rect.left + margin_left,
+            suggested_rect.top + margin_top,
+          );
 
-        let mut conservative_rect = RECT {
-          left: suggested_ul.0,
-          top: suggested_ul.1,
-          right: suggested_ul.0 + new_physical_inner_size.width as i32,
-          bottom: suggested_ul.1 + new_physical_inner_size.height as i32,
-        };
-
-        conservative_rect =
-          util::adjust_window_rect_with_styles(window, style, style_ex, conservative_rect)
-            .unwrap_or(conservative_rect);
-
-        // If we're dragging the window, offset the window so that the cursor's
-        // relative horizontal position in the title bar is preserved.
-        if dragging_window {
-          let bias = {
-            let cursor_pos = {
-              let mut pos = POINT::default();
-              let _ = GetCursorPos(&mut pos);
-              pos
-            };
-            let suggested_cursor_horizontal_ratio = (cursor_pos.x - suggested_rect.left) as f64
-              / (suggested_rect.right - suggested_rect.left) as f64;
-
-            (cursor_pos.x
-              - (suggested_cursor_horizontal_ratio
-                * (conservative_rect.right - conservative_rect.left) as f64) as i32)
-              - conservative_rect.left
+          let mut conservative_rect = RECT {
+            left: suggested_ul.0,
+            top: suggested_ul.1,
+            right: suggested_ul.0 + new_physical_inner_size.width as i32,
+            bottom: suggested_ul.1 + new_physical_inner_size.height as i32,
           };
-          conservative_rect.left += bias;
-          conservative_rect.right += bias;
-        }
 
-        // Check to see if the new window rect is on the monitor with the new DPI factor.
-        // If it isn't, offset the window so that it is.
-        let new_dpi_monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONULL);
-        let conservative_rect_monitor = MonitorFromRect(&conservative_rect, MONITOR_DEFAULTTONULL);
-        new_outer_rect = {
-          if conservative_rect_monitor != new_dpi_monitor {
-            let get_monitor_rect = |monitor| {
-              let mut monitor_info = MONITORINFO {
-                cbSize: mem::size_of::<MONITORINFO>() as _,
-                ..Default::default()
+          conservative_rect =
+            util::adjust_window_rect_with_styles(window, style, style_ex, conservative_rect)
+              .unwrap_or(conservative_rect);
+
+          // If we're dragging the window, offset the window so that the cursor's
+          // relative horizontal position in the title bar is preserved.
+          if dragging_window {
+            let bias = {
+              let cursor_pos = {
+                let mut pos = POINT::default();
+                let _ = GetCursorPos(&mut pos);
+                pos
               };
-              let _ = GetMonitorInfoW(monitor, &mut monitor_info);
-              monitor_info.rcMonitor
+              let suggested_cursor_horizontal_ratio = (cursor_pos.x - suggested_rect.left) as f64
+                / (suggested_rect.right - suggested_rect.left) as f64;
+
+              (cursor_pos.x
+                - (suggested_cursor_horizontal_ratio
+                  * (conservative_rect.right - conservative_rect.left) as f64)
+                  as i32)
+                - conservative_rect.left
             };
-            let wrong_monitor = conservative_rect_monitor;
-            let wrong_monitor_rect = get_monitor_rect(wrong_monitor);
-            let new_monitor_rect = get_monitor_rect(new_dpi_monitor);
-
-            // The direction to nudge the window in to get the window onto the monitor with
-            // the new DPI factor. We calculate this by seeing which monitor edges are
-            // shared and nudging away from the wrong monitor based on those.
-            let delta_nudge_to_dpi_monitor = (
-              if wrong_monitor_rect.left == new_monitor_rect.right {
-                -1
-              } else if wrong_monitor_rect.right == new_monitor_rect.left {
-                1
-              } else {
-                0
-              },
-              if wrong_monitor_rect.bottom == new_monitor_rect.top {
-                1
-              } else if wrong_monitor_rect.top == new_monitor_rect.bottom {
-                -1
-              } else {
-                0
-              },
-            );
-
-            let abort_after_iterations = new_monitor_rect.right - new_monitor_rect.left
-              + new_monitor_rect.bottom
-              - new_monitor_rect.top;
-            for _ in 0..abort_after_iterations {
-              conservative_rect.left += delta_nudge_to_dpi_monitor.0;
-              conservative_rect.right += delta_nudge_to_dpi_monitor.0;
-              conservative_rect.top += delta_nudge_to_dpi_monitor.1;
-              conservative_rect.bottom += delta_nudge_to_dpi_monitor.1;
-
-              if MonitorFromRect(&conservative_rect, MONITOR_DEFAULTTONULL) == new_dpi_monitor {
-                break;
-              }
-            }
+            conservative_rect.left += bias;
+            conservative_rect.right += bias;
           }
 
-          conservative_rect
-        };
+          // Check to see if the new window rect is on the monitor with the new DPI factor.
+          // If it isn't, offset the window so that it is.
+          let new_dpi_monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONULL);
+          let conservative_rect_monitor =
+            MonitorFromRect(&conservative_rect, MONITOR_DEFAULTTONULL);
+          new_outer_rect = {
+            if conservative_rect_monitor != new_dpi_monitor {
+              let get_monitor_rect = |monitor| {
+                let mut monitor_info = MONITORINFO {
+                  cbSize: mem::size_of::<MONITORINFO>() as _,
+                  ..Default::default()
+                };
+                let _ = GetMonitorInfoW(monitor, &mut monitor_info);
+                monitor_info.rcMonitor
+              };
+              let wrong_monitor = conservative_rect_monitor;
+              let wrong_monitor_rect = get_monitor_rect(wrong_monitor);
+              let new_monitor_rect = get_monitor_rect(new_dpi_monitor);
+
+              // The direction to nudge the window in to get the window onto the monitor with
+              // the new DPI factor. We calculate this by seeing which monitor edges are
+              // shared and nudging away from the wrong monitor based on those.
+              let delta_nudge_to_dpi_monitor = (
+                if wrong_monitor_rect.left == new_monitor_rect.right {
+                  -1
+                } else if wrong_monitor_rect.right == new_monitor_rect.left {
+                  1
+                } else {
+                  0
+                },
+                if wrong_monitor_rect.bottom == new_monitor_rect.top {
+                  1
+                } else if wrong_monitor_rect.top == new_monitor_rect.bottom {
+                  -1
+                } else {
+                  0
+                },
+              );
+
+              let abort_after_iterations = new_monitor_rect.right - new_monitor_rect.left
+                + new_monitor_rect.bottom
+                - new_monitor_rect.top;
+              for _ in 0..abort_after_iterations {
+                conservative_rect.left += delta_nudge_to_dpi_monitor.0;
+                conservative_rect.right += delta_nudge_to_dpi_monitor.0;
+                conservative_rect.top += delta_nudge_to_dpi_monitor.1;
+                conservative_rect.bottom += delta_nudge_to_dpi_monitor.1;
+
+                if MonitorFromRect(&conservative_rect, MONITOR_DEFAULTTONULL) == new_dpi_monitor {
+                  break;
+                }
+              }
+            }
+
+            conservative_rect
+          };
+        }
+      } else {
+        // The suggested position is fine w/o adjustment on Windows 11.
+        new_outer_rect = suggested_rect
       }
 
       let _ = SetWindowPos(
@@ -2140,6 +2148,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
             if edges & ABE_BOTTOM != 0 {
               rect.bottom -= 1;
             }
+            // FIXME:
+            #[allow(clippy::bad_bit_mask)]
             if edges & ABE_LEFT != 0 {
               rect.left += 1;
             }
@@ -2183,24 +2193,25 @@ unsafe fn public_window_callback_inner<T: 'static>(
         );
 
         let dpi = hwnd_dpi(window);
-        let border_y = GetSystemMetricsForDpi(SM_CYFRAME, dpi);
+        let border_y = get_system_metrics_for_dpi(SM_CYFRAME, dpi);
 
         // if we have undecorated shadows, we only need to handle the top edge
         if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) {
+          let rect = util::client_rect(window);
           let mut cursor_pt = POINT { x: cx, y: cy };
           if ScreenToClient(window, &mut cursor_pt).as_bool()
             && cursor_pt.y >= 0
             && cursor_pt.y <= border_y
+            && cursor_pt.x >= 0
+            && cursor_pt.x <= rect.right
           {
             result = ProcResult::Value(LRESULT(HTTOP as _));
           }
-        } else {
-          //otherwise do full hit testing
-          let border_x = GetSystemMetricsForDpi(SM_CXFRAME, dpi);
-
-          let mut rect = RECT::default();
-          let _ = GetWindowRect(window, &mut rect);
-
+        }
+        // otherwise do full hit testing
+        else {
+          let border_x = get_system_metrics_for_dpi(SM_CXFRAME, dpi);
+          let rect = util::window_rect(window);
           let hit_result = crate::window::hit_test(
             (rect.left, rect.top, rect.right, rect.bottom),
             cx,
@@ -2427,6 +2438,8 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
   if subclass_removed {
     mem::drop(subclass_input);
   } else {
+    // FIXME: this seems to leak intentionally?
+    #[allow(unused_must_use)]
     Box::into_raw(subclass_input);
   }
   result

@@ -13,7 +13,7 @@ use std::{
   time::Instant,
 };
 
-use objc::runtime::{BOOL, YES};
+use objc2::runtime::AnyObject;
 
 use crate::{
   dpi::LogicalSize,
@@ -56,11 +56,7 @@ enum UserCallbackTransitionResult<'a> {
 
 impl Event<'static, Never> {
   fn is_redraw(&self) -> bool {
-    if let Event::RedrawRequested(_) = self {
-      true
-    } else {
-      false
-    }
+    matches!(self, Event::RedrawRequested(_))
   }
 }
 
@@ -204,10 +200,10 @@ impl AppState {
   }
 
   fn has_launched(&self) -> bool {
-    match self.state() {
-      &AppStateImpl::NotLaunched { .. } | &AppStateImpl::Launching { .. } => false,
-      _ => true,
-    }
+    !matches!(
+      self.state(),
+      &AppStateImpl::NotLaunched { .. } | &AppStateImpl::Launching { .. }
+    )
   }
 
   fn will_launch_transition(&mut self, queued_event_handler: Box<dyn EventHandler>) {
@@ -475,10 +471,7 @@ impl AppState {
 // retains window
 pub unsafe fn set_key_window(window: id) {
   bug_assert!(
-    {
-      let is_window: BOOL = msg_send![window, isKindOfClass: class!(UIWindow)];
-      is_window == YES
-    },
+    msg_send![window, isKindOfClass: class!(UIWindow)],
     "set_key_window called with an incorrect type"
   );
   let mut this = AppState::get_mut();
@@ -505,10 +498,7 @@ pub unsafe fn set_key_window(window: id) {
 // retains window
 pub unsafe fn queue_gl_or_metal_redraw(window: id) {
   bug_assert!(
-    {
-      let is_window: BOOL = msg_send![window, isKindOfClass: class!(UIWindow)];
-      is_window == YES
-    },
+    msg_send![window, isKindOfClass: class!(UIWindow)],
     "set_key_window called with an incorrect type"
   );
   let mut this = AppState::get_mut();
@@ -548,7 +538,7 @@ pub unsafe fn will_launch(queued_event_handler: Box<dyn EventHandler>) {
 pub unsafe fn did_finish_launching() {
   let mut this = AppState::get_mut();
   let windows = match this.state_mut() {
-    AppStateImpl::Launching { queued_windows, .. } => mem::replace(queued_windows, Vec::new()),
+    AppStateImpl::Launching { queued_windows, .. } => mem::take(queued_windows),
     s => bug!("unexpected state {:?}", s),
   };
 
@@ -582,7 +572,7 @@ pub unsafe fn did_finish_launching() {
       let () = msg_send![window, setScreen: screen];
       let () = msg_send![screen, release];
       let controller: id = msg_send![window, rootViewController];
-      let () = msg_send![window, setRootViewController:ptr::null::<()>()];
+      let () = msg_send![window, setRootViewController: ptr::null::<AnyObject>()];
       let () = msg_send![window, setRootViewController: controller];
       let () = msg_send![window, makeKeyAndVisible];
     }
@@ -670,7 +660,7 @@ pub unsafe fn handle_nonuser_events<I: IntoIterator<Item = EventWrapper>>(events
       &mut AppStateImpl::InUserCallback {
         ref mut queued_events,
         queued_gpu_redraws: _,
-      } => mem::replace(queued_events, Vec::new()),
+      } => mem::take(queued_events),
       s => bug!("unexpected state {:?}", s),
     };
     if queued_events.is_empty() {
@@ -751,7 +741,7 @@ unsafe fn handle_user_events() {
       &mut AppStateImpl::InUserCallback {
         ref mut queued_events,
         queued_gpu_redraws: _,
-      } => mem::replace(queued_events, Vec::new()),
+      } => mem::take(queued_events),
       s => bug!("unexpected state {:?}", s),
     };
     if queued_events.is_empty() {
@@ -887,7 +877,7 @@ fn get_view_and_screen_frame(window_id: id) -> (id, CGRect) {
     let screen: id = msg_send![window_id, screen];
     let screen_space: id = msg_send![screen, coordinateSpace];
     let screen_frame: CGRect =
-      msg_send![window_id, convertRect:bounds toCoordinateSpace:screen_space];
+      msg_send![window_id, convertRect:bounds, toCoordinateSpace:screen_space];
     (view, screen_frame)
   }
 }
@@ -914,7 +904,7 @@ impl EventLoopWaker {
       // future, but that gets changed to fire immediately in did_finish_launching
       let timer = CFRunLoopTimerCreate(
         ptr::null_mut(),
-        std::f64::MAX,
+        f64::MAX,
         0.000_000_1,
         0,
         0,
@@ -928,11 +918,11 @@ impl EventLoopWaker {
   }
 
   fn stop(&mut self) {
-    unsafe { CFRunLoopTimerSetNextFireDate(self.timer, std::f64::MAX) }
+    unsafe { CFRunLoopTimerSetNextFireDate(self.timer, f64::MAX) }
   }
 
   fn start(&mut self) {
-    unsafe { CFRunLoopTimerSetNextFireDate(self.timer, std::f64::MIN) }
+    unsafe { CFRunLoopTimerSetNextFireDate(self.timer, f64::MIN) }
   }
 
   fn start_at(&mut self, instant: Instant) {
@@ -1019,7 +1009,7 @@ pub fn os_capabilities() -> OSCapabilities {
       static ref OS_CAPABILITIES: OSCapabilities = {
           let version: NSOperatingSystemVersion = unsafe {
               let process_info: id = msg_send![class!(NSProcessInfo), processInfo];
-              let atleast_ios_8: BOOL = msg_send![
+              let atleast_ios_8: bool = msg_send![
                   process_info,
                   respondsToSelector: sel!(operatingSystemVersion)
               ];
@@ -1031,7 +1021,7 @@ pub fn os_capabilities() -> OSCapabilities {
               //
               // The minimum required iOS version is likely to grow in the future.
               assert!(
-                  atleast_ios_8 == YES,
+                  atleast_ios_8,
                   "`tao` requires iOS version 8 or greater"
               );
               msg_send![process_info, operatingSystemVersion]
