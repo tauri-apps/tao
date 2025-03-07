@@ -39,7 +39,7 @@ use crate::{
   window::WindowId,
 };
 
-use super::dock;
+use super::set_dock_visibility;
 
 lazy_static! {
   static ref HANDLER: Handler = Default::default();
@@ -295,7 +295,7 @@ impl AppState {
 
       let dock_visible = get_aux_state_mut(app_delegate).dock_visibility;
       if !dock_visible {
-        dock::set_dock_visibility(dock_visible);
+        set_dock_visibility(app_delegate, dock_visible);
       }
     };
     HANDLER.set_ready();

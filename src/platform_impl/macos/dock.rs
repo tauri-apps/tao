@@ -5,8 +5,10 @@ use std::{
   time::{Duration, Instant},
 };
 
-use objc2::MainThreadMarker;
+use objc2::{runtime::AnyObject, MainThreadMarker};
 use objc2_app_kit::NSApplication;
+
+use super::get_aux_state_mut;
 
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
@@ -26,19 +28,16 @@ pub const kProcessTransformToUIElementApplication: i32 = 4;
 /// https://developer.apple.com/documentation/applicationservices/1501117-anonymous/kprocesstransformtoforegroundapplication?language=objc
 pub const kProcessTransformToForegroundApplication: i32 = 1;
 
-lazy_static! {
-  static ref LAST_DOCK_SHOW: Mutex<Option<Instant>> = Mutex::new(None);
-}
-
-pub fn set_dock_visibility(visible: bool) {
+pub fn set_dock_visibility(app_delegate: &AnyObject, visible: bool) {
+  let last_dock_show = unsafe { &get_aux_state_mut(app_delegate).last_dock_show };
   if visible {
-    set_dock_show();
+    set_dock_show(last_dock_show);
   } else {
-    set_dock_hide();
+    set_dock_hide(last_dock_show);
   }
 }
 
-fn set_dock_hide() {
+fn set_dock_hide(last_dock_show: &Mutex<Option<Instant>>) {
   // Transforming application state from UIElement to Foreground is an
   // asynchronous operation, and unfortunately there is currently no way to know
   // when it is finished.
@@ -49,7 +48,7 @@ fn set_dock_hide() {
   // immediately after DockShow. After some experiments, 1 second seems to be
   // a proper interval.
   let now = Instant::now();
-  let last_dock_show = LAST_DOCK_SHOW.lock().unwrap();
+  let last_dock_show = last_dock_show.lock().unwrap();
   if let Some(last_dock_show_time) = *last_dock_show {
     if now.duration_since(last_dock_show_time) < Duration::new(1, 0) {
       return;
@@ -74,9 +73,9 @@ fn set_dock_hide() {
   }
 }
 
-fn set_dock_show() {
+fn set_dock_show(last_dock_show: &Mutex<Option<Instant>>) {
   let now = Instant::now();
-  let mut last_dock_show = LAST_DOCK_SHOW.lock().unwrap();
+  let mut last_dock_show = last_dock_show.lock().unwrap();
   *last_dock_show = Some(now);
 
   unsafe {

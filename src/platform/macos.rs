@@ -6,6 +6,8 @@
 
 use std::os::raw::c_void;
 
+use objc2_foundation::NSObject;
+
 use crate::{
   dpi::{LogicalSize, Position},
   event_loop::{EventLoop, EventLoopWindowTarget},
@@ -438,7 +440,16 @@ impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
   }
 
   fn set_dock_visibility(&self, visible: bool) {
-    set_dock_visibility(visible);
+    let Some(Ok(delegate)) = (unsafe {
+      // TODO: Safety.
+      let mtm = objc2_foundation::MainThreadMarker::new_unchecked();
+      objc2_app_kit::NSApplication::sharedApplication(mtm)
+        .delegate()
+        .map(|delegate| delegate.downcast::<NSObject>())
+    }) else {
+      return;
+    };
+    set_dock_visibility(&delegate, visible);
   }
 
   fn set_badge_label(&self, label: Option<String>) {

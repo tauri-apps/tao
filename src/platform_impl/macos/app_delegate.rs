@@ -16,6 +16,8 @@ use std::{
   cell::{RefCell, RefMut},
   ffi::{CStr, CString},
   os::raw::c_void,
+  sync::Mutex,
+  time::Instant,
 };
 
 const AUX_DELEGATE_STATE_NAME: &str = "auxState";
@@ -28,6 +30,7 @@ pub struct AuxDelegateState {
 
   /// Whether the application is visible in the dock.
   pub dock_visibility: bool,
+  pub last_dock_show: Mutex<Option<Instant>>,
 
   pub activate_ignoring_other_apps: bool,
 }
@@ -92,6 +95,7 @@ extern "C" fn new(class: &Class, _: Sel) -> id {
         activation_policy: ActivationPolicy::Regular,
         activate_ignoring_other_apps: true,
         dock_visibility: true,
+        last_dock_show: Mutex::new(None),
       }))) as *mut c_void;
     this
   }
