@@ -398,7 +398,7 @@ pub trait EventLoopWindowTargetExtMacOS {
   ///
   /// To set the dock visibility before the app starts running, see
   /// [`EventLoopExtMacOS::set_dock_visibility`](crate::platform::macos::EventLoopExtMacOS::set_dock_visibility).
-  fn set_dock_visibility_at_runtime(&self, visible: bool);
+  fn set_dock_visibility(&self, visible: bool);
 
   /// Sets the badge label on macos dock
   fn set_badge_label(&self, label: Option<String>);
@@ -437,7 +437,7 @@ impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
     objc2_app_kit::NSApplication::sharedApplication(mtm).setActivationPolicy(ns_activation_policy);
   }
 
-  fn set_dock_visibility_at_runtime(&self, visible: bool) {
+  fn set_dock_visibility(&self, visible: bool) {
     set_dock_visibility(visible);
   }
 

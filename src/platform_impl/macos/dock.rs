@@ -5,7 +5,8 @@ use std::{
   time::{Duration, Instant},
 };
 
-use cocoa::base::{id, NO};
+use objc2::MainThreadMarker;
+use objc2_app_kit::NSApplication;
 
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
@@ -56,12 +57,14 @@ fn set_dock_hide() {
   }
 
   unsafe {
-    let app: id = msg_send![class!(NSApplication), sharedApplication];
-    let windows: id = msg_send![app, windows];
+    // TODO: Safety.
+    let mtm = MainThreadMarker::new_unchecked();
+    let app = NSApplication::sharedApplication(mtm);
+    let windows = app.windows();
 
-    // Assuming windows is an NSArray, and calling setCanHide on each window
-    let selector = sel!(setCanHide:);
-    let _: () = msg_send![windows, makeObjectsPerformSelector:selector withObject:NO];
+    for window in windows {
+      window.setCanHide(false);
+    }
 
     let psn = ProcessSerialNumber {
       highLongOfPSN: 0,
