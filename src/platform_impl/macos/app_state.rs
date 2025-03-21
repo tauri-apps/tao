@@ -39,6 +39,8 @@ use crate::{
   window::WindowId,
 };
 
+use super::set_dock_visibility;
+
 lazy_static! {
   static ref HANDLER: Handler = Default::default();
 }
@@ -282,6 +284,7 @@ impl AppState {
 
   pub fn launched(app_delegate: &Object) {
     apply_activation_policy(app_delegate);
+
     unsafe {
       let mtm = MainThreadMarker::new().unwrap();
       let ns_app = NSApp(mtm);
@@ -289,6 +292,11 @@ impl AppState {
       let ignore = get_aux_state_mut(app_delegate).activate_ignoring_other_apps;
       #[allow(deprecated)]
       ns_app.activateIgnoringOtherApps(ignore);
+
+      let dock_visible = get_aux_state_mut(app_delegate).dock_visibility;
+      if !dock_visible {
+        set_dock_visibility(app_delegate, dock_visible);
+      }
     };
     HANDLER.set_ready();
     HANDLER.waker().start();

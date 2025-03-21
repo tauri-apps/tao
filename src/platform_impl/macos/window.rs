@@ -332,7 +332,7 @@ pub(super) fn get_ns_theme() -> Theme {
     let app_class = class!(NSApplication);
     let app: id = msg_send![app_class, sharedApplication];
     let has_theme: bool = msg_send![app, respondsToSelector: sel!(effectiveAppearance)];
-    if has_theme {
+    if !has_theme {
       return Theme::Light;
     }
     let appearance: id = msg_send![app, effectiveAppearance];

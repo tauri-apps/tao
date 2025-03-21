@@ -1,5 +1,15 @@
 # Changelog
 
+## \[0.32.8]
+
+- [`b863d49c`](https://github.com/tauri-apps/tao/commit/b863d49c9735755ef6a51127b393a25b1a35d296) ([#1058](https://github.com/tauri-apps/tao/pull/1058) by [@1111mp](https://github.com/tauri-apps/tao/../../1111mp)) macOS: Add `set_dock_visibility` method to support setting the visibility of the application in the dock.
+- [`996e28df`](https://github.com/tauri-apps/tao/commit/996e28dfe1ae9c7d41bebf1f9b2b9cfecf9e81b2) ([#1090](https://github.com/tauri-apps/tao/pull/1090) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Fix crash when sending key event when macOS app has no window opened.
+- [`dd9251a8`](https://github.com/tauri-apps/tao/commit/dd9251a8f0a954ed4fa251db8bec29b336545379) ([#1091](https://github.com/tauri-apps/tao/pull/1091) by [@1111mp](https://github.com/tauri-apps/tao/../../1111mp)) Fix `Window::theme()` always returning `Theme::Light` and `WindowEvent::ThemeChanged()` not delivered on macOS.
+
+## \[0.32.7]
+
+- [`1951b9ab`](https://github.com/tauri-apps/tao/commit/1951b9abbb4bf424e573c75161db40e68c4c603d) ([#1083](https://github.com/tauri-apps/tao/pull/1083) by [@gezihuzi](https://github.com/tauri-apps/tao/../../gezihuzi)) Fixed application crash during startup when certain window buttons are disabled on macOS.
+
 ## \[0.32.6]
 
 - [`9d1da74b`](https://github.com/tauri-apps/tao/commit/9d1da74bb70f7bb17a4d41532c2b94c709b65ec8) ([#1080](https://github.com/tauri-apps/tao/pull/1080) by [@amrbashir](https://github.com/tauri-apps/tao/../../amrbashir)) Fix crash on Windows because of missing functions on older Windows systems, regression in 0.32
