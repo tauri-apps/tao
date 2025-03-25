@@ -2,6 +2,7 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(feature = "x11")]
 mod device;
 mod event_loop;
 mod icon;
@@ -13,6 +14,7 @@ mod window;
 
 pub mod taskbar;
 pub mod wayland;
+#[cfg(feature = "x11")]
 pub mod x11;
 
 pub use self::keycode::{keycode_from_scancode, keycode_to_scancode};

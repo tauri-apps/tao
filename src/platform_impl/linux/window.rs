@@ -952,9 +952,14 @@ impl Window {
         let window_handle = rwh_06::WaylandWindowHandle::new(surface);
         Ok(rwh_06::RawWindowHandle::Wayland(window_handle))
       } else {
-        let xid = unsafe { gdk_x11_sys::gdk_x11_window_get_xid(window.as_ptr() as *mut _) };
-        let window_handle = rwh_06::XlibWindowHandle::new(xid);
-        Ok(rwh_06::RawWindowHandle::Xlib(window_handle))
+        #[cfg(feature = "x11")]
+        {
+          let xid = unsafe { gdk_x11_sys::gdk_x11_window_get_xid(window.as_ptr() as *mut _) };
+          let window_handle = rwh_06::XlibWindowHandle::new(xid);
+          Ok(rwh_06::RawWindowHandle::Xlib(window_handle))
+        }
+        #[cfg(not(feature = "x11"))]
+        Err(rwh_06::HandleError::Unavailable)
       }
     } else {
       Err(rwh_06::HandleError::Unavailable)
@@ -972,6 +977,7 @@ impl Window {
       let display_handle = rwh_06::WaylandDisplayHandle::new(display);
       Ok(rwh_06::RawDisplayHandle::Wayland(display_handle))
     } else {
+      #[cfg(feature = "x11")]
       if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
         unsafe {
           let display = (xlib.XOpenDisplay)(std::ptr::null());
@@ -983,6 +989,8 @@ impl Window {
       } else {
         Err(rwh_06::HandleError::Unavailable)
       }
+      #[cfg(not(feature = "x11"))]
+      Err(rwh_06::HandleError::Unavailable)
     }
   }
 
