@@ -21,7 +21,9 @@ use crate::{
   error::{ExternalError, OsError},
   event_loop::{EventLoopBuilder, EventLoopWindowTarget},
   monitor::MonitorHandle,
-  platform_impl::{x11::xdisplay::XError, Parent, Window as UnixWindow},
+  platform_impl::{
+    gtk_window::ApplicationWindow, x11::xdisplay::XError, Parent, Window as UnixWindow,
+  },
   window::{Window, WindowBuilder},
 };
 
@@ -67,11 +69,11 @@ pub trait WindowExtUnix {
   /// and know what they're doing.
   fn new_from_gtk_window<T: 'static>(
     event_loop_window_target: &EventLoopWindowTarget<T>,
-    window: gtk::ApplicationWindow,
+    window: ApplicationWindow,
   ) -> Result<Window, OsError>;
 
   /// Returns the `gtk::ApplicatonWindow` from gtk crate that is used by this window.
-  fn gtk_window(&self) -> &gtk::ApplicationWindow;
+  fn gtk_window(&self) -> &ApplicationWindow;
 
   /// Returns the vertical `gtk::Box` that is added by default as the sole child of this window.
   /// Returns `None` if the default vertical `gtk::Box` creation was disabled by [`WindowBuilderExtUnix::with_default_vbox`].
@@ -84,7 +86,7 @@ pub trait WindowExtUnix {
 }
 
 impl WindowExtUnix for Window {
-  fn gtk_window(&self) -> &gtk::ApplicationWindow {
+  fn gtk_window(&self) -> &ApplicationWindow {
     &self.window.window
   }
 
@@ -98,10 +100,10 @@ impl WindowExtUnix for Window {
 
   fn new_from_gtk_window<T: 'static>(
     event_loop_window_target: &EventLoopWindowTarget<T>,
-    window: gtk::ApplicationWindow,
+    window: ApplicationWindow,
   ) -> Result<Window, OsError> {
     let window = UnixWindow::new_from_gtk_window(&event_loop_window_target.p, window)?;
-    Ok(Window { window: window })
+    Ok(Window { window })
   }
 
   fn set_badge_count(&self, count: Option<i64>, desktop_filename: Option<String>) {
@@ -114,7 +116,7 @@ pub trait WindowBuilderExtUnix {
   fn with_skip_taskbar(self, skip: bool) -> WindowBuilder;
   /// Set this window as a transient dialog for `parent`
   /// <https://gtk-rs.org/gtk3-rs/stable/latest/docs/gdk/struct.Window.html#method.set_transient_for>
-  fn with_transient_for(self, parent: &impl gtk::glib::IsA<gtk::Window>) -> WindowBuilder;
+  fn with_transient_for(self, parent: &impl gtk::prelude::IsA<gtk::Window>) -> WindowBuilder;
 
   /// Whether to enable or disable the internal draw for transparent window.
   ///
@@ -158,8 +160,8 @@ impl WindowBuilderExtUnix for WindowBuilder {
     self
   }
 
-  fn with_transient_for(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> WindowBuilder {
-    use gtk::glib::Cast;
+  fn with_transient_for(mut self, parent: &impl gtk::prelude::IsA<gtk::Window>) -> WindowBuilder {
+    use gtk::prelude::Cast;
     self.platform_specific.parent = Parent::ChildOf(parent.clone().upcast());
     self
   }

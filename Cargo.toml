@@ -46,6 +46,7 @@ rwh_05 = { package = "raw-window-handle", version = "0.5", features = [ "std" ],
 rwh_06 = { package = "raw-window-handle", version = "0.6", features = [ "std" ], optional = true }
 bitflags = "2"
 crossbeam-channel = "0.5"
+async-channel = "2.3"
 url = "2"
 dpi = "0.1"
 
@@ -146,9 +147,9 @@ dispatch = "0.2"
 scopeguard = "1.2"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = "0.18"
-gdkx11-sys = "0.18"
-gdkwayland-sys = "0.18.0"
+gtk = { package = "gtk4", version = "0.9", features = ["v4_6"] }
+gdk-x11 = { package = "gdk4-x11", version = "0.9" }
+gdk-wayland = { package = "gdk4-wayland", version = "0.9", features = ["wayland_crate"]}
 x11-dl = "2.21"
 parking_lot = "0.12"
 dlopen2 = "0.7.0"
