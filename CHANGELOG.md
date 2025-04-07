@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.33.0]
+
+- [`dae6d887`](https://github.com/tauri-apps/tao/commit/dae6d8875dbc10ce0ab45d9a00072436b3688b0e) ([#1100](https://github.com/tauri-apps/tao/pull/1100) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Updated `windows` to `0.61`.
+
 ## \[0.32.8]
 
 - [`b863d49c`](https://github.com/tauri-apps/tao/commit/b863d49c9735755ef6a51127b393a25b1a35d296) ([#1058](https://github.com/tauri-apps/tao/pull/1058) by [@1111mp](https://github.com/tauri-apps/tao/../../1111mp)) macOS: Add `set_dock_visibility` method to support setting the visibility of the application in the dock.
