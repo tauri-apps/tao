@@ -57,7 +57,6 @@ use crate::{
 };
 
 use super::{
-  dpi::get_monitor_dpi,
   event_loop::CHANGE_THEME_MSG_ID,
   keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS},
   util::calculate_insets_for_dpi,
@@ -1165,11 +1164,20 @@ unsafe fn init<T: 'static>(
         monitor::available_monitors()
           .into_iter()
           .find_map(|monitor| {
-            let position = p.to_physical::<i32>(monitor.scale_factor());
+            let dpi = monitor.dpi();
+            let scale_factor = dpi_to_scale_factor(dpi);
+            let position = p.to_physical::<i32>(scale_factor);
             let (x, y): (i32, i32) = monitor.position().into();
             let (width, height): (i32, i32) = monitor.size().into();
 
-            if x <= position.x
+            let frame_thickness = if window_flags.contains_shadow() {
+              util::get_frame_thickness(dpi)
+            } else {
+              0
+            };
+
+            // Only the starting position x needs to be accounted
+            if x <= position.x + frame_thickness
               && position.x <= x + width
               && y <= position.y
               && position.y <= y + height
@@ -1215,7 +1223,7 @@ unsafe fn init<T: 'static>(
         w = rect.right - rect.left;
         h = rect.bottom - rect.top;
       } else if window_flags.undecorated_with_shadows() {
-        let dpi = get_monitor_dpi(target_monitor.hmonitor()).unwrap_or(USER_DEFAULT_SCREEN_DPI);
+        let dpi = target_monitor.dpi();
         let insets = calculate_insets_for_dpi(dpi);
         w += insets.left + insets.right;
         h += insets.top + insets.bottom;
