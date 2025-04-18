@@ -462,6 +462,11 @@ impl WindowFlags {
     self.contains(WindowFlags::MARKER_UNDECORATED_SHADOW)
       && !self.contains(WindowFlags::MARKER_DECORATIONS)
   }
+
+  pub fn contains_shadow(&self) -> bool {
+    self.contains(WindowFlags::MARKER_UNDECORATED_SHADOW)
+      || self.contains(WindowFlags::MARKER_DECORATIONS)
+  }
 }
 
 impl CursorFlags {

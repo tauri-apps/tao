@@ -217,7 +217,11 @@ impl MonitorHandle {
 
   #[inline]
   pub fn scale_factor(&self) -> f64 {
-    dpi_to_scale_factor(get_monitor_dpi(self.hmonitor()).unwrap_or(USER_DEFAULT_SCREEN_DPI))
+    dpi_to_scale_factor(self.dpi())
+  }
+
+  pub fn dpi(&self) -> u32 {
+    get_monitor_dpi(self.hmonitor()).unwrap_or(USER_DEFAULT_SCREEN_DPI)
   }
 
   #[inline]
