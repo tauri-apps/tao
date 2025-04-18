@@ -24,6 +24,8 @@ use gtk::{
   Settings,
 };
 
+#[cfg(feature = "x11")]
+use crate::platform_impl::platform::device;
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition},
   error::ExternalError,
@@ -33,7 +35,7 @@ use crate::{
   event_loop::{ControlFlow, EventLoopClosed, EventLoopWindowTarget as RootELW},
   keyboard::ModifiersState,
   monitor::MonitorHandle as RootMonitorHandle,
-  platform_impl::platform::{device, DEVICE_ID},
+  platform_impl::platform::DEVICE_ID,
   window::{
     CursorIcon, Fullscreen, ProgressBarState, ResizeDirection, Theme, WindowId as RootWindowId,
   },
@@ -123,6 +125,7 @@ impl<T> EventLoopWindowTarget<T> {
       let display_handle = rwh_06::WaylandDisplayHandle::new(display);
       Ok(rwh_06::RawDisplayHandle::Wayland(display_handle))
     } else {
+      #[cfg(feature = "x11")]
       unsafe {
         if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
           let display = (xlib.XOpenDisplay)(std::ptr::null());
@@ -134,6 +137,8 @@ impl<T> EventLoopWindowTarget<T> {
           Err(rwh_06::HandleError::Unavailable)
         }
       }
+      #[cfg(not(feature = "x11"))]
+      Err(rwh_06::HandleError::Unavailable)
     }
   }
 
@@ -141,6 +146,7 @@ impl<T> EventLoopWindowTarget<T> {
     self.display.backend().is_wayland()
   }
 
+  #[cfg(feature = "x11")]
   pub fn is_x11(&self) -> bool {
     self.display.backend().is_x11()
   }
@@ -249,6 +255,7 @@ impl<T: 'static> EventLoop<T> {
     };
 
     // Spawn x11 thread to receive Device events.
+    #[cfg(feature = "x11")]
     let run_device_thread = if window_target.is_x11() {
       let (device_tx, device_rx) = glib::MainContext::channel(glib::Priority::default());
       let user_event_tx = user_event_tx.clone();
@@ -272,6 +279,8 @@ impl<T: 'static> EventLoop<T> {
     } else {
       None
     };
+    #[cfg(not(feature = "x11"))]
+    let run_device_thread = None;
 
     let mut taskbar = TaskbarIndicator::new();
     let is_wayland = window_target.is_wayland();
