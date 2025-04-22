@@ -10,8 +10,12 @@ use crate::{
   },
 };
 
-use objc2::runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel};
-use objc2_foundation::{NSArray, NSURL};
+use objc2::runtime::{
+  AnyClass as Class, AnyObject as Object, Bool, ClassBuilder as ClassDecl, Sel,
+};
+use objc2_foundation::{
+  NSArray, NSError, NSString, NSUserActivity, NSUserActivityTypeBrowsingWeb, NSURL,
+};
 use std::{
   cell::{RefCell, RefMut},
   ffi::{CStr, CString},
@@ -62,6 +66,14 @@ lazy_static! {
     decl.add_method(
       sel!(application:openURLs:),
       application_open_urls as extern "C" fn(_, _, _, _),
+    );
+    decl.add_method(
+      sel!(application:willContinueUserActivityWithType:),
+      application_will_continue_user_activity_with_type as extern "C" fn(_, _, _, _) -> _,
+    );
+    decl.add_method(
+      sel!(application:continueUserActivity:restorationHandler:),
+      application_continue_user_activity as extern "C" fn(_, _, _, _, _) -> _,
     );
     decl.add_method(
       sel!(applicationShouldHandleReopen:hasVisibleWindows:),
@@ -134,6 +146,62 @@ extern "C" fn application_open_urls(_: &Object, _: Sel, _: id, urls: &NSArray<NS
   trace!("Get `application:openURLs:` URLs: {:?}", urls);
   AppState::open_urls(urls);
   trace!("Completed `application:openURLs:`");
+}
+
+extern "C" fn application_will_continue_user_activity_with_type(
+  _: &Object,
+  _: Sel,
+  _: id,
+  user_activity_type: &NSString,
+) -> Bool {
+  trace!("Trigger `application:willContinueUserActivityWithType:`");
+  let result = unsafe { Bool::new(user_activity_type == NSUserActivityTypeBrowsingWeb) };
+  trace!("Completed `application:willContinueUserActivityWithType:`");
+  result
+}
+
+extern "C" fn application_continue_user_activity(
+  _: &Object,
+  _: Sel,
+  _: id,
+  user_activity: &NSUserActivity,
+  _restoration_handler: &block2::Block<dyn Fn(*mut NSError)>,
+) -> Bool {
+  trace!("Trigger `application:continueUserActivity:restorationHandler:`");
+  let url = unsafe {
+    if user_activity
+      .activityType()
+      .isEqualToString(NSUserActivityTypeBrowsingWeb)
+    {
+      match user_activity
+        .webpageURL()
+        .and_then(|url| url.absoluteString())
+        .and_then(|s| Some(s.to_string()))
+      {
+        None => {
+          error!(
+              "`application:continueUserActivity:restorationHandler:`: restore webbrowsing activity but url is empty"
+            );
+          return Bool::new(false);
+        }
+        Some(url_string) => match url::Url::parse(&url_string) {
+          Ok(url) => url,
+          Err(err) => {
+            error!(
+              "`application:continueUserActivity:restorationHandler:`: failed to parse url {err}"
+            );
+            return Bool::new(false);
+          }
+        },
+      }
+    } else {
+      return Bool::new(false);
+    }
+  };
+
+  AppState::open_urls(vec![url]);
+  trace!("Completed `application:continueUserActivity:restorationHandler:`");
+  return Bool::new(true);
 }
 
 extern "C" fn application_should_handle_reopen(
