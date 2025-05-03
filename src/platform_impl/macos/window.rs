@@ -174,13 +174,21 @@ fn create_window(
         let monitor_screen = monitor.ns_screen();
         Some(monitor_screen.unwrap_or_else(|| appkit::NSScreen::mainScreen(mtm).unwrap()))
       }
-      Some(Fullscreen::Borderless(None)) => Some(appkit::NSScreen::mainScreen(mtm).unwrap()),
+      Some(Fullscreen::Borderless(None)) => Some(
+        attrs
+          .position
+          .and_then(screen_from_position)
+          .unwrap_or_else(|| appkit::NSScreen::mainScreen(mtm).unwrap()),
+      ),
       None => None,
     };
     let frame = match &screen {
       Some(screen) => NSScreen::frame(screen),
       None => {
-        let screen = NSScreen::mainScreen(mtm).unwrap();
+        let screen = attrs
+          .position
+          .and_then(screen_from_position)
+          .unwrap_or_else(|| appkit::NSScreen::mainScreen(mtm).unwrap());
         let scale_factor = NSScreen::backingScaleFactor(&screen) as f64;
         let desired_size = attrs
           .inner_size
@@ -321,6 +329,25 @@ fn create_window(
       ns_window
     })
   }
+}
+
+fn screen_from_position(position: Position) -> Option<Retained<NSScreen>> {
+  for m in monitor::available_monitors() {
+    let monitor_pos = m.position();
+    let monitor_size = m.size();
+
+    // type annotations required for 32bit targets.
+    let window_position = position.to_physical::<i32>(m.scale_factor());
+
+    let is_in_monitor = monitor_pos.x <= window_position.x
+      && window_position.x < monitor_pos.x + monitor_size.width as i32
+      && monitor_pos.y <= window_position.y
+      && window_position.y < monitor_pos.y + monitor_size.height as i32;
+    if is_in_monitor {
+      return m.ns_screen();
+    }
+  }
+  None
 }
 
 pub(super) fn get_ns_theme() -> Theme {
