@@ -14,11 +14,21 @@ jobs:
           # Ubuntu with default features
           - { id: ubuntu, target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
           # Ubuntu without features
-          - { id: ubuntu-without-feat, target: x86_64-unknown-linux-gnu, os: ubuntu-latest, options: --no-default-features }
+          - {
+              id: ubuntu-without-feat,
+              target: x86_64-unknown-linux-gnu,
+              os: ubuntu-latest,
+              options: --no-default-features,
+            }
           # macOS
           - { id: macos, target: x86_64-apple-darwin, os: macos-latest }
           # Android on Ubuntu
-          - { id: android, target: aarch64-linux-android, os: ubuntu-latest, cmd: "apk --" }
+          - {
+              id: android,
+              target: aarch64-linux-android,
+              os: ubuntu-latest,
+              cmd: "apk --",
+            }
           # iOS on Ubuntu
           - { id: ios, target: aarch64-apple-ios, os: macos-latest }
 
@@ -32,10 +42,10 @@ jobs:
 
     runs-on: ${{ matrix.platform.os }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Cache cargo folder
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.cargo
           key: ${{ matrix.platform.target }}-cargo-${{ matrix.rust_version }}
@@ -101,10 +111,10 @@ jobs:
   test_tao_macros:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Cache cargo folder
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.cargo
           key: ${{ matrix.platform.target }}-cargo-${{ matrix.rust_version }}
@@ -121,7 +131,7 @@ jobs:
     name: fmt check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
