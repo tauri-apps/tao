@@ -238,7 +238,9 @@ fn create_window(
           NSWindowButton::NSWindowZoomButton,
         ] {
           let button = ns_window.standardWindowButton_(*titlebar_button);
-          let _: () = msg_send![button, setHidden: YES];
+          if !button.is_null() {
+            let _: () = msg_send![button, setHidden: YES];
+          }
         }
       }
       if pl_attrs.movable_by_window_background {
@@ -265,7 +267,7 @@ fn create_window(
 
       if !attrs.maximizable {
         let button = ns_window.standardWindowButton_(NSWindowButton::NSWindowZoomButton);
-        let _: () = msg_send![button, setEnabled: NO];
+        if !button.is_null(){let _: () = msg_send![button, setEnabled: NO];}
       }
 
       if let Some(increments) = pl_attrs.resize_increments {
@@ -753,7 +755,9 @@ impl UnownedWindow {
       let button = self
         .ns_window
         .standardWindowButton_(NSWindowButton::NSWindowZoomButton);
-      let _: () = msg_send![button, setEnabled: maximizable];
+      if !button.is_null() {
+        let _: () = msg_send![button, setEnabled: maximizable];
+      }
     }
   }
 
@@ -974,7 +978,11 @@ impl UnownedWindow {
       let button = self
         .ns_window
         .standardWindowButton_(NSWindowButton::NSWindowZoomButton);
-      is_maximizable = msg_send![button, isEnabled];
+      is_maximizable = if button.is_null() {
+        NO
+      } else {
+        msg_send![button, isEnabled]
+      }
     }
     is_maximizable == YES
   }
