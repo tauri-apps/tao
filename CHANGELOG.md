@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.16.11]
+
+- [`d9276137`](https://github.com/tauri-apps/tao/commit/d9276137f742156d364068c5341bd8422b511309) ([#1112](https://github.com/tauri-apps/tao/pull/1112) by [@FabianLars](https://github.com/tauri-apps/tao/../../FabianLars)) Fixed a null pointer deref crash on macOS when compiling with Rust 1.86.
+
 ## \[0.16.10]
 
 - [`431887cd`](https://github.com/tauri-apps/tao/commit/431887cd16641cae68a32f3ee3ebad8b29f0a171) ([#972](https://github.com/tauri-apps/tao/pull/972) by [@amrbashir](https://github.com/tauri-apps/tao/../../amrbashir)) On Windows, fix `Window::monitor_from_point` and `EventLoopTargetWindow::monitor_from_point` returning invalid monitor handle.
