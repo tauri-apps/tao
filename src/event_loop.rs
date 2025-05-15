@@ -297,7 +297,10 @@ impl<T> EventLoopWindowTarget<T> {
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_progress_bar(&self, _progress: ProgressBarState) {
-    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[cfg(all(
+      any(target_os = "linux", target_os = "macos"),
+      not(target_env = "ohos")
+    ))]
     self.p.set_progress_bar(_progress)
   }
 
@@ -308,14 +311,17 @@ impl<T> EventLoopWindowTarget<T> {
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_theme(&self, _theme: Option<Theme>) {
-    #[cfg(any(
-      windows,
-      target_os = "linux",
-      target_os = "dragonfly",
-      target_os = "freebsd",
-      target_os = "netbsd",
-      target_os = "openbsd",
-      target_os = "macos",
+    #[cfg(all(
+      any(
+        windows,
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+        target_os = "macos",
+      ),
+      not(target_env = "ohos")
     ))]
     self.p.set_theme(_theme)
   }
