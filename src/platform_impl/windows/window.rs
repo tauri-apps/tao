@@ -1131,6 +1131,9 @@ unsafe fn init<T: 'static>(
   // but we need to have a default for the diffing to work
   window_flags.set(WindowFlags::CLOSABLE, true);
 
+  //we need to have a default for the diffing to work
+  window_flags.set(WindowFlags::FOCUSABLE, true);
+
   window_flags.set(WindowFlags::MARKER_DONT_FOCUS, !attributes.focused);
 
   window_flags.set(WindowFlags::RIGHT_TO_LEFT_LAYOUT, pl_attribs.rtl);
