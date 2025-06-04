@@ -1407,7 +1407,7 @@ impl UnownedWindow {
   // Allow directly accessing the current monitor internally without unwrapping.
   pub(crate) fn current_monitor_inner(&self) -> Option<RootMonitorHandle> {
     unsafe {
-      let screen: Retained<NSScreen> = self.ns_window.screen()?; //msg_send![&self.ns_window, screen];
+      let screen: Retained<NSScreen> = self.ns_window.screen()?;
       let desc = NSScreen::deviceDescription(&screen);
       let key = NSString::from_str("NSScreenNumber");
       let value = NSDictionary::objectForKey(&desc, &key).unwrap();
