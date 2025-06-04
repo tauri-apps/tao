@@ -293,7 +293,7 @@ impl WindowFlags {
     if self.contains(WindowFlags::RIGHT_TO_LEFT_LAYOUT) {
       style_ex |= WS_EX_LAYOUTRTL | WS_EX_RTLREADING | WS_EX_RIGHT;
     }
-    if self.contains(WindowFlags::FOCUSABLE) {
+    if !self.contains(WindowFlags::FOCUSABLE) {
       style_ex |= WS_EX_NOACTIVATE;
     }
 
