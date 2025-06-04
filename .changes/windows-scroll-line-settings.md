@@ -2,4 +2,4 @@
 tao: patch
 ---
 
-Fix `WindowEvent::MouseWheel` doesnt' account for mouse wheel speed settings
+Fix `WindowEvent::MouseWheel` doesn't account for mouse wheel speed settings
