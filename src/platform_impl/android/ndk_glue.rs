@@ -17,6 +17,7 @@ use ndk::{
 use once_cell::sync::{Lazy, OnceCell};
 use std::{
   cell::RefCell,
+  collections::HashMap,
   ffi::{CStr, CString},
   fs::File,
   io::{BufRead, BufReader},
@@ -77,6 +78,7 @@ macro_rules! android_binding {
     android_fn!($domain, $package, $activity, destroy, [JObject]);
     android_fn!($domain, $package, $activity, memory, [JObject]);
     android_fn!($domain, $package, $activity, focus, [i32]);
+    android_fn!($domain, $package, $activity, newIntent, [JObject]);
   }};
 }
 
@@ -192,6 +194,55 @@ pub enum Event {
   ContentRectChanged,
 }
 
+fn handle_intent(env: &mut JNIEnv, intent: &JObject) -> Result<(), Box<dyn std::error::Error>> {
+  let jobj = env
+    .call_method(&intent, "getAction", "()Ljava/lang/String;", &[])?
+    .l()?;
+  let mut should_receive = false;
+  if !jobj.as_raw().is_null() {
+    let jstr = jni::objects::JString::from(jobj);
+    let action = env.get_string(&jstr)?;
+    let action_str = action.to_str()?;
+    let send_action = "android.intent.action.SEND";
+    should_receive = action_str == send_action;
+    eprintln!("handle_intent: Received intent with action={action_str}");
+  }
+  if should_receive {
+    let arg = env.new_string("android.intent.extra.TEXT")?;
+    let jobj = env
+      .call_method(
+        &intent,
+        "getStringExtra",
+        "(Ljava/lang/String;)Ljava/lang/String;",
+        &[jni::objects::JValue::Object(&arg)],
+      )?
+      .l()?;
+    if !jobj.as_raw().is_null() {
+      let jstr = jni::objects::JString::from(jobj);
+      let extra_text = env.get_string(&jstr)?;
+      let extra_text_str = extra_text.to_str()?;
+      let mut intent = HashMap::new();
+      // for now, we just share the text data
+      // we could also share more of the data in the intent, or directly share the jobject
+      intent.insert("TEXT".to_string(), extra_text_str.to_string());
+      intent_context::set_intent(intent);
+      eprintln!("handle_intent: {extra_text_str:?}");
+    }
+  }
+  Ok(())
+}
+
+fn catch_intent(env: &mut JNIEnv) {
+  let ctx = ndk_context::android_context();
+  let jobject = unsafe { jni::objects::JObject::from_raw(ctx.context().cast()) };
+  let intent = env
+    .call_method(&jobject, "getIntent", "()Landroid/content/Intent;", &[])
+    .unwrap()
+    .l()
+    .unwrap();
+  handle_intent(env, &intent).ok();
+}
+
 pub unsafe fn create(
   mut env: JNIEnv,
   _jclass: JClass,
@@ -215,13 +266,18 @@ pub unsafe fn create(
   WINDOW_MANAGER.replace(Some(window_manager));
   let activity = env.new_global_ref(jobject).unwrap();
   let vm = env.get_java_vm().unwrap();
-  let env = vm.attach_current_thread_as_daemon().unwrap();
+  let mut env = vm.attach_current_thread_as_daemon().unwrap();
+  let tag = CStr::from_bytes_with_nul(b"RustStdoutStderr\0").unwrap();
+  let msg = format!("initializing android_context on activity={activity:?}");
+  let msg = CString::new(msg).unwrap();
+  android_log(Level::Info, tag, &msg);
   ndk_context::initialize_android_context(
     vm.get_java_vm_pointer() as *mut _,
     activity.as_obj().as_raw() as *mut _,
   );
 
   let looper = ThreadLooper::for_thread().unwrap();
+  catch_intent(&mut env);
   setup(PACKAGE.get().unwrap(), env, &looper, activity);
 
   let logpipe = {
@@ -281,6 +337,10 @@ pub unsafe fn create(
   let _mutex_guard = looper_ready
     .wait_while(locked_looper, |looper| looper.is_none())
     .unwrap();
+}
+
+pub unsafe fn newIntent(mut env: JNIEnv, _: JClass, intent: JObject) {
+  handle_intent(&mut env, &intent);
 }
 
 pub unsafe fn resume(_: JNIEnv, _: JClass, _: JObject) {
