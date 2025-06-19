@@ -1,5 +1,11 @@
 # Changelog
 
+## \[0.34.0]
+
+- [`773d324b`](https://github.com/tauri-apps/tao/commit/773d324be5462fbe472b9bec7505bb04bdc1cf9a) ([#1121](https://github.com/tauri-apps/tao/pull/1121) by [@FabianLars](https://github.com/tauri-apps/tao/../../FabianLars)) Fixed an issue that caused a panic on macOS when tao received `nil` from the OS when trying to get the current NSScreen.
+- [`ba65486a`](https://github.com/tauri-apps/tao/commit/ba65486abe14f2963e016731520e0cdadce3e199) ([#1107](https://github.com/tauri-apps/tao/pull/1107) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Fix initial position gets reset to 0 on Windows if it's accounted for the shadow
+- [`4a085054`](https://github.com/tauri-apps/tao/commit/4a08505412ed365ba160832305c5cfec5b53e622) ([#1103](https://github.com/tauri-apps/tao/pull/1103) by [@aurelj](https://github.com/tauri-apps/tao/../../aurelj)) Added `x11` feature flag (enabled by default).
+
 ## \[0.33.0]
 
 - [`dae6d887`](https://github.com/tauri-apps/tao/commit/dae6d8875dbc10ce0ab45d9a00072436b3688b0e) ([#1100](https://github.com/tauri-apps/tao/pull/1100) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Updated `windows` to `0.61`.
