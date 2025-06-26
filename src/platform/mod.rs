@@ -26,3 +26,4 @@ pub mod macos;
 pub mod run_return;
 pub mod unix;
 pub mod windows;
+pub mod ohos;

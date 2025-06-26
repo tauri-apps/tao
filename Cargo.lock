@@ -1851,9 +1851,8 @@ checksum = "1261fe7e33c73b354eab43b1273a57c8f967d0391e80353e51f764ac02cf6775"
 
 [[package]]
 name = "openharmony-ability"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87a7b7ab209042f6f3240c0ff0547d4ce11011aee637e39c679a9c836ada5226"
+version = "0.1.5-beta.0"
+source = "git+https://github.com/harmony-contrib/openharmony-ability.git#0c88c283f4ed39a71effb188c1a80f522965d380"
 dependencies = [
  "napi-derive-ohos",
  "napi-ohos",
@@ -1865,9 +1864,8 @@ dependencies = [
 
 [[package]]
 name = "openharmony-ability-derive"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "864323f29ff79375b1e43da99abfe877cd34db6769c24bcec4fdfa045cb9543f"
+version = "0.1.5-beta.0"
+source = "git+https://github.com/harmony-contrib/openharmony-ability.git#0c88c283f4ed39a71effb188c1a80f522965d380"
 dependencies = [
  "proc-macro2",
  "quote",

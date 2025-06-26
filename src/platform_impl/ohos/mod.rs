@@ -250,13 +250,12 @@ impl<T: 'static> EventLoop<T> {
     }
   }
 
-  pub fn run<F>(self, event_handler: F) -> !
+  pub fn run<F>(self, event_handler: F) -> ()
   where
     F: FnMut(event::Event<T>, &event_loop::EventLoopWindowTarget<T>, &mut ControlFlow),
   {
     let event_looper = Box::leak(Box::new(self));
     event_looper.run_return(event_handler);
-    unreachable!()
   }
 
   pub fn run_return<F>(&mut self, mut event_handle: F) -> i32

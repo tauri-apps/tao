@@ -207,8 +207,19 @@ impl<T> EventLoop<T> {
   ///   disconnects.
   ///
   /// [`ControlFlow`]: crate::event_loop::ControlFlow
+  #[cfg(not(target_env = "ohos"))]
   #[inline]
   pub fn run<F>(self, event_handler: F) -> !
+  where
+    F: 'static + FnMut(Event<'_, T>, &EventLoopWindowTarget<T>, &mut ControlFlow),
+  {
+    self.event_loop.run(event_handler)
+  }
+
+  /// For OpenHarmony, the event loop is not blocking, so we need to return a unit type.
+  #[cfg(target_env = "ohos")]
+  #[inline]
+  pub fn run<F>(self, event_handler: F) -> ()
   where
     F: 'static + FnMut(Event<'_, T>, &EventLoopWindowTarget<T>, &mut ControlFlow),
   {

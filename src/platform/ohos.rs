@@ -12,69 +12,30 @@
 
 #![cfg(target_env = "ohos")]
 
-use self::ability::{Configuration, OpenHarmonyApp, Rect};
-use crate::application::ApplicationHandler;
-use crate::event_loop::{self, ActiveEventLoop, EventLoop, EventLoopBuilder};
+use crate::event_loop::{EventLoop, EventLoopBuilder};
 use crate::window::{Window, WindowAttributes};
+use openharmony_ability::{Configuration, OpenHarmonyApp, Rect};
 
 /// Additional methods on [`EventLoop`] that are specific to OpenHarmony.
-pub trait EventLoopExtOpenHarmony {
-    /// A type provided by the user that can be passed through `Event::UserEvent`.
-    type UserEvent: 'static;
+pub trait EventLoopExtOpenHarmony {}
 
-    /// Initializes the winit event loop.
-    /// Unlike [`run_app()`] this method return immediately.
-    /// [^1]: `run_app()` is _not_ available on OpnHarmony
-    fn spawn_app<A: ApplicationHandler<Self::UserEvent> + 'static>(self, app: A);
-
-    /// Get the [`OpenHarmonyApp`] which was used to create this event loop.
-    fn openharmony_app(&self) -> &OpenHarmonyApp;
-}
-
-impl<T> EventLoopExtOpenHarmony for EventLoop<T> {
-    type UserEvent = T;
-
-    fn spawn_app<A: ApplicationHandler<Self::UserEvent> + 'static>(self, app: A) {
-        let app = Box::leak(Box::new(app));
-        let event_looper = Box::leak(Box::new(self));
-
-        let _ = event_looper.event_loop.run_on_demand(|event, event_loop| {
-            event_loop::dispatch_event_for_app(app, event_loop, event)
-        });
-    }
-
-    fn openharmony_app(&self) -> &OpenHarmonyApp {
-        &self.event_loop.openharmony_app
-    }
-}
-
-/// Additional methods on [`ActiveEventLoop`] that are specific to OpenHarmony.
-pub trait ActiveEventLoopExtOpenHarmony {
-    /// Get the [`OpenHarmonyApp`] which was used to create this event loop.
-    fn openharmony_app(&self) -> &OpenHarmonyApp;
-}
+impl<T> EventLoopExtOpenHarmony for EventLoop<T> {}
 
 /// Additional methods on [`Window`] that are specific to OpenHarmony.
 pub trait WindowExtOpenHarmony {
-    fn content_rect(&self) -> Rect;
+  fn content_rect(&self) -> Rect;
 
-    fn config(&self) -> Configuration;
+  fn config(&self) -> Configuration;
 }
 
 impl WindowExtOpenHarmony for Window {
-    fn content_rect(&self) -> Rect {
-        self.window.content_rect()
-    }
+  fn content_rect(&self) -> Rect {
+    self.window.content_rect()
+  }
 
-    fn config(&self) -> Configuration {
-        self.window.config()
-    }
-}
-
-impl ActiveEventLoopExtOpenHarmony for ActiveEventLoop {
-    fn openharmony_app(&self) -> &OpenHarmonyApp {
-        &self.p.app
-    }
+  fn config(&self) -> Configuration {
+    self.window.config()
+  }
 }
 
 /// Additional methods on [`WindowAttributes`] that are specific to OpenHarmony.
@@ -83,17 +44,17 @@ pub trait WindowAttributesExtOpenHarmony {}
 impl WindowAttributesExtOpenHarmony for WindowAttributes {}
 
 pub trait EventLoopBuilderExtOpenHarmony {
-    /// Associates the [`OpenHarmonyApp`] that was passed to `openharmony-ability::ability` with the event loop
-    ///
-    /// This must be called on OpenHarmony since the [`OpenHarmonyApp`] is not global state.
-    fn with_openharmony_app(&mut self, app: OpenHarmonyApp) -> &mut Self;
+  /// Associates the [`OpenHarmonyApp`] that was passed to `openharmony-ability::ability` with the event loop
+  ///
+  /// This must be called on OpenHarmony since the [`OpenHarmonyApp`] is not global state.
+  fn with_openharmony_app(&mut self, app: OpenHarmonyApp) -> &mut Self;
 }
 
 impl<T> EventLoopBuilderExtOpenHarmony for EventLoopBuilder<T> {
-    fn with_openharmony_app(&mut self, app: OpenHarmonyApp) -> &mut Self {
-        self.platform_specific.openharmony_app = Some(app);
-        self
-    }
+  fn with_openharmony_app(&mut self, app: OpenHarmonyApp) -> &mut Self {
+    self.platform_specific.openharmony_app = Some(app);
+    self
+  }
 }
 
 /// Re-export of the `openharmony-ability` API
@@ -118,21 +79,16 @@ impl<T> EventLoopBuilderExtOpenHarmony for EventLoopBuilder<T> {
 /// }
 /// ```
 pub mod ability {
-    #[doc(no_inline)]
-    #[cfg(ohos_platform)]
-    pub use openharmony_ability::*;
+  #[doc(no_inline)]
+  pub use openharmony_ability::*;
 
-    #[doc(no_inline)]
-    #[cfg(ohos_platform)]
-    pub use openharmony_ability_derive::*;
+  #[doc(no_inline)]
+  pub use openharmony_ability_derive::*;
 
-    #[cfg(not(ohos_platform))]
-    #[doc(hidden)]
-    pub struct Rect;
-    #[cfg(not(ohos_platform))]
-    #[doc(hidden)]
-    pub struct ConfigurationRef;
-    #[cfg(not(ohos_platform))]
-    #[doc(hidden)]
-    pub struct OpenHarmonyApp;
+  #[doc(hidden)]
+  pub struct Rect;
+  #[doc(hidden)]
+  pub struct ConfigurationRef;
+  #[doc(hidden)]
+  pub struct OpenHarmonyApp;
 }
