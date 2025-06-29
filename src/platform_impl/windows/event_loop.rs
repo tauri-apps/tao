@@ -23,7 +23,10 @@ use windows::{
   core::{s, BOOL, PCWSTR},
   Win32::{
     Foundation::{HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_TIMEOUT, WPARAM},
-    Graphics::Gdi::*,
+    Graphics::{
+      Dwm::{DwmSetWindowAttribute, DWMWA_CLOAK},
+      Gdi::*,
+    },
     System::{
       LibraryLoader::GetModuleHandleW,
       Ole::{IDropTarget, RevokeDragDrop},
@@ -585,7 +588,7 @@ lazy_static! {
     /// WPARAM and LPARAM are unused.
     static ref USER_EVENT_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA(s!("Tao::WakeupMsg"))
+            dbg!(RegisterWindowMessageA(s!("Tao::WakeupMsg")))
         }
     };
     /// Message sent when we want to execute a closure in the thread.
@@ -593,56 +596,56 @@ lazy_static! {
     /// and LPARAM is unused.
     static ref EXEC_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA(s!("Tao::ExecMsg"))
+            dbg!(RegisterWindowMessageA(s!("Tao::ExecMsg")))
         }
     };
     static ref PROCESS_NEW_EVENTS_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA(s!("Tao::ProcessNewEvents"))
+            dbg!(RegisterWindowMessageA(s!("Tao::ProcessNewEvents")))
         }
     };
     /// lparam is the wait thread's message id.
     static ref SEND_WAIT_THREAD_ID_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA(s!("Tao::SendWaitThreadId"))
+            dbg!(RegisterWindowMessageA(s!("Tao::SendWaitThreadId")))
         }
     };
     /// lparam points to a `Box<Instant>` signifying the time `PROCESS_NEW_EVENTS_MSG_ID` should
     /// be sent.
     static ref WAIT_UNTIL_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA(s!("Tao::WaitUntil"))
+            dbg!(RegisterWindowMessageA(s!("Tao::WaitUntil")))
         }
     };
     static ref CANCEL_WAIT_UNTIL_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA(s!("Tao::CancelWaitUntil"))
+            dbg!(RegisterWindowMessageA(s!("Tao::CancelWaitUntil")))
         }
     };
     /// Message sent by a `Window` when it wants to be destroyed by the main thread.
     /// WPARAM and LPARAM are unused.
     pub static ref DESTROY_MSG_ID: u32 = {
         unsafe {
-            RegisterWindowMessageA(s!("Tao::DestroyMsg"))
+            dbg!(RegisterWindowMessageA(s!("Tao::DestroyMsg")))
         }
     };
     /// WPARAM is a bool specifying the `WindowFlags::MARKER_RETAIN_STATE_ON_SIZE` flag. See the
     /// documentation in the `window_state` module for more information.
     pub static ref SET_RETAIN_STATE_ON_SIZE_MSG_ID: u32 = unsafe {
-        RegisterWindowMessageA(s!("Tao::SetRetainMaximized"))
+        dbg!(RegisterWindowMessageA(s!("Tao::SetRetainMaximized")))
     };
     /// Message sent by event loop when event loop's prefered theme changed.
     /// WPARAM and LPARAM are unused.
     pub static ref CHANGE_THEME_MSG_ID: u32 = unsafe {
-        RegisterWindowMessageA(s!("Tao::ChangeTheme"))
+        dbg!(RegisterWindowMessageA(s!("Tao::ChangeTheme")))
     };
     /// When the taskbar is created, it registers a message with the "TaskbarCreated" string and then broadcasts this message to all top-level windows
     /// When the application receives this message, it should assume that any taskbar icons it added have been removed and add them again.
     pub static ref S_U_TASKBAR_RESTART: u32 = unsafe {
-      RegisterWindowMessageA(s!("TaskbarCreated"))
+      dbg!(RegisterWindowMessageA(s!("TaskbarCreated")))
     };
     static ref THREAD_EVENT_TARGET_WINDOW_CLASS: Vec<u16> = unsafe {
-        let class_name= util::encode_wide("Tao Thread Event Target");
+        let class_name= dbg!(util::encode_wide("Tao Thread Event Target"));
 
         let class = WNDCLASSEXW {
             cbSize: mem::size_of::<WNDCLASSEXW>() as u32,
@@ -1043,7 +1046,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
   // I decided to bind the closure to `callback` and pass it to catch_unwind rather than passing
   // the closure to catch_unwind directly so that the match body indendation wouldn't change and
   // the git blame and history would be preserved.
-  let callback = || match msg {
+  let callback = || match dbg!(msg) {
     win32wm::WM_ENTERSIZEMOVE => {
       subclass_input
         .window_state
@@ -1052,6 +1055,15 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(LRESULT(0));
     }
 
+    49235 => {
+      let cloak = false.into();
+      let _ = DwmSetWindowAttribute(
+        window,
+        DWMWA_CLOAK,
+        &cloak as *const BOOL as *const c_void,
+        mem::size_of::<BOOL>() as u32,
+      );
+    }
     win32wm::WM_EXITSIZEMOVE => {
       let mut state = subclass_input.window_state.lock();
       if state.dragging {
@@ -1104,6 +1116,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     win32wm::WM_PAINT => {
+      dbg!("paint");
       if subclass_input.event_loop_runner.should_buffer() {
         // this branch can happen in response to `UpdateWindow`, if win32 decides to
         // redraw the window outside the normal flow of the event loop.
@@ -1121,6 +1134,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     win32wm::WM_ERASEBKGND => {
+      dbg!("erasebg");
       let w = subclass_input.window_state.lock();
       if let Some(color) = w.background_color {
         let hdc = HDC(wparam.0 as *mut _);

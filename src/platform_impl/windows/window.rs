@@ -8,7 +8,7 @@ use mem::MaybeUninit;
 use parking_lot::Mutex;
 use std::{
   cell::{Cell, RefCell},
-  ffi::OsStr,
+  ffi::{c_void, OsStr},
   io, mem,
   os::windows::ffi::OsStrExt,
   sync::Arc,
@@ -16,13 +16,16 @@ use std::{
 
 use crossbeam_channel as channel;
 use windows::{
-  core::PCWSTR,
+  core::{BOOL, PCWSTR},
   Win32::{
     Foundation::{
       self as win32f, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, POINTS, RECT, WPARAM,
     },
     Graphics::{
-      Dwm::{DwmEnableBlurBehindWindow, DWM_BB_BLURREGION, DWM_BB_ENABLE, DWM_BLURBEHIND},
+      Dwm::{
+        DwmEnableBlurBehindWindow, DwmSetWindowAttribute, DWMWA_CLOAK, DWM_BB_BLURREGION,
+        DWM_BB_ENABLE, DWM_BLURBEHIND,
+      },
       Gdi::*,
     },
     System::{Com::*, LibraryLoader::*, Ole::*},
@@ -1246,6 +1249,16 @@ unsafe fn init<T: 'static>(
       GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
       Some(Box::into_raw(Box::new(window_flags)) as _),
     )?;
+
+    if attributes.background_color.is_some() || attributes.transparent {
+      let cloak = true.into();
+      let _ = DwmSetWindowAttribute(
+        handle,
+        DWMWA_CLOAK,
+        &cloak as *const BOOL as *const c_void,
+        mem::size_of::<BOOL>() as u32,
+      );
+    }
 
     if !IsWindow(Some(handle)).as_bool() {
       return Err(os_error!(OsError::IoError(io::Error::last_os_error())));
