@@ -23,7 +23,7 @@ use windows::Networking::PushNotifications::{
 };
 
 #[cfg(feature = "push-notifications")]
-use {windows::Foundation::AsyncStatus, windows::Foundation::IAsyncOperation};
+use {windows_future::AsyncStatus, windows_future::IAsyncOperation};
 
 pub type HWND = isize;
 pub type HMENU = isize;
@@ -502,25 +502,23 @@ where
   T: windows::core::RuntimeType + 'static,
   F: FnOnce(windows::core::Result<T>) + Send + Clone + Copy + 'static,
 {
-  unsafe {
-    operation.SetCompleted(&windows::Foundation::AsyncOperationCompletedHandler::new(
-      move |op, _| {
-        let result = match op.unwrap().Status()? {
-          AsyncStatus::Completed => Ok(op.unwrap().GetResults()),
-          AsyncStatus::Canceled => Err(windows::core::Error::new::<String>(
-            windows::core::HRESULT(0x800704C7u32 as i32), // Operation canceled
-            "Operation was canceled".into(),
-          )),
-          AsyncStatus::Error => Err(windows::core::Error::new::<String>(
-            op.unwrap().ErrorCode().unwrap(), // Operation failed
-            "Operation failed".into(),
-          )),
-          AsyncStatus::Started => unreachable!(),
-          _ => unreachable!(),
-        };
-        callback(result.expect("empty waiter"));
-        Ok(())
-      },
-    ))
-  }
+  operation.SetCompleted(&windows_future::AsyncOperationCompletedHandler::new(
+    move |op, _| {
+      let result = match op.unwrap().Status()? {
+        AsyncStatus::Completed => Ok(op.unwrap().GetResults()),
+        AsyncStatus::Canceled => Err(windows::core::Error::new::<String>(
+          windows::core::HRESULT(0x800704C7u32 as i32), // Operation canceled
+          "Operation was canceled".into(),
+        )),
+        AsyncStatus::Error => Err(windows::core::Error::new::<String>(
+          op.unwrap().ErrorCode().unwrap(), // Operation failed
+          "Operation failed".into(),
+        )),
+        AsyncStatus::Started => unreachable!(),
+        _ => unreachable!(),
+      };
+      callback(result.expect("empty waiter"));
+      Ok(())
+    },
+  ))
 }
