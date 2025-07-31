@@ -22,7 +22,7 @@ pub fn get_raw_input_device_list() -> Option<Vec<RAWINPUTDEVICELIST>> {
   let mut num_devices = 0;
   let status = unsafe { GetRawInputDeviceList(None, &mut num_devices, list_size) };
 
-  if status == u32::max_value() {
+  if status == u32::MAX {
     return None;
   }
 
@@ -31,7 +31,7 @@ pub fn get_raw_input_device_list() -> Option<Vec<RAWINPUTDEVICELIST>> {
   let num_stored =
     unsafe { GetRawInputDeviceList(Some(buffer.as_ptr() as _), &mut num_devices, list_size) };
 
-  if num_stored == u32::max_value() {
+  if num_stored == u32::MAX {
     return None;
   }
 
@@ -73,14 +73,14 @@ pub fn get_raw_input_device_info(handle: HANDLE) -> Option<RawDeviceInfo> {
   let mut minimum_size = 0;
   let status = unsafe {
     GetRawInputDeviceInfoW(
-      handle,
+      Some(handle),
       RIDI_DEVICEINFO,
       Some(&mut info as *mut _ as _),
       &mut minimum_size,
     )
   };
 
-  if status == u32::max_value() || status == 0 {
+  if status == u32::MAX || status == 0 {
     return None;
   }
 
@@ -91,7 +91,8 @@ pub fn get_raw_input_device_info(handle: HANDLE) -> Option<RawDeviceInfo> {
 
 pub fn get_raw_input_device_name(handle: HANDLE) -> Option<String> {
   let mut minimum_size = 0;
-  let status = unsafe { GetRawInputDeviceInfoW(handle, RIDI_DEVICENAME, None, &mut minimum_size) };
+  let status =
+    unsafe { GetRawInputDeviceInfoW(Some(handle), RIDI_DEVICENAME, None, &mut minimum_size) };
 
   if status != 0 {
     return None;
@@ -101,14 +102,14 @@ pub fn get_raw_input_device_name(handle: HANDLE) -> Option<String> {
 
   let status = unsafe {
     GetRawInputDeviceInfoW(
-      handle,
+      Some(handle),
       RIDI_DEVICENAME,
       Some(name.as_ptr() as _),
       &mut minimum_size,
     )
   };
 
-  if status == u32::max_value() || status == 0 {
+  if status == u32::MAX || status == 0 {
     return None;
   }
 
@@ -173,7 +174,7 @@ pub fn get_raw_input_data(handle: HRAWINPUT) -> Option<RAWINPUT> {
     )
   };
 
-  if status == u32::max_value() || status == 0 {
+  if status == u32::MAX || status == 0 {
     return None;
   }
 

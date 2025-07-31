@@ -57,7 +57,7 @@ impl MinimalIme {
             let mut next_msg = MaybeUninit::uninit();
             let has_message = PeekMessageW(
               next_msg.as_mut_ptr(),
-              hwnd,
+              Some(hwnd),
               WM_KEYFIRST,
               WM_KEYLAST,
               PM_NOREMOVE,

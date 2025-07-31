@@ -6,17 +6,14 @@
 
 use std::os::raw::c_void;
 
+use objc2_foundation::NSObject;
+
 use crate::{
   dpi::{LogicalSize, Position},
   event_loop::{EventLoop, EventLoopWindowTarget},
   monitor::MonitorHandle,
-  platform_impl::{get_aux_state_mut, set_badge_label, Parent},
+  platform_impl::{get_aux_state_mut, set_badge_label, set_dock_visibility, Parent},
   window::{Window, WindowBuilder},
-};
-
-use cocoa::appkit::{
-  NSApplicationActivationPolicy, NSApplicationActivationPolicyAccessory,
-  NSApplicationActivationPolicyProhibited, NSApplicationActivationPolicyRegular,
 };
 
 /// Additional methods on `Window` that are specific to MacOS.
@@ -173,30 +170,15 @@ impl WindowExtMacOS for Window {
 
 /// Corresponds to `NSApplicationActivationPolicy`.
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum ActivationPolicy {
   /// Corresponds to `NSApplicationActivationPolicyRegular`.
+  #[default]
   Regular,
   /// Corresponds to `NSApplicationActivationPolicyAccessory`.
   Accessory,
   /// Corresponds to `NSApplicationActivationPolicyProhibited`.
   Prohibited,
-}
-
-impl Default for ActivationPolicy {
-  fn default() -> Self {
-    ActivationPolicy::Regular
-  }
-}
-
-impl From<ActivationPolicy> for NSApplicationActivationPolicy {
-  fn from(act_pol: ActivationPolicy) -> Self {
-    match act_pol {
-      ActivationPolicy::Regular => NSApplicationActivationPolicyRegular,
-      ActivationPolicy::Accessory => NSApplicationActivationPolicyAccessory,
-      ActivationPolicy::Prohibited => NSApplicationActivationPolicyProhibited,
-    }
-  }
 }
 
 /// Additional methods on `WindowBuilder` that are specific to MacOS.
@@ -336,6 +318,13 @@ pub trait EventLoopExtMacOS {
   /// [`EventLoopWindowTargetExtMacOS::set_activation_policy_at_runtime`](crate::platform::macos::EventLoopWindowTargetExtMacOS::set_activation_policy_at_runtime).
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
+  /// Sets the visibility of the application in the dock.
+  ///
+  /// This function only takes effect if it's called before calling
+  /// [`run`](crate::event_loop::EventLoop::run) or
+  /// [`run_return`](crate::platform::run_return::EventLoopExtRunReturn::run_return).
+  fn set_dock_visibility(&mut self, visible: bool);
+
   /// Used to prevent the application from automatically activating when launched if
   /// another application is already active
   ///
@@ -352,6 +341,13 @@ impl<T> EventLoopExtMacOS for EventLoop<T> {
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
     unsafe {
       get_aux_state_mut(&**self.event_loop.delegate).activation_policy = activation_policy;
+    }
+  }
+
+  #[inline]
+  fn set_dock_visibility(&mut self, visible: bool) {
+    unsafe {
+      get_aux_state_mut(&**self.event_loop.delegate).dock_visibility = visible;
     }
   }
 
@@ -378,7 +374,10 @@ impl MonitorHandleExtMacOS for MonitorHandle {
   }
 
   fn ns_screen(&self) -> Option<*mut c_void> {
-    self.inner.ns_screen().map(|s| s as *mut c_void)
+    self
+      .inner
+      .ns_screen()
+      .map(|s| objc2::rc::Retained::into_raw(s) as *mut c_void)
   }
 }
 
@@ -397,34 +396,60 @@ pub trait EventLoopWindowTargetExtMacOS {
   /// [`EventLoopExtMacOS::set_activation_policy`](crate::platform::macos::EventLoopExtMacOS::set_activation_policy).
   fn set_activation_policy_at_runtime(&self, activation_policy: ActivationPolicy);
 
+  /// Sets the visibility of the application in the dock.
+  ///
+  /// To set the dock visibility before the app starts running, see
+  /// [`EventLoopExtMacOS::set_dock_visibility`](crate::platform::macos::EventLoopExtMacOS::set_dock_visibility).
+  fn set_dock_visibility(&self, visible: bool);
+
   /// Sets the badge label on macos dock
   fn set_badge_label(&self, label: Option<String>);
 }
 
 impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
   fn hide_application(&self) {
-    let cls = objc::runtime::Class::get("NSApplication").unwrap();
-    let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
-    unsafe { msg_send![app, hide: 0] }
+    // TODO: Safety.
+    let mtm = unsafe { objc2_foundation::MainThreadMarker::new_unchecked() };
+    objc2_app_kit::NSApplication::sharedApplication(mtm).hide(None)
   }
 
   fn show_application(&self) {
-    let cls = objc::runtime::Class::get("NSApplication").unwrap();
-    let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
-    unsafe { msg_send![app, unhide: 0] }
+    // TODO: Safety.
+    let mtm = unsafe { objc2_foundation::MainThreadMarker::new_unchecked() };
+    unsafe { objc2_app_kit::NSApplication::sharedApplication(mtm).unhide(None) }
   }
 
   fn hide_other_applications(&self) {
-    let cls = objc::runtime::Class::get("NSApplication").unwrap();
-    let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
-    unsafe { msg_send![app, hideOtherApplications: 0] }
+    // TODO: Safety.
+    let mtm = unsafe { objc2_foundation::MainThreadMarker::new_unchecked() };
+    objc2_app_kit::NSApplication::sharedApplication(mtm).hideOtherApplications(None)
   }
 
   fn set_activation_policy_at_runtime(&self, activation_policy: ActivationPolicy) {
-    let cls = objc::runtime::Class::get("NSApplication").unwrap();
-    let app: cocoa::base::id = unsafe { msg_send![cls, sharedApplication] };
-    let ns_activation_policy: NSApplicationActivationPolicy = activation_policy.into();
-    unsafe { msg_send![app, setActivationPolicy: ns_activation_policy] }
+    use objc2_app_kit::NSApplicationActivationPolicy;
+
+    let ns_activation_policy = match activation_policy {
+      ActivationPolicy::Regular => NSApplicationActivationPolicy::Regular,
+      ActivationPolicy::Accessory => NSApplicationActivationPolicy::Accessory,
+      ActivationPolicy::Prohibited => NSApplicationActivationPolicy::Prohibited,
+    };
+
+    // TODO: Safety.
+    let mtm = unsafe { objc2_foundation::MainThreadMarker::new_unchecked() };
+    objc2_app_kit::NSApplication::sharedApplication(mtm).setActivationPolicy(ns_activation_policy);
+  }
+
+  fn set_dock_visibility(&self, visible: bool) {
+    let Some(Ok(delegate)) = (unsafe {
+      // TODO: Safety.
+      let mtm = objc2_foundation::MainThreadMarker::new_unchecked();
+      objc2_app_kit::NSApplication::sharedApplication(mtm)
+        .delegate()
+        .map(|delegate| delegate.downcast::<NSObject>())
+    }) else {
+      return;
+    };
+    set_dock_visibility(&delegate, visible);
   }
 
   fn set_badge_label(&self, label: Option<String>) {

@@ -122,7 +122,7 @@ impl KeyEventBuilder {
         let peek_retval = unsafe {
           PeekMessageW(
             next_msg.as_mut_ptr(),
-            hwnd,
+            Some(hwnd),
             WM_KEYFIRST,
             WM_KEYLAST,
             PM_NOREMOVE,
@@ -187,7 +187,7 @@ impl KeyEventBuilder {
           let mut next_msg = MaybeUninit::uninit();
           let has_message = PeekMessageW(
             next_msg.as_mut_ptr(),
-            hwnd,
+            Some(hwnd),
             WM_KEYFIRST,
             WM_KEYLAST,
             PM_NOREMOVE,
@@ -281,7 +281,7 @@ impl KeyEventBuilder {
         let peek_retval = unsafe {
           PeekMessageW(
             next_msg.as_mut_ptr(),
-            hwnd,
+            Some(hwnd),
             WM_KEYFIRST,
             WM_KEYLAST,
             PM_NOREMOVE,
@@ -439,7 +439,8 @@ impl KeyEventBuilder {
     locale_id: HKL,
     layouts: &mut MutexGuard<'_, LayoutCache>,
   ) -> Option<MessageAsKeyEvent> {
-    let scancode = unsafe { MapVirtualKeyExW(u32::from(vk.0), MAPVK_VK_TO_VSC_EX, locale_id) };
+    let scancode =
+      unsafe { MapVirtualKeyExW(u32::from(vk.0), MAPVK_VK_TO_VSC_EX, Some(locale_id)) };
     if scancode == 0 {
       return None;
     }
@@ -533,7 +534,11 @@ impl PartialKeyEventInfo {
       // In some cases (often with media keys) the device reports a scancode of 0 but a
       // valid virtual key. In these cases we obtain the scancode from the virtual key.
       unsafe {
-        MapVirtualKeyExW(u32::from(vkey.0), MAPVK_VK_TO_VSC_EX, HKL(layout.hkl as _)) as u16
+        MapVirtualKeyExW(
+          u32::from(vkey.0),
+          MAPVK_VK_TO_VSC_EX,
+          Some(HKL(layout.hkl as _)),
+        ) as u16
       }
     } else {
       new_ex_scancode(lparam_struct.scancode, lparam_struct.extended)
@@ -761,7 +766,7 @@ fn get_location(scancode: ExScancode, hkl: HKL) -> KeyLocation {
   let extension = 0xE000;
   let extended = (scancode & extension) == extension;
   let vkey =
-    VIRTUAL_KEY(unsafe { MapVirtualKeyExW(scancode as u32, MAPVK_VSC_TO_VK_EX, hkl) } as u16);
+    VIRTUAL_KEY(unsafe { MapVirtualKeyExW(scancode as u32, MAPVK_VSC_TO_VK_EX, Some(hkl)) } as u16);
 
   // Use the native VKEY and the extended flag to cover most cases
   // This is taken from the `druid` GUI library, specifically

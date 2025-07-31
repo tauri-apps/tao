@@ -3,10 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use windows::{
-  core::PCWSTR,
+  core::{BOOL, PCWSTR},
   Win32::{
-    Foundation::{BOOL, HWND, LPARAM, POINT, RECT},
+    Foundation::{HWND, LPARAM, POINT, RECT},
     Graphics::Gdi::*,
+    UI::WindowsAndMessaging::USER_DEFAULT_SCREEN_DPI,
   },
 };
 
@@ -103,7 +104,7 @@ pub fn available_monitors() -> VecDeque<MonitorHandle> {
   let mut monitors: VecDeque<MonitorHandle> = VecDeque::new();
   unsafe {
     let _ = EnumDisplayMonitors(
-      HDC::default(),
+      None,
       None,
       Some(monitor_enum_proc),
       LPARAM(&mut monitors as *mut _ as _),
@@ -216,7 +217,11 @@ impl MonitorHandle {
 
   #[inline]
   pub fn scale_factor(&self) -> f64 {
-    dpi_to_scale_factor(get_monitor_dpi(self.hmonitor()).unwrap_or(96))
+    dpi_to_scale_factor(self.dpi())
+  }
+
+  pub fn dpi(&self) -> u32 {
+    get_monitor_dpi(self.hmonitor()).unwrap_or(USER_DEFAULT_SCREEN_DPI)
   }
 
   #[inline]

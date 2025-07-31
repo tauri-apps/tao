@@ -150,15 +150,15 @@ pub struct WindowAttributes {
   /// ## Platform-specific
   ///
   /// - **macOS**: The top left corner position of the window content, the window's "inner"
-  /// position. The window title bar will be placed above it.
-  /// The window will be positioned such that it fits on screen, maintaining
-  /// set `inner_size` if any.
-  /// If you need to precisely position the top left corner of the whole window you have to
-  /// use [`Window::set_outer_position`] after creating the window.
+  ///   position. The window title bar will be placed above it.
+  ///   The window will be positioned such that it fits on screen, maintaining
+  ///   set `inner_size` if any.
+  ///   If you need to precisely position the top left corner of the whole window you have to
+  ///   use [`Window::set_outer_position`] after creating the window.
   /// - **Windows**: The top left corner position of the window title bar, the window's "outer"
-  /// position.
-  /// There may be a small gap between this position and the window due to the specifics of the
-  /// Window Manager.
+  ///   position.
+  ///   There may be a small gap between this position and the window due to the specifics of the
+  ///   Window Manager.
   /// - **Linux**: The top left corner of the window, the window's "outer" position.
   /// - **Linux(Wayland)**: Unsupported.
   /// - **Others**: Ignored.
@@ -859,11 +859,11 @@ impl Window {
   /// ## Platform-specific
   ///
   /// - **Linux:** Most size methods like maximized are async and do not work well with calling
-  /// sequentailly. For setting inner or outer size, you don't need to set resizable to true before
-  /// it. It can resize no matter what. But if you insist to do so, it has a `100, 100` minimum
-  /// limitation somehow. For maximizing, it requires resizable is true. If you really want to set
-  /// resizable to false after it. You might need a mechanism to check the window is really
-  /// maximized.
+  ///   sequentailly. For setting inner or outer size, you don't need to set resizable to true before
+  ///   it. It can resize no matter what. But if you insist to do so, it has a `100, 100` minimum
+  ///   limitation somehow. For maximizing, it requires resizable is true. If you really want to set
+  ///   resizable to false after it. You might need a mechanism to check the window is really
+  ///   maximized.
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_resizable(&self, resizable: bool) {
@@ -1394,8 +1394,10 @@ impl rwh_06::HasDisplayHandle for Window {
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Default)]
 pub enum CursorIcon {
   /// The platform-dependent default cursor.
+  #[default]
   Default,
   /// A simple crosshair.
   Crosshair,
@@ -1450,12 +1452,6 @@ pub enum CursorIcon {
   RowResize,
 }
 
-impl Default for CursorIcon {
-  fn default() -> Self {
-    CursorIcon::Default
-  }
-}
-
 /// Fullscreen modes.
 #[non_exhaustive]
 #[allow(clippy::large_enum_variant)]
@@ -1476,7 +1472,7 @@ pub enum Theme {
 }
 
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum UserAttentionType {
   /// ## Platform-specific
   /// - **macOS:** Bounces the dock icon until the application is in focus.
@@ -1485,13 +1481,8 @@ pub enum UserAttentionType {
   /// ## Platform-specific
   /// - **macOS:** Bounces the dock icon once.
   /// - **Windows:** Flashes the taskbar button until the application is in focus.
+  #[default]
   Informational,
-}
-
-impl Default for UserAttentionType {
-  fn default() -> Self {
-    UserAttentionType::Informational
-  }
 }
 
 /// Window size constraints

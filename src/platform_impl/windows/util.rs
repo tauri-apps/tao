@@ -17,12 +17,13 @@ use crate::{
   window::CursorIcon,
 };
 
+use once_cell::sync::Lazy;
 use windows::{
-  core::{HRESULT, PCSTR, PCWSTR},
+  core::{BOOL, HRESULT, PCSTR, PCWSTR},
   Win32::{
-    Foundation::{BOOL, COLORREF, FARPROC, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
+    Foundation::{COLORREF, FARPROC, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
     Globalization::lstrlenW,
-    Graphics::Gdi::{ClientToScreen, InvalidateRgn, HMONITOR, HRGN},
+    Graphics::Gdi::{ClientToScreen, InvalidateRgn, HMONITOR},
     System::LibraryLoader::*,
     UI::{
       HiDpi::*,
@@ -113,14 +114,14 @@ pub(crate) fn set_inner_size_physical(window: HWND, x: i32, y: i32, is_decorated
     let outer_y = (rect.top - rect.bottom).abs();
     let _ = SetWindowPos(
       window,
-      HWND::default(),
+      None,
       0,
       0,
       outer_x,
       outer_y,
       SWP_ASYNCWINDOWPOS | SWP_NOZORDER | SWP_NOREPOSITION | SWP_NOMOVE | SWP_NOACTIVATE,
     );
-    let _ = InvalidateRgn(window, HRGN::default(), BOOL::default());
+    let _ = InvalidateRgn(window, None, false);
   }
 }
 
@@ -145,13 +146,15 @@ pub fn adjust_window_rect_with_styles(
   style_ex: WINDOW_EX_STYLE,
   mut rect: RECT,
 ) -> Option<RECT> {
-  let b_menu: BOOL = (!unsafe { GetMenu(hwnd) }.is_invalid()).into();
+  let b_menu = !unsafe { GetMenu(hwnd) }.is_invalid();
 
   if let (Some(get_dpi_for_window), Some(adjust_window_rect_ex_for_dpi)) =
     (*GET_DPI_FOR_WINDOW, *ADJUST_WINDOW_RECT_EX_FOR_DPI)
   {
     let dpi = unsafe { get_dpi_for_window(hwnd) };
-    if unsafe { adjust_window_rect_ex_for_dpi(&mut rect, style, b_menu, style_ex, dpi) }.as_bool() {
+    if unsafe { adjust_window_rect_ex_for_dpi(&mut rect, style, b_menu.into(), style_ex, dpi) }
+      .as_bool()
+    {
       Some(rect)
     } else {
       None
@@ -285,6 +288,8 @@ pub type GetDpiForMonitor = unsafe extern "system" fn(
   dpi_x: *mut u32,
   dpi_y: *mut u32,
 ) -> HRESULT;
+type GetSystemMetricsForDpi =
+  unsafe extern "system" fn(nindex: SYSTEM_METRICS_INDEX, dpi: u32) -> i32;
 pub type EnableNonClientDpiScaling = unsafe extern "system" fn(hwnd: HWND) -> BOOL;
 pub type AdjustWindowRectExForDpi = unsafe extern "system" fn(
   rect: *mut RECT,
@@ -301,6 +306,8 @@ lazy_static! {
     get_function!("user32.dll", AdjustWindowRectExForDpi);
   pub static ref GET_DPI_FOR_MONITOR: Option<GetDpiForMonitor> =
     get_function!("shcore.dll", GetDpiForMonitor);
+  pub static ref GET_SYSTEM_METRICS_FOR_DPI: Option<GetSystemMetricsForDpi> =
+    get_function!("user32.dll", GetSystemMetricsForDpi);
   pub static ref ENABLE_NON_CLIENT_DPI_SCALING: Option<EnableNonClientDpiScaling> =
     get_function!("user32.dll", EnableNonClientDpiScaling);
   pub static ref SET_PROCESS_DPI_AWARENESS_CONTEXT: Option<SetProcessDpiAwarenessContext> =
@@ -397,7 +404,7 @@ pub fn PRIMARYLANGID(hkl: HKL) -> u32 {
 #[allow(non_snake_case)]
 #[inline]
 pub fn RGB<T: Into<u32>>(r: T, g: T, b: T) -> COLORREF {
-  COLORREF(r.into() | g.into() << 8 | b.into() << 16)
+  COLORREF(r.into() | (g.into() << 8) | (b.into() << 16))
 }
 
 pub unsafe extern "system" fn call_default_window_proc(
@@ -422,4 +429,82 @@ pub fn get_instance_handle() -> windows::Win32::Foundation::HMODULE {
   }
 
   windows::Win32::Foundation::HMODULE(unsafe { &__ImageBase as *const _ as _ })
+}
+
+pub static WIN_VERSION: Lazy<windows_version::OsVersion> =
+  Lazy::new(windows_version::OsVersion::current);
+
+pub fn get_frame_thickness(dpi: u32) -> i32 {
+  let resize_frame_thickness = unsafe { get_system_metrics_for_dpi(SM_CXSIZEFRAME, dpi) };
+  let padding_thickness = unsafe { get_system_metrics_for_dpi(SM_CXPADDEDBORDER, dpi) };
+  resize_frame_thickness + padding_thickness
+}
+
+pub fn calculate_insets_for_dpi(dpi: u32) -> RECT {
+  // - On Windows 10
+  // The top inset must be zero, since if there is any nonclient area, Windows will draw
+  // a full native titlebar outside the client area. (This doesn't occur in the maximized
+  // case.)
+  //
+  // - On Windows 11
+  // The top inset is calculated using an empirical formula that I derived through various
+  // tests. Without this, the top 1-2 rows of pixels in our window would be obscured.
+
+  let frame_thickness = get_frame_thickness(dpi);
+
+  let top_inset = match WIN_VERSION.build {
+    v if v >= 22000 => (dpi as f32 / USER_DEFAULT_SCREEN_DPI as f32).round() as i32,
+    _ => 0,
+  };
+
+  RECT {
+    left: frame_thickness,
+    top: top_inset,
+    right: frame_thickness,
+    bottom: frame_thickness,
+  }
+}
+
+/// Calcuclate window insets, used in WM_NCCALCSIZE
+///
+/// Derived of GPUI implementation
+/// see <https://github.com/zed-industries/zed/blob/7bddb390cabefb177d9996dc580749d64e6ca3b6/crates/gpui/src/platform/windows/events.rs#L1418-L1454>
+pub fn calculate_window_insets(window: HWND) -> RECT {
+  let dpi = unsafe { super::dpi::hwnd_dpi(window) };
+  calculate_insets_for_dpi(dpi)
+}
+
+pub fn window_rect(hwnd: HWND) -> RECT {
+  unsafe {
+    let mut rect = RECT::default();
+    if GetWindowRect(hwnd, &mut rect).is_err() {
+      panic!(
+        "Unexpected GetWindowRect failure: please report this error to \
+               tauri-apps/tao"
+      )
+    }
+    rect
+  }
+}
+
+pub fn client_rect(hwnd: HWND) -> RECT {
+  unsafe {
+    let mut rect = RECT::default();
+    if GetClientRect(hwnd, &mut rect).is_err() {
+      panic!(
+        "Unexpected GetClientRect failure: please report this error to \
+               tauri-apps/tao"
+      )
+    }
+    rect
+  }
+}
+
+pub unsafe fn get_system_metrics_for_dpi(nindex: SYSTEM_METRICS_INDEX, dpi: u32) -> i32 {
+  #[allow(non_snake_case)]
+  if let Some(GetSystemMetricsForDpi) = *GET_SYSTEM_METRICS_FOR_DPI {
+    GetSystemMetricsForDpi(nindex, dpi)
+  } else {
+    GetSystemMetrics(nindex)
+  }
 }

@@ -40,15 +40,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache cargo folder
-        uses: actions/cache@v1
-        with:
-          path: ~/.cargo
-          key: ${{ matrix.platform.target }}-cargo-stable
-
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform.target }}
+
+      - uses: Swatinem/rust-cache@v2
 
       - name: Install Gtk (ubuntu only)
         if: matrix.platform.os == 'ubuntu-latest'
@@ -63,6 +57,10 @@ jobs:
       - name: Install cargo-apk
         if: contains(matrix.platform.target, 'android')
         run: cargo install cargo-apk
+
+      - uses: dtolnay/rust-toolchain@1.74
+        with:
+          targets: ${{ matrix.platform.target }}
 
       - name: Check documentation
         shell: bash
@@ -118,13 +116,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache cargo folder
-        uses: actions/cache@v1
-        with:
-          path: ~/.cargo
-          key: ${{ matrix.platform.target }}-cargo-stable
-
       - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
 
       - name: Run tests
         shell: bash

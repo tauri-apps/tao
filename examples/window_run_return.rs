@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Limit this example to only compatible platforms.
-#[cfg(any(target_os = "windows", target_os = "macos",))]
+#[cfg(not(target_os = "ios"))]
 #[allow(clippy::single_match)]
 fn main() {
   use std::{thread::sleep, time::Duration};
@@ -53,15 +53,7 @@ fn main() {
   }
 }
 
-#[cfg(any(
-  target_os = "ios",
-  target_os = "android",
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
-))]
+#[cfg(target_os = "ios")]
 fn main() {
   println!("This platform doesn't support run_return.");
 }

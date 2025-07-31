@@ -298,7 +298,7 @@ impl LayoutCache {
     layout.numlock_off_keys.reserve(NUMPAD_KEYCODES.len());
     for vk in 0_u16..256 {
       let scancode =
-        unsafe { MapVirtualKeyExW(u32::from(vk), MAPVK_VK_TO_VSC_EX, locale_id as HKL) };
+        unsafe { MapVirtualKeyExW(u32::from(vk), MAPVK_VK_TO_VSC_EX, Some(locale_id as HKL)) };
       if scancode == 0 {
         continue;
       }
@@ -321,7 +321,7 @@ impl LayoutCache {
     layout.numlock_on_keys.reserve(NUMPAD_VKEYS.len());
     for vk in NUMPAD_VKEYS.iter() {
       let scancode =
-        unsafe { MapVirtualKeyExW(u32::from(vk.0), MAPVK_VK_TO_VSC_EX, locale_id as HKL) };
+        unsafe { MapVirtualKeyExW(u32::from(vk.0), MAPVK_VK_TO_VSC_EX, Some(locale_id as HKL)) };
       let unicode = Self::to_unicode_string(&key_state, *vk, scancode, locale_id);
       if let ToUnicodeResult::Str(s) = unicode {
         let static_str = get_or_insert_str(strings, s);
@@ -344,7 +344,8 @@ impl LayoutCache {
       // elements. This array is allowed to be indexed by virtual key values
       // giving the key state for the virtual key used for indexing.
       for vk in 0_u16..256 {
-        let scancode = unsafe { MapVirtualKeyExW(u32::from(vk), MAPVK_VK_TO_VSC_EX, locale_id) };
+        let scancode =
+          unsafe { MapVirtualKeyExW(u32::from(vk), MAPVK_VK_TO_VSC_EX, Some(locale_id)) };
         if scancode == 0 {
           continue;
         }
@@ -439,7 +440,7 @@ impl LayoutCache {
         key_state,
         &mut label_wide,
         0,
-        locale_id,
+        Some(locale_id),
       );
       if wide_len < 0 {
         // If it's dead, we run `ToUnicode` again to consume the dead-key
@@ -449,7 +450,7 @@ impl LayoutCache {
           key_state,
           &mut label_wide,
           0,
-          locale_id,
+          Some(locale_id),
         );
         if wide_len > 0 {
           let os_string = OsString::from_wide(&label_wide[0..wide_len as usize]);

@@ -45,7 +45,8 @@ use crate::{
     drop_handler::FileDropHandler,
     event_loop::{self, EventLoopWindowTarget, DESTROY_MSG_ID},
     icon::{self, IconType},
-    monitor, util,
+    monitor::{self},
+    util,
     window_state::{CursorFlags, SavedWindow, WindowFlags, WindowState},
     OsError, Parent, PlatformSpecificWindowBuilderAttributes, WindowId,
   },
@@ -58,6 +59,7 @@ use crate::{
 use super::{
   event_loop::CHANGE_THEME_MSG_ID,
   keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS},
+  util::calculate_insets_for_dpi,
 };
 
 /// A simple non-owning wrapper around a window.
@@ -171,7 +173,7 @@ impl Window {
 
   #[inline]
   pub fn set_focus(&self) {
-    let window = self.window.clone();
+    let window = self.window;
     let window_flags = self.window_state.lock().window_flags();
 
     let is_visible = window_flags.contains(WindowFlags::VISIBLE);
@@ -192,7 +194,7 @@ impl Window {
   #[inline]
   pub fn request_redraw(&self) {
     unsafe {
-      let _ = RedrawWindow(self.window.0, None, HRGN::default(), RDW_INTERNALPAINT);
+      let _ = RedrawWindow(Some(self.window.0), None, None, RDW_INTERNALPAINT);
     }
   }
 
@@ -227,89 +229,64 @@ impl Window {
     unsafe {
       let _ = SetWindowPos(
         self.window.0,
-        HWND::default(),
+        None,
         x,
         y,
         0,
         0,
         SWP_ASYNCWINDOWPOS | SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE,
       );
-      let _ = InvalidateRgn(self.window.0, HRGN::default(), false);
+      let _ = InvalidateRgn(self.window.0, None, false);
     }
   }
 
   #[inline]
   pub fn inner_size(&self) -> PhysicalSize<u32> {
-    let mut rect = RECT::default();
-    if unsafe { GetClientRect(self.window.0, &mut rect) }.is_err() {
-      panic!("Unexpected GetClientRect failure")
-    }
-
-    let mut width = rect.right - rect.left;
-    let mut height = rect.bottom - rect.top;
-
-    let window_flags = self.window_state.lock().window_flags();
-
-    if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW)
-      && !window_flags.contains(WindowFlags::MARKER_DECORATIONS)
-    {
-      let mut pt: POINT = unsafe { mem::zeroed() };
-      if unsafe { ClientToScreen(self.hwnd(), &mut pt) }.as_bool() == true {
-        let mut window_rc: RECT = unsafe { mem::zeroed() };
-        if unsafe { GetWindowRect(self.hwnd(), &mut window_rc) }.is_ok() {
-          let left_b = pt.x - window_rc.left;
-          let right_b = pt.x + width - window_rc.right;
-          let top_b = pt.y - window_rc.top;
-          let bottom_b = pt.y + height - window_rc.bottom;
-
-          width = width - left_b - right_b;
-          height = height - top_b - bottom_b;
-        }
-      }
-    }
-
-    PhysicalSize::new(width as u32, height as u32)
+    let client_rect = util::client_rect(self.hwnd());
+    PhysicalSize::new(
+      (client_rect.right - client_rect.left) as u32,
+      (client_rect.bottom - client_rect.top) as u32,
+    )
   }
 
   #[inline]
   pub fn outer_size(&self) -> PhysicalSize<u32> {
-    unsafe { util::get_window_rect(self.window.0) }
-      .map(|rect| {
-        PhysicalSize::new(
-          (rect.right - rect.left) as u32,
-          (rect.bottom - rect.top) as u32,
-        )
-      })
-      .unwrap()
+    let window_rect = util::window_rect(self.hwnd());
+    PhysicalSize::new(
+      (window_rect.right - window_rect.left) as u32,
+      (window_rect.bottom - window_rect.top) as u32,
+    )
   }
 
   #[inline]
   pub fn set_inner_size(&self, size: Size) {
     let scale_factor = self.scale_factor();
-    let (mut width, mut height) = size.to_physical::<i32>(scale_factor).into();
 
-    let window_state = Arc::clone(&self.window_state);
+    let (mut desired_width, mut desired_height) = size.to_physical::<i32>(scale_factor).into();
 
-    let window_flags = self.window_state.lock().window_flags();
+    let window_flags = self.window_state.lock().window_flags;
 
-    let is_decorated = window_flags.contains(WindowFlags::MARKER_DECORATIONS);
+    // undecorated windows with shadows have hidden offsets
+    // we need to calculate them and account for them in new size
+    //
+    // implementation derived from GPUI
+    // see <https://github.com/zed-industries/zed/blob/7bddb390cabefb177d9996dc580749d64e6ca3b6/crates/gpui/src/platform/windows/window.rs#L1167-L1180>
+    if window_flags.undecorated_with_shadows() {
+      let hwnd = self.hwnd();
 
-    if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) && !is_decorated {
-      let mut pt: POINT = unsafe { mem::zeroed() };
-      if unsafe { ClientToScreen(self.hwnd(), &mut pt) }.as_bool() == true {
-        let mut window_rc: RECT = unsafe { mem::zeroed() };
-        if unsafe { GetWindowRect(self.hwnd(), &mut window_rc) }.is_ok() {
-          let left_b = pt.x - window_rc.left;
-          let right_b = pt.x + width - window_rc.right;
-          let top_b = pt.y - window_rc.top;
-          let bottom_b = pt.y + height - window_rc.bottom;
+      let client_rect = util::client_rect(hwnd);
+      let window_rect = util::window_rect(hwnd);
 
-          width = width + (left_b - right_b);
-          height = height + (top_b - bottom_b);
-        }
-      }
+      let width_offset =
+        (window_rect.right - window_rect.left) - (client_rect.right - client_rect.left);
+      let height_offset =
+        (window_rect.bottom - window_rect.top) - (client_rect.bottom - client_rect.top);
+
+      desired_width += width_offset;
+      desired_height += height_offset;
     }
 
+    let window_state = Arc::clone(&self.window_state);
     let window = self.window.0 .0 as isize;
     self.thread_executor.execute_in_thread(move || {
       WindowState::set_window_flags(window_state.lock(), HWND(window as _), |f| {
@@ -317,7 +294,12 @@ impl Window {
       });
     });
 
-    util::set_inner_size_physical(self.window.0, width, height, is_decorated);
+    util::set_inner_size_physical(
+      self.window.0,
+      desired_width,
+      desired_height,
+      window_flags.contains(WindowFlags::MARKER_DECORATIONS),
+    );
   }
 
   #[inline]
@@ -467,7 +449,7 @@ impl Window {
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
     self.window_state.lock().mouse.cursor = cursor;
     self.thread_executor.execute_in_thread(move || unsafe {
-      let cursor = LoadCursorW(HMODULE::default(), cursor.to_windows_cursor()).unwrap_or_default();
+      let cursor = LoadCursorW(None, cursor.to_windows_cursor()).ok();
       SetCursor(cursor);
     });
   }
@@ -549,7 +531,7 @@ impl Window {
 
     unsafe {
       PostMessageW(
-        self.hwnd(),
+        Some(self.hwnd()),
         WM_NCLBUTTONDOWN,
         wparam,
         LPARAM(&points as *const _ as _),
@@ -680,7 +662,7 @@ impl Window {
 
   #[inline]
   pub fn set_fullscreen(&self, fullscreen: Option<Fullscreen>) {
-    let window = self.window.clone();
+    let window = self.window;
     let window_state = Arc::clone(&self.window_state);
 
     let mut window_state_lock = window_state.lock();
@@ -726,7 +708,7 @@ impl Window {
             ChangeDisplaySettingsExW(
               PCWSTR::from_raw(display_name.as_ptr()),
               Some(&native_video_mode),
-              HWND::default(),
+              None,
               CDS_FULLSCREEN,
               None,
             )
@@ -740,9 +722,8 @@ impl Window {
         }
         (&Some(Fullscreen::Exclusive(_)), &None)
         | (&Some(Fullscreen::Exclusive(_)), &Some(Fullscreen::Borderless(_))) => {
-          let res = unsafe {
-            ChangeDisplaySettingsExW(PCWSTR::null(), None, HWND::default(), CDS_FULLSCREEN, None)
-          };
+          let res =
+            unsafe { ChangeDisplaySettingsExW(PCWSTR::null(), None, None, CDS_FULLSCREEN, None) };
 
           debug_assert!(res != DISP_CHANGE_BADFLAGS);
           debug_assert!(res != DISP_CHANGE_BADMODE);
@@ -763,7 +744,7 @@ impl Window {
         // fine, taking control back from the DWM and ensuring that the `SetWindowPos` call
         // below goes through.
         let mut msg = MSG::default();
-        let _ = PeekMessageW(&mut msg, HWND::default(), 0, 0, PM_NOREMOVE);
+        let _ = PeekMessageW(&mut msg, None, 0, 0, PM_NOREMOVE);
       }
 
       // Update window style
@@ -804,14 +785,14 @@ impl Window {
           unsafe {
             let _ = SetWindowPos(
               hwnd,
-              HWND::default(),
+              None,
               position.0,
               position.1,
               size.0 as i32,
               size.1 as i32,
               SWP_ASYNCWINDOWPOS | SWP_NOZORDER,
             );
-            let _ = InvalidateRgn(hwnd, HRGN::default(), false);
+            let _ = InvalidateRgn(hwnd, None, false);
           }
         }
         None => {
@@ -820,7 +801,7 @@ impl Window {
             drop(window_state_lock);
             unsafe {
               let _ = SetWindowPlacement(hwnd, &placement);
-              let _ = InvalidateRgn(hwnd, HRGN::default(), false);
+              let _ = InvalidateRgn(hwnd, None, false);
             }
           }
         }
@@ -933,7 +914,7 @@ impl Window {
 
   #[inline]
   pub fn request_user_attention(&self, request_type: Option<UserAttentionType>) {
-    let window = self.window.clone();
+    let window = self.window;
     let active_window_handle = unsafe { GetActiveWindow() };
     if window.0 == active_window_handle {
       // active window could be minimized, so we skip requesting attention
@@ -979,7 +960,7 @@ impl Window {
       }
       window_state.preferred_theme = theme;
     }
-    unsafe { SendMessageW(self.hwnd(), *CHANGE_THEME_MSG_ID, WPARAM(0), LPARAM(0)) };
+    unsafe { SendMessageW(self.hwnd(), *CHANGE_THEME_MSG_ID, None, None) };
   }
 
   #[inline]
@@ -995,7 +976,7 @@ impl Window {
         vk,
         scancode,
         Some(&kbd_state),
-        mem::transmute(char_buff.as_mut()),
+        mem::transmute::<&mut [std::mem::MaybeUninit<u16>], &mut [u16]>(char_buff.as_mut()),
         0,
       );
     }
@@ -1008,7 +989,7 @@ impl Window {
       let l_param = util::MAKELPARAM(x as i16, y as i16);
 
       let _ = ReleaseCapture();
-      let _ = PostMessageW(self.hwnd(), button, w_param, l_param);
+      let _ = PostMessageW(Some(self.hwnd()), button, w_param, l_param);
     }
   }
 
@@ -1023,7 +1004,7 @@ impl Window {
     self.window_state.lock().background_color = color;
 
     unsafe {
-      let _ = InvalidateRect(self.hwnd(), None, true);
+      let _ = InvalidateRect(Some(self.hwnd()), None, true);
       let _ = UpdateWindow(self.hwnd());
     }
   }
@@ -1064,9 +1045,7 @@ impl Window {
     let taskbar: ITaskbarList =
       unsafe { CoCreateInstance(&TaskbarList, None, CLSCTX_SERVER).unwrap() };
 
-    let icon = icon
-      .map(|i| i.inner.as_raw_handle())
-      .unwrap_or(HICON::default());
+    let icon = icon.map(|i| i.inner.as_raw_handle()).unwrap_or_default();
 
     unsafe {
       taskbar
@@ -1077,7 +1056,7 @@ impl Window {
 
   #[inline]
   pub fn set_undecorated_shadow(&self, shadow: bool) {
-    let window = self.window.clone();
+    let window = self.window;
     let window_state = Arc::clone(&self.window_state);
 
     self.thread_executor.execute_in_thread(move || {
@@ -1086,6 +1065,15 @@ impl Window {
         f.set(WindowFlags::MARKER_UNDECORATED_SHADOW, shadow)
       });
     });
+  }
+
+  #[inline]
+  pub fn has_undecorated_shadow(&self) -> bool {
+    self
+      .window_state
+      .lock()
+      .window_flags
+      .contains(WindowFlags::MARKER_UNDECORATED_SHADOW)
   }
 
   pub fn set_content_protection(&self, enabled: bool) {
@@ -1109,7 +1097,7 @@ impl Drop for Window {
     unsafe {
       // The window must be destroyed from the same thread that created it, so we send a
       // custom message to be handled by our callback to do the actual work.
-      let _ = PostMessageW(self.window.0, *DESTROY_MSG_ID, WPARAM(0), LPARAM(0));
+      let _ = PostMessageW(Some(self.window.0), *DESTROY_MSG_ID, WPARAM(0), LPARAM(0));
     }
   }
 }
@@ -1170,47 +1158,78 @@ unsafe fn init<T: 'static>(
     let (style, ex_style) = window_flags.to_window_styles();
     let title = util::encode_wide(&attributes.title);
 
-    let primary_monitor = event_loop.primary_monitor().map(|m| m.inner);
+    let (target_monitor, position) = attributes
+      .position
+      .and_then(|p| {
+        monitor::available_monitors()
+          .into_iter()
+          .find_map(|monitor| {
+            let dpi = monitor.dpi();
+            let scale_factor = dpi_to_scale_factor(dpi);
+            let position = p.to_physical::<i32>(scale_factor);
+            let (x, y): (i32, i32) = monitor.position().into();
+            let (width, height): (i32, i32) = monitor.size().into();
 
-    let position = attributes.position.map(|p| {
-      p.to_logical::<f64>(
-        primary_monitor
-          .as_ref()
-          .map(|m| m.scale_factor())
-          .unwrap_or(1.0),
-      )
-    });
+            let frame_thickness = if window_flags.contains_shadow() {
+              util::get_frame_thickness(dpi)
+            } else {
+              0
+            };
 
-    let default_scale_factor = position
-      .and_then(|p| event_loop.monitor_from_point(p.x, p.y))
-      .or_else(|| primary_monitor)
-      .map(|m| m.scale_factor())
-      .unwrap_or(1.0);
+            // Only the starting position x needs to be accounted
+            if x <= position.x + frame_thickness
+              && position.x <= x + width
+              && y <= position.y
+              && position.y <= y + height
+            {
+              Some((monitor, position.into()))
+            } else {
+              None
+            }
+          })
+      })
+      .unwrap_or_else(|| (monitor::primary_monitor(), (CW_USEDEFAULT, CW_USEDEFAULT)));
 
     let desired_size = attributes
       .inner_size
       .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
     let clamped_size = attributes
       .inner_size_constraints
-      .clamp(desired_size, default_scale_factor);
-
-    let position = position
-      .map(|p| p.into())
-      .unwrap_or((CW_USEDEFAULT, CW_USEDEFAULT));
+      .clamp(desired_size, target_monitor.scale_factor());
 
     // Best effort: try to create the window with the requested inner size
     let adjusted_size = {
-      let (w, h): (i32, i32) = clamped_size.to_physical::<u32>(default_scale_factor).into();
-      let mut rect = RECT {
-        left: 0,
-        top: 0,
-        right: w,
-        bottom: h,
-      };
-      unsafe {
-        AdjustWindowRectEx(&mut rect, style, pl_attribs.menu.is_some(), ex_style)?;
+      let (mut w, mut h): (i32, i32) = clamped_size
+        .to_physical::<u32>(target_monitor.scale_factor())
+        .into();
+
+      if window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
+        let mut rect = RECT {
+          left: 0,
+          top: 0,
+          right: w,
+          bottom: h,
+        };
+
+        unsafe {
+          AdjustWindowRectEx(
+            &mut rect,
+            window_flags.to_adjusted_window_styles().0,
+            pl_attribs.menu.is_some(),
+            ex_style,
+          )?;
+        }
+
+        w = rect.right - rect.left;
+        h = rect.bottom - rect.top;
+      } else if window_flags.undecorated_with_shadows() {
+        let dpi = target_monitor.dpi();
+        let insets = calculate_insets_for_dpi(dpi);
+        w += insets.left + insets.right;
+        h += insets.top + insets.bottom;
       }
-      (rect.right - rect.left, rect.bottom - rect.top)
+
+      (w, h)
     };
 
     let handle = CreateWindowExW(
@@ -1222,13 +1241,13 @@ unsafe fn init<T: 'static>(
       position.1,
       adjusted_size.0,
       adjusted_size.1,
-      parent.unwrap_or_default(),
-      pl_attribs.menu.unwrap_or_default(),
-      GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
+      parent,
+      pl_attribs.menu,
+      GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
       Some(Box::into_raw(Box::new(window_flags)) as _),
     )?;
 
-    if !IsWindow(handle).as_bool() {
+    if !IsWindow(Some(handle)).as_bool() {
       return Err(os_error!(OsError::IoError(io::Error::last_os_error())));
     }
 
@@ -1261,7 +1280,7 @@ unsafe fn init<T: 'static>(
     };
 
     let _ = DwmEnableBlurBehindWindow(real_window.0, &bb);
-    let _ = DeleteObject(region);
+    let _ = DeleteObject(region.into());
   }
 
   // If the system theme is dark, we need to set the window theme now
@@ -1376,10 +1395,13 @@ unsafe extern "system" fn window_proc(
           }
         } else if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) {
           let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
-          params.rgrc[0].top += 1;
-          params.rgrc[0].bottom += 1;
-          params.rgrc[0].left += 1;
-          params.rgrc[0].right += 1;
+
+          let insets = util::calculate_window_insets(window);
+
+          params.rgrc[0].left += insets.left;
+          params.rgrc[0].top += insets.top;
+          params.rgrc[0].right -= insets.right;
+          params.rgrc[0].bottom -= insets.bottom;
         }
         return LRESULT(0); // return 0 here to make the window borderless
       }
@@ -1419,7 +1441,7 @@ thread_local! {
         }
     };
 
-    static TASKBAR_LIST: RefCell<Option<ITaskbarList2>> = RefCell::new(None);
+    static TASKBAR_LIST: RefCell<Option<ITaskbarList2>> = const { RefCell::new(None) };
 }
 
 pub fn com_initialized() {

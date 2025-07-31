@@ -52,23 +52,31 @@ fn main() {
         ..
       } => match key_str {
         "e" => {
-          size_constraints.min_width =
-            (!size_constraints.min_width.is_some()).then_some(LogicalUnit::new(min_width).into());
+          size_constraints.min_width = size_constraints
+            .min_width
+            .is_none()
+            .then_some(LogicalUnit::new(min_width).into());
           window.set_inner_size_constraints(size_constraints);
         }
         "f" => {
-          size_constraints.max_width =
-            (!size_constraints.max_width.is_some()).then_some(LogicalUnit::new(max_width).into());
+          size_constraints.max_width = size_constraints
+            .max_width
+            .is_none()
+            .then_some(LogicalUnit::new(max_width).into());
           window.set_inner_size_constraints(size_constraints);
         }
         "p" => {
-          size_constraints.min_height =
-            (!size_constraints.min_height.is_some()).then_some(LogicalUnit::new(min_height).into());
+          size_constraints.min_height = size_constraints
+            .min_height
+            .is_none()
+            .then_some(LogicalUnit::new(min_height).into());
           window.set_inner_size_constraints(size_constraints);
         }
         "v" => {
-          size_constraints.max_height =
-            (!size_constraints.max_height.is_some()).then_some(LogicalUnit::new(max_height).into());
+          size_constraints.max_height = size_constraints
+            .max_height
+            .is_none()
+            .then_some(LogicalUnit::new(max_height).into());
           window.set_inner_size_constraints(size_constraints);
         }
         _ => {}

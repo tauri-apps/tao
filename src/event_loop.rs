@@ -310,7 +310,7 @@ impl<T> EventLoopWindowTarget<T> {
   ///
   /// - **iOS / Android:** Unsupported.
   #[inline]
-  pub fn set_theme(&self, theme: Option<Theme>) {
+  pub fn set_theme(&self, _theme: Option<Theme>) {
     #[cfg(any(
       windows,
       target_os = "linux",
@@ -320,7 +320,7 @@ impl<T> EventLoopWindowTarget<T> {
       target_os = "openbsd",
       target_os = "macos",
     ))]
-    self.p.set_theme(theme)
+    self.p.set_theme(_theme)
   }
 
   /// Sets the push channel for the application.

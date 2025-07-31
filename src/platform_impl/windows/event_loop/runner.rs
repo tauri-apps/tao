@@ -13,7 +13,7 @@ use std::{
 
 use windows::Win32::{
   Foundation::HWND,
-  Graphics::Gdi::{RedrawWindow, HRGN, RDW_INTERNALPAINT},
+  Graphics::Gdi::{RedrawWindow, RDW_INTERNALPAINT},
 };
 
 use crate::{
@@ -395,12 +395,7 @@ impl<T> EventLoopRunner<T> {
     };
     self.call_event_handler(Event::NewEvents(start_cause));
     self.dispatch_buffered_events();
-    let _ = RedrawWindow(
-      self.thread_msg_target,
-      None,
-      HRGN::default(),
-      RDW_INTERNALPAINT,
-    );
+    let _ = RedrawWindow(Some(self.thread_msg_target), None, None, RDW_INTERNALPAINT);
   }
 
   unsafe fn call_redraw_events_cleared(&self) {
@@ -428,7 +423,7 @@ impl<T> BufferedEvent<T> {
     match self {
       Self::Event(event) => dispatch(event),
       Self::ScaleFactorChanged(window_id, scale_factor, mut new_inner_size) => {
-        let os_inner_size = new_inner_size.clone();
+        let os_inner_size = new_inner_size;
 
         dispatch(Event::WindowEvent {
           window_id,

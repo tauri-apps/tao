@@ -40,7 +40,7 @@ fn main() {
             // We need to update our chosen video mode if the window
             // was moved to an another monitor, so that the window
             // appears on this monitor instead when we go fullscreen
-            let previous_video_mode = video_modes.iter().cloned().nth(video_mode_id);
+            let previous_video_mode = video_modes.iter().nth(video_mode_id).cloned();
             video_modes = window.current_monitor().unwrap().video_modes().collect();
             video_mode_id = video_mode_id.min(video_modes.len());
             let video_mode = video_modes.iter().nth(video_mode_id);

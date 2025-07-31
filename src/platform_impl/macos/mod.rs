@@ -2,12 +2,11 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-#![cfg(target_os = "macos")]
-
 mod app;
 mod app_delegate;
 mod app_state;
 mod badge;
+mod dock;
 mod event;
 mod event_loop;
 mod ffi;
@@ -25,7 +24,7 @@ use std::{fmt, ops::Deref, sync::Arc};
 
 pub(crate) use self::event_loop::PlatformSpecificEventLoopAttributes;
 pub use self::{
-  app_delegate::{get_aux_state_mut, AuxDelegateState},
+  app_delegate::get_aux_state_mut,
   event::KeyEventExtra,
   event_loop::{EventLoop, EventLoopWindowTarget, Proxy as EventLoopProxy},
   keycode::{keycode_from_scancode, keycode_to_scancode},
@@ -37,7 +36,7 @@ use crate::{
   error::OsError as RootOsError, event::DeviceId as RootDeviceId, window::WindowAttributes,
 };
 pub(crate) use badge::set_badge_label;
-
+pub(crate) use dock::set_dock_visibility;
 pub(crate) use icon::PlatformIcon;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -73,7 +72,7 @@ impl Deref for Window {
   type Target = UnownedWindow;
   #[inline]
   fn deref(&self) -> &Self::Target {
-    &*self.window
+    &self.window
   }
 }
 

@@ -7,7 +7,7 @@ use std::{fmt, io, iter::once, mem, os::windows::ffi::OsStrExt, path::Path, sync
 use windows::{
   core::PCWSTR,
   Win32::{
-    Foundation::{HMODULE, HWND, LPARAM, WPARAM},
+    Foundation::{HWND, LPARAM, WPARAM},
     System::LibraryLoader::*,
     UI::WindowsAndMessaging::*,
   },
@@ -29,13 +29,13 @@ impl RgbaIcon {
     let pixels =
       unsafe { std::slice::from_raw_parts_mut(rgba.as_mut_ptr() as *mut Pixel, pixel_count) };
     for pixel in pixels {
-      and_mask.push(pixel.a.wrapping_sub(std::u8::MAX)); // invert alpha channel
+      and_mask.push(pixel.a.wrapping_sub(u8::MAX)); // invert alpha channel
       pixel.to_bgra();
     }
     assert_eq!(and_mask.len(), pixel_count);
     let handle = unsafe {
       CreateIcon(
-        HMODULE::default(),
+        None,
         self.width as i32,
         self.height as i32,
         1,
@@ -90,11 +90,11 @@ impl WinIcon {
 
     let handle = unsafe {
       LoadImageW(
-        HMODULE::default(),
+        None,
         PCWSTR::from_raw(wide_path.as_ptr()),
         IMAGE_ICON,
-        width as i32,
-        height as i32,
+        width,
+        height,
         LR_DEFAULTSIZE | LR_LOADFROMFILE,
       )
     }
@@ -109,11 +109,11 @@ impl WinIcon {
     let (width, height) = size.map(Into::into).unwrap_or((0, 0));
     let handle = unsafe {
       LoadImageW(
-        GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
+        GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
         PCWSTR::from_raw(resource_id as usize as *const u16),
         IMAGE_ICON,
-        width as i32,
-        height as i32,
+        width,
+        height,
         LR_DEFAULTSIZE,
       )
     }
@@ -133,8 +133,8 @@ impl WinIcon {
       SendMessageW(
         hwnd,
         WM_SETICON,
-        WPARAM(icon_type as _),
-        LPARAM(self.as_raw_handle().0 as _),
+        Some(WPARAM(icon_type as _)),
+        Some(LPARAM(self.as_raw_handle().0 as _)),
       );
     }
   }
@@ -160,6 +160,11 @@ impl fmt::Debug for WinIcon {
 
 pub fn unset_for_window(hwnd: HWND, icon_type: IconType) {
   unsafe {
-    SendMessageW(hwnd, WM_SETICON, WPARAM(icon_type as _), LPARAM(0));
+    SendMessageW(
+      hwnd,
+      WM_SETICON,
+      Some(WPARAM(icon_type as _)),
+      Some(LPARAM(0)),
+    );
   }
 }
