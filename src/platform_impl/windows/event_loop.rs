@@ -22,7 +22,9 @@ use std::{
 use windows::{
   core::{s, BOOL, PCWSTR},
   Win32::{
-    Foundation::{HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_TIMEOUT, WPARAM},
+    Foundation::{
+      HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, TRUE, WAIT_TIMEOUT, WPARAM,
+    },
     Graphics::Gdi::*,
     System::{
       LibraryLoader::GetModuleHandleW,
@@ -642,7 +644,7 @@ lazy_static! {
       RegisterWindowMessageA(s!("TaskbarCreated"))
     };
     static ref THREAD_EVENT_TARGET_WINDOW_CLASS: Vec<u16> = unsafe {
-        let class_name= util::encode_wide("Tao Thread Event Target");
+        let class_name = util::encode_wide("Tao Thread Event Target");
 
         let class = WNDCLASSEXW {
             cbSize: mem::size_of::<WNDCLASSEXW>() as u32,
@@ -650,7 +652,7 @@ lazy_static! {
             lpfnWndProc: Some(util::call_default_window_proc),
             cbClsExtra: 0,
             cbWndExtra: 0,
-            hInstance:HINSTANCE(GetModuleHandleW(PCWSTR::null()).unwrap_or_default().0),
+            hInstance: HINSTANCE(GetModuleHandleW(PCWSTR::null()).unwrap_or_default().0),
             hIcon: HICON::default(),
             hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
             hbrBackground: HBRUSH::default(),
@@ -2378,6 +2380,18 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       }
 
       DefSubclassProc(window, msg, wparam, lparam)
+    }
+
+    // We don't process `WM_QUERYENDSESSION` yet until we introduce the same mechanism as Tauri's `ExitRequested` event
+    // win32wm::WM_QUERYENDSESSION => {}
+    win32wm::WM_ENDSESSION => {
+      // `wParam` is `FALSE` is for if the shutdown gets canceled,
+      // and we don't need to handle that case since we didn't do anything prior in response to `WM_QUERYENDSESSION`
+      if wparam.0 == TRUE.0 as usize {
+        subclass_input.event_loop_runner.loop_destroyed();
+      }
+      // Note: after we return 0 here, Windows will shut us down
+      LRESULT(0)
     }
 
     _ if msg == *USER_EVENT_MSG_ID => {
