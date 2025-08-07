@@ -263,7 +263,6 @@ impl<T: 'static> EventLoop<T> {
     F: FnMut(event::Event<T>, &event_loop::EventLoopWindowTarget<T>, &mut ControlFlow),
   {
     let mut control_flow = ControlFlow::default();
-    let cause = self.cause;
     let target = &self.window_target;
 
     {
