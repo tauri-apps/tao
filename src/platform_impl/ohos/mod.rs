@@ -283,7 +283,8 @@ impl<T: 'static> EventLoop<T> {
       match event {
         MainEvent::SurfaceCreate { .. } => {
           if let Some(ref mut h) = *self.event_loop.borrow_mut() {
-            h(event::Event::NewEvents(cause));
+            h(event::Event::NewEvents(StartCause::Init));
+            h(event::Event::Resumed);
           }
         }
         MainEvent::SurfaceDestroy { .. } => {
