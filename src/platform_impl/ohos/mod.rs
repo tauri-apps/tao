@@ -277,16 +277,13 @@ impl<T: 'static> EventLoop<T> {
         )
       };
       self.event_loop.replace(Some(handle));
-      if let Some(ref mut h) = *self.event_loop.borrow_mut() {
-        h(event::Event::NewEvents(cause));
-      }
     }
 
     self.openharmony_app.clone().run_loop(|event| {
       match event {
         MainEvent::SurfaceCreate { .. } => {
           if let Some(ref mut h) = *self.event_loop.borrow_mut() {
-            h(event::Event::Resumed);
+            h(event::Event::NewEvents(cause));
           }
         }
         MainEvent::SurfaceDestroy { .. } => {
@@ -470,7 +467,7 @@ impl<T: 'static> EventLoopWindowTarget<T> {
   pub fn primary_monitor(&self) -> Option<monitor::MonitorHandle> {
     Some(monitor::MonitorHandle {
       inner: MonitorHandle::new(self.app.clone()),
-      })
+    })
   }
 
   #[inline]
@@ -690,7 +687,6 @@ impl Window {
     false
   }
 
-
   pub fn set_window_icon(&self, _window_icon: Option<crate::icon::Icon>) {}
 
   pub fn set_cursor_icon(&self, _: window::CursorIcon) {}
@@ -712,7 +708,6 @@ impl Window {
     debug!("`Window::cursor_position` is ignored on OpenHarmony");
     Ok((0, 0).into())
   }
-
 
   pub fn set_ignore_cursor_events(&self, _ignore: bool) -> Result<(), error::ExternalError> {
     Err(error::ExternalError::NotSupported(
@@ -741,7 +736,6 @@ impl Window {
   pub fn theme(&self) -> Theme {
     Theme::Light
   }
-
 
   pub fn title(&self) -> String {
     String::new()
