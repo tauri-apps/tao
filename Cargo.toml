@@ -105,10 +105,8 @@ ndk-context = "0.1"
 tao-macros = { version = "0.1.0", path = "./tao-macros" }
 
 [target."cfg(target_env = \"ohos\")".dependencies]
-openharmony-ability = { git = "https://github.com/harmony-contrib/openharmony-ability.git" }
-openharmony-ability-derive = { git = "https://github.com/harmony-contrib/openharmony-ability.git" }
-# openharmony-ability = {path = "../../ohos-rs/openharmony-activity/crates/ability"}
-# openharmony-ability-derive = {path = "../../ohos-rs/openharmony-activity/crates/derive"}
+openharmony-ability = { version = "0.2"}
+openharmony-ability-derive = { version = "0.2" }
 
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
 objc2 = "0.6"

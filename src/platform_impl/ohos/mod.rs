@@ -645,7 +645,7 @@ impl Window {
   }
 
   pub fn set_fullscreen(&self, _monitor: Option<Fullscreen>) {
-    warn!("Cannot set fullscreen on HarmonyOS");
+    warn!("Cannot set fullscreen on OpenHarmony");
   }
 
   pub fn fullscreen(&self) -> Option<Fullscreen> {
