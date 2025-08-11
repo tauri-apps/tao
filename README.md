@@ -58,6 +58,30 @@ sudo pacman -S gtk3
 sudo apt install libgtk-3-dev
 ```
 
+### OpenHarmony
+
+OpenHarmony is a different OS from Android and iOS. If we want to run the application that we should use a wrapper([openharmony-ability](https://github.com/harmony-contrib/openharmony-ability)) to accept the lifecycle and some other helper functions.
+
+Running on an OpenHarmony or HarmonyNext device needs a dynamic system library, add this to Cargo.toml:
+
+```toml
+[[example]]
+name = "request_redraw_threaded"
+crate-type = ["cdylib"]
+```
+
+And add this to the example file to accept the event loop:
+
+```rust
+#[cfg(target_env = "ohos")]
+#[ability]
+fn openharmony_app(app: OpenHarmonyApp) {
+  //...
+}
+```
+
+And build the application with `ohrs build --arch aarch`, see more example [here](https://github.com/richerfu/wry-example).
+
 ### Acknowledgement
 
 This is a fork of [winit](https://crates.io/crates/winit) which replaces Linux's port to Gtk.
