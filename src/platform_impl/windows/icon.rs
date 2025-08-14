@@ -2,7 +2,7 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{fmt, io, iter::once, mem, os::windows::ffi::OsStrExt, path::Path, sync::Arc};
+use std::{fmt, io, iter::once, mem, os::windows::ffi::OsStrExt, path::Path, rc::Rc};
 
 use windows::{
   core::PCWSTR,
@@ -64,7 +64,7 @@ struct RaiiIcon {
 
 #[derive(Clone)]
 pub struct WinIcon {
-  inner: Arc<RaiiIcon>,
+  inner: Rc<RaiiIcon>,
 }
 
 unsafe impl Send for WinIcon {}
@@ -141,7 +141,7 @@ impl WinIcon {
 
   fn from_handle(handle: HICON) -> Self {
     Self {
-      inner: Arc::new(RaiiIcon { handle }),
+      inner: Rc::new(RaiiIcon { handle }),
     }
   }
 }

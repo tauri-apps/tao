@@ -293,9 +293,9 @@ type GetSystemMetricsForDpi =
 pub type EnableNonClientDpiScaling = unsafe extern "system" fn(hwnd: HWND) -> BOOL;
 pub type AdjustWindowRectExForDpi = unsafe extern "system" fn(
   rect: *mut RECT,
-  dwStyle: WINDOW_STYLE,
-  bMenu: BOOL,
-  dwExStyle: WINDOW_EX_STYLE,
+  dw_style: WINDOW_STYLE,
+  b_menu: BOOL,
+  dw_ex_style: WINDOW_EX_STYLE,
   dpi: u32,
 ) -> BOOL;
 
