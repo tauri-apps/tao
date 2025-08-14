@@ -155,4 +155,4 @@ gdkx11-sys = { version = "0.18", optional = true }
 gdkwayland-sys = "0.18.0"
 x11-dl = { version = "2.21", optional = true }
 parking_lot = "0.12"
-dlopen2 = "0.7.0"
+dlopen2 = "0.8.0"
