@@ -1122,11 +1122,17 @@ impl UnownedWindow {
     // does not take a screen parameter, but uses the current screen)
     if let Some(ref fullscreen) = fullscreen {
       let new_screen = match fullscreen {
-        Fullscreen::Borderless(borderless) => {
-          let RootMonitorHandle { inner: monitor } = borderless
-            .clone()
-            .unwrap_or_else(|| self.current_monitor_inner());
+        Fullscreen::Borderless(Some(borderless)) => {
+          let RootMonitorHandle { inner: monitor } = borderless.clone();
           monitor
+        }
+        Fullscreen::Borderless(None) => {
+          if let Some(current) = self.current_monitor_inner() {
+            let RootMonitorHandle { inner: monitor } = current;
+            monitor
+          } else {
+            return;
+          }
         }
         Fullscreen::Exclusive(RootVideoMode {
           video_mode: VideoMode { ref monitor, .. },
@@ -1399,22 +1405,22 @@ impl UnownedWindow {
 
   #[inline]
   // Allow directly accessing the current monitor internally without unwrapping.
-  pub(crate) fn current_monitor_inner(&self) -> RootMonitorHandle {
+  pub(crate) fn current_monitor_inner(&self) -> Option<RootMonitorHandle> {
     unsafe {
-      let screen: Retained<NSScreen> = msg_send![&self.ns_window, screen];
+      let screen: Retained<NSScreen> = self.ns_window.screen()?;
       let desc = NSScreen::deviceDescription(&screen);
       let key = NSString::from_str("NSScreenNumber");
       let value = NSDictionary::objectForKey(&desc, &key).unwrap();
       let display_id: NSUInteger = msg_send![&value, unsignedIntegerValue];
-      RootMonitorHandle {
+      Some(RootMonitorHandle {
         inner: MonitorHandle::new(display_id.try_into().unwrap()),
-      }
+      })
     }
   }
 
   #[inline]
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
-    Some(self.current_monitor_inner())
+    self.current_monitor_inner()
   }
   #[inline]
   pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<RootMonitorHandle> {
