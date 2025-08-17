@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.34.1]
+
+- [`f73c70fd`](https://github.com/tauri-apps/tao/commit/f73c70fd870016dc1298599cdbc9bcaa8db5d7bf) ([#1120](https://github.com/tauri-apps/tao/pull/1120) by [@robertrpf](https://github.com/tauri-apps/tao/../../robertrpf)) Added `WindowBuilder::with_focusable` to allow creating unfocusable windows.
+- [`f73c70fd`](https://github.com/tauri-apps/tao/commit/f73c70fd870016dc1298599cdbc9bcaa8db5d7bf) ([#1120](https://github.com/tauri-apps/tao/pull/1120) by [@robertrpf](https://github.com/tauri-apps/tao/../../robertrpf)) Added `Window::set_focusable`.
+
 ## \[0.34.0]
 
 - [`773d324b`](https://github.com/tauri-apps/tao/commit/773d324be5462fbe472b9bec7505bb04bdc1cf9a) ([#1121](https://github.com/tauri-apps/tao/pull/1121) by [@FabianLars](https://github.com/tauri-apps/tao/../../FabianLars)) Fixed an issue that caused a panic on macOS when tao received `nil` from the OS when trying to get the current NSScreen.
