@@ -73,6 +73,8 @@ impl Inner {
   }
 
   pub fn set_focusable(&self, _focusable: bool) {
+    warn!("set_focusable not yet implemented on iOS");
+  }
 
   pub fn is_focused(&self) -> bool {
     warn!("`Window::is_focused` is ignored on iOS");

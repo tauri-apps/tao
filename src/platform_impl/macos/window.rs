@@ -252,11 +252,10 @@ fn create_window(
     ];
 
     Retained::retain(ns_window_ptr).and_then(|r| r.downcast::<NSWindow>().ok()).map(|ns_window| {
-      #[allow(deprecated)] 
+      #[allow(deprecated)]
       {
         *((*ns_window_ptr).get_mut_ivar::<Bool>("focusable")) = attrs.focusable.into();
       }
-
 
       let title = NSString::from_str(&attrs.title);
       ns_window.setReleasedWhenClosed(false);
@@ -430,7 +429,9 @@ lazy_static! {
 
 extern "C" fn is_focusable(this: &Object, _: Sel) -> Bool {
   #[allow(deprecated)] // TODO: Use define_class!
-  unsafe { *(this.get_ivar("focusable")) }
+  unsafe {
+    *(this.get_ivar("focusable"))
+  }
 }
 
 extern "C" fn send_event(this: &Object, _sel: Sel, event: &NSEvent) {
@@ -681,9 +682,10 @@ impl UnownedWindow {
 
   #[inline]
   pub fn set_focusable(&self, focusable: bool) {
-      #[allow(deprecated)] // TODO: Use define_class!
+    #[allow(deprecated)] // TODO: Use define_class!
     unsafe {
-      let ns_window =  Retained::into_raw(Retained::cast_unchecked::<Object>(self.ns_window.clone()));
+      let ns_window =
+        Retained::into_raw(Retained::cast_unchecked::<Object>(self.ns_window.clone()));
       *((*ns_window).get_mut_ivar::<Bool>("focusable")) = focusable.into();
     }
   }
