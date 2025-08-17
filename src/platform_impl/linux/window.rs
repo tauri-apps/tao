@@ -594,6 +594,10 @@ impl Window {
     }
   }
 
+  pub fn set_focusable(&self, focusable: bool) {
+    self.window.set_accept_focus(focusable);
+  }
+
   pub fn is_focused(&self) -> bool {
     self.window.is_active()
   }

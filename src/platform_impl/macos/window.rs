@@ -680,6 +680,15 @@ impl UnownedWindow {
   }
 
   #[inline]
+  pub fn set_focusable(&self, focusable: bool) {
+      #[allow(deprecated)] // TODO: Use define_class!
+    unsafe {
+      let ns_window =  Retained::into_raw(Retained::cast_unchecked::<Object>(self.ns_window.clone()));
+      *((*ns_window).get_mut_ivar::<Bool>("focusable")) = focusable.into();
+    }
+  }
+
+  #[inline]
   pub fn is_focused(&self) -> bool {
     unsafe { self.ns_window.isKeyWindow() }
   }

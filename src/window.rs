@@ -844,6 +844,16 @@ impl Window {
     self.window.set_focus()
   }
 
+  /// Sets whether the window is focusable or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_focusable(&self, focusable: bool) {
+    self.window.set_focusable(focusable)
+  }
+
   /// Is window active and focused?
   ///
   /// ## Platform-specific
