@@ -87,7 +87,7 @@ impl Window {
 
     let mut window_builder = gtk::ApplicationWindow::builder()
       .application(app)
-      .accept_focus(attributes.focused);
+      .accept_focus(attributes.focusable && attributes.focused);
     if let Parent::ChildOf(parent) = pl_attribs.parent {
       window_builder = window_builder.transient_for(&parent);
     }
@@ -231,8 +231,8 @@ impl Window {
     }
 
     // restore accept-focus after the window has been drawn
-    // if the window was initially created without focus
-    if !attributes.focused {
+    // if the window was initially created without focus and is supposed to be focusable
+    if attributes.focusable && !attributes.focused {
       let signal_id = Arc::new(RefCell::new(None));
       let signal_id_ = signal_id.clone();
       let id = window.connect_draw(move |window, _| {
@@ -592,6 +592,10 @@ impl Window {
         log::warn!("Fail to send visible request: {}", e);
       }
     }
+  }
+
+  pub fn set_focusable(&self, focusable: bool) {
+    self.window.set_accept_focus(focusable);
   }
 
   pub fn is_focused(&self) -> bool {

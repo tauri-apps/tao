@@ -564,6 +564,10 @@ impl Window {
     warn!("set_focus not yet implemented on Android");
   }
 
+  pub fn set_focusable(&self, _focusable: bool) {
+    warn!("set_focusable not yet implemented on Android");
+  }
+
   pub fn is_focused(&self) -> bool {
     log::warn!("`Window::is_focused` is ignored on Android");
     false
