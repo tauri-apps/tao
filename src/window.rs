@@ -550,7 +550,6 @@ impl WindowBuilder {
   /// Whether the window will be focusable or not.
   ///
   /// ## Platform-specific:
-  /// **Linux / Macos:** Not implemented.
   /// **Android / iOS:** Unsupported.
   #[inline]
   pub fn with_focusable(mut self, focusable: bool) -> WindowBuilder {
