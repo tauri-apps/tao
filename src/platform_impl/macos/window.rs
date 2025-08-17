@@ -415,11 +415,11 @@ lazy_static! {
     .unwrap();
     decl.add_method(
       sel!(canBecomeMainWindow),
-      util::yes as extern "C" fn(_, _) -> _,
+      is_focusable as extern "C" fn(_, _) -> _,
     );
     decl.add_method(
       sel!(canBecomeKeyWindow),
-      can_become_key_window as extern "C" fn(_, _) -> _,
+      is_focusable as extern "C" fn(_, _) -> _,
     );
     decl.add_method(sel!(sendEvent:), send_event as extern "C" fn(_, _, _));
     // progress bar states, follows ProgressState
@@ -428,7 +428,7 @@ lazy_static! {
   };
 }
 
-extern "C" fn can_become_key_window(this: &Object, _: Sel) -> Bool {
+extern "C" fn is_focusable(this: &Object, _: Sel) -> Bool {
   #[allow(deprecated)] // TODO: Use define_class!
   unsafe { *(this.get_ivar("focusable")) }
 }
