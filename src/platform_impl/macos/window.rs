@@ -48,7 +48,7 @@ use core_graphics::{
 use objc2::{
   msg_send,
   rc::Retained,
-  runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel},
+  runtime::{AnyClass as Class, AnyObject as Object, Bool, ClassBuilder as ClassDecl, Sel},
 };
 use objc2_app_kit::{
   self as appkit, NSApp, NSApplicationPresentationOptions, NSBackingStoreType, NSColor, NSEvent,
@@ -242,8 +242,8 @@ fn create_window(
       masks |= NSWindowStyleMask::FullSizeContentView;
     }
 
-    let ns_window = msg_send![WINDOW_CLASS.0, alloc];
-    let ns_window: Option<Retained<NSWindow>> = msg_send![
+    let ns_window: id = msg_send![WINDOW_CLASS.0, alloc];
+    let ns_window_ptr: id = msg_send![
       ns_window,
       initWithContentRect: frame,
       styleMask: masks,
@@ -251,7 +251,12 @@ fn create_window(
       defer: NO,
     ];
 
-    ns_window.map(|ns_window| {
+    Retained::retain(ns_window_ptr).and_then(|r| r.downcast::<NSWindow>().ok()).map(|ns_window| {
+      #[allow(deprecated)]
+      {
+        *((*ns_window_ptr).get_mut_ivar::<Bool>("focusable")) = attrs.focusable.into();
+      }
+
       let title = NSString::from_str(&attrs.title);
       ns_window.setReleasedWhenClosed(false);
       ns_window.setTitle(&title);
@@ -409,15 +414,24 @@ lazy_static! {
     .unwrap();
     decl.add_method(
       sel!(canBecomeMainWindow),
-      util::yes as extern "C" fn(_, _) -> _,
+      is_focusable as extern "C" fn(_, _) -> _,
     );
     decl.add_method(
       sel!(canBecomeKeyWindow),
-      util::yes as extern "C" fn(_, _) -> _,
+      is_focusable as extern "C" fn(_, _) -> _,
     );
     decl.add_method(sel!(sendEvent:), send_event as extern "C" fn(_, _, _));
+    // progress bar states, follows ProgressState
+    decl.add_ivar::<Bool>(CStr::from_bytes_with_nul(b"focusable\0").unwrap());
     WindowClass(decl.register())
   };
+}
+
+extern "C" fn is_focusable(this: &Object, _: Sel) -> Bool {
+  #[allow(deprecated)] // TODO: Use define_class!
+  unsafe {
+    *(this.get_ivar("focusable"))
+  }
 }
 
 extern "C" fn send_event(this: &Object, _sel: Sel, event: &NSEvent) {
@@ -663,6 +677,16 @@ impl UnownedWindow {
       if !is_minimized && is_visible {
         util::set_focus(&self.ns_window);
       }
+    }
+  }
+
+  #[inline]
+  pub fn set_focusable(&self, focusable: bool) {
+    #[allow(deprecated)] // TODO: Use define_class!
+    unsafe {
+      let ns_window =
+        Retained::into_raw(Retained::cast_unchecked::<Object>(self.ns_window.clone()));
+      *((*ns_window).get_mut_ivar::<Bool>("focusable")) = focusable.into();
     }
   }
 
