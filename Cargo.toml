@@ -14,6 +14,7 @@ readme = "README.md"
 repository = "https://github.com/tauri-apps/tao"
 documentation = "https://docs.rs/tao"
 categories = [ "gui" ]
+include = ["/README.md", "src/**/*.rs", "examples/**/*.rs", "LICENSE*"]
 
 [package.metadata.docs.rs]
 features = [ "rwh_04", "rwh_05", "rwh_06", "serde", "x11" ]
