@@ -14,7 +14,7 @@ use crate::{
   event::{DeviceId as RootDeviceId, Event, Force, Touch, TouchPhase, WindowEvent},
   platform::ios::MonitorHandleExtIOS,
   platform_impl::platform::{
-    app_state::{handle_nonuser_event, OSCapabilities},
+    app_state::{self, OSCapabilities},
     event_loop::{self, EventProxy, EventWrapper},
     ffi::{
       id, nil, CGFloat, CGPoint, CGRect, UIForceTouchCapability, UIInterfaceOrientationMask,
