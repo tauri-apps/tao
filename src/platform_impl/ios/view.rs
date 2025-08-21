@@ -14,7 +14,7 @@ use crate::{
   event::{DeviceId as RootDeviceId, Event, Force, Touch, TouchPhase, WindowEvent},
   platform::ios::MonitorHandleExtIOS,
   platform_impl::platform::{
-    app_state::{AppState, OSCapabilities},
+    app_state::{handle_nonuser_event, OSCapabilities},
     event_loop::{self, EventProxy, EventWrapper},
     ffi::{
       id, nil, CGFloat, CGPoint, CGRect, UIForceTouchCapability, UIInterfaceOrientationMask,
@@ -733,7 +733,7 @@ extern "C" fn did_register_for_apns(_: &Object, _: Sel, _: id, token_data: id) {
     let length: usize = msg_send![token_data, length];
     std::slice::from_raw_parts(bytes, length).to_vec()
   };
-  AppState::did_register_push_token(token_bytes);
+  did_register_push_token(token_bytes);
   trace!("Completed `didRegisterForRemoteNotificationsWithDeviceToken`");
 }
 
@@ -767,7 +767,7 @@ extern "C" fn did_fail_to_register_for_apns(_: &Object, _: Sel, _: id, err: *mut
     }
   };
 
-  AppState::did_fail_to_register_push_token(error_string);
+  did_fail_to_register_push_token(error_string);
   trace!("Completed `didFailToRegisterForRemoteNotificationsWithError`");
 }
 #[cfg(feature = "push-notifications")]
@@ -775,3 +775,12 @@ fn get_shared_application() -> *mut Object {
   unsafe { msg_send![class!(UIApplication), sharedApplication] }
 }
 
+fn did_register_push_token(token_data: Vec<u8>) {
+  app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::PushRegistration(
+    token_data,
+  )));
+}
+
+fn did_fail_to_register_push_token(err: String) {
+  app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::PushRegistrationError(err)));
+}
