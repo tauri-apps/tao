@@ -776,11 +776,15 @@ fn get_shared_application() -> *mut Object {
 }
 
 fn did_register_push_token(token_data: Vec<u8>) {
-  app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::PushRegistration(
-    token_data,
-  )));
+  unsafe {
+    app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::PushRegistration(
+      token_data,
+    )));
+  }
 }
 
 fn did_fail_to_register_push_token(err: String) {
-  app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::PushRegistrationError(err)));
+  unsafe {
+    app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::PushRegistrationError(err)));
+  }
 }
