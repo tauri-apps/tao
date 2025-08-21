@@ -25,8 +25,6 @@ use crate::{
   platform_impl,
   window::{ProgressBarState, Theme},
 };
-use std::time::Instant;
-use std::{error, fmt, marker::PhantomData, ops::Deref};
 
 #[cfg(feature = "push-notifications")]
 #[cfg(any(windows))]
