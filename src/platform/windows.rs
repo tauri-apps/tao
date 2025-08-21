@@ -22,8 +22,16 @@ use windows::Networking::PushNotifications::{
   PushNotificationChannel, PushNotificationChannelManager,
 };
 
+
+#[cfg(feature = "push-notifications")]
+use {
+  windows::Foundation::AsyncStatus,
+  windows::Foundation::IAsyncOperation,
+};
+
 #[cfg(feature = "push-notifications")]
 use {windows_future::AsyncStatus, windows_future::IAsyncOperation};
+
 
 pub type HWND = isize;
 pub type HMENU = isize;
@@ -474,18 +482,23 @@ pub trait PushNotificationsExtWindows {
         return Err(1);
       }
     };
+
     let register_op = match mgr.CreatePushNotificationChannelForApplicationAsync() {
+
       Ok(channel) => channel,
       Err(_) => {
         return Err(2);
       }
     };
     // Attach callback
-    attach_callback(register_op, |result| match result {
-      Ok(value) => register_push_channel(value),
-      Err(e) => println!("Operation failed with error: {:?}", e),
-    })
-    .expect("failed to attach callback for windows push notification token");
+
+    attach_callback(push_channel_op, |result| {
+      match result {
+        Ok(value) => register_push_channel(value),
+        Err(e) => println!("Operation failed with error: {:?}", e),
+      }
+    }).expect("failed to attach callback for windows push notification token");
+
 
     Ok(())
   }

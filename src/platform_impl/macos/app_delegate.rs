@@ -10,8 +10,13 @@ use crate::{
   },
 };
 
-use objc2::runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel};
-use objc2_foundation::{NSArray, NSURL};
+use objc2::runtime::{
+  AnyClass as Class, AnyObject as Object, Bool, ClassBuilder as ClassDecl, Sel,
+};
+use objc2_foundation::{
+  NSArray, NSError, NSString, NSUserActivity, NSUserActivityTypeBrowsingWeb, NSURL,
+  };
+
 use std::{
   cell::{RefCell, RefMut},
   ffi::{CStr, CString},
@@ -64,6 +69,14 @@ lazy_static! {
       application_open_urls as extern "C" fn(_, _, _, _),
     );
     decl.add_method(
+      sel!(application:willContinueUserActivityWithType:),
+      application_will_continue_user_activity_with_type as extern "C" fn(_, _, _, _) -> _,
+    );
+    decl.add_method(
+      sel!(application:continueUserActivity:restorationHandler:),
+      application_continue_user_activity as extern "C" fn(_, _, _, _, _) -> _,
+    );
+    decl.add_method(
       sel!(applicationShouldHandleReopen:hasVisibleWindows:),
       application_should_handle_reopen as extern "C" fn(_, _, _, _) -> _,
     );
@@ -73,11 +86,11 @@ lazy_static! {
     );
     decl.add_method(
       sel!(application:didRegisterForRemoteNotificationsWithDeviceToken:),
-      did_register_for_apns as extern "C" fn(&Object, Sel, id, id),
+      did_register_for_apns as extern "C" fn(_, _, _, _),
     );
     decl.add_method(
       sel!(application:didFailToRegisterForRemoteNotificationsWithError:),
-      did_fail_to_register_for_apns as extern "C" fn(&Object, _: Sel, id, id),
+      did_fail_to_register_for_apns as extern "C" fn(_, _, _, _),
     );
     decl.add_ivar::<*mut c_void>(&CString::new(AUX_DELEGATE_STATE_NAME).unwrap());
 
@@ -162,6 +175,62 @@ extern "C" fn application_open_urls(_: &Object, _: Sel, _: id, urls: &NSArray<NS
   trace!("Completed `application:openURLs:`");
 }
 
+extern "C" fn application_will_continue_user_activity_with_type(
+  _: &Object,
+  _: Sel,
+  _: id,
+  user_activity_type: &NSString,
+) -> Bool {
+  trace!("Trigger `application:willContinueUserActivityWithType:`");
+  let result = unsafe { Bool::new(user_activity_type == NSUserActivityTypeBrowsingWeb) };
+  trace!("Completed `application:willContinueUserActivityWithType:`");
+  result
+}
+
+extern "C" fn application_continue_user_activity(
+  _: &Object,
+  _: Sel,
+  _: id,
+  user_activity: &NSUserActivity,
+  _restoration_handler: &block2::Block<dyn Fn(*mut NSError)>,
+) -> Bool {
+  trace!("Trigger `application:continueUserActivity:restorationHandler:`");
+  let url = unsafe {
+    if user_activity
+      .activityType()
+      .isEqualToString(NSUserActivityTypeBrowsingWeb)
+    {
+      match user_activity
+        .webpageURL()
+        .and_then(|url| url.absoluteString())
+        .and_then(|s| Some(s.to_string()))
+      {
+        None => {
+          error!(
+              "`application:continueUserActivity:restorationHandler:`: restore webbrowsing activity but url is empty"
+            );
+          return Bool::new(false);
+        }
+        Some(url_string) => match url::Url::parse(&url_string) {
+          Ok(url) => url,
+          Err(err) => {
+            error!(
+              "`application:continueUserActivity:restorationHandler:`: failed to parse url {err}"
+            );
+            return Bool::new(false);
+          }
+        },
+      }
+    } else {
+      return Bool::new(false);
+    }
+  };
+
+  AppState::open_urls(vec![url]);
+  trace!("Completed `application:continueUserActivity:restorationHandler:`");
+  return Bool::new(true);
+}
+
 extern "C" fn application_should_handle_reopen(
   _: &Object,
   _: Sel,
@@ -177,7 +246,7 @@ extern "C" fn application_should_handle_reopen(
 extern "C" fn application_supports_secure_restorable_state(_: &Object, _: Sel, _: id) -> BOOL {
   trace!("Triggered `applicationSupportsSecureRestorableState`");
   trace!("Completed `applicationSupportsSecureRestorableState`");
-  YES
+  YES 
 }
 
 // application(_:didRegisterForRemoteNotificationsWithDeviceToken:)
@@ -234,66 +303,9 @@ extern "C" fn did_fail_to_register_for_apns(_: &Object, _: Sel, _: id, err: *mut
   AppState::did_fail_to_register_push_token(error_string);
   trace!("Completed `didFailToRegisterForRemoteNotificationsWithError`");
 }
-
+#[cfg(feature = "push-notifications")]
 fn get_shared_application() -> *mut Object {
   unsafe { msg_send![class!(NSApplication), sharedApplication] }
 }
 
-// application(_:didRegisterForRemoteNotificationsWithDeviceToken:)
-extern "C" fn did_register_for_apns(_: &Object, _: Sel, _: id, token_data: id) {
-  trace!("Triggered `didRegisterForRemoteNotificationsWithDeviceToken`");
-  let token_bytes = unsafe {
-    if token_data.is_null() {
-      trace!("Token data is null; ignoring");
-      return;
-    }
-    let is_nsdata: bool = msg_send![token_data, isKindOfClass:class!(NSData)];
-    if !is_nsdata {
-      trace!("Token data is not an NSData object");
-      return;
-    }
-    let bytes: *const u8 = msg_send![token_data, bytes];
-    let length: usize = msg_send![token_data, length];
-    std::slice::from_raw_parts(bytes, length).to_vec()
-  };
-  AppState::did_register_push_token(token_bytes);
-  trace!("Completed `didRegisterForRemoteNotificationsWithDeviceToken`");
-}
 
-// application(_:didFailToRegisterForRemoteNotificationsWithError:)
-extern "C" fn did_fail_to_register_for_apns(_: &Object, _: Sel, _: id, err: *mut Object) {
-  trace!("Triggered `didFailToRegisterForRemoteNotificationsWithError`");
-
-  let error_string = unsafe {
-    if err.is_null() {
-      "Unknown error (null error object)".to_string()
-    } else {
-      // Verify it's an NSError
-      let is_error: bool = msg_send![err, isKindOfClass:class!(NSError)];
-      if !is_error {
-        trace!("Invalid error object type for push registration failure");
-        return;
-      }
-
-      // Get the localizedDescription
-      let description: *mut Object = msg_send![err, localizedDescription];
-      if description.is_null() {
-        trace!("Error had no description");
-        return;
-      }
-
-      // Convert NSString to str
-      let utf8: *const u8 = msg_send![description, UTF8String];
-      let len: usize = msg_send![description, lengthOfBytesUsingEncoding:4];
-      let bytes = std::slice::from_raw_parts(utf8, len);
-      String::from_utf8_lossy(bytes).to_string()
-    }
-  };
-
-  AppState::did_fail_to_register_push_token(error_string);
-  trace!("Completed `didFailToRegisterForRemoteNotificationsWithError`");
-}
-
-fn get_shared_application() -> *mut Object {
-  unsafe { msg_send![class!(NSApplication), sharedApplication] }
-}
