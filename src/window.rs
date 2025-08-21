@@ -228,6 +228,7 @@ pub struct WindowAttributes {
   /// Whether the window should always be on top of other windows.
   ///
   /// The default is `false`.
+  ///
   /// ## Platform-specific:
   ///
   /// - **Linux(x11):** Result depends on the system's window manager. Consider this setting a suggestion.
