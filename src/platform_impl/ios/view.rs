@@ -552,8 +552,8 @@ pub unsafe fn create_window(
 
 pub fn create_delegate_class() {
   extern "C" fn did_finish_launching(_: &Object, _: Sel, _: id, _: id) -> BOOL {
-  #[cfg(feature = "push-notifications")]
-  register_push_notifications();
+  //#[cfg(feature = "push-notifications")]
+  //register_push_notifications();
     unsafe {
       app_state::did_finish_launching();
     }
