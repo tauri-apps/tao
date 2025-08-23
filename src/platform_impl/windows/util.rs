@@ -291,6 +291,7 @@ pub type GetDpiForMonitor = unsafe extern "system" fn(
 type GetSystemMetricsForDpi =
   unsafe extern "system" fn(nindex: SYSTEM_METRICS_INDEX, dpi: u32) -> i32;
 pub type EnableNonClientDpiScaling = unsafe extern "system" fn(hwnd: HWND) -> BOOL;
+#[allow(non_snake_case)]
 pub type AdjustWindowRectExForDpi = unsafe extern "system" fn(
   rect: *mut RECT,
   dwStyle: WINDOW_STYLE,
