@@ -552,8 +552,7 @@ pub unsafe fn create_window(
 
 pub fn create_delegate_class() {
   extern "C" fn did_finish_launching(_: &Object, _: Sel, _: id, _: id) -> BOOL {
-  #[cfg(feature = "push-notifications")]
-  register_push_notifications();
+
     unsafe {
       app_state::did_finish_launching();
     }
@@ -703,18 +702,7 @@ pub fn create_delegate_class() {
     decl.register();
   }
 }
-fn register_push_notifications() {
-  // register for push notifications. this call is inert on macOS unless the app is entitled to
-  // access an APS environment. see:
-  // https://developer.apple.com/documentation/usernotifications/registering-your-app-with-apns
-  // and:
-  // https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_developer_aps-environment
-  let shared_app = get_shared_application();
-  unsafe {
-    // registerForRemoteNotifications()
-    let _: () = msg_send![shared_app, registerForRemoteNotifications];
-  };
-}
+
 
 // application(_:didRegisterForRemoteNotificationsWithDeviceToken:)
 extern "C" fn did_register_for_apns(_: &Object, _: Sel, _: id, token_data: id) {
@@ -769,10 +757,6 @@ extern "C" fn did_fail_to_register_for_apns(_: &Object, _: Sel, _: id, err: *mut
 
   did_fail_to_register_push_token(error_string);
   trace!("Completed `didFailToRegisterForRemoteNotificationsWithError`");
-}
-#[cfg(feature = "push-notifications")]
-fn get_shared_application() -> *mut Object {
-  unsafe { msg_send![class!(UIApplication), sharedApplication] }
 }
 
 fn did_register_push_token(token_data: Vec<u8>) {
