@@ -228,11 +228,23 @@ pub struct WindowAttributes {
   /// Whether the window should always be on top of other windows.
   ///
   /// The default is `false`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux(x11):** Result depends on the system's window manager. Consider this setting a suggestion.
+  /// - **Linux(Wayland):** Unsupported.
+  // TODO: Unsupported in gtk4
   pub always_on_top: bool,
 
   /// Whether the window should always be on bottom of other windows.
   ///
   /// The default is `false`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux(x11):** Result depends on the system's window manager. Consider this setting a suggestion.
+  /// - **Linux(Wayland):** Unsupported.
+  // TODO: Unsupported in gtk4
   pub always_on_bottom: bool,
 
   /// The window icon.
@@ -1086,7 +1098,9 @@ impl Window {
   /// ## Platform-specific
   ///
   /// - **Windows**: There is no guarantee that the window will be the bottom most but it will try to be.
-  /// - **iOS / Android:** Unsupported.
+  /// - **Linux(x11):** Result depends on the system's window manager. Consider this setting a suggestion.
+  /// - **Linux(Wayland) / iOS / Android:** Unsupported.
+  // TODO: Unsupported in gtk4
   #[inline]
   pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
     self.window.set_always_on_bottom(always_on_bottom)
@@ -1096,7 +1110,9 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **iOS / Android:** Unsupported.
+  /// - **Linux(x11):** Result depends on the system's window manager. Consider this setting a suggestion.
+  /// - **Linux(Wayland) / iOS / Android:** Unsupported.
+  // TODO: Unsupported in gtk4
   #[inline]
   pub fn set_always_on_top(&self, always_on_top: bool) {
     self.window.set_always_on_top(always_on_top)
