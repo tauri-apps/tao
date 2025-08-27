@@ -47,6 +47,7 @@ pub static PACKAGE: OnceCell<&str> = OnceCell::new();
 ///       - `private external fun focus(focus: Boolean)`
 /// 4. a one time setup function that will be ran once after tao has created its event loop in the `create` function above.
 /// 5. the main entry point of your android application.
+#[rustfmt::skip]
 #[macro_export]
 macro_rules! android_binding {
   ($domain:ident, $package:ident, $activity:ident, $setup:path, $main:ident) => {
