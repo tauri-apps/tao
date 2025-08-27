@@ -209,7 +209,7 @@ impl<'a, T> Event<'a, T> {
         has_visible_windows,
       }),
       PushRegistration(token) => Ok(PushRegistration(token)),
-      PushRegistrationError(error) => Err(PushRegistrationError(error)),
+      PushRegistrationError(error) => Ok(PushRegistrationError(error)),
     }
   }
 

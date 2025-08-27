@@ -552,6 +552,7 @@ pub unsafe fn create_window(
 
 pub fn create_delegate_class() {
   extern "C" fn did_finish_launching(_: &Object, _: Sel, _: id, _: id) -> BOOL {
+
     unsafe {
       app_state::did_finish_launching();
     }
@@ -690,7 +691,84 @@ pub fn create_delegate_class() {
       sel!(applicationWillTerminate:),
       will_terminate as extern "C" fn(_, _, _),
     );
-
+    decl.add_method(
+      sel!(application:didRegisterForRemoteNotificationsWithDeviceToken:),
+      did_register_for_apns as extern "C" fn(_, _, _, _),
+    );
+    decl.add_method(
+      sel!(application:didFailToRegisterForRemoteNotificationsWithError:),
+      did_fail_to_register_for_apns as extern "C" fn(_, _, _, _),
+    );
     decl.register();
+  }
+}
+
+
+// application(_:didRegisterForRemoteNotificationsWithDeviceToken:)
+extern "C" fn did_register_for_apns(_: &Object, _: Sel, _: id, token_data: id) {
+  trace!("Triggered `didRegisterForRemoteNotificationsWithDeviceToken`");
+  let token_bytes = unsafe {
+    if token_data.is_null() {
+      trace!("Token data is null; ignoring");
+      return;
+    }
+    let is_nsdata: bool = msg_send![token_data, isKindOfClass:class!(NSData)];
+    if !is_nsdata {
+      trace!("Token data is not an NSData object");
+      return;
+    }
+    let bytes: *const u8 = msg_send![token_data, bytes];
+    let length: usize = msg_send![token_data, length];
+    std::slice::from_raw_parts(bytes, length).to_vec()
+  };
+  did_register_push_token(token_bytes);
+  trace!("Completed `didRegisterForRemoteNotificationsWithDeviceToken`");
+}
+
+// application(_:didFailToRegisterForRemoteNotificationsWithError:)
+extern "C" fn did_fail_to_register_for_apns(_: &Object, _: Sel, _: id, err: *mut Object) {
+  trace!("Triggered `didFailToRegisterForRemoteNotificationsWithError`");
+
+  let error_string = unsafe {
+    if err.is_null() {
+      "Unknown error (null error object)".to_string()
+    } else {
+      // Verify it's an NSError
+      let is_error: bool = msg_send![err, isKindOfClass:class!(NSError)];
+      if !is_error {
+        trace!("Invalid error object type for push registration failure");
+        return;
+      }
+
+      // Get the localizedDescription
+      let description: *mut Object = msg_send![err, localizedDescription];
+      if description.is_null() {
+        trace!("Error had no description");
+        return;
+      }
+
+      // Convert NSString to str
+      let utf8: *const u8 = msg_send![description, UTF8String];
+      let len: usize = msg_send![description, lengthOfBytesUsingEncoding:4];
+      let bytes = std::slice::from_raw_parts(utf8, len);
+      String::from_utf8_lossy(bytes).to_string()
+    }
+  };
+
+  did_fail_to_register_push_token(error_string);
+  trace!("Completed `didFailToRegisterForRemoteNotificationsWithError`");
+}
+
+fn did_register_push_token(token_data: Vec<u8>) {
+  unsafe {
+    app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::PushRegistration(
+      token_data,
+    )));
+  }
+}
+
+fn did_fail_to_register_push_token(err: String) {
+  unsafe {
+    app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::PushRegistrationError(err)));
   }
 }

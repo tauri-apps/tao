@@ -249,6 +249,13 @@ pub struct WindowAttributes {
   /// **Android / iOS:** Unsupported.
   pub focused: bool,
 
+  /// Whether the window should be focusable or not.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// **Android / iOS:** Unsupported.
+  pub focusable: bool,
+
   /// Prevents the window contents from being captured by other apps.
   ///
   /// ## Platform-specific
@@ -294,6 +301,7 @@ impl Default for WindowAttributes {
       window_icon: None,
       preferred_theme: None,
       focused: true,
+      focusable: true,
       content_protection: false,
       visible_on_all_workspaces: false,
       background_color: None,
@@ -538,6 +546,17 @@ impl WindowBuilder {
     self.window.focused = focused;
     self
   }
+
+  /// Whether the window will be focusable or not.
+  ///
+  /// ## Platform-specific:
+  /// **Android / iOS:** Unsupported.
+  #[inline]
+  pub fn with_focusable(mut self, focusable: bool) -> WindowBuilder {
+    self.window.focusable = focusable;
+    self
+  }
+
   /// Prevents the window contents from being captured by other apps.
   ///
   /// ## Platform-specific
@@ -823,6 +842,18 @@ impl Window {
   #[inline]
   pub fn set_focus(&self) {
     self.window.set_focus()
+  }
+
+  /// Sets whether the window is focusable or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: If the window is already focused, it is not possible to unfocus it after calling `set_focusable(false)`.
+  ///   In this case, you might consider calling [`Window::set_focus`] but it will move the window to the back i.e. at the bottom in terms of z-order.
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_focusable(&self, focusable: bool) {
+    self.window.set_focusable(focusable)
   }
 
   /// Is window active and focused?
