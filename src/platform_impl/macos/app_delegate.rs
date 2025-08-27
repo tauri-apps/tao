@@ -15,7 +15,7 @@ use objc2::runtime::{
 };
 use objc2_foundation::{
   NSArray, NSError, NSString, NSUserActivity, NSUserActivityTypeBrowsingWeb, NSURL,
-  };
+};
 
 use std::{
   cell::{RefCell, RefMut},
@@ -246,7 +246,7 @@ extern "C" fn application_should_handle_reopen(
 extern "C" fn application_supports_secure_restorable_state(_: &Object, _: Sel, _: id) -> BOOL {
   trace!("Triggered `applicationSupportsSecureRestorableState`");
   trace!("Completed `applicationSupportsSecureRestorableState`");
-  YES 
+  YES
 }
 
 // application(_:didRegisterForRemoteNotificationsWithDeviceToken:)
@@ -303,9 +303,3 @@ extern "C" fn did_fail_to_register_for_apns(_: &Object, _: Sel, _: id, err: *mut
   AppState::did_fail_to_register_push_token(error_string);
   trace!("Completed `didFailToRegisterForRemoteNotificationsWithError`");
 }
-#[cfg(feature = "push-notifications")]
-fn get_shared_application() -> *mut Object {
-  unsafe { msg_send![class!(NSApplication), sharedApplication] }
-}
-
-
