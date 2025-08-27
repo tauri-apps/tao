@@ -13,8 +13,7 @@
 //! [create_proxy]: crate::event_loop::EventLoop::create_proxy
 //! [event_loop_proxy]: crate::event_loop::EventLoopProxy
 //! [send_event]: crate::event_loop::EventLoopProxy::send_event
-use std::time::Instant;
-use std::{error, fmt, marker::PhantomData, ops::Deref};
+use std::{error, fmt, marker::PhantomData, ops::Deref, time::Instant};
 
 use crate::{
   dpi::PhysicalPosition,

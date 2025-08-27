@@ -550,7 +550,12 @@ impl UnownedWindow {
         let color = win_attribs
           .background_color
           .map(|(r, g, b, a)| {
-            NSColor::colorWithRed_green_blue_alpha(r as f64 / 255.0, g as f64 / 255.0, b as f64 / 255.0, a as f64 / 255.0)
+            NSColor::colorWithRed_green_blue_alpha(
+              r as f64 / 255.0,
+              g as f64 / 255.0,
+              b as f64 / 255.0,
+              a as f64 / 255.0,
+            )
           })
           .unwrap_or_else(|| NSColor::clearColor());
         ns_window.setBackgroundColor(Some(&color));
