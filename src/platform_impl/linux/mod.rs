@@ -9,6 +9,7 @@ mod icon;
 mod keyboard;
 mod keycode;
 mod monitor;
+mod portal;
 mod util;
 mod window;
 

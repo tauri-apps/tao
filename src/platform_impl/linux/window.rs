@@ -46,10 +46,6 @@ impl WindowId {
   }
 }
 
-// Currently GTK doesn't provide feature for detect theme, so we need to check theme manually.
-// ref: https://github.com/WebKit/WebKit/blob/e44ffaa0d999a9807f76f1805943eea204cfdfbc/Source/WebKit/UIProcess/API/gtk/PageClientImpl.cpp#L587
-const GTK_THEME_SUFFIX_LIST: [&'static str; 3] = ["-dark", "-Dark", "-Darker"];
-
 pub struct Window {
   /// Window id.
   pub(crate) window_id: WindowId,
@@ -200,26 +196,14 @@ impl Window {
       window.stick();
     }
 
-    let preferred_theme = if let Some(settings) = Settings::default() {
-      if let Some(preferred_theme) = attributes.preferred_theme {
-        match preferred_theme {
-          Theme::Dark => settings.set_gtk_application_prefer_dark_theme(true),
-          Theme::Light => {
-            if let Some(theme) = settings.gtk_theme_name() {
-              let theme = theme.as_str();
-              // Remove dark variant.
-              if let Some(theme) = GTK_THEME_SUFFIX_LIST
-                .iter()
-                .find(|t| theme.ends_with(*t))
-                .map(|v| theme.strip_suffix(v))
-              {
-                settings.set_gtk_theme_name(theme);
-              }
-            }
-          }
-        }
+    // Set initial `preferred_theme` value to current portal color-scheme
+    let ctx = glib::MainContext::default();
+    let portal_theme = ctx.block_on(async { super::portal::theme().await });
+    let preferred_theme = if let Ok(theme) = portal_theme {
+      if let Some(settings) = Settings::default() {
+        settings.set_gtk_application_prefer_dark_theme(theme == Theme::Dark);
       }
-      attributes.preferred_theme
+      Some(theme)
     } else {
       None
     };
@@ -1032,11 +1016,10 @@ impl Window {
       return theme;
     }
 
-    if let Some(theme) = Settings::default().and_then(|s| s.gtk_theme_name()) {
-      let theme = theme.as_str();
-      if GTK_THEME_SUFFIX_LIST.iter().any(|t| theme.ends_with(t)) {
-        return Theme::Dark;
-      }
+    if let Some(portal_theme) =
+      glib::MainContext::default().block_on(async { super::portal::theme().await.ok() })
+    {
+      return portal_theme;
     }
 
     Theme::Light
