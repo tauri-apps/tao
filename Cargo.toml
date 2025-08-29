@@ -2,10 +2,7 @@
 name = "tao"
 version = "0.34.2"
 description = "Cross-platform window manager library."
-authors = [
-  "Tauri Programme within The Commons Conservancy",
-  "The winit contributors"
-]
+authors = [ "Tauri Programme within The Commons Conservancy", "The winit contributors" ]
 edition = "2021"
 rust-version = "1.74"
 keywords = [ "windowing" ]
@@ -14,18 +11,12 @@ readme = "README.md"
 repository = "https://github.com/tauri-apps/tao"
 documentation = "https://docs.rs/tao"
 categories = [ "gui" ]
-include = ["/README.md", "src/**/*.rs", "examples/**/*.rs", "LICENSE*"]
+include = [ "/README.md", "src/**/*.rs", "examples/**/*.rs", "LICENSE*" ]
 
 [package.metadata.docs.rs]
 features = [ "rwh_04", "rwh_05", "rwh_06", "serde", "x11" ]
 default-target = "x86_64-unknown-linux-gnu"
-targets = [
-  "i686-pc-windows-msvc",
-  "x86_64-pc-windows-msvc",
-  "i686-unknown-linux-gnu",
-  "x86_64-unknown-linux-gnu",
-  "x86_64-apple-darwin"
-]
+targets = [ "i686-pc-windows-msvc", "x86_64-pc-windows-msvc", "i686-unknown-linux-gnu", "x86_64-unknown-linux-gnu", "x86_64-apple-darwin" ]
 
 [features]
 default = [ "rwh_06", "x11" ]
@@ -64,9 +55,9 @@ unicode-segmentation = "1.11"
 windows-version = "0.1"
 windows-core = "0.61"
 
-  [target."cfg(target_os = \"windows\")".dependencies.windows]
-  version = "0.61"
-  features = [
+[target."cfg(target_os = \"windows\")".dependencies.windows]
+version = "0.61"
+features = [
   "Win32_Devices_HumanInterfaceDevice",
   "Win32_Foundation",
   "Win32_Globalization",
@@ -92,7 +83,7 @@ windows-core = "0.61"
   "Win32_UI_Input_Touch",
   "Win32_UI_Shell",
   "Win32_UI_TextServices",
-  "Win32_UI_WindowsAndMessaging"
+  "Win32_UI_WindowsAndMessaging",
 ]
 
 [target."cfg(any(target_os = \"android\", target_os = \"windows\"))".dependencies]
@@ -110,40 +101,8 @@ objc2 = "0.6"
 block2 = "0.6"
 
 [target."cfg(target_os = \"macos\")".dependencies]
-objc2-foundation = { version = "0.3", default-features = false, features = [
-  "std",
-  "NSArray",
-  "NSAttributedString",
-  "NSAutoreleasePool",
-  "NSDate",
-  "NSDictionary",
-  "NSEnumerator",
-  "NSGeometry",
-  "NSObjCRuntime",
-  "NSRange",
-  "NSString",
-  "NSThread",
-  "NSURL",
-] }
-objc2-app-kit = { version = "0.3", default-features = false, features = [
-  "std",
-  "objc2-core-foundation",
-  "NSApplication",
-  "NSButton",
-  "NSColor",
-  "NSControl",
-  "NSEvent",
-  "NSGraphics",
-  "NSImage",
-  "NSOpenGLView",
-  "NSPasteboard",
-  "NSResponder",
-  "NSRunningApplication",
-  "NSScreen",
-  "NSView",
-  "NSWindow",
-  "NSUserActivity"
-] }
+objc2-foundation = { version = "0.3", default-features = false, features = [ "std", "NSArray", "NSAttributedString", "NSAutoreleasePool", "NSDate", "NSDictionary", "NSEnumerator", "NSGeometry", "NSObjCRuntime", "NSRange", "NSString", "NSThread", "NSURL" ] }
+objc2-app-kit = { version = "0.3", default-features = false, features = [ "std", "objc2-core-foundation", "NSApplication", "NSButton", "NSColor", "NSControl", "NSEvent", "NSGraphics", "NSImage", "NSOpenGLView", "NSPasteboard", "NSResponder", "NSRunningApplication", "NSScreen", "NSView", "NSWindow", "NSUserActivity" ] }
 core-foundation = "0.10"
 core-graphics = "0.24"
 dispatch = "0.2"
@@ -156,5 +115,5 @@ gdkwayland-sys = "0.18.0"
 x11-dl = { version = "2.21", optional = true }
 parking_lot = "0.12"
 dlopen2 = "0.8.0"
-ashpd = { version = "0.12", features = [ "async-std" ], default-features = false }
+ashpd = { version = "0.7", features = [ "async-std" ], default-features = false }
 futures-lite = "2.6"
