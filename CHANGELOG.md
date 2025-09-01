@@ -1,5 +1,12 @@
 # Changelog
 
+## \[0.34.3]
+
+- [`0defcd01`](https://github.com/tauri-apps/tao/commit/0defcd015c615b95f42ce3437b06174816f76602) ([#1132](https://github.com/tauri-apps/tao/pull/1132) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Exclude audit PDF file from the crate published to crates.io
+- [`3969a1a4`](https://github.com/tauri-apps/tao/commit/3969a1a45cfe2e173431eb1134b49e03c30bdc32) ([#1138](https://github.com/tauri-apps/tao/pull/1138) by [@aspcartman](https://github.com/tauri-apps/tao/../../aspcartman)) On macOS, fixed an issue that caused the window background color to be applied incorrectly (typically black).
+- [`28f5a96a`](https://github.com/tauri-apps/tao/commit/28f5a96a7d80859d97a84586b6c68fd4daac05d4) ([#1119](https://github.com/tauri-apps/tao/pull/1119) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Fix `WindowEvent::MouseWheel` doesn't account for mouse wheel speed settings
+- [`a1edbeb4`](https://github.com/tauri-apps/tao/commit/a1edbeb448d1104b8e9dd3181a04d45ff846a397) ([#1126](https://github.com/tauri-apps/tao/pull/1126) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Emit `Event::LoopDestroyed` on receiving `WM_ENDSESSION` message on Windows
+
 ## \[0.34.2]
 
 - [`60a47340`](https://github.com/tauri-apps/tao/commit/60a47340c967eaaf5b4a41f0be6708d6daf950e3) ([#1108](https://github.com/tauri-apps/tao/pull/1108) by [@Simon-Laux](https://github.com/tauri-apps/tao/../../Simon-Laux)) feat: MacOS: add universal applink support
