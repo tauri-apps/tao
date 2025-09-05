@@ -18,7 +18,7 @@ use std::{
 
 use objc2::{msg_send, rc::Retained, runtime::AnyObject as Object};
 use objc2_app_kit::{NSApp, NSApplication, NSApplicationActivationPolicy, NSWindow};
-use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSSize};
+use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSBundle, NSSize, NSString};
 use std::sync::LazyLock;
 
 use crate::{
@@ -282,7 +282,7 @@ impl AppState {
   }
 
   pub fn launched(app_delegate: &Object) {
-    apply_activation_policy(app_delegate);
+    apply_launch_activation_policy(app_delegate);
 
     unsafe {
       let mtm = MainThreadMarker::new().unwrap();
@@ -452,10 +452,21 @@ unsafe fn window_activation_hack(ns_app: &NSApplication) {
     }
   }
 }
-fn apply_activation_policy(app_delegate: &Object) {
+fn apply_launch_activation_policy(app_delegate: &Object) {
   unsafe {
     let mtm = MainThreadMarker::new().unwrap();
     let ns_app = NSApp(mtm);
+
+    // If running in .app bundle, on launch, AppKit sets activation policy
+    // to regular (default), accessory (LSUIElement=1), or prohibited (LSBackgroundOnly=1)
+    // so let's not overwrite it.
+    if NSBundle::mainBundle()
+      .bundlePath()
+      .hasSuffix(&NSString::from_str(".app"))
+    {
+      return;
+    }
+
     // We need to delay setting the activation policy and activating the app
     // until `applicationDidFinishLaunching` has been called. Otherwise the
     // menu bar won't be interactable.
