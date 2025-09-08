@@ -39,7 +39,6 @@
 //! [event_loop_run]: crate::event_loop::EventLoop::run
 use std::{path::PathBuf, time::Instant};
 
-use crate::push::PushToken;
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize},
   keyboard::{self, ModifiersState},
@@ -144,14 +143,16 @@ pub enum Event<'a, T: 'static> {
   #[non_exhaustive]
   Reopen { has_visible_windows: bool },
 
-  /// ## Push Tokens
-  ///
   /// Emitted when registration completes and an application push token is made available; on Apple
-  /// platforms, this is the APNS token. On Android, this is the FCM token.
-  PushRegistration(PushToken),
-
-  /// ## Push Token Errors
+  /// platforms, this is the APNS token.
   ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: https://developer.apple.com/documentation/appkit/nsapplicationdelegate/application(_:didregisterforremotenotificationswithdevicetoken:)?language=objc
+  /// - **iOS**: https://developer.apple.com/documentation/uikit/uiapplicationdelegate/application(_:didregisterforremotenotificationswithdevicetoken:)?language=objc
+  /// - **Other**: Unsupported.
+  PushRegistration(Vec<u8>),
+
   /// Emitted when push token registration fails.
   PushRegistrationError(String),
 }
