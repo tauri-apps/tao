@@ -132,25 +132,8 @@ extern "C" fn dealloc(this: &Object, _: Sel) {
   }
 }
 
-#[cfg(feature = "push-notifications")]
-fn register_push_notifications() {
-  // register for push notifications. this call is inert on macOS unless the app is entitled to
-  // access an APS environment. see:
-  // https://developer.apple.com/documentation/usernotifications/registering-your-app-with-apns
-  // and:
-  // https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_developer_aps-environment
-  let shared_app = get_shared_application();
-  unsafe {
-    // registerForRemoteNotifications()
-    let _: () = msg_send![shared_app, registerForRemoteNotifications];
-  };
-}
-
 extern "C" fn did_finish_launching(this: &Object, _: Sel, _: id) {
   trace!("Triggered `applicationDidFinishLaunching`");
-
-  #[cfg(feature = "push-notifications")]
-  register_push_notifications();
 
   AppState::launched(this);
   trace!("Completed `applicationDidFinishLaunching`");
