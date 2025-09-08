@@ -552,7 +552,6 @@ pub unsafe fn create_window(
 
 pub fn create_delegate_class() {
   extern "C" fn did_finish_launching(_: &Object, _: Sel, _: id, _: id) -> BOOL {
-
     unsafe {
       app_state::did_finish_launching();
     }
@@ -702,7 +701,6 @@ pub fn create_delegate_class() {
     decl.register();
   }
 }
-
 
 // application(_:didRegisterForRemoteNotificationsWithDeviceToken:)
 extern "C" fn did_register_for_apns(_: &Object, _: Sel, _: id, token_data: id) {
