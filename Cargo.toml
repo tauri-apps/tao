@@ -115,5 +115,4 @@ gdkwayland-sys = "0.18.0"
 x11-dl = { version = "2.21", optional = true }
 parking_lot = "0.12"
 dlopen2 = "0.8.0"
-ashpd = { version = "0.7", features = [ "async-std" ], default-features = false }
-futures-lite = "2.6"
+dbus = "0.9"

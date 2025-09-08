@@ -287,11 +287,9 @@ impl<T: 'static> EventLoop<T> {
 
     // Receive portal events
     let tx_requests_clone = window_target.window_requests_tx.clone();
-    glib::spawn_future_local(async move {
-      if let Err(e) = super::portal::receive_theme_changed(tx_requests_clone).await {
-        log::debug!("Unable to receive theme changed events: {e}");
-      }
-    });
+    if let Err(e) = super::portal::receive_theme_changed(tx_requests_clone) {
+      log::debug!("Unable to receive theme changed events: {e}");
+    }
 
     // Window Request
     window_requests_rx.attach(Some(&context), move |(id, request)| {

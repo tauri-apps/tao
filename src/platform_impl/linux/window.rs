@@ -197,8 +197,7 @@ impl Window {
     }
 
     // Set initial `preferred_theme` value to current portal color-scheme
-    let ctx = glib::MainContext::default();
-    let portal_theme = ctx.block_on(async { super::portal::theme().await });
+    let portal_theme = super::portal::theme();
     let preferred_theme = if let Ok(theme) = portal_theme {
       if let Some(settings) = Settings::default() {
         settings.set_gtk_application_prefer_dark_theme(theme == Theme::Dark);
@@ -1016,9 +1015,7 @@ impl Window {
       return theme;
     }
 
-    if let Some(portal_theme) =
-      glib::MainContext::default().block_on(async { super::portal::theme().await.ok() })
-    {
+    if let Some(portal_theme) = super::portal::theme().ok() {
       return portal_theme;
     }
 
