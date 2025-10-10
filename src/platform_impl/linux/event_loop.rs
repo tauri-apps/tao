@@ -955,6 +955,15 @@ impl<T: 'static> EventLoop<T> {
           WindowRequest::SetTheme(theme) => {
             if let Some(settings) = Settings::default() {
               settings.set_gtk_application_prefer_dark_theme(theme == Some(Theme::Dark));
+              if let Err(e) = event_tx.send(Event::WindowEvent {
+                window_id: RootWindowId(id),
+                event: WindowEvent::ThemeChanged(theme.unwrap_or_default()),
+              }) {
+                log::warn!(
+                  "Failed to send window theme changed event to event channel: {}",
+                  e
+                );
+              }
             }
           }
           _ => unreachable!(),
