@@ -142,6 +142,12 @@ pub enum Event<'a, T: 'static> {
   /// - **Other**: Unsupported.
   #[non_exhaustive]
   Reopen { has_visible_windows: bool },
+
+  /// ## Platform-specific
+  ///
+  /// - **iOS**: https://developer.apple.com/documentation/uikit/uiapplicationdelegate/applicationwillenterforeground(_:)
+  /// - **Other**: Unsupported.
+  WillEnterForeground,
 }
 
 impl<T: Clone> Clone for Event<'static, T> {
@@ -170,6 +176,7 @@ impl<T: Clone> Clone for Event<'static, T> {
       } => Reopen {
         has_visible_windows: *has_visible_windows,
       },
+      WillEnterForeground => WillEnterForeground,
     }
   }
 }
@@ -194,6 +201,7 @@ impl<'a, T> Event<'a, T> {
       } => Ok(Reopen {
         has_visible_windows,
       }),
+      WillEnterForeground => Ok(WillEnterForeground),
     }
   }
 
@@ -220,6 +228,7 @@ impl<'a, T> Event<'a, T> {
       } => Some(Reopen {
         has_visible_windows,
       }),
+      WillEnterForeground => Some(WillEnterForeground),
     }
   }
 }
