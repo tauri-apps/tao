@@ -184,6 +184,17 @@ impl<T: 'static> EventLoop<T> {
               }
             );
           }
+          Event::Destroy => {
+            call_event_handler!(
+              event_handler,
+              self.window_target(),
+              control_flow,
+              event::Event::WindowEvent {
+                window_id: window::WindowId(WindowId),
+                event: event::WindowEvent::Destroyed,
+              }
+            );
+          }
           _ => {}
         },
         Some(EventSource::InputQueue) => {
