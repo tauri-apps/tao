@@ -2,4 +2,4 @@
 "tao": patch
 ---
 
-Add WillEnterForeground event for iOS.
+Use WillEnterForeground instead of DidBecomeActive for Event::Resumed in iOS.
