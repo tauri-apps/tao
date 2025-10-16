@@ -50,7 +50,7 @@
 //!
 //! This is how those event are represented in tao:
 //!
-//!  - applicationDidBecomeActive is Resumed
+//!  - applicationWillEnterForeground is Resumed
 //!  - applicationWillResignActive is Suspended
 //!  - applicationWillTerminate is LoopDestroyed
 //!
