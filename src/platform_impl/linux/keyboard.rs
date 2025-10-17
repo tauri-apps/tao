@@ -11,6 +11,7 @@ use gtk::{
   gdk::{self, keys::constants::*, EventKey},
   glib,
 };
+use once_cell::sync::Lazy;
 use std::{
   collections::HashSet,
   ffi::c_void,
@@ -21,9 +22,7 @@ use std::{
 
 pub type RawKey = gdk::keys::Key;
 
-lazy_static! {
-  static ref KEY_STRINGS: Mutex<HashSet<&'static str>> = Mutex::new(HashSet::new());
-}
+static KEY_STRINGS: Lazy<Mutex<HashSet<&'static str>>> = Lazy::new(|| Mutex::new(HashSet::new()));
 
 fn insert_or_get_key_str(string: String) -> &'static str {
   let mut string_set = KEY_STRINGS.lock().unwrap();

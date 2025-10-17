@@ -19,6 +19,7 @@ use std::{
 use objc2::{msg_send, rc::Retained, runtime::AnyObject as Object};
 use objc2_app_kit::{NSApp, NSApplication, NSApplicationActivationPolicy, NSWindow};
 use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSSize};
+use once_cell::sync::Lazy;
 
 use crate::{
   dpi::LogicalSize,
@@ -41,9 +42,7 @@ use crate::{
 
 use super::set_dock_visibility;
 
-lazy_static! {
-  static ref HANDLER: Handler = Default::default();
-}
+static HANDLER: Lazy<Handler> = Lazy::new(|| Default::default());
 
 impl<'a, Never> Event<'a, Never> {
   fn userify<T: 'static>(self) -> Event<'a, T> {

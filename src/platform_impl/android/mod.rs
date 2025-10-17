@@ -17,6 +17,7 @@ use ndk::{
   event::{InputEvent, KeyAction, MotionAction},
   looper::{ForeignLooper, Poll, ThreadLooper},
 };
+use once_cell::sync::Lazy;
 use std::{
   collections::VecDeque,
   sync::RwLock,
@@ -26,9 +27,7 @@ use std::{
 pub mod ndk_glue;
 use ndk_glue::{Event, Rect};
 
-lazy_static! {
-  static ref CONFIG: RwLock<Configuration> = RwLock::new(Configuration::new());
-}
+static CONFIG: Lazy<RwLock<Configuration>> = Lazy::new(|| RwLock::new(Configuration::new()));
 
 enum EventSource {
   Callback,
