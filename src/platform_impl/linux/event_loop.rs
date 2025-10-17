@@ -87,9 +87,8 @@ impl<T> EventLoopWindowTarget<T> {
   #[inline]
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
     let monitor = self.display.primary_monitor();
-    monitor.and_then(|monitor| {
-      let handle = MonitorHandle { monitor };
-      Some(RootMonitorHandle { inner: handle })
+    monitor.map(|monitor| RootMonitorHandle {
+      inner: MonitorHandle { monitor },
     })
   }
 
@@ -910,7 +909,7 @@ impl<T: 'static> EventLoop<T> {
                 let background_color = unsafe {
                   window
                     .data::<Option<crate::window::RGBA>>("background_color")
-                    .and_then(|c| c.as_ref().clone())
+                    .and_then(|c| *c.as_ref())
                 };
 
                 let rgba = background_color
@@ -1010,7 +1009,7 @@ impl<T: 'static> EventLoop<T> {
   /// There are a dew notibale event will sent to callback when state is transisted:
   /// - On any state moves to `LoopDestroyed`, a `LoopDestroyed` event is sent.
   /// - On `NewStart` to `EventQueue`, a `NewEvents` with corresponding `StartCause` depends on
-  /// current control flow is sent.
+  ///   current control flow is sent.
   /// - On `EventQueue` to `DrawQueue`, a `MainEventsCleared` event is sent.
   /// - On `DrawQueue` back to `NewStart`, a `RedrawEventsCleared` event is sent.
   pub(crate) fn run_return<F>(&mut self, mut callback: F) -> i32
@@ -1097,7 +1096,7 @@ impl<T: 'static> EventLoop<T> {
             EventState::EventQueue => match control_flow {
               ControlFlow::ExitWithCode(code) => {
                 callback(Event::LoopDestroyed, window_target, &mut control_flow);
-                break (code);
+                break code;
               }
               _ => match events.try_recv() {
                 Ok(event) => match event {

@@ -6,10 +6,7 @@ use std::{
   cell::RefCell,
   collections::VecDeque,
   rc::Rc,
-  sync::{
-    atomic::{AtomicBool, AtomicI32, Ordering},
-    Arc,
-  },
+  sync::atomic::{AtomicBool, AtomicI32, Ordering},
 };
 
 use gtk::{
@@ -48,7 +45,7 @@ impl WindowId {
 
 // Currently GTK doesn't provide feature for detect theme, so we need to check theme manually.
 // ref: https://github.com/WebKit/WebKit/blob/e44ffaa0d999a9807f76f1805943eea204cfdfbc/Source/WebKit/UIProcess/API/gtk/PageClientImpl.cpp#L587
-const GTK_THEME_SUFFIX_LIST: [&'static str; 3] = ["-dark", "-Dark", "-Darker"];
+const GTK_THEME_SUFFIX_LIST: [&str; 3] = ["-dark", "-Dark", "-Darker"];
 
 pub struct Window {
   /// Window id.
@@ -233,7 +230,7 @@ impl Window {
     // restore accept-focus after the window has been drawn
     // if the window was initially created without focus and is supposed to be focusable
     if attributes.focusable && !attributes.focused {
-      let signal_id = Arc::new(RefCell::new(None));
+      let signal_id = Rc::new(RefCell::new(None));
       let signal_id_ = signal_id.clone();
       let id = window.connect_draw(move |window, _| {
         if let Some(id) = signal_id_.take() {
