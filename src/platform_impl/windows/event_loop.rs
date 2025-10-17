@@ -2164,31 +2164,26 @@ unsafe fn public_window_callback_inner<T: 'static>(
           {
             let mut rect = monitor_info.monitorInfo.rcWork;
 
-            let mut edges = 0;
-            for edge in [ABE_BOTTOM, ABE_LEFT, ABE_TOP, ABE_RIGHT] {
+            fn has_edge(edge: u32) -> bool {
               let mut app_data = APPBARDATA {
                 cbSize: std::mem::size_of::<APPBARDATA>() as _,
                 uEdge: edge,
                 ..Default::default()
               };
-              if SHAppBarMessage(ABM_GETAUTOHIDEBAR, &mut app_data) != 0 {
-                edges |= edge;
-              }
+              unsafe { SHAppBarMessage(ABM_GETAUTOHIDEBAR, &mut app_data) != 0 }
             }
 
             // keep a 1px for taskbar auto-hide to work
-            if edges & ABE_BOTTOM != 0 {
+            if has_edge(ABE_BOTTOM) {
               rect.bottom -= 1;
             }
-            // FIXME:
-            #[allow(clippy::bad_bit_mask)]
-            if edges & ABE_LEFT != 0 {
+            if has_edge(ABE_LEFT) {
               rect.left += 1;
             }
-            if edges & ABE_TOP != 0 {
+            if has_edge(ABE_TOP) {
               rect.top += 1;
             }
-            if edges & ABE_RIGHT != 0 {
+            if has_edge(ABE_RIGHT) {
               rect.right -= 1;
             }
 
