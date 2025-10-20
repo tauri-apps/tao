@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.34.5]
+
+- [`92e22209`](https://github.com/tauri-apps/tao/commit/92e22209fb58248449175b5b86697243d6a93db2) ([#1152](https://github.com/tauri-apps/tao/pull/1152) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Emit `Event::LoopDestroyed` on activity destroy on Android.
+- [`da1514be`](https://github.com/tauri-apps/tao/commit/da1514be09993ea4aace8c64cfdf0af14f22b818) ([#1150](https://github.com/tauri-apps/tao/pull/1150) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Fix maximized windows have empty edges when using auto hide task bar on Windows
+
 ## \[0.34.4]
 
 - [`25f2c58a`](https://github.com/tauri-apps/tao/commit/25f2c58aca96215113d1a4feae5c854e3349cf06) ([#1148](https://github.com/tauri-apps/tao/pull/1148) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Trigger `WindowEvent::Destroyed` when the Android activity is destroyed. In this case, the app should either exit by setting the control flow to `ControlFlow::ExitWithCode` or NOT call the create() external function when the activity is recreated and `onCreate` is called, handling how to recreate the app window via a separate hook that can leverage the existing tao event loop.
