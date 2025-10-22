@@ -2,6 +2,7 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::window::WindowId;
 pub use jni::{
   self,
   objects::{GlobalRef, JClass, JMap, JObject, JString},
@@ -16,8 +17,8 @@ use ndk::{
 };
 use once_cell::sync::{Lazy, OnceCell};
 use std::{
-  cell::RefCell,
-  ffi::{CStr, CString},
+  collections::BTreeMap,
+  ffi::{c_void, CStr, CString},
   fs::File,
   io::{BufRead, BufReader},
   os::unix::prelude::*,
@@ -36,24 +37,24 @@ pub static PACKAGE: OnceCell<&str> = OnceCell::new();
 /// 1. android app domain name in reverse snake_case as an ident (for ex: com_example)
 /// 2. android package anme (for ex: wryapp)
 /// 3. the android activity that has external linking for the following functions and calls them:
-///       - `private external fun create(activity: WryActivity)``
+///       - `private external fun onActivityCreate(activity: WryActivity)``
 ///       - `private external fun start()`
 ///       - `private external fun resume()`
 ///       - `private external fun pause()`
 ///       - `private external fun stop()`
-///       - `private external fun save()`
-///       - `private external fun destroy()`
-///       - `private external fun memory()`
-///       - `private external fun focus(focus: Boolean)`
-/// 4. a one time setup function that will be ran once after tao has created its event loop in the `create` function above.
+///       - `private external fun onActivitySaveInstanceState()`
+///       - `private external fun onActivityDestroy(activity: WryActivity)`
+///       - `private external fun onActivityLowMemory()`
+///       - `private external fun onWindowFocusChanged(activity: WryActivity, focus: Boolean)`
+/// 4. a on_activity_create function that will be ran once after the `onActivityCreate` function above.
 /// 5. the main entry point of your android application.
 #[rustfmt::skip]
 #[macro_export]
 macro_rules! android_binding {
-  ($domain:ident, $package:ident, $activity:ident, $setup:path, $main:ident) => {
+  ($domain:ident, $package:ident, $activity:ident, $on_activity_create:path, $main:ident) => {
     ::tao::android_binding!($domain, $package, $activity, $setup, $main, ::tao)
   };
-  ($domain:ident, $package:ident, $activity:ident, $setup:path, $main:ident, $tao:path) => {{
+  ($domain:ident, $package:ident, $activity:ident, $on_activity_create:path, $main:ident, $tao:path) => {{
     // NOTE: be careful when changing how this use statement is written
     use $tao::{platform::android::prelude::android_fn, platform::android::prelude::*};
     fn _____tao_store_package_name__() {
@@ -67,17 +68,26 @@ macro_rules! android_binding {
       create,
       [JObject],
       __VOID__,
-      [$setup, $main],
+      [$main],
+    );
+    android_fn!(
+      $domain,
+      $package,
+      $activity,
+      onActivityCreate,
+      [JObject],
+      __VOID__,
+      [$on_activity_create],
       _____tao_store_package_name__,
     );
     android_fn!($domain, $package, $activity, start, [JObject]);
     android_fn!($domain, $package, $activity, stop, [JObject]);
     android_fn!($domain, $package, $activity, resume, [JObject]);
     android_fn!($domain, $package, $activity, pause, [JObject]);
-    android_fn!($domain, $package, $activity, save, [JObject]);
-    android_fn!($domain, $package, $activity, destroy, [JObject]);
-    android_fn!($domain, $package, $activity, memory, [JObject]);
-    android_fn!($domain, $package, $activity, focus, [i32]);
+    android_fn!($domain, $package, $activity, onActivitySaveInstanceState, [JObject]);
+    android_fn!($domain, $package, $activity, onActivityDestroy, [JObject]);
+    android_fn!($domain, $package, $activity, onActivityLowMemory, [JObject]);
+    android_fn!($domain, $package, $activity, onWindowFocusChanged, [JObject,i32]);
   }};
 }
 
@@ -106,26 +116,32 @@ pub fn android_log(level: Level, tag: &CStr, msg: &CStr) {
   }
 }
 
-pub(crate) struct StaticCell<T>(RefCell<T>);
-
-unsafe impl<T> Send for StaticCell<T> {}
-unsafe impl<T> Sync for StaticCell<T> {}
-
-impl<T> std::ops::Deref for StaticCell<T> {
-  type Target = RefCell<T>;
-
-  fn deref(&self) -> &Self::Target {
-    &self.0
-  }
+#[derive(Clone, Copy, Debug)]
+pub struct AndroidContext {
+  pub java_vm: *mut c_void,
+  pub context_jobject: *mut c_void,
 }
 
-static WINDOW_MANAGER: StaticCell<Option<GlobalRef>> = StaticCell(RefCell::new(None));
-static INPUT_QUEUE: Lazy<RwLock<Option<InputQueue>>> = Lazy::new(|| Default::default());
-static CONTENT_RECT: Lazy<RwLock<Rect>> = Lazy::new(|| Default::default());
-static LOOPER: Lazy<Mutex<Option<ForeignLooper>>> = Lazy::new(|| Default::default());
+unsafe impl Send for AndroidContext {}
+unsafe impl Sync for AndroidContext {}
 
-pub fn window_manager() -> std::cell::Ref<'static, Option<GlobalRef>> {
-  WINDOW_MANAGER.0.borrow()
+pub type ActivityId = i32;
+
+lazy_static::lazy_static! {
+  static ref CONTEXTS: Mutex<BTreeMap<ActivityId, AndroidContext>> = Mutex::new(Default::default());
+  static ref WINDOW_MANAGER: Mutex<BTreeMap<ActivityId, GlobalRef>> = Mutex::new(Default::default());
+}
+
+static INPUT_QUEUE: Lazy<RwLock<Option<InputQueue>>> = Lazy::new(Default::default);
+static CONTENT_RECT: Lazy<RwLock<Rect>> = Lazy::new(Default::default);
+static LOOPER: Lazy<Mutex<Option<ForeignLooper>>> = Lazy::new(Default::default);
+
+pub fn main_window_manager() -> Option<GlobalRef> {
+  WINDOW_MANAGER.lock().unwrap().values().next().cloned()
+}
+
+pub fn window_manager(activity_id: ActivityId) -> Option<GlobalRef> {
+  WINDOW_MANAGER.lock().unwrap().get(&activity_id).cloned()
 }
 
 pub fn input_queue() -> RwLockReadGuard<'static, Option<InputQueue>> {
@@ -134,6 +150,14 @@ pub fn input_queue() -> RwLockReadGuard<'static, Option<InputQueue>> {
 
 pub fn content_rect() -> Rect {
   CONTENT_RECT.read().unwrap().clone()
+}
+
+pub fn main_android_context() -> Option<AndroidContext> {
+  CONTEXTS.lock().unwrap().values().next().cloned()
+}
+
+pub fn last_activity_id() -> Option<ActivityId> {
+  CONTEXTS.lock().unwrap().keys().next_back().cloned()
 }
 
 pub static PIPE: Lazy<[OwnedFd; 2]> = Lazy::new(|| {
@@ -176,55 +200,24 @@ pub struct Rect {
 pub enum Event {
   Start,
   Resume,
-  SaveInstanceState,
   Pause,
   Stop,
-  Destroy,
-  ConfigChanged,
   LowMemory,
-  WindowLostFocus,
-  WindowHasFocus,
-  WindowCreated,
-  WindowResized,
-  WindowRedrawNeeded,
-  WindowDestroyed,
-  InputQueueCreated,
-  InputQueueDestroyed,
+  WindowEvent { id: WindowId, event: WindowEvent },
   ContentRectChanged,
 }
 
-pub unsafe fn create(
-  mut env: JNIEnv,
-  _jclass: JClass,
-  jobject: JObject,
-  setup: unsafe fn(&str, JNIEnv, &ThreadLooper, GlobalRef),
-  main: fn(),
-) {
-  //-> jobjectArray {
-  // Initialize global context
-  let window_manager = env
-    .call_method(
-      &jobject,
-      "getWindowManager",
-      "()Landroid/view/WindowManager;",
-      &[],
-    )
-    .unwrap()
-    .l()
-    .unwrap();
-  let window_manager = env.new_global_ref(window_manager).unwrap();
-  WINDOW_MANAGER.replace(Some(window_manager));
-  let activity = env.new_global_ref(jobject).unwrap();
-  let vm = env.get_java_vm().unwrap();
-  let env = vm.attach_current_thread_as_daemon().unwrap();
-  ndk_context::initialize_android_context(
-    vm.get_java_vm_pointer() as *mut _,
-    activity.as_obj().as_raw() as *mut _,
-  );
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[repr(u8)]
+pub enum WindowEvent {
+  Focused(bool),
+  Created,
+  Resized,
+  RedrawNeeded,
+  Destroyed,
+}
 
-  let looper = ThreadLooper::for_thread().unwrap();
-  setup(PACKAGE.get().unwrap(), env, &looper, activity);
-
+pub unsafe fn create(_env: JNIEnv, _: JClass, _: JObject, main: fn()) {
   let logpipe = {
     let mut logpipe: [RawFd; 2] = Default::default();
     libc::pipe(logpipe.as_mut_ptr());
@@ -271,17 +264,59 @@ pub unsafe fn create(
       signal_looper_ready.notify_one();
     }
 
-    main()
+    main();
   });
 
   // Don't return from this function (`ANativeActivity_onCreate`) until the thread
-  // has created its `ThreadLooper` and assigned it to the static `LOOPER`
-  // variable. It will be used from `on_input_queue_created` as soon as this
-  // function returns.
+  // has created its `ThreadLooper` and assigned it to the static `LOOPER` variable.
   let locked_looper = LOOPER.lock().unwrap();
   let _mutex_guard = looper_ready
     .wait_while(locked_looper, |looper| looper.is_none())
     .unwrap();
+}
+
+#[allow(non_snake_case)]
+pub unsafe fn onActivityCreate(
+  mut env: JNIEnv,
+  _jclass: JClass,
+  activity: JObject,
+  setup: unsafe fn(&str, JNIEnv, &ThreadLooper, GlobalRef),
+) {
+  let activity_id = env
+    .call_method(&activity, "getId", "()I", &[])
+    .unwrap()
+    .i()
+    .unwrap();
+
+  // Initialize global context
+  let window_manager = env
+    .call_method(
+      &activity,
+      "getWindowManager",
+      "()Landroid/view/WindowManager;",
+      &[],
+    )
+    .unwrap()
+    .l()
+    .unwrap();
+  let window_manager = env.new_global_ref(window_manager).unwrap();
+  WINDOW_MANAGER
+    .lock()
+    .unwrap()
+    .insert(activity_id, window_manager);
+  let activity = env.new_global_ref(activity).unwrap();
+  let vm = env.get_java_vm().unwrap();
+  let env = vm.attach_current_thread_as_daemon().unwrap();
+
+  CONTEXTS.lock().unwrap().insert(
+    activity_id,
+    AndroidContext {
+      java_vm: vm.get_java_vm_pointer() as *mut _,
+      context_jobject: activity.as_obj().as_raw() as *mut _,
+    },
+  );
+  let looper = ThreadLooper::for_thread().unwrap();
+  setup(PACKAGE.get().unwrap(), env, &looper, activity);
 }
 
 pub unsafe fn resume(_: JNIEnv, _: JClass, _: JObject) {
@@ -292,11 +327,21 @@ pub unsafe fn pause(_: JNIEnv, _: JClass, _: JObject) {
   wake(Event::Pause);
 }
 
-pub unsafe fn focus(_: JNIEnv, _: JClass, has_focus: libc::c_int) {
-  let event = if has_focus == 0 {
-    Event::WindowLostFocus
-  } else {
-    Event::WindowHasFocus
+#[allow(non_snake_case)]
+pub unsafe fn onWindowFocusChanged(
+  mut env: JNIEnv,
+  _: JClass,
+  activity: JObject,
+  has_focus: libc::c_int,
+) {
+  let activity_id = env
+    .call_method(&activity, "getId", "()I", &[])
+    .unwrap()
+    .i()
+    .unwrap();
+  let event = Event::WindowEvent {
+    id: WindowId(super::WindowId(activity_id)),
+    event: WindowEvent::Focused(has_focus != 0),
   };
   wake(event);
 }
@@ -309,29 +354,45 @@ pub unsafe fn stop(_: JNIEnv, _: JClass, _: JObject) {
   wake(Event::Stop);
 }
 
+#[allow(non_snake_case)]
+pub unsafe fn onActivityDestroy(mut env: JNIEnv, _: JClass, activity: JObject) {
+  let activity_id = env
+    .call_method(&activity, "getId", "()I", &[])
+    .unwrap()
+    .i()
+    .unwrap();
+
+  let is_changing_configurations = env
+    .call_method(&activity, "isChangingConfigurations", "()Z", &[])
+    .unwrap()
+    .z()
+    .unwrap();
+
+  // keep our Rust window references alive when the activity is going to be recreated due to configuration changes
+  // e.g. rotation, multi window mode change etc
+  if !is_changing_configurations {
+    wake(Event::WindowEvent {
+      id: WindowId(super::WindowId(activity_id)),
+      event: WindowEvent::Destroyed,
+    });
+    CONTEXTS.lock().unwrap().remove(&activity_id);
+    WINDOW_MANAGER.lock().unwrap().remove(&activity_id);
+  }
+}
+
 ///////////////////////////////////////////////
 // Events below are not used by event loop yet.
 ///////////////////////////////////////////////
 
-pub unsafe fn save(_: JNIEnv, _: JClass, _: JObject) {
-  wake(Event::SaveInstanceState);
-}
+#[allow(non_snake_case)]
+pub unsafe fn onActivitySaveInstanceState(_: JNIEnv, _: JClass, _: JObject) {}
 
-pub unsafe fn destroy(_: JNIEnv, _: JClass, _: JObject) {
-  wake(Event::Destroy);
-  ndk_context::release_android_context();
-  WINDOW_MANAGER.take();
-}
-
-pub unsafe fn memory(_: JNIEnv, _: JClass, _: JObject) {
+#[allow(non_snake_case)]
+pub unsafe fn onActivityLowMemory(_: JNIEnv, _: JClass, _: JObject) {
   wake(Event::LowMemory);
 }
 
 /*
-unsafe extern "C" fn on_configuration_changed(activity: *mut ANativeActivity) {
-  wake(activity, Event::ConfigChanged);
-}
-
 unsafe extern "C" fn on_window_resized(
   activity: *mut ANativeActivity,
   _window: *mut ANativeWindow,
