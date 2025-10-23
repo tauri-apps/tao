@@ -28,6 +28,47 @@ lazy_static! {
   static ref CONFIG: RwLock<Configuration> = RwLock::new(Configuration::new());
 }
 
+#[derive(Debug)]
+pub enum OsError {
+  JniError(jni::errors::Error),
+  NoAvailableActivity,
+  ActivityNotFound {
+    activity_id: ActivityId,
+  },
+  ActivityAlreadyCreated {
+    activity_id: ActivityId,
+  },
+  ActivityClassMismatch {
+    activity_id: ActivityId,
+    expected_class_name: String,
+    actual_class_name: String,
+  },
+}
+
+impl std::error::Error for OsError {}
+impl std::fmt::Display for OsError {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      OsError::JniError(e) => write!(f, "JNI error: {e}"),
+      OsError::NoAvailableActivity => write!(f, "no available activity"),
+      OsError::ActivityNotFound { activity_id } => write!(f, "activity not found: {activity_id}"),
+      OsError::ActivityAlreadyCreated { activity_id } => {
+        write!(f, "activity already created: {activity_id}")
+      }
+      OsError::ActivityClassMismatch {
+        activity_id,
+        expected_class_name,
+        actual_class_name,
+      } => {
+        write!(
+          f,
+          "activity class mismatch: {activity_id}, expected {expected_class_name} but got {actual_class_name}"
+        )
+      }
+    }
+  }
+}
+
 enum EventSource {
   Callback,
   InputQueue,
@@ -492,22 +533,82 @@ impl DeviceId {
   }
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct PlatformSpecificWindowBuilderAttributes;
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct PlatformSpecificWindowBuilderAttributes {
+  pub activity_id: Option<ActivityId>,
+  pub activity_name: Option<String>,
+  pub created_by_activity_name: Option<String>,
+}
 
 pub struct Window {
   activity_id: ActivityId,
+  activity_name: String,
 }
 
 impl Window {
   pub fn new<T: 'static>(
     _el: &EventLoopWindowTarget<T>,
     _window_attrs: window::WindowAttributes,
-    _: PlatformSpecificWindowBuilderAttributes,
+    pl_attrs: PlatformSpecificWindowBuilderAttributes,
   ) -> Result<Self, error::OsError> {
     // FIXME this ignores requested window attributes
+
+    let (activity_id, activity_name) = match (pl_attrs.activity_id, pl_attrs.activity_name) {
+      (Some(activity_id), Some(activity_name)) => ndk_glue::CONTEXTS
+        .lock()
+        .unwrap()
+        .get(&activity_id)
+        .ok_or_else(|| os_error!(OsError::ActivityNotFound { activity_id }))
+        .and_then(|ctx| {
+          if ctx.window_created {
+            Err(os_error!(OsError::ActivityAlreadyCreated { activity_id }))
+          } else if ctx.activity_name != activity_name {
+            Err(os_error!(OsError::ActivityClassMismatch {
+              activity_id,
+              expected_class_name: activity_name,
+              actual_class_name: ctx.activity_name.clone(),
+            }))
+          } else {
+            Ok((activity_id, ctx.activity_name.clone()))
+          }
+        })?,
+      // expect the activity to be already setup, without window
+      (Some(activity_id), None) => ndk_glue::CONTEXTS
+        .lock()
+        .unwrap()
+        .get(&activity_id)
+        .ok_or_else(|| os_error!(OsError::ActivityNotFound { activity_id }))
+        .and_then(|ctx| {
+          if ctx.window_created {
+            Err(os_error!(OsError::ActivityAlreadyCreated { activity_id }))
+          } else {
+            Ok((activity_id, ctx.activity_name.clone()))
+          }
+        })?,
+      (None, Some(activity_name)) => {
+        let ctx = if let Some(created_by_activity_name) = pl_attrs.created_by_activity_name {
+          ndk_glue::CONTEXTS
+            .lock()
+            .unwrap()
+            .values()
+            .find(|ctx| ctx.activity_name == created_by_activity_name)
+            .cloned()
+        } else {
+          ndk_glue::main_android_context()
+        }
+        .ok_or_else(|| os_error!(OsError::NoAvailableActivity))?;
+        let activity_id = ctx
+          .create_activity(&activity_name)
+          .map_err(|error| os_error!(OsError::JniError(error)))?;
+        (activity_id, activity_name)
+      }
+      (None, None) => ndk_glue::next_available_activity()
+        .map(|(activity_id, ctx)| (activity_id, ctx.activity_name.clone()))
+        .ok_or_else(|| os_error!(OsError::NoAvailableActivity))?,
+    };
     Ok(Self {
-      activity_id: ndk_glue::last_activity_id().expect("no available activity"),
+      activity_id,
+      activity_name,
     })
   }
 
@@ -727,7 +828,7 @@ impl Window {
   pub fn raw_window_handle_rwh_04(&self) -> rwh_04::RawWindowHandle {
     // TODO: Use main activity instead?
     let mut handle = rwh_04::AndroidNdkHandle::empty();
-    if let Some(w) = ndk_glue::main_window_manager().as_ref() {
+    if let Some(w) = ndk_glue::activity_window_manager(self.activity_id).as_ref() {
       handle.a_native_window = w.as_obj().as_raw() as *mut _;
     } else {
       panic!("Cannot get the native window, it's null and will always be null before Event::Resumed and after Event::Suspended. Make sure you only call this function between those events.");
@@ -739,7 +840,7 @@ impl Window {
   pub fn raw_window_handle_rwh_05(&self) -> rwh_05::RawWindowHandle {
     // TODO: Use main activity instead?
     let mut handle = rwh_05::AndroidNdkWindowHandle::empty();
-    if let Some(w) = ndk_glue::main_window_manager().as_ref() {
+    if let Some(w) = ndk_glue::activity_window_manager(self.activity_id).as_ref() {
       handle.a_native_window = w.as_obj().as_raw() as *mut _;
     } else {
       panic!("Cannot get the native window, it's null and will always be null before Event::Resumed and after Event::Suspended. Make sure you only call this function between those events.");
@@ -755,7 +856,7 @@ impl Window {
   #[cfg(feature = "rwh_06")]
   pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
     // TODO: Use main activity instead?
-    if let Some(w) = ndk_glue::main_window_manager().as_ref() {
+    if let Some(w) = ndk_glue::activity_window_manager(self.activity_id).as_ref() {
       let native_window =
         unsafe { std::ptr::NonNull::new_unchecked(w.as_obj().as_raw() as *mut _) };
       // native_window shuldn't be null
@@ -780,18 +881,12 @@ impl Window {
     ndk_glue::content_rect()
   }
 
+  pub fn activity_name(&self) -> &str {
+    &self.activity_name
+  }
+
   pub fn theme(&self) -> Theme {
     Theme::Light
-  }
-}
-
-#[derive(Default, Clone, Debug)]
-pub struct OsError;
-
-use std::fmt::{self, Display, Formatter};
-impl Display for OsError {
-  fn fmt(&self, fmt: &mut Formatter<'_>) -> Result<(), fmt::Error> {
-    write!(fmt, "Android OS Error")
   }
 }
 
@@ -806,6 +901,8 @@ impl MonitorHandle {
   }
 
   pub fn size(&self) -> PhysicalSize<u32> {
+    // TODO: support multi-window (main_window_manager might be incorrect)
+
     // TODO decide how to get JNIENV
     let window_manager = ndk_glue::main_window_manager();
     let Some(w) = window_manager.as_ref() else {

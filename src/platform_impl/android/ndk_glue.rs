@@ -3,8 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::window::WindowId;
+use crossbeam_channel::Sender;
 pub use jni::{
   self,
+  errors::Result as JniResult,
   objects::{GlobalRef, JClass, JMap, JObject, JString},
   sys::jobject,
   JNIEnv,
@@ -24,6 +26,7 @@ use std::{
   os::unix::prelude::*,
   sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard},
   thread,
+  time::Duration,
 };
 
 /// Android pacakge name that could be used to reference classes
@@ -116,10 +119,64 @@ pub fn android_log(level: Level, tag: &CStr, msg: &CStr) {
   }
 }
 
-#[derive(Clone, Copy, Debug)]
+fn find_class<'a>(
+  env: &mut JNIEnv<'a>,
+  activity: &JObject<'_>,
+  name: String,
+) -> JniResult<JClass<'a>> {
+  let class_name = env.new_string(name.replace('/', "."))?;
+  let my_class = env
+    .call_method(
+      activity,
+      "getAppClass",
+      "(Ljava/lang/String;)Ljava/lang/Class;",
+      &[(&class_name).into()],
+    )?
+    .l()?;
+  Ok(my_class.into())
+}
+
+#[derive(Clone, Debug)]
 pub struct AndroidContext {
   pub java_vm: *mut c_void,
   pub context_jobject: *mut c_void,
+  pub activity_name: String,
+  pub window_created: bool,
+}
+
+impl AndroidContext {
+  pub fn create_activity(&self, activity_name: &str) -> JniResult<ActivityId> {
+    let vm = unsafe { jni::JavaVM::from_raw(self.java_vm.cast()) }?;
+    let mut env = vm.attach_current_thread_as_daemon()?;
+    let main_activity = unsafe { JObject::from_raw(self.context_jobject.cast()) };
+
+    let activity_class = find_class(
+      &mut env,
+      &main_activity,
+      format!("{}/{activity_name}", PACKAGE.get().unwrap()),
+    )?;
+
+    let activity_id = env
+      .call_method(
+        &main_activity,
+        "startActivity",
+        "(Ljava/lang/Class;)I",
+        &[(&activity_class).into()],
+      )?
+      .i()?;
+
+    let (tx, rx) = crossbeam_channel::bounded(1);
+    ACTIVITY_CREATED_SENDERS
+      .lock()
+      .unwrap()
+      .insert(activity_id, tx);
+    rx.recv_timeout(Duration::from_secs(5)).map_err(|e| {
+      log::error!("failed to create activity {activity_name}: {e}");
+      jni::errors::Error::JniCall(jni::errors::JniError::Unknown)
+    })?;
+
+    Ok(activity_id)
+  }
 }
 
 unsafe impl Send for AndroidContext {}
@@ -128,8 +185,9 @@ unsafe impl Sync for AndroidContext {}
 pub type ActivityId = i32;
 
 lazy_static::lazy_static! {
-  static ref CONTEXTS: Mutex<BTreeMap<ActivityId, AndroidContext>> = Mutex::new(Default::default());
+  pub(crate) static ref CONTEXTS: Mutex<BTreeMap<ActivityId, AndroidContext>> = Mutex::new(Default::default());
   static ref WINDOW_MANAGER: Mutex<BTreeMap<ActivityId, GlobalRef>> = Mutex::new(Default::default());
+  pub(crate) static ref ACTIVITY_CREATED_SENDERS: Mutex<BTreeMap<ActivityId, Sender<()>>> = Mutex::new(Default::default());
 }
 
 static INPUT_QUEUE: Lazy<RwLock<Option<InputQueue>>> = Lazy::new(Default::default);
@@ -138,6 +196,10 @@ static LOOPER: Lazy<Mutex<Option<ForeignLooper>>> = Lazy::new(Default::default);
 
 pub fn main_window_manager() -> Option<GlobalRef> {
   WINDOW_MANAGER.lock().unwrap().values().next().cloned()
+}
+
+pub fn activity_window_manager(activity_id: ActivityId) -> Option<GlobalRef> {
+  WINDOW_MANAGER.lock().unwrap().get(&activity_id).cloned()
 }
 
 pub fn window_manager(activity_id: ActivityId) -> Option<GlobalRef> {
@@ -156,8 +218,14 @@ pub fn main_android_context() -> Option<AndroidContext> {
   CONTEXTS.lock().unwrap().values().next().cloned()
 }
 
-pub fn last_activity_id() -> Option<ActivityId> {
-  CONTEXTS.lock().unwrap().keys().next_back().cloned()
+pub fn next_available_activity() -> Option<(ActivityId, AndroidContext)> {
+  CONTEXTS
+    .lock()
+    .unwrap()
+    .iter()
+    .filter(|(_, ctx)| !ctx.window_created)
+    .next()
+    .map(|(id, ctx)| (*id, ctx.clone()))
 }
 
 pub static PIPE: Lazy<[OwnedFd; 2]> = Lazy::new(|| {
@@ -288,6 +356,18 @@ pub unsafe fn onActivityCreate(
     .i()
     .unwrap();
 
+  let activity_name: JString = env
+    .call_method(&activity, "getLocalClassName", "()Ljava/lang/String;", &[])
+    .unwrap()
+    .l()
+    .unwrap()
+    .into();
+  let activity_name = env
+    .get_string(&activity_name)
+    .unwrap()
+    .to_string_lossy()
+    .to_string();
+
   // Initialize global context
   let window_manager = env
     .call_method(
@@ -313,10 +393,20 @@ pub unsafe fn onActivityCreate(
     AndroidContext {
       java_vm: vm.get_java_vm_pointer() as *mut _,
       context_jobject: activity.as_obj().as_raw() as *mut _,
+      activity_name,
+      window_created: false,
     },
   );
   let looper = ThreadLooper::for_thread().unwrap();
   setup(PACKAGE.get().unwrap(), env, &looper, activity);
+
+  if let Some(tx) = ACTIVITY_CREATED_SENDERS
+    .lock()
+    .unwrap()
+    .remove(&activity_id)
+  {
+    let _ = tx.send(());
+  }
 }
 
 pub unsafe fn resume(_: JNIEnv, _: JClass, _: JObject) {
