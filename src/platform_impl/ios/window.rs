@@ -492,9 +492,11 @@ impl Window {
     window_attributes: WindowAttributes,
     platform_attributes: PlatformSpecificWindowBuilderAttributes,
   ) -> Result<Window, RootOsError> {
+    log::error!("Window::new calledddd");
     if window_attributes.always_on_top {
       warn!("`WindowAttributes::always_on_top` is unsupported on iOS");
     }
+    log::error!("window::new called!");
     // TODO: transparency, visible
 
     unsafe {

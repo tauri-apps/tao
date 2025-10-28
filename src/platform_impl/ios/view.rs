@@ -7,7 +7,13 @@ use std::{
   ffi::{c_char, CStr, CString},
 };
 
-use objc2::runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel};
+use objc2::{
+  rc::Retained,
+  runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel},
+  ClassType,
+};
+use objc2_foundation::NSString;
+use objc2_ui_kit::UISceneConfiguration;
 
 use crate::{
   dpi::PhysicalPosition,
@@ -20,6 +26,7 @@ use crate::{
       id, nil, CGFloat, CGPoint, CGRect, UIForceTouchCapability, UIInterfaceOrientationMask,
       UIRectEdge, UITouchPhase, UITouchType, BOOL, NO, YES,
     },
+    scene::app_supports_multiple_scenes,
     window::PlatformSpecificWindowBuilderAttributes,
     DeviceId,
   },
@@ -526,6 +533,22 @@ pub unsafe fn create_window(
     !window.is_null(),
     "Failed to initialize `UIWindow` instance"
   );
+
+  if app_supports_multiple_scenes() {
+    if let Some(scene) = app_state::pending_scene() {
+      let _: () = msg_send![window, setWindowScene: Retained::as_ptr(&scene)];
+    } else {
+      unsafe {
+        let mtm = objc2::MainThreadMarker::new().unwrap();
+        let application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
+        let _: () = msg_send![window, setHidden: true];
+        app_state::register_window_for_scene(window);
+        application
+          .requestSceneSessionActivation_userActivity_options_errorHandler(None, None, None, None);
+      }
+    }
+  }
+
   let () = msg_send![window, setRootViewController: view_controller];
   match window_attributes.fullscreen {
     Some(Fullscreen::Exclusive(ref video_mode)) => {
@@ -556,6 +579,27 @@ pub fn create_delegate_class() {
       app_state::did_finish_launching();
     }
     YES
+  }
+
+  extern "C" fn configuration_for_connecting_scene_session(
+    _: &Object,
+    _: Sel,
+    _application: id,
+    _connecting_scene_session: id,
+    _options: id,
+  ) -> id {
+    unsafe {
+      let mtm = objc2_foundation::MainThreadMarker::new_unchecked();
+      let config = UISceneConfiguration::configurationWithName_sessionRole(
+        Some(&NSString::from_str("TaoScene")),
+        &NSString::from_str("UIWindowSceneSessionRoleApplication"),
+        mtm,
+      );
+
+      // Dynamically set the delegate class name
+      config.setDelegateClass(Some(super::scene::TaoSceneDelegate::class()));
+      Retained::as_ptr(&config) as _
+    }
   }
 
   fn handle_deep_link(url: id) {
@@ -658,6 +702,13 @@ pub fn create_delegate_class() {
       sel!(application:didFinishLaunchingWithOptions:),
       did_finish_launching as extern "C" fn(_, _, _, _) -> _,
     );
+
+    if app_supports_multiple_scenes() {
+      decl.add_method(
+        sel!(application:configurationForConnectingSceneSession:options:),
+        configuration_for_connecting_scene_session as extern "C" fn(_, _, _, _, _) -> _,
+      );
+    }
 
     decl.add_method(
       sel!(application:openURL:options:),

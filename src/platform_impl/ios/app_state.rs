@@ -13,7 +13,8 @@ use std::{
   time::Instant,
 };
 
-use objc2::runtime::AnyObject;
+use objc2::{rc::Retained, runtime::AnyObject, MainThreadMarker, Message};
+use objc2_ui_kit::{UIApplication, UIScene, UIWindowScene};
 
 use crate::{
   dpi::LogicalSize,
@@ -27,6 +28,7 @@ use crate::{
       CFRunLoopTimerRef, CFRunLoopTimerSetNextFireDate, CGRect, CGSize, NSInteger,
       NSOperatingSystemVersion, NSUInteger,
     },
+    scene::app_supports_multiple_scenes,
   },
   window::WindowId as RootWindowId,
 };
@@ -104,6 +106,8 @@ struct AppState {
   app_state: Option<AppStateImpl>,
   control_flow: ControlFlow,
   waker: EventLoopWaker,
+  windows: Vec<id>,
+  did_first_scene_connect: bool,
 }
 
 impl Drop for AppState {
@@ -155,6 +159,8 @@ impl AppState {
           }),
           control_flow: ControlFlow::default(),
           waker,
+          windows: Vec::new(),
+          did_first_scene_connect: false,
         });
       }
       init_guard(&mut guard)
@@ -467,6 +473,50 @@ impl AppState {
   }
 }
 
+pub unsafe fn pending_scene() -> Option<Retained<UIWindowScene>> {
+  let mtm = MainThreadMarker::new().unwrap();
+  let application = UIApplication::sharedApplication(mtm);
+  for scene in application.connectedScenes().iter() {
+    if let Some(window_scene) = scene.downcast_ref::<UIWindowScene>() {
+      if window_scene.windows().count() == 0 {
+        return Some(window_scene.retain());
+      }
+    }
+  }
+
+  None
+}
+
+pub unsafe fn connect_scene(scene: &UIScene) {
+  let did_first_scene_connect = AppState::get_mut().did_first_scene_connect;
+  // on scene mode, we run on_app_ready() when the main scene is connected
+  // instead of on AppDelegate::didFinishLaunching
+  // this optimizes app startup, since the first created window can immediately see the main scene
+  // instead of having to create a new one (since it can't synchronously wait for it to be connected)
+  if !did_first_scene_connect {
+    on_app_ready();
+    AppState::get_mut().did_first_scene_connect = true;
+  }
+
+  if let Some(window_scene) = scene.downcast_ref::<UIWindowScene>() {
+    let window = {
+      let mut this = AppState::get_mut();
+      if this.windows.is_empty() {
+        None
+      } else {
+        Some(this.windows.remove(0))
+      }
+    };
+    if let Some(window) = window {
+      let _: () = msg_send![window, setWindowScene: window_scene];
+    }
+  }
+}
+
+pub unsafe fn register_window_for_scene(window: id) {
+  AppState::get_mut().windows.push(msg_send![window, retain]);
+}
+
 // requires main thread and window is a UIWindow
 // retains window
 pub unsafe fn set_key_window(window: id) {
@@ -536,6 +586,13 @@ pub unsafe fn will_launch(queued_event_handler: Box<dyn EventHandler>) {
 
 // requires main thread
 pub unsafe fn did_finish_launching() {
+  // when app supports multiple scenes, we defer the did_finish_launching call to the first scene setup
+  if !app_supports_multiple_scenes() {
+    on_app_ready();
+  }
+}
+
+unsafe fn on_app_ready() {
   let mut this = AppState::get_mut();
   let windows = match this.state_mut() {
     AppStateImpl::Launching { queued_windows, .. } => mem::take(queued_windows),
@@ -563,7 +620,7 @@ pub unsafe fn did_finish_launching() {
       //
       // relevant iOS log:
       // ```
-      // [ApplicationLifecycle] Windows were created before application initialzation
+      // [ApplicationLifecycle] Windows were created before application initialization
       // completed. This may result in incorrect visual appearance.
       // ```
       let screen: id = msg_send![window, screen];
@@ -589,6 +646,7 @@ pub unsafe fn did_finish_launching() {
 
   // the above window dance hack, could possibly trigger new windows to be created.
   // we can just set those windows up normally, as they were created after didFinishLaunching
+  // so the app window can attach to it directly
   for window in windows {
     let count: NSUInteger = msg_send![window, retainCount];
     // make sure the window is still referenced
