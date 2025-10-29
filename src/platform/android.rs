@@ -51,29 +51,29 @@ impl<T> EventLoopWindowTargetExtAndroid for EventLoopWindowTarget<T> {}
 /// Additional methods on `WindowBuilder` that are specific to Android.
 pub trait WindowBuilderExtAndroid {
   /// The name of the activity class to create.
-  fn activity_name(self, activity_name: String) -> Self;
+  fn with_activity_name(self, activity_name: String) -> Self;
 
   /// The id of the created activity to use.
-  fn activity_id(self, activity_id: ActivityId) -> Self;
+  fn with_activity_id(self, activity_id: ActivityId) -> Self;
 
   /// The name of the activity class that created this window.
   ///
   /// This is important to define which stack the activity will be created on.
-  fn created_by_activity_name(self, created_by_activity_name: String) -> Self;
+  fn with_created_by_activity_name(self, created_by_activity_name: String) -> Self;
 }
 
 impl WindowBuilderExtAndroid for WindowBuilder {
-  fn activity_name(mut self, activity_name: String) -> Self {
+  fn with_activity_name(mut self, activity_name: String) -> Self {
     self.platform_specific.activity_name = Some(activity_name);
     self
   }
 
-  fn activity_id(mut self, activity_id: ActivityId) -> Self {
+  fn with_activity_id(mut self, activity_id: ActivityId) -> Self {
     self.platform_specific.activity_id = Some(activity_id);
     self
   }
 
-  fn created_by_activity_name(mut self, created_by_activity_name: String) -> Self {
+  fn with_created_by_activity_name(mut self, created_by_activity_name: String) -> Self {
     self.platform_specific.created_by_activity_name = Some(created_by_activity_name);
     self
   }

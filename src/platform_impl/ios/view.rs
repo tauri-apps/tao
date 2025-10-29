@@ -10,10 +10,10 @@ use std::{
 use objc2::{
   rc::Retained,
   runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel},
-  ClassType,
+  ClassType, MainThreadMarker,
 };
 use objc2_foundation::NSString;
-use objc2_ui_kit::UISceneConfiguration;
+use objc2_ui_kit::{UIApplication, UISceneActivationRequestOptions, UISceneConfiguration};
 
 use crate::{
   dpi::PhysicalPosition,
@@ -520,7 +520,7 @@ pub unsafe fn create_view_controller(
 // requires main thread
 pub unsafe fn create_window(
   window_attributes: &WindowAttributes,
-  _platform_attributes: &PlatformSpecificWindowBuilderAttributes,
+  platform_attributes: &PlatformSpecificWindowBuilderAttributes,
   frame: CGRect,
   view_controller: id,
 ) -> id {
@@ -535,16 +535,29 @@ pub unsafe fn create_window(
   );
 
   if app_supports_multiple_scenes() {
-    if let Some(scene) = app_state::pending_scene() {
+    if let Some(scene) = app_state::unitialized_scene() {
       let _: () = msg_send![window, setWindowScene: Retained::as_ptr(&scene)];
     } else {
       unsafe {
-        let mtm = objc2::MainThreadMarker::new().unwrap();
-        let application = objc2_ui_kit::UIApplication::sharedApplication(mtm);
-        let _: () = msg_send![window, setHidden: true];
+        let mtm = MainThreadMarker::new().unwrap();
+        let application = UIApplication::sharedApplication(mtm);
         app_state::register_window_for_scene(window);
-        application
-          .requestSceneSessionActivation_userActivity_options_errorHandler(None, None, None, None);
+
+        let options = UISceneActivationRequestOptions::new(mtm);
+        if let Some(scene) = platform_attributes
+          .requesting_scene_identifier
+          .as_ref()
+          .and_then(|id| app_state::scene_by_id(id))
+        {
+          options.setRequestingScene(Some(&scene));
+        }
+
+        application.requestSceneSessionActivation_userActivity_options_errorHandler(
+          None,
+          None,
+          Some(&options),
+          None,
+        );
       }
     }
   }

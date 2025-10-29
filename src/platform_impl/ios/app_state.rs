@@ -106,7 +106,10 @@ struct AppState {
   app_state: Option<AppStateImpl>,
   control_flow: ControlFlow,
   waker: EventLoopWaker,
-  windows: Vec<id>,
+  // Stores the UIWindow instances that do not have a scene assigned yet
+  // Window::new might create a window before a scene is ready for it,
+  // requesting a new scene to be activated and deferring the setWindowScene call to the scene delegate
+  windows_for_next_scenes: Vec<id>,
   did_first_scene_connect: bool,
 }
 
@@ -159,7 +162,7 @@ impl AppState {
           }),
           control_flow: ControlFlow::default(),
           waker,
-          windows: Vec::new(),
+          windows_for_next_scenes: Vec::new(),
           did_first_scene_connect: false,
         });
       }
@@ -473,7 +476,8 @@ impl AppState {
   }
 }
 
-pub unsafe fn pending_scene() -> Option<Retained<UIWindowScene>> {
+// tries to find an unitialized scene (no windows)
+pub unsafe fn unitialized_scene() -> Option<Retained<UIWindowScene>> {
   let mtm = MainThreadMarker::new().unwrap();
   let application = UIApplication::sharedApplication(mtm);
   for scene in application.connectedScenes().iter() {
@@ -487,6 +491,18 @@ pub unsafe fn pending_scene() -> Option<Retained<UIWindowScene>> {
   None
 }
 
+pub unsafe fn scene_by_id(id: &str) -> Option<Retained<UIScene>> {
+  let mtm = MainThreadMarker::new().unwrap();
+  let application = UIApplication::sharedApplication(mtm);
+  for scene in application.connectedScenes().iter() {
+    let scene_id = scene.session().persistentIdentifier().to_string();
+    if scene_id == id {
+      return Some(scene);
+    }
+  }
+  None
+}
+
 pub unsafe fn connect_scene(scene: &UIScene) {
   let did_first_scene_connect = AppState::get_mut().did_first_scene_connect;
   // on scene mode, we run on_app_ready() when the main scene is connected
@@ -494,17 +510,20 @@ pub unsafe fn connect_scene(scene: &UIScene) {
   // this optimizes app startup, since the first created window can immediately see the main scene
   // instead of having to create a new one (since it can't synchronously wait for it to be connected)
   if !did_first_scene_connect {
-    on_app_ready();
     AppState::get_mut().did_first_scene_connect = true;
+    // run it a bit later so the scene is actually marked as connected
+    // otherwise UIWindowScene::windows returns 0, never connects the window
+    // and the main scene gets in a weird state where it can't snapshot when we create additional windows
+    dispatch::Queue::main().exec_async(|| unsafe { on_app_ready() });
   }
 
   if let Some(window_scene) = scene.downcast_ref::<UIWindowScene>() {
     let window = {
       let mut this = AppState::get_mut();
-      if this.windows.is_empty() {
+      if this.windows_for_next_scenes.is_empty() {
         None
       } else {
-        Some(this.windows.remove(0))
+        Some(this.windows_for_next_scenes.remove(0))
       }
     };
     if let Some(window) = window {
@@ -514,7 +533,9 @@ pub unsafe fn connect_scene(scene: &UIScene) {
 }
 
 pub unsafe fn register_window_for_scene(window: id) {
-  AppState::get_mut().windows.push(msg_send![window, retain]);
+  AppState::get_mut()
+    .windows_for_next_scenes
+    .push(msg_send![window, retain]);
 }
 
 // requires main thread and window is a UIWindow

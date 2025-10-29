@@ -7,7 +7,12 @@ use std::{
   ops::{Deref, DerefMut},
 };
 
-use objc2::runtime::{AnyClass, AnyObject};
+use objc2::{
+  rc::Retained,
+  runtime::{AnyClass, AnyObject},
+  MainThreadMarker,
+};
+use objc2_ui_kit::{UIApplication, UISceneActivationState, UIWindow};
 
 use crate::{
   dpi::{self, LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
@@ -68,8 +73,22 @@ impl Inner {
   }
 
   pub fn set_focus(&self) {
-    //FIXME: implementation goes here
-    warn!("set_focus not yet implemented on iOS");
+    unsafe {
+      let Some(scene) = self.window().windowScene() else {
+        return;
+      };
+      let mtm = MainThreadMarker::new().unwrap();
+      let application = UIApplication::sharedApplication(mtm);
+
+      // alternative function is iOS 17+
+      #[allow(deprecated)]
+      application.requestSceneSessionActivation_userActivity_options_errorHandler(
+        Some(&scene.session()),
+        None,
+        None,
+        None,
+      );
+    }
   }
 
   pub fn set_focusable(&self, _focusable: bool) {
@@ -77,8 +96,13 @@ impl Inner {
   }
 
   pub fn is_focused(&self) -> bool {
-    warn!("`Window::is_focused` is ignored on iOS");
-    false
+    unsafe {
+      self
+        .window()
+        .windowScene()
+        .map(|scene| scene.activationState() == UISceneActivationState::ForegroundActive)
+        .unwrap_or_default()
+    }
   }
 
   pub fn is_always_on_top(&self) -> bool {
@@ -258,8 +282,7 @@ impl Inner {
   }
 
   pub fn is_visible(&self) -> bool {
-    log::warn!("`Window::is_visible` is ignored on iOS");
-    false
+    !self.window().isHidden()
   }
 
   pub fn is_resizable(&self) -> bool {
@@ -449,6 +472,18 @@ impl Inner {
   pub fn set_badge_count(&self, count: i32) {
     set_badge_count(count);
   }
+
+  // instead of returning an Option here, we default to an empty string
+  // scene lifecycle will be enforced anyway soon (iOS 27)
+  pub fn scene_identifier(&self) -> String {
+    unsafe {
+      let window = self.window();
+      let Some(scene) = window.windowScene() else {
+        return "".into();
+      };
+      scene.session().persistentIdentifier().to_string()
+    }
+  }
 }
 
 pub struct Window {
@@ -492,11 +527,9 @@ impl Window {
     window_attributes: WindowAttributes,
     platform_attributes: PlatformSpecificWindowBuilderAttributes,
   ) -> Result<Window, RootOsError> {
-    log::error!("Window::new calledddd");
     if window_attributes.always_on_top {
       warn!("`WindowAttributes::always_on_top` is unsupported on iOS");
     }
-    log::error!("window::new called!");
     // TODO: transparency, visible
 
     unsafe {
@@ -598,6 +631,9 @@ impl Inner {
   }
   pub fn ui_view(&self) -> id {
     self.view
+  }
+  pub fn window(&self) -> Retained<UIWindow> {
+    unsafe { Retained::<UIWindow>::retain(self.window as _).unwrap() }
   }
 
   pub fn set_scale_factor(&self, scale_factor: f64) {
@@ -768,6 +804,14 @@ impl From<id> for WindowId {
   }
 }
 
+impl From<Retained<UIWindow>> for WindowId {
+  fn from(window: Retained<UIWindow>) -> WindowId {
+    WindowId {
+      window: Retained::as_ptr(&window) as _,
+    }
+  }
+}
+
 #[derive(Clone)]
 pub struct PlatformSpecificWindowBuilderAttributes {
   pub root_view_class: &'static AnyClass,
@@ -776,6 +820,7 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub prefers_home_indicator_hidden: bool,
   pub prefers_status_bar_hidden: bool,
   pub preferred_screen_edges_deferring_system_gestures: ScreenEdge,
+  pub requesting_scene_identifier: Option<String>,
 }
 
 impl Default for PlatformSpecificWindowBuilderAttributes {
@@ -787,6 +832,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       prefers_home_indicator_hidden: false,
       prefers_status_bar_hidden: false,
       preferred_screen_edges_deferring_system_gestures: Default::default(),
+      requesting_scene_identifier: None,
     }
   }
 }

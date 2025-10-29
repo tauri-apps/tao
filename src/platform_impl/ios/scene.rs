@@ -8,9 +8,14 @@ use objc2_foundation::{
 };
 use objc2_ui_kit::{
   UIOpenURLContext, UIScene, UISceneConnectionOptions, UISceneDelegate, UISceneSession,
+  UIWindowScene,
 };
 
-use crate::platform_impl::platform::{app_state, ffi::id};
+use crate::{
+  event::{Event, WindowEvent},
+  platform_impl::platform::{app_state, event_loop::EventWrapper, ffi::id},
+  window::WindowId as RootWindowId,
+};
 
 pub unsafe fn app_supports_multiple_scenes() -> bool {
   let application: id = msg_send![class!(UIApplication), sharedApplication];
@@ -56,40 +61,69 @@ define_class!(
       _session: &UISceneSession,
       _connection_options: &UISceneConnectionOptions,
     ) {
-      log::error!("connecting scene...");
       unsafe {
         app_state::connect_scene(scene);
       }
     }
 
     #[unsafe(method(sceneDidDisconnect:))]
-    fn sceneDidDisconnect(&self, _scene: &UIScene) {
-      log::error!("[lucas] disconnect");
-    }
+    fn sceneDidDisconnect(&self, _scene: &UIScene) {}
 
     #[unsafe(method(sceneDidBecomeActive:))]
-    fn sceneDidBecomeActive(&self, _scene: &UIScene) {
-      log::error!("[lucas] active");
+    fn sceneDidBecomeActive(&self, scene: &UIScene) {
+      unsafe {
+        if let Some(window_scene) = scene.downcast_ref::<UIWindowScene>() {
+          for window in window_scene.windows() {
+            app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::WindowEvent {
+              window_id: RootWindowId(window.into()),
+              event: WindowEvent::Focused(true),
+            }));
+          }
+        }
+      }
     }
 
     #[unsafe(method(sceneWillResignActive:))]
-    fn sceneWillResignActive(&self, _scene: &UIScene) {
-      log::error!("[lucas] resign");
+    fn sceneWillResignActive(&self, scene: &UIScene) {
+      unsafe {
+        if let Some(window_scene) = scene.downcast_ref::<UIWindowScene>() {
+          for window in window_scene.windows() {
+            app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::WindowEvent {
+              window_id: RootWindowId(window.into()),
+              event: WindowEvent::Focused(false),
+            }));
+          }
+        }
+      }
     }
 
     #[unsafe(method(sceneWillEnterForeground:))]
-    fn sceneWillEnterForeground(&self, _scene: &UIScene) {
-      log::error!("[lucas] foreground");
-    }
+    fn sceneWillEnterForeground(&self, _scene: &UIScene) {}
 
     #[unsafe(method(sceneDidEnterBackground:))]
-    fn sceneDidEnterBackground(&self, _scene: &UIScene) {
-      log::error!("[lucas] background");
-    }
+    fn sceneDidEnterBackground(&self, _scene: &UIScene) {}
 
     #[unsafe(method(scene:openURLContexts:))]
-    fn scene_openURLContexts(&self, _scene: &UIScene, _url_contexts: &NSSet<UIOpenURLContext>) {
-      log::error!("[lucas] contexts");
+    fn scene_openURLContexts(&self, _scene: &UIScene, url_contexts: &NSSet<UIOpenURLContext>) {
+      unsafe {
+        let urls: Vec<url::Url> = url_contexts
+          .iter()
+          .filter_map(|ctx| {
+            ctx.URL().absoluteString().and_then(|url| {
+              let url = url.to_string();
+              url
+                .parse()
+                .inspect_err(|e| {
+                  log::error!("failed to parse URL {url} from scene:openURLContexts: {e}")
+                })
+                .ok()
+            })
+          })
+          .collect();
+        if !urls.is_empty() {
+          app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls }));
+        }
+      }
     }
 
     #[unsafe(method(stateRestorationActivityForScene:))]
@@ -97,7 +131,7 @@ define_class!(
       &self,
       _scene: &UIScene,
     ) -> Option<std::ptr::NonNull<NSUserActivity>> {
-      log::error!("[lucas] activity for restore");
+      log::info!("scene erstore");
       None
     }
 
@@ -107,7 +141,7 @@ define_class!(
       _scene: &UIScene,
       _state_restoration_activity: &NSUserActivity,
     ) {
-      log::error!("[lucas] state with user");
+      log::info!("scene erstorasdasdsade");
     }
 
     #[unsafe(method(scene:willContinueUserActivityWithType:))]
@@ -116,12 +150,12 @@ define_class!(
       _scene: &UIScene,
       _user_activity_type: &NSString,
     ) {
-      log::error!("[lucas] continue ");
+      log::info!("scene erstore ytype");
     }
 
     #[unsafe(method(scene:continueUserActivity:))]
     fn scene_continueUserActivity(&self, _scene: &UIScene, _user_activity: &NSUserActivity) {
-      log::error!("[lucas] continue2");
+      log::info!("scene continue");
     }
 
     #[unsafe(method(scene:didFailToContinueUserActivityWithType:error:))]
@@ -131,12 +165,12 @@ define_class!(
       _user_activity_type: &NSString,
       _error: &NSError,
     ) {
-      log::error!("[lucas] fail");
+      log::info!("scene fail");
     }
 
     #[unsafe(method(scene:didUpdateUserActivity:))]
     fn scene_didUpdateUserActivity(&self, _scene: &UIScene, _user_activity: &NSUserActivity) {
-      log::error!("[lucas] update");
+      log::info!("scene updated");
     }
   }
 );
