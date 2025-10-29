@@ -10,7 +10,7 @@ pub mod prelude {
 }
 use crate::{
   event_loop::{EventLoop, EventLoopWindowTarget},
-  platform_impl::ndk_glue::{ActivityId, Rect},
+  platform_impl::ndk_glue::Rect,
   window::{Window, WindowBuilder},
 };
 use ndk::configuration::Configuration;
@@ -53,9 +53,6 @@ pub trait WindowBuilderExtAndroid {
   /// The name of the activity class to create.
   fn with_activity_name(self, activity_name: String) -> Self;
 
-  /// The id of the created activity to use.
-  fn with_activity_id(self, activity_id: ActivityId) -> Self;
-
   /// The name of the activity class that created this window.
   ///
   /// This is important to define which stack the activity will be created on.
@@ -65,11 +62,6 @@ pub trait WindowBuilderExtAndroid {
 impl WindowBuilderExtAndroid for WindowBuilder {
   fn with_activity_name(mut self, activity_name: String) -> Self {
     self.platform_specific.activity_name = Some(activity_name);
-    self
-  }
-
-  fn with_activity_id(mut self, activity_id: ActivityId) -> Self {
-    self.platform_specific.activity_id = Some(activity_id);
     self
   }
 

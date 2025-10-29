@@ -32,17 +32,6 @@ lazy_static! {
 pub enum OsError {
   JniError(jni::errors::Error),
   NoAvailableActivity,
-  ActivityNotFound {
-    activity_id: ActivityId,
-  },
-  ActivityAlreadyCreated {
-    activity_id: ActivityId,
-  },
-  ActivityClassMismatch {
-    activity_id: ActivityId,
-    expected_class_name: String,
-    actual_class_name: String,
-  },
 }
 
 impl std::error::Error for OsError {}
@@ -51,20 +40,6 @@ impl std::fmt::Display for OsError {
     match self {
       OsError::JniError(e) => write!(f, "JNI error: {e}"),
       OsError::NoAvailableActivity => write!(f, "no available activity"),
-      OsError::ActivityNotFound { activity_id } => write!(f, "activity not found: {activity_id}"),
-      OsError::ActivityAlreadyCreated { activity_id } => {
-        write!(f, "activity already created: {activity_id}")
-      }
-      OsError::ActivityClassMismatch {
-        activity_id,
-        expected_class_name,
-        actual_class_name,
-      } => {
-        write!(
-          f,
-          "activity class mismatch: {activity_id}, expected {expected_class_name} but got {actual_class_name}"
-        )
-      }
     }
   }
 }
@@ -553,39 +528,8 @@ impl Window {
   ) -> Result<Self, error::OsError> {
     // FIXME this ignores requested window attributes
 
-    let (activity_id, activity_name) = match (pl_attrs.activity_id, pl_attrs.activity_name) {
-      (Some(activity_id), Some(activity_name)) => ndk_glue::CONTEXTS
-        .lock()
-        .unwrap()
-        .get(&activity_id)
-        .ok_or_else(|| os_error!(OsError::ActivityNotFound { activity_id }))
-        .and_then(|ctx| {
-          if ctx.window_created {
-            Err(os_error!(OsError::ActivityAlreadyCreated { activity_id }))
-          } else if ctx.activity_name != activity_name {
-            Err(os_error!(OsError::ActivityClassMismatch {
-              activity_id,
-              expected_class_name: activity_name,
-              actual_class_name: ctx.activity_name.clone(),
-            }))
-          } else {
-            Ok((activity_id, ctx.activity_name.clone()))
-          }
-        })?,
-      // expect the activity to be already setup, without window
-      (Some(activity_id), None) => ndk_glue::CONTEXTS
-        .lock()
-        .unwrap()
-        .get(&activity_id)
-        .ok_or_else(|| os_error!(OsError::ActivityNotFound { activity_id }))
-        .and_then(|ctx| {
-          if ctx.window_created {
-            Err(os_error!(OsError::ActivityAlreadyCreated { activity_id }))
-          } else {
-            Ok((activity_id, ctx.activity_name.clone()))
-          }
-        })?,
-      (None, Some(activity_name)) => {
+    let (activity_id, activity_name) = match pl_attrs.activity_name {
+      Some(activity_name) => {
         let ctx = if let Some(created_by_activity_name) = pl_attrs.created_by_activity_name {
           ndk_glue::CONTEXTS
             .lock()
@@ -602,7 +546,7 @@ impl Window {
           .map_err(|error| os_error!(OsError::JniError(error)))?;
         (activity_id, activity_name)
       }
-      (None, None) => ndk_glue::next_available_activity()
+      None => ndk_glue::next_available_activity()
         .map(|(activity_id, ctx)| (activity_id, ctx.activity_name.clone()))
         .ok_or_else(|| os_error!(OsError::NoAvailableActivity))?,
     };
