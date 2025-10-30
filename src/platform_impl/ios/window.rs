@@ -74,20 +74,28 @@ impl Inner {
 
   pub fn set_focus(&self) {
     unsafe {
-      let Some(scene) = self.window().windowScene() else {
+      let window = self.window();
+      // only call makeKeyAndVisible() when Info.plist was not set up to support scenes
+      let Some(scene) = window.windowScene() else {
+        window.makeKeyAndVisible();
         return;
       };
       let mtm = MainThreadMarker::new().unwrap();
       let application = UIApplication::sharedApplication(mtm);
 
-      // alternative function is iOS 17+
-      #[allow(deprecated)]
-      application.requestSceneSessionActivation_userActivity_options_errorHandler(
-        Some(&scene.session()),
-        None,
-        None,
-        None,
-      );
+      // when we support multiple scenes, request the activation of this window's scene
+      if application.supportsMultipleScenes() {
+        // alternative function is iOS 17+
+        #[allow(deprecated)]
+        application.requestSceneSessionActivation_userActivity_options_errorHandler(
+          Some(&scene.session()),
+          None,
+          None,
+          None,
+        );
+      } else {
+        window.makeKeyAndVisible();
+      }
     }
   }
 
