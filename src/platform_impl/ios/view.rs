@@ -26,7 +26,7 @@ use crate::{
       id, nil, CGFloat, CGPoint, CGRect, UIForceTouchCapability, UIInterfaceOrientationMask,
       UIRectEdge, UITouchPhase, UITouchType, BOOL, NO, YES,
     },
-    scene::app_supports_multiple_scenes,
+    scene::{app_supports_multiple_scenes, multiple_scenes_enabled},
     window::PlatformSpecificWindowBuilderAttributes,
     DeviceId,
   },
@@ -534,10 +534,28 @@ pub unsafe fn create_window(
     "Failed to initialize `UIWindow` instance"
   );
 
-  if app_supports_multiple_scenes() {
+  if multiple_scenes_enabled() {
+    // if multiple scenes is enabled in Info.plist, we need to assign it
+    // regarless of whether the device supports multiple scenes or not
     if let Some(scene) = app_state::unitialized_scene() {
       let _: () = msg_send![window, setWindowScene: Retained::as_ptr(&scene)];
+    } else if !app_supports_multiple_scenes() {
+      // if there's no unitialized scene and the app does not support multiple scenes
+      // we need to move this window to the main scene, otherwise it won't be visible
+      let scene = unsafe {
+        let mtm = MainThreadMarker::new().unwrap();
+        let application = UIApplication::sharedApplication(mtm);
+        application.connectedScenes().iter().next()
+      };
+      let scene = scene
+        .as_ref()
+        .map(|s| Retained::as_ptr(s))
+        .unwrap_or(std::ptr::null_mut());
+
+      let _: () = msg_send![window, setWindowScene: scene];
     } else {
+      // only request a new scene if the system actually supports it
+      // otherwise it is silently ignored
       unsafe {
         let mtm = MainThreadMarker::new().unwrap();
         let application = UIApplication::sharedApplication(mtm);
@@ -552,6 +570,8 @@ pub unsafe fn create_window(
           options.setRequestingScene(Some(&scene));
         }
 
+        // alternative function is iOS 17+
+        #[allow(deprecated)]
         application.requestSceneSessionActivation_userActivity_options_errorHandler(
           None,
           None,
@@ -716,7 +736,7 @@ pub fn create_delegate_class() {
       did_finish_launching as extern "C" fn(_, _, _, _) -> _,
     );
 
-    if app_supports_multiple_scenes() {
+    if multiple_scenes_enabled() {
       decl.add_method(
         sel!(application:configurationForConnectingSceneSession:options:),
         configuration_for_connecting_scene_session as extern "C" fn(_, _, _, _, _) -> _,

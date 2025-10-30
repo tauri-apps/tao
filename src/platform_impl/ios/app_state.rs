@@ -28,7 +28,7 @@ use crate::{
       CFRunLoopTimerRef, CFRunLoopTimerSetNextFireDate, CGRect, CGSize, NSInteger,
       NSOperatingSystemVersion, NSUInteger,
     },
-    scene::app_supports_multiple_scenes,
+    scene::multiple_scenes_enabled,
   },
   window::WindowId as RootWindowId,
 };
@@ -504,6 +504,7 @@ pub unsafe fn scene_by_id(id: &str) -> Option<Retained<UIScene>> {
 }
 
 pub unsafe fn connect_scene(scene: &UIScene) {
+  eprintln!("connect scene");
   let did_first_scene_connect = AppState::get_mut().did_first_scene_connect;
   // on scene mode, we run on_app_ready() when the main scene is connected
   // instead of on AppDelegate::didFinishLaunching
@@ -511,10 +512,7 @@ pub unsafe fn connect_scene(scene: &UIScene) {
   // instead of having to create a new one (since it can't synchronously wait for it to be connected)
   if !did_first_scene_connect {
     AppState::get_mut().did_first_scene_connect = true;
-    // run it a bit later so the scene is actually marked as connected
-    // otherwise UIWindowScene::windows returns 0, never connects the window
-    // and the main scene gets in a weird state where it can't snapshot when we create additional windows
-    dispatch::Queue::main().exec_async(|| unsafe { on_app_ready() });
+    on_app_ready();
   }
 
   if let Some(window_scene) = scene.downcast_ref::<UIWindowScene>() {
@@ -607,8 +605,8 @@ pub unsafe fn will_launch(queued_event_handler: Box<dyn EventHandler>) {
 
 // requires main thread
 pub unsafe fn did_finish_launching() {
-  // when app supports multiple scenes, we defer the did_finish_launching call to the first scene setup
-  if !app_supports_multiple_scenes() {
+  // when app is run in scenes lifecycle mode, we defer the did_finish_launching call to the first scene setup
+  if !multiple_scenes_enabled() {
     on_app_ready();
   }
 }

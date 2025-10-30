@@ -1,47 +1,50 @@
 // Copyright 2021-2025 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use objc2::{define_class, rc::Retained, MainThreadOnly};
+use objc2::{define_class, rc::Retained, MainThreadMarker, MainThreadOnly};
 use objc2_foundation::{
   NSBundle, NSDictionary, NSError, NSNumber, NSObject, NSObjectProtocol, NSSet, NSString,
   NSUserActivity,
 };
 use objc2_ui_kit::{
-  UIOpenURLContext, UIScene, UISceneConnectionOptions, UISceneDelegate, UISceneSession,
-  UIWindowScene,
+  UIApplication, UIOpenURLContext, UIScene, UISceneConnectionOptions, UISceneDelegate,
+  UISceneSession, UIWindowScene,
 };
 
 use crate::{
   event::{Event, WindowEvent},
-  platform_impl::platform::{app_state, event_loop::EventWrapper, ffi::id},
+  platform_impl::platform::{app_state, event_loop::EventWrapper},
   window::WindowId as RootWindowId,
 };
 
+// true when the system allows the app to display multiple scenes and multiple_scenes_enabled() returns true
+// https://developer.apple.com/documentation/uikit/uiapplication/supportsmultiplescenes?language=objc
 pub unsafe fn app_supports_multiple_scenes() -> bool {
-  let application: id = msg_send![class!(UIApplication), sharedApplication];
-  // this function can be called before the UIApplication is set up (class delegate registration)
-  if application == std::ptr::null_mut() {
-    let bundle = NSBundle::mainBundle();
-    let Some(info) = bundle.infoDictionary() else {
-      return false;
-    };
+  let mtm = MainThreadMarker::new().unwrap();
+  let application = UIApplication::sharedApplication(mtm);
+  application.supportsMultipleScenes()
+}
 
-    let key = NSString::from_str("UIApplicationSceneManifest");
-    let Some(manifest) = (*info).objectForKey(&key) else {
-      return false;
-    };
+// check whether the app's Info.plist enabled multiple scenes
+pub unsafe fn multiple_scenes_enabled() -> bool {
+  let bundle = NSBundle::mainBundle();
+  let Some(info) = bundle.infoDictionary() else {
+    return false;
+  };
 
-    let manifest_dict = Retained::cast_unchecked::<NSDictionary<NSString, NSObject>>(manifest);
-    let supports_key = NSString::from_str("UIApplicationSupportsMultipleScenes");
-    let Some(value) = (*manifest_dict).objectForKey(&supports_key) else {
-      return false;
-    };
+  let key = NSString::from_str("UIApplicationSceneManifest");
+  let Some(manifest) = (*info).objectForKey(&key) else {
+    return false;
+  };
 
-    let num = Retained::cast_unchecked::<NSNumber>(value);
-    (*num).as_bool()
-  } else {
-    msg_send![application, supportsMultipleScenes]
-  }
+  let manifest_dict = Retained::cast_unchecked::<NSDictionary<NSString, NSObject>>(manifest);
+  let supports_key = NSString::from_str("UIApplicationSupportsMultipleScenes");
+  let Some(value) = (*manifest_dict).objectForKey(&supports_key) else {
+    return false;
+  };
+
+  let num = Retained::cast_unchecked::<NSNumber>(value);
+  (*num).as_bool()
 }
 
 define_class!(
@@ -131,7 +134,6 @@ define_class!(
       &self,
       _scene: &UIScene,
     ) -> Option<std::ptr::NonNull<NSUserActivity>> {
-      log::info!("scene erstore");
       None
     }
 
@@ -141,7 +143,6 @@ define_class!(
       _scene: &UIScene,
       _state_restoration_activity: &NSUserActivity,
     ) {
-      log::info!("scene erstorasdasdsade");
     }
 
     #[unsafe(method(scene:willContinueUserActivityWithType:))]
@@ -150,13 +151,10 @@ define_class!(
       _scene: &UIScene,
       _user_activity_type: &NSString,
     ) {
-      log::info!("scene erstore ytype");
     }
 
     #[unsafe(method(scene:continueUserActivity:))]
-    fn scene_continueUserActivity(&self, _scene: &UIScene, _user_activity: &NSUserActivity) {
-      log::info!("scene continue");
-    }
+    fn scene_continueUserActivity(&self, _scene: &UIScene, _user_activity: &NSUserActivity) {}
 
     #[unsafe(method(scene:didFailToContinueUserActivityWithType:error:))]
     fn scene_didFailToContinueUserActivityWithType_error(
@@ -165,12 +163,9 @@ define_class!(
       _user_activity_type: &NSString,
       _error: &NSError,
     ) {
-      log::info!("scene fail");
     }
 
     #[unsafe(method(scene:didUpdateUserActivity:))]
-    fn scene_didUpdateUserActivity(&self, _scene: &UIScene, _user_activity: &NSUserActivity) {
-      log::info!("scene updated");
-    }
+    fn scene_didUpdateUserActivity(&self, _scene: &UIScene, _user_activity: &NSUserActivity) {}
   }
 );
