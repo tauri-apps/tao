@@ -46,9 +46,28 @@ pub struct Inner {
 impl Drop for Inner {
   fn drop(&mut self) {
     unsafe {
+      let window = self.window();
+      if let Some(scene) = window.windowScene() {
+        // our windows are tied to scenes - so when this is the last window of the scene,
+        // request the scene to be destroyed
+        if scene.windows().count() == 1 {
+          let mtm = MainThreadMarker::new().unwrap();
+          let application = UIApplication::sharedApplication(mtm);
+          application.requestSceneSessionDestruction_options_errorHandler(
+            &scene.session(),
+            None,
+            None,
+          );
+        }
+      }
       let () = msg_send![self.view, release];
       let () = msg_send![self.view_controller, release];
       let () = msg_send![self.window, release];
+
+      app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::WindowEvent {
+        window_id: RootWindowId(self.window.into()),
+        event: WindowEvent::Focused(false),
+      }));
     }
   }
 }

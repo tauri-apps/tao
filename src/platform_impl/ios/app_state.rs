@@ -21,7 +21,7 @@ use crate::{
   event::{Event, StartCause, WindowEvent},
   event_loop::ControlFlow,
   platform_impl::platform::{
-    event_loop::{EventHandler, EventProxy, EventWrapper, Never},
+    event_loop::{EventHandler, EventProxy, EventWrapper},
     ffi::{
       id, kCFRunLoopCommonModes, CFAbsoluteTimeGetCurrent, CFRelease, CFRunLoopAddTimer,
       CFRunLoopGetMain, CFRunLoopRef, CFRunLoopTimerCreate, CFRunLoopTimerInvalidate,
@@ -54,12 +54,6 @@ enum UserCallbackTransitionResult<'a> {
   ReentrancyPrevented {
     queued_events: &'a mut Vec<EventWrapper>,
   },
-}
-
-impl Event<'static, Never> {
-  fn is_redraw(&self) -> bool {
-    matches!(self, Event::RedrawRequested(_))
-  }
 }
 
 // this is the state machine for the app lifecycle
@@ -504,7 +498,6 @@ pub unsafe fn scene_by_id(id: &str) -> Option<Retained<UIScene>> {
 }
 
 pub unsafe fn connect_scene(scene: &UIScene) {
-  eprintln!("connect scene");
   let did_first_scene_connect = AppState::get_mut().did_first_scene_connect;
   // on scene mode, we run on_app_ready() when the main scene is connected
   // instead of on AppDelegate::didFinishLaunching
@@ -525,7 +518,8 @@ pub unsafe fn connect_scene(scene: &UIScene) {
       }
     };
     if let Some(window) = window {
-      let _: () = msg_send![window, setWindowScene: window_scene];
+      let () = msg_send![window, setWindowScene: window_scene];
+      let () = msg_send![window, release];
     }
   }
 }
@@ -715,14 +709,6 @@ pub unsafe fn handle_nonuser_events<I: IntoIterator<Item = EventWrapper>>(events
   for wrapper in events {
     match wrapper {
       EventWrapper::StaticEvent(event) => {
-        if !processing_redraws && event.is_redraw() {
-          log::info!("processing `RedrawRequested` during the main event loop");
-        } else if processing_redraws && !event.is_redraw() {
-          log::warn!(
-            "processing non `RedrawRequested` event after the main event loop: {:#?}",
-            event
-          );
-        }
         event_handler.handle_nonuser_event(event, &mut control_flow)
       }
       EventWrapper::EventProxy(proxy) => {
@@ -772,14 +758,6 @@ pub unsafe fn handle_nonuser_events<I: IntoIterator<Item = EventWrapper>>(events
     for wrapper in queued_events {
       match wrapper {
         EventWrapper::StaticEvent(event) => {
-          if !processing_redraws && event.is_redraw() {
-            log::info!("processing `RedrawRequested` during the main event loop");
-          } else if processing_redraws && !event.is_redraw() {
-            log::warn!(
-              "processing non-`RedrawRequested` event after the main event loop: {:#?}",
-              event
-            );
-          }
           event_handler.handle_nonuser_event(event, &mut control_flow)
         }
         EventWrapper::EventProxy(proxy) => {
