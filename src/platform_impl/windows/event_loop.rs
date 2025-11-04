@@ -22,7 +22,9 @@ use std::{
 use windows::{
   core::{s, BOOL, PCWSTR},
   Win32::{
-    Foundation::{HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, WAIT_TIMEOUT, WPARAM},
+    Foundation::{
+      HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, TRUE, WAIT_TIMEOUT, WPARAM,
+    },
     Graphics::{
       Dwm::{DwmSetWindowAttribute, DWMWA_CLOAK},
       Gdi::*,
@@ -68,6 +70,13 @@ use crate::{
 use runner::{EventLoopRunner, EventLoopRunnerShared};
 
 use super::{dpi::hwnd_dpi, util::get_system_metrics_for_dpi};
+
+// This is defined in `winuser.h` as a macro that expands to `UINT_MAX`
+const WHEEL_PAGESCROLL: u32 = u32::MAX;
+// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-systemparametersinfoa#:~:text=SPI_GETWHEELSCROLLLINES
+const DEFAULT_SCROLL_LINES_PER_WHEEL_DELTA: isize = 3;
+// https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-systemparametersinfoa#:~:text=SPI_GETWHEELSCROLLCHARS
+const DEFAULT_SCROLL_CHARACTERS_PER_WHEEL_DELTA: isize = 3;
 
 type GetPointerFrameInfoHistory = unsafe extern "system" fn(
   pointerId: u32,
@@ -653,7 +662,7 @@ lazy_static! {
             lpfnWndProc: Some(util::call_default_window_proc),
             cbClsExtra: 0,
             cbWndExtra: 0,
-            hInstance:HINSTANCE(GetModuleHandleW(PCWSTR::null()).unwrap_or_default().0),
+            hInstance: HINSTANCE(GetModuleHandleW(PCWSTR::null()).unwrap_or_default().0),
             hIcon: HICON::default(),
             hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
             hbrBackground: HBRUSH::default(),
@@ -1390,11 +1399,25 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
       let modifiers = update_modifiers(window, subclass_input);
 
+      let mut scroll_lines = DEFAULT_SCROLL_LINES_PER_WHEEL_DELTA;
+
+      let _ = SystemParametersInfoW(
+        SPI_GETWHEELSCROLLLINES,
+        0,
+        Some(&mut scroll_lines as *mut isize as *mut c_void),
+        SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
+      );
+
+      if scroll_lines as u32 == WHEEL_PAGESCROLL {
+        // TODO: figure out how to handle page scrolls
+        scroll_lines = DEFAULT_SCROLL_LINES_PER_WHEEL_DELTA;
+      }
+
       subclass_input.send_event(Event::WindowEvent {
         window_id: RootWindowId(WindowId(window.0 as _)),
         event: WindowEvent::MouseWheel {
           device_id: DEVICE_ID,
-          delta: LineDelta(0.0, value),
+          delta: LineDelta(0.0, value * scroll_lines as f32),
           phase: TouchPhase::Moved,
           modifiers,
         },
@@ -1411,11 +1434,20 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
       let modifiers = update_modifiers(window, subclass_input);
 
+      let mut scroll_characters = DEFAULT_SCROLL_CHARACTERS_PER_WHEEL_DELTA;
+
+      let _ = SystemParametersInfoW(
+        SPI_GETWHEELSCROLLCHARS,
+        0,
+        Some(&mut scroll_characters as *mut isize as *mut c_void),
+        SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
+      );
+
       subclass_input.send_event(Event::WindowEvent {
         window_id: RootWindowId(WindowId(window.0 as _)),
         event: WindowEvent::MouseWheel {
           device_id: DEVICE_ID,
-          delta: LineDelta(value, 0.0),
+          delta: LineDelta(value * scroll_characters as f32, 0.0),
           phase: TouchPhase::Moved,
           modifiers,
         },
@@ -2146,31 +2178,26 @@ unsafe fn public_window_callback_inner<T: 'static>(
           {
             let mut rect = monitor_info.monitorInfo.rcWork;
 
-            let mut edges = 0;
-            for edge in [ABE_BOTTOM, ABE_LEFT, ABE_TOP, ABE_RIGHT] {
+            fn has_edge(edge: u32) -> bool {
               let mut app_data = APPBARDATA {
                 cbSize: std::mem::size_of::<APPBARDATA>() as _,
                 uEdge: edge,
                 ..Default::default()
               };
-              if SHAppBarMessage(ABM_GETAUTOHIDEBAR, &mut app_data) != 0 {
-                edges |= edge;
-              }
+              unsafe { SHAppBarMessage(ABM_GETAUTOHIDEBAR, &mut app_data) != 0 }
             }
 
             // keep a 1px for taskbar auto-hide to work
-            if edges & ABE_BOTTOM != 0 {
+            if has_edge(ABE_BOTTOM) {
               rect.bottom -= 1;
             }
-            // FIXME:
-            #[allow(clippy::bad_bit_mask)]
-            if edges & ABE_LEFT != 0 {
+            if has_edge(ABE_LEFT) {
               rect.left += 1;
             }
-            if edges & ABE_TOP != 0 {
+            if has_edge(ABE_TOP) {
               rect.top += 1;
             }
-            if edges & ABE_RIGHT != 0 {
+            if has_edge(ABE_RIGHT) {
               rect.right -= 1;
             }
 
@@ -2392,6 +2419,18 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       }
 
       DefSubclassProc(window, msg, wparam, lparam)
+    }
+
+    // We don't process `WM_QUERYENDSESSION` yet until we introduce the same mechanism as Tauri's `ExitRequested` event
+    // win32wm::WM_QUERYENDSESSION => {}
+    win32wm::WM_ENDSESSION => {
+      // `wParam` is `FALSE` is for if the shutdown gets canceled,
+      // and we don't need to handle that case since we didn't do anything prior in response to `WM_QUERYENDSESSION`
+      if wparam.0 == TRUE.0 as usize {
+        subclass_input.event_loop_runner.loop_destroyed();
+      }
+      // Note: after we return 0 here, Windows will shut us down
+      LRESULT(0)
     }
 
     _ if msg == *USER_EVENT_MSG_ID => {
