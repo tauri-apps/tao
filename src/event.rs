@@ -142,6 +142,21 @@ pub enum Event<'a, T: 'static> {
   /// - **Other**: Unsupported.
   #[non_exhaustive]
   Reopen { has_visible_windows: bool },
+
+  /// Emitted when a scene is requested by the system.
+  ///
+  /// This event is emitted when a scene is requested by the system.
+  /// Scenes created by [`Window::new`] are not emitted with this event.
+  /// It is also not emitted for the main scene.
+  #[cfg(target_os = "ios")]
+  SceneRequested {
+    /// Scene that was requested by the system.
+    scene: objc2::rc::Retained<objc2_ui_kit::UIScene>,
+    /// Options that were used to request the scene.
+    ///
+    /// This lets you determine why the scene was requested.
+    options: objc2::rc::Retained<objc2_ui_kit::UISceneConnectionOptions>,
+  },
 }
 
 impl<T: Clone> Clone for Event<'static, T> {
@@ -170,6 +185,11 @@ impl<T: Clone> Clone for Event<'static, T> {
       } => Reopen {
         has_visible_windows: *has_visible_windows,
       },
+      #[cfg(target_os = "ios")]
+      SceneRequested { scene, options } => SceneRequested {
+        scene: scene.clone(),
+        options: options.clone(),
+      },
     }
   }
 }
@@ -194,6 +214,8 @@ impl<'a, T> Event<'a, T> {
       } => Ok(Reopen {
         has_visible_windows,
       }),
+      #[cfg(target_os = "ios")]
+      SceneRequested { scene, options } => Ok(SceneRequested { scene, options }),
     }
   }
 
@@ -220,6 +242,8 @@ impl<'a, T> Event<'a, T> {
       } => Some(Reopen {
         has_visible_windows,
       }),
+      #[cfg(target_os = "ios")]
+      SceneRequested { scene, options } => Some(SceneRequested { scene, options }),
     }
   }
 }

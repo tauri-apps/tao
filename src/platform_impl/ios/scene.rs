@@ -62,10 +62,10 @@ define_class!(
       &self,
       scene: &UIScene,
       _session: &UISceneSession,
-      _connection_options: &UISceneConnectionOptions,
+      connection_options: &UISceneConnectionOptions,
     ) {
       unsafe {
-        app_state::connect_scene(scene);
+        app_state::connect_scene(scene, connection_options);
       }
     }
 

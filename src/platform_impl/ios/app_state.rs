@@ -14,7 +14,7 @@ use std::{
 };
 
 use objc2::{rc::Retained, runtime::AnyObject, MainThreadMarker, Message};
-use objc2_ui_kit::{UIApplication, UIScene, UIWindowScene};
+use objc2_ui_kit::{UIApplication, UIScene, UISceneConnectionOptions, UIWindowScene};
 
 use crate::{
   dpi::LogicalSize,
@@ -497,8 +497,9 @@ pub unsafe fn scene_by_id(id: &str) -> Option<Retained<UIScene>> {
   None
 }
 
-pub unsafe fn connect_scene(scene: &UIScene) {
+pub unsafe fn connect_scene(scene: &UIScene, options: &UISceneConnectionOptions) {
   let did_first_scene_connect = AppState::get_mut().did_first_scene_connect;
+  let is_first_scene = !did_first_scene_connect;
   // on scene mode, we run on_app_ready() when the main scene is connected
   // instead of on AppDelegate::didFinishLaunching
   // this optimizes app startup, since the first created window can immediately see the main scene
@@ -520,6 +521,13 @@ pub unsafe fn connect_scene(scene: &UIScene) {
     if let Some(window) = window {
       let () = msg_send![window, setWindowScene: window_scene];
       let () = msg_send![window, release];
+    } else if !is_first_scene {
+      // only emit the SceneRequest event for scenes that were not requested by a tao window
+      // also ignore the main scene
+      handle_nonuser_event(EventWrapper::StaticEvent(Event::SceneRequested {
+        scene: scene.retain(),
+        options: options.retain(),
+      }));
     }
   }
 }
