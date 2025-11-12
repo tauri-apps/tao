@@ -154,7 +154,20 @@ define_class!(
     }
 
     #[unsafe(method(scene:continueUserActivity:))]
-    fn scene_continueUserActivity(&self, _scene: &UIScene, _user_activity: &NSUserActivity) {}
+    fn scene_continueUserActivity(&self, _scene: &UIScene, user_activity: &NSUserActivity) {
+      unsafe {
+        // universal app links
+        if let Some(url) = user_activity
+          .webpageURL()
+          .and_then(|url| url.absoluteString())
+        {
+          let url = url.to_string().parse::<url::Url>().unwrap();
+          app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened {
+            urls: vec![url],
+          }));
+        }
+      }
+    }
 
     #[unsafe(method(scene:didFailToContinueUserActivityWithType:error:))]
     fn scene_didFailToContinueUserActivityWithType_error(
