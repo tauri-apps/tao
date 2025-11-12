@@ -153,7 +153,12 @@ dispatch = "0.2"
 scopeguard = "1.2"
 
 [target."cfg(target_os = \"ios\")".dependencies]
-objc2-ui-kit = { version = "0.3", features = ["UIResponder"] }
+objc2-ui-kit = { version = "0.3", features = [
+  "UIResponder",
+  "UIScene",
+  "UISceneOptions",
+  "UIOpenURLContext",
+] }
 objc2-foundation = { version = "0.3", default-features = false }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
