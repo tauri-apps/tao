@@ -2352,6 +2352,7 @@ dependencies = [
  "objc2-ui-kit",
  "once_cell",
  "parking_lot",
+ "percent-encoding",
  "raw-window-handle 0.4.3",
  "raw-window-handle 0.5.2",
  "raw-window-handle 0.6.2",

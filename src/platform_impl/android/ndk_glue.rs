@@ -18,8 +18,9 @@ use ndk::{
   looper::{FdEvent, ForeignLooper, ThreadLooper},
 };
 use once_cell::sync::{Lazy, OnceCell};
+use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use std::{
-  collections::BTreeMap,
+  collections::{BTreeMap, HashSet},
   ffi::{c_void, CStr, CString},
   fs::File,
   io::{BufRead, BufReader},
@@ -32,6 +33,26 @@ use std::{
 /// Android pacakge name that could be used to reference classes
 /// in the android project.
 pub static PACKAGE: OnceCell<&str> = OnceCell::new();
+
+/// Character set for encoding text content in data URLs.
+/// Encodes all control characters and special characters that might cause issues in URLs.
+const DATA_URL_ENCODING_SET: &AsciiSet = &CONTROLS
+  .add(b' ')
+  .add(b'"')
+  .add(b'#')
+  .add(b'%')
+  .add(b'&')
+  .add(b'<')
+  .add(b'>')
+  .add(b'?')
+  .add(b'[')
+  .add(b'\\')
+  .add(b']')
+  .add(b'^')
+  .add(b'`')
+  .add(b'{')
+  .add(b'|')
+  .add(b'}');
 
 /// Generate JNI compilant functions that are necessary for
 /// building android apps with tao.
@@ -91,6 +112,7 @@ macro_rules! android_binding {
     android_fn!($domain, $package, $activity, onActivityDestroy, [JObject]);
     android_fn!($domain, $package, $activity, onActivityLowMemory, [JObject]);
     android_fn!($domain, $package, $activity, onWindowFocusChanged, [JObject,i32]);
+    android_fn!($domain, $package, $activity, onNewIntent, [JObject]);
   }};
 }
 
@@ -188,6 +210,7 @@ lazy_static::lazy_static! {
   pub(crate) static ref CONTEXTS: Mutex<BTreeMap<ActivityId, AndroidContext>> = Mutex::new(Default::default());
   static ref WINDOW_MANAGER: Mutex<BTreeMap<ActivityId, GlobalRef>> = Mutex::new(Default::default());
   pub(crate) static ref ACTIVITY_CREATED_SENDERS: Mutex<BTreeMap<ActivityId, Sender<()>>> = Mutex::new(Default::default());
+  static ref INTENT_URLS: Mutex<Vec<url::Url>> = Mutex::new(Default::default());
 }
 
 static INPUT_QUEUE: Lazy<RwLock<Option<InputQueue>>> = Lazy::new(Default::default);
@@ -248,6 +271,10 @@ pub fn poll_events() -> Option<Event> {
   }
 }
 
+pub fn take_intent_urls() -> Vec<url::Url> {
+  INTENT_URLS.lock().unwrap().drain(..).collect()
+}
+
 unsafe fn wake(event: Event) {
   log::trace!("{:?}", event);
   let size = std::mem::size_of::<Event>();
@@ -263,7 +290,8 @@ pub struct Rect {
   pub bottom: u32,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+// event must be copyable to be used in the event loop
+#[derive(Clone, Debug, Eq, PartialEq, Copy)]
 #[repr(u8)]
 pub enum Event {
   Start,
@@ -273,9 +301,10 @@ pub enum Event {
   LowMemory,
   WindowEvent { id: WindowId, event: WindowEvent },
   ContentRectChanged,
+  Opened,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Copy)]
 #[repr(u8)]
 pub enum WindowEvent {
   Focused(bool),
@@ -350,6 +379,12 @@ pub unsafe fn onActivityCreate(
   activity: JObject,
   setup: unsafe fn(&str, JNIEnv, &ThreadLooper, GlobalRef),
 ) {
+  let intent = env
+    .call_method(&activity, "getIntent", "()Landroid/content/Intent;", &[])
+    .unwrap()
+    .l()
+    .unwrap();
+
   let activity_id = env
     .call_method(&activity, "getId", "()I", &[])
     .unwrap()
@@ -386,7 +421,7 @@ pub unsafe fn onActivityCreate(
     .insert(activity_id, window_manager);
   let activity = env.new_global_ref(activity).unwrap();
   let vm = env.get_java_vm().unwrap();
-  let env = vm.attach_current_thread_as_daemon().unwrap();
+  let thread_env = vm.attach_current_thread_as_daemon().unwrap();
 
   CONTEXTS.lock().unwrap().insert(
     activity_id,
@@ -398,7 +433,7 @@ pub unsafe fn onActivityCreate(
     },
   );
   let looper = ThreadLooper::for_thread().unwrap();
-  setup(PACKAGE.get().unwrap(), env, &looper, activity);
+  setup(PACKAGE.get().unwrap(), thread_env, &looper, activity);
 
   if let Some(tx) = ACTIVITY_CREATED_SENDERS
     .lock()
@@ -407,6 +442,8 @@ pub unsafe fn onActivityCreate(
   {
     let _ = tx.send(());
   }
+
+  handle_intent(env, intent);
 }
 
 pub unsafe fn resume(_: JNIEnv, _: JClass, _: JObject) {
@@ -434,6 +471,197 @@ pub unsafe fn onWindowFocusChanged(
     event: WindowEvent::Focused(has_focus != 0),
   };
   wake(event);
+}
+
+#[allow(non_snake_case)]
+pub unsafe fn onNewIntent(env: JNIEnv, _: JClass, intent: JObject) {
+  handle_intent(env, intent);
+}
+
+pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
+  let action = env
+    .call_method(&intent, "getAction", "()Ljava/lang/String;", &[])
+    .unwrap()
+    .l()
+    .unwrap()
+    .into();
+  let action = env
+    .get_string(&action)
+    .unwrap()
+    .to_string_lossy()
+    .to_string();
+
+  // Only handle SEND, SEND_MULTIPLE, and VIEW actions
+  if action != "android.intent.action.SEND"
+    && action != "android.intent.action.VIEW"
+    && action != "android.intent.action.SEND_MULTIPLE"
+  {
+    return;
+  }
+
+  let mut urls = HashSet::new();
+
+  // Get intent type (may be null)
+  let intent_type: JString = env
+    .call_method(&intent, "getType", "()Ljava/lang/String;", &[])
+    .ok()
+    .and_then(|result| result.l().ok())
+    .map(|jstr| jstr.into())
+    .unwrap_or_else(|| env.new_string("").unwrap());
+  let intent_type = env
+    .get_string(&intent_type)
+    .unwrap()
+    .to_string_lossy()
+    .to_string();
+
+  // Handle text/plain intents (EXTRA_TEXT)
+  if intent_type == "text/plain" {
+    let extra_text = env
+      .call_method(
+        &intent,
+        "getStringExtra",
+        "(Ljava/lang/String;)Ljava/lang/String;",
+        &[(&env.new_string("android.intent.extra.TEXT").unwrap()).into()],
+      )
+      .ok()
+      .and_then(|result| result.l().ok())
+      .and_then(|jstr| {
+        let jstr: JString = jstr.into();
+        env
+          .get_string(&jstr)
+          .ok()
+          .map(|s| s.to_string_lossy().to_string())
+      });
+
+    if let Some(text) = extra_text {
+      if !text.is_empty() {
+        // Check if it's a valid URL
+        if let Ok(url) = url::Url::parse(&text) {
+          urls.insert(url);
+        } else {
+          // If not a URL, create a data URL for plain text
+          // Use percent encoding for the text content
+          let encoded = utf8_percent_encode(&text, DATA_URL_ENCODING_SET).to_string();
+          if let Ok(url) = url::Url::parse(&format!("data:text/plain,{}", encoded)) {
+            urls.insert(url);
+          }
+        }
+      }
+    }
+  }
+
+  // Handle ClipData (API >= KITKAT, which is API 19)
+  // We'll try to get clip data, and if it fails, we'll continue
+  let clip_data = env
+    .call_method(&intent, "getClipData", "()Landroid/content/ClipData;", &[])
+    .ok()
+    .and_then(|result| result.l().ok());
+
+  if let Some(clip_data) = clip_data {
+    let item_count = env
+      .call_method(&clip_data, "getItemCount", "()I", &[])
+      .unwrap()
+      .i()
+      .unwrap();
+
+    for i in 0..item_count {
+      let clip_item = env
+        .call_method(
+          &clip_data,
+          "getItemAt",
+          "(I)Landroid/content/ClipData$Item;",
+          &[i.into()],
+        )
+        .unwrap()
+        .l()
+        .unwrap();
+
+      let uri = env
+        .call_method(&clip_item, "getUri", "()Landroid/net/Uri;", &[])
+        .ok()
+        .and_then(|result| result.l().ok());
+
+      if let Some(uri) = uri {
+        let uri_string: JString = env
+          .call_method(&uri, "toString", "()Ljava/lang/String;", &[])
+          .unwrap()
+          .l()
+          .unwrap()
+          .into();
+        let uri_str = env
+          .get_string(&uri_string)
+          .unwrap()
+          .to_string_lossy()
+          .to_string();
+        if let Ok(url) = url::Url::parse(&uri_str) {
+          urls.insert(url);
+        }
+      }
+    }
+  }
+
+  // Handle EXTRA_STREAM (for file sharing)
+  let extras = env
+    .call_method(&intent, "getExtras", "()Landroid/os/Bundle;", &[])
+    .ok()
+    .and_then(|result| result.l().ok());
+
+  if let Some(extras) = extras {
+    let extra_stream = env
+      .call_method(
+        &extras,
+        "get",
+        "(Ljava/lang/String;)Ljava/lang/Object;",
+        &[(&env.new_string("android.intent.extra.STREAM").unwrap()).into()],
+      )
+      .ok()
+      .and_then(|result| result.l().ok());
+
+    if let Some(stream_uri) = extra_stream {
+      let uri_string: JString = env
+        .call_method(&stream_uri, "toString", "()Ljava/lang/String;", &[])
+        .unwrap()
+        .l()
+        .unwrap()
+        .into();
+      let uri_str = env
+        .get_string(&uri_string)
+        .unwrap()
+        .to_string_lossy()
+        .to_string();
+      if let Ok(url) = url::Url::parse(&uri_str) {
+        urls.insert(url);
+      }
+    }
+  }
+
+  // Handle getDataString() for VIEW intents (deeplinks)
+  if action == "android.intent.action.VIEW" {
+    let data_string = env
+      .call_method(&intent, "getDataString", "()Ljava/lang/String;", &[])
+      .ok()
+      .and_then(|result| result.l().ok())
+      .and_then(|jstr| {
+        let jstr: JString = jstr.into();
+        env
+          .get_string(&jstr)
+          .ok()
+          .map(|s| s.to_string_lossy().to_string())
+      });
+
+    if let Some(data_str) = data_string {
+      if !data_str.is_empty() {
+        if let Ok(url) = url::Url::parse(&data_str) {
+          urls.insert(url);
+        }
+      }
+    }
+  }
+
+  if !urls.is_empty() {
+    INTENT_URLS.lock().unwrap().extend(urls);
+    wake(Event::Opened);
+  }
 }
 
 pub unsafe fn start(_: JNIEnv, _: JClass, _: JObject) {
