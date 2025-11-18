@@ -109,8 +109,8 @@ percent-encoding = "2.3"
 tao-macros = { version = "0.1.0", path = "./tao-macros" }
 
 [target."cfg(target_env = \"ohos\")".dependencies]
-openharmony-ability = { version = "0.2" }
-openharmony-ability-derive = { version = "0.2" }
+openharmony-ability = { version = "0.3" }
+openharmony-ability-derive = { version = "0.3" }
 
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
 objc2 = "0.6"
