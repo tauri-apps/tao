@@ -485,11 +485,12 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
     .l()
     .unwrap()
     .into();
-  let action = env
+  let Ok(action) = env
     .get_string(&action)
-    .unwrap()
-    .to_string_lossy()
-    .to_string();
+    .map(|action| action.to_string_lossy().to_string())
+  else {
+    return;
+  };
 
   // Only handle SEND, SEND_MULTIPLE, and VIEW actions
   if action != "android.intent.action.SEND"
