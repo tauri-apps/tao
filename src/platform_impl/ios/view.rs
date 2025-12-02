@@ -13,12 +13,15 @@ use objc2::{
   ClassType, MainThreadMarker,
 };
 use objc2_foundation::NSString;
-use objc2_ui_kit::{UIApplication, UISceneSessionActivationRequest, UISceneActivationRequestOptions, UISceneConfiguration};
+use objc2_ui_kit::{
+  UIApplication, UISceneActivationRequestOptions, UISceneConfiguration,
+  UISceneSessionActivationRequest,
+};
 
 use crate::{
   dpi::PhysicalPosition,
   event::{DeviceId as RootDeviceId, Event, Force, Touch, TouchPhase, WindowEvent},
-  platform::ios::{MonitorHandleExtIOS, operating_system_version},
+  platform::ios::{operating_system_version, MonitorHandleExtIOS},
   platform_impl::platform::{
     app_state::{self, OSCapabilities},
     event_loop::{self, EventProxy, EventWrapper},
