@@ -13,12 +13,12 @@ use objc2::{
   ClassType, MainThreadMarker,
 };
 use objc2_foundation::NSString;
-use objc2_ui_kit::{UIApplication, UISceneActivationRequestOptions, UISceneConfiguration};
+use objc2_ui_kit::{UIApplication, UISceneSessionActivationRequest, UISceneActivationRequestOptions, UISceneConfiguration};
 
 use crate::{
   dpi::PhysicalPosition,
   event::{DeviceId as RootDeviceId, Event, Force, Touch, TouchPhase, WindowEvent},
-  platform::ios::MonitorHandleExtIOS,
+  platform::ios::{MonitorHandleExtIOS, operating_system_version},
   platform_impl::platform::{
     app_state::{self, OSCapabilities},
     event_loop::{self, EventProxy, EventWrapper},
@@ -568,6 +568,24 @@ pub unsafe fn create_window(
           .and_then(|id| app_state::scene_by_id(id))
         {
           options.setRequestingScene(Some(&scene));
+        }
+
+        let error_handler = block2::RcBlock::new(move |error| {
+          log::error!("error activating scene: {error:?}");
+        });
+
+        if operating_system_version().0 >= 17 {
+          let request = UISceneSessionActivationRequest::request();
+          request.setOptions(Some(&options));
+          application.activateSceneSessionForRequest_errorHandler(&request, Some(&error_handler));
+        } else {
+          #[allow(deprecated)]
+          application.requestSceneSessionActivation_userActivity_options_errorHandler(
+            None,
+            None,
+            Some(&options),
+            Some(&error_handler),
+          );
         }
 
         // alternative function is iOS 17+

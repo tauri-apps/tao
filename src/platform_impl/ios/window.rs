@@ -12,7 +12,7 @@ use objc2::{
   runtime::{AnyClass, AnyObject},
   MainThreadMarker,
 };
-use objc2_ui_kit::{UIApplication, UISceneActivationState, UIWindow};
+use objc2_ui_kit::{UIApplication, UISceneActivationState, UIWindow, UISceneSessionActivationRequest};
 
 use crate::{
   dpi::{self, LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
@@ -20,7 +20,7 @@ use crate::{
   event::{Event, WindowEvent},
   icon::Icon,
   monitor::MonitorHandle as RootMonitorHandle,
-  platform::ios::{MonitorHandleExtIOS, ScreenEdge, ValidOrientations},
+  platform::ios::{MonitorHandleExtIOS, ScreenEdge, ValidOrientations, operating_system_version},
   platform_impl::platform::{
     app_state,
     event_loop::{self, EventProxy, EventWrapper},
@@ -102,16 +102,23 @@ impl Inner {
       let mtm = MainThreadMarker::new().unwrap();
       let application = UIApplication::sharedApplication(mtm);
 
+      let error_handler = block2::RcBlock::new(move |error| {
+        log::error!("error activating scene: {error:?}");
+      });
+
       // when we support multiple scenes, request the activation of this window's scene
       if application.supportsMultipleScenes() {
-        // alternative function is iOS 17+
-        #[allow(deprecated)]
-        application.requestSceneSessionActivation_userActivity_options_errorHandler(
-          Some(&scene.session()),
-          None,
-          None,
-          None,
-        );
+        if operating_system_version().0 >= 17 {
+          application.activateSceneSessionForRequest_errorHandler(&UISceneSessionActivationRequest::request(), Some(&error_handler));
+        } else {
+          #[allow(deprecated)]
+          application.requestSceneSessionActivation_userActivity_options_errorHandler(
+            Some(&scene.session()),
+            None,
+            None,
+            Some(&error_handler),
+          );
+        }
       } else {
         window.makeKeyAndVisible();
       }
