@@ -116,8 +116,9 @@ define_class!(
               let url = url.to_string();
               url
                 .parse()
-                .inspect_err(|e| {
-                  log::error!("failed to parse URL {url} from scene:openURLContexts: {e}")
+                .map_err(|e| {
+                  log::error!("failed to parse URL {url} from scene:openURLContexts: {e}");
+                  e
                 })
                 .ok()
             })
