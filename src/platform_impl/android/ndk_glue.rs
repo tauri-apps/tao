@@ -485,12 +485,10 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
     .l()
     .unwrap()
     .into();
-  let Ok(action) = env
+  let action = env
     .get_string(&action)
     .map(|action| action.to_string_lossy().to_string())
-  else {
-    return;
-  };
+    .unwrap();
 
   // Only handle SEND, SEND_MULTIPLE, and VIEW actions
   if action != "android.intent.action.SEND"
@@ -597,6 +595,8 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
           .to_string();
         if let Ok(url) = url::Url::parse(&uri_str) {
           urls.insert(url);
+        } else {
+          log::error!("failed to parse URI: {}", uri_str);
         }
       }
     }
@@ -633,6 +633,8 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
         .to_string();
       if let Ok(url) = url::Url::parse(&uri_str) {
         urls.insert(url);
+      } else {
+        log::error!("failed to parse URI: {}", uri_str);
       }
     }
   }
@@ -652,11 +654,13 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
       });
 
     if let Some(data_str) = data_string {
-      if !data_str.is_empty() {
-        if let Ok(url) = url::Url::parse(&data_str) {
-          urls.insert(url);
-        }
+      if let Ok(url) = url::Url::parse(&data_str) {
+        urls.insert(url);
+      } else {
+        log::error!("failed to parse data string: {}", data_str);
       }
+    } else {
+      log::error!("Intent data string is null");
     }
   }
 
