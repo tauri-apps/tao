@@ -503,20 +503,21 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
   let mut urls = HashSet::new();
 
   // Get intent type (may be null)
-  let intent_type: JString = env
+  let intent_type = env
     .call_method(&intent, "getType", "()Ljava/lang/String;", &[])
     .ok()
     .and_then(|result| result.l().ok())
     .map(|jstr| jstr.into())
-    .unwrap_or_else(|| env.new_string("").unwrap());
-  let intent_type = env
-    .get_string(&intent_type)
-    .unwrap()
-    .to_string_lossy()
-    .to_string();
+    .map(|intent_type| {
+      env
+        .get_string(&intent_type)
+        .unwrap()
+        .to_string_lossy()
+        .to_string()
+    });
 
   // Handle text/plain intents (EXTRA_TEXT)
-  if intent_type == "text/plain" {
+  if intent_type.as_deref() == Some("text/plain") {
     let extra_text = env
       .call_method(
         &intent,
