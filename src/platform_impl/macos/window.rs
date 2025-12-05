@@ -1153,21 +1153,13 @@ impl UnownedWindow {
       let new_screen = match fullscreen {
         Fullscreen::Borderless(Some(borderless)) => {
           let RootMonitorHandle { inner: monitor } = borderless.clone();
-          monitor
+          monitor.ns_screen()
         }
-        Fullscreen::Borderless(None) => {
-          if let Some(current) = self.current_monitor_inner() {
-            let RootMonitorHandle { inner: monitor } = current;
-            monitor
-          } else {
-            return;
-          }
-        }
+        Fullscreen::Borderless(None) => self.ns_window.screen(),
         Fullscreen::Exclusive(RootVideoMode {
           video_mode: VideoMode { ref monitor, .. },
-        }) => monitor.clone(),
+        }) => monitor.ns_screen(),
       }
-      .ns_screen()
       .unwrap();
 
       unsafe {
