@@ -14,8 +14,10 @@ use objc2::{
   class,
   runtime::{AnyClass as Class, AnyObject as Object, Sel},
 };
-use objc2_app_kit::{NSApp, NSView, NSWindow, NSWindowStyleMask};
-use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSPoint, NSRange, NSRect, NSUInteger};
+use objc2_app_kit::{NSApp, NSScreen, NSView, NSWindow, NSWindowStyleMask};
+use objc2_foundation::{
+  MainThreadMarker, NSAutoreleasePool, NSDictionary, NSPoint, NSRange, NSRect, NSString, NSUInteger,
+};
 
 use crate::{
   dpi::{LogicalPosition, PhysicalPosition},
@@ -81,21 +83,30 @@ impl Clone for IdRef {
   }
 }
 
+// Allow directly accessing the current screen internally without unwrapping.
+#[inline]
+pub fn display_of_screen(screen: &NSScreen) -> CGDisplay {
+  unsafe {
+    let desc = NSScreen::deviceDescription(&screen);
+    let key = NSString::from_str("NSScreenNumber");
+    let value = NSDictionary::objectForKey(&desc, &key).unwrap();
+    let display_id: NSUInteger = msg_send![&value, unsignedIntegerValue];
+    CGDisplay::new(display_id.try_into().unwrap())
+  }
+}
+
 // For consistency with other platforms, this will...
 // 1. translate the bottom-left window corner into the top-left window corner
 // 2. translate the coordinate from a bottom-left origin coordinate system to a top-left one
-pub fn bottom_left_to_top_left(rect: NSRect) -> f64 {
-  CGDisplay::main().pixels_high() as f64 - (rect.origin.y + rect.size.height)
+pub fn bottom_left_to_top_left(rect: NSRect, display: CGDisplay) -> f64 {
+  display.pixels_high() as f64 - (rect.origin.y + rect.size.height)
 }
 
 /// Converts from tao screen-coordinates to macOS screen-coordinates.
 /// Tao: top-left is (0, 0) and y increasing downwards
 /// macOS: bottom-left is (0, 0) and y increasing upwards
-pub fn window_position(position: LogicalPosition<f64>) -> NSPoint {
-  NSPoint::new(
-    position.x,
-    CGDisplay::main().pixels_high() as f64 - position.y,
-  )
+pub fn window_position(position: LogicalPosition<f64>, display: CGDisplay) -> NSPoint {
+  NSPoint::new(position.x, display.pixels_high() as f64 - position.y)
 }
 
 pub fn cursor_position() -> Result<PhysicalPosition<f64>, ExternalError> {
