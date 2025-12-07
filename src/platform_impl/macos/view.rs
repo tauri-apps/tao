@@ -84,7 +84,7 @@ pub(super) struct ViewState {
 
 impl ViewState {
   fn get_scale_factor(&self) -> f64 {
-    (unsafe { NSWindow::backingScaleFactor(&self.ns_window.load().unwrap()) }) as f64
+    unsafe { NSWindow::backingScaleFactor(&self.ns_window.load().unwrap()) }
   }
 }
 
@@ -118,8 +118,8 @@ pub unsafe fn set_ime_position(ns_view: &NSView, input_context: id, x: f64, y: f
     &state.ns_window.load().unwrap(),
     NSWindow::frame(&state.ns_window.load().unwrap()),
   );
-  let base_x = content_rect.origin.x as f64;
-  let base_y = (content_rect.origin.y + content_rect.size.height) as f64;
+  let base_x = content_rect.origin.x;
+  let base_y = content_rect.origin.y + content_rect.size.height;
   state.ime_spot = Some((base_x + x, base_y - y));
   let _: () = msg_send![input_context, invalidateCharacterCoordinates];
 }
@@ -393,6 +393,8 @@ extern "C" fn reset_cursor_rects(this: &Object, _sel: Sel) {
 extern "C" fn has_marked_text(this: &Object, _sel: Sel) -> BOOL {
   unsafe {
     trace!("Triggered `hasMarkedText`");
+    // TODO deprecated = "this is difficult to use correctly, use `Ivar::load` instead."
+    #[allow(clippy::explicit_auto_deref)]
     let marked_text: &NSMutableAttributedString = *this.get_ivar("markedText");
     trace!("Completed `hasMarkedText`");
     (marked_text.length() > 0).into()
@@ -402,6 +404,8 @@ extern "C" fn has_marked_text(this: &Object, _sel: Sel) -> BOOL {
 extern "C" fn marked_range(this: &Object, _sel: Sel) -> NSRange {
   unsafe {
     trace!("Triggered `markedRange`");
+    // TODO deprecated = "this is difficult to use correctly, use `Ivar::load` instead."
+    #[allow(clippy::explicit_auto_deref)]
     let marked_text: &NSMutableAttributedString = *this.get_ivar("markedText");
     let length = marked_text.length();
     trace!("Completed `markedRange`");
@@ -875,7 +879,7 @@ extern "C" fn insert_tab(this: &Object, _sel: Sel, _sender: id) {
     let first_responder: id = msg_send![window, firstResponder];
     let this_ptr = this as *const _ as *mut _;
     if first_responder == this_ptr {
-      let (): _ = msg_send![window, selectNextKeyView: this];
+      let () = msg_send![window, selectNextKeyView: this];
     }
   }
 }
@@ -886,7 +890,7 @@ extern "C" fn insert_back_tab(this: &Object, _sel: Sel, _sender: id) {
     let first_responder: id = msg_send![window, firstResponder];
     let this_ptr = this as *const _ as *mut _;
     if first_responder == this_ptr {
-      let (): _ = msg_send![window, selectPreviousKeyView: this];
+      let () = msg_send![window, selectPreviousKeyView: this];
     }
   }
 }
@@ -992,8 +996,8 @@ fn mouse_motion(this: &NSView, event: &NSEvent) {
       }
     }
 
-    let x = view_point.x as f64;
-    let y = view_rect.size.height as f64 - view_point.y as f64;
+    let x = view_point.x;
+    let y = view_rect.size.height - view_point.y;
     let logical_position = LogicalPosition::new(x, y);
 
     update_potentially_stale_modifiers(state, event);

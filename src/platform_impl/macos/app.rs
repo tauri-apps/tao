@@ -61,8 +61,8 @@ unsafe fn maybe_dispatch_device_event(event: &NSEvent) {
     | NSEventType::RightMouseDragged => {
       let mut events = VecDeque::with_capacity(3);
 
-      let delta_x = event.deltaX() as f64;
-      let delta_y = event.deltaY() as f64;
+      let delta_x = event.deltaX();
+      let delta_y = event.deltaY();
 
       if delta_x != 0.0 {
         events.push_back(EventWrapper::StaticEvent(Event::DeviceEvent {

@@ -12,15 +12,15 @@ use std::ops::{BitAnd, Deref};
 use core_graphics::display::CGDisplay;
 use objc2::{
   class,
-  runtime::{AnyClass as Class, AnyObject as Object, Sel},
+  runtime::{AnyClass as Class, AnyObject as Object},
 };
-use objc2_app_kit::{NSApp, NSView, NSWindow, NSWindowStyleMask};
-use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSPoint, NSRange, NSRect, NSUInteger};
+use objc2_app_kit::{NSView, NSWindow, NSWindowStyleMask};
+use objc2_foundation::{NSAutoreleasePool, NSPoint, NSRange, NSRect, NSUInteger};
 
 use crate::{
   dpi::{LogicalPosition, PhysicalPosition},
   error::ExternalError,
-  platform_impl::platform::ffi::{self, id, nil, BOOL, YES},
+  platform_impl::platform::ffi::{self, id, nil},
 };
 
 // Replace with `!` once stable
@@ -114,17 +114,6 @@ pub unsafe fn create_input_context(view: &NSView) -> IdRef {
   let input_context: id = msg_send![class!(NSTextInputContext), alloc];
   let input_context: id = msg_send![input_context, initWithClient: view];
   IdRef::new(input_context)
-}
-
-#[allow(dead_code)]
-pub unsafe fn open_emoji_picker() {
-  // SAFETY: TODO
-  let mtm = unsafe { MainThreadMarker::new_unchecked() };
-  let () = msg_send![&NSApp(mtm), orderFrontCharacterPalette: nil];
-}
-
-pub extern "C" fn yes(_: &Object, _: Sel) -> BOOL {
-  YES
 }
 
 pub unsafe fn toggle_style_mask(

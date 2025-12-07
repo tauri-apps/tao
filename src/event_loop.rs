@@ -112,6 +112,7 @@ impl<T> EventLoopBuilder<T> {
   #[inline]
   pub fn build(&mut self) -> EventLoop<T> {
     EventLoop {
+      #[allow(clippy::unnecessary_mut_passed)]
       event_loop: platform_impl::EventLoop::new(&mut self.platform_specific),
       _marker: PhantomData,
     }

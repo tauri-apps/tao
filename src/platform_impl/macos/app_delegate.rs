@@ -176,7 +176,7 @@ extern "C" fn application_continue_user_activity(
       match user_activity
         .webpageURL()
         .and_then(|url| url.absoluteString())
-        .and_then(|s| Some(s.to_string()))
+        .map(|s| s.to_string())
       {
         None => {
           error!(
@@ -201,7 +201,7 @@ extern "C" fn application_continue_user_activity(
 
   AppState::open_urls(vec![url]);
   trace!("Completed `application:continueUserActivity:restorationHandler:`");
-  return Bool::new(true);
+  Bool::new(true)
 }
 
 extern "C" fn application_should_handle_reopen(

@@ -116,14 +116,14 @@ impl WindowDelegateState {
   pub fn emit_resize_event(&mut self) {
     let rect = NSView::frame(&self.ns_view());
     let scale_factor = self.get_scale_factor();
-    let logical_size = LogicalSize::new(rect.size.width as f64, rect.size.height as f64);
+    let logical_size = LogicalSize::new(rect.size.width, rect.size.height);
     let size = logical_size.to_physical(scale_factor);
     self.emit_event(WindowEvent::Resized(size));
   }
 
   fn emit_move_event(&mut self) {
     let rect = NSWindow::frame(&self.ns_window);
-    let x = rect.origin.x as f64;
+    let x = rect.origin.x;
     let y = util::bottom_left_to_top_left(rect);
     let moved = self.previous_position != Some((x, y));
     if moved {
@@ -135,12 +135,12 @@ impl WindowDelegateState {
   }
 
   fn get_scale_factor(&self) -> f64 {
-    NSWindow::backingScaleFactor(&self.ns_window) as f64
+    NSWindow::backingScaleFactor(&self.ns_window)
   }
 
   fn view_size(&self) -> LogicalSize<f64> {
     let ns_size = NSView::frame(&self.ns_view()).size;
-    LogicalSize::new(ns_size.width as f64, ns_size.height as f64)
+    LogicalSize::new(ns_size.width, ns_size.height)
   }
 }
 
@@ -313,13 +313,13 @@ extern "C" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void) -> id 
 }
 
 extern "C" fn mark_is_checking_zoomed_in(this: &Object, _sel: Sel) {
-  with_state(&*this, |state| {
+  with_state(this, |state| {
     state.is_checking_zoomed_in = true;
   });
 }
 
 extern "C" fn clear_is_checking_zoomed_in(this: &Object, _sel: Sel) {
-  with_state(&*this, |state| {
+  with_state(this, |state| {
     state.is_checking_zoomed_in = false;
   });
 }

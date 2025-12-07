@@ -450,6 +450,7 @@ extern "C" fn send_event(this: &Object, _sel: Sel, event: &NSEvent) {
   }
 }
 
+// TODO impl Send + Sync for SharedState when use Arc<Mutex>
 #[derive(Default)]
 pub struct SharedState {
   pub resizable: bool,
@@ -600,6 +601,7 @@ impl UnownedWindow {
       ns_view,
       ns_window,
       input_context,
+      #[allow(clippy::arc_with_non_send_sync)]
       shared_state: Arc::new(Mutex::new(win_attribs.into())),
       decorations: AtomicBool::new(decorations),
       cursor_state,
@@ -611,7 +613,7 @@ impl UnownedWindow {
       Some(theme) => {
         set_ns_theme(Some(theme));
         let mut state = window.shared_state.lock().unwrap();
-        state.current_theme = theme.clone();
+        state.current_theme = theme;
       }
       None => {
         let mut state = window.shared_state.lock().unwrap();
@@ -707,7 +709,7 @@ impl UnownedWindow {
   pub fn outer_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
     let frame_rect = unsafe { NSWindow::frame(&self.ns_window) };
     let position = LogicalPosition::new(
-      frame_rect.origin.x as f64,
+      frame_rect.origin.x,
       util::bottom_left_to_top_left(frame_rect),
     );
     let scale_factor = self.scale_factor();
@@ -719,7 +721,7 @@ impl UnownedWindow {
       NSWindow::contentRectForFrameRect(&self.ns_window, NSWindow::frame(&self.ns_window))
     };
     let position = LogicalPosition::new(
-      content_rect.origin.x as f64,
+      content_rect.origin.x,
       util::bottom_left_to_top_left(content_rect),
     );
     let scale_factor = self.scale_factor();
@@ -737,8 +739,7 @@ impl UnownedWindow {
   #[inline]
   pub fn inner_size(&self) -> PhysicalSize<u32> {
     let view_frame = unsafe { NSView::frame(&self.ns_view) };
-    let logical: LogicalSize<f64> =
-      (view_frame.size.width as f64, view_frame.size.height as f64).into();
+    let logical: LogicalSize<f64> = (view_frame.size.width, view_frame.size.height).into();
     let scale_factor = self.scale_factor();
     logical.to_physical(scale_factor)
   }
@@ -746,8 +747,7 @@ impl UnownedWindow {
   #[inline]
   pub fn outer_size(&self) -> PhysicalSize<u32> {
     let view_frame = unsafe { NSWindow::frame(&self.ns_window) };
-    let logical: LogicalSize<f64> =
-      (view_frame.size.width as f64, view_frame.size.height as f64).into();
+    let logical: LogicalSize<f64> = (view_frame.size.width, view_frame.size.height).into();
     let scale_factor = self.scale_factor();
     logical.to_physical(scale_factor)
   }
@@ -1017,7 +1017,7 @@ impl UnownedWindow {
     shared_state_lock.fullscreen = None;
 
     let maximized = shared_state_lock.maximized;
-    let mask = self.saved_style(&mut *shared_state_lock);
+    let mask = self.saved_style(&mut shared_state_lock);
 
     drop(shared_state_lock);
     trace!("Unlocked shared state in `restore_state_from_fullscreen`");
@@ -1635,7 +1635,7 @@ impl WindowExtMacOS for UnownedWindow {
 
         true
       } else {
-        let new_mask = self.saved_style(&mut *shared_state_lock);
+        let new_mask = self.saved_style(&mut shared_state_lock);
         self.set_style_mask_async(new_mask);
         shared_state_lock.is_simple_fullscreen = false;
 
@@ -1743,8 +1743,8 @@ unsafe fn set_min_inner_size(window: &NSWindow, mut min_size: LogicalSize<f64>) 
   let mut current_rect = NSWindow::frame(window);
   let content_rect = NSWindow::contentRectForFrameRect(window, NSWindow::frame(window));
   // Convert from client area size to window size
-  min_size.width += (current_rect.size.width - content_rect.size.width) as f64; // this tends to be 0
-  min_size.height += (current_rect.size.height - content_rect.size.height) as f64;
+  min_size.width += current_rect.size.width - content_rect.size.width; // this tends to be 0
+  min_size.height += current_rect.size.height - content_rect.size.height;
   window.setMinSize(NSSize {
     width: min_size.width as CGFloat,
     height: min_size.height as CGFloat,
@@ -1767,8 +1767,8 @@ unsafe fn set_max_inner_size(window: &NSWindow, mut max_size: LogicalSize<f64>) 
   let mut current_rect = NSWindow::frame(window);
   let content_rect = NSWindow::contentRectForFrameRect(window, NSWindow::frame(window));
   // Convert from client area size to window size
-  max_size.width += (current_rect.size.width - content_rect.size.width) as f64; // this tends to be 0
-  max_size.height += (current_rect.size.height - content_rect.size.height) as f64;
+  max_size.width += current_rect.size.width - content_rect.size.width; // this tends to be 0
+  max_size.height += current_rect.size.height - content_rect.size.height;
   window.setMaxSize(NSSize {
     width: max_size.width as CGFloat,
     height: max_size.height as CGFloat,
