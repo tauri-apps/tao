@@ -9,9 +9,12 @@ use once_cell::sync::Lazy;
 use windows::{
   core::{s, w, BOOL, PCSTR, PSTR},
   Win32::{
-    Foundation::{HANDLE, HMODULE, HWND, LPARAM, WPARAM},
+    Foundation::{ERROR_SUCCESS, HANDLE, HMODULE, HWND, LPARAM, WPARAM},
     Graphics::Dwm::{DwmSetWindowAttribute, DWMWINDOWATTRIBUTE},
-    System::LibraryLoader::*,
+    System::{
+      LibraryLoader::*,
+      Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD},
+    },
     UI::{Accessibility::*, Input::KeyboardAndMouse::GetActiveWindow, WindowsAndMessaging::*},
   },
 };
@@ -199,6 +202,10 @@ fn should_use_dark_mode() -> bool {
 }
 
 fn should_apps_use_dark_mode() -> bool {
+  if let Some(apps_use_light_theme) = read_apps_use_light_theme() {
+    return !apps_use_light_theme;
+  }
+
   const UXTHEME_SHOULDAPPSUSEDARKMODE_ORDINAL: u16 = 132;
   type ShouldAppsUseDarkMode = unsafe extern "system" fn() -> bool;
   static SHOULD_APPS_USE_DARK_MODE: Lazy<Option<ShouldAppsUseDarkMode>> = Lazy::new(|| unsafe {
@@ -216,6 +223,27 @@ fn should_apps_use_dark_mode() -> bool {
   SHOULD_APPS_USE_DARK_MODE
     .map(|should_apps_use_dark_mode| unsafe { (should_apps_use_dark_mode)() })
     .unwrap_or(false)
+}
+
+fn read_apps_use_light_theme() -> Option<bool> {
+  let mut data: u32 = 0;
+  let mut data_size = std::mem::size_of::<u32>() as u32;
+  let status = unsafe {
+    RegGetValueW(
+      HKEY_CURRENT_USER,
+      w!("Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize"),
+      w!("AppsUseLightTheme"),
+      RRF_RT_REG_DWORD,
+      None,
+      Some(&mut data as *mut _ as _),
+      Some(&mut data_size),
+    )
+  };
+  if status == ERROR_SUCCESS {
+    Some(data != 0)
+  } else {
+    None
+  }
 }
 
 fn is_high_contrast() -> bool {
