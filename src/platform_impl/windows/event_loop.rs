@@ -354,8 +354,8 @@ fn main_thread_id() -> u32 {
   #[used]
   #[allow(non_upper_case_globals)]
   #[link_section = ".CRT$XCU"]
-  static INIT_MAIN_THREAD_ID: unsafe fn() = {
-    unsafe fn initer() {
+  static INIT_MAIN_THREAD_ID: unsafe extern "C" fn() = {
+    unsafe extern "C" fn initer() {
       MAIN_THREAD_ID = GetCurrentThreadId();
     }
     initer
