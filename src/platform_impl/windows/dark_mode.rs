@@ -205,7 +205,9 @@ fn should_apps_use_dark_mode() -> bool {
   if let Some(apps_use_light_theme) = read_apps_use_light_theme() {
     return !apps_use_light_theme;
   }
-
+  // This undocumented method `ShouldAppsUseDarkMode` may return
+  // incorrect values on Windows 11.
+  // See https://github.com/tauri-apps/tao/pull/1165
   const UXTHEME_SHOULDAPPSUSEDARKMODE_ORDINAL: u16 = 132;
   type ShouldAppsUseDarkMode = unsafe extern "system" fn() -> bool;
   static SHOULD_APPS_USE_DARK_MODE: Lazy<Option<ShouldAppsUseDarkMode>> = Lazy::new(|| unsafe {
@@ -231,7 +233,7 @@ fn read_apps_use_light_theme() -> Option<bool> {
   let status = unsafe {
     RegGetValueW(
       HKEY_CURRENT_USER,
-      w!("Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize"),
+      w!(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"),
       w!("AppsUseLightTheme"),
       RRF_RT_REG_DWORD,
       None,
