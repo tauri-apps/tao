@@ -539,6 +539,8 @@ impl Window {
     MonitorHandle.scale_factor()
   }
 
+  pub fn text_scale_factor(&self) -> f64 { 1.0 }
+
   pub fn request_redraw(&self) {
     // TODO
   }
