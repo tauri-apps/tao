@@ -67,6 +67,7 @@ windows-core = "0.61"
   [target."cfg(target_os = \"windows\")".dependencies.windows]
   version = "0.61"
   features = [
+  "UI_ViewManagement",
   "Win32_Devices_HumanInterfaceDevice",
   "Win32_Foundation",
   "Win32_Globalization",
@@ -93,6 +94,7 @@ windows-core = "0.61"
   "Win32_UI_Input_Touch",
   "Win32_UI_Shell",
   "Win32_UI_TextServices",
+
   "Win32_UI_WindowsAndMessaging"
 ]
 
