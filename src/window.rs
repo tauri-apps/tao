@@ -662,6 +662,15 @@ impl Window {
     self.window.scale_factor()
   }
 
+  /// Returns the text scale factor
+  ///
+  /// ## Platform-specific
+  /// Android/iOS/Linux: Unsupported, always returns 1.0
+  #[inline]
+  pub fn text_scale_factor(&self) -> f64 {
+    self.window.text_scale_factor()
+  }
+
   /// Emits a `WindowEvent::RedrawRequested` event in the associated event loop after all OS
   /// events have been processed by the event loop.
   ///

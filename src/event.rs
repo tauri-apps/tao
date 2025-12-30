@@ -405,6 +405,12 @@ pub enum WindowEvent<'a> {
     new_inner_size: &'a mut PhysicalSize<u32>,
   },
 
+  /// The system text scale factor has changed.
+  ///
+  /// ## Platform-specific
+  /// - **Linux /  Android / iOS:** Unsupported
+  TextScaleFactorChanged(f64),
+
   /// The system window theme has changed.
   ///
   /// Applications might wish to react to this to change the theme of the content of the window
@@ -510,6 +516,7 @@ impl Clone for WindowEvent<'static> {
       ScaleFactorChanged { .. } => {
         unreachable!("Static event can't be about scale factor changing")
       }
+      TextScaleFactorChanged(f) => TextScaleFactorChanged(*f),
       DecorationsClick => DecorationsClick,
     }
   }
@@ -595,6 +602,7 @@ impl<'a> WindowEvent<'a> {
       Touch(touch) => Some(Touch(touch)),
       ThemeChanged(theme) => Some(ThemeChanged(theme)),
       ScaleFactorChanged { .. } => None,
+      TextScaleFactorChanged(factor) => Some(TextScaleFactorChanged(factor)),
       DecorationsClick => Some(DecorationsClick),
     }
   }

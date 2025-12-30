@@ -645,6 +645,12 @@ lazy_static! {
     pub static ref CHANGE_THEME_MSG_ID: u32 = unsafe {
         RegisterWindowMessageA(s!("Tao::ChangeTheme"))
     };
+    /// Message sent by event loop when TextScaleFactorChanged
+    /// WPARAM and LPARAM are unused.
+    pub static ref TEXT_SCALE_FACTOR_CHANGED_MSG_ID: u32 = unsafe {
+        RegisterWindowMessageA(s!("Tao::TextScaleFactorChanged"))
+    };
+
     /// When the taskbar is created, it registers a message with the "TaskbarCreated" string and then broadcasts this message to all top-level windows
     /// When the application receives this message, it should assume that any taskbar icons it added have been removed and add them again.
     pub static ref S_U_TASKBAR_RESTART: u32 = unsafe {
@@ -2147,6 +2153,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
     win32wm::WM_SETTINGCHANGE => {
       update_theme(subclass_input, window, true);
+      update_text_scale_factor(subclass_input, window, true);
     }
 
     win32wm::WM_NCCALCSIZE => {
@@ -2278,6 +2285,9 @@ unsafe fn public_window_callback_inner<T: 'static>(
       } else if msg == *S_U_TASKBAR_RESTART {
         let window_state = subclass_input.window_state.lock();
         let _ = set_skip_taskbar(window, window_state.skip_taskbar);
+      } else if msg == *TEXT_SCALE_FACTOR_CHANGED_MSG_ID {
+        update_text_scale_factor(subclass_input, window, false);
+        result = ProcResult::Value(LRESULT(0));
       }
     }
   };
@@ -2314,6 +2324,28 @@ fn update_theme<T>(
       subclass_input.send_event(Event::WindowEvent {
         window_id: RootWindowId(WindowId(window.0 as _)),
         event: WindowEvent::ThemeChanged(new_theme),
+      })
+    };
+  }
+}
+
+fn update_text_scale_factor<T>(
+  subclass_input: &SubclassInput<T>,
+  window: HWND,
+  from_settings_change_event: bool,
+) {
+  let mut window_state = subclass_input.window_state.lock();
+  if from_settings_change_event {
+    return;
+  }
+  let new_text_scale_factor = util::get_cur_text_scale_factor().unwrap_or(1.0);
+  if window_state.text_scale_factor != new_text_scale_factor {
+    window_state.text_scale_factor = new_text_scale_factor;
+    mem::drop(window_state);
+    unsafe {
+      subclass_input.send_event(Event::WindowEvent {
+        window_id: RootWindowId(WindowId(window.0 as _)),
+        event: WindowEvent::TextScaleFactorChanged(new_text_scale_factor),
       })
     };
   }
