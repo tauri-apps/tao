@@ -94,7 +94,6 @@ windows-core = "0.61"
   "Win32_UI_Input_Touch",
   "Win32_UI_Shell",
   "Win32_UI_TextServices",
-
   "Win32_UI_WindowsAndMessaging"
 ]
 
