@@ -32,6 +32,7 @@ use windows::{
     },
   },
 };
+use windows::UI::ViewManagement::UISettings;
 
 pub fn has_flag<T>(bitset: T, flag: T) -> bool
 where
@@ -508,4 +509,10 @@ pub unsafe fn get_system_metrics_for_dpi(nindex: SYSTEM_METRICS_INDEX, dpi: u32)
   } else {
     GetSystemMetrics(nindex)
   }
+}
+
+// Read text_scale_factor from system settings
+pub(crate) fn get_cur_text_scale_factor() -> Result<f64, windows::core::Error> {
+  let ui_settings = UISettings::new()?;
+  ui_settings.TextScaleFactor()
 }

@@ -29,6 +29,7 @@ pub struct WindowState {
 
   pub saved_window: Option<SavedWindow>,
   pub scale_factor: f64,
+  pub text_scale_factor: f64,
 
   pub dragging: bool,
 
@@ -132,6 +133,8 @@ impl WindowState {
     preferred_theme: Option<Theme>,
     background_color: Option<RGBA>,
   ) -> WindowState {
+    let text_scale_factor = util::get_cur_text_scale_factor().unwrap_or(1.0);
+
     WindowState {
       mouse: MouseProperties {
         cursor: CursorIcon::default(),
@@ -147,6 +150,7 @@ impl WindowState {
 
       saved_window: None,
       scale_factor,
+      text_scale_factor,
 
       dragging: false,
 

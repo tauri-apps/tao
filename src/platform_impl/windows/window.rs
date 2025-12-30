@@ -510,6 +510,11 @@ impl Window {
   }
 
   #[inline]
+  pub fn text_scale_factor(&self) -> f64 {
+    self.window_state.lock().text_scale_factor
+  }
+
+  #[inline]
   pub fn set_cursor_position(&self, position: Position) -> Result<(), ExternalError> {
     let scale_factor = self.scale_factor();
     let (x, y) = position.to_physical::<i32>(scale_factor).into();
