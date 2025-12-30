@@ -64,9 +64,9 @@ unicode-segmentation = "1.11"
 windows-version = "0.1"
 windows-core = "0.61"
 
-  [target."cfg(target_os = \"windows\")".dependencies.windows]
-  version = "0.61"
-  features = [
+[target."cfg(target_os = \"windows\")".dependencies.windows]
+version = "0.61"
+features = [
   "UI_ViewManagement",
   "Win32_Devices_HumanInterfaceDevice",
   "Win32_Foundation",
