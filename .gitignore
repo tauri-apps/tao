@@ -5,6 +5,7 @@
 target/
 rls/
 .vscode/
+.idea/
 *~
 *.ts
 *.js
