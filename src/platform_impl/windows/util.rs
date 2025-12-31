@@ -20,6 +20,7 @@ use crate::{
 use once_cell::sync::Lazy;
 use windows::{
   core::{BOOL, HRESULT, PCSTR, PCWSTR},
+  UI::ViewManagement::UISettings,
   Win32::{
     Foundation::{COLORREF, FARPROC, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
     Globalization::lstrlenW,
@@ -508,4 +509,10 @@ pub unsafe fn get_system_metrics_for_dpi(nindex: SYSTEM_METRICS_INDEX, dpi: u32)
   } else {
     GetSystemMetrics(nindex)
   }
+}
+
+// Read text_scale_factor from system settings
+pub(crate) fn get_cur_text_scale_factor() -> Result<f64, windows::core::Error> {
+  let ui_settings = UISettings::new()?;
+  ui_settings.TextScaleFactor()
 }

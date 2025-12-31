@@ -888,6 +888,9 @@ impl UnownedWindow {
   }
 
   #[inline]
+  pub fn text_scale_factor(&self) -> f64 { 1.0 }
+
+  #[inline]
   pub fn set_cursor_position(&self, cursor_position: Position) -> Result<(), ExternalError> {
     let physical_window_position = self.inner_position().unwrap();
     let scale_factor = self.scale_factor();

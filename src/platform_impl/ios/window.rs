@@ -206,6 +206,10 @@ impl Inner {
     }
   }
 
+  pub fn text_scale_factor(&self) -> f64 {
+    1.0
+  }
+
   pub fn set_cursor_icon(&self, _cursor: CursorIcon) {
     debug!("`Window::set_cursor_icon` ignored on iOS")
   }
