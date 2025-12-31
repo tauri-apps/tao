@@ -20,6 +20,7 @@ use crate::{
 use once_cell::sync::Lazy;
 use windows::{
   core::{BOOL, HRESULT, PCSTR, PCWSTR},
+  UI::ViewManagement::UISettings,
   Win32::{
     Foundation::{COLORREF, FARPROC, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM},
     Globalization::lstrlenW,
@@ -32,7 +33,6 @@ use windows::{
     },
   },
 };
-use windows::UI::ViewManagement::UISettings;
 
 pub fn has_flag<T>(bitset: T, flag: T) -> bool
 where
