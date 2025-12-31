@@ -142,6 +142,19 @@ pub enum Event<'a, T: 'static> {
   /// - **Other**: Unsupported.
   #[non_exhaustive]
   Reopen { has_visible_windows: bool },
+
+  /// Emitted when registration completes and an application push token is made available; on Apple
+  /// platforms, this is the APNS token.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: https://developer.apple.com/documentation/appkit/nsapplicationdelegate/application(_:didregisterforremotenotificationswithdevicetoken:)?language=objc
+  /// - **iOS**: https://developer.apple.com/documentation/uikit/uiapplicationdelegate/application(_:didregisterforremotenotificationswithdevicetoken:)?language=objc
+  /// - **Other**: Unsupported.
+  PushRegistration(Vec<u8>),
+
+  /// Emitted when push token registration fails.
+  PushRegistrationError(String),
 }
 
 impl<T: Clone> Clone for Event<'static, T> {
@@ -170,6 +183,8 @@ impl<T: Clone> Clone for Event<'static, T> {
       } => Reopen {
         has_visible_windows: *has_visible_windows,
       },
+      PushRegistration(token) => PushRegistration(token.clone()),
+      PushRegistrationError(error) => PushRegistrationError(error.clone()),
     }
   }
 }
@@ -194,6 +209,8 @@ impl<'a, T> Event<'a, T> {
       } => Ok(Reopen {
         has_visible_windows,
       }),
+      PushRegistration(token) => Ok(PushRegistration(token)),
+      PushRegistrationError(error) => Ok(PushRegistrationError(error)),
     }
   }
 
@@ -220,6 +237,8 @@ impl<'a, T> Event<'a, T> {
       } => Some(Reopen {
         has_visible_windows,
       }),
+      PushRegistration(token) => Some(PushRegistration(token)),
+      PushRegistrationError(error) => Some(PushRegistrationError(error)),
     }
   }
 }

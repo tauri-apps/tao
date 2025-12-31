@@ -16,6 +16,7 @@ use objc2::runtime::{
 use objc2_foundation::{
   NSArray, NSError, NSString, NSUserActivity, NSUserActivityTypeBrowsingWeb, NSURL,
 };
+
 use std::{
   cell::{RefCell, RefMut},
   ffi::{CStr, CString},
@@ -83,6 +84,14 @@ lazy_static! {
       sel!(applicationSupportsSecureRestorableState:),
       application_supports_secure_restorable_state as extern "C" fn(_, _, _) -> _,
     );
+    decl.add_method(
+      sel!(application:didRegisterForRemoteNotificationsWithDeviceToken:),
+      did_register_for_apns as extern "C" fn(_, _, _, _),
+    );
+    decl.add_method(
+      sel!(application:didFailToRegisterForRemoteNotificationsWithError:),
+      did_fail_to_register_for_apns as extern "C" fn(_, _, _, _),
+    );
     decl.add_ivar::<*mut c_void>(&CString::new(AUX_DELEGATE_STATE_NAME).unwrap());
 
     AppDelegateClass(decl.register())
@@ -125,6 +134,7 @@ extern "C" fn dealloc(this: &Object, _: Sel) {
 
 extern "C" fn did_finish_launching(this: &Object, _: Sel, _: id) {
   trace!("Triggered `applicationDidFinishLaunching`");
+
   AppState::launched(this);
   trace!("Completed `applicationDidFinishLaunching`");
 }
@@ -220,4 +230,59 @@ extern "C" fn application_supports_secure_restorable_state(_: &Object, _: Sel, _
   trace!("Triggered `applicationSupportsSecureRestorableState`");
   trace!("Completed `applicationSupportsSecureRestorableState`");
   YES
+}
+
+// application(_:didRegisterForRemoteNotificationsWithDeviceToken:)
+extern "C" fn did_register_for_apns(_: &Object, _: Sel, _: id, token_data: id) {
+  trace!("Triggered `didRegisterForRemoteNotificationsWithDeviceToken`");
+  let token_bytes = unsafe {
+    if token_data.is_null() {
+      trace!("Token data is null; ignoring");
+      return;
+    }
+    let is_nsdata: bool = msg_send![token_data, isKindOfClass:class!(NSData)];
+    if !is_nsdata {
+      trace!("Token data is not an NSData object");
+      return;
+    }
+    let bytes: *const u8 = msg_send![token_data, bytes];
+    let length: usize = msg_send![token_data, length];
+    std::slice::from_raw_parts(bytes, length).to_vec()
+  };
+  AppState::did_register_push_token(token_bytes);
+  trace!("Completed `didRegisterForRemoteNotificationsWithDeviceToken`");
+}
+
+// application(_:didFailToRegisterForRemoteNotificationsWithError:)
+extern "C" fn did_fail_to_register_for_apns(_: &Object, _: Sel, _: id, err: *mut Object) {
+  trace!("Triggered `didFailToRegisterForRemoteNotificationsWithError`");
+
+  let error_string = unsafe {
+    if err.is_null() {
+      "Unknown error (null error object)".to_string()
+    } else {
+      // Verify it's an NSError
+      let is_error: bool = msg_send![err, isKindOfClass:class!(NSError)];
+      if !is_error {
+        trace!("Invalid error object type for push registration failure");
+        return;
+      }
+
+      // Get the localizedDescription
+      let description: *mut Object = msg_send![err, localizedDescription];
+      if description.is_null() {
+        trace!("Error had no description");
+        return;
+      }
+
+      // Convert NSString to str
+      let utf8: *const u8 = msg_send![description, UTF8String];
+      let len: usize = msg_send![description, lengthOfBytesUsingEncoding:4];
+      let bytes = std::slice::from_raw_parts(utf8, len);
+      String::from_utf8_lossy(bytes).to_string()
+    }
+  };
+
+  AppState::did_fail_to_register_push_token(error_string);
+  trace!("Completed `didFailToRegisterForRemoteNotificationsWithError`");
 }
