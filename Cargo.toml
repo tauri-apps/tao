@@ -143,7 +143,7 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSUserActivity"
 ] }
 core-foundation = "0.10"
-core-graphics = "0.24"
+core-graphics = "0.25"
 dispatch = "0.2"
 scopeguard = "1.2"
 
