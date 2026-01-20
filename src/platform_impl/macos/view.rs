@@ -28,6 +28,7 @@ use objc2_foundation::{
   MainThreadMarker, NSAttributedString, NSInteger, NSMutableAttributedString, NSPoint, NSRange,
   NSRect, NSSize, NSString, NSUInteger,
 };
+use once_cell::sync::Lazy;
 
 use crate::{
   dpi::LogicalPosition,
@@ -135,135 +136,132 @@ struct ViewClass(&'static Class);
 unsafe impl Send for ViewClass {}
 unsafe impl Sync for ViewClass {}
 
-lazy_static! {
-  static ref VIEW_CLASS: ViewClass = unsafe {
-    let superclass = class!(NSView);
-    let mut decl =
-      ClassDecl::new(CStr::from_bytes_with_nul(b"TaoView\0").unwrap(), superclass).unwrap();
-    decl.add_method(sel!(dealloc), dealloc as extern "C" fn(_, _));
-    decl.add_method(
-      sel!(initWithTao:),
-      init_with_tao as extern "C" fn(_, _, _) -> _,
-    );
-    decl.add_method(
-      sel!(viewDidMoveToWindow),
-      view_did_move_to_window as extern "C" fn(_, _),
-    );
-    decl.add_method(sel!(drawRect:), draw_rect as extern "C" fn(_, _, _));
-    decl.add_method(
-      sel!(acceptsFirstResponder),
-      accepts_first_responder as extern "C" fn(_, _) -> _,
-    );
-    decl.add_method(sel!(touchBar), touch_bar as extern "C" fn(_, _) -> _);
-    decl.add_method(
-      sel!(resetCursorRects),
-      reset_cursor_rects as extern "C" fn(_, _),
-    );
-    decl.add_method(
-      sel!(hasMarkedText),
-      has_marked_text as extern "C" fn(_, _) -> _,
-    );
-    decl.add_method(sel!(markedRange), marked_range as extern "C" fn(_, _) -> _);
-    decl.add_method(
-      sel!(selectedRange),
-      selected_range as extern "C" fn(_, _) -> _,
-    );
-    decl.add_method(
-      sel!(setMarkedText:selectedRange:replacementRange:),
-      set_marked_text as extern "C" fn(_, _, _, _, _),
-    );
-    decl.add_method(sel!(unmarkText), unmark_text as extern "C" fn(_, _));
-    decl.add_method(
-      sel!(validAttributesForMarkedText),
-      valid_attributes_for_marked_text as extern "C" fn(_, _) -> _,
-    );
-    decl.add_method(
-      sel!(attributedSubstringForProposedRange:actualRange:),
-      attributed_substring_for_proposed_range as extern "C" fn(_, _, _, _) -> _,
-    );
-    decl.add_method(
-      sel!(insertText:replacementRange:),
-      insert_text as extern "C" fn(_, _, _, _),
-    );
-    decl.add_method(
-      sel!(characterIndexForPoint:),
-      character_index_for_point as extern "C" fn(_, _, _) -> _,
-    );
-    decl.add_method(
-      sel!(firstRectForCharacterRange:actualRange:),
-      first_rect_for_character_range as extern "C" fn(_, _, _, _) -> _,
-    );
-    decl.add_method(
-      sel!(doCommandBySelector:),
-      do_command_by_selector as extern "C" fn(_, _, _),
-    );
-    decl.add_method(sel!(keyDown:), key_down as extern "C" fn(_, _, _));
-    decl.add_method(sel!(keyUp:), key_up as extern "C" fn(_, _, _));
-    decl.add_method(sel!(flagsChanged:), flags_changed as extern "C" fn(_, _, _));
-    decl.add_method(sel!(insertTab:), insert_tab as extern "C" fn(_, _, _));
-    decl.add_method(
-      sel!(insertBackTab:),
-      insert_back_tab as extern "C" fn(_, _, _),
-    );
-    decl.add_method(sel!(mouseDown:), mouse_down as extern "C" fn(_, _, _));
-    decl.add_method(sel!(mouseUp:), mouse_up as extern "C" fn(_, _, _));
-    decl.add_method(
-      sel!(rightMouseDown:),
-      right_mouse_down as extern "C" fn(_, _, _),
-    );
-    decl.add_method(
-      sel!(rightMouseUp:),
-      right_mouse_up as extern "C" fn(_, _, _),
-    );
-    decl.add_method(
-      sel!(otherMouseDown:),
-      other_mouse_down as extern "C" fn(_, _, _),
-    );
-    decl.add_method(
-      sel!(otherMouseUp:),
-      other_mouse_up as extern "C" fn(_, _, _),
-    );
-    decl.add_method(sel!(mouseMoved:), mouse_moved as extern "C" fn(_, _, _));
-    decl.add_method(sel!(mouseDragged:), mouse_dragged as extern "C" fn(_, _, _));
-    decl.add_method(
-      sel!(rightMouseDragged:),
-      right_mouse_dragged as extern "C" fn(_, _, _),
-    );
-    decl.add_method(
-      sel!(otherMouseDragged:),
-      other_mouse_dragged as extern "C" fn(_, _, _),
-    );
-    decl.add_method(sel!(mouseEntered:), mouse_entered as extern "C" fn(_, _, _));
-    decl.add_method(sel!(mouseExited:), mouse_exited as extern "C" fn(_, _, _));
-    decl.add_method(sel!(scrollWheel:), scroll_wheel as extern "C" fn(_, _, _));
-    decl.add_method(
-      sel!(pressureChangeWithEvent:),
-      pressure_change_with_event as extern "C" fn(_, _, _),
-    );
-    decl.add_method(
-      sel!(_wantsKeyDownForEvent:),
-      wants_key_down_for_event as extern "C" fn(_, _, _) -> _,
-    );
-    decl.add_method(
-      sel!(cancelOperation:),
-      cancel_operation as extern "C" fn(_, _, _),
-    );
-    decl.add_method(
-      sel!(frameDidChange:),
-      frame_did_change as extern "C" fn(_, _, _),
-    );
-    decl.add_method(
-      sel!(acceptsFirstMouse:),
-      accepts_first_mouse as extern "C" fn(_, _, _) -> _,
-    );
-    decl.add_ivar::<*mut c_void>(CStr::from_bytes_with_nul(b"taoState\0").unwrap());
-    decl.add_ivar::<id>(CStr::from_bytes_with_nul(b"markedText\0").unwrap());
-    let protocol =
-      Protocol::get(CStr::from_bytes_with_nul(b"NSTextInputClient\0").unwrap()).unwrap();
-    decl.add_protocol(protocol);
-    ViewClass(decl.register())
-  };
-}
+static VIEW_CLASS: Lazy<ViewClass> = Lazy::new(|| unsafe {
+  let superclass = class!(NSView);
+  let mut decl =
+    ClassDecl::new(CStr::from_bytes_with_nul(b"TaoView\0").unwrap(), superclass).unwrap();
+  decl.add_method(sel!(dealloc), dealloc as extern "C" fn(_, _));
+  decl.add_method(
+    sel!(initWithTao:),
+    init_with_tao as extern "C" fn(_, _, _) -> _,
+  );
+  decl.add_method(
+    sel!(viewDidMoveToWindow),
+    view_did_move_to_window as extern "C" fn(_, _),
+  );
+  decl.add_method(sel!(drawRect:), draw_rect as extern "C" fn(_, _, _));
+  decl.add_method(
+    sel!(acceptsFirstResponder),
+    accepts_first_responder as extern "C" fn(_, _) -> _,
+  );
+  decl.add_method(sel!(touchBar), touch_bar as extern "C" fn(_, _) -> _);
+  decl.add_method(
+    sel!(resetCursorRects),
+    reset_cursor_rects as extern "C" fn(_, _),
+  );
+  decl.add_method(
+    sel!(hasMarkedText),
+    has_marked_text as extern "C" fn(_, _) -> _,
+  );
+  decl.add_method(sel!(markedRange), marked_range as extern "C" fn(_, _) -> _);
+  decl.add_method(
+    sel!(selectedRange),
+    selected_range as extern "C" fn(_, _) -> _,
+  );
+  decl.add_method(
+    sel!(setMarkedText:selectedRange:replacementRange:),
+    set_marked_text as extern "C" fn(_, _, _, _, _),
+  );
+  decl.add_method(sel!(unmarkText), unmark_text as extern "C" fn(_, _));
+  decl.add_method(
+    sel!(validAttributesForMarkedText),
+    valid_attributes_for_marked_text as extern "C" fn(_, _) -> _,
+  );
+  decl.add_method(
+    sel!(attributedSubstringForProposedRange:actualRange:),
+    attributed_substring_for_proposed_range as extern "C" fn(_, _, _, _) -> _,
+  );
+  decl.add_method(
+    sel!(insertText:replacementRange:),
+    insert_text as extern "C" fn(_, _, _, _),
+  );
+  decl.add_method(
+    sel!(characterIndexForPoint:),
+    character_index_for_point as extern "C" fn(_, _, _) -> _,
+  );
+  decl.add_method(
+    sel!(firstRectForCharacterRange:actualRange:),
+    first_rect_for_character_range as extern "C" fn(_, _, _, _) -> _,
+  );
+  decl.add_method(
+    sel!(doCommandBySelector:),
+    do_command_by_selector as extern "C" fn(_, _, _),
+  );
+  decl.add_method(sel!(keyDown:), key_down as extern "C" fn(_, _, _));
+  decl.add_method(sel!(keyUp:), key_up as extern "C" fn(_, _, _));
+  decl.add_method(sel!(flagsChanged:), flags_changed as extern "C" fn(_, _, _));
+  decl.add_method(sel!(insertTab:), insert_tab as extern "C" fn(_, _, _));
+  decl.add_method(
+    sel!(insertBackTab:),
+    insert_back_tab as extern "C" fn(_, _, _),
+  );
+  decl.add_method(sel!(mouseDown:), mouse_down as extern "C" fn(_, _, _));
+  decl.add_method(sel!(mouseUp:), mouse_up as extern "C" fn(_, _, _));
+  decl.add_method(
+    sel!(rightMouseDown:),
+    right_mouse_down as extern "C" fn(_, _, _),
+  );
+  decl.add_method(
+    sel!(rightMouseUp:),
+    right_mouse_up as extern "C" fn(_, _, _),
+  );
+  decl.add_method(
+    sel!(otherMouseDown:),
+    other_mouse_down as extern "C" fn(_, _, _),
+  );
+  decl.add_method(
+    sel!(otherMouseUp:),
+    other_mouse_up as extern "C" fn(_, _, _),
+  );
+  decl.add_method(sel!(mouseMoved:), mouse_moved as extern "C" fn(_, _, _));
+  decl.add_method(sel!(mouseDragged:), mouse_dragged as extern "C" fn(_, _, _));
+  decl.add_method(
+    sel!(rightMouseDragged:),
+    right_mouse_dragged as extern "C" fn(_, _, _),
+  );
+  decl.add_method(
+    sel!(otherMouseDragged:),
+    other_mouse_dragged as extern "C" fn(_, _, _),
+  );
+  decl.add_method(sel!(mouseEntered:), mouse_entered as extern "C" fn(_, _, _));
+  decl.add_method(sel!(mouseExited:), mouse_exited as extern "C" fn(_, _, _));
+  decl.add_method(sel!(scrollWheel:), scroll_wheel as extern "C" fn(_, _, _));
+  decl.add_method(
+    sel!(pressureChangeWithEvent:),
+    pressure_change_with_event as extern "C" fn(_, _, _),
+  );
+  decl.add_method(
+    sel!(_wantsKeyDownForEvent:),
+    wants_key_down_for_event as extern "C" fn(_, _, _) -> _,
+  );
+  decl.add_method(
+    sel!(cancelOperation:),
+    cancel_operation as extern "C" fn(_, _, _),
+  );
+  decl.add_method(
+    sel!(frameDidChange:),
+    frame_did_change as extern "C" fn(_, _, _),
+  );
+  decl.add_method(
+    sel!(acceptsFirstMouse:),
+    accepts_first_mouse as extern "C" fn(_, _, _) -> _,
+  );
+  decl.add_ivar::<*mut c_void>(CStr::from_bytes_with_nul(b"taoState\0").unwrap());
+  decl.add_ivar::<id>(CStr::from_bytes_with_nul(b"markedText\0").unwrap());
+  let protocol = Protocol::get(CStr::from_bytes_with_nul(b"NSTextInputClient\0").unwrap()).unwrap();
+  decl.add_protocol(protocol);
+  ViewClass(decl.register())
+});
 
 extern "C" fn dealloc(this: &Object, _sel: Sel) {
   unsafe {

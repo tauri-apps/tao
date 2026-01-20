@@ -60,6 +60,7 @@ use objc2_foundation::{
   MainThreadMarker, NSArray, NSAutoreleasePool, NSDictionary, NSInteger, NSPoint, NSRect, NSSize,
   NSString, NSTimeInterval, NSUInteger,
 };
+use once_cell::sync::Lazy;
 
 use super::{
   ffi::{id, nil, NO},
@@ -404,28 +405,26 @@ struct WindowClass(&'static Class);
 unsafe impl Send for WindowClass {}
 unsafe impl Sync for WindowClass {}
 
-lazy_static! {
-  static ref WINDOW_CLASS: WindowClass = unsafe {
-    let window_superclass = class!(NSWindow);
-    let mut decl = ClassDecl::new(
-      CStr::from_bytes_with_nul(b"TaoWindow\0").unwrap(),
-      window_superclass,
-    )
-    .unwrap();
-    decl.add_method(
-      sel!(canBecomeMainWindow),
-      is_focusable as extern "C" fn(_, _) -> _,
-    );
-    decl.add_method(
-      sel!(canBecomeKeyWindow),
-      is_focusable as extern "C" fn(_, _) -> _,
-    );
-    decl.add_method(sel!(sendEvent:), send_event as extern "C" fn(_, _, _));
-    // progress bar states, follows ProgressState
-    decl.add_ivar::<Bool>(CStr::from_bytes_with_nul(b"focusable\0").unwrap());
-    WindowClass(decl.register())
-  };
-}
+static WINDOW_CLASS: Lazy<WindowClass> = Lazy::new(|| unsafe {
+  let window_superclass = class!(NSWindow);
+  let mut decl = ClassDecl::new(
+    CStr::from_bytes_with_nul(b"TaoWindow\0").unwrap(),
+    window_superclass,
+  )
+  .unwrap();
+  decl.add_method(
+    sel!(canBecomeMainWindow),
+    is_focusable as extern "C" fn(_, _) -> _,
+  );
+  decl.add_method(
+    sel!(canBecomeKeyWindow),
+    is_focusable as extern "C" fn(_, _) -> _,
+  );
+  decl.add_method(sel!(sendEvent:), send_event as extern "C" fn(_, _, _));
+  // progress bar states, follows ProgressState
+  decl.add_ivar::<Bool>(CStr::from_bytes_with_nul(b"focusable\0").unwrap());
+  WindowClass(decl.register())
+});
 
 extern "C" fn is_focusable(this: &Object, _: Sel) -> Bool {
   #[allow(deprecated)] // TODO: Use define_class!
