@@ -194,7 +194,7 @@ impl<T: 'static> EventLoop<T> {
         ImeEvent::BackspaceEvent(_) => {
           if let Some(ref mut h) = *self.event_loop.borrow_mut() {
             // Mock keyboard input event
-            [ElementState::Pressed, ElementState::Released].map(|state| {
+            let _ = [ElementState::Pressed, ElementState::Released].map(|state| {
               h(event::Event::WindowEvent {
                 window_id: window::WindowId(WindowId),
                 event: event::WindowEvent::KeyboardInput {
@@ -291,13 +291,8 @@ impl<T: 'static> EventLoop<T> {
             h(event::Event::Suspended);
           }
         }
-        MainEvent::WindowResize { .. } => {
-          let win = self.openharmony_app.native_window();
-          let size = if let Some(win) = win {
-            PhysicalSize::new(win.width() as _, win.height() as _)
-          } else {
-            PhysicalSize::new(0, 0)
-          };
+        MainEvent::WindowResize(size) => {
+          let size = PhysicalSize::new(size.width as _, size.height as _);
           let event = event::Event::WindowEvent {
             window_id: window::WindowId(WindowId),
             event: event::WindowEvent::Resized(size),
@@ -338,23 +333,19 @@ impl<T: 'static> EventLoop<T> {
           }
         }
         MainEvent::ConfigChanged { .. } => {
-          let win = self.openharmony_app.native_window();
-          if let Some(win) = win {
-            let scale = self.openharmony_app.scale();
-            let width = win.width();
-            let height = win.height();
-            let mut size = PhysicalSize::new(width as _, height as _);
-            let event = event::Event::WindowEvent {
-              window_id: window::WindowId(WindowId),
-              event: event::WindowEvent::ScaleFactorChanged {
-                new_inner_size: &mut size,
-                scale_factor: scale as _,
-              },
-            };
+          let size = self.openharmony_app.content_rect();
+          let scale = self.openharmony_app.scale();
+          let mut size = PhysicalSize::new(size.width as _, size.height as _);
+          let event = event::Event::WindowEvent {
+            window_id: window::WindowId(WindowId),
+            event: event::WindowEvent::ScaleFactorChanged {
+              new_inner_size: &mut size,
+              scale_factor: scale as _,
+            },
+          };
 
-            if let Some(ref mut h) = *self.event_loop.borrow_mut() {
-              h(event);
-            }
+          if let Some(ref mut h) = *self.event_loop.borrow_mut() {
+            h(event);
           }
         }
         MainEvent::Start => {
@@ -827,11 +818,8 @@ impl MonitorHandle {
   }
 
   pub fn size(&self) -> PhysicalSize<u32> {
-    if let Some(native_window) = self.app.native_window() {
-      PhysicalSize::new(native_window.width() as _, native_window.height() as _)
-    } else {
-      PhysicalSize::new(0, 0)
-    }
+    let size = self.app.content_rect();
+    PhysicalSize::new(size.width as _, size.height as _)
   }
 
   pub fn position(&self) -> PhysicalPosition<i32> {
