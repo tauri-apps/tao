@@ -404,18 +404,13 @@ impl<T> fmt::Display for EventLoopClosed<T> {
 impl<T: fmt::Debug> error::Error for EventLoopClosed<T> {}
 
 /// Fiter controlling the propagation of device events.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Default)]
 pub enum DeviceEventFilter {
   /// Always filter out device events.
   Always,
   /// Filter out device events while the window is not focused.
+  #[default]
   Unfocused,
   /// Report all device events regardless of window focus.
   Never,
-}
-
-impl Default for DeviceEventFilter {
-  fn default() -> Self {
-    Self::Unfocused
-  }
 }

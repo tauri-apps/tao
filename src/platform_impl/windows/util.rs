@@ -54,14 +54,6 @@ pub fn encode_wide(string: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {
   string.as_ref().encode_wide().chain(once(0)).collect()
 }
 
-fn win_to_err<F: FnOnce() -> BOOL>(f: F) -> Result<(), io::Error> {
-  if f().as_bool() {
-    Ok(())
-  } else {
-    Err(io::Error::last_os_error())
-  }
-}
-
 pub unsafe fn get_window_rect(hwnd: HWND) -> Option<RECT> {
   let mut rect = std::mem::zeroed();
   GetWindowRect(hwnd, &mut rect).ok().map(|_| rect)
@@ -72,7 +64,7 @@ pub fn get_client_rect(hwnd: HWND) -> Result<RECT, io::Error> {
   let mut top_left = POINT::default();
 
   unsafe {
-    win_to_err(|| ClientToScreen(hwnd, &mut top_left))?;
+    ClientToScreen(hwnd, &mut top_left).ok()?;
     GetClientRect(hwnd, &mut rect)?;
   }
 
