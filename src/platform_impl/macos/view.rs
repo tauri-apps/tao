@@ -25,8 +25,8 @@ use objc2_app_kit::{
   NSApp, NSEvent, NSEventModifierFlags, NSEventPhase, NSView, NSWindow, NSWindowButton,
 };
 use objc2_foundation::{
-  MainThreadMarker, NSAttributedString, NSInteger, NSMutableAttributedString, NSPoint, NSRange,
-  NSRect, NSSize, NSString, NSUInteger,
+  ns_string, MainThreadMarker, NSAttributedString, NSInteger, NSMutableAttributedString, NSPoint,
+  NSRange, NSRect, NSSize, NSString, NSUInteger,
 };
 use once_cell::sync::Lazy;
 
@@ -282,7 +282,7 @@ extern "C" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void) -> id 
       let _: () = msg_send![this, setPostsFrameChangedNotifications: YES];
 
       let notification_center: &Object = msg_send![class!(NSNotificationCenter), defaultCenter];
-      let notification_name = NSString::from_str("NSViewFrameDidChangeNotification");
+      let notification_name = ns_string!("NSViewFrameDidChangeNotification");
       let _: () = msg_send![
           notification_center,
           addObserver: this

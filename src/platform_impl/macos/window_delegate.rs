@@ -17,7 +17,7 @@ use objc2::{
 use objc2_app_kit::{
   self as appkit, NSApplicationPresentationOptions, NSPasteboard, NSView, NSWindow,
 };
-use objc2_foundation::{NSArray, NSAutoreleasePool, NSString, NSUInteger};
+use objc2_foundation::{ns_string, NSArray, NSAutoreleasePool, NSString, NSUInteger};
 use once_cell::sync::Lazy;
 
 use crate::{
@@ -298,7 +298,7 @@ extern "C" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void) -> id 
 
     let notification_center: &Object =
       msg_send![class!(NSDistributedNotificationCenter), defaultCenter];
-    let notification_name = NSString::from_str("AppleInterfaceThemeChangedNotification");
+    let notification_name = ns_string!("AppleInterfaceThemeChangedNotification");
     let _: () = msg_send![
         notification_center,
         addObserver: this

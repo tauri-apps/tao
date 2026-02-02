@@ -58,7 +58,7 @@ use objc2_app_kit::{
 };
 use objc2_foundation::{
   MainThreadMarker, NSArray, NSAutoreleasePool, NSDictionary, NSInteger, NSPoint, NSRect, NSSize,
-  NSString, NSTimeInterval, NSUInteger,
+  NSString, NSTimeInterval, NSUInteger, ns_string,
 };
 use once_cell::sync::Lazy;
 
@@ -1437,7 +1437,7 @@ impl UnownedWindow {
     unsafe {
       let screen: Retained<NSScreen> = self.ns_window.screen()?;
       let desc = NSScreen::deviceDescription(&screen);
-      let key = NSString::from_str("NSScreenNumber");
+      let key = ns_string!("NSScreenNumber");
       let value = NSDictionary::objectForKey(&desc, &key).unwrap();
       let display_id: NSUInteger = msg_send![&value, unsignedIntegerValue];
       Some(RootMonitorHandle {
