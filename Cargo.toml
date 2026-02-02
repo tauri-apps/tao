@@ -149,7 +149,6 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
 core-foundation = "0.10"
 core-graphics = "0.25"
 dispatch2 = "0.3"
-scopeguard = "1.2"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = "0.18"
