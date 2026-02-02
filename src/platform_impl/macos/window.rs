@@ -1077,7 +1077,7 @@ impl UnownedWindow {
 
   #[inline]
   pub fn is_maximized(&self) -> bool {
-    self.is_zoomed()
+    unsafe { self.ns_window.isZoomed() }
   }
 
   #[inline]
