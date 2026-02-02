@@ -57,8 +57,8 @@ use objc2_app_kit::{
   NSWindowOrderingMode, NSWindowSharingType, NSWindowStyleMask,
 };
 use objc2_foundation::{
-  MainThreadMarker, NSArray, NSAutoreleasePool, NSDictionary, NSInteger, NSPoint, NSRect, NSSize,
-  NSString, NSTimeInterval, NSUInteger, ns_string,
+  ns_string, MainThreadMarker, NSArray, NSAutoreleasePool, NSDictionary, NSInteger, NSPoint,
+  NSRect, NSSize, NSString, NSTimeInterval, NSUInteger,
 };
 use once_cell::sync::Lazy;
 
