@@ -976,22 +976,25 @@ impl UnownedWindow {
   pub(crate) fn is_zoomed(&self) -> bool {
     // because `isZoomed` doesn't work if the window's borderless,
     // we make it resizable temporalily.
-    let curr_mask = unsafe { self.ns_window.styleMask() };
+    unsafe {
+      let curr_mask = self.ns_window.styleMask();
 
-    let required = NSWindowStyleMask::Titled | NSWindowStyleMask::Resizable;
-    let needs_temp_mask = !curr_mask.contains(required);
-    if needs_temp_mask {
-      self.set_style_mask_sync(required);
+      let required = NSWindowStyleMask::Titled | NSWindowStyleMask::Resizable;
+      if curr_mask.contains(required) {
+        return self.ns_window.isZoomed();
+      }
+
+      if let Some(screen) = self.ns_window.screen() {
+        let frame = self.ns_window.frame();
+        let visible_frame = screen.visibleFrame();
+
+        return (frame.size.width - visible_frame.size.width).abs() < 1.0
+          && (frame.size.height - visible_frame.size.height).abs() < 1.0;
+      }
+
+      // Fallback to original `isZoomed` check
+      self.ns_window.isZoomed()
     }
-
-    let is_zoomed: bool = unsafe { self.ns_window.isZoomed() };
-
-    // Roll back temp styles
-    if needs_temp_mask {
-      self.set_style_mask_sync(curr_mask);
-    }
-
-    is_zoomed
   }
 
   fn saved_style(&self, shared_state: &mut SharedState) -> NSWindowStyleMask {
