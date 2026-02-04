@@ -5,7 +5,6 @@
 
 use std::{
   collections::VecDeque,
-  convert::TryInto,
   f64,
   ffi::CStr,
   os::raw::c_void,
@@ -57,13 +56,14 @@ use objc2_app_kit::{
   NSWindowOrderingMode, NSWindowSharingType, NSWindowStyleMask,
 };
 use objc2_foundation::{
-  MainThreadMarker, NSArray, NSAutoreleasePool, NSDictionary, NSInteger, NSPoint, NSRect, NSSize,
-  NSString, NSTimeInterval, NSUInteger,
+  MainThreadMarker, NSArray, NSAutoreleasePool, NSInteger, NSPoint, NSRect, NSSize, NSString,
+  NSTimeInterval, NSUInteger,
 };
 use once_cell::sync::Lazy;
 
 use super::{
   ffi::{id, nil, NO},
+  util::display_of_screen,
   view::ViewState,
 };
 
@@ -190,6 +190,7 @@ fn create_window(
           .position
           .and_then(screen_from_position)
           .unwrap_or_else(|| appkit::NSScreen::mainScreen(mtm).unwrap());
+        let display = display_of_screen(&screen);
         let scale_factor = NSScreen::backingScaleFactor(&screen) as f64;
         let desired_size = attrs
           .inner_size
@@ -201,7 +202,7 @@ fn create_window(
           .into();
         let (left, bottom) = match attrs.position {
           Some(position) => {
-            let logical = util::window_position(position.to_logical(scale_factor));
+            let logical = util::window_position(position.to_logical(scale_factor), display);
             // macOS wants the position of the bottom left corner,
             // but caller is setting the position of top left corner
             (logical.x, logical.y - height)
@@ -704,32 +705,50 @@ impl UnownedWindow {
   }
 
   pub fn outer_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
+    let display = self
+      .ns_window
+      .screen()
+      .map(|screen| display_of_screen(&screen))
+      .unwrap_or_else(|| CGDisplay::main());
     let frame_rect = unsafe { NSWindow::frame(&self.ns_window) };
     let position = LogicalPosition::new(
       frame_rect.origin.x as f64,
-      util::bottom_left_to_top_left(frame_rect),
+      util::bottom_left_to_top_left(frame_rect, display),
     );
     let scale_factor = self.scale_factor();
     Ok(position.to_physical(scale_factor))
   }
 
   pub fn inner_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
+    let display = self
+      .ns_window
+      .screen()
+      .map(|screen| display_of_screen(&screen))
+      .unwrap_or_else(|| CGDisplay::main());
     let content_rect = unsafe {
       NSWindow::contentRectForFrameRect(&self.ns_window, NSWindow::frame(&self.ns_window))
     };
     let position = LogicalPosition::new(
       content_rect.origin.x as f64,
-      util::bottom_left_to_top_left(content_rect),
+      util::bottom_left_to_top_left(content_rect, display),
     );
     let scale_factor = self.scale_factor();
     Ok(position.to_physical(scale_factor))
   }
 
   pub fn set_outer_position(&self, position: Position) {
+    let display = self
+      .ns_window
+      .screen()
+      .map(|screen| display_of_screen(&screen))
+      .unwrap_or_else(|| CGDisplay::main());
     let scale_factor = self.scale_factor();
     let position = position.to_logical(scale_factor);
     unsafe {
-      util::set_frame_top_left_point_async(&self.ns_window, util::window_position(position));
+      util::set_frame_top_left_point_async(
+        &self.ns_window,
+        util::window_position(position, display),
+      );
     }
   }
 
@@ -878,7 +897,15 @@ impl UnownedWindow {
 
   #[inline]
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
-    util::cursor_position()
+    let display = self
+      .ns_window
+      .screen()
+      .map(|screen| display_of_screen(&screen))
+      .unwrap_or_else(|| CGDisplay::main());
+    let point: NSPoint = unsafe { msg_send![class!(NSEvent), mouseLocation] };
+    let y = display.pixels_high() as f64 - point.y;
+    let point = LogicalPosition::new(point.x, y);
+    Ok(point.to_physical(self.scale_factor()))
   }
 
   #[inline]
@@ -1434,16 +1461,11 @@ impl UnownedWindow {
   #[inline]
   // Allow directly accessing the current monitor internally without unwrapping.
   pub(crate) fn current_monitor_inner(&self) -> Option<RootMonitorHandle> {
-    unsafe {
-      let screen: Retained<NSScreen> = self.ns_window.screen()?;
-      let desc = NSScreen::deviceDescription(&screen);
-      let key = NSString::from_str("NSScreenNumber");
-      let value = NSDictionary::objectForKey(&desc, &key).unwrap();
-      let display_id: NSUInteger = msg_send![&value, unsignedIntegerValue];
-      Some(RootMonitorHandle {
-        inner: MonitorHandle::new(display_id.try_into().unwrap()),
-      })
-    }
+    let screen: Retained<NSScreen> = self.ns_window.screen()?;
+    let display = display_of_screen(&screen);
+    Some(RootMonitorHandle {
+      inner: MonitorHandle::new(display.id),
+    })
   }
 
   #[inline]

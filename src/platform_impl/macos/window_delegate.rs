@@ -9,6 +9,7 @@ use std::{
   sync::{Arc, Weak},
 };
 
+use core_graphics::display::CGDisplay;
 use objc2::{
   msg_send,
   rc::Retained,
@@ -28,7 +29,7 @@ use crate::{
     app_state::AppState,
     event::{EventProxy, EventWrapper},
     ffi::{id, nil, BOOL, NO, YES},
-    util::{self, IdRef},
+    util::{self, display_of_screen, IdRef},
     view::ViewState,
     window::{get_ns_theme, get_window_id, UnownedWindow},
   },
@@ -123,9 +124,14 @@ impl WindowDelegateState {
   }
 
   fn emit_move_event(&mut self) {
+    let display = self
+      .ns_window
+      .screen()
+      .map(|screen| display_of_screen(&screen))
+      .unwrap_or_else(|| CGDisplay::main());
     let rect = NSWindow::frame(&self.ns_window);
     let x = rect.origin.x as f64;
-    let y = util::bottom_left_to_top_left(rect);
+    let y = util::bottom_left_to_top_left(rect, display);
     let moved = self.previous_position != Some((x, y));
     if moved {
       self.previous_position = Some((x, y));

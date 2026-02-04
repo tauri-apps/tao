@@ -13,6 +13,7 @@ use std::{
   sync::{Arc, Mutex, Weak},
 };
 
+use core_graphics::display::CGDisplay;
 use objc2::{
   msg_send,
   rc::Retained,
@@ -40,7 +41,7 @@ use crate::{
     app_state::AppState,
     event::{code_to_key, create_key_event, event_mods, get_scancode, EventWrapper},
     ffi::*,
-    util::{self},
+    util::{self, display_of_screen},
     window::get_window_id,
     DEVICE_ID,
   },
@@ -498,13 +499,15 @@ extern "C" fn first_rect_for_character_range(
     trace!("Triggered `firstRectForCharacterRange`");
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
+    let window = state.ns_window.load().unwrap();
     let (x, y) = state.ime_spot.unwrap_or_else(|| {
-      let content_rect = NSWindow::contentRectForFrameRect(
-        &state.ns_window.load().unwrap(),
-        NSWindow::frame(&state.ns_window.load().unwrap()),
-      );
+      let content_rect = NSWindow::contentRectForFrameRect(&window, NSWindow::frame(&window));
+      let display = window
+        .screen()
+        .map(|screen| display_of_screen(&screen))
+        .unwrap_or_else(|| CGDisplay::main());
       let x = content_rect.origin.x;
-      let y = util::bottom_left_to_top_left(content_rect);
+      let y = util::bottom_left_to_top_left(content_rect, display);
       (x, y)
     });
     trace!("Completed `firstRectForCharacterRange`");
