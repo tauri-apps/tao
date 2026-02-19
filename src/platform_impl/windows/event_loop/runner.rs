@@ -208,7 +208,7 @@ impl<T> EventLoopRunner<T> {
   pub(crate) unsafe fn send_event(&self, event: Event<'_, T>) {
     if let Event::RedrawRequested(_) = event {
       if self.runner_state.get() != RunnerState::HandlingRedrawEvents {
-        warn!("RedrawRequested dispatched without explicit MainEventsCleared");
+        debug!("RedrawRequested dispatched without explicit MainEventsCleared");
         self.move_state_to(RunnerState::HandlingRedrawEvents);
       }
       self.call_event_handler(event);
@@ -342,7 +342,7 @@ impl<T> EventLoopRunner<T> {
         self.call_event_handler(Event::MainEventsCleared);
       }
       (HandlingMainEvents, Idle) => {
-        warn!("RedrawEventsCleared emitted without explicit MainEventsCleared");
+        debug!("RedrawEventsCleared emitted without explicit MainEventsCleared");
         self.call_event_handler(Event::MainEventsCleared);
         self.call_redraw_events_cleared();
       }
@@ -356,7 +356,7 @@ impl<T> EventLoopRunner<T> {
         self.call_redraw_events_cleared();
       }
       (HandlingRedrawEvents, HandlingMainEvents) => {
-        warn!("NewEvents emitted without explicit RedrawEventsCleared");
+        debug!("NewEvents emitted without explicit RedrawEventsCleared");
         self.call_redraw_events_cleared();
         self.call_new_events(false);
       }
