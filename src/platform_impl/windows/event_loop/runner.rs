@@ -6,7 +6,7 @@ use std::{
   any::Any,
   cell::{Cell, RefCell},
   collections::{HashSet, VecDeque},
-  mem, panic,
+  fmt, mem, panic,
   rc::Rc,
   time::Instant,
 };
@@ -59,6 +59,18 @@ enum RunnerState {
   HandlingRedrawEvents,
   /// The event loop has been destroyed. No other events will be emitted.
   Destroyed,
+}
+
+impl fmt::Display for RunnerState {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      RunnerState::Uninitialized => write!(f, "Uninitialized"),
+      RunnerState::Idle => write!(f, "Idle"),
+      RunnerState::HandlingMainEvents => write!(f, "HandlingMainEvents"),
+      RunnerState::HandlingRedrawEvents => write!(f, "HandlingRedrawEvents"),
+      RunnerState::Destroyed => write!(f, "Destroyed"),
+    }
+  }
 }
 
 enum BufferedEvent<T: 'static> {
