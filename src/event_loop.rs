@@ -112,6 +112,16 @@ impl<T> EventLoopBuilder<T> {
   #[inline]
   pub fn build(&mut self) -> EventLoop<T> {
     EventLoop {
+      #[cfg_attr(
+        any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd"
+        ),
+        allow(clippy::unnecessary_mut_passed)
+      )]
       event_loop: platform_impl::EventLoop::new(&mut self.platform_specific),
       _marker: PhantomData,
     }
