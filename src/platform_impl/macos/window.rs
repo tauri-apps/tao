@@ -10,7 +10,7 @@ use std::{
   ffi::CStr,
   os::raw::c_void,
   sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicPtr, Ordering},
     Arc, Mutex, Weak,
   },
 };
@@ -213,6 +213,11 @@ fn create_window(
       }
     };
 
+    // Install the NSThemeFrame.newZoomButton swizzle (once) to prevent
+    // _NSThemeZoomWidget accumulation on macOS 15 Sequoia.
+    // See: https://github.com/tauri-apps/tao/issues/1191
+    Lazy::force(&SWIZZLE_THEME_FRAME);
+
     let mut masks = if !attrs.decorations && screen.is_none() || pl_attrs.titlebar_hidden {
       // Resizable UnownedWindow without a titlebar or borders
       // if decorations is set to false, ignore pl_attrs
@@ -400,6 +405,79 @@ pub(super) fn set_ns_theme(theme: Option<Theme>) {
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// macOS 15 Sequoia workaround: suppress _NSThemeZoomWidget creation
+// ---------------------------------------------------------------------------
+//
+// On macOS 15, `NSThemeFrame.newZoomButton` creates `_NSThemeZoomWidget`
+// objects on every layout pass for windows with `NSWindowStyleMask::Resizable`.
+// These widgets accumulate in the autorelease pool and their dealloc path
+// calls `+[NSObject cancelPreviousPerformRequestsWithTarget:selector:object:]`,
+// which iterates all run loop timers — an O(n²) operation that pegs the CPU
+// at 100% even when the window is idle.
+//
+// The fix: swizzle `[NSThemeFrame newZoomButton]` to return nil for
+// `TaoWindow` instances. Non-tao windows call through to the original
+// implementation so system behaviour is preserved.
+//
+// See: https://github.com/tauri-apps/tao/issues/1191
+
+/// Stores the original `[NSThemeFrame newZoomButton]` IMP so the swizzled
+/// version can call through for non-tao windows.
+static ORIG_NEW_ZOOM_BUTTON: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
+
+extern "C" {
+  fn objc_getClass(name: *const std::ffi::c_char) -> *mut c_void;
+  fn sel_registerName(name: *const std::ffi::c_char) -> *mut c_void;
+  fn class_getInstanceMethod(cls: *mut c_void, sel: *mut c_void) -> *mut c_void;
+  fn method_getImplementation(method: *mut c_void) -> *mut c_void;
+  fn method_setImplementation(method: *mut c_void, imp: *mut c_void) -> *mut c_void;
+}
+
+/// Replacement for `[NSThemeFrame newZoomButton]`.
+///
+/// Returns nil for `TaoWindow` instances to prevent `_NSThemeZoomWidget`
+/// creation. Calls the original implementation for all other windows.
+///
+/// We identify our windows by class (`isKindOfClass: TaoWindow`) rather than
+/// checking the style mask, because the style mask can change at runtime and
+/// a mask-based check would be fragile.
+extern "C" fn new_zoom_button_swizzled(this: id, sel: *mut c_void) -> id {
+  unsafe {
+    let window: id = msg_send![this, window];
+    if !window.is_null() {
+      let tao_class = objc_getClass(b"TaoWindow\0".as_ptr().cast());
+      let is_tao: bool = msg_send![window, isKindOfClass: tao_class];
+      if !is_tao {
+        let orig_imp = ORIG_NEW_ZOOM_BUTTON.load(Ordering::Relaxed);
+        if !orig_imp.is_null() {
+          let orig: extern "C" fn(id, *mut c_void) -> id = std::mem::transmute(orig_imp);
+          return orig(this, sel);
+        }
+      }
+    }
+    nil
+  }
+}
+
+/// One-time swizzle of `[NSThemeFrame newZoomButton]`.
+static SWIZZLE_THEME_FRAME: Lazy<()> = Lazy::new(|| unsafe {
+  let cls = objc_getClass(b"NSThemeFrame\0".as_ptr().cast());
+  if cls.is_null() {
+    return;
+  }
+
+  let sel = sel_registerName(b"newZoomButton\0".as_ptr().cast());
+  let method = class_getInstanceMethod(cls, sel);
+  if method.is_null() {
+    return;
+  }
+
+  let orig_imp = method_getImplementation(method);
+  ORIG_NEW_ZOOM_BUTTON.store(orig_imp, Ordering::Relaxed);
+  method_setImplementation(method, new_zoom_button_swizzled as *mut c_void);
+});
 
 struct WindowClass(&'static Class);
 unsafe impl Send for WindowClass {}
@@ -974,24 +1052,13 @@ impl UnownedWindow {
   }
 
   pub(crate) fn is_zoomed(&self) -> bool {
-    // because `isZoomed` doesn't work if the window's borderless,
-    // we make it resizable temporalily.
-    let curr_mask = unsafe { self.ns_window.styleMask() };
-
-    let required = NSWindowStyleMask::Titled | NSWindowStyleMask::Resizable;
-    let needs_temp_mask = !curr_mask.contains(required);
-    if needs_temp_mask {
-      self.set_style_mask_sync(required);
-    }
-
-    let is_zoomed: bool = unsafe { self.ns_window.isZoomed() };
-
-    // Roll back temp styles
-    if needs_temp_mask {
-      self.set_style_mask_sync(curr_mask);
-    }
-
-    is_zoomed
+    // `isZoomed` may return inaccurate results for borderless windows, but
+    // the previous workaround of temporarily flipping the style mask to
+    // Titled|Resizable causes catastrophic performance on macOS 15 Sequoia:
+    // each setStyleMask: call triggers a full AppKit layout pass and WebKit
+    // view hierarchy rebuild.
+    // See: https://github.com/tauri-apps/tao/issues/1191
+    unsafe { self.ns_window.isZoomed() }
   }
 
   fn saved_style(&self, shared_state: &mut SharedState) -> NSWindowStyleMask {

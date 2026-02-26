@@ -49,10 +49,17 @@ fn run_on_main<F: Send + FnOnce()>(f: F) {
 }
 
 unsafe fn set_style_mask(ns_window: &NSWindow, ns_view: &NSView, mask: NSWindowStyleMask) {
-  ns_window.setStyleMask(mask);
-  // If we don't do this, key handling will break
-  // (at least until the window is clicked again/etc.)
-  ns_window.makeFirstResponder(Some(ns_view));
+  // Wrap in an autorelease pool so temporary objects created by
+  // setStyleMask: are drained immediately. On macOS 15 Sequoia,
+  // NSThemeFrame can create _NSThemeZoomWidget objects during layout
+  // of borderless+resizable windows; draining here prevents unbounded
+  // accumulation.
+  autoreleasepool(|_| {
+    ns_window.setStyleMask(mask);
+    // If we don't do this, key handling will break
+    // (at least until the window is clicked again/etc.)
+    ns_window.makeFirstResponder(Some(ns_view));
+  });
 }
 
 // Always use this function instead of trying to modify `styleMask` directly!
