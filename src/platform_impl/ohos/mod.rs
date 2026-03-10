@@ -214,7 +214,30 @@ impl<T: 'static> EventLoop<T> {
             });
           }
         }
-
+        ImeEvent::EnterEvent(_) => {
+          if let Some(ref mut h) = *self.event_loop.borrow_mut() {
+            // Mock keyboard input event
+            // Mock keyboard input event
+            let _ = [ElementState::Pressed, ElementState::Released].map(|state| {
+              h(event::Event::WindowEvent {
+                window_id: window::WindowId(WindowId),
+                event: event::WindowEvent::KeyboardInput {
+                  device_id: event::DeviceId(DeviceId(0)),
+                  event: event::KeyEvent {
+                    state,
+                    logical_key: Key::Enter,
+                    physical_key: KeyCode::Enter,
+                    platform_specific: KeyEventExtra {},
+                    repeat: false,
+                    location: KeyLocation::Standard,
+                    text: None,
+                  },
+                  is_synthetic: false,
+                },
+              });
+            });
+          }
+        }
         ImeEvent::ImeStatusEvent(s) => match s {
           KeyboardStatus::Hide => {
             if let Some(ref mut h) = *self.event_loop.borrow_mut() {
