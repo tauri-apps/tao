@@ -1,5 +1,28 @@
 # Changelog
 
+## \[0.34.6]
+
+- [`a4837862`](https://github.com/tauri-apps/tao/commit/a48378626f728665526e0c65fce0142282ca1f34) ([#1189](https://github.com/tauri-apps/tao/pull/1189) by [@thomaseizinger](https://github.com/tauri-apps/tao/../../thomaseizinger)) Downgrades several logs in the Windows backend from WARN to DEBUG.
+- [`e1c9cb69`](https://github.com/tauri-apps/tao/commit/e1c9cb699b6e0943f45f27fbf558efce8d617f5e) ([#1185](https://github.com/tauri-apps/tao/pull/1185) by [@kanatapple](https://github.com/tauri-apps/tao/../../kanatapple)) Prevent panics on Windows when a monitor handle becomes invalid during info retrieval.
+- [`e196538f`](https://github.com/tauri-apps/tao/commit/e196538f989894fcb92401fced54d7d3a65fc91a) ([#1165](https://github.com/tauri-apps/tao/pull/1165) by [@Slinetrac](https://github.com/tauri-apps/tao/../../Slinetrac)) fix(windows): respect default app mode via registry in dark mode detection
+- [`a133504b`](https://github.com/tauri-apps/tao/commit/a133504b6dc963a5ad7786e01e746dba72236b65) ([#1184](https://github.com/tauri-apps/tao/pull/1184) by [@Tunglies](https://github.com/tauri-apps/tao/../../Tunglies)) Replace NSString::from_str with ns_string macro in macOS. No user facing changes.
+
+## \[0.34.5]
+
+- [`92e22209`](https://github.com/tauri-apps/tao/commit/92e22209fb58248449175b5b86697243d6a93db2) ([#1152](https://github.com/tauri-apps/tao/pull/1152) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Emit `Event::LoopDestroyed` on activity destroy on Android.
+- [`da1514be`](https://github.com/tauri-apps/tao/commit/da1514be09993ea4aace8c64cfdf0af14f22b818) ([#1150](https://github.com/tauri-apps/tao/pull/1150) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Fix maximized windows have empty edges when using auto hide task bar on Windows
+
+## \[0.34.4]
+
+- [`25f2c58a`](https://github.com/tauri-apps/tao/commit/25f2c58aca96215113d1a4feae5c854e3349cf06) ([#1148](https://github.com/tauri-apps/tao/pull/1148) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Trigger `WindowEvent::Destroyed` when the Android activity is destroyed. In this case, the app should either exit by setting the control flow to `ControlFlow::ExitWithCode` or NOT call the create() external function when the activity is recreated and `onCreate` is called, handling how to recreate the app window via a separate hook that can leverage the existing tao event loop.
+
+## \[0.34.3]
+
+- [`0defcd01`](https://github.com/tauri-apps/tao/commit/0defcd015c615b95f42ce3437b06174816f76602) ([#1132](https://github.com/tauri-apps/tao/pull/1132) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Exclude audit PDF file from the crate published to crates.io
+- [`3969a1a4`](https://github.com/tauri-apps/tao/commit/3969a1a45cfe2e173431eb1134b49e03c30bdc32) ([#1138](https://github.com/tauri-apps/tao/pull/1138) by [@aspcartman](https://github.com/tauri-apps/tao/../../aspcartman)) On macOS, fixed an issue that caused the window background color to be applied incorrectly (typically black).
+- [`28f5a96a`](https://github.com/tauri-apps/tao/commit/28f5a96a7d80859d97a84586b6c68fd4daac05d4) ([#1119](https://github.com/tauri-apps/tao/pull/1119) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Fix `WindowEvent::MouseWheel` doesn't account for mouse wheel speed settings
+- [`a1edbeb4`](https://github.com/tauri-apps/tao/commit/a1edbeb448d1104b8e9dd3181a04d45ff846a397) ([#1126](https://github.com/tauri-apps/tao/pull/1126) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Emit `Event::LoopDestroyed` on receiving `WM_ENDSESSION` message on Windows
+
 ## \[0.34.2]
 
 - [`60a47340`](https://github.com/tauri-apps/tao/commit/60a47340c967eaaf5b4a41f0be6708d6daf950e3) ([#1108](https://github.com/tauri-apps/tao/pull/1108) by [@Simon-Laux](https://github.com/tauri-apps/tao/../../Simon-Laux)) feat: MacOS: add universal applink support

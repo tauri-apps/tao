@@ -8,7 +8,7 @@ use std::{
 };
 
 use core_graphics::base::CGFloat;
-use dispatch::Queue;
+use dispatch2::{DispatchQueue, DispatchQueueAttr};
 use objc2::{rc::autoreleasepool, Message};
 use objc2_app_kit::{NSScreen, NSView, NSWindow, NSWindowStyleMask};
 use objc2_foundation::{MainThreadMarker, NSPoint, NSSize, NSString};
@@ -40,11 +40,11 @@ impl<T> Deref for MainThreadSafe<T> {
   }
 }
 
-fn run_on_main<R: Send>(f: impl FnOnce() -> R + Send) -> R {
+fn run_on_main<F: Send + FnOnce()>(f: F) {
   if is_main_thread() {
-    f()
+    f();
   } else {
-    Queue::main().exec_sync(f)
+    DispatchQueue::main().exec_sync(f);
   }
 }
 
@@ -66,7 +66,7 @@ pub unsafe fn set_style_mask_async(
 ) {
   let ns_window = MainThreadSafe(ns_window.retain());
   let ns_view = MainThreadSafe(ns_view.retain());
-  Queue::main().exec_async(move || {
+  DispatchQueue::main().exec_async(move || {
     set_style_mask(&ns_window, &ns_view, mask);
   });
 }
@@ -76,7 +76,7 @@ pub unsafe fn set_style_mask_sync(ns_window: &NSWindow, ns_view: &NSView, mask: 
   } else {
     let ns_window = MainThreadSafe(ns_window.retain());
     let ns_view = MainThreadSafe(ns_view.retain());
-    Queue::main().exec_sync(move || {
+    DispatchQueue::main().exec_sync(move || {
       set_style_mask(&ns_window, &ns_view, mask);
     })
   }
@@ -86,7 +86,7 @@ pub unsafe fn set_style_mask_sync(ns_window: &NSWindow, ns_view: &NSView, mask: 
 // and just fails silently. Anyway, GCD to the rescue!
 pub unsafe fn set_content_size_async(ns_window: &NSWindow, size: LogicalSize<f64>) {
   let ns_window = MainThreadSafe(ns_window.retain());
-  Queue::main().exec_async(move || {
+  DispatchQueue::main().exec_async(move || {
     ns_window.setContentSize(NSSize::new(size.width as CGFloat, size.height as CGFloat));
   });
 }
@@ -95,7 +95,7 @@ pub unsafe fn set_content_size_async(ns_window: &NSWindow, size: LogicalSize<f64
 // to log errors.
 pub unsafe fn set_frame_top_left_point_async(ns_window: &NSWindow, point: NSPoint) {
   let ns_window = MainThreadSafe(ns_window.retain());
-  Queue::main().exec_async(move || {
+  DispatchQueue::main().exec_async(move || {
     ns_window.setFrameTopLeftPoint(point);
   });
 }
@@ -103,7 +103,7 @@ pub unsafe fn set_frame_top_left_point_async(ns_window: &NSWindow, point: NSPoin
 // `setFrameTopLeftPoint:` isn't thread-safe, and fails silently.
 pub unsafe fn set_level_async(ns_window: &NSWindow, level: ffi::NSWindowLevel) {
   let ns_window = MainThreadSafe(ns_window.retain());
-  Queue::main().exec_async(move || {
+  DispatchQueue::main().exec_async(move || {
     ns_window.setLevel(level as _);
   });
 }
@@ -119,7 +119,7 @@ pub unsafe fn toggle_full_screen_async(
   let ns_window = MainThreadSafe(ns_window.retain());
   let ns_view = MainThreadSafe(ns_view.retain());
   let shared_state = MainThreadSafe(shared_state);
-  Queue::main().exec_async(move || {
+  DispatchQueue::main().exec_async(move || {
     // `toggleFullScreen` doesn't work if the `StyleMask` is none, so we
     // set a normal style temporarily. The previous state will be
     // restored in `WindowDelegate::window_did_exit_fullscreen`.
@@ -145,7 +145,7 @@ pub unsafe fn toggle_full_screen_async(
 }
 
 pub unsafe fn restore_display_mode_async(ns_screen: u32) {
-  Queue::main().exec_async(move || {
+  DispatchQueue::main().exec_async(move || {
     ffi::CGRestorePermanentDisplayConfiguration();
     assert_eq!(ffi::CGDisplayRelease(ns_screen), ffi::kCGErrorSuccess);
   });
@@ -160,7 +160,7 @@ pub unsafe fn set_maximized_async(
 ) {
   let ns_window = MainThreadSafe(ns_window.retain());
   let shared_state = MainThreadSafe(shared_state);
-  Queue::main().exec_async(move || {
+  DispatchQueue::main().exec_async(move || {
     if let Some(shared_state) = shared_state.upgrade() {
       trace!("Locked shared state in `set_maximized`");
       let mut shared_state_lock = shared_state.lock().unwrap();
@@ -221,7 +221,7 @@ pub unsafe fn make_key_and_order_front_sync(ns_window: &NSWindow) {
 // thread
 pub unsafe fn set_title_async(ns_window: &NSWindow, title: String) {
   let ns_window = MainThreadSafe(ns_window.retain());
-  Queue::main().exec_async(move || {
+  DispatchQueue::main().exec_async(move || {
     let title = NSString::from_str(&title);
     ns_window.setTitle(&title);
   });
@@ -251,7 +251,7 @@ pub unsafe fn close_async(ns_window: &NSWindow) {
 // `setIgnoresMouseEvents_:` isn't thread-safe, and fails silently.
 pub unsafe fn set_ignore_mouse_events(ns_window: &NSWindow, ignore: bool) {
   let ns_window = MainThreadSafe(ns_window.retain());
-  Queue::main().exec_async(move || {
+  DispatchQueue::main().exec_async(move || {
     ns_window.setIgnoresMouseEvents(ignore);
   });
 }

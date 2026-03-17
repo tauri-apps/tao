@@ -6,10 +6,7 @@ use std::{
   cell::RefCell,
   collections::VecDeque,
   rc::Rc,
-  sync::{
-    atomic::{AtomicBool, AtomicI32, Ordering},
-    Arc,
-  },
+  sync::atomic::{AtomicBool, AtomicI32, Ordering},
 };
 
 use gtk::{
@@ -216,7 +213,7 @@ impl Window {
     // restore accept-focus after the window has been drawn
     // if the window was initially created without focus and is supposed to be focusable
     if attributes.focusable && !attributes.focused {
-      let signal_id = Arc::new(RefCell::new(None));
+      let signal_id = Rc::new(RefCell::new(None));
       let signal_id_ = signal_id.clone();
       let id = window.connect_draw(move |window, _| {
         if let Some(id) = signal_id_.take() {

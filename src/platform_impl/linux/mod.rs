@@ -34,16 +34,11 @@ pub struct KeyEventExtra {
 }
 
 #[non_exhaustive]
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub enum Parent {
+  #[default]
   None,
   ChildOf(gtk::Window),
-}
-
-impl Default for Parent {
-  fn default() -> Self {
-    Parent::None
-  }
 }
 
 #[derive(Clone)]

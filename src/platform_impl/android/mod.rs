@@ -17,6 +17,7 @@ use ndk::{
   event::{InputEvent, KeyAction, MotionAction},
   looper::{ForeignLooper, Poll, ThreadLooper},
 };
+use once_cell::sync::Lazy;
 use std::{
   collections::VecDeque,
   sync::RwLock,
@@ -26,9 +27,7 @@ use std::{
 pub mod ndk_glue;
 use ndk_glue::{Event, Rect};
 
-lazy_static! {
-  static ref CONFIG: RwLock<Configuration> = RwLock::new(Configuration::new());
-}
+static CONFIG: Lazy<RwLock<Configuration>> = Lazy::new(|| RwLock::new(Configuration::new()));
 
 enum EventSource {
   Callback,
@@ -184,6 +183,17 @@ impl<T: 'static> EventLoop<T> {
               }
             );
           }
+          Event::Destroy => {
+            call_event_handler!(
+              event_handler,
+              self.window_target(),
+              control_flow,
+              event::Event::WindowEvent {
+                window_id: window::WindowId(WindowId),
+                event: event::WindowEvent::Destroyed,
+              }
+            );
+          }
           _ => {}
         },
         Some(EventSource::InputQueue) => {
@@ -335,6 +345,14 @@ impl<T: 'static> EventLoop<T> {
             start: Instant::now(),
             requested_resume: None,
           };
+
+          call_event_handler!(
+            event_handler,
+            self.window_target(),
+            control_flow,
+            event::Event::LoopDestroyed
+          );
+
           break 'event_loop code;
         }
         ControlFlow::Poll => {
