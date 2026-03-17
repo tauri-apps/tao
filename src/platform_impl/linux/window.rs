@@ -194,15 +194,16 @@ impl Window {
     }
 
     // Set initial `preferred_theme` value to current portal color-scheme
-    let portal_theme = super::portal::theme();
-    let preferred_theme = if let Ok(theme) = portal_theme {
+    #[cfg(feature = "dbus")]
+    let preferred_theme = super::portal::theme().ok();
+    #[cfg(not(feature = "dbus"))]
+    let preferred_theme = None;
+
+    if let Some(theme) = preferred_theme {
       if let Some(settings) = Settings::default() {
         settings.set_gtk_application_prefer_dark_theme(theme == Theme::Dark);
       }
-      Some(theme)
-    } else {
-      None
-    };
+    }
 
     if attributes.visible {
       window.show_all();
@@ -1012,7 +1013,8 @@ impl Window {
       return theme;
     }
 
-    if let Some(portal_theme) = super::portal::theme().ok() {
+    #[cfg(feature = "dbus")]
+    if let Ok(portal_theme) = super::portal::theme() {
       return portal_theme;
     }
 

@@ -285,9 +285,12 @@ impl<T: 'static> EventLoop<T> {
     let is_wayland = window_target.is_wayland();
 
     // Receive portal events
-    let tx_requests_clone = window_target.window_requests_tx.clone();
-    if let Err(e) = super::portal::receive_theme_changed(tx_requests_clone) {
-      log::debug!("Unable to receive theme changed events: {e}");
+    #[cfg(feature = "dbus")]
+    {
+      let tx_requests_clone = window_target.window_requests_tx.clone();
+      if let Err(e) = super::portal::receive_theme_changed(tx_requests_clone) {
+        log::debug!("Unable to receive theme changed events: {e}");
+      }
     }
 
     // Window Request

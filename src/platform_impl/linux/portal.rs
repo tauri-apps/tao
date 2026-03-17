@@ -1,3 +1,4 @@
+#[cfg(feature = "dbus")]
 use dbus::{
   arg::Variant,
   blocking::{Connection, SyncConnection},
