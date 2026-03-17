@@ -1034,6 +1034,15 @@ impl<T: 'static> EventLoop<T> {
 
         window_target.p.app.activate();
 
+        // If this is a secondary (remote) GIO instance, the activate signal
+        // was forwarded to the primary instance via D-Bus. Exit immediately so
+        // the primary can handle focus (e.g. bring its window to front).
+        // Without this, the secondary hangs forever waiting for a StartCause::Init
+        // event that never arrives (connect_activate only fires on the primary).
+        if window_target.p.app.is_remote() {
+          return 0;
+        }
+
         let mut state = EventState::NewStart;
         let exit_code = loop {
           let mut blocking = false;
