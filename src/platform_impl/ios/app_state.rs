@@ -1068,6 +1068,7 @@ impl NSOperatingSystemVersion {
 }
 
 pub fn os_capabilities() -> OSCapabilities {
+  use once_cell::sync::Lazy;
   static OS_CAPABILITIES: Lazy<OSCapabilities> = Lazy::new(|| {
     let version: NSOperatingSystemVersion = unsafe {
       let process_info: id = msg_send![class!(NSProcessInfo), processInfo];
