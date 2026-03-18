@@ -184,11 +184,11 @@ unsafe impl Sync for AndroidContext {}
 
 pub type ActivityId = i32;
 
-lazy_static::lazy_static! {
-  pub(crate) static ref CONTEXTS: Mutex<BTreeMap<ActivityId, AndroidContext>> = Mutex::new(Default::default());
-  static ref WINDOW_MANAGER: Mutex<BTreeMap<ActivityId, GlobalRef>> = Mutex::new(Default::default());
-  pub(crate) static ref ACTIVITY_CREATED_SENDERS: Mutex<BTreeMap<ActivityId, Sender<()>>> = Mutex::new(Default::default());
-}
+pub(crate) static CONTEXTS: Lazy<Mutex<BTreeMap<ActivityId, AndroidContext>>> =
+  Lazy::new(Default::default);
+static WINDOW_MANAGER: Lazy<Mutex<BTreeMap<ActivityId, GlobalRef>>> = Lazy::new(Default::default);
+pub(crate) static ACTIVITY_CREATED_SENDERS: Lazy<Mutex<BTreeMap<ActivityId, Sender<()>>>> =
+  Lazy::new(Default::default);
 
 static INPUT_QUEUE: Lazy<RwLock<Option<InputQueue>>> = Lazy::new(Default::default);
 static CONTENT_RECT: Lazy<RwLock<Rect>> = Lazy::new(Default::default);
