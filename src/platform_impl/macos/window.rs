@@ -499,6 +499,44 @@ impl From<WindowAttributes> for SharedState {
   }
 }
 
+/// RAII guard that sets `is_checking_zoomed_in` on the window delegate while
+/// the style mask is being temporarily toggled in `is_zoomed()`. This suppresses
+/// spurious `windowDidResize:`/`windowDidMove:` events that would otherwise
+/// create an infinite feedback loop when user code calls `is_maximized()` inside
+/// an event handler. The flag is always cleared on drop, even during unwind.
+struct ZoomCheckGuard {
+  delegate: id,
+}
+
+impl ZoomCheckGuard {
+  fn new(ns_window: &NSWindow) -> Self {
+    // SAFETY: The delegate is retained by ns_window for the duration of this
+    // synchronous, main-thread-only call. The guard does not outlive is_zoomed(),
+    // and the window (and thus its delegate) is kept alive by the caller's
+    // Retained<NSWindow>. The delegate pointer is !Send/!Sync by default (raw
+    // pointer), which correctly prevents use from other threads.
+    unsafe {
+      let delegate: id = msg_send![ns_window, delegate];
+      if !delegate.is_null() {
+        let _: () = msg_send![delegate, markIsCheckingZoomedIn];
+      }
+      Self { delegate }
+    }
+  }
+}
+
+impl Drop for ZoomCheckGuard {
+  fn drop(&mut self) {
+    // SAFETY: clearIsCheckingZoomedIn is always registered on the TaoWindowDelegate
+    // class (window_delegate.rs) and cannot fail. Sending to nil is a no-op in ObjC.
+    if !self.delegate.is_null() {
+      unsafe {
+        let _: () = msg_send![self.delegate, clearIsCheckingZoomedIn];
+      }
+    }
+  }
+}
+
 pub struct UnownedWindow {
   pub ns_window: Retained<NSWindow>, // never changes
   pub ns_view: Retained<NSView>,     // never changes
@@ -974,22 +1012,27 @@ impl UnownedWindow {
   }
 
   pub(crate) fn is_zoomed(&self) -> bool {
-    // because `isZoomed` doesn't work if the window's borderless,
-    // we make it resizable temporalily.
+    debug_assert!(
+      util::is_main_thread(),
+      "is_zoomed() must be called from the main thread"
+    );
+
+    // Because `isZoomed` doesn't work if the window's borderless,
+    // we make it resizable temporarily.
     let curr_mask = unsafe { self.ns_window.styleMask() };
-
     let required = NSWindowStyleMask::Titled | NSWindowStyleMask::Resizable;
-    let needs_temp_mask = !curr_mask.contains(required);
-    if needs_temp_mask {
-      self.set_style_mask_sync(required);
+
+    if curr_mask.contains(required) {
+      return unsafe { self.ns_window.isZoomed() };
     }
 
+    // Suppress spurious windowDidResize:/windowDidMove: events fired by
+    // setStyleMask:. The RAII guard ensures the flag is always cleared.
+    let _guard = ZoomCheckGuard::new(&self.ns_window);
+    self.set_style_mask_sync(required);
     let is_zoomed: bool = unsafe { self.ns_window.isZoomed() };
-
-    // Roll back temp styles
-    if needs_temp_mask {
-      self.set_style_mask_sync(curr_mask);
-    }
+    self.set_style_mask_sync(curr_mask);
+    // _guard dropped here, clearing is_checking_zoomed_in
 
     is_zoomed
   }

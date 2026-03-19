@@ -358,7 +358,9 @@ extern "C" fn window_did_resize(this: &Object, _: Sel, _: id) {
 extern "C" fn window_did_move(this: &Object, _: Sel, _: id) {
   trace!("Triggered `windowDidMove:`");
   with_state(this, |state| {
-    state.emit_move_event();
+    if !state.is_checking_zoomed_in {
+      state.emit_move_event();
+    }
   });
   trace!("Completed `windowDidMove:`");
 }
