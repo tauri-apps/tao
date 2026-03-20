@@ -630,9 +630,9 @@ impl UnownedWindow {
     if visible {
       if focused {
         // Tightly linked with `app_state::window_activation_hack`
-        unsafe { window.ns_window.makeKeyAndOrderFront(None) };
+        unsafe { util::make_key_and_order_front_async(&window.ns_window) };
       } else {
-        unsafe { window.ns_window.orderFront(None) };
+        unsafe { util::order_front_async(&window.ns_window) };
       }
     }
 
@@ -667,7 +667,7 @@ impl UnownedWindow {
 
   pub fn set_visible(&self, visible: bool) {
     match visible {
-      true => unsafe { util::make_key_and_order_front_sync(&self.ns_window) },
+      true => unsafe { util::make_key_and_order_front_async(&self.ns_window) },
       false => unsafe { util::order_out_sync(&self.ns_window) },
     }
   }
