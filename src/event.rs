@@ -78,9 +78,21 @@ pub enum Event<'a, T: 'static> {
   UserEvent(T),
 
   /// Emitted when the application has been suspended.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: This is triggered by `onPause` method of the Activity.
+  /// - **iOS**: This is triggered by `applicationWillResignActive` method of the UIApplicationDelegate.
+  /// - **Linux / macOS / Windows**: Unsupported.
   Suspended,
 
   /// Emitted when the application has been resumed.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: This is triggered by `onResume` method of the Activity. The first onResume() is ignored to match the iOS implementation, since that is called on activity creation.
+  /// - **iOS**: This is triggered by `applicationWillEnterForeground` method of the UIApplicationDelegate.
+  /// - **Linux / macOS / Windows**: Unsupported.
   Resumed,
 
   /// Emitted when all of the event loop's input events have been processed and redraw processing
@@ -436,7 +448,7 @@ pub enum WindowEvent<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ThemeChanged(Theme),
 
   /// The window decorations has been clicked.

@@ -366,3 +366,13 @@ bitflags! {
             | ScreenEdge::BOTTOM.bits() | ScreenEdge::RIGHT.bits();
     }
 }
+
+pub(crate) fn operating_system_version() -> (isize, isize, isize) {
+  let process_info = objc2_foundation::NSProcessInfo::processInfo();
+  let version = process_info.operatingSystemVersion();
+  (
+    version.majorVersion,
+    version.minorVersion,
+    version.patchVersion,
+  )
+}

@@ -13,12 +13,15 @@ use objc2::{
   ClassType, MainThreadMarker,
 };
 use objc2_foundation::NSString;
-use objc2_ui_kit::{UIApplication, UISceneActivationRequestOptions, UISceneConfiguration};
+use objc2_ui_kit::{
+  UIApplication, UISceneActivationRequestOptions, UISceneConfiguration,
+  UISceneSessionActivationRequest,
+};
 
 use crate::{
   dpi::PhysicalPosition,
   event::{DeviceId as RootDeviceId, Event, Force, Touch, TouchPhase, WindowEvent},
-  platform::ios::MonitorHandleExtIOS,
+  platform::ios::{operating_system_version, MonitorHandleExtIOS},
   platform_impl::platform::{
     app_state::{self, OSCapabilities},
     event_loop::{self, EventProxy, EventWrapper},
@@ -570,14 +573,23 @@ pub unsafe fn create_window(
           options.setRequestingScene(Some(&scene));
         }
 
-        // alternative function is iOS 17+
-        #[allow(deprecated)]
-        application.requestSceneSessionActivation_userActivity_options_errorHandler(
-          None,
-          None,
-          Some(&options),
-          None,
-        );
+        let error_handler = block2::RcBlock::new(move |error| {
+          log::error!("error activating scene: {error:?}");
+        });
+
+        if operating_system_version().0 >= 17 {
+          let request = UISceneSessionActivationRequest::request();
+          request.setOptions(Some(&options));
+          application.activateSceneSessionForRequest_errorHandler(&request, Some(&error_handler));
+        } else {
+          #[allow(deprecated)]
+          application.requestSceneSessionActivation_userActivity_options_errorHandler(
+            None,
+            None,
+            Some(&options),
+            Some(&error_handler),
+          );
+        }
       }
     }
   }
@@ -688,15 +700,14 @@ pub fn create_delegate_class() {
     }
   }
 
-  extern "C" fn did_become_active(_: &Object, _: Sel, _: id) {
-    unsafe { app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Resumed)) }
-  }
-
   extern "C" fn will_resign_active(_: &Object, _: Sel, _: id) {
     unsafe { app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Suspended)) }
   }
 
-  extern "C" fn will_enter_foreground(_: &Object, _: Sel, _: id) {}
+  extern "C" fn will_enter_foreground(_: &Object, _: Sel, _: id) {
+    unsafe { app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Resumed)) }
+  }
+
   extern "C" fn did_enter_background(_: &Object, _: Sel, _: id) {}
 
   extern "C" fn will_terminate(_: &Object, _: Sel, _: id) {
@@ -753,10 +764,6 @@ pub fn create_delegate_class() {
       application_continue as extern "C" fn(_, _, _, _, _) -> _,
     );
 
-    decl.add_method(
-      sel!(applicationDidBecomeActive:),
-      did_become_active as extern "C" fn(_, _, _),
-    );
     decl.add_method(
       sel!(applicationWillResignActive:),
       will_resign_active as extern "C" fn(_, _, _),

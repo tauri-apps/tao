@@ -11,6 +11,7 @@ use gtk::{
   gdk::{self, keys::constants::*, EventKey},
   glib,
 };
+use once_cell::sync::Lazy;
 use std::{
   collections::HashSet,
   ffi::c_void,
@@ -21,9 +22,7 @@ use std::{
 
 pub type RawKey = gdk::keys::Key;
 
-lazy_static! {
-  static ref KEY_STRINGS: Mutex<HashSet<&'static str>> = Mutex::new(HashSet::new());
-}
+static KEY_STRINGS: Lazy<Mutex<HashSet<&'static str>>> = Lazy::new(|| Mutex::new(HashSet::new()));
 
 fn insert_or_get_key_str(string: String) -> &'static str {
   let mut string_set = KEY_STRINGS.lock().unwrap();
@@ -188,7 +187,7 @@ pub(crate) fn make_key_event(
   // a keyval (keysym in X) is a "logical" key name, such as GDK_Enter, GDK_a, GDK_space, etc.
   let keyval_without_modifiers = key.keyval();
   let keyval_with_modifiers =
-    hardware_keycode_to_keyval(scancode).unwrap_or_else(|| keyval_without_modifiers.clone());
+    hardware_keycode_to_keyval(scancode).unwrap_or(keyval_without_modifiers);
   // get unicode value, with and without modifiers
   let text_without_modifiers = keyval_with_modifiers.to_unicode();
   let text_with_modifiers = keyval_without_modifiers.to_unicode();
@@ -196,7 +195,7 @@ pub(crate) fn make_key_event(
   let physical_key = key_override.unwrap_or_else(|| KeyCode::from_scancode(scancode as u32));
 
   // extract key without modifier
-  let key_without_modifiers = raw_key_to_key(keyval_with_modifiers.clone()).unwrap_or_else(|| {
+  let key_without_modifiers = raw_key_to_key(keyval_with_modifiers).unwrap_or_else(|| {
     if let Some(key) = text_without_modifiers {
       if key >= ' ' && key != '\x7f' {
         Key::Character(insert_or_get_key_str(key.to_string()))

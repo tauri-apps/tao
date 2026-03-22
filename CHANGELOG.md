@@ -1,5 +1,20 @@
 # Changelog
 
+## \[0.34.8]
+
+- [`2fb51231`](https://github.com/tauri-apps/tao/commit/2fb512315899973e2c64d00c0e34ed382d93c893) ([#1182](https://github.com/tauri-apps/tao/pull/1182) by [@Tunglies](https://github.com/tauri-apps/tao/../../Tunglies)) Remove synchronous styleMask mutations in is_zoomed on macOS
+
+## \[0.34.7]
+
+- [`541cf20e`](https://github.com/tauri-apps/tao/commit/541cf20ed1f7bf15576db2faaac35d8beb4ab193) ([#1190](https://github.com/tauri-apps/tao/pull/1190) by [@damadczar](https://github.com/tauri-apps/tao/../../damadczar)) fix(linux): exit cleanly when GtkApplication is a remote GIO instance
+
+## \[0.34.6]
+
+- [`a4837862`](https://github.com/tauri-apps/tao/commit/a48378626f728665526e0c65fce0142282ca1f34) ([#1189](https://github.com/tauri-apps/tao/pull/1189) by [@thomaseizinger](https://github.com/tauri-apps/tao/../../thomaseizinger)) Downgrades several logs in the Windows backend from WARN to DEBUG.
+- [`e1c9cb69`](https://github.com/tauri-apps/tao/commit/e1c9cb699b6e0943f45f27fbf558efce8d617f5e) ([#1185](https://github.com/tauri-apps/tao/pull/1185) by [@kanatapple](https://github.com/tauri-apps/tao/../../kanatapple)) Prevent panics on Windows when a monitor handle becomes invalid during info retrieval.
+- [`e196538f`](https://github.com/tauri-apps/tao/commit/e196538f989894fcb92401fced54d7d3a65fc91a) ([#1165](https://github.com/tauri-apps/tao/pull/1165) by [@Slinetrac](https://github.com/tauri-apps/tao/../../Slinetrac)) fix(windows): respect default app mode via registry in dark mode detection
+- [`a133504b`](https://github.com/tauri-apps/tao/commit/a133504b6dc963a5ad7786e01e746dba72236b65) ([#1184](https://github.com/tauri-apps/tao/pull/1184) by [@Tunglies](https://github.com/tauri-apps/tao/../../Tunglies)) Replace NSString::from_str with ns_string macro in macOS. No user facing changes.
+
 ## \[0.34.5]
 
 - [`92e22209`](https://github.com/tauri-apps/tao/commit/92e22209fb58248449175b5b86697243d6a93db2) ([#1152](https://github.com/tauri-apps/tao/pull/1152) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Emit `Event::LoopDestroyed` on activity destroy on Android.

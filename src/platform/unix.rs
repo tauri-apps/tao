@@ -106,7 +106,7 @@ impl WindowExtUnix for Window {
     window: gtk::ApplicationWindow,
   ) -> Result<Window, OsError> {
     let window = UnixWindow::new_from_gtk_window(&event_loop_window_target.p, window)?;
-    Ok(Window { window: window })
+    Ok(Window { window })
   }
 
   fn set_badge_count(&self, count: Option<i64>, desktop_filename: Option<String>) {

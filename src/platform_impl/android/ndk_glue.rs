@@ -25,7 +25,10 @@ use std::{
   fs::File,
   io::{BufRead, BufReader},
   os::unix::prelude::*,
-  sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard},
+  sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Condvar, Mutex, RwLock, RwLockReadGuard,
+  },
   thread,
   time::Duration,
 };
@@ -206,16 +209,16 @@ unsafe impl Sync for AndroidContext {}
 
 pub type ActivityId = i32;
 
-lazy_static::lazy_static! {
-  pub(crate) static ref CONTEXTS: Mutex<BTreeMap<ActivityId, AndroidContext>> = Mutex::new(Default::default());
-  static ref WINDOW_MANAGER: Mutex<BTreeMap<ActivityId, GlobalRef>> = Mutex::new(Default::default());
-  pub(crate) static ref ACTIVITY_CREATED_SENDERS: Mutex<BTreeMap<ActivityId, Sender<()>>> = Mutex::new(Default::default());
-  static ref INTENT_URLS: Mutex<Vec<url::Url>> = Mutex::new(Default::default());
-}
-
+pub(crate) static CONTEXTS: Lazy<Mutex<BTreeMap<ActivityId, AndroidContext>>> =
+  Lazy::new(Default::default);
+static WINDOW_MANAGER: Lazy<Mutex<BTreeMap<ActivityId, GlobalRef>>> = Lazy::new(Default::default);
+pub(crate) static ACTIVITY_CREATED_SENDERS: Lazy<Mutex<BTreeMap<ActivityId, Sender<()>>>> =
+  Lazy::new(Default::default);
+static INTENT_URLS: Lazy<Mutex<Vec<url::Url>>> = Lazy::new(Default::default);
 static INPUT_QUEUE: Lazy<RwLock<Option<InputQueue>>> = Lazy::new(Default::default);
 static CONTENT_RECT: Lazy<RwLock<Rect>> = Lazy::new(Default::default);
 static LOOPER: Lazy<Mutex<Option<ForeignLooper>>> = Lazy::new(Default::default);
+static DID_RESUME: AtomicBool = AtomicBool::new(false);
 
 pub fn main_window_manager() -> Option<GlobalRef> {
   WINDOW_MANAGER.lock().unwrap().values().next().cloned()
@@ -447,7 +450,12 @@ pub unsafe fn onActivityCreate(
 }
 
 pub unsafe fn resume(_: JNIEnv, _: JClass, _: JObject) {
-  wake(Event::Resume);
+  let did_resume = DID_RESUME.swap(true, Ordering::Relaxed);
+  // first Activity onResume() is called even after onCreate()
+  // to match the iOS implementation, we ignore the first resume event
+  if did_resume {
+    wake(Event::Resume);
+  }
 }
 
 pub unsafe fn pause(_: JNIEnv, _: JClass, _: JObject) {
