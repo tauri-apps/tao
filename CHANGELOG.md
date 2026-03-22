@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.34.7]
+
+- [`541cf20e`](https://github.com/tauri-apps/tao/commit/541cf20ed1f7bf15576db2faaac35d8beb4ab193) ([#1190](https://github.com/tauri-apps/tao/pull/1190) by [@damadczar](https://github.com/tauri-apps/tao/../../damadczar)) fix(linux): exit cleanly when GtkApplication is a remote GIO instance
+
 ## \[0.34.6]
 
 - [`a4837862`](https://github.com/tauri-apps/tao/commit/a48378626f728665526e0c65fce0142282ca1f34) ([#1189](https://github.com/tauri-apps/tao/pull/1189) by [@thomaseizinger](https://github.com/tauri-apps/tao/../../thomaseizinger)) Downgrades several logs in the Windows backend from WARN to DEBUG.
