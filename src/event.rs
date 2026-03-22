@@ -448,7 +448,7 @@ pub enum WindowEvent<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ThemeChanged(Theme),
 
   /// The window decorations has been clicked.
