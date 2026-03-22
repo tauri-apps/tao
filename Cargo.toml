@@ -104,7 +104,6 @@ features = [
 jni = "0.21"
 ndk = "0.9"
 ndk-sys = "0.6"
-ndk-context = "0.1"
 tao-macros = { version = "0.1.0", path = "./tao-macros" }
 
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
@@ -149,6 +148,17 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
 core-foundation = "0.10"
 core-graphics = "0.25"
 dispatch2 = "0.3"
+
+[target."cfg(target_os = \"ios\")".dependencies]
+objc2-ui-kit = { version = "0.3", features = [
+  "UIResponder",
+  "UIScene",
+  "UISceneOptions",
+  "UIOpenURLContext",
+] }
+objc2-foundation = { version = "0.3", default-features = false, features = [
+  "NSProcessInfo",
+] }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = "0.18"
