@@ -569,7 +569,7 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
     .and_then(|result| result.l().ok());
 
   if let Some(clip_data) = clip_data {
-    // getItemCount may return null if ClipData has only a single uri in which case the uri can be received by getData|String instead.
+    // getItemCount may return null if the intent has only a single uri in which case the uri can be received by getData|String instead.
     if let Ok(item_count) = env
       .call_method(&clip_data, "getItemCount", "()I", &[])
       .map(|count| count.i().unwrap())
