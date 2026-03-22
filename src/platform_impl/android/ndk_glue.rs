@@ -495,8 +495,11 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
     .into();
   let action = env
     .get_string(&action)
-    .map(|action| action.to_string_lossy().to_string())
-    .unwrap();
+    .map(|action| action.to_string_lossy().to_string());
+
+  let Ok(action) = action else {
+    return;
+  };
 
   // Only handle SEND, SEND_MULTIPLE, and VIEW actions
   if action != "android.intent.action.SEND"
@@ -566,45 +569,45 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
     .and_then(|result| result.l().ok());
 
   if let Some(clip_data) = clip_data {
-    let item_count = env
+    // getItemCount may return null if ClipData has only a single uri in which case the uri can be received by getData|String instead.
+    if let Ok(item_count) = env
       .call_method(&clip_data, "getItemCount", "()I", &[])
-      .unwrap()
-      .i()
-      .unwrap();
-
-    for i in 0..item_count {
-      let clip_item = env
-        .call_method(
-          &clip_data,
-          "getItemAt",
-          "(I)Landroid/content/ClipData$Item;",
-          &[i.into()],
-        )
-        .unwrap()
-        .l()
-        .unwrap();
-
-      let uri = env
-        .call_method(&clip_item, "getUri", "()Landroid/net/Uri;", &[])
-        .ok()
-        .and_then(|result| result.l().ok());
-
-      if let Some(uri) = uri {
-        let uri_string: JString = env
-          .call_method(&uri, "toString", "()Ljava/lang/String;", &[])
+      .map(|count| count.i().unwrap())
+    {
+      for i in 0..item_count {
+        let clip_item = env
+          .call_method(
+            &clip_data,
+            "getItemAt",
+            "(I)Landroid/content/ClipData$Item;",
+            &[i.into()],
+          )
           .unwrap()
           .l()
-          .unwrap()
-          .into();
-        let uri_str = env
-          .get_string(&uri_string)
-          .unwrap()
-          .to_string_lossy()
-          .to_string();
-        if let Ok(url) = url::Url::parse(&uri_str) {
-          urls.insert(url);
-        } else {
-          log::error!("failed to parse URI: {}", uri_str);
+          .unwrap();
+
+        let uri = env
+          .call_method(&clip_item, "getUri", "()Landroid/net/Uri;", &[])
+          .ok()
+          .and_then(|result| result.l().ok());
+
+        if let Some(uri) = uri {
+          let uri_string: JString = env
+            .call_method(&uri, "toString", "()Ljava/lang/String;", &[])
+            .unwrap()
+            .l()
+            .unwrap()
+            .into();
+          let uri_str = env
+            .get_string(&uri_string)
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
+          if let Ok(url) = url::Url::parse(&uri_str) {
+            urls.insert(url);
+          } else {
+            log::error!("failed to parse URI: {}", uri_str);
+          }
         }
       }
     }
