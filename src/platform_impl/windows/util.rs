@@ -54,14 +54,6 @@ pub fn encode_wide(string: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {
   string.as_ref().encode_wide().chain(once(0)).collect()
 }
 
-fn win_to_err<F: FnOnce() -> BOOL>(f: F) -> Result<(), io::Error> {
-  if f().as_bool() {
-    Ok(())
-  } else {
-    Err(io::Error::last_os_error())
-  }
-}
-
 pub unsafe fn get_window_rect(hwnd: HWND) -> Option<RECT> {
   let mut rect = std::mem::zeroed();
   GetWindowRect(hwnd, &mut rect).ok().map(|_| rect)
@@ -72,7 +64,7 @@ pub fn get_client_rect(hwnd: HWND) -> Result<RECT, io::Error> {
   let mut top_left = POINT::default();
 
   unsafe {
-    win_to_err(|| ClientToScreen(hwnd, &mut top_left))?;
+    ClientToScreen(hwnd, &mut top_left).ok()?;
     GetClientRect(hwnd, &mut rect)?;
   }
 
@@ -300,24 +292,22 @@ pub type AdjustWindowRectExForDpi = unsafe extern "system" fn(
   dpi: u32,
 ) -> BOOL;
 
-lazy_static! {
-  pub static ref GET_DPI_FOR_WINDOW: Option<GetDpiForWindow> =
-    get_function!("user32.dll", GetDpiForWindow);
-  pub static ref ADJUST_WINDOW_RECT_EX_FOR_DPI: Option<AdjustWindowRectExForDpi> =
-    get_function!("user32.dll", AdjustWindowRectExForDpi);
-  pub static ref GET_DPI_FOR_MONITOR: Option<GetDpiForMonitor> =
-    get_function!("shcore.dll", GetDpiForMonitor);
-  pub static ref GET_SYSTEM_METRICS_FOR_DPI: Option<GetSystemMetricsForDpi> =
-    get_function!("user32.dll", GetSystemMetricsForDpi);
-  pub static ref ENABLE_NON_CLIENT_DPI_SCALING: Option<EnableNonClientDpiScaling> =
-    get_function!("user32.dll", EnableNonClientDpiScaling);
-  pub static ref SET_PROCESS_DPI_AWARENESS_CONTEXT: Option<SetProcessDpiAwarenessContext> =
-    get_function!("user32.dll", SetProcessDpiAwarenessContext);
-  pub static ref SET_PROCESS_DPI_AWARENESS: Option<SetProcessDpiAwareness> =
-    get_function!("shcore.dll", SetProcessDpiAwareness);
-  pub static ref SET_PROCESS_DPI_AWARE: Option<SetProcessDPIAware> =
-    get_function!("user32.dll", SetProcessDPIAware);
-}
+pub static GET_DPI_FOR_WINDOW: Lazy<Option<GetDpiForWindow>> =
+  Lazy::new(|| get_function!("user32.dll", GetDpiForWindow));
+pub static ADJUST_WINDOW_RECT_EX_FOR_DPI: Lazy<Option<AdjustWindowRectExForDpi>> =
+  Lazy::new(|| get_function!("user32.dll", AdjustWindowRectExForDpi));
+pub static GET_DPI_FOR_MONITOR: Lazy<Option<GetDpiForMonitor>> =
+  Lazy::new(|| get_function!("shcore.dll", GetDpiForMonitor));
+pub static GET_SYSTEM_METRICS_FOR_DPI: Lazy<Option<GetSystemMetricsForDpi>> =
+  Lazy::new(|| get_function!("user32.dll", GetSystemMetricsForDpi));
+pub static ENABLE_NON_CLIENT_DPI_SCALING: Lazy<Option<EnableNonClientDpiScaling>> =
+  Lazy::new(|| get_function!("user32.dll", EnableNonClientDpiScaling));
+pub static SET_PROCESS_DPI_AWARENESS_CONTEXT: Lazy<Option<SetProcessDpiAwarenessContext>> =
+  Lazy::new(|| get_function!("user32.dll", SetProcessDpiAwarenessContext));
+pub static SET_PROCESS_DPI_AWARENESS: Lazy<Option<SetProcessDpiAwareness>> =
+  Lazy::new(|| get_function!("shcore.dll", SetProcessDpiAwareness));
+pub static SET_PROCESS_DPI_AWARE: Lazy<Option<SetProcessDPIAware>> =
+  Lazy::new(|| get_function!("user32.dll", SetProcessDPIAware));
 
 #[allow(non_snake_case)]
 #[cfg(target_pointer_width = "32")]

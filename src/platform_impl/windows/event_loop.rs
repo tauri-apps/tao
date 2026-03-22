@@ -7,6 +7,7 @@
 mod runner;
 
 use crossbeam_channel::{self as channel, Receiver, Sender};
+use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use std::{
   cell::Cell,
@@ -96,18 +97,16 @@ type GetPointerTouchInfo =
 type GetPointerPenInfo =
   unsafe extern "system" fn(pointId: u32, penInfo: *mut POINTER_PEN_INFO) -> BOOL;
 
-lazy_static! {
-  static ref GET_POINTER_FRAME_INFO_HISTORY: Option<GetPointerFrameInfoHistory> =
-    get_function!("user32.dll", GetPointerFrameInfoHistory);
-  static ref SKIP_POINTER_FRAME_MESSAGES: Option<SkipPointerFrameMessages> =
-    get_function!("user32.dll", SkipPointerFrameMessages);
-  static ref GET_POINTER_DEVICE_RECTS: Option<GetPointerDeviceRects> =
-    get_function!("user32.dll", GetPointerDeviceRects);
-  static ref GET_POINTER_TOUCH_INFO: Option<GetPointerTouchInfo> =
-    get_function!("user32.dll", GetPointerTouchInfo);
-  static ref GET_POINTER_PEN_INFO: Option<GetPointerPenInfo> =
-    get_function!("user32.dll", GetPointerPenInfo);
-}
+static GET_POINTER_FRAME_INFO_HISTORY: Lazy<Option<GetPointerFrameInfoHistory>> =
+  Lazy::new(|| get_function!("user32.dll", GetPointerFrameInfoHistory));
+static SKIP_POINTER_FRAME_MESSAGES: Lazy<Option<SkipPointerFrameMessages>> =
+  Lazy::new(|| get_function!("user32.dll", SkipPointerFrameMessages));
+static GET_POINTER_DEVICE_RECTS: Lazy<Option<GetPointerDeviceRects>> =
+  Lazy::new(|| get_function!("user32.dll", GetPointerDeviceRects));
+static GET_POINTER_TOUCH_INFO: Lazy<Option<GetPointerTouchInfo>> =
+  Lazy::new(|| get_function!("user32.dll", GetPointerTouchInfo));
+static GET_POINTER_PEN_INFO: Lazy<Option<GetPointerPenInfo>> =
+  Lazy::new(|| get_function!("user32.dll", GetPointerPenInfo));
 
 pub(crate) struct SubclassInput<T: 'static> {
   pub window_state: Arc<Mutex<WindowState>>,
@@ -354,8 +353,8 @@ fn main_thread_id() -> u32 {
   #[used]
   #[allow(non_upper_case_globals)]
   #[link_section = ".CRT$XCU"]
-  static INIT_MAIN_THREAD_ID: unsafe fn() = {
-    unsafe fn initer() {
+  static INIT_MAIN_THREAD_ID: unsafe extern "C" fn() = {
+    unsafe extern "C" fn initer() {
       MAIN_THREAD_ID = GetCurrentThreadId();
     }
     initer
@@ -589,90 +588,63 @@ impl<T: 'static> EventLoopProxy<T> {
 
 type WaitUntilInstantBox = Box<Instant>;
 
-lazy_static! {
-    /// Message sent by the `EventLoopProxy` when we want to wake up the thread.
-    /// WPARAM and LPARAM are unused.
-    static ref USER_EVENT_MSG_ID: u32 = {
-        unsafe {
-            RegisterWindowMessageA(s!("Tao::WakeupMsg"))
-        }
-    };
-    /// Message sent when we want to execute a closure in the thread.
-    /// WPARAM contains a Box<Box<dyn FnMut()>> that must be retrieved with `Box::from_raw`,
-    /// and LPARAM is unused.
-    static ref EXEC_MSG_ID: u32 = {
-        unsafe {
-            RegisterWindowMessageA(s!("Tao::ExecMsg"))
-        }
-    };
-    static ref PROCESS_NEW_EVENTS_MSG_ID: u32 = {
-        unsafe {
-            RegisterWindowMessageA(s!("Tao::ProcessNewEvents"))
-        }
-    };
-    /// lparam is the wait thread's message id.
-    static ref SEND_WAIT_THREAD_ID_MSG_ID: u32 = {
-        unsafe {
-            RegisterWindowMessageA(s!("Tao::SendWaitThreadId"))
-        }
-    };
-    /// lparam points to a `Box<Instant>` signifying the time `PROCESS_NEW_EVENTS_MSG_ID` should
-    /// be sent.
-    static ref WAIT_UNTIL_MSG_ID: u32 = {
-        unsafe {
-            RegisterWindowMessageA(s!("Tao::WaitUntil"))
-        }
-    };
-    static ref CANCEL_WAIT_UNTIL_MSG_ID: u32 = {
-        unsafe {
-            RegisterWindowMessageA(s!("Tao::CancelWaitUntil"))
-        }
-    };
-    /// Message sent by a `Window` when it wants to be destroyed by the main thread.
-    /// WPARAM and LPARAM are unused.
-    pub static ref DESTROY_MSG_ID: u32 = {
-        unsafe {
-            RegisterWindowMessageA(s!("Tao::DestroyMsg"))
-        }
-    };
-    /// WPARAM is a bool specifying the `WindowFlags::MARKER_RETAIN_STATE_ON_SIZE` flag. See the
-    /// documentation in the `window_state` module for more information.
-    pub static ref SET_RETAIN_STATE_ON_SIZE_MSG_ID: u32 = unsafe {
-        RegisterWindowMessageA(s!("Tao::SetRetainMaximized"))
-    };
-    /// Message sent by event loop when event loop's prefered theme changed.
-    /// WPARAM and LPARAM are unused.
-    pub static ref CHANGE_THEME_MSG_ID: u32 = unsafe {
-        RegisterWindowMessageA(s!("Tao::ChangeTheme"))
-    };
-    /// When the taskbar is created, it registers a message with the "TaskbarCreated" string and then broadcasts this message to all top-level windows
-    /// When the application receives this message, it should assume that any taskbar icons it added have been removed and add them again.
-    pub static ref S_U_TASKBAR_RESTART: u32 = unsafe {
-      RegisterWindowMessageA(s!("TaskbarCreated"))
-    };
-    static ref THREAD_EVENT_TARGET_WINDOW_CLASS: Vec<u16> = unsafe {
-        let class_name = util::encode_wide("Tao Thread Event Target");
+/// Message sent by the `EventLoopProxy` when we want to wake up the thread.
+/// WPARAM and LPARAM are unused.
+static USER_EVENT_MSG_ID: Lazy<u32> =
+  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::WakeupMsg")) });
+/// Message sent when we want to execute a closure in the thread.
+/// WPARAM contains a Box<Box<dyn FnMut()>> that must be retrieved with `Box::from_raw`,
+/// and LPARAM is unused.
+static EXEC_MSG_ID: Lazy<u32> = Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::ExecMsg")) });
+static PROCESS_NEW_EVENTS_MSG_ID: Lazy<u32> =
+  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::ProcessNewEvents")) });
+/// lparam is the wait thread's message id.
+static SEND_WAIT_THREAD_ID_MSG_ID: Lazy<u32> =
+  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::SendWaitThreadId")) });
+/// lparam points to a `Box<Instant>` signifying the time `PROCESS_NEW_EVENTS_MSG_ID` should
+/// be sent.
+static WAIT_UNTIL_MSG_ID: Lazy<u32> =
+  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::WaitUntil")) });
+static CANCEL_WAIT_UNTIL_MSG_ID: Lazy<u32> =
+  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::CancelWaitUntil")) });
+/// Message sent by a `Window` when it wants to be destroyed by the main thread.
+/// WPARAM and LPARAM are unused.
+pub static DESTROY_MSG_ID: Lazy<u32> =
+  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::DestroyMsg")) });
+/// WPARAM is a bool specifying the `WindowFlags::MARKER_RETAIN_STATE_ON_SIZE` flag. See the
+/// documentation in the `window_state` module for more information.
+pub static SET_RETAIN_STATE_ON_SIZE_MSG_ID: Lazy<u32> =
+  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::SetRetainMaximized")) });
+/// Message sent by event loop when event loop's prefered theme changed.
+/// WPARAM and LPARAM are unused.
+pub static CHANGE_THEME_MSG_ID: Lazy<u32> =
+  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::ChangeTheme")) });
+/// When the taskbar is created, it registers a message with the "TaskbarCreated" string and then broadcasts this message to all top-level windows
+/// When the application receives this message, it should assume that any taskbar icons it added have been removed and add them again.
+pub static S_U_TASKBAR_RESTART: Lazy<u32> =
+  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("TaskbarCreated")) });
+static THREAD_EVENT_TARGET_WINDOW_CLASS: Lazy<Vec<u16>> = Lazy::new(|| unsafe {
+  let class_name = util::encode_wide("Tao Thread Event Target");
 
-        let class = WNDCLASSEXW {
-            cbSize: mem::size_of::<WNDCLASSEXW>() as u32,
-            style: Default::default(),
-            lpfnWndProc: Some(util::call_default_window_proc),
-            cbClsExtra: 0,
-            cbWndExtra: 0,
-            hInstance: HINSTANCE(GetModuleHandleW(PCWSTR::null()).unwrap_or_default().0),
-            hIcon: HICON::default(),
-            hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
-            hbrBackground: HBRUSH::default(),
-            lpszMenuName: PCWSTR::null(),
-            lpszClassName: PCWSTR::from_raw(class_name.as_ptr()),
-            hIconSm: HICON::default(),
-        };
+  let class = WNDCLASSEXW {
+    cbSize: mem::size_of::<WNDCLASSEXW>() as u32,
+    style: Default::default(),
+    lpfnWndProc: Some(util::call_default_window_proc),
+    cbClsExtra: 0,
+    cbWndExtra: 0,
+    hInstance: HINSTANCE(GetModuleHandleW(PCWSTR::null()).unwrap_or_default().0),
+    hIcon: HICON::default(),
+    hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
+    hbrBackground: HBRUSH::default(),
+    lpszMenuName: PCWSTR::null(),
+    lpszClassName: PCWSTR::from_raw(class_name.as_ptr()),
+    hIconSm: HICON::default(),
+  };
 
-        RegisterClassExW(&class);
+  RegisterClassExW(&class);
 
-        class_name
-    };
-}
+  class_name
+});
 
 fn create_event_target_window() -> HWND {
   let window = unsafe {

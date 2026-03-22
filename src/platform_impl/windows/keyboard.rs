@@ -15,6 +15,7 @@ use windows::Win32::{
   },
 };
 
+use once_cell::sync::Lazy;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
@@ -43,10 +44,8 @@ pub struct MessageAsKeyEvent {
   pub is_synthetic: bool,
 }
 
-lazy_static! {
-  pub(crate) static ref KEY_EVENT_BUILDERS: Mutex<HashMap<WindowId, KeyEventBuilder>> =
-    Mutex::new(HashMap::new());
-}
+pub(crate) static KEY_EVENT_BUILDERS: Lazy<Mutex<HashMap<WindowId, KeyEventBuilder>>> =
+  Lazy::new(|| Mutex::new(HashMap::new()));
 
 /// Stores information required to make `KeyEvent`s.
 ///
