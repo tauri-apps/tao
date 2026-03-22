@@ -2214,7 +2214,7 @@ dependencies = [
 
 [[package]]
 name = "tao"
-version = "0.34.7"
+version = "0.34.8"
 dependencies = [
  "bitflags 2.8.0",
  "block2",
