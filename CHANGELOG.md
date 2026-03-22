@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.34.8]
+
+- [`2fb51231`](https://github.com/tauri-apps/tao/commit/2fb512315899973e2c64d00c0e34ed382d93c893) ([#1182](https://github.com/tauri-apps/tao/pull/1182) by [@Tunglies](https://github.com/tauri-apps/tao/../../Tunglies)) Remove synchronous styleMask mutations in is_zoomed on macOS
+
 ## \[0.34.7]
 
 - [`541cf20e`](https://github.com/tauri-apps/tao/commit/541cf20ed1f7bf15576db2faaac35d8beb4ab193) ([#1190](https://github.com/tauri-apps/tao/pull/1190) by [@damadczar](https://github.com/tauri-apps/tao/../../damadczar)) fix(linux): exit cleanly when GtkApplication is a remote GIO instance
