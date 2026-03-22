@@ -24,7 +24,10 @@ use std::{
   fs::File,
   io::{BufRead, BufReader},
   os::unix::prelude::*,
-  sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard},
+  sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Condvar, Mutex, RwLock, RwLockReadGuard,
+  },
   thread,
   time::Duration,
 };
@@ -33,7 +36,7 @@ use std::{
 /// in the android project.
 pub static PACKAGE: OnceCell<&str> = OnceCell::new();
 
-/// Generate JNI compilant functions that are necessary for
+/// Generate JNI compliant functions that are necessary for
 /// building android apps with tao.
 ///
 /// Arguments in order:
@@ -193,6 +196,7 @@ pub(crate) static ACTIVITY_CREATED_SENDERS: Lazy<Mutex<BTreeMap<ActivityId, Send
 static INPUT_QUEUE: Lazy<RwLock<Option<InputQueue>>> = Lazy::new(Default::default);
 static CONTENT_RECT: Lazy<RwLock<Rect>> = Lazy::new(Default::default);
 static LOOPER: Lazy<Mutex<Option<ForeignLooper>>> = Lazy::new(Default::default);
+static DID_RESUME: AtomicBool = AtomicBool::new(false);
 
 pub fn main_window_manager() -> Option<GlobalRef> {
   WINDOW_MANAGER.lock().unwrap().values().next().cloned()
@@ -410,7 +414,12 @@ pub unsafe fn onActivityCreate(
 }
 
 pub unsafe fn resume(_: JNIEnv, _: JClass, _: JObject) {
-  wake(Event::Resume);
+  let did_resume = DID_RESUME.swap(true, Ordering::Relaxed);
+  // first Activity onResume() is called even after onCreate()
+  // to match the iOS implementation, we ignore the first resume event
+  if did_resume {
+    wake(Event::Resume);
+  }
 }
 
 pub unsafe fn pause(_: JNIEnv, _: JClass, _: JObject) {

@@ -709,15 +709,14 @@ pub fn create_delegate_class() {
     }
   }
 
-  extern "C" fn did_become_active(_: &Object, _: Sel, _: id) {
-    unsafe { app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Resumed)) }
-  }
-
   extern "C" fn will_resign_active(_: &Object, _: Sel, _: id) {
     unsafe { app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Suspended)) }
   }
 
-  extern "C" fn will_enter_foreground(_: &Object, _: Sel, _: id) {}
+  extern "C" fn will_enter_foreground(_: &Object, _: Sel, _: id) {
+    unsafe { app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Resumed)) }
+  }
+
   extern "C" fn did_enter_background(_: &Object, _: Sel, _: id) {}
 
   extern "C" fn will_terminate(_: &Object, _: Sel, _: id) {
@@ -774,10 +773,6 @@ pub fn create_delegate_class() {
       application_continue as extern "C" fn(_, _, _, _, _) -> _,
     );
 
-    decl.add_method(
-      sel!(applicationDidBecomeActive:),
-      did_become_active as extern "C" fn(_, _, _),
-    );
     decl.add_method(
       sel!(applicationWillResignActive:),
       will_resign_active as extern "C" fn(_, _, _),
