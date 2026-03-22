@@ -158,7 +158,7 @@ pub enum Event<'a, T: 'static> {
   /// Emitted when a scene is requested by the system.
   ///
   /// This event is emitted when a scene is requested by the system.
-  /// Scenes created by tao's window builder are not emitted with this event.
+  /// Scenes created by `Window::new` are not emitted with this event.
   /// It is also not emitted for the main scene.
   #[cfg(target_os = "ios")]
   SceneRequested {

@@ -590,15 +590,6 @@ pub unsafe fn create_window(
             Some(&error_handler),
           );
         }
-
-        // alternative function is iOS 17+
-        #[allow(deprecated)]
-        application.requestSceneSessionActivation_userActivity_options_errorHandler(
-          None,
-          None,
-          Some(&options),
-          None,
-        );
       }
     }
   }

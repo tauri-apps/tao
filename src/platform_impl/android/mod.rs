@@ -184,6 +184,17 @@ impl<T: 'static> EventLoop<T> {
           }
           Event::Stop => self.running = false,
           Event::Start => self.running = true,
+          Event::Opened => {
+            let urls = ndk_glue::take_intent_urls();
+            if !urls.is_empty() {
+              call_event_handler!(
+                event_handler,
+                self.window_target(),
+                control_flow,
+                event::Event::Opened { urls }
+              );
+            }
+          }
           //Event::ConfigChanged => {
           // #[allow(deprecated)] // TODO: use ndk-context instead
           // let am = ndk_glue::native_activity().asset_manager();
