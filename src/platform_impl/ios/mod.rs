@@ -50,7 +50,7 @@
 //!
 //! This is how those event are represented in tao:
 //!
-//!  - applicationDidBecomeActive is Resumed
+//!  - applicationWillEnterForeground is Resumed
 //!  - applicationWillResignActive is Suspended
 //!  - applicationWillTerminate is LoopDestroyed
 //!
@@ -77,6 +77,7 @@ mod event_loop;
 mod ffi;
 mod keycode;
 mod monitor;
+mod scene;
 mod view;
 mod window;
 

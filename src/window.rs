@@ -228,11 +228,23 @@ pub struct WindowAttributes {
   /// Whether the window should always be on top of other windows.
   ///
   /// The default is `false`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux(x11):** Result depends on the system's window manager. Consider this setting a suggestion.
+  /// - **Linux(Wayland):** Unsupported.
+  // TODO: Unsupported in gtk4
   pub always_on_top: bool,
 
   /// Whether the window should always be on bottom of other windows.
   ///
   /// The default is `false`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux(x11):** Result depends on the system's window manager. Consider this setting a suggestion.
+  /// - **Linux(Wayland):** Unsupported.
+  // TODO: Unsupported in gtk4
   pub always_on_bottom: bool,
 
   /// The window icon.
@@ -248,6 +260,13 @@ pub struct WindowAttributes {
   ///
   /// **Android / iOS:** Unsupported.
   pub focused: bool,
+
+  /// Whether the window should be focusable or not.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// **Android / iOS:** Unsupported.
+  pub focusable: bool,
 
   /// Prevents the window contents from being captured by other apps.
   ///
@@ -294,6 +313,7 @@ impl Default for WindowAttributes {
       window_icon: None,
       preferred_theme: None,
       focused: true,
+      focusable: true,
       content_protection: false,
       visible_on_all_workspaces: false,
       background_color: None,
@@ -538,6 +558,17 @@ impl WindowBuilder {
     self.window.focused = focused;
     self
   }
+
+  /// Whether the window will be focusable or not.
+  ///
+  /// ## Platform-specific:
+  /// **Android / iOS:** Unsupported.
+  #[inline]
+  pub fn with_focusable(mut self, focusable: bool) -> WindowBuilder {
+    self.window.focusable = focusable;
+    self
+  }
+
   /// Prevents the window contents from being captured by other apps.
   ///
   /// ## Platform-specific
@@ -825,6 +856,18 @@ impl Window {
     self.window.set_focus()
   }
 
+  /// Sets whether the window is focusable or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: If the window is already focused, it is not possible to unfocus it after calling `set_focusable(false)`.
+  ///   In this case, you might consider calling [`Window::set_focus`] but it will move the window to the back i.e. at the bottom in terms of z-order.
+  /// - **iOS / Android:** Unsupported.
+  #[inline]
+  pub fn set_focusable(&self, focusable: bool) {
+    self.window.set_focusable(focusable)
+  }
+
   /// Is window active and focused?
   ///
   /// ## Platform-specific
@@ -1055,7 +1098,9 @@ impl Window {
   /// ## Platform-specific
   ///
   /// - **Windows**: There is no guarantee that the window will be the bottom most but it will try to be.
-  /// - **iOS / Android:** Unsupported.
+  /// - **Linux(x11):** Result depends on the system's window manager. Consider this setting a suggestion.
+  /// - **Linux(Wayland) / iOS / Android:** Unsupported.
+  // TODO: Unsupported in gtk4
   #[inline]
   pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
     self.window.set_always_on_bottom(always_on_bottom)
@@ -1065,7 +1110,9 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **iOS / Android:** Unsupported.
+  /// - **Linux(x11):** Result depends on the system's window manager. Consider this setting a suggestion.
+  /// - **Linux(Wayland) / iOS / Android:** Unsupported.
+  // TODO: Unsupported in gtk4
   #[inline]
   pub fn set_always_on_top(&self, always_on_top: bool) {
     self.window.set_always_on_top(always_on_top)

@@ -48,7 +48,7 @@ use core_graphics::{
 use objc2::{
   msg_send,
   rc::Retained,
-  runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel},
+  runtime::{AnyClass as Class, AnyObject as Object, Bool, ClassBuilder as ClassDecl, Sel},
 };
 use objc2_app_kit::{
   self as appkit, NSApp, NSApplicationPresentationOptions, NSBackingStoreType, NSColor, NSEvent,
@@ -57,9 +57,10 @@ use objc2_app_kit::{
   NSWindowOrderingMode, NSWindowSharingType, NSWindowStyleMask,
 };
 use objc2_foundation::{
-  MainThreadMarker, NSArray, NSAutoreleasePool, NSDictionary, NSInteger, NSPoint, NSRect, NSSize,
-  NSString, NSTimeInterval, NSUInteger,
+  ns_string, MainThreadMarker, NSArray, NSAutoreleasePool, NSDictionary, NSInteger, NSPoint,
+  NSRect, NSSize, NSString, NSTimeInterval, NSUInteger,
 };
+use once_cell::sync::Lazy;
 
 use super::{
   ffi::{id, nil, NO},
@@ -174,13 +175,21 @@ fn create_window(
         let monitor_screen = monitor.ns_screen();
         Some(monitor_screen.unwrap_or_else(|| appkit::NSScreen::mainScreen(mtm).unwrap()))
       }
-      Some(Fullscreen::Borderless(None)) => Some(appkit::NSScreen::mainScreen(mtm).unwrap()),
+      Some(Fullscreen::Borderless(None)) => Some(
+        attrs
+          .position
+          .and_then(screen_from_position)
+          .unwrap_or_else(|| appkit::NSScreen::mainScreen(mtm).unwrap()),
+      ),
       None => None,
     };
     let frame = match &screen {
       Some(screen) => NSScreen::frame(screen),
       None => {
-        let screen = NSScreen::mainScreen(mtm).unwrap();
+        let screen = attrs
+          .position
+          .and_then(screen_from_position)
+          .unwrap_or_else(|| appkit::NSScreen::mainScreen(mtm).unwrap());
         let scale_factor = NSScreen::backingScaleFactor(&screen) as f64;
         let desired_size = attrs
           .inner_size
@@ -234,8 +243,8 @@ fn create_window(
       masks |= NSWindowStyleMask::FullSizeContentView;
     }
 
-    let ns_window = msg_send![WINDOW_CLASS.0, alloc];
-    let ns_window: Option<Retained<NSWindow>> = msg_send![
+    let ns_window: id = msg_send![WINDOW_CLASS.0, alloc];
+    let ns_window_ptr: id = msg_send![
       ns_window,
       initWithContentRect: frame,
       styleMask: masks,
@@ -243,7 +252,12 @@ fn create_window(
       defer: NO,
     ];
 
-    ns_window.map(|ns_window| {
+    Retained::retain(ns_window_ptr).and_then(|r| r.downcast::<NSWindow>().ok()).map(|ns_window| {
+      #[allow(deprecated)]
+      {
+        *((*ns_window_ptr).get_mut_ivar::<Bool>("focusable")) = attrs.focusable.into();
+      }
+
       let title = NSString::from_str(&attrs.title);
       ns_window.setReleasedWhenClosed(false);
       ns_window.setTitle(&title);
@@ -323,6 +337,25 @@ fn create_window(
   }
 }
 
+fn screen_from_position(position: Position) -> Option<Retained<NSScreen>> {
+  for m in monitor::available_monitors() {
+    let monitor_pos = m.position();
+    let monitor_size = m.size();
+
+    // type annotations required for 32bit targets.
+    let window_position = position.to_physical::<i32>(m.scale_factor());
+
+    let is_in_monitor = monitor_pos.x <= window_position.x
+      && window_position.x < monitor_pos.x + monitor_size.width as i32
+      && monitor_pos.y <= window_position.y
+      && window_position.y < monitor_pos.y + monitor_size.height as i32;
+    if is_in_monitor {
+      return m.ns_screen();
+    }
+  }
+  None
+}
+
 pub(super) fn get_ns_theme() -> Theme {
   unsafe {
     let appearances: Vec<Retained<NSString>> = vec![
@@ -372,25 +405,32 @@ struct WindowClass(&'static Class);
 unsafe impl Send for WindowClass {}
 unsafe impl Sync for WindowClass {}
 
-lazy_static! {
-  static ref WINDOW_CLASS: WindowClass = unsafe {
-    let window_superclass = class!(NSWindow);
-    let mut decl = ClassDecl::new(
-      CStr::from_bytes_with_nul(b"TaoWindow\0").unwrap(),
-      window_superclass,
-    )
-    .unwrap();
-    decl.add_method(
-      sel!(canBecomeMainWindow),
-      util::yes as extern "C" fn(_, _) -> _,
-    );
-    decl.add_method(
-      sel!(canBecomeKeyWindow),
-      util::yes as extern "C" fn(_, _) -> _,
-    );
-    decl.add_method(sel!(sendEvent:), send_event as extern "C" fn(_, _, _));
-    WindowClass(decl.register())
-  };
+static WINDOW_CLASS: Lazy<WindowClass> = Lazy::new(|| unsafe {
+  let window_superclass = class!(NSWindow);
+  let mut decl = ClassDecl::new(
+    CStr::from_bytes_with_nul(b"TaoWindow\0").unwrap(),
+    window_superclass,
+  )
+  .unwrap();
+  decl.add_method(
+    sel!(canBecomeMainWindow),
+    is_focusable as extern "C" fn(_, _) -> _,
+  );
+  decl.add_method(
+    sel!(canBecomeKeyWindow),
+    is_focusable as extern "C" fn(_, _) -> _,
+  );
+  decl.add_method(sel!(sendEvent:), send_event as extern "C" fn(_, _, _));
+  // progress bar states, follows ProgressState
+  decl.add_ivar::<Bool>(CStr::from_bytes_with_nul(b"focusable\0").unwrap());
+  WindowClass(decl.register())
+});
+
+extern "C" fn is_focusable(this: &Object, _: Sel) -> Bool {
+  #[allow(deprecated)] // TODO: Use define_class!
+  unsafe {
+    *(this.get_ivar("focusable"))
+  }
 }
 
 extern "C" fn send_event(this: &Object, _sel: Sel, event: &NSEvent) {
@@ -509,7 +549,12 @@ impl UnownedWindow {
         let color = win_attribs
           .background_color
           .map(|(r, g, b, a)| {
-            NSColor::colorWithRed_green_blue_alpha(r as f64, g as f64, b as f64, a as f64 / 255.0)
+            NSColor::colorWithRed_green_blue_alpha(
+              r as f64 / 255.0,
+              g as f64 / 255.0,
+              b as f64 / 255.0,
+              a as f64 / 255.0,
+            )
           })
           .unwrap_or_else(|| NSColor::clearColor());
         ns_window.setBackgroundColor(Some(&color));
@@ -636,6 +681,16 @@ impl UnownedWindow {
       if !is_minimized && is_visible {
         util::set_focus(&self.ns_window);
       }
+    }
+  }
+
+  #[inline]
+  pub fn set_focusable(&self, focusable: bool) {
+    #[allow(deprecated)] // TODO: Use define_class!
+    unsafe {
+      let ns_window =
+        Retained::into_raw(Retained::cast_unchecked::<Object>(self.ns_window.clone()));
+      *((*ns_window).get_mut_ivar::<Bool>("focusable")) = focusable.into();
     }
   }
 
@@ -855,9 +910,9 @@ impl UnownedWindow {
       let color = color
         .map(|(r, g, b, a)| {
           Some(NSColor::colorWithRed_green_blue_alpha(
-            r as f64,
-            g as f64,
-            b as f64,
+            r as f64 / 255.0,
+            g as f64 / 255.0,
+            b as f64 / 255.0,
             a as f64 / 255.0,
           ))
         })
@@ -919,24 +974,30 @@ impl UnownedWindow {
   }
 
   pub(crate) fn is_zoomed(&self) -> bool {
-    // because `isZoomed` doesn't work if the window's borderless,
-    // we make it resizable temporalily.
-    let curr_mask = unsafe { self.ns_window.styleMask() };
+    // Previously, is_zoomed temporarily mutated the window's styleMask(or resizable)
+    // to force macOS to return a valid result for borderless windows.
+    // This synchronous mutation could trigger unnecessary layout passes or state inconsistencies.
+    // Related issue: https://github.com/rust-windowing/winit/issues/4071 and https://github.com/tauri-apps/plugins-workspace/issues/3240
 
-    let required = NSWindowStyleMask::Titled | NSWindowStyleMask::Resizable;
-    let needs_temp_mask = !curr_mask.contains(required);
-    if needs_temp_mask {
-      self.set_style_mask_sync(required);
+    unsafe {
+      let curr_mask = self.ns_window.styleMask();
+
+      let required = NSWindowStyleMask::Titled | NSWindowStyleMask::Resizable;
+      if curr_mask.contains(required) {
+        return self.ns_window.isZoomed();
+      }
+
+      if let Some(screen) = self.ns_window.screen() {
+        let frame = self.ns_window.frame();
+        let visible_frame = screen.visibleFrame();
+
+        return (frame.size.width - visible_frame.size.width).abs() < 1.0
+          && (frame.size.height - visible_frame.size.height).abs() < 1.0;
+      }
+
+      // Fallback to original `isZoomed` check
+      self.ns_window.isZoomed()
     }
-
-    let is_zoomed: bool = unsafe { self.ns_window.isZoomed() };
-
-    // Roll back temp styles
-    if needs_temp_mask {
-      self.set_style_mask_sync(curr_mask);
-    }
-
-    is_zoomed
   }
 
   fn saved_style(&self, shared_state: &mut SharedState) -> NSWindowStyleMask {
@@ -1095,11 +1156,17 @@ impl UnownedWindow {
     // does not take a screen parameter, but uses the current screen)
     if let Some(ref fullscreen) = fullscreen {
       let new_screen = match fullscreen {
-        Fullscreen::Borderless(borderless) => {
-          let RootMonitorHandle { inner: monitor } = borderless
-            .clone()
-            .unwrap_or_else(|| self.current_monitor_inner());
+        Fullscreen::Borderless(Some(borderless)) => {
+          let RootMonitorHandle { inner: monitor } = borderless.clone();
           monitor
+        }
+        Fullscreen::Borderless(None) => {
+          if let Some(current) = self.current_monitor_inner() {
+            let RootMonitorHandle { inner: monitor } = current;
+            monitor
+          } else {
+            return;
+          }
         }
         Fullscreen::Exclusive(RootVideoMode {
           video_mode: VideoMode { ref monitor, .. },
@@ -1372,22 +1439,22 @@ impl UnownedWindow {
 
   #[inline]
   // Allow directly accessing the current monitor internally without unwrapping.
-  pub(crate) fn current_monitor_inner(&self) -> RootMonitorHandle {
+  pub(crate) fn current_monitor_inner(&self) -> Option<RootMonitorHandle> {
     unsafe {
-      let screen: Retained<NSScreen> = msg_send![&self.ns_window, screen];
+      let screen: Retained<NSScreen> = self.ns_window.screen()?;
       let desc = NSScreen::deviceDescription(&screen);
-      let key = NSString::from_str("NSScreenNumber");
+      let key = ns_string!("NSScreenNumber");
       let value = NSDictionary::objectForKey(&desc, &key).unwrap();
       let display_id: NSUInteger = msg_send![&value, unsignedIntegerValue];
-      RootMonitorHandle {
+      Some(RootMonitorHandle {
         inner: MonitorHandle::new(display_id.try_into().unwrap()),
-      }
+      })
     }
   }
 
   #[inline]
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
-    Some(self.current_monitor_inner())
+    self.current_monitor_inner()
   }
   #[inline]
   pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<RootMonitorHandle> {

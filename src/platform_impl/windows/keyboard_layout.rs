@@ -1,11 +1,10 @@
+use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use std::{
   collections::{hash_map::Entry, HashMap, HashSet},
   ffi::OsString,
   os::windows::ffi::OsStringExt,
 };
-
-use lazy_static::lazy_static;
 
 use windows::Win32::{
   System::SystemServices::{LANG_JAPANESE, LANG_KOREAN},
@@ -18,9 +17,8 @@ use crate::{
   platform_impl::platform::util,
 };
 
-lazy_static! {
-  pub(crate) static ref LAYOUT_CACHE: Mutex<LayoutCache> = Mutex::new(LayoutCache::default());
-}
+pub(crate) static LAYOUT_CACHE: Lazy<Mutex<LayoutCache>> =
+  Lazy::new(|| Mutex::new(LayoutCache::default()));
 
 fn key_pressed(vkey: VIRTUAL_KEY) -> bool {
   unsafe { (GetKeyState(u32::from(vkey.0) as i32) & (1 << 15)) == (1 << 15) }
@@ -45,28 +43,26 @@ const NUMPAD_VKEYS: [VIRTUAL_KEY; 16] = [
   VK_DIVIDE,
 ];
 
-lazy_static! {
-  static ref NUMPAD_KEYCODES: HashSet<KeyCode> = {
-    let mut keycodes = HashSet::new();
-    keycodes.insert(KeyCode::Numpad0);
-    keycodes.insert(KeyCode::Numpad1);
-    keycodes.insert(KeyCode::Numpad2);
-    keycodes.insert(KeyCode::Numpad3);
-    keycodes.insert(KeyCode::Numpad4);
-    keycodes.insert(KeyCode::Numpad5);
-    keycodes.insert(KeyCode::Numpad6);
-    keycodes.insert(KeyCode::Numpad7);
-    keycodes.insert(KeyCode::Numpad8);
-    keycodes.insert(KeyCode::Numpad9);
-    keycodes.insert(KeyCode::NumpadMultiply);
-    keycodes.insert(KeyCode::NumpadAdd);
-    keycodes.insert(KeyCode::NumpadComma);
-    keycodes.insert(KeyCode::NumpadSubtract);
-    keycodes.insert(KeyCode::NumpadDecimal);
-    keycodes.insert(KeyCode::NumpadDivide);
-    keycodes
-  };
-}
+static NUMPAD_KEYCODES: Lazy<HashSet<KeyCode>> = Lazy::new(|| {
+  let mut keycodes = HashSet::new();
+  keycodes.insert(KeyCode::Numpad0);
+  keycodes.insert(KeyCode::Numpad1);
+  keycodes.insert(KeyCode::Numpad2);
+  keycodes.insert(KeyCode::Numpad3);
+  keycodes.insert(KeyCode::Numpad4);
+  keycodes.insert(KeyCode::Numpad5);
+  keycodes.insert(KeyCode::Numpad6);
+  keycodes.insert(KeyCode::Numpad7);
+  keycodes.insert(KeyCode::Numpad8);
+  keycodes.insert(KeyCode::Numpad9);
+  keycodes.insert(KeyCode::NumpadMultiply);
+  keycodes.insert(KeyCode::NumpadAdd);
+  keycodes.insert(KeyCode::NumpadComma);
+  keycodes.insert(KeyCode::NumpadSubtract);
+  keycodes.insert(KeyCode::NumpadDecimal);
+  keycodes.insert(KeyCode::NumpadDivide);
+  keycodes
+});
 
 bitflags! {
     #[derive(Clone, Copy, Eq, PartialEq, Hash)]

@@ -10,21 +10,26 @@
   target_os = "openbsd"
 ))]
 
+#[cfg(feature = "x11")]
 use std::{os::raw::c_int, sync::Arc};
 
 // XConnection utilities
 #[doc(hidden)]
+#[cfg(feature = "x11")]
 pub use crate::platform_impl::x11;
 
+#[cfg(feature = "x11")]
+use crate::platform_impl::x11::xdisplay::XError;
 pub use crate::platform_impl::EventLoop as UnixEventLoop;
 use crate::{
   error::{ExternalError, OsError},
   event_loop::{EventLoopBuilder, EventLoopWindowTarget},
   monitor::MonitorHandle,
-  platform_impl::{x11::xdisplay::XError, Parent, Window as UnixWindow},
+  platform_impl::{Parent, Window as UnixWindow},
   window::{Window, WindowBuilder},
 };
 
+#[cfg(feature = "x11")]
 use self::x11::xdisplay::XConnection;
 
 /// Additional methods on `EventLoop` that are specific to Unix.
@@ -101,7 +106,7 @@ impl WindowExtUnix for Window {
     window: gtk::ApplicationWindow,
   ) -> Result<Window, OsError> {
     let window = UnixWindow::new_from_gtk_window(&event_loop_window_target.p, window)?;
-    Ok(Window { window: window })
+    Ok(Window { window })
   }
 
   fn set_badge_count(&self, count: Option<i64>, desktop_filename: Option<String>) {
@@ -201,8 +206,10 @@ pub trait EventLoopWindowTargetExtUnix {
   fn is_wayland(&self) -> bool;
 
   /// True if the `EventLoopWindowTarget` uses X11.
+  #[cfg(feature = "x11")]
   fn is_x11(&self) -> bool;
 
+  #[cfg(feature = "x11")]
   fn xlib_xconnection(&self) -> Option<Arc<XConnection>>;
 
   // /// Returns a pointer to the `wl_display` object of wayland that is used by this
@@ -226,11 +233,13 @@ impl<T> EventLoopWindowTargetExtUnix for EventLoopWindowTarget<T> {
     self.p.is_wayland()
   }
 
+  #[cfg(feature = "x11")]
   #[inline]
   fn is_x11(&self) -> bool {
     !self.p.is_wayland()
   }
 
+  #[cfg(feature = "x11")]
   #[inline]
   fn xlib_xconnection(&self) -> Option<Arc<XConnection>> {
     if self.is_x11() {
@@ -266,6 +275,7 @@ impl<T> EventLoopWindowTargetExtUnix for EventLoopWindowTarget<T> {
   }
 }
 
+#[cfg(feature = "x11")]
 unsafe extern "C" fn x_error_callback(
   _display: *mut x11::ffi::Display,
   event: *mut x11::ffi::XErrorEvent,

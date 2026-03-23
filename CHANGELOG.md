@@ -1,5 +1,57 @@
 # Changelog
 
+## \[0.34.8]
+
+- [`2fb51231`](https://github.com/tauri-apps/tao/commit/2fb512315899973e2c64d00c0e34ed382d93c893) ([#1182](https://github.com/tauri-apps/tao/pull/1182) by [@Tunglies](https://github.com/tauri-apps/tao/../../Tunglies)) Remove synchronous styleMask mutations in is_zoomed on macOS
+
+## \[0.34.7]
+
+- [`541cf20e`](https://github.com/tauri-apps/tao/commit/541cf20ed1f7bf15576db2faaac35d8beb4ab193) ([#1190](https://github.com/tauri-apps/tao/pull/1190) by [@damadczar](https://github.com/tauri-apps/tao/../../damadczar)) fix(linux): exit cleanly when GtkApplication is a remote GIO instance
+
+## \[0.34.6]
+
+- [`a4837862`](https://github.com/tauri-apps/tao/commit/a48378626f728665526e0c65fce0142282ca1f34) ([#1189](https://github.com/tauri-apps/tao/pull/1189) by [@thomaseizinger](https://github.com/tauri-apps/tao/../../thomaseizinger)) Downgrades several logs in the Windows backend from WARN to DEBUG.
+- [`e1c9cb69`](https://github.com/tauri-apps/tao/commit/e1c9cb699b6e0943f45f27fbf558efce8d617f5e) ([#1185](https://github.com/tauri-apps/tao/pull/1185) by [@kanatapple](https://github.com/tauri-apps/tao/../../kanatapple)) Prevent panics on Windows when a monitor handle becomes invalid during info retrieval.
+- [`e196538f`](https://github.com/tauri-apps/tao/commit/e196538f989894fcb92401fced54d7d3a65fc91a) ([#1165](https://github.com/tauri-apps/tao/pull/1165) by [@Slinetrac](https://github.com/tauri-apps/tao/../../Slinetrac)) fix(windows): respect default app mode via registry in dark mode detection
+- [`a133504b`](https://github.com/tauri-apps/tao/commit/a133504b6dc963a5ad7786e01e746dba72236b65) ([#1184](https://github.com/tauri-apps/tao/pull/1184) by [@Tunglies](https://github.com/tauri-apps/tao/../../Tunglies)) Replace NSString::from_str with ns_string macro in macOS. No user facing changes.
+
+## \[0.34.5]
+
+- [`92e22209`](https://github.com/tauri-apps/tao/commit/92e22209fb58248449175b5b86697243d6a93db2) ([#1152](https://github.com/tauri-apps/tao/pull/1152) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Emit `Event::LoopDestroyed` on activity destroy on Android.
+- [`da1514be`](https://github.com/tauri-apps/tao/commit/da1514be09993ea4aace8c64cfdf0af14f22b818) ([#1150](https://github.com/tauri-apps/tao/pull/1150) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Fix maximized windows have empty edges when using auto hide task bar on Windows
+
+## \[0.34.4]
+
+- [`25f2c58a`](https://github.com/tauri-apps/tao/commit/25f2c58aca96215113d1a4feae5c854e3349cf06) ([#1148](https://github.com/tauri-apps/tao/pull/1148) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Trigger `WindowEvent::Destroyed` when the Android activity is destroyed. In this case, the app should either exit by setting the control flow to `ControlFlow::ExitWithCode` or NOT call the create() external function when the activity is recreated and `onCreate` is called, handling how to recreate the app window via a separate hook that can leverage the existing tao event loop.
+
+## \[0.34.3]
+
+- [`0defcd01`](https://github.com/tauri-apps/tao/commit/0defcd015c615b95f42ce3437b06174816f76602) ([#1132](https://github.com/tauri-apps/tao/pull/1132) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Exclude audit PDF file from the crate published to crates.io
+- [`3969a1a4`](https://github.com/tauri-apps/tao/commit/3969a1a45cfe2e173431eb1134b49e03c30bdc32) ([#1138](https://github.com/tauri-apps/tao/pull/1138) by [@aspcartman](https://github.com/tauri-apps/tao/../../aspcartman)) On macOS, fixed an issue that caused the window background color to be applied incorrectly (typically black).
+- [`28f5a96a`](https://github.com/tauri-apps/tao/commit/28f5a96a7d80859d97a84586b6c68fd4daac05d4) ([#1119](https://github.com/tauri-apps/tao/pull/1119) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Fix `WindowEvent::MouseWheel` doesn't account for mouse wheel speed settings
+- [`a1edbeb4`](https://github.com/tauri-apps/tao/commit/a1edbeb448d1104b8e9dd3181a04d45ff846a397) ([#1126](https://github.com/tauri-apps/tao/pull/1126) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Emit `Event::LoopDestroyed` on receiving `WM_ENDSESSION` message on Windows
+
+## \[0.34.2]
+
+- [`60a47340`](https://github.com/tauri-apps/tao/commit/60a47340c967eaaf5b4a41f0be6708d6daf950e3) ([#1108](https://github.com/tauri-apps/tao/pull/1108) by [@Simon-Laux](https://github.com/tauri-apps/tao/../../Simon-Laux)) feat: MacOS: add universal applink support
+  by implementing `application:willContinueUserActivityWithType:` and `application:continueUserActivity:restorationHandler:`,
+  reusing the existing `Event::Opened { urls }` event for the user facing api.
+
+## \[0.34.1]
+
+- [`f73c70fd`](https://github.com/tauri-apps/tao/commit/f73c70fd870016dc1298599cdbc9bcaa8db5d7bf) ([#1120](https://github.com/tauri-apps/tao/pull/1120) by [@robertrpf](https://github.com/tauri-apps/tao/../../robertrpf)) Added `WindowBuilder::with_focusable` to allow creating unfocusable windows.
+- [`f73c70fd`](https://github.com/tauri-apps/tao/commit/f73c70fd870016dc1298599cdbc9bcaa8db5d7bf) ([#1120](https://github.com/tauri-apps/tao/pull/1120) by [@robertrpf](https://github.com/tauri-apps/tao/../../robertrpf)) Added `Window::set_focusable`.
+
+## \[0.34.0]
+
+- [`773d324b`](https://github.com/tauri-apps/tao/commit/773d324be5462fbe472b9bec7505bb04bdc1cf9a) ([#1121](https://github.com/tauri-apps/tao/pull/1121) by [@FabianLars](https://github.com/tauri-apps/tao/../../FabianLars)) Fixed an issue that caused a panic on macOS when tao received `nil` from the OS when trying to get the current NSScreen.
+- [`ba65486a`](https://github.com/tauri-apps/tao/commit/ba65486abe14f2963e016731520e0cdadce3e199) ([#1107](https://github.com/tauri-apps/tao/pull/1107) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Fix initial position gets reset to 0 on Windows if it's accounted for the shadow
+- [`4a085054`](https://github.com/tauri-apps/tao/commit/4a08505412ed365ba160832305c5cfec5b53e622) ([#1103](https://github.com/tauri-apps/tao/pull/1103) by [@aurelj](https://github.com/tauri-apps/tao/../../aurelj)) Added `x11` feature flag (enabled by default).
+
+## \[0.33.0]
+
+- [`dae6d887`](https://github.com/tauri-apps/tao/commit/dae6d8875dbc10ce0ab45d9a00072436b3688b0e) ([#1100](https://github.com/tauri-apps/tao/pull/1100) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Updated `windows` to `0.61`.
+
 ## \[0.32.8]
 
 - [`b863d49c`](https://github.com/tauri-apps/tao/commit/b863d49c9735755ef6a51127b393a25b1a35d296) ([#1058](https://github.com/tauri-apps/tao/pull/1058) by [@1111mp](https://github.com/tauri-apps/tao/../../1111mp)) macOS: Add `set_dock_visibility` method to support setting the visibility of the application in the dock.

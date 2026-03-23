@@ -10,8 +10,13 @@ use crate::{
   },
 };
 
-use objc2::runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel};
-use objc2_foundation::{NSArray, NSURL};
+use objc2::runtime::{
+  AnyClass as Class, AnyObject as Object, Bool, ClassBuilder as ClassDecl, Sel,
+};
+use objc2_foundation::{
+  NSArray, NSError, NSString, NSUserActivity, NSUserActivityTypeBrowsingWeb, NSURL,
+};
+use once_cell::sync::Lazy;
 use std::{
   cell::{RefCell, RefMut},
   ffi::{CStr, CString},
@@ -39,43 +44,49 @@ pub struct AppDelegateClass(pub *const Class);
 unsafe impl Send for AppDelegateClass {}
 unsafe impl Sync for AppDelegateClass {}
 
-lazy_static! {
-  pub static ref APP_DELEGATE_CLASS: AppDelegateClass = unsafe {
-    let superclass = class!(NSResponder);
-    let mut decl = ClassDecl::new(
-      CStr::from_bytes_with_nul(b"TaoAppDelegateParent\0").unwrap(),
-      superclass,
-    )
-    .unwrap();
+pub static APP_DELEGATE_CLASS: Lazy<AppDelegateClass> = Lazy::new(|| unsafe {
+  let superclass = class!(NSResponder);
+  let mut decl = ClassDecl::new(
+    CStr::from_bytes_with_nul(b"TaoAppDelegateParent\0").unwrap(),
+    superclass,
+  )
+  .unwrap();
 
-    decl.add_class_method(sel!(new), new as extern "C" fn(_, _) -> _);
-    decl.add_method(sel!(dealloc), dealloc as extern "C" fn(_, _));
+  decl.add_class_method(sel!(new), new as extern "C" fn(_, _) -> _);
+  decl.add_method(sel!(dealloc), dealloc as extern "C" fn(_, _));
 
-    decl.add_method(
-      sel!(applicationDidFinishLaunching:),
-      did_finish_launching as extern "C" fn(_, _, _),
-    );
-    decl.add_method(
-      sel!(applicationWillTerminate:),
-      application_will_terminate as extern "C" fn(_, _, _),
-    );
-    decl.add_method(
-      sel!(application:openURLs:),
-      application_open_urls as extern "C" fn(_, _, _, _),
-    );
-    decl.add_method(
-      sel!(applicationShouldHandleReopen:hasVisibleWindows:),
-      application_should_handle_reopen as extern "C" fn(_, _, _, _) -> _,
-    );
-    decl.add_method(
-      sel!(applicationSupportsSecureRestorableState:),
-      application_supports_secure_restorable_state as extern "C" fn(_, _, _) -> _,
-    );
-    decl.add_ivar::<*mut c_void>(&CString::new(AUX_DELEGATE_STATE_NAME).unwrap());
+  decl.add_method(
+    sel!(applicationDidFinishLaunching:),
+    did_finish_launching as extern "C" fn(_, _, _),
+  );
+  decl.add_method(
+    sel!(applicationWillTerminate:),
+    application_will_terminate as extern "C" fn(_, _, _),
+  );
+  decl.add_method(
+    sel!(application:openURLs:),
+    application_open_urls as extern "C" fn(_, _, _, _),
+  );
+  decl.add_method(
+    sel!(application:willContinueUserActivityWithType:),
+    application_will_continue_user_activity_with_type as extern "C" fn(_, _, _, _) -> _,
+  );
+  decl.add_method(
+    sel!(application:continueUserActivity:restorationHandler:),
+    application_continue_user_activity as extern "C" fn(_, _, _, _, _) -> _,
+  );
+  decl.add_method(
+    sel!(applicationShouldHandleReopen:hasVisibleWindows:),
+    application_should_handle_reopen as extern "C" fn(_, _, _, _) -> _,
+  );
+  decl.add_method(
+    sel!(applicationSupportsSecureRestorableState:),
+    application_supports_secure_restorable_state as extern "C" fn(_, _, _) -> _,
+  );
+  decl.add_ivar::<*mut c_void>(&CString::new(AUX_DELEGATE_STATE_NAME).unwrap());
 
-    AppDelegateClass(decl.register())
-  };
-}
+  AppDelegateClass(decl.register())
+});
 
 /// Safety: Assumes that Object is an instance of APP_DELEGATE_CLASS
 #[allow(deprecated)] // TODO: Use define_class!
@@ -134,6 +145,62 @@ extern "C" fn application_open_urls(_: &Object, _: Sel, _: id, urls: &NSArray<NS
   trace!("Get `application:openURLs:` URLs: {:?}", urls);
   AppState::open_urls(urls);
   trace!("Completed `application:openURLs:`");
+}
+
+extern "C" fn application_will_continue_user_activity_with_type(
+  _: &Object,
+  _: Sel,
+  _: id,
+  user_activity_type: &NSString,
+) -> Bool {
+  trace!("Trigger `application:willContinueUserActivityWithType:`");
+  let result = unsafe { Bool::new(user_activity_type == NSUserActivityTypeBrowsingWeb) };
+  trace!("Completed `application:willContinueUserActivityWithType:`");
+  result
+}
+
+extern "C" fn application_continue_user_activity(
+  _: &Object,
+  _: Sel,
+  _: id,
+  user_activity: &NSUserActivity,
+  _restoration_handler: &block2::Block<dyn Fn(*mut NSError)>,
+) -> Bool {
+  trace!("Trigger `application:continueUserActivity:restorationHandler:`");
+  let url = unsafe {
+    if user_activity
+      .activityType()
+      .isEqualToString(NSUserActivityTypeBrowsingWeb)
+    {
+      match user_activity
+        .webpageURL()
+        .and_then(|url| url.absoluteString())
+        .and_then(|s| Some(s.to_string()))
+      {
+        None => {
+          error!(
+              "`application:continueUserActivity:restorationHandler:`: restore webbrowsing activity but url is empty"
+            );
+          return Bool::new(false);
+        }
+        Some(url_string) => match url::Url::parse(&url_string) {
+          Ok(url) => url,
+          Err(err) => {
+            error!(
+              "`application:continueUserActivity:restorationHandler:`: failed to parse url {err}"
+            );
+            return Bool::new(false);
+          }
+        },
+      }
+    } else {
+      return Bool::new(false);
+    }
+  };
+
+  AppState::open_urls(vec![url]);
+  trace!("Completed `application:continueUserActivity:restorationHandler:`");
+  return Bool::new(true);
 }
 
 extern "C" fn application_should_handle_reopen(
