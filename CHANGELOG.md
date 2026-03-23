@@ -1,5 +1,36 @@
 # Changelog
 
+## \[0.35.0]
+
+- [`4e7c2f4a`](https://github.com/tauri-apps/tao/commit/4e7c2f4aa06e368403c6f170997fafd0c9a88418) ([#1154](https://github.com/tauri-apps/tao/pull/1154) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) **Breaking change:** The Android activity should now reference and call the following external functions:
+
+        private external fun onActivityCreate(activity)
+        private external fun start()
+        private external fun resume()
+        private external fun pause()
+        private external fun stop()
+        private external fun onActivitySaveInstanceState()
+        private external fun onActivityDestroy(activity)
+        private external fun onActivityLowMemory()
+- [`18040018`](https://github.com/tauri-apps/tao/commit/18040018831de762473189999768a4b44ad03c63) ([#1146](https://github.com/tauri-apps/tao/pull/1146) by [@JeffTsang](https://github.com/tauri-apps/tao/../../JeffTsang)) `Event::Resumed` is now only emitted when the app is actually resumed (going back to foreground) so it won't be called on app startup.
+- [`56e9840b`](https://github.com/tauri-apps/tao/commit/56e9840b356d4bb97fd9db8477f5aac8640f6b6f) ([#1141](https://github.com/tauri-apps/tao/pull/1141) by [@haecker-felix](https://github.com/tauri-apps/tao/../../haecker-felix)) Use the Linux XDG Desktop Portal to add support for the system color scheme. Needs `dbus` feature flag.
+- [`4e7c2f4a`](https://github.com/tauri-apps/tao/commit/4e7c2f4aa06e368403c6f170997fafd0c9a88418) ([#1154](https://github.com/tauri-apps/tao/pull/1154) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Added multi-window support for iOS and Android.
+
+  Leverages [scenes](https://developer.apple.com/documentation/uikit/scenes) on iOS and [Activity embedding](https://developer.android.com/develop/ui/views/layout/activity-embedding) on Android.
+
+  iOS:
+
+  - Added Event::SceneRequested (on iPad the user can request a new window to be open - e.g. by long pressing the app icon and selecting "New window")
+  - Request new scene to be created on Window::new (if needed, main scene is detected automatically) and assign the window instance later when it gets connected
+
+  Android:
+
+  - Create new activity on Window::new (if needed, main activity is detected automatically)
+  - Added builder methods to determine the activity to be created
+  - System determines what to do with the activity (new stack, next to another one.. based on the embedding rules)
+- [`9cea0358`](https://github.com/tauri-apps/tao/commit/9cea03582a3272c8fe60f20b519ff0cd562448b7) ([#1155](https://github.com/tauri-apps/tao/pull/1155) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Fire `Event::Opened` on Android, which now requires the activity to call the onNewIntent(intent) external function.
+- [`18040018`](https://github.com/tauri-apps/tao/commit/18040018831de762473189999768a4b44ad03c63) ([#1146](https://github.com/tauri-apps/tao/pull/1146) by [@JeffTsang](https://github.com/tauri-apps/tao/../../JeffTsang)) Use WillEnterForeground instead of DidBecomeActive for Event::Resumed in iOS.
+
 ## \[0.34.8]
 
 - [`2fb51231`](https://github.com/tauri-apps/tao/commit/2fb512315899973e2c64d00c0e34ed382d93c893) ([#1182](https://github.com/tauri-apps/tao/pull/1182) by [@Tunglies](https://github.com/tauri-apps/tao/../../Tunglies)) Remove synchronous styleMask mutations in is_zoomed on macOS
