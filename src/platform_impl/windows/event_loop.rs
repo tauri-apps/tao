@@ -1085,6 +1085,21 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     win32wm::WM_PAINT => {
+      // `WM_ERASEBKGND` alone is unreliable for some styles (e.g. undecorated windows); painting the
+      // solid color here matches user expectations for `WindowAttributes::background_color`.
+      let background_color = subclass_input.window_state.lock().background_color;
+      let painted_client_background = background_color.is_some();
+      if let Some(color) = background_color {
+        let mut ps = PAINTSTRUCT::default();
+        let hdc = BeginPaint(window, &mut ps);
+        if !hdc.is_invalid() {
+          let brush = CreateSolidBrush(util::RGB(color.0, color.1, color.2));
+          let _ = FillRect(hdc, &ps.rcPaint, brush);
+          let _ = DeleteObject(brush.into());
+        }
+        let _ = EndPaint(window, &ps);
+      }
+
       if subclass_input.event_loop_runner.should_buffer() {
         // this branch can happen in response to `UpdateWindow`, if win32 decides to
         // redraw the window outside the normal flow of the event loop.
@@ -1098,6 +1113,10 @@ unsafe fn public_window_callback_inner<T: 'static>(
           subclass_input.event_loop_runner.redraw_events_cleared();
           process_control_flow(&subclass_input.event_loop_runner);
         }
+      }
+
+      if painted_client_background {
+        result = ProcResult::Value(LRESULT(0));
       }
     }
 
