@@ -1806,27 +1806,35 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     win32wm::WM_SETCURSOR => {
-      let set_cursor_to = {
+      let (set_cursor_to, is_cursor_hidden) = {
         let window_state = subclass_input.window_state.lock();
         // The return value for the preceding `WM_NCHITTEST` message is conveniently
         // provided through the low-order word of lParam. We use that here since
         // `WM_MOUSEMOVE` seems to come after `WM_SETCURSOR` for a given cursor movement.
         let in_client_area = u32::from(util::LOWORD(lparam.0 as u32)) == HTCLIENT;
-        if in_client_area {
-          Some(window_state.mouse.cursor)
+        let is_hidden = window_state.mouse.cursor_flags().contains(CursorFlags::HIDDEN);
+        if is_hidden {
+          (None, true)
+        } else if in_client_area {
+          (Some(window_state.mouse.cursor), false)
         } else {
-          None
+          (None, false)
         }
       };
 
-      match set_cursor_to {
-        Some(cursor) => {
-          if let Ok(cursor) = LoadCursorW(None, cursor.to_windows_cursor()) {
-            SetCursor(Some(cursor));
+      if is_cursor_hidden {
+        SetCursor(None);
+        result = ProcResult::Value(LRESULT(1));
+      } else {
+        match set_cursor_to {
+          Some(cursor) => {
+            if let Ok(cursor) = LoadCursorW(None, cursor.to_windows_cursor()) {
+              SetCursor(Some(cursor));
+            }
+            result = ProcResult::Value(LRESULT(1));
           }
-          result = ProcResult::Value(LRESULT(0));
+          None => result = ProcResult::DefWindowProc,
         }
-        None => result = ProcResult::DefWindowProc,
       }
     }
 
