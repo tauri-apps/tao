@@ -1813,7 +1813,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
         // `WM_MOUSEMOVE` seems to come after `WM_SETCURSOR` for a given cursor movement.
         let in_client_area = u32::from(util::LOWORD(lparam.0 as u32)) == HTCLIENT;
         let is_hidden = window_state.mouse.cursor_flags().contains(CursorFlags::HIDDEN);
-        if is_hidden {
+        if is_hidden && in_client_area {
           (None, true)
         } else if in_client_area {
           (Some(window_state.mouse.cursor), false)
