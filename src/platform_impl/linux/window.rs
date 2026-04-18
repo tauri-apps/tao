@@ -43,10 +43,6 @@ impl WindowId {
   }
 }
 
-// Currently GTK doesn't provide feature for detect theme, so we need to check theme manually.
-// ref: https://github.com/WebKit/WebKit/blob/e44ffaa0d999a9807f76f1805943eea204cfdfbc/Source/WebKit/UIProcess/API/gtk/PageClientImpl.cpp#L587
-const GTK_THEME_SUFFIX_LIST: [&str; 3] = ["-dark", "-Dark", "-Darker"];
-
 pub struct Window {
   /// Window id.
   pub(crate) window_id: WindowId,
@@ -197,29 +193,17 @@ impl Window {
       window.stick();
     }
 
-    let preferred_theme = if let Some(settings) = Settings::default() {
-      if let Some(preferred_theme) = attributes.preferred_theme {
-        match preferred_theme {
-          Theme::Dark => settings.set_gtk_application_prefer_dark_theme(true),
-          Theme::Light => {
-            if let Some(theme) = settings.gtk_theme_name() {
-              let theme = theme.as_str();
-              // Remove dark variant.
-              if let Some(theme) = GTK_THEME_SUFFIX_LIST
-                .iter()
-                .find(|t| theme.ends_with(*t))
-                .map(|v| theme.strip_suffix(v))
-              {
-                settings.set_gtk_theme_name(theme);
-              }
-            }
-          }
-        }
+    // Set initial `preferred_theme` value to current portal color-scheme
+    #[cfg(feature = "dbus")]
+    let preferred_theme = super::portal::theme().ok();
+    #[cfg(not(feature = "dbus"))]
+    let preferred_theme = None;
+
+    if let Some(theme) = preferred_theme {
+      if let Some(settings) = Settings::default() {
+        settings.set_gtk_application_prefer_dark_theme(theme == Theme::Dark);
       }
-      attributes.preferred_theme
-    } else {
-      None
-    };
+    }
 
     if attributes.visible {
       window.show_all();
@@ -1029,11 +1013,9 @@ impl Window {
       return theme;
     }
 
-    if let Some(theme) = Settings::default().and_then(|s| s.gtk_theme_name()) {
-      let theme = theme.as_str();
-      if GTK_THEME_SUFFIX_LIST.iter().any(|t| theme.ends_with(t)) {
-        return Theme::Dark;
-      }
+    #[cfg(feature = "dbus")]
+    if let Ok(portal_theme) = super::portal::theme() {
+      return portal_theme;
     }
 
     Theme::Light

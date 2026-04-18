@@ -9,6 +9,8 @@ mod icon;
 mod keyboard;
 mod keycode;
 mod monitor;
+#[cfg(feature = "dbus")]
+mod portal;
 mod util;
 mod window;
 

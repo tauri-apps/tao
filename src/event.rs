@@ -78,9 +78,21 @@ pub enum Event<'a, T: 'static> {
   UserEvent(T),
 
   /// Emitted when the application has been suspended.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: This is triggered by `onPause` method of the Activity.
+  /// - **iOS**: This is triggered by `applicationWillResignActive` method of the UIApplicationDelegate.
+  /// - **Linux / macOS / Windows**: Unsupported.
   Suspended,
 
   /// Emitted when the application has been resumed.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: This is triggered by `onResume` method of the Activity. The first onResume() is ignored to match the iOS implementation, since that is called on activity creation.
+  /// - **iOS**: This is triggered by `applicationWillEnterForeground` method of the UIApplicationDelegate.
+  /// - **Linux / macOS / Windows**: Unsupported.
   Resumed,
 
   /// Emitted when all of the event loop's input events have been processed and redraw processing
@@ -142,6 +154,21 @@ pub enum Event<'a, T: 'static> {
   /// - **Other**: Unsupported.
   #[non_exhaustive]
   Reopen { has_visible_windows: bool },
+
+  /// Emitted when a scene is requested by the system.
+  ///
+  /// This event is emitted when a scene is requested by the system.
+  /// Scenes created by `Window::new` are not emitted with this event.
+  /// It is also not emitted for the main scene.
+  #[cfg(target_os = "ios")]
+  SceneRequested {
+    /// Scene that was requested by the system.
+    scene: objc2::rc::Retained<objc2_ui_kit::UIScene>,
+    /// Options that were used to request the scene.
+    ///
+    /// This lets you determine why the scene was requested.
+    options: objc2::rc::Retained<objc2_ui_kit::UISceneConnectionOptions>,
+  },
 }
 
 impl<T: Clone> Clone for Event<'static, T> {
@@ -170,6 +197,11 @@ impl<T: Clone> Clone for Event<'static, T> {
       } => Reopen {
         has_visible_windows: *has_visible_windows,
       },
+      #[cfg(target_os = "ios")]
+      SceneRequested { scene, options } => SceneRequested {
+        scene: scene.clone(),
+        options: options.clone(),
+      },
     }
   }
 }
@@ -194,6 +226,8 @@ impl<'a, T> Event<'a, T> {
       } => Ok(Reopen {
         has_visible_windows,
       }),
+      #[cfg(target_os = "ios")]
+      SceneRequested { scene, options } => Ok(SceneRequested { scene, options }),
     }
   }
 
@@ -220,6 +254,8 @@ impl<'a, T> Event<'a, T> {
       } => Some(Reopen {
         has_visible_windows,
       }),
+      #[cfg(target_os = "ios")]
+      SceneRequested { scene, options } => Some(SceneRequested { scene, options }),
     }
   }
 }
@@ -412,7 +448,7 @@ pub enum WindowEvent<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ThemeChanged(Theme),
 
   /// The window decorations has been clicked.

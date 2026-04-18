@@ -13,21 +13,22 @@ use std::{
   time::Instant,
 };
 
-use objc2::runtime::AnyObject;
-use once_cell::sync::Lazy;
+use objc2::{rc::Retained, runtime::AnyObject, MainThreadMarker, Message};
+use objc2_ui_kit::{UIApplication, UIScene, UISceneConnectionOptions, UIWindowScene};
 
 use crate::{
   dpi::LogicalSize,
   event::{Event, StartCause, WindowEvent},
   event_loop::ControlFlow,
   platform_impl::platform::{
-    event_loop::{EventHandler, EventProxy, EventWrapper, Never},
+    event_loop::{EventHandler, EventProxy, EventWrapper},
     ffi::{
       id, kCFRunLoopCommonModes, CFAbsoluteTimeGetCurrent, CFRelease, CFRunLoopAddTimer,
       CFRunLoopGetMain, CFRunLoopRef, CFRunLoopTimerCreate, CFRunLoopTimerInvalidate,
       CFRunLoopTimerRef, CFRunLoopTimerSetNextFireDate, CGRect, CGSize, NSInteger,
       NSOperatingSystemVersion, NSUInteger,
     },
+    scene::multiple_scenes_enabled,
   },
   window::WindowId as RootWindowId,
 };
@@ -53,12 +54,6 @@ enum UserCallbackTransitionResult<'a> {
   ReentrancyPrevented {
     queued_events: &'a mut Vec<EventWrapper>,
   },
-}
-
-impl Event<'static, Never> {
-  fn is_redraw(&self) -> bool {
-    matches!(self, Event::RedrawRequested(_))
-  }
 }
 
 // this is the state machine for the app lifecycle
@@ -105,6 +100,11 @@ struct AppState {
   app_state: Option<AppStateImpl>,
   control_flow: ControlFlow,
   waker: EventLoopWaker,
+  // Stores the UIWindow instances that do not have a scene assigned yet
+  // Window::new might create a window before a scene is ready for it,
+  // requesting a new scene to be activated and deferring the setWindowScene call to the scene delegate
+  windows_for_next_scenes: Vec<id>,
+  did_first_scene_connect: bool,
 }
 
 impl Drop for AppState {
@@ -156,6 +156,8 @@ impl AppState {
           }),
           control_flow: ControlFlow::default(),
           waker,
+          windows_for_next_scenes: Vec::new(),
+          did_first_scene_connect: false,
         });
       }
       init_guard(&mut guard)
@@ -468,6 +470,74 @@ impl AppState {
   }
 }
 
+// tries to find an unitialized scene (no windows)
+pub unsafe fn unitialized_scene() -> Option<Retained<UIWindowScene>> {
+  let mtm = MainThreadMarker::new().unwrap();
+  let application = UIApplication::sharedApplication(mtm);
+  for scene in application.connectedScenes().iter() {
+    if let Some(window_scene) = scene.downcast_ref::<UIWindowScene>() {
+      if window_scene.windows().count() == 0 {
+        return Some(window_scene.retain());
+      }
+    }
+  }
+
+  None
+}
+
+pub unsafe fn scene_by_id(id: &str) -> Option<Retained<UIScene>> {
+  let mtm = MainThreadMarker::new().unwrap();
+  let application = UIApplication::sharedApplication(mtm);
+  for scene in application.connectedScenes().iter() {
+    let scene_id = scene.session().persistentIdentifier().to_string();
+    if scene_id == id {
+      return Some(scene);
+    }
+  }
+  None
+}
+
+pub unsafe fn connect_scene(scene: &UIScene, options: &UISceneConnectionOptions) {
+  let did_first_scene_connect = AppState::get_mut().did_first_scene_connect;
+  let is_first_scene = !did_first_scene_connect;
+  // on scene mode, we run on_app_ready() when the main scene is connected
+  // instead of on AppDelegate::didFinishLaunching
+  // this optimizes app startup, since the first created window can immediately see the main scene
+  // instead of having to create a new one (since it can't synchronously wait for it to be connected)
+  if !did_first_scene_connect {
+    AppState::get_mut().did_first_scene_connect = true;
+    on_app_ready();
+  }
+
+  if let Some(window_scene) = scene.downcast_ref::<UIWindowScene>() {
+    let window = {
+      let mut this = AppState::get_mut();
+      if this.windows_for_next_scenes.is_empty() {
+        None
+      } else {
+        Some(this.windows_for_next_scenes.remove(0))
+      }
+    };
+    if let Some(window) = window {
+      let () = msg_send![window, setWindowScene: window_scene];
+      let () = msg_send![window, release];
+    } else if !is_first_scene {
+      // only emit the SceneRequest event for scenes that were not requested by a tao window
+      // also ignore the main scene
+      handle_nonuser_event(EventWrapper::StaticEvent(Event::SceneRequested {
+        scene: scene.retain(),
+        options: options.retain(),
+      }));
+    }
+  }
+}
+
+pub unsafe fn register_window_for_scene(window: id) {
+  AppState::get_mut()
+    .windows_for_next_scenes
+    .push(msg_send![window, retain]);
+}
+
 // requires main thread and window is a UIWindow
 // retains window
 pub unsafe fn set_key_window(window: id) {
@@ -537,6 +607,13 @@ pub unsafe fn will_launch(queued_event_handler: Box<dyn EventHandler>) {
 
 // requires main thread
 pub unsafe fn did_finish_launching() {
+  // when app is run in scenes lifecycle mode, we defer the did_finish_launching call to the first scene setup
+  if !multiple_scenes_enabled() {
+    on_app_ready();
+  }
+}
+
+unsafe fn on_app_ready() {
   let mut this = AppState::get_mut();
   let windows = match this.state_mut() {
     AppStateImpl::Launching { queued_windows, .. } => mem::take(queued_windows),
@@ -564,7 +641,7 @@ pub unsafe fn did_finish_launching() {
       //
       // relevant iOS log:
       // ```
-      // [ApplicationLifecycle] Windows were created before application initialzation
+      // [ApplicationLifecycle] Windows were created before application initialization
       // completed. This may result in incorrect visual appearance.
       // ```
       let screen: id = msg_send![window, screen];
@@ -590,6 +667,7 @@ pub unsafe fn did_finish_launching() {
 
   // the above window dance hack, could possibly trigger new windows to be created.
   // we can just set those windows up normally, as they were created after didFinishLaunching
+  // so the app window can attach to it directly
   for window in windows {
     let count: NSUInteger = msg_send![window, retainCount];
     // make sure the window is still referenced
@@ -639,14 +717,6 @@ pub unsafe fn handle_nonuser_events<I: IntoIterator<Item = EventWrapper>>(events
   for wrapper in events {
     match wrapper {
       EventWrapper::StaticEvent(event) => {
-        if !processing_redraws && event.is_redraw() {
-          log::info!("processing `RedrawRequested` during the main event loop");
-        } else if processing_redraws && !event.is_redraw() {
-          log::warn!(
-            "processing non `RedrawRequested` event after the main event loop: {:#?}",
-            event
-          );
-        }
         event_handler.handle_nonuser_event(event, &mut control_flow)
       }
       EventWrapper::EventProxy(proxy) => {
@@ -696,14 +766,6 @@ pub unsafe fn handle_nonuser_events<I: IntoIterator<Item = EventWrapper>>(events
     for wrapper in queued_events {
       match wrapper {
         EventWrapper::StaticEvent(event) => {
-          if !processing_redraws && event.is_redraw() {
-            log::info!("processing `RedrawRequested` during the main event loop");
-          } else if processing_redraws && !event.is_redraw() {
-            log::warn!(
-              "processing non-`RedrawRequested` event after the main event loop: {:#?}",
-              event
-            );
-          }
           event_handler.handle_nonuser_event(event, &mut control_flow)
         }
         EventWrapper::EventProxy(proxy) => {
@@ -1006,6 +1068,7 @@ impl NSOperatingSystemVersion {
 }
 
 pub fn os_capabilities() -> OSCapabilities {
+  use once_cell::sync::Lazy;
   static OS_CAPABILITIES: Lazy<OSCapabilities> = Lazy::new(|| {
     let version: NSOperatingSystemVersion = unsafe {
       let process_info: id = msg_send![class!(NSProcessInfo), processInfo];
