@@ -17,7 +17,7 @@ use objc2::{
 use objc2_app_kit::{
   self as appkit, NSApplicationPresentationOptions, NSPasteboard, NSView, NSWindow,
 };
-use objc2_foundation::{ns_string, NSArray, NSAutoreleasePool, NSString, NSUInteger};
+use objc2_foundation::{ns_string, NSArray, NSAutoreleasePool, NSRect, NSString, NSUInteger};
 use once_cell::sync::Lazy;
 
 use crate::{
@@ -186,6 +186,10 @@ static WINDOW_DELEGATE_CLASS: Lazy<WindowDelegateClass> = Lazy::new(|| unsafe {
     window_should_close as extern "C" fn(_, _, _) -> _,
   );
   decl.add_method(
+    sel!(windowShouldZoom:toFrame:),
+    window_should_zoom as extern "C" fn(_, _, _, _) -> _,
+  );
+  decl.add_method(
     sel!(windowWillClose:),
     window_will_close as extern "C" fn(_, _, _),
   );
@@ -327,6 +331,17 @@ extern "C" fn window_should_close(this: &Object, _: Sel, _: id) -> BOOL {
   trace!("Triggered `windowShouldClose:`");
   with_state(this, |state| state.emit_event(WindowEvent::CloseRequested));
   trace!("Completed `windowShouldClose:`");
+  NO
+}
+
+extern "C" fn window_should_zoom(this: &Object, _: Sel, _: id, _: NSRect) -> BOOL {
+  trace!("Triggered `windowShouldZoom:toFrame:`");
+  with_state(this, |state| {
+    state.with_window(|window| {
+      window.set_maximized(!window.is_zoomed());
+    });
+  });
+  trace!("Completed `windowShouldZoom:toFrame:`");
   NO
 }
 
