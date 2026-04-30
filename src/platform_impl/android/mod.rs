@@ -17,7 +17,7 @@ use ndk::{
 };
 use once_cell::sync::Lazy;
 use std::{
-  collections::VecDeque,
+  collections::{HashSet, VecDeque},
   sync::RwLock,
   time::{Duration, Instant},
 };
@@ -72,7 +72,7 @@ pub struct EventLoop<T: 'static> {
   first_event: Option<EventSource>,
   start_cause: event::StartCause,
   looper: ThreadLooper,
-  running: bool,
+  running: HashSet<window::WindowId>,
 }
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -104,7 +104,7 @@ impl<T: 'static> EventLoop<T> {
       first_event: None,
       start_cause: event::StartCause::Init,
       looper: ThreadLooper::for_thread().unwrap(),
-      running: false,
+      running: HashSet::new(),
     }
   }
 
@@ -153,6 +153,18 @@ impl<T: 'static> EventLoop<T> {
           } => match event {
             WindowEvent::Resized => resized_window_id = Some(window_id),
             WindowEvent::RedrawNeeded => redraw_window_id = Some(window_id),
+            WindowEvent::Started => {
+              self.running.insert(window_id);
+              call_event_handler!(
+                event_handler,
+                self.window_target(),
+                control_flow,
+                event::Event::WindowEvent {
+                  window_id,
+                  event: event::WindowEvent::Started,
+                }
+              );
+            }
             WindowEvent::Focused(focused) => {
               call_event_handler!(
                 event_handler,
@@ -164,7 +176,20 @@ impl<T: 'static> EventLoop<T> {
                 }
               );
             }
+            WindowEvent::Stopped => {
+              self.running.remove(&window_id);
+              call_event_handler!(
+                event_handler,
+                self.window_target(),
+                control_flow,
+                event::Event::WindowEvent {
+                  window_id,
+                  event: event::WindowEvent::Stopped,
+                }
+              );
+            }
             WindowEvent::Destroyed => {
+              self.running.remove(&window_id);
               call_event_handler!(
                 event_handler,
                 self.window_target(),
@@ -188,8 +213,6 @@ impl<T: 'static> EventLoop<T> {
               }
             );
           }
-          Event::Stop => self.running = false,
-          Event::Start => self.running = true,
           Event::Opened => {
             let urls = ndk_glue::take_intent_urls();
             if !urls.is_empty() {
@@ -342,7 +365,7 @@ impl<T: 'static> EventLoop<T> {
       );
 
       if let Some(window_id) = resized_window_id {
-        if self.running {
+        if self.running.contains(&window_id) {
           let size = MonitorHandle.size();
           let event = event::Event::WindowEvent {
             window_id,
@@ -353,7 +376,7 @@ impl<T: 'static> EventLoop<T> {
       }
 
       if let Some(window_id) = redraw_window_id {
-        if self.running {
+        if self.running.contains(&window_id) {
           let event = event::Event::RedrawRequested(window_id);
           call_event_handler!(event_handler, self.window_target(), control_flow, event);
         }

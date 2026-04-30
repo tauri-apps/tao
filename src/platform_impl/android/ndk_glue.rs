@@ -62,10 +62,10 @@ const DATA_URL_ENCODING_SET: &AsciiSet = &CONTROLS
 /// 2. android package anme (for ex: wryapp)
 /// 3. the android activity that has external linking for the following functions and calls them:
 ///       - `private external fun onActivityCreate(activity: WryActivity)``
-///       - `private external fun start()`
-///       - `private external fun resume()`
-///       - `private external fun pause()`
-///       - `private external fun stop()`
+///       - `private external fun start(activity: WryActivity)`
+///       - `private external fun resume(activity: WryActivity)`
+///       - `private external fun pause(activity: WryActivity)`
+///       - `private external fun stop(activity: WryActivity)`
 ///       - `private external fun onActivitySaveInstanceState()`
 ///       - `private external fun onActivityDestroy(activity: WryActivity)`
 ///       - `private external fun onActivityLowMemory()`
@@ -268,7 +268,7 @@ pub static PIPE: Lazy<[OwnedFd; 2]> = Lazy::new(|| {
 pub fn poll_events() -> Option<Event> {
   unsafe {
     let size = std::mem::size_of::<Event>();
-    let mut event = Event::Start;
+    let mut event = Event::LowMemory;
     if libc::read(PIPE[0].as_raw_fd(), &mut event as *mut _ as *mut _, size)
       == size as libc::ssize_t
     {
@@ -302,10 +302,8 @@ pub struct Rect {
 #[derive(Clone, Debug, Eq, PartialEq, Copy)]
 #[repr(u8)]
 pub enum Event {
-  Start,
   Resume { id: WindowId },
   Pause { id: WindowId },
-  Stop,
   LowMemory,
   WindowEvent { id: WindowId, event: WindowEvent },
   ContentRectChanged,
@@ -317,8 +315,10 @@ pub enum Event {
 pub enum WindowEvent {
   Focused(bool),
   Created,
+  Started,
   Resized,
   RedrawNeeded,
+  Stopped,
   Destroyed,
 }
 
@@ -688,12 +688,20 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
   }
 }
 
-pub unsafe fn start(_: JNIEnv, _: JClass, _: JObject) {
-  wake(Event::Start);
+pub unsafe fn start(mut env: JNIEnv, _: JClass, activity: JObject) {
+  let activity_id = activity_id(&mut env, &activity);
+  wake(Event::WindowEvent {
+    id: WindowId(super::WindowId(activity_id)),
+    event: WindowEvent::Started,
+  });
 }
 
-pub unsafe fn stop(_: JNIEnv, _: JClass, _: JObject) {
-  wake(Event::Stop);
+pub unsafe fn stop(mut env: JNIEnv, _: JClass, activity: JObject) {
+  let activity_id = activity_id(&mut env, &activity);
+  wake(Event::WindowEvent {
+    id: WindowId(super::WindowId(activity_id)),
+    event: WindowEvent::Stopped,
+  });
 }
 
 #[allow(non_snake_case)]
