@@ -136,12 +136,15 @@ impl<T: 'static> EventLoop<T> {
 
       match self.first_event.take() {
         Some(EventSource::Callback) => match ndk_glue::poll_events().unwrap() {
-          Event::Resume => {
+          Event::Resume { id: window_id } => {
             call_event_handler!(
               event_handler,
               self.window_target(),
               control_flow,
-              event::Event::Resumed
+              event::Event::WindowEvent {
+                window_id,
+                event: event::WindowEvent::Resumed
+              }
             );
           }
           Event::WindowEvent {
@@ -174,12 +177,15 @@ impl<T: 'static> EventLoop<T> {
             }
             _ => {}
           },
-          Event::Pause => {
+          Event::Pause { id: window_id } => {
             call_event_handler!(
               event_handler,
               self.window_target(),
               control_flow,
-              event::Event::Suspended
+              event::Event::WindowEvent {
+                window_id,
+                event: event::WindowEvent::Suspended
+              }
             );
           }
           Event::Stop => self.running = false,
@@ -785,7 +791,7 @@ impl Window {
     if let Some(w) = ndk_glue::activity_window_manager(self.activity_id).as_ref() {
       handle.a_native_window = w.as_obj().as_raw() as *mut _;
     } else {
-      panic!("Cannot get the native window, it's null and will always be null before Event::Resumed and after Event::Suspended. Make sure you only call this function between those events.");
+      panic!("Cannot get the native window, it's null and will always be null before WindowEvent::Resumed and after WindowEvent::Suspended. Make sure you only call this function between those events.");
     };
     rwh_04::RawWindowHandle::AndroidNdk(handle)
   }
@@ -797,7 +803,7 @@ impl Window {
     if let Some(w) = ndk_glue::activity_window_manager(self.activity_id).as_ref() {
       handle.a_native_window = w.as_obj().as_raw() as *mut _;
     } else {
-      panic!("Cannot get the native window, it's null and will always be null before Event::Resumed and after Event::Suspended. Make sure you only call this function between those events.");
+      panic!("Cannot get the native window, it's null and will always be null before WindowEvent::Resumed and after WindowEvent::Suspended. Make sure you only call this function between those events.");
     };
     rwh_05::RawWindowHandle::AndroidNdk(handle)
   }
