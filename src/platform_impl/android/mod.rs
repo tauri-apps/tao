@@ -894,7 +894,11 @@ impl MonitorHandle {
         .l()
         .ok()?;
       let width = env.call_method(&rect, "width", "()I", &[]).ok()?.i().ok()?;
-      let height = env.call_method(&rect, "height", "()I", &[]).ok()?.i().ok()?;
+      let height = env
+        .call_method(&rect, "height", "()I", &[])
+        .ok()?
+        .i()
+        .ok()?;
       Some(PhysicalSize::new(width as u32, height as u32))
     })();
 
