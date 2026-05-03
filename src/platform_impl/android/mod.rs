@@ -865,35 +865,44 @@ impl MonitorHandle {
     let Some(ctx) = ndk_glue::main_android_context() else {
       return PhysicalSize::new(0, 0);
     };
-    let vm = unsafe { jni::JavaVM::from_raw(ctx.java_vm.cast()) }.unwrap();
-    let mut env = vm.attach_current_thread().unwrap();
+    let Ok(vm) = (unsafe { jni::JavaVM::from_raw(ctx.java_vm.cast()) }) else {
+      return PhysicalSize::new(0, 0);
+    };
+    let Ok(mut env) = vm.attach_current_thread() else {
+      return PhysicalSize::new(0, 0);
+    };
     let window_manager = w.as_obj();
-    let metrics = env
-      .call_method(
-        window_manager,
-        "getCurrentWindowMetrics",
-        "()Landroid/view/WindowMetrics;",
-        &[],
-      )
-      .unwrap()
-      .l()
-      .unwrap();
-    let rect = env
-      .call_method(&metrics, "getBounds", "()Landroid/graphics/Rect;", &[])
-      .unwrap()
-      .l()
-      .unwrap();
-    let width = env
-      .call_method(&rect, "width", "()I", &[])
-      .unwrap()
-      .i()
-      .unwrap();
-    let height = env
-      .call_method(&rect, "height", "()I", &[])
-      .unwrap()
-      .i()
-      .unwrap();
-    PhysicalSize::new(width as u32, height as u32)
+
+    // getCurrentWindowMetrics requires Android R (API 30) — on older devices
+    // it raises NoSuchMethodError. Clear any pending JNI exception and fall
+    // back to a zero size; bubbling up the JavaException as a Rust panic
+    // crashes the whole app at startup on Android < 11.
+    let metrics_size = (|| -> Option<PhysicalSize<u32>> {
+      let metrics = env
+        .call_method(
+          window_manager,
+          "getCurrentWindowMetrics",
+          "()Landroid/view/WindowMetrics;",
+          &[],
+        )
+        .ok()?
+        .l()
+        .ok()?;
+      let rect = env
+        .call_method(&metrics, "getBounds", "()Landroid/graphics/Rect;", &[])
+        .ok()?
+        .l()
+        .ok()?;
+      let width = env.call_method(&rect, "width", "()I", &[]).ok()?.i().ok()?;
+      let height = env.call_method(&rect, "height", "()I", &[]).ok()?.i().ok()?;
+      Some(PhysicalSize::new(width as u32, height as u32))
+    })();
+
+    if metrics_size.is_none() && env.exception_check().unwrap_or(false) {
+      let _ = env.exception_clear();
+    }
+
+    metrics_size.unwrap_or(PhysicalSize::new(0, 0))
   }
 
   pub fn position(&self) -> PhysicalPosition<i32> {
