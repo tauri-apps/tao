@@ -18,9 +18,107 @@ use ndk::{
 use once_cell::sync::Lazy;
 use std::{
   collections::VecDeque,
+  error::Error,
+  fmt,
   sync::RwLock,
   time::{Duration, Instant},
 };
+
+#[derive(Debug)]
+pub struct JniCallError {
+  source: jni::errors::Error,
+  java_exception: Option<String>,
+}
+
+impl JniCallError {
+  fn new(source: jni::errors::Error, java_exception: Option<String>) -> Self {
+    Self {
+      source,
+      java_exception,
+    }
+  }
+}
+
+impl From<jni::errors::Error> for JniCallError {
+  fn from(source: jni::errors::Error) -> Self {
+    Self::new(source, None)
+  }
+}
+
+impl fmt::Display for JniCallError {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match &self.java_exception {
+      Some(java_exception) => write!(f, "{}: {java_exception}", self.source),
+      None => self.source.fmt(f),
+    }
+  }
+}
+
+impl Error for JniCallError {
+  fn source(&self) -> Option<&(dyn Error + 'static)> {
+    Some(&self.source)
+  }
+}
+
+/// Logs and clears a pending Java exception while preserving the original JNI error.
+macro_rules! jni_handle_error {
+  ($env:ident, $e:expr) => {{
+    let e = $e;
+    let message = (|| -> jni::errors::Result<Option<String>> {
+      if $env.exception_check()? {
+        let throwable = $env.exception_occurred()?;
+        $env.exception_clear()?;
+
+        let message = $env
+          .call_method(&throwable, "toString", "()Ljava/lang/String;", &[])?
+          .l()?;
+        let message: jni::objects::JString = message.into();
+        return $env.get_string(&message).map(|s| Some(s.into()));
+      }
+
+      Ok(None)
+    })();
+
+    let java_exception = match message {
+      Ok(Some(message)) => {
+        log::error!(
+          "tao: JNI call failed at {}:{} with Java exception: {message}",
+          file!(),
+          line!()
+        );
+        Some(message)
+      }
+      Ok(None) => {
+        log::error!("tao: JNI call failed at {}:{}: {e}", file!(), line!());
+        None
+      }
+      Err(err) => {
+        let message = format!("failed to read Java exception: {err}");
+        log::error!(
+          "tao: JNI call failed at {}:{}: {e}; {message}",
+          file!(),
+          line!()
+        );
+        Some(message)
+      }
+    };
+
+    $crate::platform_impl::platform::JniCallError::new(e, java_exception)
+  }};
+}
+
+macro_rules! jni_call_method {
+  ($env:ident, $obj:expr, $method:expr, $sig:expr, $args:expr, $ret_typ:ident) => {{
+    $env
+      .call_method($obj, $method, $sig, $args)
+      .and_then(|v| v.$ret_typ())
+      .map_err(|e| jni_handle_error!($env, e))
+  }};
+
+  ($env:ident, $obj:expr, $method:expr, $sig:expr, $ret_typ:ident) => {
+    jni_call_method!($env, $obj, $method, $sig, &[], $ret_typ)
+  };
+}
 
 pub mod ndk_glue;
 use ndk_glue::{ActivityId, Event, Rect, WindowEvent};
@@ -29,7 +127,7 @@ static CONFIG: Lazy<RwLock<Configuration>> = Lazy::new(|| RwLock::new(Configurat
 
 #[derive(Debug)]
 pub enum OsError {
-  JniError(jni::errors::Error),
+  JniCallError(JniCallError),
   NoAvailableActivity,
 }
 
@@ -37,7 +135,7 @@ impl std::error::Error for OsError {}
 impl std::fmt::Display for OsError {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      OsError::JniError(e) => write!(f, "JNI error: {e}"),
+      OsError::JniCallError(e) => write!(f, "JNI error: {e}"),
       OsError::NoAvailableActivity => write!(f, "no available activity"),
     }
   }
@@ -553,7 +651,7 @@ impl Window {
         .ok_or_else(|| os_error!(OsError::NoAvailableActivity))?;
         let activity_id = ctx
           .create_activity(&activity_name)
-          .map_err(|error| os_error!(OsError::JniError(error)))?;
+          .map_err(|error| os_error!(OsError::JniCallError(error)))?;
         (activity_id, activity_name)
       }
       None => ndk_glue::next_available_activity()
@@ -868,31 +966,18 @@ impl MonitorHandle {
     let vm = unsafe { jni::JavaVM::from_raw(ctx.java_vm.cast()) }.unwrap();
     let mut env = vm.attach_current_thread().unwrap();
     let window_manager = w.as_obj();
-    let metrics = env
-      .call_method(
-        window_manager,
-        "getCurrentWindowMetrics",
-        "()Landroid/view/WindowMetrics;",
-        &[],
-      )
-      .unwrap()
-      .l()
-      .unwrap();
-    let rect = env
-      .call_method(&metrics, "getBounds", "()Landroid/graphics/Rect;", &[])
-      .unwrap()
-      .l()
-      .unwrap();
-    let width = env
-      .call_method(&rect, "width", "()I", &[])
-      .unwrap()
-      .i()
-      .unwrap();
-    let height = env
-      .call_method(&rect, "height", "()I", &[])
-      .unwrap()
-      .i()
-      .unwrap();
+    let metrics = jni_call_method!(
+      env,
+      window_manager,
+      "getCurrentWindowMetrics",
+      "()Landroid/view/WindowMetrics;",
+      l
+    )
+    .unwrap();
+    let rect =
+      jni_call_method!(env, &metrics, "getBounds", "()Landroid/graphics/Rect;", l).unwrap();
+    let width = jni_call_method!(env, &rect, "width", "()I", i).unwrap();
+    let height = jni_call_method!(env, &rect, "height", "()I", i).unwrap();
     PhysicalSize::new(width as u32, height as u32)
   }
 
