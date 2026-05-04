@@ -37,6 +37,24 @@ use std::{
 /// in the android project.
 pub static PACKAGE: OnceCell<&str> = OnceCell::new();
 
+/// Unwraps a JNI call result, printing any pending Java exception (via `exception_describe`) and
+/// clearing it before panicking. The `file!()` / `line!()` in the error message point at the
+/// macro call site, making log-based triage straightforward.
+macro_rules! jni_call {
+  ($env:ident, $call:expr) => {{
+    let result = $call;
+    match result {
+      Ok(v) => v,
+      Err(e) => {
+        log::error!("tao: JNI call failed at {}:{}: {e:?}", file!(), line!());
+        let _ = $env.exception_describe();
+        let _ = $env.exception_clear();
+        panic!("tao: JNI call failed at {}:{}: {e:?}", file!(), line!());
+      }
+    }
+  }};
+}
+
 /// Character set for encoding text content in data URLs.
 /// Encodes all control characters and special characters that might cause issues in URLs.
 const DATA_URL_ENCODING_SET: &AsciiSet = &CONTROLS
@@ -382,24 +400,24 @@ pub unsafe fn onActivityCreate(
   activity: JObject,
   setup: unsafe fn(&str, JNIEnv, &ThreadLooper, GlobalRef),
 ) {
-  let intent = env
-    .call_method(&activity, "getIntent", "()Landroid/content/Intent;", &[])
-    .unwrap()
-    .l()
-    .unwrap();
+  let intent = jni_call!(
+    env,
+    env.call_method(&activity, "getIntent", "()Landroid/content/Intent;", &[])
+  )
+  .l()
+  .unwrap();
 
-  let activity_id = env
-    .call_method(&activity, "getId", "()I", &[])
-    .unwrap()
+  let activity_id = jni_call!(env, env.call_method(&activity, "getId", "()I", &[]))
     .i()
     .unwrap();
 
-  let activity_name: JString = env
-    .call_method(&activity, "getLocalClassName", "()Ljava/lang/String;", &[])
-    .unwrap()
-    .l()
-    .unwrap()
-    .into();
+  let activity_name: JString = jni_call!(
+    env,
+    env.call_method(&activity, "getLocalClassName", "()Ljava/lang/String;", &[])
+  )
+  .l()
+  .unwrap()
+  .into();
   let activity_name = env
     .get_string(&activity_name)
     .unwrap()
@@ -407,16 +425,17 @@ pub unsafe fn onActivityCreate(
     .to_string();
 
   // Initialize global context
-  let window_manager = env
-    .call_method(
+  let window_manager = jni_call!(
+    env,
+    env.call_method(
       &activity,
       "getWindowManager",
       "()Landroid/view/WindowManager;",
       &[],
     )
-    .unwrap()
-    .l()
-    .unwrap();
+  )
+  .l()
+  .unwrap();
   let window_manager = env.new_global_ref(window_manager).unwrap();
   WINDOW_MANAGER
     .lock()
@@ -469,9 +488,7 @@ pub unsafe fn onWindowFocusChanged(
   activity: JObject,
   has_focus: libc::c_int,
 ) {
-  let activity_id = env
-    .call_method(&activity, "getId", "()I", &[])
-    .unwrap()
+  let activity_id = jni_call!(env, env.call_method(&activity, "getId", "()I", &[]))
     .i()
     .unwrap();
   let event = Event::WindowEvent {
@@ -487,12 +504,13 @@ pub unsafe fn onNewIntent(env: JNIEnv, _: JClass, intent: JObject) {
 }
 
 pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
-  let action = env
-    .call_method(&intent, "getAction", "()Ljava/lang/String;", &[])
-    .unwrap()
-    .l()
-    .unwrap()
-    .into();
+  let action = jni_call!(
+    env,
+    env.call_method(&intent, "getAction", "()Ljava/lang/String;", &[])
+  )
+  .l()
+  .unwrap()
+  .into();
   let action = env
     .get_string(&action)
     .map(|action| action.to_string_lossy().to_string());
@@ -575,16 +593,17 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
       .map(|count| count.i().unwrap())
     {
       for i in 0..item_count {
-        let clip_item = env
-          .call_method(
+        let clip_item = jni_call!(
+          env,
+          env.call_method(
             &clip_data,
             "getItemAt",
             "(I)Landroid/content/ClipData$Item;",
             &[i.into()],
           )
-          .unwrap()
-          .l()
-          .unwrap();
+        )
+        .l()
+        .unwrap();
 
         let uri = env
           .call_method(&clip_item, "getUri", "()Landroid/net/Uri;", &[])
@@ -592,12 +611,13 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
           .and_then(|result| result.l().ok());
 
         if let Some(uri) = uri {
-          let uri_string: JString = env
-            .call_method(&uri, "toString", "()Ljava/lang/String;", &[])
-            .unwrap()
-            .l()
-            .unwrap()
-            .into();
+          let uri_string: JString = jni_call!(
+            env,
+            env.call_method(&uri, "toString", "()Ljava/lang/String;", &[])
+          )
+          .l()
+          .unwrap()
+          .into();
           let uri_str = env
             .get_string(&uri_string)
             .unwrap()
@@ -631,12 +651,13 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
       .and_then(|result| result.l().ok());
 
     if let Some(stream_uri) = extra_stream {
-      let uri_string: JString = env
-        .call_method(&stream_uri, "toString", "()Ljava/lang/String;", &[])
-        .unwrap()
-        .l()
-        .unwrap()
-        .into();
+      let uri_string: JString = jni_call!(
+        env,
+        env.call_method(&stream_uri, "toString", "()Ljava/lang/String;", &[])
+      )
+      .l()
+      .unwrap()
+      .into();
       let uri_str = env
         .get_string(&uri_string)
         .unwrap()
@@ -691,17 +712,16 @@ pub unsafe fn stop(_: JNIEnv, _: JClass, _: JObject) {
 
 #[allow(non_snake_case)]
 pub unsafe fn onActivityDestroy(mut env: JNIEnv, _: JClass, activity: JObject) {
-  let activity_id = env
-    .call_method(&activity, "getId", "()I", &[])
-    .unwrap()
+  let activity_id = jni_call!(env, env.call_method(&activity, "getId", "()I", &[]))
     .i()
     .unwrap();
 
-  let is_changing_configurations = env
-    .call_method(&activity, "isChangingConfigurations", "()Z", &[])
-    .unwrap()
-    .z()
-    .unwrap();
+  let is_changing_configurations = jni_call!(
+    env,
+    env.call_method(&activity, "isChangingConfigurations", "()Z", &[])
+  )
+  .z()
+  .unwrap();
 
   // keep our Rust window references alive when the activity is going to be recreated due to configuration changes
   // e.g. rotation, multi window mode change etc
