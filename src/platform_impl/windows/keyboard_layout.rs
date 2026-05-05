@@ -20,6 +20,34 @@ use crate::{
 pub(crate) static LAYOUT_CACHE: Lazy<Mutex<LayoutCache>> =
   Lazy::new(|| Mutex::new(LayoutCache::default()));
 
+pub(crate) fn get_agnostic_mods() -> ModifiersState {
+  let has_alt_graph = {
+    let mut layouts = LAYOUT_CACHE.lock();
+    let (_, layout) = layouts.get_current_layout();
+    layout.has_alt_graph
+  };
+  get_agnostic_mods_for_layout(has_alt_graph)
+}
+
+fn get_agnostic_mods_for_layout(has_alt_graph: bool) -> ModifiersState {
+  let filter_out_altgr = has_alt_graph && key_pressed(VK_RMENU);
+  let mut mods = ModifiersState::empty();
+  mods.set(ModifiersState::SHIFT, key_pressed(VK_SHIFT));
+  mods.set(
+    ModifiersState::CONTROL,
+    key_pressed(VK_CONTROL) && !filter_out_altgr,
+  );
+  mods.set(
+    ModifiersState::ALT,
+    key_pressed(VK_MENU) && !filter_out_altgr,
+  );
+  mods.set(
+    ModifiersState::SUPER,
+    key_pressed(VK_LWIN) || key_pressed(VK_RWIN),
+  );
+  mods
+}
+
 fn key_pressed(vkey: VIRTUAL_KEY) -> bool {
   unsafe { (GetKeyState(u32::from(vkey.0) as i32) & (1 << 15)) == (1 << 15) }
 }
@@ -243,26 +271,6 @@ impl LayoutCache {
         (locale_id, entry.insert(layout))
       }
     }
-  }
-
-  pub fn get_agnostic_mods(&mut self) -> ModifiersState {
-    let (_, layout) = self.get_current_layout();
-    let filter_out_altgr = layout.has_alt_graph && key_pressed(VK_RMENU);
-    let mut mods = ModifiersState::empty();
-    mods.set(ModifiersState::SHIFT, key_pressed(VK_SHIFT));
-    mods.set(
-      ModifiersState::CONTROL,
-      key_pressed(VK_CONTROL) && !filter_out_altgr,
-    );
-    mods.set(
-      ModifiersState::ALT,
-      key_pressed(VK_MENU) && !filter_out_altgr,
-    );
-    mods.set(
-      ModifiersState::SUPER,
-      key_pressed(VK_LWIN) || key_pressed(VK_RWIN),
-    );
-    mods
   }
 
   fn prepare_layout(strings: &mut HashSet<&'static str>, locale_id: HKL) -> Layout {
