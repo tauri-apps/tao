@@ -15,7 +15,6 @@ mod util;
 mod window;
 
 pub mod taskbar;
-pub mod wayland;
 #[cfg(feature = "x11")]
 pub mod x11;
 

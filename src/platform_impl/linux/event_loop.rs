@@ -322,13 +322,9 @@ impl<T: 'static> EventLoop<T> {
               window.deiconify();
             }
           }
-          WindowRequest::Maximized(maximized, resizable) => {
+          WindowRequest::Maximized(maximized) => {
             if maximized {
-              let maximize_process = util::WindowMaximizeProcess::new(window.clone(), resizable);
-              glib::idle_add_local_full(glib::Priority::DEFAULT_IDLE, move || {
-                let mut maximize_process = maximize_process.borrow_mut();
-                maximize_process.next_step()
-              });
+              window.maximize();
             } else {
               window.unmaximize();
             }
