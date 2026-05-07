@@ -709,7 +709,7 @@ impl<T: 'static> EventLoop<T> {
                   }
                 }
               }
-              glib::Propagation::Stop
+              glib::Propagation::Proceed
             });
 
             let tx_clone = event_tx.clone();
@@ -748,7 +748,7 @@ impl<T: 'static> EventLoop<T> {
                   e
                 );
               }
-              glib::Propagation::Stop
+              glib::Propagation::Proceed
             });
 
             let tx_clone = event_tx.clone();
@@ -774,7 +774,7 @@ impl<T: 'static> EventLoop<T> {
                   e
                 );
               }
-              glib::Propagation::Stop
+              glib::Propagation::Proceed
             });
 
             let tx_clone = event_tx.clone();
