@@ -13,7 +13,7 @@ use gtk::{
   gdk::WindowState,
   glib::{self, translate::ToGlibPtr},
   prelude::*,
-  CssProvider, Settings,
+  CssProvider, EventBox, Settings,
 };
 
 use crate::{
@@ -169,6 +169,11 @@ impl Window {
     }
     window.set_visible(attributes.visible);
     window.set_decorated(attributes.decorations);
+    if window.display().backend().is_wayland() && !attributes.decorations {
+      // Enable CSD to prevent compositor from rendering server-side decorations
+      let event_box = EventBox::new();
+      window.set_titlebar(Some(&event_box));
+    }
 
     if attributes.always_on_bottom {
       window.set_keep_below(attributes.always_on_bottom);
