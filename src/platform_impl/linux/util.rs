@@ -9,8 +9,10 @@ use gtk::{
     prelude::{DeviceExt, SeatExt},
     Display,
   },
+  glib::{self},
   traits::{GtkWindowExt, WidgetExt},
 };
+use std::{cell::RefCell, rc::Rc};
 
 #[inline]
 pub fn cursor_position(is_wayland: bool) -> Result<PhysicalPosition<f64>, ExternalError> {
@@ -70,4 +72,40 @@ pub fn set_size_constraints<W: GtkWindowExt + WidgetExt>(
     )),
     geom_mask,
   )
+}
+
+pub struct WindowMaximizeProcess<W: GtkWindowExt + WidgetExt> {
+  window: W,
+  resizable: bool,
+  step: u8,
+}
+
+impl<W: GtkWindowExt + WidgetExt> WindowMaximizeProcess<W> {
+  pub fn new(window: W, resizable: bool) -> Rc<RefCell<Self>> {
+    Rc::new(RefCell::new(Self {
+      window,
+      resizable,
+      step: 0,
+    }))
+  }
+
+  pub fn next_step(&mut self) -> glib::ControlFlow {
+    match self.step {
+      0 => {
+        self.window.set_resizable(true);
+        self.step += 1;
+        glib::ControlFlow::Continue
+      }
+      1 => {
+        self.window.maximize();
+        self.step += 1;
+        glib::ControlFlow::Continue
+      }
+      2 => {
+        self.window.set_resizable(self.resizable);
+        glib::ControlFlow::Break
+      }
+      _ => glib::ControlFlow::Break,
+    }
+  }
 }
