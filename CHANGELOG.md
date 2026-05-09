@@ -1,5 +1,13 @@
 # Changelog
 
+## \[0.35.2]
+
+- [`98aa0536`](https://github.com/tauri-apps/tao/commit/98aa05369aeeeaecf67ea791e43a5fecc11535af) ([#1211](https://github.com/tauri-apps/tao/pull/1211) by [@SAY-5](https://github.com/tauri-apps/tao/../../SAY-5)) fix(android): don't panic on getCurrentWindowMetrics on API<30
+
+## \[0.35.1]
+
+- [`f3363af7`](https://github.com/tauri-apps/tao/commit/f3363af78a5fc5ef9ce4829b8c72c0232742fd31) ([#1212](https://github.com/tauri-apps/tao/pull/1212) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Describe exceptions when they are raised by a JNI call.
+
 ## \[0.35.0]
 
 - [`4e7c2f4a`](https://github.com/tauri-apps/tao/commit/4e7c2f4aa06e368403c6f170997fafd0c9a88418) ([#1154](https://github.com/tauri-apps/tao/pull/1154) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) **Breaking change:** The Android activity should now reference and call the following external functions:

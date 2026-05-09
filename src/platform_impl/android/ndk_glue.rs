@@ -148,16 +148,16 @@ fn find_class<'a>(
   env: &mut JNIEnv<'a>,
   activity: &JObject<'_>,
   name: String,
-) -> JniResult<JClass<'a>> {
+) -> Result<JClass<'a>, super::JniCallError> {
   let class_name = env.new_string(name.replace('/', "."))?;
-  let my_class = env
-    .call_method(
-      activity,
-      "getAppClass",
-      "(Ljava/lang/String;)Ljava/lang/Class;",
-      &[(&class_name).into()],
-    )?
-    .l()?;
+  let my_class = jni_call_method!(
+    env,
+    activity,
+    "getAppClass",
+    "(Ljava/lang/String;)Ljava/lang/Class;",
+    &[(&class_name).into()],
+    l
+  )?;
   Ok(my_class.into())
 }
 
@@ -170,7 +170,7 @@ pub struct AndroidContext {
 }
 
 impl AndroidContext {
-  pub fn create_activity(&self, activity_name: &str) -> JniResult<ActivityId> {
+  pub fn create_activity(&self, activity_name: &str) -> Result<ActivityId, super::JniCallError> {
     let vm = unsafe { jni::JavaVM::from_raw(self.java_vm.cast()) }?;
     let mut env = vm.attach_current_thread_as_daemon()?;
     let main_activity = unsafe { JObject::from_raw(self.context_jobject.cast()) };
@@ -181,14 +181,14 @@ impl AndroidContext {
       format!("{}/{activity_name}", PACKAGE.get().unwrap()),
     )?;
 
-    let activity_id = env
-      .call_method(
-        &main_activity,
-        "startActivity",
-        "(Ljava/lang/Class;)I",
-        &[(&activity_class).into()],
-      )?
-      .i()?;
+    let activity_id = jni_call_method!(
+      env,
+      &main_activity,
+      "startActivity",
+      "(Ljava/lang/Class;)I",
+      &[(&activity_class).into()],
+      i
+    )?;
 
     let (tx, rx) = crossbeam_channel::bounded(1);
     ACTIVITY_CREATED_SENDERS
@@ -197,7 +197,10 @@ impl AndroidContext {
       .insert(activity_id, tx);
     rx.recv_timeout(Duration::from_secs(5)).map_err(|e| {
       log::error!("failed to create activity {activity_name}: {e}");
-      jni::errors::Error::JniCall(jni::errors::JniError::Unknown)
+      super::JniCallError::new(
+        jni::errors::Error::JniCall(jni::errors::JniError::Unknown),
+        Some(e.to_string()),
+      )
     })?;
 
     Ok(activity_id)
@@ -382,24 +385,20 @@ pub unsafe fn onActivityCreate(
   activity: JObject,
   setup: unsafe fn(&str, JNIEnv, &ThreadLooper, GlobalRef),
 ) {
-  let intent = env
-    .call_method(&activity, "getIntent", "()Landroid/content/Intent;", &[])
-    .unwrap()
-    .l()
-    .unwrap();
+  let intent =
+    jni_call_method!(env, &activity, "getIntent", "()Landroid/content/Intent;", l).unwrap();
 
-  let activity_id = env
-    .call_method(&activity, "getId", "()I", &[])
-    .unwrap()
-    .i()
-    .unwrap();
+  let activity_id = jni_call_method!(env, &activity, "getId", "()I", i).unwrap();
 
-  let activity_name: JString = env
-    .call_method(&activity, "getLocalClassName", "()Ljava/lang/String;", &[])
-    .unwrap()
-    .l()
-    .unwrap()
-    .into();
+  let activity_name: JString = jni_call_method!(
+    env,
+    &activity,
+    "getLocalClassName",
+    "()Ljava/lang/String;",
+    l
+  )
+  .unwrap()
+  .into();
   let activity_name = env
     .get_string(&activity_name)
     .unwrap()
@@ -407,16 +406,14 @@ pub unsafe fn onActivityCreate(
     .to_string();
 
   // Initialize global context
-  let window_manager = env
-    .call_method(
-      &activity,
-      "getWindowManager",
-      "()Landroid/view/WindowManager;",
-      &[],
-    )
-    .unwrap()
-    .l()
-    .unwrap();
+  let window_manager = jni_call_method!(
+    env,
+    &activity,
+    "getWindowManager",
+    "()Landroid/view/WindowManager;",
+    l
+  )
+  .unwrap();
   let window_manager = env.new_global_ref(window_manager).unwrap();
   WINDOW_MANAGER
     .lock()
@@ -469,11 +466,7 @@ pub unsafe fn onWindowFocusChanged(
   activity: JObject,
   has_focus: libc::c_int,
 ) {
-  let activity_id = env
-    .call_method(&activity, "getId", "()I", &[])
-    .unwrap()
-    .i()
-    .unwrap();
+  let activity_id = jni_call_method!(env, &activity, "getId", "()I", i).unwrap();
   let event = Event::WindowEvent {
     id: WindowId(super::WindowId(activity_id)),
     event: WindowEvent::Focused(has_focus != 0),
@@ -487,10 +480,7 @@ pub unsafe fn onNewIntent(env: JNIEnv, _: JClass, intent: JObject) {
 }
 
 pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
-  let action = env
-    .call_method(&intent, "getAction", "()Ljava/lang/String;", &[])
-    .unwrap()
-    .l()
+  let action = jni_call_method!(env, &intent, "getAction", "()Ljava/lang/String;", l)
     .unwrap()
     .into();
   let action = env
@@ -512,10 +502,8 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
   let mut urls = HashSet::new();
 
   // Get intent type (may be null)
-  let intent_type = env
-    .call_method(&intent, "getType", "()Ljava/lang/String;", &[])
+  let intent_type = jni_call_method!(env, &intent, "getType", "()Ljava/lang/String;", l)
     .ok()
-    .and_then(|result| result.l().ok())
     .map(|jstr| jstr.into())
     .map(|intent_type| {
       env
@@ -527,22 +515,23 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
 
   // Handle text/plain intents (EXTRA_TEXT)
   if intent_type.as_deref() == Some("text/plain") {
-    let extra_text = env
-      .call_method(
-        &intent,
-        "getStringExtra",
-        "(Ljava/lang/String;)Ljava/lang/String;",
-        &[(&env.new_string("android.intent.extra.TEXT").unwrap()).into()],
-      )
-      .ok()
-      .and_then(|result| result.l().ok())
-      .and_then(|jstr| {
-        let jstr: JString = jstr.into();
-        env
-          .get_string(&jstr)
-          .ok()
-          .map(|s| s.to_string_lossy().to_string())
-      });
+    let extra_text_key = env.new_string("android.intent.extra.TEXT").unwrap();
+    let extra_text = jni_call_method!(
+      env,
+      &intent,
+      "getStringExtra",
+      "(Ljava/lang/String;)Ljava/lang/String;",
+      &[(&extra_text_key).into()],
+      l
+    )
+    .ok()
+    .and_then(|jstr| {
+      let jstr: JString = jstr.into();
+      env
+        .get_string(&jstr)
+        .ok()
+        .map(|s| s.to_string_lossy().to_string())
+    });
 
     if let Some(text) = extra_text {
       if !text.is_empty() {
@@ -563,41 +552,39 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
 
   // Handle ClipData (API >= KITKAT, which is API 19)
   // We'll try to get clip data, and if it fails, we'll continue
-  let clip_data = env
-    .call_method(&intent, "getClipData", "()Landroid/content/ClipData;", &[])
-    .ok()
-    .and_then(|result| result.l().ok());
+  let clip_data = jni_call_method!(
+    env,
+    &intent,
+    "getClipData",
+    "()Landroid/content/ClipData;",
+    l
+  )
+  .ok()
+  .filter(|clip_data| !clip_data.is_null());
 
   if let Some(clip_data) = clip_data {
     // getItemCount may return null if the intent has only a single uri in which case the uri can be received by getData|String instead.
-    if let Ok(item_count) = env
-      .call_method(&clip_data, "getItemCount", "()I", &[])
-      .map(|count| count.i().unwrap())
-    {
+    if let Ok(item_count) = jni_call_method!(env, &clip_data, "getItemCount", "()I", i) {
       for i in 0..item_count {
-        let clip_item = env
-          .call_method(
-            &clip_data,
-            "getItemAt",
-            "(I)Landroid/content/ClipData$Item;",
-            &[i.into()],
-          )
-          .unwrap()
-          .l()
-          .unwrap();
+        let clip_item = jni_call_method!(
+          env,
+          &clip_data,
+          "getItemAt",
+          "(I)Landroid/content/ClipData$Item;",
+          &[i.into()],
+          l
+        )
+        .unwrap();
 
-        let uri = env
-          .call_method(&clip_item, "getUri", "()Landroid/net/Uri;", &[])
+        let uri = jni_call_method!(env, &clip_item, "getUri", "()Landroid/net/Uri;", l)
           .ok()
-          .and_then(|result| result.l().ok());
+          .filter(|uri| !uri.is_null());
 
         if let Some(uri) = uri {
-          let uri_string: JString = env
-            .call_method(&uri, "toString", "()Ljava/lang/String;", &[])
-            .unwrap()
-            .l()
-            .unwrap()
-            .into();
+          let uri_string: JString =
+            jni_call_method!(env, &uri, "toString", "()Ljava/lang/String;", l)
+              .unwrap()
+              .into();
           let uri_str = env
             .get_string(&uri_string)
             .unwrap()
@@ -614,29 +601,28 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
   }
 
   // Handle EXTRA_STREAM (for file sharing)
-  let extras = env
-    .call_method(&intent, "getExtras", "()Landroid/os/Bundle;", &[])
+  let extras = jni_call_method!(env, &intent, "getExtras", "()Landroid/os/Bundle;", l)
     .ok()
-    .and_then(|result| result.l().ok());
+    .filter(|extras| !extras.is_null());
 
   if let Some(extras) = extras {
-    let extra_stream = env
-      .call_method(
-        &extras,
-        "get",
-        "(Ljava/lang/String;)Ljava/lang/Object;",
-        &[(&env.new_string("android.intent.extra.STREAM").unwrap()).into()],
-      )
-      .ok()
-      .and_then(|result| result.l().ok());
+    let extra_stream_key = env.new_string("android.intent.extra.STREAM").unwrap();
+    let extra_stream = jni_call_method!(
+      env,
+      &extras,
+      "get",
+      "(Ljava/lang/String;)Ljava/lang/Object;",
+      &[(&extra_stream_key).into()],
+      l
+    )
+    .ok()
+    .filter(|extra_stream| !extra_stream.is_null());
 
     if let Some(stream_uri) = extra_stream {
-      let uri_string: JString = env
-        .call_method(&stream_uri, "toString", "()Ljava/lang/String;", &[])
-        .unwrap()
-        .l()
-        .unwrap()
-        .into();
+      let uri_string: JString =
+        jni_call_method!(env, &stream_uri, "toString", "()Ljava/lang/String;", l)
+          .unwrap()
+          .into();
       let uri_str = env
         .get_string(&uri_string)
         .unwrap()
@@ -652,10 +638,9 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
 
   // Handle getDataString() for VIEW intents (deeplinks)
   if action == "android.intent.action.VIEW" {
-    let data_string = env
-      .call_method(&intent, "getDataString", "()Ljava/lang/String;", &[])
+    let data_string = jni_call_method!(env, &intent, "getDataString", "()Ljava/lang/String;", l)
       .ok()
-      .and_then(|result| result.l().ok())
+      .filter(|data_string| !data_string.is_null())
       .and_then(|jstr| {
         let jstr: JString = jstr.into();
         env
@@ -691,17 +676,10 @@ pub unsafe fn stop(_: JNIEnv, _: JClass, _: JObject) {
 
 #[allow(non_snake_case)]
 pub unsafe fn onActivityDestroy(mut env: JNIEnv, _: JClass, activity: JObject) {
-  let activity_id = env
-    .call_method(&activity, "getId", "()I", &[])
-    .unwrap()
-    .i()
-    .unwrap();
+  let activity_id = jni_call_method!(env, &activity, "getId", "()I", i).unwrap();
 
-  let is_changing_configurations = env
-    .call_method(&activity, "isChangingConfigurations", "()Z", &[])
-    .unwrap()
-    .z()
-    .unwrap();
+  let is_changing_configurations =
+    jni_call_method!(env, &activity, "isChangingConfigurations", "()Z", z).unwrap();
 
   // keep our Rust window references alive when the activity is going to be recreated due to configuration changes
   // e.g. rotation, multi window mode change etc
