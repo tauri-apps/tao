@@ -867,6 +867,14 @@ fn update_modifiers<T>(window: HWND, subclass_input: &SubclassInput<T>) -> Modif
   modifiers
 }
 
+/// WARNING: Due to using PeekMessage, the event handler
+/// function may get called during this function.
+/// (Re-entrance to the event handler)
+///
+/// This can cause a deadlock if calling this function
+/// while having a mutex locked.
+///
+/// It can also cause code to get executed in a surprising order.
 fn peek_next_key_message(window: HWND) -> Option<MSG> {
   unsafe {
     let mut next_msg = mem::MaybeUninit::uninit();
