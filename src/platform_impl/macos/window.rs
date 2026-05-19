@@ -1526,7 +1526,7 @@ impl UnownedWindow {
     state.current_theme = theme.unwrap_or_else(get_ns_theme);
   }
 
-  pub fn set_content_protection(&self, enabled: bool) {
+  pub fn set_content_protection(&self, enabled: bool) -> Result<(), ExternalError> {
     unsafe {
       self.ns_window.setSharingType(if enabled {
         NSWindowSharingType::None
@@ -1534,6 +1534,7 @@ impl UnownedWindow {
         NSWindowSharingType::ReadOnly
       });
     }
+    Ok(())
   }
 
   pub fn set_visible_on_all_workspaces(&self, visible: bool) {

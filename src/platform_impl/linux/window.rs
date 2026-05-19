@@ -778,6 +778,10 @@ impl Window {
     Ok(())
   }
 
+  pub fn set_content_protection(&self, _enabled: bool) -> Result<(), ExternalError> {
+    Err(ExternalError::NotSupported(NotSupportedError::new()))
+  }
+
   pub fn set_cursor_grab(&self, _grab: bool) -> Result<(), ExternalError> {
     Ok(())
   }

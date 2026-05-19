@@ -1213,10 +1213,13 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **iOS / Android / Linux:** Unsupported.
-  pub fn set_content_protection(&self, #[allow(unused)] enabled: bool) {
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
-    self.window.set_content_protection(enabled);
+  /// - **Linux:** Not supported. No equivalent mechanism exists in X11 or
+  ///   Wayland. The Wayland protocol has no surface-level capture exclusion
+  ///   hint; X11 has no equivalent of `SetWindowDisplayAffinity`. Returns
+  ///   `Err(ExternalError::NotSupported)`.
+  /// - **iOS / Android:** Unsupported.
+  pub fn set_content_protection(&self, enabled: bool) -> Result<(), ExternalError> {
+    self.window.set_content_protection(enabled)
   }
 
   /// Sets whether the window should be visible on all workspaces.

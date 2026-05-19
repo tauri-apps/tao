@@ -1087,7 +1087,7 @@ impl Window {
       .contains(WindowFlags::MARKER_UNDECORATED_SHADOW)
   }
 
-  pub fn set_content_protection(&self, enabled: bool) {
+  pub fn set_content_protection(&self, enabled: bool) -> Result<(), ExternalError> {
     unsafe {
       let _ = SetWindowDisplayAffinity(
         self.hwnd(),
@@ -1098,6 +1098,7 @@ impl Window {
         },
       );
     }
+    Ok(())
   }
 }
 
