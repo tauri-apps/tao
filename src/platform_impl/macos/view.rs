@@ -81,6 +81,7 @@ pub(super) struct ViewState {
   phys_modifiers: HashSet<KeyCode>,
   tracking_rect: Option<NSInteger>,
   pub(super) traffic_light_inset: Option<LogicalPosition<f64>>,
+  pub(super) prefers_compact_control_size_metrics: bool,
 }
 
 impl ViewState {
@@ -103,6 +104,7 @@ pub fn new_view(ns_window: &NSWindow) -> (Option<Retained<NSView>>, Weak<Mutex<C
     phys_modifiers: Default::default(),
     tracking_rect: None,
     traffic_light_inset: None,
+    prefers_compact_control_size_metrics: false,
   };
   unsafe {
     // This is free'd in `dealloc`
@@ -343,8 +345,13 @@ extern "C" fn draw_rect(this: &Object, _sel: Sel, rect: NSRect) {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
+    let window = state.ns_window.load().unwrap();
+
+    if state.prefers_compact_control_size_metrics {
+      set_prefers_compact_control_size_metrics(&window, true);
+    }
+
     if let Some(position) = state.traffic_light_inset {
-      let window = state.ns_window.load().unwrap();
       inset_traffic_lights(&window, position);
     }
 
@@ -1147,6 +1154,32 @@ extern "C" fn wants_key_down_for_event(_this: &Object, _sel: Sel, _event: id) ->
 
 extern "C" fn accepts_first_mouse(_this: &Object, _sel: Sel, _event: id) -> BOOL {
   YES
+}
+
+unsafe fn set_prefers_compact_control_size_metrics(window: &NSWindow, enabled: bool) {
+  let content_view: id = msg_send![window, contentView];
+
+  if content_view.is_null() {
+    return;
+  }
+
+  let title_bar_container_view: id = msg_send![content_view, superview];
+
+  if title_bar_container_view.is_null() {
+    return;
+  }
+
+  let responds: bool = msg_send![
+    title_bar_container_view,
+    respondsToSelector: sel!(setPrefersCompactControlSizeMetrics:)
+  ];
+
+  if responds {
+    let _: () = msg_send![
+      title_bar_container_view,
+      setPrefersCompactControlSizeMetrics: enabled
+    ];
+  }
 }
 
 pub unsafe fn inset_traffic_lights(window: &NSWindow, position: LogicalPosition<f64>) {
