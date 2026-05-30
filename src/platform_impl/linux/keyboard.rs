@@ -115,6 +115,12 @@ pub(crate) fn raw_key_to_key(gdk_key: RawKey) -> Option<Key<'static>> {
     // KP_Separator? What does it map to?
     KP_Tab => Some(Key::Tab),
     KP_Up => Some(Key::ArrowUp),
+
+    // JIS
+    Zenkaku_Hankaku => Some(Key::ZenkakuHankaku),
+    Hiragana_Katakana => Some(Key::HiraganaKatakana),
+    Henkan => Some(Key::Convert),
+    Muhenkan => Some(Key::NonConvert),
     // TODO: more mappings (media etc)
     _ => None,
   }
