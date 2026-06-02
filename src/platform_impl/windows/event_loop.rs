@@ -867,19 +867,25 @@ pub(super) unsafe extern "system" fn public_window_callback<T: 'static>(
       let initdata = createstruct.lpCreateParams;
       let initdata = &mut *(initdata as *mut InitData<'_, T>);
 
-      let runner = initdata.event_loop.runner_shared.clone();
-      if let Some((win, userdata)) = runner.catch_unwind(|| (initdata.post_init)(window)) {
-        initdata.window = Some(win);
-        let userdata = Box::into_raw(Box::new(userdata));
-        util::SetWindowLongPtrW(window, GWL_USERDATA, userdata as isize);
-        userdata
-      } else {
-        return LRESULT(-1);
-      }
+      return match unsafe { initdata.on_nccreate(window) } {
+        Some(userdata) => unsafe {
+          util::SetWindowLongPtrW(window, GWL_USERDATA, userdata);
+          DefWindowProcW(window, msg, wparam, lparam)
+        },
+        None => LRESULT(-1), // failed to create the window
+      };
     }
     // Getting here should quite frankly be impossible,
     // but we'll make window creation fail here just in case.
     (0, WM_CREATE) => return LRESULT(-1),
+    (_, WM_CREATE) => unsafe {
+      let createstruct = &mut *(lparam.0 as *mut CREATESTRUCTW);
+      let initdata = createstruct.lpCreateParams;
+      let initdata = &mut *(initdata as *mut InitData<'_, T>);
+
+      initdata.on_create();
+      return DefWindowProcW(window, msg, wparam, lparam);
+    },
     (0, _) => return DefWindowProcW(window, msg, wparam, lparam),
     _ => userdata as *mut WindowData<T>,
   };
@@ -889,7 +895,7 @@ pub(super) unsafe extern "system" fn public_window_callback<T: 'static>(
 
     userdata.recurse_depth.set(userdata.recurse_depth.get() + 1);
 
-    let result = public_window_callback_inner(window, msg, wparam, lparam, &userdata);
+    let result = public_window_callback_inner(window, msg, wparam, lparam, userdata);
 
     let userdata_removed = userdata.userdata_removed.get();
     let recurse_depth = userdata.recurse_depth.get() - 1;
