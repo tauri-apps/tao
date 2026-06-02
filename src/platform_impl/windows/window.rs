@@ -11,6 +11,7 @@ use std::{
   ffi::OsStr,
   io, mem,
   os::windows::ffi::OsStrExt,
+  panic,
   sync::Arc,
 };
 
@@ -1140,7 +1141,7 @@ impl<T> InitData<'_, T> {
 
       let file_drop_runner = self.event_loop.runner_shared.clone();
       let file_drop_handler: IDropTarget = FileDropHandler::new(
-        win.window.0,
+        win.hwnd(),
         Box::new(move |event| {
           if let Ok(e) = event.map_nonuser_event() {
             file_drop_runner.send_event(e)
@@ -1149,13 +1150,13 @@ impl<T> InitData<'_, T> {
       )
       .into();
 
-      assert!(RegisterDragDrop(win.window.0, &file_drop_handler).is_ok());
+      assert!(RegisterDragDrop(win.hwnd(), &file_drop_handler).is_ok());
       Some(file_drop_handler)
     } else {
       None
     };
 
-    self.event_loop.runner_shared.register_window(win.window.0);
+    self.event_loop.runner_shared.register_window(win.hwnd());
 
     KEY_EVENT_BUILDERS
       .lock()
@@ -1176,17 +1177,15 @@ impl<T> InitData<'_, T> {
   // callback.
   pub unsafe fn on_nccreate(&mut self, window: HWND) -> Option<isize> {
     let runner = self.event_loop.runner_shared.clone();
-    let result = runner.catch_unwind(|| {
+    let (win, userdata) = runner.catch_unwind(|| {
       let window = unsafe { self.create_window(window) };
       let window_data = unsafe { self.create_window_data(&window) };
       (window, window_data)
-    });
+    })?;
 
-    result.map(|(win, userdata)| {
-      self.window = Some(win);
-      let userdata = Box::into_raw(Box::new(userdata));
-      userdata as _
-    })
+    self.window = Some(win);
+    let userdata = Box::into_raw(Box::new(userdata));
+    Some(userdata as _)
   }
 
   pub unsafe fn on_create(&mut self) {
@@ -1273,8 +1272,6 @@ unsafe fn init<T: 'static>(
       None
     }
   };
-
-  // creating the real window this time, by using the functions in `extra_functions`
 
   let (style, ex_style) = window_flags.to_window_styles();
   let title = util::encode_wide(&attributes.title);
@@ -1379,6 +1376,11 @@ unsafe fn init<T: 'static>(
     GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
     Some(&mut initdata as *mut _ as *mut _),
   )?;
+
+  // If the window creation in `InitData` panicked, then should resume panicking here
+  if let Err(panic_error) = event_loop.runner_shared.take_panic_error() {
+    panic::resume_unwind(panic_error)
+  }
 
   if !IsWindow(Some(handle)).as_bool() {
     return Err(os_error!(OsError::IoError(io::Error::last_os_error())));
