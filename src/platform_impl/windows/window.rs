@@ -1187,8 +1187,7 @@ where
         pl_attribs.clone(),
         window_flags,
         event_loop,
-      )
-      .unwrap();
+      );
       let window_data = create_window_data(&mut window);
       (window, window_data)
     },
@@ -1306,12 +1305,12 @@ unsafe fn post_init<T: 'static>(
   pl_attribs: PlatformSpecificWindowBuilderAttributes,
   window_flags: WindowFlags,
   event_loop: &EventLoopWindowTarget<T>,
-) -> Result<Window, RootOsError> {
+) -> Window {
   // Register for touch events if applicable
   {
     let digitizer = GetSystemMetrics(SM_DIGITIZER) as u32;
     if digitizer & NID_READY != 0 {
-      RegisterTouchWindow(real_window.0, TWF_WANTPALM)?;
+      let _ = RegisterTouchWindow(real_window.0, TWF_WANTPALM);
     }
   }
 
@@ -1387,7 +1386,7 @@ unsafe fn post_init<T: 'static>(
   win.set_visible(attributes.visible);
   win.set_closable(attributes.closable);
 
-  Ok(win)
+  win
 }
 
 unsafe fn register_window_class<T: 'static>(window_classname: &str) -> Vec<u16> {

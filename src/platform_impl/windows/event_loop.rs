@@ -899,7 +899,7 @@ pub(super) unsafe extern "system" fn public_window_callback<T: 'static>(
   };
 
   if userdata_removed && recurse_depth == 0 {
-    drop(Box::from_raw(userdata_ptr));
+    drop(Box::from_raw(userdata_ptr))
   }
 
   result
@@ -2284,10 +2284,6 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
   }
   let userdata = Box::from_raw(userdata_ptr);
 
-  if msg != WM_PAINT {
-    let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
-  }
-
   let mut userdata_removed = false;
 
   // I decided to bind the closure to `callback` and pass it to catch_unwind rather than passing
@@ -2418,11 +2414,9 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
     .catch_unwind(callback)
     .unwrap_or(LRESULT(-1));
   if userdata_removed {
-    mem::drop(userdata);
+    drop(userdata);
   } else {
-    // FIXME: this seems to leak intentionally?
-    #[allow(unused_must_use)]
-    Box::into_raw(userdata);
+    Box::leak(userdata);
   }
   result
 }
