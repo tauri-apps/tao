@@ -859,7 +859,7 @@ pub(super) unsafe extern "system" fn public_window_callback<T: 'static>(
   wparam: WPARAM,
   lparam: LPARAM,
 ) -> LRESULT {
-  let userdata = GetWindowLongPtrW(window, GWL_USERDATA);
+  let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
   let userdata_ptr = match (userdata, msg) {
     (0, WM_NCCREATE) => {
       let createstruct = &mut *(lparam.0 as *mut CREATESTRUCTW);
@@ -1051,7 +1051,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     win32wm::WM_NCDESTROY => {
-      SetWindowLongPtrW(window, GWL_USERDATA, 0);
+      util::SetWindowLongPtrW(window, GWL_USERDATA, 0);
       userdata.userdata_removed.set(true);
       result = ProcResult::Value(LRESULT(0));
     }
@@ -2292,7 +2292,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
   // the git blame and history would be preserved.
   let callback = || match msg {
     win32wm::WM_NCDESTROY => {
-      SetWindowLongPtrW(window, GWL_USERDATA, 0);
+      util::SetWindowLongPtrW(window, GWL_USERDATA, 0);
       userdata_removed = true;
       let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
       LRESULT(0)
