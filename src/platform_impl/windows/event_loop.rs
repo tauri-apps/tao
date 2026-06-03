@@ -657,7 +657,7 @@ fn create_event_target_window<T: 'static>() -> HWND {
       // `explorer.exe` and then starting the process back up.
       // It is unclear why the bug is triggered by waiting for several hours.
       WS_EX_TOOLWINDOW,
-      PCWSTR::from_raw(thread_event_target_window_class.clone().as_ptr()),
+      thread_event_target_window_class,
       PCWSTR::null(),
       WS_OVERLAPPED,
       0,
@@ -2279,8 +2279,8 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
 ) -> LRESULT {
   let userdata_ptr = util::GetWindowLongPtrW(window, GWL_USERDATA) as *mut ThreadMsgTargetData<T>;
   if userdata_ptr.is_null() {
-    // `userdata_ptr` will always be null for the first `WM_GETMINMAXINFO`, as well as `WM_NCCREATE` and
-    // `WM_CREATE`.
+    // `userdata_ptr` will always be null for the first `WM_GETMINMAXINFO`, as well as
+    // `WM_NCCREATE` and `WM_CREATE`.
     return DefWindowProcW(window, msg, wparam, lparam);
   }
   let userdata = Box::from_raw(userdata_ptr);
