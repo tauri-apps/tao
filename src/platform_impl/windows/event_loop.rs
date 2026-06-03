@@ -21,7 +21,7 @@ use std::{
   time::{Duration, Instant},
 };
 use windows::{
-  core::{s, BOOL, PCWSTR},
+  core::{s, w, BOOL, PCWSTR},
   Win32::{
     Foundation::{
       HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, TRUE, WAIT_TIMEOUT, WPARAM,
@@ -43,7 +43,6 @@ use windows::{
     },
   },
 };
-use windows_core::w;
 
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize, PixelUnit},
@@ -54,7 +53,7 @@ use crate::{
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{
     dark_mode::try_window_theme,
-    dpi::{become_dpi_aware, dpi_to_scale_factor, enable_non_client_dpi_scaling},
+    dpi::{become_dpi_aware, dpi_to_scale_factor},
     keyboard::is_msg_keyboard_related,
     keyboard_layout::LAYOUT_CACHE,
     minimal_ime::is_msg_ime_related,
@@ -1019,10 +1018,6 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(LRESULT(0));
     }
 
-    win32wm::WM_NCCREATE => {
-      enable_non_client_dpi_scaling(window);
-      result = ProcResult::DefWindowProc;
-    }
     win32wm::WM_NCLBUTTONDOWN => {
       if wparam.0 == HTCAPTION as _ {
         let _ = PostMessageW(Some(window), WM_MOUSEMOVE, WPARAM(0), lparam);

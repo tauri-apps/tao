@@ -40,7 +40,7 @@ use crate::{
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{
     dark_mode::try_window_theme,
-    dpi::{dpi_to_scale_factor, hwnd_dpi},
+    dpi::{dpi_to_scale_factor, enable_non_client_dpi_scaling, hwnd_dpi},
     drop_handler::FileDropHandler,
     event_loop::{self, EventLoopWindowTarget, DESTROY_MSG_ID},
     icon::{self, IconType},
@@ -1113,6 +1113,8 @@ impl<T> InitData<'_, T> {
       WindowState::set_window_flags(window_state.lock(), window, |f| *f = self.window_flags);
       window_state
     };
+
+    enable_non_client_dpi_scaling(window);
 
     Window {
       window: WindowWrapper(window),
