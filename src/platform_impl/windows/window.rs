@@ -1364,7 +1364,7 @@ unsafe fn init<T: 'static>(
     window: None,
   };
 
-  let handle = CreateWindowExW(
+  let result = CreateWindowExW(
     ex_style,
     PCWSTR::from_raw(class_name.as_ptr()),
     PCWSTR::from_raw(title.as_ptr()),
@@ -1377,16 +1377,14 @@ unsafe fn init<T: 'static>(
     menu,
     GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
     Some(&mut initdata as *mut _ as *mut _),
-  )?;
+  );
 
   // If the window creation in `InitData` panicked, then should resume panicking here
   if let Err(panic_error) = event_loop.runner_shared.take_panic_error() {
     panic::resume_unwind(panic_error)
   }
 
-  if !IsWindow(Some(handle)).as_bool() {
-    return Err(os_error!(OsError::IoError(io::Error::last_os_error())));
-  }
+  let handle = result?;
 
   super::dark_mode::allow_dark_mode_for_window(handle, true);
 
