@@ -108,6 +108,10 @@ ndk-sys = "0.6"
 percent-encoding = "2.3"
 tao-macros = { version = "0.1.0", path = "./tao-macros" }
 
+[target."cfg(target_env = \"ohos\")".dependencies]
+openharmony-ability = { git = "https://github.com/harmony-contrib/openharmony-ability.git" }
+openharmony-ability-derive = { git = "https://github.com/harmony-contrib/openharmony-ability.git" }
+
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
 objc2 = "0.6"
 block2 = "0.6"
@@ -162,7 +166,7 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
   "NSProcessInfo",
 ] }
 
-[target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
+[target."cfg(all(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"), not(target_env = \"ohos\")))".dependencies]
 gtk = "0.18"
 gdkx11-sys = { version = "0.18", optional = true }
 gdkwayland-sys = "0.18.0"

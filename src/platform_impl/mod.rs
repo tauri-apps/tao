@@ -5,12 +5,15 @@
 #[cfg(target_os = "windows")]
 #[path = "windows/mod.rs"]
 mod platform;
-#[cfg(any(
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
+#[cfg(all(
+  any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ),
+  not(target_env = "ohos")
 ))]
 #[path = "linux/mod.rs"]
 mod platform;
@@ -22,6 +25,9 @@ mod platform;
 mod platform;
 #[cfg(target_os = "ios")]
 #[path = "ios/mod.rs"]
+mod platform;
+#[cfg(target_env = "ohos")]
+#[path = "ohos/mod.rs"]
 mod platform;
 
 pub use platform::*;
@@ -36,5 +42,6 @@ pub use platform::*;
   not(target_os = "freebsd"),
   not(target_os = "netbsd"),
   not(target_os = "openbsd"),
+  not(target_env = "ohos")
 ))]
 compile_error!("The platform you're compiling for is not supported by tao");

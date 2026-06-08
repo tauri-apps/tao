@@ -1150,14 +1150,17 @@ impl Window {
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_progress_bar(&self, _progress: ProgressBarState) {
-    #[cfg(any(
-      windows,
-      target_os = "linux",
-      target_os = "dragonfly",
-      target_os = "freebsd",
-      target_os = "netbsd",
-      target_os = "openbsd",
-      target_os = "macos",
+    #[cfg(all(
+      any(
+        windows,
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+        target_os = "macos",
+      ),
+      not(target_env = "ohos")
     ))]
     self.window.set_progress_bar(_progress)
   }
@@ -1197,14 +1200,17 @@ impl Window {
   /// - **iOS / Android:** Unsupported.
   #[inline]
   pub fn set_theme(&self, #[allow(unused)] theme: Option<Theme>) {
-    #[cfg(any(
-      windows,
-      target_os = "linux",
-      target_os = "dragonfly",
-      target_os = "freebsd",
-      target_os = "netbsd",
-      target_os = "openbsd",
-      target_os = "macos",
+    #[cfg(all(
+      any(
+        windows,
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+        target_os = "macos",
+      ),
+      not(target_env = "ohos")
     ))]
     self.window.set_theme(theme)
   }
@@ -1225,7 +1231,10 @@ impl Window {
   ///
   /// - **iOS / Android / Windows:** Unsupported.
   pub fn set_visible_on_all_workspaces(&self, #[allow(unused)] visible: bool) {
-    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    #[cfg(all(
+      any(target_os = "macos", target_os = "linux"),
+      not(target_env = "ohos")
+    ))]
     self.window.set_visible_on_all_workspaces(visible)
   }
 

@@ -779,7 +779,7 @@ pub struct KeyEvent {
   pub(crate) platform_specific: platform_impl::KeyEventExtra,
 }
 
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[cfg(not(any(target_os = "android", target_os = "ios", target_env = "ohos")))]
 impl KeyEvent {
   /// Identical to `KeyEvent::text` but this is affected by <kbd>Ctrl</kbd>.
   ///
@@ -803,7 +803,7 @@ impl KeyEvent {
   }
 }
 
-#[cfg(any(target_os = "android", target_os = "ios"))]
+#[cfg(any(target_os = "android", target_os = "ios", target_env = "ohos"))]
 impl KeyEvent {
   /// Identical to `KeyEvent::text`.
   pub fn text_with_all_modifiers(&self) -> Option<&str> {

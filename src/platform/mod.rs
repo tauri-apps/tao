@@ -23,6 +23,7 @@ pub mod android;
 pub mod ios;
 pub mod linux;
 pub mod macos;
+pub mod ohos;
 pub mod run_return;
 pub mod unix;
 pub mod windows;

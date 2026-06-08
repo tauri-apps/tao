@@ -193,6 +193,7 @@ pub enum NativeKeyCode {
   /// This is the android "key code" of the event as returned by
   /// `KeyEvent.getKeyCode()`
   Android(i32),
+  Ohos(i32),
 }
 
 /// Represents the code of a physical key.
