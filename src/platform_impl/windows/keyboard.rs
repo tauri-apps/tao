@@ -108,7 +108,7 @@ impl KeyEventBuilder {
         }
 
         if msg_kind == win32wm::WM_SYSKEYDOWN {
-          *result = ProcResult::DefSubclassProc;
+          *result = ProcResult::DefWindowProc;
         } else {
           *result = ProcResult::Value(LRESULT(0));
         }
@@ -255,7 +255,7 @@ impl KeyEventBuilder {
       }
       win32wm::WM_KEYUP | win32wm::WM_SYSKEYUP => {
         if msg_kind == win32wm::WM_SYSKEYUP {
-          *result = ProcResult::DefSubclassProc;
+          *result = ProcResult::DefWindowProc;
         } else {
           *result = ProcResult::Value(LRESULT(0));
         }

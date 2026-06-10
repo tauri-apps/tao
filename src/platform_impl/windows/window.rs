@@ -11,6 +11,7 @@ use std::{
   ffi::OsStr,
   io, mem,
   os::windows::ffi::OsStrExt,
+  panic,
   sync::Arc,
 };
 
@@ -18,9 +19,7 @@ use crossbeam_channel as channel;
 use windows::{
   core::PCWSTR,
   Win32::{
-    Foundation::{
-      self as win32f, HINSTANCE, HMODULE, HWND, LPARAM, LRESULT, POINT, POINTS, RECT, WPARAM,
-    },
+    Foundation::{self as win32f, HINSTANCE, HMODULE, HWND, LPARAM, POINT, POINTS, RECT, WPARAM},
     Graphics::{
       Dwm::{DwmEnableBlurBehindWindow, DWM_BB_BLURREGION, DWM_BB_ENABLE, DWM_BLURBEHIND},
       Gdi::*,
@@ -29,7 +28,7 @@ use windows::{
     UI::{
       Input::{Ime::*, KeyboardAndMouse::*, Touch::*},
       Shell::{ITaskbarList4 as ITaskbarList, TaskbarList, *},
-      WindowsAndMessaging::{self as win32wm, *},
+      WindowsAndMessaging::*,
     },
   },
 };
@@ -41,7 +40,7 @@ use crate::{
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::platform::{
     dark_mode::try_window_theme,
-    dpi::{dpi_to_scale_factor, hwnd_dpi},
+    dpi::{dpi_to_scale_factor, enable_non_client_dpi_scaling, hwnd_dpi},
     drop_handler::FileDropHandler,
     event_loop::{self, EventLoopWindowTarget, DESTROY_MSG_ID},
     icon::{self, IconType},
@@ -61,6 +60,8 @@ use super::{
   keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS},
   util::calculate_insets_for_dpi,
 };
+
+use super::event_loop::WindowData;
 
 /// A simple non-owning wrapper around a window.
 #[derive(Clone, Copy)]
@@ -95,56 +96,7 @@ impl Window {
     // First person to remove the need for cloning here gets a cookie!
     //
     // done. you owe me -- ossi
-    unsafe {
-      let drag_and_drop = pl_attr.drag_and_drop;
-      init(w_attr, pl_attr, event_loop).map(|win| {
-        let file_drop_handler = if drag_and_drop {
-          // It is ok if the initialize result is `S_FALSE` because it might happen that
-          // multiple windows are created on the same thread.
-          if let Err(error) = OleInitialize(None) {
-            match error.code() {
-              win32f::OLE_E_WRONGCOMPOBJ => {
-                panic!("OleInitialize failed! Result was: `OLE_E_WRONGCOMPOBJ`")
-              }
-              win32f::RPC_E_CHANGED_MODE => panic!(
-                "OleInitialize failed! Result was: `RPC_E_CHANGED_MODE`. \
-                Make sure other crates are not using multithreaded COM library \
-                on the same thread or disable drag and drop support."
-              ),
-              _ => (),
-            };
-          }
-
-          let file_drop_runner = event_loop.runner_shared.clone();
-          let file_drop_handler: IDropTarget = FileDropHandler::new(
-            win.window.0,
-            Box::new(move |event| {
-              if let Ok(e) = event.map_nonuser_event() {
-                file_drop_runner.send_event(e)
-              }
-            }),
-          )
-          .into();
-
-          assert!(RegisterDragDrop(win.window.0, &file_drop_handler).is_ok());
-          Some(file_drop_handler)
-        } else {
-          None
-        };
-
-        let subclass_input = event_loop::SubclassInput {
-          window_state: win.window_state.clone(),
-          event_loop_runner: event_loop.runner_shared.clone(),
-          _file_drop_handler: file_drop_handler,
-          subclass_removed: Cell::new(false),
-          recurse_depth: Cell::new(0),
-          event_loop_preferred_theme: event_loop.preferred_theme.clone(),
-        };
-
-        event_loop::subclass_window(win.window.0, subclass_input);
-        win
-      })
-    }
+    unsafe { init::<T>(w_attr, pl_attr, event_loop) }
   }
 
   pub fn set_title(&self, text: &str) {
@@ -1113,13 +1065,170 @@ impl Drop for Window {
   }
 }
 
+pub(super) struct InitData<'a, T: 'static> {
+  // inputs
+  pub event_loop: &'a EventLoopWindowTarget<T>,
+  pub attributes: WindowAttributes,
+  pub pl_attribs: PlatformSpecificWindowBuilderAttributes,
+  pub window_flags: WindowFlags,
+  // outputs
+  pub window: Option<Window>,
+}
+
+impl<T> InitData<'_, T> {
+  unsafe fn create_window(&self, window: HWND) -> Window {
+    // Register for touch events if applicable
+    {
+      let digitizer = GetSystemMetrics(SM_DIGITIZER) as u32;
+      if digitizer & NID_READY != 0 {
+        let _ = RegisterTouchWindow(window, TWF_WANTPALM);
+      }
+    }
+
+    let dpi = hwnd_dpi(window);
+    let scale_factor = dpi_to_scale_factor(dpi);
+
+    // If the system theme is dark, we need to set the window theme now
+    // before we update the window flags (and possibly show the
+    // window for the first time).
+    let current_theme = try_window_theme(
+      window,
+      self
+        .attributes
+        .preferred_theme
+        .or(*self.event_loop.preferred_theme.lock()),
+      false,
+    );
+
+    let window_state = {
+      let window_state = WindowState::new(
+        &self.attributes,
+        None,
+        scale_factor,
+        current_theme,
+        self.attributes.preferred_theme,
+        self.attributes.background_color,
+      );
+      let window_state = Arc::new(Mutex::new(window_state));
+      WindowState::set_window_flags(window_state.lock(), window, |f| *f = self.window_flags);
+      window_state
+    };
+
+    enable_non_client_dpi_scaling(window);
+
+    Window {
+      window: WindowWrapper(window),
+      window_state,
+      thread_executor: self.event_loop.create_thread_executor(),
+    }
+  }
+
+  unsafe fn create_window_data(&self, win: &Window) -> event_loop::WindowData<T> {
+    let file_drop_handler = if self.pl_attribs.drag_and_drop {
+      // It is ok if the initialize result is `S_FALSE` because it might happen that
+      // multiple windows are created on the same thread.
+      if let Err(error) = OleInitialize(None) {
+        match error.code() {
+          win32f::OLE_E_WRONGCOMPOBJ => {
+            panic!("OleInitialize failed! Result was: `OLE_E_WRONGCOMPOBJ`")
+          }
+          win32f::RPC_E_CHANGED_MODE => panic!(
+            "OleInitialize failed! Result was: `RPC_E_CHANGED_MODE`. \
+                Make sure other crates are not using multithreaded COM library \
+                on the same thread or disable drag and drop support."
+          ),
+          _ => (),
+        };
+      }
+
+      let file_drop_runner = self.event_loop.runner_shared.clone();
+      let file_drop_handler: IDropTarget = FileDropHandler::new(
+        win.hwnd(),
+        Box::new(move |event| {
+          if let Ok(e) = event.map_nonuser_event() {
+            file_drop_runner.send_event(e)
+          }
+        }),
+      )
+      .into();
+
+      assert!(RegisterDragDrop(win.hwnd(), &file_drop_handler).is_ok());
+      Some(file_drop_handler)
+    } else {
+      None
+    };
+
+    self.event_loop.runner_shared.register_window(win.hwnd());
+
+    KEY_EVENT_BUILDERS
+      .lock()
+      .insert(win.id(), KeyEventBuilder::default());
+
+    WindowData {
+      window_state: win.window_state.clone(),
+      event_loop_runner: self.event_loop.runner_shared.clone(),
+      _file_drop_handler: file_drop_handler,
+      userdata_removed: Cell::new(false),
+      recurse_depth: Cell::new(0),
+      event_loop_preferred_theme: self.event_loop.preferred_theme.clone(),
+    }
+  }
+
+  // Returns a pointer to window user data on success.
+  // The user data will be registered for the window and can be accessed within the window event
+  // callback.
+  pub unsafe fn on_nccreate(&mut self, window: HWND) -> Option<isize> {
+    let runner = self.event_loop.runner_shared.clone();
+    let (win, userdata) = runner.catch_unwind(|| {
+      let window = unsafe { self.create_window(window) };
+      let window_data = unsafe { self.create_window_data(&window) };
+      (window, window_data)
+    })?;
+
+    self.window = Some(win);
+    let userdata = Box::into_raw(Box::new(userdata));
+    Some(userdata as _)
+  }
+
+  pub unsafe fn on_create(&mut self) {
+    let win = self.window.as_mut().expect("failed window creation");
+
+    // making the window transparent
+    if self.attributes.transparent && !self.pl_attribs.no_redirection_bitmap {
+      // Empty region for the blur effect, so the window is fully transparent
+      let region = CreateRectRgn(0, 0, -1, -1);
+
+      let bb = DWM_BLURBEHIND {
+        dwFlags: DWM_BB_ENABLE | DWM_BB_BLURREGION,
+        fEnable: true.into(),
+        hRgnBlur: region,
+        fTransitionOnMaximized: false.into(),
+      };
+
+      let _ = DwmEnableBlurBehindWindow(win.hwnd(), &bb);
+      let _ = DeleteObject(region.into());
+    }
+
+    let _ = win.set_skip_taskbar(self.pl_attribs.skip_taskbar);
+    win.set_window_icon(self.attributes.window_icon.clone());
+    win.set_taskbar_icon(self.pl_attribs.taskbar_icon.clone());
+
+    if self.attributes.content_protection {
+      win.set_content_protection(true);
+    }
+
+    win.set_visible(self.attributes.visible);
+    win.set_closable(self.attributes.closable);
+  }
+}
+
 unsafe fn init<T: 'static>(
   attributes: WindowAttributes,
   pl_attribs: PlatformSpecificWindowBuilderAttributes,
   event_loop: &EventLoopWindowTarget<T>,
 ) -> Result<Window, RootOsError> {
   // registering the window class
-  let class_name = register_window_class(&pl_attribs.window_classname);
+  let class_name = register_window_class::<T>(&pl_attribs.window_classname);
 
   let mut window_flags = WindowFlags::empty();
   window_flags.set(WindowFlags::MARKER_DECORATIONS, attributes.decorations);
@@ -1166,199 +1275,143 @@ unsafe fn init<T: 'static>(
     }
   };
 
-  // creating the real window this time, by using the functions in `extra_functions`
-  let real_window = {
-    let (style, ex_style) = window_flags.to_window_styles();
-    let title = util::encode_wide(&attributes.title);
+  let (style, ex_style) = window_flags.to_window_styles();
+  let title = util::encode_wide(&attributes.title);
 
-    let (target_monitor, position) = attributes
-      .position
-      .and_then(|p| {
-        monitor::available_monitors()
-          .into_iter()
-          .find_map(|monitor| {
-            let dpi = monitor.dpi();
-            let scale_factor = dpi_to_scale_factor(dpi);
-            let position = p.to_physical::<i32>(scale_factor);
-            let (x, y): (i32, i32) = monitor.position().into();
-            let (width, height): (i32, i32) = monitor.size().into();
+  let (target_monitor, position) = attributes
+    .position
+    .and_then(|p| {
+      monitor::available_monitors()
+        .into_iter()
+        .find_map(|monitor| {
+          let dpi = monitor.dpi();
+          let scale_factor = dpi_to_scale_factor(dpi);
+          let position = p.to_physical::<i32>(scale_factor);
+          let (x, y): (i32, i32) = monitor.position().into();
+          let (width, height): (i32, i32) = monitor.size().into();
 
-            let frame_thickness = if window_flags.contains_shadow() {
-              util::get_frame_thickness(dpi)
-            } else {
-              0
-            };
+          let frame_thickness = if window_flags.contains_shadow() {
+            util::get_frame_thickness(dpi)
+          } else {
+            0
+          };
 
-            // Only the starting position x needs to be accounted
-            if x <= position.x + frame_thickness
-              && position.x <= x + width
-              && y <= position.y
-              && position.y <= y + height
-            {
-              Some((monitor, position.into()))
-            } else {
-              None
-            }
-          })
-      })
-      .unwrap_or_else(|| (monitor::primary_monitor(), (CW_USEDEFAULT, CW_USEDEFAULT)));
+          // Only the starting position x needs to be accounted
+          if x <= position.x + frame_thickness
+            && position.x <= x + width
+            && y <= position.y
+            && position.y <= y + height
+          {
+            Some((monitor, position.into()))
+          } else {
+            None
+          }
+        })
+    })
+    .unwrap_or_else(|| (monitor::primary_monitor(), (CW_USEDEFAULT, CW_USEDEFAULT)));
 
-    let desired_size = attributes
-      .inner_size
-      .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
-    let clamped_size = attributes
-      .inner_size_constraints
-      .clamp(desired_size, target_monitor.scale_factor());
+  let desired_size = attributes
+    .inner_size
+    .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
+  let clamped_size = attributes
+    .inner_size_constraints
+    .clamp(desired_size, target_monitor.scale_factor());
 
-    // Best effort: try to create the window with the requested inner size
-    let adjusted_size = {
-      let (mut w, mut h): (i32, i32) = clamped_size
-        .to_physical::<u32>(target_monitor.scale_factor())
-        .into();
+  // Best effort: try to create the window with the requested inner size
+  let adjusted_size = {
+    let (mut w, mut h): (i32, i32) = clamped_size
+      .to_physical::<u32>(target_monitor.scale_factor())
+      .into();
 
-      if window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
-        let mut rect = RECT {
-          left: 0,
-          top: 0,
-          right: w,
-          bottom: h,
-        };
+    if window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
+      let mut rect = RECT {
+        left: 0,
+        top: 0,
+        right: w,
+        bottom: h,
+      };
 
-        unsafe {
-          AdjustWindowRectEx(
-            &mut rect,
-            window_flags.to_adjusted_window_styles().0,
-            pl_attribs.menu.is_some(),
-            ex_style,
-          )?;
-        }
-
-        w = rect.right - rect.left;
-        h = rect.bottom - rect.top;
-      } else if window_flags.undecorated_with_shadows() {
-        let dpi = target_monitor.dpi();
-        let insets = calculate_insets_for_dpi(dpi);
-        w += insets.left + insets.right;
-        h += insets.top + insets.bottom;
+      unsafe {
+        AdjustWindowRectEx(
+          &mut rect,
+          window_flags.to_adjusted_window_styles().0,
+          pl_attribs.menu.is_some(),
+          ex_style,
+        )?;
       }
 
-      (w, h)
-    };
-
-    let handle = CreateWindowExW(
-      ex_style,
-      PCWSTR::from_raw(class_name.as_ptr()),
-      PCWSTR::from_raw(title.as_ptr()),
-      style,
-      position.0,
-      position.1,
-      adjusted_size.0,
-      adjusted_size.1,
-      parent,
-      pl_attribs.menu,
-      GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
-      Some(Box::into_raw(Box::new(window_flags)) as _),
-    )?;
-
-    if !IsWindow(Some(handle)).as_bool() {
-      return Err(os_error!(OsError::IoError(io::Error::last_os_error())));
+      w = rect.right - rect.left;
+      h = rect.bottom - rect.top;
+    } else if window_flags.undecorated_with_shadows() {
+      let dpi = target_monitor.dpi();
+      let insets = calculate_insets_for_dpi(dpi);
+      w += insets.left + insets.right;
+      h += insets.top + insets.bottom;
     }
 
-    super::dark_mode::allow_dark_mode_for_window(handle, true);
-
-    WindowWrapper(handle)
+    (w, h)
   };
 
-  // Register for touch events if applicable
-  {
-    let digitizer = GetSystemMetrics(SM_DIGITIZER) as u32;
-    if digitizer & NID_READY != 0 {
-      RegisterTouchWindow(real_window.0, TWF_WANTPALM)?;
-    }
-  }
+  let fullscreen = attributes.fullscreen.clone();
+  let maximized = attributes.maximized;
+  let menu = pl_attribs.menu;
 
-  let dpi = hwnd_dpi(real_window.0);
-  let scale_factor = dpi_to_scale_factor(dpi);
+  let mut initdata = InitData {
+    event_loop,
+    attributes,
+    pl_attribs,
+    window_flags,
+    window: None,
+  };
 
-  // making the window transparent
-  if attributes.transparent && !pl_attribs.no_redirection_bitmap {
-    // Empty region for the blur effect, so the window is fully transparent
-    let region = CreateRectRgn(0, 0, -1, -1);
-
-    let bb = DWM_BLURBEHIND {
-      dwFlags: DWM_BB_ENABLE | DWM_BB_BLURREGION,
-      fEnable: true.into(),
-      hRgnBlur: region,
-      fTransitionOnMaximized: false.into(),
-    };
-
-    let _ = DwmEnableBlurBehindWindow(real_window.0, &bb);
-    let _ = DeleteObject(region.into());
-  }
-
-  // If the system theme is dark, we need to set the window theme now
-  // before we update the window flags (and possibly show the
-  // window for the first time).
-  let current_theme = try_window_theme(
-    real_window.0,
-    attributes
-      .preferred_theme
-      .or(*event_loop.preferred_theme.lock()),
-    false,
+  let result = CreateWindowExW(
+    ex_style,
+    PCWSTR::from_raw(class_name.as_ptr()),
+    PCWSTR::from_raw(title.as_ptr()),
+    style,
+    position.0,
+    position.1,
+    adjusted_size.0,
+    adjusted_size.1,
+    parent,
+    menu,
+    GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
+    Some(&mut initdata as *mut _ as *mut _),
   );
 
-  let window_state = {
-    let window_state = WindowState::new(
-      &attributes,
-      None,
-      scale_factor,
-      current_theme,
-      attributes.preferred_theme,
-      attributes.background_color,
-    );
-    let window_state = Arc::new(Mutex::new(window_state));
-    WindowState::set_window_flags(window_state.lock(), real_window.0, |f| *f = window_flags);
-    window_state
-  };
-
-  let win = Window {
-    window: real_window,
-    window_state,
-    thread_executor: event_loop.create_thread_executor(),
-  };
-
-  KEY_EVENT_BUILDERS
-    .lock()
-    .insert(win.id(), KeyEventBuilder::default());
-
-  let _ = win.set_skip_taskbar(pl_attribs.skip_taskbar);
-  win.set_window_icon(attributes.window_icon);
-  win.set_taskbar_icon(pl_attribs.taskbar_icon);
-
-  if attributes.fullscreen.is_some() {
-    win.set_fullscreen(attributes.fullscreen);
-    force_window_active(win.window.0);
-  } else if attributes.maximized {
-    win.set_maximized(true);
+  // If the window creation in `InitData` panicked, then should resume panicking here
+  if let Err(panic_error) = event_loop.runner_shared.take_panic_error() {
+    panic::resume_unwind(panic_error)
   }
 
-  if attributes.content_protection {
-    win.set_content_protection(true);
+  let handle = result?;
+
+  super::dark_mode::allow_dark_mode_for_window(handle, true);
+
+  // If the handle is non-null, then window creation must have succeeded, which means
+  // that we *must* have populated the `InitData.window` field.
+  let window = initdata.window.unwrap();
+
+  // Need to set FULLSCREEN or MAXIMIZED after CreateWindowEx
+  // This is because if the size is changed in WM_CREATE, the restored size will be stored in that
+  // size.
+  if fullscreen.is_some() {
+    window.set_fullscreen(fullscreen);
+    force_window_active(window.hwnd());
+  } else if maximized {
+    window.set_maximized(true);
   }
 
-  win.set_visible(attributes.visible);
-  win.set_closable(attributes.closable);
-
-  Ok(win)
+  Ok(window)
 }
 
-unsafe fn register_window_class(window_classname: &str) -> Vec<u16> {
+unsafe fn register_window_class<T: 'static>(window_classname: &str) -> Vec<u16> {
   let class_name = util::encode_wide(window_classname);
 
   let class = WNDCLASSEXW {
     cbSize: mem::size_of::<WNDCLASSEXW>() as u32,
     style: CS_HREDRAW | CS_VREDRAW | CS_OWNDC,
-    lpfnWndProc: Some(window_proc),
+    lpfnWndProc: Some(super::event_loop::public_window_callback::<T>),
     cbClsExtra: 0,
     cbWndExtra: 0,
     hInstance: HINSTANCE(GetModuleHandleW(PCWSTR::null()).unwrap_or_default().0),
@@ -1377,62 +1430,6 @@ unsafe fn register_window_class(window_classname: &str) -> Vec<u16> {
   RegisterClassExW(&class);
 
   class_name
-}
-
-unsafe extern "system" fn window_proc(
-  window: HWND,
-  msg: u32,
-  wparam: WPARAM,
-  lparam: LPARAM,
-) -> LRESULT {
-  // This window procedure is only needed until the subclass procedure is attached.
-  // we need this because we need to respond to WM_NCCALCSIZE as soon as possible
-  // in order to make the window borderless if needed.
-  match msg {
-    win32wm::WM_NCCALCSIZE => {
-      let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
-      if userdata != 0 {
-        let window_flags = WindowFlags::from_bits_truncate(userdata as _);
-
-        if wparam == WPARAM(0) || window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
-          return DefWindowProcW(window, msg, wparam, lparam);
-        }
-
-        // adjust the maximized borderless window so it doesn't cover the taskbar
-        if util::is_maximized(window).unwrap_or(false) {
-          let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
-          if let Ok(monitor_info) =
-            monitor::get_monitor_info(MonitorFromRect(&params.rgrc[0], MONITOR_DEFAULTTONULL))
-          {
-            params.rgrc[0] = monitor_info.monitorInfo.rcWork;
-          }
-        } else if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) {
-          let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
-
-          let insets = util::calculate_window_insets(window);
-
-          params.rgrc[0].left += insets.left;
-          params.rgrc[0].top += insets.top;
-          params.rgrc[0].right -= insets.right;
-          params.rgrc[0].bottom -= insets.bottom;
-        }
-        return LRESULT(0); // return 0 here to make the window borderless
-      }
-
-      DefWindowProcW(window, msg, wparam, lparam)
-    }
-    win32wm::WM_NCCREATE => {
-      let userdata = util::GetWindowLongPtrW(window, GWL_USERDATA);
-      if userdata == 0 {
-        let createstruct = &*(lparam.0 as *const CREATESTRUCTW);
-        let userdata = createstruct.lpCreateParams;
-        let window_flags = Box::from_raw(userdata as *mut WindowFlags);
-        util::SetWindowLongPtrW(window, GWL_USERDATA, window_flags.bits() as _);
-      }
-      DefWindowProcW(window, msg, wparam, lparam)
-    }
-    _ => DefWindowProcW(window, msg, wparam, lparam),
-  }
 }
 
 struct ComInitialized(Option<()>);
