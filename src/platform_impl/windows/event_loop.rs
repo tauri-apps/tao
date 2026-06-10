@@ -54,7 +54,7 @@ use crate::{
   platform_impl::platform::{
     dark_mode::try_window_theme,
     dpi::{become_dpi_aware, dpi_to_scale_factor},
-    keyboard::is_msg_keyboard_related,
+    keyboard::KeyEventBuilder,
     keyboard_layout::get_agnostic_mods,
     minimal_ime::is_msg_ime_related,
     monitor::{self, MonitorHandle},
@@ -111,6 +111,7 @@ static GET_POINTER_PEN_INFO: Lazy<Option<GetPointerPenInfo>> =
 pub(crate) struct WindowData<T: 'static> {
   pub window_state: Arc<Mutex<WindowState>>,
   pub event_loop_runner: EventLoopRunnerShared<T>,
+  pub key_event_builder: KeyEventBuilder,
   pub _file_drop_handler: Option<IDropTarget>,
   pub userdata_removed: Cell<bool>,
   pub recurse_depth: Cell<u32>,
@@ -848,24 +849,6 @@ fn peek_next_key_message(window: HWND) -> Option<MSG> {
   }
 }
 
-fn next_key_message_for_keyboard(window: HWND, msg: u32, wparam: WPARAM) -> Option<MSG> {
-  let needs_next_key_message = match msg {
-    win32wm::WM_SYSKEYDOWN if wparam.0 == usize::from(VK_F4.0) => false,
-    win32wm::WM_KEYDOWN
-    | win32wm::WM_SYSKEYDOWN
-    | win32wm::WM_CHAR
-    | win32wm::WM_SYSCHAR
-    | win32wm::WM_KEYUP
-    | win32wm::WM_SYSKEYUP => true,
-    _ => false,
-  };
-  if needs_next_key_message {
-    peek_next_key_message(window)
-  } else {
-    None
-  }
-}
-
 fn more_ime_char_coming(window: HWND, msg: u32) -> bool {
   matches!(msg, win32wm::WM_CHAR | win32wm::WM_SYSCHAR)
     && matches!(
@@ -994,22 +977,10 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
   let keyboard_callback = || {
     use crate::event::WindowEvent::KeyboardInput;
-    let is_keyboard_related = is_msg_keyboard_related(msg);
-    if !is_keyboard_related {
-      // We return early to avoid a deadlock from locking the window state
-      // when not appropriate.
-      return;
-    }
-    let next_key_message = next_key_message_for_keyboard(window, msg, wparam);
-    let events = {
-      let mut key_event_builders =
-        crate::platform_impl::platform::keyboard::KEY_EVENT_BUILDERS.lock();
-      if let Some(key_event_builder) = key_event_builders.get_mut(&WindowId(window.0 as _)) {
-        key_event_builder.process_message(msg, wparam, lparam, next_key_message, &mut result)
-      } else {
-        Vec::new()
-      }
-    };
+    let events =
+      userdata
+        .key_event_builder
+        .process_message(window, msg, wparam, lparam, &mut result);
     for event in events {
       userdata.send_event(Event::WindowEvent {
         window_id: RootWindowId(WindowId(window.0 as _)),
