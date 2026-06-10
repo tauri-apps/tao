@@ -20,6 +20,10 @@ use crate::{
 pub(crate) static LAYOUT_CACHE: Lazy<Mutex<LayoutCache>> =
   Lazy::new(|| Mutex::new(LayoutCache::default()));
 
+pub(crate) fn get_agnostic_mods() -> ModifiersState {
+  LAYOUT_CACHE.lock().get_agnostic_mods()
+}
+
 fn key_pressed(vkey: VIRTUAL_KEY) -> bool {
   unsafe { (GetKeyState(u32::from(vkey.0) as i32) & (1 << 15)) == (1 << 15) }
 }
@@ -245,7 +249,7 @@ impl LayoutCache {
     }
   }
 
-  pub fn get_agnostic_mods(&mut self) -> ModifiersState {
+  fn get_agnostic_mods(&mut self) -> ModifiersState {
     let (_, layout) = self.get_current_layout();
     let filter_out_altgr = layout.has_alt_graph && key_pressed(VK_RMENU);
     let mut mods = ModifiersState::empty();

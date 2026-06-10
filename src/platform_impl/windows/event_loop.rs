@@ -55,7 +55,7 @@ use crate::{
     dark_mode::try_window_theme,
     dpi::{become_dpi_aware, dpi_to_scale_factor, enable_non_client_dpi_scaling},
     keyboard::is_msg_keyboard_related,
-    keyboard_layout::LAYOUT_CACHE,
+    keyboard_layout::get_agnostic_mods,
     minimal_ime::is_msg_ime_related,
     monitor::{self, MonitorHandle},
     raw_input, util,
@@ -849,7 +849,7 @@ unsafe fn process_control_flow<T: 'static>(runner: &EventLoopRunner<T>) {
 fn update_modifiers<T>(window: HWND, subclass_input: &SubclassInput<T>) -> ModifiersState {
   use crate::event::WindowEvent::ModifiersChanged;
 
-  let modifiers = LAYOUT_CACHE.lock().get_agnostic_mods();
+  let modifiers = get_agnostic_mods();
   let mut window_state = subclass_input.window_state.lock();
   if window_state.modifiers_state != modifiers {
     window_state.modifiers_state = modifiers;
@@ -865,6 +865,59 @@ fn update_modifiers<T>(window: HWND, subclass_input: &SubclassInput<T>) -> Modif
     }
   }
   modifiers
+}
+
+/// WARNING: Due to using PeekMessage, the event handler
+/// function may get called during this function.
+/// (Re-entrance to the event handler)
+///
+/// This can cause a deadlock if calling this function
+/// while having a mutex locked.
+///
+/// It can also cause code to get executed in a surprising order.
+fn peek_next_key_message(window: HWND) -> Option<MSG> {
+  unsafe {
+    let mut next_msg = mem::MaybeUninit::uninit();
+    if PeekMessageW(
+      next_msg.as_mut_ptr(),
+      Some(window),
+      WM_KEYFIRST,
+      WM_KEYLAST,
+      PM_NOREMOVE,
+    )
+    .as_bool()
+    {
+      Some(next_msg.assume_init())
+    } else {
+      None
+    }
+  }
+}
+
+fn next_key_message_for_keyboard(window: HWND, msg: u32, wparam: WPARAM) -> Option<MSG> {
+  let needs_next_key_message = match msg {
+    win32wm::WM_SYSKEYDOWN if wparam.0 == usize::from(VK_F4.0) => false,
+    win32wm::WM_KEYDOWN
+    | win32wm::WM_SYSKEYDOWN
+    | win32wm::WM_CHAR
+    | win32wm::WM_SYSCHAR
+    | win32wm::WM_KEYUP
+    | win32wm::WM_SYSKEYUP => true,
+    _ => false,
+  };
+  if needs_next_key_message {
+    peek_next_key_message(window)
+  } else {
+    None
+  }
+}
+
+fn more_ime_char_coming(window: HWND, msg: u32) -> bool {
+  matches!(msg, win32wm::WM_CHAR | win32wm::WM_SYSCHAR)
+    && matches!(
+      peek_next_key_message(window),
+      Some(next_msg) if next_msg.message == WM_CHAR || next_msg.message == WM_SYSCHAR
+    )
 }
 
 unsafe fn gain_active_focus<T>(window: HWND, subclass_input: &SubclassInput<T>) {
@@ -972,11 +1025,12 @@ unsafe fn public_window_callback_inner<T: 'static>(
       // when not appropriate.
       return;
     }
+    let next_key_message = next_key_message_for_keyboard(window, msg, wparam);
     let events = {
       let mut key_event_builders =
         crate::platform_impl::platform::keyboard::KEY_EVENT_BUILDERS.lock();
       if let Some(key_event_builder) = key_event_builders.get_mut(&WindowId(window.0 as _)) {
-        key_event_builder.process_message(window, msg, wparam, lparam, &mut result)
+        key_event_builder.process_message(msg, wparam, lparam, next_key_message, &mut result)
       } else {
         Vec::new()
       }
@@ -1003,11 +1057,12 @@ unsafe fn public_window_callback_inner<T: 'static>(
     if !is_ime_related {
       return;
     }
+    let more_char_coming = more_ime_char_coming(window, msg);
     let text = {
       let mut window_state = subclass_input.window_state.lock();
       window_state
         .ime_handler
-        .process_message(window, msg, wparam, lparam, &mut result)
+        .process_message(msg, wparam, more_char_coming, &mut result)
     };
     if let Some(str) = text {
       subclass_input.send_event(Event::WindowEvent {
