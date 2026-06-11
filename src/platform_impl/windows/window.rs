@@ -78,7 +78,7 @@ impl WindowWrapper {
   /// This is used for moving `WindowWrapper` instead of `window.0`
   /// when using closures
   ///
-  /// ```no_run
+  /// ```ignore
   /// let window = self.window;
   /// let not_send_sync = move || { window.0 };
   /// let send_sync = move || { window.hwnd() };
