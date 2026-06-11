@@ -50,21 +50,21 @@ pub struct MessageAsKeyEvent {
 
 /// Stores information required to make `KeyEvent`s.
 ///
-/// A single Winit `KeyEvent` contains information which the Windows API passes to the application
-/// in multiple window messages. In other words: a Winit `KeyEvent` cannot be built from a single
+/// A single Tao `KeyEvent` contains information which the Windows API passes to the application
+/// in multiple window messages. In other words: a Tao `KeyEvent` cannot be built from a single
 /// window message. Therefore, this type keeps track of certain information from previous events so
 /// that a `KeyEvent` can be constructed when the last event related to a keypress is received.
 ///
-/// `PeekMessage` is sometimes used to determine whether the next window message still belongs to
-/// the current keypress. If it doesn't and the current state represents a key event waiting to be
+/// `PeekMessage` is sometimes used to determine whether the next window message still belongs to the
+/// current keypress. If it doesn't and the current state represents a key event waiting to be
 /// dispatched, then said event is considered complete and is dispatched.
 ///
 /// The sequence of window messages for a key press event is the following:
 /// - Exactly one WM_KEYDOWN / WM_SYSKEYDOWN
 /// - Zero or one WM_DEADCHAR / WM_SYSDEADCHAR
 /// - Zero or more WM_CHAR / WM_SYSCHAR. These messages each come with a UTF-16 code unit which when
-///   put together in the sequence they arrived in, forms the text which is the result of pressing
-///   the key.
+///   put together in the sequence they arrived in, forms the text which is the result of pressing the
+///   key.
 ///
 /// Key release messages are a bit different due to the fact that they don't contribute to
 /// text input. The "sequence" only consists of one WM_KEYUP / WM_SYSKEYUP event.
@@ -864,7 +864,7 @@ impl<T> PendingEventQueue<T> {
         PendingMessage::Incomplete => {
           panic!(
             "Found an incomplete pending message when collecting messages. This \
-                         indicates a bug in winit."
+                         indicates a bug in tao."
           )
         }
       })
@@ -922,7 +922,7 @@ fn get_location(scancode: ExScancode, hkl: HKL) -> KeyLocation {
   let extension = 0xE000;
   let extended = (scancode & extension) == extension;
   let vkey =
-    VIRTUAL_KEY(unsafe { MapVirtualKeyExW(scancode as u32, MAPVK_VSC_TO_VK_EX, Some(hkl)) as u16 });
+    VIRTUAL_KEY(unsafe { MapVirtualKeyExW(scancode as u32, MAPVK_VSC_TO_VK_EX, Some(hkl)) } as u16);
 
   // Use the native VKEY and the extended flag to cover most cases
   // This is taken from the `druid` GUI library, specifically
