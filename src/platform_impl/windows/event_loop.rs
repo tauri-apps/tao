@@ -822,41 +822,6 @@ fn update_modifiers<T>(window: HWND, useredata: &WindowData<T>) -> ModifiersStat
   modifiers
 }
 
-/// WARNING: Due to using PeekMessage, the event handler
-/// function may get called during this function.
-/// (Re-entrance to the event handler)
-///
-/// This can cause a deadlock if calling this function
-/// while having a mutex locked.
-///
-/// It can also cause code to get executed in a surprising order.
-fn peek_next_key_message(window: HWND) -> Option<MSG> {
-  unsafe {
-    let mut next_msg = mem::MaybeUninit::uninit();
-    if PeekMessageW(
-      next_msg.as_mut_ptr(),
-      Some(window),
-      WM_KEYFIRST,
-      WM_KEYLAST,
-      PM_NOREMOVE,
-    )
-    .as_bool()
-    {
-      Some(next_msg.assume_init())
-    } else {
-      None
-    }
-  }
-}
-
-fn more_ime_char_coming(window: HWND, msg: u32) -> bool {
-  matches!(msg, win32wm::WM_CHAR | win32wm::WM_SYSCHAR)
-    && matches!(
-      peek_next_key_message(window),
-      Some(next_msg) if next_msg.message == WM_CHAR || next_msg.message == WM_SYSCHAR
-    )
-}
-
 unsafe fn gain_active_focus<T>(window: HWND, userdata: &WindowData<T>) {
   use crate::event::WindowEvent::Focused;
   update_modifiers(window, userdata);
@@ -1003,12 +968,11 @@ unsafe fn public_window_callback_inner<T: 'static>(
     if !is_ime_related {
       return;
     }
-    let more_char_coming = more_ime_char_coming(window, msg);
     let text = {
-      let mut window_state = userdata.window_state.lock();
+      let window_state = userdata.window_state.lock();
       window_state
         .ime_handler
-        .process_message(msg, wparam, more_char_coming, &mut result)
+        .process_message(window, msg, wparam, lparam, &mut result)
     };
     if let Some(str) = text {
       userdata.send_event(Event::WindowEvent {

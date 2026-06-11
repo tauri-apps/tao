@@ -903,7 +903,7 @@ impl<T> Default for PendingEventQueue<T> {
 /// while having a mutex locked.
 ///
 /// It can also cause code to get executed in a surprising order.
-fn next_kbd_msg(window: HWND) -> Option<MSG> {
+pub(crate) fn next_kbd_msg(window: HWND) -> Option<MSG> {
   unsafe {
     let mut next_msg = MaybeUninit::uninit();
     if PeekMessageW(
