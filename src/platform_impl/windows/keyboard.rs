@@ -113,13 +113,17 @@ impl KeyEventBuilder {
           MatchResult::MessagesToDispatch(self.pending.complete_multi(key_events))
         }
         WM_KEYDOWN | WM_SYSKEYDOWN => {
-          if msg_kind == WM_SYSKEYDOWN && wparam.0 == VK_F4.0 as usize {
+          if msg_kind == WM_SYSKEYDOWN && wparam.0 == usize::from(VK_F4.0) {
             // Don't dispatch Alt+F4 to the application.
             // This is handled in `event_loop.rs`
             return MatchResult::Nothing;
           }
           let pending_token = self.pending.add_pending();
-          *result = ProcResult::Value(LRESULT(0));
+          if msg_kind == WM_SYSKEYDOWN {
+            *result = ProcResult::DefWindowProc;
+          } else {
+            *result = ProcResult::Value(LRESULT(0));
+          }
 
           let next_msg = next_kbd_msg(hwnd);
 
