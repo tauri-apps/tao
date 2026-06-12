@@ -1,6 +1,11 @@
 name: CI
 
-on: pull_request
+
+on:
+  pull_request:
+  push:
+    branches:
+      - dev
 
 jobs:
   tests:
@@ -38,7 +43,7 @@ jobs:
 
     runs-on: ${{ matrix.platform.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -114,7 +119,7 @@ jobs:
   test_tao_macros:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -128,6 +133,6 @@ jobs:
     name: fmt check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo fmt --all -- --check
