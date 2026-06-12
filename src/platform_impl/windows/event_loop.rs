@@ -23,12 +23,9 @@ use std::{
 use windows::{
   core::{s, w, BOOL, PCWSTR},
   Win32::{
-    Foundation::{
-      HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, TRUE, WAIT_TIMEOUT, WPARAM,
-    },
+    Foundation::{HANDLE, HWND, LPARAM, LRESULT, POINT, RECT, TRUE, WAIT_TIMEOUT, WPARAM},
     Graphics::Gdi::*,
     System::{
-      LibraryLoader::GetModuleHandleW,
       Ole::{IDropTarget, RevokeDragDrop},
       Threading::{GetCurrentThreadId, INFINITE},
     },
@@ -634,7 +631,7 @@ fn create_event_target_window<T: 'static>() -> HWND {
       lpfnWndProc: Some(thread_event_target_callback::<T>),
       cbClsExtra: 0,
       cbWndExtra: 0,
-      hInstance: HINSTANCE(GetModuleHandleW(PCWSTR::null()).unwrap_or_default().0),
+      hInstance: util::get_instance_handle(),
       hIcon: HICON::default(),
       hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
       hbrBackground: HBRUSH::default(),
@@ -666,7 +663,7 @@ fn create_event_target_window<T: 'static>() -> HWND {
       0,
       None,
       None,
-      GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
+      Some(util::get_instance_handle()),
       None,
     )
   };

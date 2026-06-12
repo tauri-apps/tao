@@ -19,12 +19,12 @@ use crossbeam_channel as channel;
 use windows::{
   core::PCWSTR,
   Win32::{
-    Foundation::{self as win32f, HINSTANCE, HMODULE, HWND, LPARAM, POINT, POINTS, RECT, WPARAM},
+    Foundation::{self as win32f, HINSTANCE, HWND, LPARAM, POINT, POINTS, RECT, WPARAM},
     Graphics::{
       Dwm::{DwmEnableBlurBehindWindow, DWM_BB_BLURREGION, DWM_BB_ENABLE, DWM_BLURBEHIND},
       Gdi::*,
     },
-    System::{Com::*, LibraryLoader::*, Ole::*},
+    System::{Com::*, Ole::*},
     UI::{
       Input::{Ime::*, KeyboardAndMouse::*, Touch::*},
       Shell::{ITaskbarList4 as ITaskbarList, TaskbarList, *},
@@ -371,7 +371,7 @@ impl Window {
   }
 
   #[inline]
-  pub fn hinstance(&self) -> HMODULE {
+  pub fn hinstance(&self) -> HINSTANCE {
     util::get_instance_handle()
   }
 
@@ -1388,7 +1388,7 @@ unsafe fn init<T: 'static>(
     adjusted_size.1,
     parent,
     menu,
-    GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
+    Some(util::get_instance_handle()),
     Some(&mut initdata as *mut _ as *mut _),
   );
 
@@ -1427,7 +1427,7 @@ unsafe fn register_window_class<T: 'static>(window_classname: &str) -> Vec<u16> 
     lpfnWndProc: Some(super::event_loop::public_window_callback::<T>),
     cbClsExtra: 0,
     cbWndExtra: 0,
-    hInstance: HINSTANCE(GetModuleHandleW(PCWSTR::null()).unwrap_or_default().0),
+    hInstance: util::get_instance_handle(),
     hIcon: HICON::default(),
     hCursor: HCURSOR::default(), // must be null in order for cursor state to work properly
     hbrBackground: HBRUSH::default(),
