@@ -1189,6 +1189,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(LRESULT(0));
     }
 
+    // TODO: Catch up with winit on the IME events,
+    // `WindowEvent::ReceivedImeText` currently maps to `WindowEvent::Ime(Ime::Commit(text))`
     win32wm::WM_IME_ENDCOMPOSITION => {
       let ime_context = unsafe { ImeContext::current(window) };
       if let Some(text) = unsafe { ime_context.get_composed_text() } {
