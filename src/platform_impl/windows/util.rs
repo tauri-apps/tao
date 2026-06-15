@@ -398,7 +398,7 @@ pub fn RGB<T: Into<u32>>(r: T, g: T, b: T) -> COLORREF {
   COLORREF(r.into() | (g.into() << 8) | (b.into() << 16))
 }
 
-pub fn get_instance_handle() -> windows::Win32::Foundation::HMODULE {
+pub fn get_instance_handle() -> windows::Win32::Foundation::HINSTANCE {
   // Gets the instance handle by taking the address of the
   // pseudo-variable created by the microsoft linker:
   // https://devblogs.microsoft.com/oldnewthing/20041025-00/?p=37483
@@ -410,7 +410,7 @@ pub fn get_instance_handle() -> windows::Win32::Foundation::HMODULE {
     static __ImageBase: windows::Win32::System::SystemServices::IMAGE_DOS_HEADER;
   }
 
-  windows::Win32::Foundation::HMODULE(unsafe { &__ImageBase as *const _ as _ })
+  windows::Win32::Foundation::HINSTANCE(unsafe { &__ImageBase as *const _ as _ })
 }
 
 pub static WIN_VERSION: Lazy<windows_version::OsVersion> =
