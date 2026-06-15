@@ -54,9 +54,9 @@ use crate::{
   platform_impl::platform::{
     dark_mode::try_window_theme,
     dpi::{become_dpi_aware, dpi_to_scale_factor},
+    ime::ImeContext,
     keyboard::KeyEventBuilder,
     keyboard_layout::get_agnostic_mods,
-    minimal_ime::is_msg_ime_related,
     monitor::{self, MonitorHandle},
     raw_input, util,
     window::{set_skip_taskbar, InitData},
@@ -962,30 +962,6 @@ unsafe fn public_window_callback_inner<T: 'static>(
     .catch_unwind(keyboard_callback)
     .unwrap_or_else(|| result = ProcResult::Value(LRESULT(-1)));
 
-  let ime_callback = || {
-    use crate::event::WindowEvent::ReceivedImeText;
-    let is_ime_related = is_msg_ime_related(msg);
-    if !is_ime_related {
-      return;
-    }
-    let text = {
-      let window_state = userdata.window_state.lock();
-      window_state
-        .ime_handler
-        .process_message(window, msg, wparam, lparam, &mut result)
-    };
-    if let Some(str) = text {
-      userdata.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0 as _)),
-        event: ReceivedImeText(str),
-      });
-    }
-  };
-  userdata
-    .event_loop_runner
-    .catch_unwind(ime_callback)
-    .unwrap_or_else(|| result = ProcResult::Value(LRESULT(-1)));
-
   // I decided to bind the closure to `callback` and pass it to catch_unwind rather than passing
   // the closure to catch_unwind directly so that the match body indendation wouldn't change and
   // the git blame and history would be preserved.
@@ -1211,6 +1187,16 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
       userdata.send_event(event);
       result = ProcResult::Value(LRESULT(0));
+    }
+
+    win32wm::WM_IME_ENDCOMPOSITION => {
+      let ime_context = unsafe { ImeContext::current(window) };
+      if let Some(text) = unsafe { ime_context.get_composed_text() } {
+        userdata.send_event(Event::WindowEvent {
+          window_id: RootWindowId(WindowId(window.0 as _)),
+          event: WindowEvent::ReceivedImeText(text),
+        });
+      }
     }
 
     // this is necessary for us to maintain minimize/restore state
