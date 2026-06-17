@@ -1830,37 +1830,32 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     win32wm::WM_SETCURSOR => {
-      let (set_cursor_to, is_cursor_hidden) = {
-        let window_state = userdata.window_state.lock();
-        // The return value for the preceding `WM_NCHITTEST` message is conveniently
-        // provided through the low-order word of lParam. We use that here since
-        // `WM_MOUSEMOVE` seems to come after `WM_SETCURSOR` for a given cursor movement.
-        let in_client_area = u32::from(util::LOWORD(lparam.0 as u32)) == HTCLIENT;
-        let is_hidden = window_state
-          .mouse
-          .cursor_flags()
-          .contains(CursorFlags::HIDDEN);
-        if is_hidden && in_client_area {
-          (None, true)
-        } else if in_client_area {
-          (Some(window_state.mouse.cursor), false)
-        } else {
-          (None, false)
-        }
-      };
+      let window_state = userdata.window_state.lock();
+      // The low-order word of lParam contains the hit-test result (e.g., HTCLIENT).
+      // Additionally, wParam contains the HWND under the cursor. If it is not
+      // our own window (e.g., it's a child window like WebView2), we delegate
+      // to DefWindowProc to avoid overwriting its cursor settings.
+      let in_client_area = u32::from(util::LOWORD(lparam.0 as u32)) == HTCLIENT;
+      let is_hidden = window_state
+        .mouse
+        .cursor_flags()
+        .contains(CursorFlags::HIDDEN);
+      let cursor = window_state.mouse.cursor;
+      drop(window_state);
 
-      if is_cursor_hidden {
+      let is_cursor_over_foreign_hwnd = HWND(wparam.0 as *mut _) != window;
+
+      if is_cursor_over_foreign_hwnd || !in_client_area {
+        result = ProcResult::DefWindowProc;
+      } else if is_hidden {
         SetCursor(None);
         result = ProcResult::Value(LRESULT(1));
       } else {
-        match set_cursor_to {
-          Some(cursor) => {
-            if let Ok(cursor) = LoadCursorW(None, cursor.to_windows_cursor()) {
-              SetCursor(Some(cursor));
-            }
-            result = ProcResult::Value(LRESULT(1));
-          }
-          None => result = ProcResult::DefWindowProc,
+        if let Ok(cursor) = LoadCursorW(None, cursor.to_windows_cursor()) {
+          SetCursor(Some(cursor));
+          result = ProcResult::Value(LRESULT(1));
+        } else {
+          result = ProcResult::DefWindowProc;
         }
       }
     }
