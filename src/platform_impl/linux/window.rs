@@ -62,10 +62,16 @@ pub struct Window {
   maximized: Rc<AtomicBool>,
   is_always_on_top: Rc<AtomicBool>,
   minimized: Rc<AtomicBool>,
+  // `Window` is `Send` and `Sync`, need a `RwLock` not a `RefCell`
+  // otherwise unsynchronized &RefCell from multiple threads
   fullscreen: RwLock<Option<Fullscreen>>,
+  // `Window` is `Send` and `Sync`, need a `RwLock` not a `RefCell`
+  // otherwise unsynchronized &RefCell from multiple threads
   inner_size_constraints: RwLock<WindowSizeConstraints>,
   /// Draw event Sender
   draw_tx: crossbeam_channel::Sender<WindowId>,
+  // `Window` is `Send` and `Sync`, need a `RwLock` not a `RefCell`
+  // otherwise unsynchronized &RefCell from multiple threads
   preferred_theme: RwLock<Option<Theme>>,
   css_provider: CssProvider,
 }
