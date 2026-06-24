@@ -504,13 +504,13 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
   // Get intent type (may be null)
   let intent_type = jni_call_method!(env, &intent, "getType", "()Ljava/lang/String;", l)
     .ok()
+    .filter(|jstr| !jstr.is_null())
     .map(|jstr| jstr.into())
-    .map(|intent_type| {
+    .and_then(|intent_type: JString| {
       env
         .get_string(&intent_type)
-        .unwrap()
-        .to_string_lossy()
-        .to_string()
+        .ok()
+        .map(|s| s.to_string_lossy().to_string())
     });
 
   // Handle text/plain intents (EXTRA_TEXT)

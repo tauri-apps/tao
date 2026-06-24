@@ -1,8 +1,6 @@
-use std::mem::MaybeUninit;
-
 use windows::Win32::{
-  Foundation::{HWND, LPARAM, LRESULT, WPARAM},
-  UI::WindowsAndMessaging::{self as win32wm, *},
+  Foundation::{LRESULT, WPARAM},
+  UI::WindowsAndMessaging as win32wm,
 };
 
 use crate::platform_impl::platform::event_loop::ProcResult;
@@ -37,10 +35,9 @@ impl Default for MinimalIme {
 impl MinimalIme {
   pub(crate) fn process_message(
     &mut self,
-    hwnd: HWND,
     msg_kind: u32,
     wparam: WPARAM,
-    _lparam: LPARAM,
+    more_char_coming: bool,
     result: &mut ProcResult,
   ) -> Option<String> {
     match msg_kind {
@@ -52,24 +49,6 @@ impl MinimalIme {
         if self.getting_ime_text {
           self.utf16parts.push(wparam.0 as u16);
 
-          let more_char_coming;
-          unsafe {
-            let mut next_msg = MaybeUninit::uninit();
-            let has_message = PeekMessageW(
-              next_msg.as_mut_ptr(),
-              Some(hwnd),
-              WM_KEYFIRST,
-              WM_KEYLAST,
-              PM_NOREMOVE,
-            );
-            let has_message = has_message.as_bool();
-            if !has_message {
-              more_char_coming = false;
-            } else {
-              let next_msg = next_msg.assume_init().message;
-              more_char_coming = next_msg == WM_CHAR || next_msg == WM_SYSCHAR;
-            }
-          }
           if !more_char_coming {
             let result = String::from_utf16(&self.utf16parts).ok();
             self.utf16parts.clear();
