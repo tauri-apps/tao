@@ -253,6 +253,11 @@ impl<T: 'static> EventLoop<T> {
       _marker: std::marker::PhantomData,
     };
 
+    // Enable Min/Max titlebar buttons for all windows. This is an app-wide setting so it does not make sense to set it in Window::new.
+    if let Some(settings) = Settings::default() {
+      settings.set_gtk_decoration_layout(Some("menu:minimize,maximize,close"));
+    }
+
     // Spawn x11 thread to receive Device events.
     #[cfg(feature = "x11")]
     let run_device_thread = if window_target.is_x11() {
