@@ -51,9 +51,9 @@ use crate::{
   platform_impl::platform::{
     dark_mode::try_window_theme,
     dpi::{become_dpi_aware, dpi_to_scale_factor},
-    keyboard::is_msg_keyboard_related,
+    ime::ImeContext,
+    keyboard::KeyEventBuilder,
     keyboard_layout::get_agnostic_mods,
-    minimal_ime::is_msg_ime_related,
     monitor::{self, MonitorHandle},
     raw_input, util,
     window::{set_skip_taskbar, InitData},
@@ -108,6 +108,7 @@ static GET_POINTER_PEN_INFO: Lazy<Option<GetPointerPenInfo>> =
 pub(crate) struct WindowData<T: 'static> {
   pub window_state: Arc<Mutex<WindowState>>,
   pub event_loop_runner: EventLoopRunnerShared<T>,
+  pub key_event_builder: KeyEventBuilder,
   pub _file_drop_handler: Option<IDropTarget>,
   pub userdata_removed: Cell<bool>,
   pub recurse_depth: Cell<u32>,
@@ -818,59 +819,6 @@ fn update_modifiers<T>(window: HWND, useredata: &WindowData<T>) -> ModifiersStat
   modifiers
 }
 
-/// WARNING: Due to using PeekMessage, the event handler
-/// function may get called during this function.
-/// (Re-entrance to the event handler)
-///
-/// This can cause a deadlock if calling this function
-/// while having a mutex locked.
-///
-/// It can also cause code to get executed in a surprising order.
-fn peek_next_key_message(window: HWND) -> Option<MSG> {
-  unsafe {
-    let mut next_msg = mem::MaybeUninit::uninit();
-    if PeekMessageW(
-      next_msg.as_mut_ptr(),
-      Some(window),
-      WM_KEYFIRST,
-      WM_KEYLAST,
-      PM_NOREMOVE,
-    )
-    .as_bool()
-    {
-      Some(next_msg.assume_init())
-    } else {
-      None
-    }
-  }
-}
-
-fn next_key_message_for_keyboard(window: HWND, msg: u32, wparam: WPARAM) -> Option<MSG> {
-  let needs_next_key_message = match msg {
-    win32wm::WM_SYSKEYDOWN if wparam.0 == usize::from(VK_F4.0) => false,
-    win32wm::WM_KEYDOWN
-    | win32wm::WM_SYSKEYDOWN
-    | win32wm::WM_CHAR
-    | win32wm::WM_SYSCHAR
-    | win32wm::WM_KEYUP
-    | win32wm::WM_SYSKEYUP => true,
-    _ => false,
-  };
-  if needs_next_key_message {
-    peek_next_key_message(window)
-  } else {
-    None
-  }
-}
-
-fn more_ime_char_coming(window: HWND, msg: u32) -> bool {
-  matches!(msg, win32wm::WM_CHAR | win32wm::WM_SYSCHAR)
-    && matches!(
-      peek_next_key_message(window),
-      Some(next_msg) if next_msg.message == WM_CHAR || next_msg.message == WM_SYSCHAR
-    )
-}
-
 unsafe fn gain_active_focus<T>(window: HWND, userdata: &WindowData<T>) {
   use crate::event::WindowEvent::Focused;
   update_modifiers(window, userdata);
@@ -991,22 +939,10 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
   let keyboard_callback = || {
     use crate::event::WindowEvent::KeyboardInput;
-    let is_keyboard_related = is_msg_keyboard_related(msg);
-    if !is_keyboard_related {
-      // We return early to avoid a deadlock from locking the window state
-      // when not appropriate.
-      return;
-    }
-    let next_key_message = next_key_message_for_keyboard(window, msg, wparam);
-    let events = {
-      let mut key_event_builders =
-        crate::platform_impl::platform::keyboard::KEY_EVENT_BUILDERS.lock();
-      if let Some(key_event_builder) = key_event_builders.get_mut(&WindowId(window.0 as _)) {
-        key_event_builder.process_message(msg, wparam, lparam, next_key_message, &mut result)
-      } else {
-        Vec::new()
-      }
-    };
+    let events =
+      userdata
+        .key_event_builder
+        .process_message(window, msg, wparam, lparam, &mut result);
     for event in events {
       userdata.send_event(Event::WindowEvent {
         window_id: RootWindowId(WindowId(window.0 as _)),
@@ -1021,31 +957,6 @@ unsafe fn public_window_callback_inner<T: 'static>(
   userdata
     .event_loop_runner
     .catch_unwind(keyboard_callback)
-    .unwrap_or_else(|| result = ProcResult::Value(LRESULT(-1)));
-
-  let ime_callback = || {
-    use crate::event::WindowEvent::ReceivedImeText;
-    let is_ime_related = is_msg_ime_related(msg);
-    if !is_ime_related {
-      return;
-    }
-    let more_char_coming = more_ime_char_coming(window, msg);
-    let text = {
-      let mut window_state = userdata.window_state.lock();
-      window_state
-        .ime_handler
-        .process_message(msg, wparam, more_char_coming, &mut result)
-    };
-    if let Some(str) = text {
-      userdata.send_event(Event::WindowEvent {
-        window_id: RootWindowId(WindowId(window.0 as _)),
-        event: ReceivedImeText(str),
-      });
-    }
-  };
-  userdata
-    .event_loop_runner
-    .catch_unwind(ime_callback)
     .unwrap_or_else(|| result = ProcResult::Value(LRESULT(-1)));
 
   // I decided to bind the closure to `callback` and pass it to catch_unwind rather than passing
@@ -1273,6 +1184,18 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
       userdata.send_event(event);
       result = ProcResult::Value(LRESULT(0));
+    }
+
+    // TODO: Catch up with winit on the IME events,
+    // `WindowEvent::ReceivedImeText` currently maps to `WindowEvent::Ime(Ime::Commit(text))`
+    win32wm::WM_IME_ENDCOMPOSITION => {
+      let ime_context = unsafe { ImeContext::current(window) };
+      if let Some(text) = unsafe { ime_context.get_composed_text() } {
+        userdata.send_event(Event::WindowEvent {
+          window_id: RootWindowId(WindowId(window.0 as _)),
+          event: WindowEvent::ReceivedImeText(text),
+        });
+      }
     }
 
     // this is necessary for us to maintain minimize/restore state

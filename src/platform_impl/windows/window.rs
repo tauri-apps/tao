@@ -56,9 +56,7 @@ use crate::{
 };
 
 use super::{
-  event_loop::CHANGE_THEME_MSG_ID,
-  keyboard::{KeyEventBuilder, KEY_EVENT_BUILDERS},
-  util::calculate_insets_for_dpi,
+  event_loop::CHANGE_THEME_MSG_ID, keyboard::KeyEventBuilder, util::calculate_insets_for_dpi,
 };
 
 use super::event_loop::WindowData;
@@ -1069,7 +1067,6 @@ impl Window {
 impl Drop for Window {
   #[inline]
   fn drop(&mut self) {
-    KEY_EVENT_BUILDERS.lock().remove(&self.id());
     unsafe {
       // The window must be destroyed from the same thread that created it, so we send a
       // custom message to be handled by our callback to do the actual work.
@@ -1173,13 +1170,10 @@ impl<T> InitData<'_, T> {
 
     self.event_loop.runner_shared.register_window(win.hwnd());
 
-    KEY_EVENT_BUILDERS
-      .lock()
-      .insert(win.id(), KeyEventBuilder::default());
-
     WindowData {
       window_state: win.window_state.clone(),
       event_loop_runner: self.event_loop.runner_shared.clone(),
+      key_event_builder: KeyEventBuilder::default(),
       _file_drop_handler: file_drop_handler,
       userdata_removed: Cell::new(false),
       recurse_depth: Cell::new(0),
