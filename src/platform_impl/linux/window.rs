@@ -97,18 +97,25 @@ impl Window {
       .inner_size
       .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
       .unwrap_or((800, 600));
-    window.set_default_size(1, 1);
-    window.resize(width, height);
 
-    if attributes.maximized {
-      let maximize_process = util::WindowMaximizeProcess::new(window.clone(), attributes.resizable);
-      glib::idle_add_local_full(glib::Priority::HIGH_IDLE, move || {
-        let mut maximize_process = maximize_process.borrow_mut();
-        maximize_process.next_step()
-      });
-    } else {
-      window.set_resizable(attributes.resizable);
-    }
+    window.set_default_size(width, height);
+
+    // Trying to prevent Wayland Protocol Error about mismatched xdg_surface_buffer sizes
+    let maximized = attributes.maximized;
+    let resizable = attributes.resizable;
+    let configure_handler_id = Rc::new(RefCell::new(None));
+    let configure_handler_id_ = configure_handler_id.clone();
+    let id = window.connect_configure_event(move |window, _| {
+      if let Some(id) = configure_handler_id_.take() {
+        window.disconnect(id);
+        if maximized {
+          window.maximize();
+        }
+        window.set_resizable(resizable);
+      }
+      false
+    });
+    configure_handler_id.borrow_mut().replace(id);
 
     window.set_deletable(attributes.closable);
 
