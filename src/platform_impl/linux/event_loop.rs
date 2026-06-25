@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
-  cell::RefCell,
+  cell::{Cell, RefCell},
   collections::{HashSet, VecDeque},
   error::Error,
   process,
@@ -700,8 +700,10 @@ impl<T: 'static> EventLoop<T> {
             });
 
             let tx_clone = event_tx.clone();
+            let last_motion_time = Rc::new(Cell::new(0u32));
             window.connect_motion_notify_event(move |window, motion| {
-              if cursor_moved {
+              let last = last_motion_time.replace(motion.time());
+              if cursor_moved && motion.time() != last {
                 if let Some(cursor) = motion.device() {
                   let scale_factor = window.scale_factor();
                   let (_, x, y) = cursor.window_at_position();
@@ -735,53 +737,61 @@ impl<T: 'static> EventLoop<T> {
             });
 
             let tx_clone = event_tx.clone();
+            let last_press_time = Rc::new(Cell::new(0u32));
             window.connect_button_press_event(move |_, event| {
-              let button = event.button();
-              if let Err(e) = tx_clone.send(Event::WindowEvent {
-                window_id: RootWindowId(id),
-                event: WindowEvent::MouseInput {
-                  button: match button {
-                    1 => MouseButton::Left,
-                    2 => MouseButton::Middle,
-                    3 => MouseButton::Right,
-                    _ => MouseButton::Other(button as u16),
+              let last = last_press_time.replace(event.time());
+              if event.time() != last {
+                let button = event.button();
+                if let Err(e) = tx_clone.send(Event::WindowEvent {
+                  window_id: RootWindowId(id),
+                  event: WindowEvent::MouseInput {
+                    button: match button {
+                      1 => MouseButton::Left,
+                      2 => MouseButton::Middle,
+                      3 => MouseButton::Right,
+                      _ => MouseButton::Other(button as u16),
+                    },
+                    state: ElementState::Pressed,
+                    device_id: DEVICE_ID,
+                    // this field is depracted so it is fine to pass empty state
+                    modifiers: ModifiersState::empty(),
                   },
-                  state: ElementState::Pressed,
-                  device_id: DEVICE_ID,
-                  // this field is depracted so it is fine to pass empty state
-                  modifiers: ModifiersState::empty(),
-                },
-              }) {
-                log::warn!(
-                  "Failed to send mouse input pressed event to event channel: {}",
-                  e
-                );
+                }) {
+                  log::warn!(
+                    "Failed to send mouse input pressed event to event channel: {}",
+                    e
+                  );
+                }
               }
               glib::Propagation::Proceed
             });
 
             let tx_clone = event_tx.clone();
+            let last_release_time = Rc::new(Cell::new(0u32));
             window.connect_button_release_event(move |_, event| {
-              let button = event.button();
-              if let Err(e) = tx_clone.send(Event::WindowEvent {
-                window_id: RootWindowId(id),
-                event: WindowEvent::MouseInput {
-                  button: match button {
-                    1 => MouseButton::Left,
-                    2 => MouseButton::Middle,
-                    3 => MouseButton::Right,
-                    _ => MouseButton::Other(button as u16),
+              let last = last_release_time.replace(event.time());
+              if event.time() != last {
+                let button = event.button();
+                if let Err(e) = tx_clone.send(Event::WindowEvent {
+                  window_id: RootWindowId(id),
+                  event: WindowEvent::MouseInput {
+                    button: match button {
+                      1 => MouseButton::Left,
+                      2 => MouseButton::Middle,
+                      3 => MouseButton::Right,
+                      _ => MouseButton::Other(button as u16),
+                    },
+                    state: ElementState::Released,
+                    device_id: DEVICE_ID,
+                    // this field is depracted so it is fine to pass empty state
+                    modifiers: ModifiersState::empty(),
                   },
-                  state: ElementState::Released,
-                  device_id: DEVICE_ID,
-                  // this field is depracted so it is fine to pass empty state
-                  modifiers: ModifiersState::empty(),
-                },
-              }) {
-                log::warn!(
-                  "Failed to send mouse input released event to event channel: {}",
-                  e
-                );
+                }) {
+                  log::warn!(
+                    "Failed to send mouse input released event to event channel: {}",
+                    e
+                  );
+                }
               }
               glib::Propagation::Proceed
             });
