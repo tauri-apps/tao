@@ -6,7 +6,10 @@ use std::{
   cell::RefCell,
   collections::VecDeque,
   rc::Rc,
-  sync::atomic::{AtomicBool, AtomicI32, Ordering},
+  sync::{
+    atomic::{AtomicBool, AtomicI32, Ordering},
+    RwLock,
+  },
 };
 
 use gtk::{
@@ -59,11 +62,17 @@ pub struct Window {
   maximized: Rc<AtomicBool>,
   is_always_on_top: Rc<AtomicBool>,
   minimized: Rc<AtomicBool>,
-  fullscreen: RefCell<Option<Fullscreen>>,
-  inner_size_constraints: RefCell<WindowSizeConstraints>,
+  // `Window` is `Send` and `Sync`, need a `RwLock` not a `RefCell`
+  // otherwise unsynchronized &RefCell from multiple threads
+  fullscreen: RwLock<Option<Fullscreen>>,
+  // `Window` is `Send` and `Sync`, need a `RwLock` not a `RefCell`
+  // otherwise unsynchronized &RefCell from multiple threads
+  inner_size_constraints: RwLock<WindowSizeConstraints>,
   /// Draw event Sender
   draw_tx: crossbeam_channel::Sender<WindowId>,
-  preferred_theme: RefCell<Option<Theme>>,
+  // `Window` is `Send` and `Sync`, need a `RwLock` not a `RefCell`
+  // otherwise unsynchronized &RefCell from multiple threads
+  preferred_theme: RwLock<Option<Theme>>,
   css_provider: CssProvider,
 }
 
@@ -272,9 +281,9 @@ impl Window {
       maximized,
       minimized,
       is_always_on_top,
-      fullscreen: RefCell::new(attributes.fullscreen),
-      inner_size_constraints: RefCell::new(attributes.inner_size_constraints),
-      preferred_theme: RefCell::new(preferred_theme),
+      fullscreen: RwLock::new(attributes.fullscreen),
+      inner_size_constraints: RwLock::new(attributes.inner_size_constraints),
+      preferred_theme: RwLock::new(preferred_theme),
       css_provider: CssProvider::new(),
     };
 
@@ -415,9 +424,9 @@ impl Window {
       maximized,
       minimized,
       is_always_on_top,
-      fullscreen: RefCell::new(None),
-      inner_size_constraints: RefCell::new(WindowSizeConstraints::default()),
-      preferred_theme: RefCell::new(None),
+      fullscreen: RwLock::new(None),
+      inner_size_constraints: RwLock::new(WindowSizeConstraints::default()),
+      preferred_theme: RwLock::new(None),
       css_provider: CssProvider::new(),
     };
 
@@ -519,7 +528,7 @@ impl Window {
 
   pub fn set_min_inner_size(&self, size: Option<Size>) {
     let (width, height) = size.map(crate::extract_width_height).unzip();
-    let mut size_constraints = self.inner_size_constraints.borrow_mut();
+    let mut size_constraints = self.inner_size_constraints.write().unwrap();
     size_constraints.min_width = width;
     size_constraints.min_height = height;
     self.set_size_constraints(*size_constraints)
@@ -527,14 +536,14 @@ impl Window {
 
   pub fn set_max_inner_size(&self, size: Option<Size>) {
     let (width, height) = size.map(crate::extract_width_height).unzip();
-    let mut size_constraints = self.inner_size_constraints.borrow_mut();
+    let mut size_constraints = self.inner_size_constraints.write().unwrap();
     size_constraints.max_width = width;
     size_constraints.max_height = height;
     self.set_size_constraints(*size_constraints)
   }
 
   pub fn set_inner_size_constraints(&self, constraints: WindowSizeConstraints) {
-    *self.inner_size_constraints.borrow_mut() = constraints;
+    *self.inner_size_constraints.write().unwrap() = constraints;
     self.set_size_constraints(constraints)
   }
 
@@ -682,7 +691,7 @@ impl Window {
   }
 
   pub fn set_fullscreen(&self, fullscreen: Option<Fullscreen>) {
-    self.fullscreen.replace(fullscreen.clone());
+    *self.fullscreen.write().unwrap() = fullscreen.clone();
     if let Err(e) = self
       .window_requests_tx
       .send((self.window_id, WindowRequest::Fullscreen(fullscreen)))
@@ -692,7 +701,7 @@ impl Window {
   }
 
   pub fn fullscreen(&self) -> Option<Fullscreen> {
-    self.fullscreen.borrow().clone()
+    self.fullscreen.read().unwrap().clone()
   }
 
   pub fn set_decorations(&self, decorations: bool) {
@@ -1009,7 +1018,7 @@ impl Window {
   }
 
   pub fn theme(&self) -> Theme {
-    if let Some(theme) = *self.preferred_theme.borrow() {
+    if let Some(theme) = *self.preferred_theme.read().unwrap() {
       return theme;
     }
 
@@ -1022,7 +1031,7 @@ impl Window {
   }
 
   pub fn set_theme(&self, theme: Option<Theme>) {
-    *self.preferred_theme.borrow_mut() = theme;
+    *self.preferred_theme.write().unwrap() = theme;
     if let Err(e) = self
       .window_requests_tx
       .send((WindowId::dummy(), WindowRequest::SetTheme(theme)))
