@@ -16,7 +16,7 @@ use gtk::{
   gdk::WindowState,
   glib::{self, translate::ToGlibPtr},
   prelude::*,
-  CssProvider, Settings,
+  CssProvider, EventBox, Settings,
 };
 
 use crate::{
@@ -24,7 +24,6 @@ use crate::{
   error::{ExternalError, NotSupportedError, OsError as RootOsError},
   icon::Icon,
   monitor::MonitorHandle as RootMonitorHandle,
-  platform_impl::wayland::header::WlHeader,
   window::{
     CursorIcon, Fullscreen, ProgressBarState, ResizeDirection, Theme, UserAttentionType,
     WindowAttributes, WindowSizeConstraints, RGBA,
@@ -85,7 +84,6 @@ impl Window {
     let app = &event_loop_window_target.app;
     let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
     let draw_tx = event_loop_window_target.draw_tx.clone();
-    let is_wayland = event_loop_window_target.is_wayland();
 
     let mut window_builder = gtk::ApplicationWindow::builder()
       .application(app)
@@ -95,10 +93,6 @@ impl Window {
     }
 
     let window = window_builder.build();
-
-    if is_wayland {
-      WlHeader::setup(&window, &attributes.title);
-    }
 
     let window_id = WindowId(window.id());
     event_loop_window_target
@@ -112,18 +106,25 @@ impl Window {
       .inner_size
       .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
       .unwrap_or((800, 600));
-    window.set_default_size(1, 1);
-    window.resize(width, height);
 
-    if attributes.maximized {
-      let maximize_process = util::WindowMaximizeProcess::new(window.clone(), attributes.resizable);
-      glib::idle_add_local_full(glib::Priority::HIGH_IDLE, move || {
-        let mut maximize_process = maximize_process.borrow_mut();
-        maximize_process.next_step()
-      });
-    } else {
-      window.set_resizable(attributes.resizable);
-    }
+    window.set_default_size(width, height);
+
+    // Trying to prevent Wayland Protocol Error about mismatched xdg_surface_buffer sizes
+    let maximized = attributes.maximized;
+    let resizable = attributes.resizable;
+    let configure_handler_id = Rc::new(RefCell::new(None));
+    let configure_handler_id_ = configure_handler_id.clone();
+    let id = window.connect_configure_event(move |window, _| {
+      if let Some(id) = configure_handler_id_.take() {
+        window.disconnect(id);
+        if maximized {
+          window.maximize();
+        }
+        window.set_resizable(resizable);
+      }
+      false
+    });
+    configure_handler_id.borrow_mut().replace(id);
 
     window.set_deletable(attributes.closable);
 
@@ -189,6 +190,11 @@ impl Window {
     }
     window.set_visible(attributes.visible);
     window.set_decorated(attributes.decorations);
+    if window.display().backend().is_wayland() && !attributes.decorations {
+      // Enable CSD to prevent compositor from rendering server-side decorations
+      let event_box = EventBox::new();
+      window.set_titlebar(Some(&event_box));
+    }
 
     if attributes.always_on_bottom {
       window.set_keep_below(attributes.always_on_bottom);
