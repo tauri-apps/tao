@@ -157,6 +157,8 @@ objc2-ui-kit = { version = "0.3", features = [
   "UIScene",
   "UISceneOptions",
   "UIOpenURLContext",
+  "UISceneWindowingControlStyle",
+  "UIWindowScene",
 ] }
 objc2-foundation = { version = "0.3", default-features = false, features = [
   "NSProcessInfo",
