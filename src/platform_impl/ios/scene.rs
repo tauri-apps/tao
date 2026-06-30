@@ -8,7 +8,7 @@ use objc2_foundation::{
 };
 use objc2_ui_kit::{
   UIApplication, UIOpenURLContext, UIScene, UISceneConnectionOptions, UISceneDelegate,
-  UISceneSession, UIWindowScene,
+  UISceneSession, UISceneWindowingControlStyle, UIWindowScene, UIWindowSceneDelegate,
 };
 
 use crate::{
@@ -181,5 +181,18 @@ define_class!(
 
     #[unsafe(method(scene:didUpdateUserActivity:))]
     fn scene_didUpdateUserActivity(&self, _scene: &UIScene, _user_activity: &NSUserActivity) {}
+  }
+
+  #[allow(non_snake_case)]
+  unsafe impl UIWindowSceneDelegate for TaoSceneDelegate {
+    #[unsafe(method(preferredWindowingControlStyleForScene:))]
+    fn preferredWindowingControlStyleForScene(
+      &self,
+      _window_scene: &UIWindowScene,
+    ) -> Option<std::ptr::NonNull<UISceneWindowingControlStyle>> {
+      std::ptr::NonNull::new(Retained::autorelease_ptr(
+        UISceneWindowingControlStyle::minimalStyle(),
+      ))
+    }
   }
 );
