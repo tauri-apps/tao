@@ -643,7 +643,7 @@ pub fn create_delegate_class() {
 
       // Dynamically set the delegate class name
       config.setDelegateClass(Some(super::scene::TaoSceneDelegate::class()));
-      Retained::as_ptr(&config) as _
+      Retained::autorelease_ptr(config) as _
     }
   }
 
