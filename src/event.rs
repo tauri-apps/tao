@@ -289,6 +289,33 @@ pub enum StartCause {
   Init,
 }
 
+/// Touchpad gesture event type.
+///
+/// ## Platform-specific
+///
+/// - **macOS**: Supported for three-finger swipes when enabled in system settings.
+/// - **Other platforms**: Unsupported (the variant exists but is never emitted).
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TouchpadGestureType {
+  Swipe(Direction),
+}
+impl From<Direction> for TouchpadGestureType {
+  fn from(direction: Direction) -> Self {
+    TouchpadGestureType::Swipe(direction)
+  }
+}
+
+/// Direction, e.g. TouchpadGestureType::Swipe.
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Direction {
+  Left,
+  Right,
+  Up,
+  Down,
+}
+
 /// Describes an event from a `Window`.
 #[non_exhaustive]
 #[derive(Debug, PartialEq)]
@@ -413,6 +440,14 @@ pub enum WindowEvent<'a> {
     stage: i64,
   },
 
+  /// Touchpad gesture event (e.g. swipe).
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: Supported when the corresponding gesture is enabled in system settings.
+  /// - **Other**: No-op for now.
+  TouchpadGesture(TouchpadGestureType),
+
   /// Motion on some analog axis. May report data redundant to other, more specific events.
   AxisMotion {
     device_id: DeviceId,
@@ -532,6 +567,7 @@ impl Clone for WindowEvent<'static> {
         pressure: *pressure,
         stage: *stage,
       },
+      TouchpadGesture(gesture) => TouchpadGesture(*gesture),
       AxisMotion {
         device_id,
         axis,
@@ -619,6 +655,7 @@ impl<'a> WindowEvent<'a> {
         pressure,
         stage,
       }),
+      TouchpadGesture(gesture) => Some(TouchpadGesture(gesture)),
       AxisMotion {
         device_id,
         axis,
