@@ -1180,3 +1180,18 @@ pub unsafe fn inset_traffic_lights(window: &NSWindow, position: LogicalPosition<
     button.setFrameOrigin(rect.origin);
   }
 }
+
+// Re-apply the custom traffic light inset stored on the view, if one was set.
+// AppKit resets the buttons to their default position on some events (title
+// change, leaving fullscreen) without triggering a `drawRect:`, so callers use
+// this to restore the configured position afterwards (#13044, #15451).
+pub unsafe fn reapply_traffic_light_inset(ns_window: &NSWindow, ns_view: &NSView) {
+  let state_ptr: *mut c_void = *ns_view.get_ivar("taoState");
+  if state_ptr.is_null() {
+    return;
+  }
+  let state = &*(state_ptr as *mut ViewState);
+  if let Some(position) = state.traffic_light_inset {
+    inset_traffic_lights(ns_window, position);
+  }
+}
