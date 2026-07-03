@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
-  cell::RefCell,
   collections::VecDeque,
   rc::Rc,
   sync::{
