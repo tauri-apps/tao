@@ -10,6 +10,7 @@ use tao::{
 
 #[allow(clippy::single_match)]
 fn main() {
+  env_logger::init();
   let event_loop = EventLoop::new();
 
   let mut window = Some(
