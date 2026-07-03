@@ -6,7 +6,10 @@ use std::{
   cell::RefCell,
   collections::VecDeque,
   rc::Rc,
-  sync::atomic::{AtomicBool, AtomicI32, Ordering},
+  sync::{
+    atomic::{AtomicBool, AtomicI32, Ordering},
+    RwLock,
+  },
 };
 
 use gtk::{gdk, glib, prelude::*, CssProvider, Settings};
@@ -52,11 +55,17 @@ pub struct Window {
   scale_factor: Rc<AtomicI32>,
   maximized: Rc<AtomicBool>,
   minimized: Rc<AtomicBool>,
-  fullscreen: RefCell<Option<Fullscreen>>,
-  inner_size_constraints: RefCell<WindowSizeConstraints>,
+  // `Window` is `Send` and `Sync`, need a `RwLock` not a `RefCell`
+  // otherwise unsynchronized &RefCell from multiple threads
+  fullscreen: RwLock<Option<Fullscreen>>,
+  // `Window` is `Send` and `Sync`, need a `RwLock` not a `RefCell`
+  // otherwise unsynchronized &RefCell from multiple threads
+  inner_size_constraints: RwLock<WindowSizeConstraints>,
   /// Draw event Sender
   draw_tx: async_channel::Sender<WindowId>,
-  preferred_theme: RefCell<Option<Theme>>,
+  // `Window` is `Send` and `Sync`, need a `RwLock` not a `RefCell`
+  // otherwise unsynchronized &RefCell from multiple threads
+  preferred_theme: RwLock<Option<Theme>>,
   css_provider: CssProvider,
 }
 
@@ -69,7 +78,6 @@ impl Window {
     let app = &event_loop_window_target.app;
     let window_requests_tx = event_loop_window_target.window_requests_tx.clone();
     let draw_tx = event_loop_window_target.draw_tx.clone();
-    //let is_wayland = event_loop_window_target.is_wayland();
 
     let window = ApplicationWindow::new(app, &attributes, &pl_attribs);
 
@@ -97,6 +105,7 @@ impl Window {
       .inner_size
       .map(|size| size.to_logical::<f64>(win_scale_factor as f64).into())
       .unwrap_or((800, 600));
+
     window.set_default_size(width, height);
 
     if attributes.maximized {
@@ -121,14 +130,17 @@ impl Window {
       }
     }
 
-    let preferred_theme = if let Some(settings) = Settings::default() {
-      if let Some(preferred_theme) = attributes.preferred_theme {
-        settings.set_gtk_application_prefer_dark_theme(preferred_theme == Theme::Dark);
+    // Set initial `preferred_theme` value to current portal color-scheme
+    #[cfg(feature = "dbus")]
+    let preferred_theme = super::portal::theme().ok();
+    #[cfg(not(feature = "dbus"))]
+    let preferred_theme = None;
+
+    if let Some(theme) = preferred_theme {
+      if let Some(settings) = Settings::default() {
+        settings.set_gtk_application_prefer_dark_theme(theme == Theme::Dark);
       }
-      attributes.preferred_theme
-    } else {
-      None
-    };
+    }
 
     window.present();
 
@@ -164,9 +176,9 @@ impl Window {
       scale_factor,
       maximized,
       minimized,
-      fullscreen: RefCell::new(attributes.fullscreen),
-      inner_size_constraints: RefCell::new(attributes.inner_size_constraints),
-      preferred_theme: RefCell::new(preferred_theme),
+      fullscreen: RwLock::new(attributes.fullscreen),
+      inner_size_constraints: RwLock::new(attributes.inner_size_constraints),
+      preferred_theme: RwLock::new(preferred_theme),
       css_provider: CssProvider::new(),
     };
 
@@ -239,9 +251,9 @@ impl Window {
       scale_factor,
       maximized,
       minimized,
-      fullscreen: RefCell::new(None),
-      inner_size_constraints: RefCell::new(WindowSizeConstraints::default()),
-      preferred_theme: RefCell::new(None),
+      fullscreen: RwLock::new(None),
+      inner_size_constraints: RwLock::new(WindowSizeConstraints::default()),
+      preferred_theme: RwLock::new(None),
       css_provider: CssProvider::new(),
     };
 
@@ -323,7 +335,7 @@ impl Window {
 
   pub fn set_min_inner_size(&self, size: Option<Size>) {
     let (width, height) = size.map(crate::extract_width_height).unzip();
-    let mut size_constraints = self.inner_size_constraints.borrow_mut();
+    let mut size_constraints = self.inner_size_constraints.write().unwrap();
     size_constraints.min_width = width;
     size_constraints.min_height = height;
     self.set_size_constraints(*size_constraints)
@@ -331,14 +343,14 @@ impl Window {
 
   pub fn set_max_inner_size(&self, size: Option<Size>) {
     let (width, height) = size.map(crate::extract_width_height).unzip();
-    let mut size_constraints = self.inner_size_constraints.borrow_mut();
+    let mut size_constraints = self.inner_size_constraints.write().unwrap();
     size_constraints.max_width = width;
     size_constraints.max_height = height;
     self.set_size_constraints(*size_constraints)
   }
 
   pub fn set_inner_size_constraints(&self, constraints: WindowSizeConstraints) {
-    *self.inner_size_constraints.borrow_mut() = constraints;
+    *self.inner_size_constraints.write().unwrap() = constraints;
     self.set_size_constraints(constraints)
   }
 
@@ -486,7 +498,7 @@ impl Window {
   }
 
   pub fn set_fullscreen(&self, fullscreen: Option<Fullscreen>) {
-    self.fullscreen.replace(fullscreen.clone());
+    *self.fullscreen.write().unwrap() = fullscreen.clone();
     if let Err(e) = self
       .window_requests_tx
       .send_blocking((self.window_id, WindowRequest::Fullscreen(fullscreen)))
@@ -496,7 +508,7 @@ impl Window {
   }
 
   pub fn fullscreen(&self) -> Option<Fullscreen> {
-    self.fullscreen.borrow().clone()
+    self.fullscreen.read().unwrap().clone()
   }
 
   pub fn set_decorations(&self, decorations: bool) {
@@ -790,8 +802,13 @@ impl Window {
   }
 
   pub fn theme(&self) -> Theme {
-    if let Some(theme) = *self.preferred_theme.borrow() {
+    if let Some(theme) = *self.preferred_theme.read().unwrap() {
       return theme;
+    }
+
+    #[cfg(feature = "dbus")]
+    if let Ok(portal_theme) = super::portal::theme() {
+      return portal_theme;
     }
 
     if let Some(prefers_dark) =
@@ -806,7 +823,7 @@ impl Window {
   }
 
   pub fn set_theme(&self, theme: Option<Theme>) {
-    *self.preferred_theme.borrow_mut() = theme;
+    *self.preferred_theme.write().unwrap() = theme;
     if let Err(e) = self
       .window_requests_tx
       .send_blocking((WindowId::dummy(), WindowRequest::SetTheme(theme)))

@@ -8,13 +8,12 @@ use crate::{
   keyboard::{Key, KeyCode, KeyLocation, ModifiersState, NativeKeyCode},
 };
 use gtk::{gdk, prelude::DisplayExtManual};
+use once_cell::sync::Lazy;
 use std::{collections::HashSet, sync::Mutex};
 
 pub type RawKey = gdk::Key;
 
-lazy_static! {
-  static ref KEY_STRINGS: Mutex<HashSet<&'static str>> = Mutex::new(HashSet::new());
-}
+static KEY_STRINGS: Lazy<Mutex<HashSet<&'static str>>> = Lazy::new(|| Mutex::new(HashSet::new()));
 
 fn insert_or_get_key_str(string: String) -> &'static str {
   let mut string_set = KEY_STRINGS.lock().unwrap();
@@ -107,6 +106,12 @@ pub(crate) fn raw_key_to_key(gdk_key: RawKey) -> Option<Key<'static>> {
     // KP_Separator? What does it map to?
     RawKey::KP_Tab => Some(Key::Tab),
     RawKey::KP_Up => Some(Key::ArrowUp),
+
+    // JIS
+    RawKey::Zenkaku_Hankaku => Some(Key::ZenkakuHankaku),
+    RawKey::Hiragana_Katakana => Some(Key::HiraganaKatakana),
+    RawKey::Henkan => Some(Key::Convert),
+    RawKey::Muhenkan => Some(Key::NonConvert),
     // TODO: more mappings (media etc)
     _ => None,
   }
