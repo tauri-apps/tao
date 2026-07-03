@@ -96,9 +96,9 @@ impl<T> EventLoopWindowTarget<T> {
   pub fn raw_display_handle_rwh_05(&self) -> rwh_05::RawDisplayHandle {
     let display = self.display.clone();
     if self.is_wayland() {
-      use gdk_wayland::wayland_client::Proxy;
+      use gdk4_wayland::wayland_client::Proxy;
       let display = display
-        .downcast::<gdk_wayland::WaylandDisplay>()
+        .downcast::<gdk4_wayland::WaylandDisplay>()
         .unwrap()
         .wl_display()
         .unwrap()
@@ -109,11 +109,11 @@ impl<T> EventLoopWindowTarget<T> {
       display_handle.display = display as *mut _;
       display_handle.into()
     } else {
-      let display = display.downcast::<gdk_x11::X11Display>().unwrap();
+      let display = display.downcast::<gdk4_x11::X11Display>().unwrap();
 
       let mut display_handle = rwh_05::XlibDisplayHandle::empty();
       display_handle.display =
-        unsafe { gdk_x11::ffi::gdk_x11_display_get_xdisplay(display.as_ptr() as *mut _) };
+        unsafe { gdk4_x11::ffi::gdk_x11_display_get_xdisplay(display.as_ptr() as *mut _) };
       display_handle.screen = display.screen().screen_number();
       display_handle.into()
     }
@@ -124,12 +124,12 @@ impl<T> EventLoopWindowTarget<T> {
   pub fn raw_display_handle_rwh_06(&self) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
     let display = self.display.clone();
     if self.is_wayland() {
-      use gdk_wayland::wayland_client::Proxy;
+      use gdk4_wayland::wayland_client::Proxy;
 
       Ok(
         rwh_06::WaylandDisplayHandle::new({
           let ptr = display
-            .downcast::<gdk_wayland::WaylandDisplay>()
+            .downcast::<gdk4_wayland::WaylandDisplay>()
             .unwrap()
             .wl_display()
             .unwrap()
@@ -142,9 +142,9 @@ impl<T> EventLoopWindowTarget<T> {
     } else {
       #[cfg(feature = "x11")]
       {
-        let display = display.downcast::<gdk_x11::X11Display>().unwrap();
+        let display = display.downcast::<gdk4_x11::X11Display>().unwrap();
         let xdisplay = std::ptr::NonNull::new(unsafe {
-          gdk_x11::ffi::gdk_x11_display_get_xdisplay(display.as_ptr() as *mut _)
+          gdk4_x11::ffi::gdk_x11_display_get_xdisplay(display.as_ptr() as *mut _)
         });
         let xscreen = display.screen().screen_number();
         Ok(rwh_06::XlibDisplayHandle::new(xdisplay, xscreen).into())
@@ -408,7 +408,7 @@ impl<T: 'static> EventLoop<T> {
               } else {
                 #[cfg(feature = "x11")]
                 if let Some(surface) = window.surface() {
-                  if let Ok(x11_surface) = surface.downcast::<gdk_x11::X11Surface>() {
+                  if let Ok(x11_surface) = surface.downcast::<gdk4_x11::X11Surface>() {
                     x11_surface.set_urgency_hint(request_type.is_some());
                   }
                 }

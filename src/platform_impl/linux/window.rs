@@ -618,12 +618,12 @@ impl Window {
   #[inline]
   pub fn raw_window_handle_rwh_04(&self) -> rwh_04::RawWindowHandle {
     if self.is_wayland() {
-      use gdk_wayland::{prelude::WaylandSurfaceExtManual, wayland_client::Proxy};
+      use gdk4_wayland::{prelude::WaylandSurfaceExtManual, wayland_client::Proxy};
 
       let mut window_handle = rwh_04::WaylandHandle::empty();
       if let Some(surface) = self.window.surface() {
         let ptr = surface
-          .downcast::<gdk_wayland::WaylandSurface>()
+          .downcast::<gdk4_wayland::WaylandSurface>()
           .unwrap()
           .wl_surface()
           .unwrap()
@@ -636,7 +636,7 @@ impl Window {
     } else {
       let mut window_handle = rwh_04::XlibHandle::empty();
       if let Some(surface) = self.window.surface() {
-        window_handle.window = surface.downcast::<gdk_x11::X11Surface>().unwrap().xid();
+        window_handle.window = surface.downcast::<gdk4_x11::X11Surface>().unwrap().xid();
       }
 
       rwh_04::RawWindowHandle::Xlib(window_handle)
@@ -647,12 +647,12 @@ impl Window {
   #[inline]
   pub fn raw_window_handle_rwh_05(&self) -> rwh_05::RawWindowHandle {
     if self.is_wayland() {
-      use gdk_wayland::{prelude::WaylandSurfaceExtManual, wayland_client::Proxy};
+      use gdk4_wayland::{prelude::WaylandSurfaceExtManual, wayland_client::Proxy};
 
       let mut window_handle = rwh_05::WaylandWindowHandle::empty();
       if let Some(surface) = self.window.surface() {
         let ptr = surface
-          .downcast::<gdk_wayland::WaylandSurface>()
+          .downcast::<gdk4_wayland::WaylandSurface>()
           .unwrap()
           .wl_surface()
           .unwrap()
@@ -665,7 +665,7 @@ impl Window {
     } else {
       let mut window_handle = rwh_05::XlibWindowHandle::empty();
       if let Some(surface) = self.window.surface() {
-        window_handle.window = surface.downcast::<gdk_x11::X11Surface>().unwrap().xid();
+        window_handle.window = surface.downcast::<gdk4_x11::X11Surface>().unwrap().xid();
       }
       window_handle.into()
     }
@@ -676,9 +676,9 @@ impl Window {
   pub fn raw_display_handle_rwh_05(&self) -> rwh_05::RawDisplayHandle {
     let display = self.display();
     if self.is_wayland() {
-      use gdk_wayland::wayland_client::Proxy;
+      use gdk4_wayland::wayland_client::Proxy;
       let display = display
-        .downcast::<gdk_wayland::WaylandDisplay>()
+        .downcast::<gdk4_wayland::WaylandDisplay>()
         .unwrap()
         .wl_display()
         .unwrap()
@@ -689,11 +689,11 @@ impl Window {
       display_handle.display = display as *mut _;
       display_handle.into()
     } else {
-      let display = display.downcast::<gdk_x11::X11Display>().unwrap();
+      let display = display.downcast::<gdk4_x11::X11Display>().unwrap();
 
       let mut display_handle = rwh_05::XlibDisplayHandle::empty();
       display_handle.display =
-        unsafe { gdk_x11::ffi::gdk_x11_display_get_xdisplay(display.as_ptr() as *mut _) };
+        unsafe { gdk4_x11::ffi::gdk_x11_display_get_xdisplay(display.as_ptr() as *mut _) };
       display_handle.screen = display.screen().screen_number();
       display_handle.into()
     }
@@ -704,12 +704,12 @@ impl Window {
   pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
     if let Some(surface) = self.window.surface() {
       if self.is_wayland() {
-        use gdk_wayland::{prelude::WaylandSurfaceExtManual, wayland_client::Proxy};
+        use gdk4_wayland::{prelude::WaylandSurfaceExtManual, wayland_client::Proxy};
 
         Ok(
           rwh_06::WaylandWindowHandle::new({
             let ptr = surface
-              .downcast::<gdk_wayland::WaylandSurface>()
+              .downcast::<gdk4_wayland::WaylandSurface>()
               .unwrap()
               .wl_surface()
               .unwrap()
@@ -723,7 +723,7 @@ impl Window {
         #[cfg(feature = "x11")]
         {
           Ok(
-            rwh_06::XlibWindowHandle::new(surface.downcast::<gdk_x11::X11Surface>().unwrap().xid())
+            rwh_06::XlibWindowHandle::new(surface.downcast::<gdk4_x11::X11Surface>().unwrap().xid())
               .into(),
           )
         }
@@ -740,12 +740,12 @@ impl Window {
   pub fn raw_display_handle_rwh_06(&self) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
     let display = self.display();
     if self.is_wayland() {
-      use gdk_wayland::wayland_client::Proxy;
+      use gdk4_wayland::wayland_client::Proxy;
 
       Ok(
         rwh_06::WaylandDisplayHandle::new({
           let ptr = display
-            .downcast::<gdk_wayland::WaylandDisplay>()
+            .downcast::<gdk4_wayland::WaylandDisplay>()
             .unwrap()
             .wl_display()
             .unwrap()
@@ -758,13 +758,13 @@ impl Window {
     } else {
       #[cfg(feature = "x11")]
       {
-        let display = display.downcast::<gdk_x11::X11Display>().unwrap();
+        let display = display.downcast::<gdk4_x11::X11Display>().unwrap();
 
         Ok(
           rwh_06::XlibDisplayHandle::new(
             Some(
               std::ptr::NonNull::new(unsafe {
-                gdk_x11::ffi::gdk_x11_display_get_xdisplay(display.as_ptr() as *mut _)
+                gdk4_x11::ffi::gdk_x11_display_get_xdisplay(display.as_ptr() as *mut _)
               })
               .expect("X11 display should never be null"),
             ),
