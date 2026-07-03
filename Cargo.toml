@@ -167,7 +167,7 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
 ] }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { package = "gtk4", version = "0.11", features = ["v4_10"] }
+gtk4 = { version = "0.11", features = ["v4_10"] }
 gdk4-x11 = { version = "0.11", optional = true }
 gdk4-wayland = { version = "0.11", features = ["wayland_crate"] }
 x11-dl = { version = "2.21", optional = true }

@@ -12,7 +12,7 @@ use std::{
   time::Instant,
 };
 
-use gtk::{
+use gtk4::{
   cairo::{RectangleInt, Region},
   gdk::{self, Cursor, ScrollDirection, SurfaceEdge},
   glib::{self, closure_local, MainContext},
@@ -26,7 +26,7 @@ use gtk::{
 use libadwaita as adw;
 
 #[cfg(not(feature = "libadwaita"))]
-use gtk::Application;
+use gtk4::Application;
 
 #[cfg(feature = "libadwaita")]
 type GtkApp = adw::Application;
@@ -237,17 +237,17 @@ impl<T: 'static> EventLoop<T> {
     #[cfg(feature = "libadwaita")]
     adw::init().expect("Failed to initialize libadwaita");
     #[cfg(not(feature = "libadwaita"))]
-    gtk::init()?;
+    gtk4::init()?;
 
     let context = MainContext::default();
 
     // Create application with appropriate type
     #[cfg(feature = "libadwaita")]
-    let app = adw::Application::new(app_id, gtk::gio::ApplicationFlags::empty());
+    let app = adw::Application::new(app_id, gtk4::gio::ApplicationFlags::empty());
     #[cfg(not(feature = "libadwaita"))]
-    let app = Application::new(app_id, gtk::gio::ApplicationFlags::empty());
+    let app = Application::new(app_id, gtk4::gio::ApplicationFlags::empty());
     let app_ = app.clone();
-    app.register(gtk::gio::Cancellable::NONE)?;
+    app.register(gtk4::gio::Cancellable::NONE)?;
 
     // Send StartCause::Init event
     let (event_tx, event_rx) = async_channel::unbounded();
@@ -416,7 +416,7 @@ impl<T: 'static> EventLoop<T> {
             }
             WindowRequest::BackgroundColor(css_provider, color) => {
               let display = RootExt::display(&window);
-              gtk::style_context_remove_provider_for_display(&display, &css_provider);
+              gtk4::style_context_remove_provider_for_display(&display, &css_provider);
 
               if let Some(color) = color {
                 let theme = format!(
@@ -433,10 +433,10 @@ impl<T: 'static> EventLoop<T> {
                 );
                 css_provider.load_from_data(&theme);
 
-                gtk::style_context_add_provider_for_display(
+                gtk4::style_context_add_provider_for_display(
                   &display,
                   &css_provider,
-                  gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+                  gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
                 );
               }
             }
@@ -790,7 +790,7 @@ impl<T: 'static> EventLoop<T> {
 
               let tx_clone = event_tx.clone();
               // TODO Add actual IME from system
-              let ime = gtk::IMContextSimple::default();
+              let ime = gtk4::IMContextSimple::default();
               ime.set_client_widget(Some(&window));
               ime.focus_in();
               ime.connect_commit(move |_, s| {
@@ -827,7 +827,7 @@ impl<T: 'static> EventLoop<T> {
               });
 
               let draw_clone = draw_tx.clone();
-              let redraw_handler = Rc::new(move |window: &gtk::Window| {
+              let redraw_handler = Rc::new(move |window: &gtk4::Window| {
                 let draw_clone = draw_clone.clone();
                 window.frame_clock().unwrap().connect_paint(move |_| {
                   if let Err(e) = draw_clone.send_blocking(id) {
@@ -858,7 +858,7 @@ impl<T: 'static> EventLoop<T> {
               if transparent {
                 let display = RootExt::display(&window);
 
-                let provider = gtk::CssProvider::new();
+                let provider = gtk4::CssProvider::new();
                 let theme = format!(
                   r#"
                     window.tao-window-{} {{
@@ -870,10 +870,10 @@ impl<T: 'static> EventLoop<T> {
 
                 provider.load_from_data(&theme);
 
-                gtk::style_context_add_provider_for_display(
+                gtk4::style_context_add_provider_for_display(
                   &display,
                   &provider,
-                  gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+                  gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
                 );
               }
 

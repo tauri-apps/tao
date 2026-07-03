@@ -8,7 +8,7 @@ use dbus::{
   message::MatchRule,
   Error,
 };
-use gtk::glib::MainContext;
+use gtk4::glib::MainContext;
 use log::warn;
 use std::{thread, time::Duration};
 

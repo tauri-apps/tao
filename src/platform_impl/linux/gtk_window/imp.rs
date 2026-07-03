@@ -6,7 +6,7 @@ use std::{
   },
 };
 
-use gtk::{
+use gtk4::{
   glib::{self, subclass::Signal},
   prelude::*,
   subclass::prelude::*,
@@ -32,7 +32,7 @@ impl ObjectSubclass for ApplicationWindow {
   #[cfg(feature = "libadwaita")]
   type ParentType = libadwaita::ApplicationWindow;
   #[cfg(not(feature = "libadwaita"))]
-  type ParentType = gtk::ApplicationWindow;
+  type ParentType = gtk4::ApplicationWindow;
 }
 
 impl ObjectImpl for ApplicationWindow {

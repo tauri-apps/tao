@@ -11,7 +11,7 @@ use std::{
   },
 };
 
-use gtk::{gdk, glib, prelude::*, CssProvider, Settings};
+use gtk4::{gdk, glib, prelude::*, CssProvider, Settings};
 
 #[cfg(feature = "libadwaita")]
 use libadwaita::prelude::AdwApplicationWindowExt;
@@ -48,7 +48,7 @@ pub struct Window {
   pub(crate) window_id: WindowId,
   /// Gtk application window.
   pub(crate) window: ApplicationWindow,
-  pub(crate) default_vbox: Option<gtk::Box>,
+  pub(crate) default_vbox: Option<gtk4::Box>,
   /// Window requests sender
   pub(crate) window_requests_tx: async_channel::Sender<(WindowId, WindowRequest)>,
   scale_factor: Rc<AtomicI32>,
@@ -81,8 +81,8 @@ impl Window {
     let window = ApplicationWindow::new(app, &attributes, &pl_attribs);
 
     let default_vbox = if pl_attribs.default_vbox {
-      let box_ = gtk::Box::new(gtk::Orientation::Vertical, 0);
-      // AdwApplicationWindow uses set_content(), gtk::ApplicationWindow uses set_child()
+      let box_ = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
+      // AdwApplicationWindow uses set_content(), gtk4::ApplicationWindow uses set_child()
       #[cfg(feature = "libadwaita")]
       window.set_content(Some(&box_));
       #[cfg(not(feature = "libadwaita"))]

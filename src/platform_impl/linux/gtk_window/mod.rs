@@ -2,7 +2,7 @@ mod imp;
 
 use std::{rc::Rc, sync::atomic::AtomicI32};
 
-use gtk::{
+use gtk4::{
   gio,
   glib::{
     self, object::ObjectExt, subclass::types::ObjectSubclassIsExt, Object, RustClosure,
@@ -21,22 +21,22 @@ use libadwaita as adw;
 #[cfg(feature = "libadwaita")]
 type AppType = adw::Application;
 #[cfg(not(feature = "libadwaita"))]
-type AppType = gtk::Application;
+type AppType = gtk4::Application;
 
 #[cfg(feature = "libadwaita")]
 glib::wrapper! {
     pub struct ApplicationWindow(ObjectSubclass<imp::ApplicationWindow>)
-        @extends gtk::Widget, gtk::Window, gtk::ApplicationWindow, adw::ApplicationWindow,
-        @implements gio::ActionGroup, gio::ActionMap, gtk::Accessible, gtk::Buildable,
-                    gtk::ConstraintTarget, gtk::Native, gtk::Root, gtk::ShortcutManager;
+        @extends gtk4::Widget, gtk4::Window, gtk4::ApplicationWindow, adw::ApplicationWindow,
+        @implements gio::ActionGroup, gio::ActionMap, gtk4::Accessible, gtk4::Buildable,
+                    gtk4::ConstraintTarget, gtk4::Native, gtk4::Root, gtk4::ShortcutManager;
 }
 
 #[cfg(not(feature = "libadwaita"))]
 glib::wrapper! {
     pub struct ApplicationWindow(ObjectSubclass<imp::ApplicationWindow>)
-        @extends gtk::Widget, gtk::Window, gtk::ApplicationWindow,
-        @implements gio::ActionGroup, gio::ActionMap, gtk::Accessible, gtk::Buildable,
-                    gtk::ConstraintTarget, gtk::Native, gtk::Root, gtk::ShortcutManager;
+        @extends gtk4::Widget, gtk4::Window, gtk4::ApplicationWindow,
+        @implements gio::ActionGroup, gio::ActionMap, gtk4::Accessible, gtk4::Buildable,
+                    gtk4::ConstraintTarget, gtk4::Native, gtk4::Root, gtk4::ShortcutManager;
 }
 
 impl ApplicationWindow {

@@ -4,7 +4,7 @@
 
 use std::collections::VecDeque;
 
-use gtk::{
+use gtk4::{
   gdk::{
     self,
     prelude::{DisplayExt, MonitorExt},

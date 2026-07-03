@@ -3,7 +3,7 @@ use crate::{
   error::ExternalError,
   window::WindowSizeConstraints,
 };
-use gtk::{
+use gtk4::{
   gdk,
   glib::{
     self,
@@ -17,7 +17,7 @@ use std::{cell::RefCell, rc::Rc};
 #[inline]
 pub fn on_window_realized<W, F>(window: &W, f: F) -> SignalHandlerId
 where
-  W: IsA<gtk::Widget>,
+  W: IsA<gtk4::Widget>,
   F: Fn(&W) + 'static,
 {
   // If the window is already realized, we won't get the signal initially.
@@ -36,7 +36,7 @@ pub fn surface_as_toplevel(surface: gdk::Surface) -> Result<gdk::Toplevel, gdk::
 pub fn default_pointer(display: &gdk::Display) -> Option<gdk::Device> {
   display
     .default_seat()
-    .and_then(|seat: gtk::gdk::Seat| seat.pointer())
+    .and_then(|seat: gtk4::gdk::Seat| seat.pointer())
 }
 
 #[inline]

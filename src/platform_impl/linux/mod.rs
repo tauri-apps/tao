@@ -39,7 +39,7 @@ pub struct KeyEventExtra {
 pub enum Parent {
   #[default]
   None,
-  ChildOf(gtk::Window),
+  ChildOf(gtk4::Window),
 }
 
 #[derive(Clone)]

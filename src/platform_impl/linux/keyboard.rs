@@ -7,7 +7,7 @@ use crate::{
   event::{ElementState, KeyEvent},
   keyboard::{Key, KeyCode, KeyLocation, ModifiersState, NativeKeyCode},
 };
-use gtk::{gdk, prelude::DisplayExtManual};
+use gtk4::{gdk, prelude::DisplayExtManual};
 use once_cell::sync::Lazy;
 use std::{collections::HashSet, sync::Mutex};
 
