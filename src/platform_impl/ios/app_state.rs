@@ -28,7 +28,7 @@ use crate::{
       CFRunLoopTimerRef, CFRunLoopTimerSetNextFireDate, CGRect, CGSize, NSInteger,
       NSOperatingSystemVersion, NSUInteger,
     },
-    scene::multiple_scenes_enabled,
+    scene::{emit_opened_from_url_contexts, multiple_scenes_enabled},
   },
   window::WindowId as RootWindowId,
 };
@@ -530,6 +530,8 @@ pub unsafe fn connect_scene(scene: &UIScene, options: &UISceneConnectionOptions)
       }));
     }
   }
+
+  emit_opened_from_url_contexts(&options.URLContexts());
 }
 
 pub unsafe fn register_window_for_scene(window: id) {

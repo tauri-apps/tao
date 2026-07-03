@@ -17,6 +17,20 @@ use crate::{
   window::WindowId as RootWindowId,
 };
 
+pub(crate) fn emit_opened_from_url_contexts(url_contexts: &NSSet<UIOpenURLContext>) {
+  let url_strings: Vec<String> = url_contexts
+    .iter()
+    .filter_map(|ctx| ctx.URL().absoluteString().map(|s| s.to_string()))
+    .collect();
+
+  let urls = parse_url_strings(&url_strings);
+  if !urls.is_empty() {
+    unsafe {
+      app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls }));
+    }
+  }
+}
+
 // true when the system allows the app to display multiple scenes and multiple_scenes_enabled() returns true
 // https://developer.apple.com/documentation/uikit/uiapplication/supportsmultiplescenes?language=objc
 pub unsafe fn app_supports_multiple_scenes() -> bool {
@@ -108,26 +122,7 @@ define_class!(
 
     #[unsafe(method(scene:openURLContexts:))]
     fn scene_openURLContexts(&self, _scene: &UIScene, url_contexts: &NSSet<UIOpenURLContext>) {
-      unsafe {
-        let urls: Vec<url::Url> = url_contexts
-          .iter()
-          .filter_map(|ctx| {
-            ctx.URL().absoluteString().and_then(|url| {
-              let url = url.to_string();
-              url
-                .parse()
-                .map_err(|e| {
-                  log::error!("failed to parse URL {url} from scene:openURLContexts: {e}");
-                  e
-                })
-                .ok()
-            })
-          })
-          .collect();
-        if !urls.is_empty() {
-          app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls }));
-        }
-      }
+      emit_opened_from_url_contexts(url_contexts);
     }
 
     #[unsafe(method(stateRestorationActivityForScene:))]
@@ -162,10 +157,10 @@ define_class!(
           .webpageURL()
           .and_then(|url| url.absoluteString())
         {
-          let url = url.to_string().parse::<url::Url>().unwrap();
-          app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened {
-            urls: vec![url],
-          }));
+          let urls = parse_url_strings(&[url.to_string()]);
+          if !urls.is_empty() {
+            app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls }));
+          }
         }
       }
     }
@@ -196,3 +191,93 @@ define_class!(
     }
   }
 );
+
+fn parse_url_strings(url_strings: &[String]) -> Vec<url::Url> {
+  url_strings
+    .iter()
+    .filter_map(|s| {
+      s.parse()
+        .map_err(|e| {
+          log::error!("failed to parse URL {s}: {e}");
+          e
+        })
+        .ok()
+    })
+    .collect()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_parse_url_strings() {
+    let input = vec![
+      "https://example.com".to_string(),
+      "invalid-url".to_string(),
+      "https://another.com/path".to_string(),
+    ];
+
+    let urls = parse_url_strings(&input);
+    assert_eq!(urls.len(), 2);
+    // url::Url normalizes an empty path to "/"
+    assert_eq!(urls[0].as_str(), "https://example.com/");
+    assert_eq!(urls[1].as_str(), "https://another.com/path");
+  }
+
+  #[test]
+  fn test_parse_url_strings_empty_input() {
+    assert!(parse_url_strings(&[]).is_empty());
+  }
+
+  #[test]
+  fn test_parse_url_strings_all_invalid() {
+    let input = vec![
+      String::new(),
+      "not a url".to_string(),
+      // parses up to the host, which is empty
+      "https://".to_string(),
+    ];
+    assert!(parse_url_strings(&input).is_empty());
+  }
+
+  #[test]
+  fn test_parse_url_strings_deep_link_round_trip() {
+    // the payloads scene:openURLContexts: actually delivers: custom URL
+    // schemes, universal links with query and fragment, and file URLs
+    // from the share sheet's "Open in..."
+    let cases = [
+      "tauri://callback?token=abc",
+      "myapp:main",
+      "https://example.com/auth?code=1&state=2#frag",
+      "file:///private/var/mobile/Containers/doc%20name.pdf",
+    ];
+
+    for case in cases {
+      let urls = parse_url_strings(&[case.to_string()]);
+      assert_eq!(urls.len(), 1, "expected {case} to parse");
+      assert_eq!(urls[0].as_str(), case);
+    }
+
+    let urls = parse_url_strings(&["tauri://callback?token=abc".to_string()]);
+    assert_eq!(urls[0].scheme(), "tauri");
+    assert_eq!(urls[0].host_str(), Some("callback"));
+    assert_eq!(urls[0].query(), Some("token=abc"));
+  }
+
+  #[test]
+  fn test_parse_url_strings_normalization() {
+    // consumers receive URLs normalized per the WHATWG URL spec
+    let cases = [
+      ("HTTPS://EXAMPLE.COM/Path", "https://example.com/Path"),
+      ("https://example.com/a b", "https://example.com/a%20b"),
+      ("https://example.com:443/page", "https://example.com/page"),
+    ];
+
+    for (input, expected) in cases {
+      let urls = parse_url_strings(&[input.to_string()]);
+      assert_eq!(urls.len(), 1, "expected {input} to parse");
+      assert_eq!(urls[0].as_str(), expected);
+    }
+  }
+}
