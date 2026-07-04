@@ -723,8 +723,10 @@ impl Window {
         #[cfg(feature = "x11")]
         {
           Ok(
-            rwh_06::XlibWindowHandle::new(surface.downcast::<gdk4_x11::X11Surface>().unwrap().xid())
-              .into(),
+            rwh_06::XlibWindowHandle::new(
+              surface.downcast::<gdk4_x11::X11Surface>().unwrap().xid(),
+            )
+            .into(),
           )
         }
         #[cfg(not(feature = "x11"))]
