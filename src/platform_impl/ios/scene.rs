@@ -81,7 +81,18 @@ define_class!(
     }
 
     #[unsafe(method(sceneDidDisconnect:))]
-    fn sceneDidDisconnect(&self, _scene: &UIScene) {}
+    fn sceneDidDisconnect(&self, scene: &UIScene) {
+      unsafe {
+        if let Some(window_scene) = scene.downcast_ref::<UIWindowScene>() {
+          for window in window_scene.windows() {
+            app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::WindowEvent {
+              window_id: RootWindowId(window.into()),
+              event: WindowEvent::Destroyed,
+            }));
+          }
+        }
+      }
+    }
 
     #[unsafe(method(sceneDidBecomeActive:))]
     fn sceneDidBecomeActive(&self, scene: &UIScene) {
