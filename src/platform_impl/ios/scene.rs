@@ -80,6 +80,10 @@ define_class!(
       }
     }
 
+    // iOS may disconnect a scene because the user closed it, or because
+    // the system discarded a backgrounded scene to free resources. A
+    // restored scene goes through `scene:willConnectToSession:` again
+    // and gets a new `UIWindow` and `WindowId`.
     #[unsafe(method(sceneDidDisconnect:))]
     fn sceneDidDisconnect(&self, scene: &UIScene) {
       unsafe {
