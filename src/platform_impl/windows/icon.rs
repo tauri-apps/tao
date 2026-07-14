@@ -5,13 +5,12 @@
 use std::{fmt, mem, path::Path, sync::Arc};
 
 use windows::{
-  core::PCWSTR,
+  core::{Owned, PCWSTR},
   Win32::{
     Foundation::{HWND, LPARAM, WPARAM},
     UI::WindowsAndMessaging::*,
   },
 };
-use windows_core::Owned;
 
 use crate::{dpi::PhysicalSize, icon::*, platform_impl::platform::util};
 
