@@ -320,7 +320,24 @@ pub enum WindowEvent {
   Destroyed,
 }
 
-pub unsafe fn create(_env: JNIEnv, _: JClass, _: JObject, main: fn()) {
+pub unsafe fn create(mut env: JNIEnv, _: JClass, jobject: JObject, main: fn()) {
+  let vm = env.get_java_vm().unwrap();
+  let application = env
+    .call_method(
+      jobject,
+      "getApplication",
+      "()Landroid/app/Application;",
+      &[],
+    )
+    .unwrap()
+    .l()
+    .unwrap();
+  let application = env.new_global_ref(application).unwrap();
+  ndk_context::initialize_android_context(
+    vm.get_java_vm_pointer() as *mut _,
+    application.as_obj().as_raw() as *mut _,
+  );
+
   let logpipe = {
     let mut logpipe: [RawFd; 2] = Default::default();
     libc::pipe(logpipe.as_mut_ptr());
