@@ -215,7 +215,7 @@ pub type ActivityId = i32;
 pub(crate) static CONTEXTS: Lazy<Mutex<BTreeMap<ActivityId, AndroidContext>>> =
   Lazy::new(Default::default);
 // Keeping a reference so we can store it in ndk-context
-static APPLICATION_CONTEXT: Lazy<Mutex<Option<GlobalRef>>> = Lazy::new(Default::default);
+static APPLICATION_CONTEXT: OnceCell<GlobalRef> = OnceCell::new();
 static WINDOW_MANAGER: Lazy<Mutex<BTreeMap<ActivityId, GlobalRef>>> = Lazy::new(Default::default);
 pub(crate) static ACTIVITY_CREATED_SENDERS: Lazy<Mutex<BTreeMap<ActivityId, Sender<()>>>> =
   Lazy::new(Default::default);
@@ -392,8 +392,7 @@ pub unsafe fn onActivityCreate(
 
   let vm = env.get_java_vm().unwrap();
 
-  let mut app_context = APPLICATION_CONTEXT.lock().unwrap();
-  if app_context.is_none() {
+  APPLICATION_CONTEXT.get_or_init(|| {
     let application = jni_call_method!(
       env,
       &activity,
@@ -407,8 +406,8 @@ pub unsafe fn onActivityCreate(
       vm.get_java_vm_pointer() as *mut _,
       application.as_obj().as_raw() as *mut _,
     );
-    *app_context = Some(application);
-  }
+    application
+  });
 
   let activity_id = jni_call_method!(env, &activity, "getId", "()I", i).unwrap();
 
