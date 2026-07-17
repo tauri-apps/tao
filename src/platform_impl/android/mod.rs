@@ -425,12 +425,7 @@ impl<T: 'static> EventLoop<T> {
 
       match *control_flow {
         ControlFlow::ExitWithCode(code) => {
-          self.first_event = poll(
-            self
-              .looper
-              .poll_once_timeout(Duration::from_millis(0))
-              .unwrap(),
-          );
+          self.first_event = poll(self.looper.poll_once_timeout(Duration::ZERO).unwrap());
           self.start_cause = event::StartCause::WaitCancelled {
             start: Instant::now(),
             requested_resume: None,
@@ -441,12 +436,7 @@ impl<T: 'static> EventLoop<T> {
           return code;
         }
         ControlFlow::Poll => {
-          self.first_event = poll(
-            self
-              .looper
-              .poll_all_timeout(Duration::from_millis(0))
-              .unwrap(),
-          );
+          self.first_event = poll(self.looper.poll_all_timeout(Duration::ZERO).unwrap());
           self.start_cause = event::StartCause::Poll;
         }
         ControlFlow::Wait => {
