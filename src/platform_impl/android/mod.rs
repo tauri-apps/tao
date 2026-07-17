@@ -212,7 +212,7 @@ impl<T: 'static> EventLoop<T> {
     let event_handler = &mut event_handler;
     let control_flow = &mut ControlFlow::default();
 
-    'event_loop: loop {
+    loop {
       self.call_event_handler(
         event_handler,
         control_flow,
@@ -438,7 +438,7 @@ impl<T: 'static> EventLoop<T> {
 
           self.call_event_handler(event_handler, control_flow, event::Event::LoopDestroyed);
 
-          break 'event_loop code;
+          return code;
         }
         ControlFlow::Poll => {
           self.first_event = poll(
