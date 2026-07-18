@@ -508,7 +508,7 @@ pub struct EventLoopProxy<T: 'static> {
 
 impl<T> EventLoopProxy<T> {
   pub fn send_event(&self, event: T) -> Result<(), event_loop::EventLoopClosed<T>> {
-    _ = self.queue.try_send(event);
+    let _ = self.queue.send(event);
     self.looper.wake();
     Ok(())
   }
