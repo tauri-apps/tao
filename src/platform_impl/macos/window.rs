@@ -724,7 +724,18 @@ impl UnownedWindow {
   }
 
   pub fn set_outer_position(&self, position: Position) {
-    let scale_factor = self.scale_factor();
+    // A physical target must convert with the scale of the monitor it lands
+    // on: using the window's current scale sends a position computed for a
+    // different-scale monitor to the wrong logical point, which also breaks
+    // `set_position(outer_position())` round-trips across monitors.
+    let scale_factor = match &position {
+      Position::Physical(physical) => {
+        monitor::monitor_from_physical_point(physical.x as f64, physical.y as f64)
+          .map(|monitor| monitor.scale_factor())
+          .unwrap_or_else(|| self.scale_factor())
+      }
+      Position::Logical(_) => self.scale_factor(),
+    };
     let position = position.to_logical(scale_factor);
     unsafe {
       util::set_frame_top_left_point_async(&self.ns_window, util::window_position(position));

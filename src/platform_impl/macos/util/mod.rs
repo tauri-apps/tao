@@ -84,8 +84,12 @@ impl Clone for IdRef {
 // For consistency with other platforms, this will...
 // 1. translate the bottom-left window corner into the top-left window corner
 // 2. translate the coordinate from a bottom-left origin coordinate system to a top-left one
+//
+// The flip must happen in points, the unit of `NSRect`: the main display's
+// bounds height in points, not `pixels_high()`. On a Retina primary the two
+// differ by the scale factor, which shears every multi-monitor coordinate.
 pub fn bottom_left_to_top_left(rect: NSRect) -> f64 {
-  CGDisplay::main().pixels_high() as f64 - (rect.origin.y + rect.size.height)
+  CGDisplay::main().bounds().size.height - (rect.origin.y + rect.size.height)
 }
 
 /// Converts from tao screen-coordinates to macOS screen-coordinates.
@@ -94,15 +98,19 @@ pub fn bottom_left_to_top_left(rect: NSRect) -> f64 {
 pub fn window_position(position: LogicalPosition<f64>) -> NSPoint {
   NSPoint::new(
     position.x,
-    CGDisplay::main().pixels_high() as f64 - position.y,
+    CGDisplay::main().bounds().size.height - position.y,
   )
 }
 
 pub fn cursor_position() -> Result<PhysicalPosition<f64>, ExternalError> {
   let point: NSPoint = unsafe { msg_send![class!(NSEvent), mouseLocation] };
-  let y = CGDisplay::main().pixels_high() as f64 - point.y;
-  let point = LogicalPosition::new(point.x, y);
-  Ok(point.to_physical(super::monitor::primary_monitor().scale_factor()))
+  let y = CGDisplay::main().bounds().size.height - point.y;
+  // Convert with the scale of the monitor the cursor is actually on; the
+  // primary's scale is only the fallback for a point outside every display.
+  let scale_factor = super::monitor::from_point(point.x, y)
+    .unwrap_or_else(super::monitor::primary_monitor)
+    .scale_factor();
+  Ok(LogicalPosition::new(point.x, y).to_physical(scale_factor))
 }
 
 pub unsafe fn superclass<'a>(this: &'a Object) -> &'a Class {

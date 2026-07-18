@@ -172,6 +172,19 @@ pub fn from_point(x: f64, y: f64) -> Option<MonitorHandle> {
   None
 }
 
+// `monitor_from_physical_point` gets the monitor whose physical (pixel) rect
+// contains the given point in tao's top-left-origin physical screen space.
+pub fn monitor_from_physical_point(x: f64, y: f64) -> Option<MonitorHandle> {
+  available_monitors().into_iter().find(|monitor| {
+    let position = monitor.position();
+    let size = monitor.size();
+    x >= position.x as f64
+      && x < position.x as f64 + size.width as f64
+      && y >= position.y as f64
+      && y < position.y as f64 + size.height as f64
+  })
+}
+
 impl fmt::Debug for MonitorHandle {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     // TODO: Do this using the proper fmt API
@@ -214,11 +227,13 @@ impl MonitorHandle {
   }
 
   pub fn size(&self) -> PhysicalSize<u32> {
-    let MonitorHandle(display_id) = *self;
-    let display = CGDisplay::new(display_id);
-    let height = display.pixels_high();
-    let width = display.pixels_wide();
-    PhysicalSize::from_logical::<_, f64>((width as f64, height as f64), self.scale_factor())
+    // `CGDisplayBounds` is in points; `pixels_high`/`pixels_wide` are not, and
+    // feeding pixels through a logical conversion double-scales Retina sizes.
+    let bounds = unsafe { CGDisplayBounds(self.native_identifier()) };
+    PhysicalSize::from_logical::<_, f64>(
+      (bounds.size.width, bounds.size.height),
+      self.scale_factor(),
+    )
   }
 
   #[inline]
@@ -231,11 +246,19 @@ impl MonitorHandle {
   }
 
   pub fn scale_factor(&self) -> f64 {
-    let screen = match self.ns_screen() {
-      Some(screen) => screen,
-      None => return 1.0, // default to 1.0 when we can't find the screen
-    };
-    NSScreen::backingScaleFactor(&screen) as f64
+    if let Some(screen) = self.ns_screen() {
+      return NSScreen::backingScaleFactor(&screen) as f64;
+    }
+    // The NSScreen lookup fails for handles that went stale across a display
+    // reconfiguration. Derive the backing scale from CoreGraphics instead of
+    // silently reporting 1.0, which mis-scales every conversion downstream.
+    let bounds = unsafe { CGDisplayBounds(self.0) };
+    if bounds.size.width > 0.0 {
+      if let Some(mode) = CGDisplay::new(self.0).display_mode() {
+        return (mode.pixel_width() as f64 / bounds.size.width).max(1.0);
+      }
+    }
+    1.0
   }
 
   pub fn video_modes(&self) -> impl Iterator<Item = RootVideoMode> {
