@@ -90,11 +90,11 @@ pub trait WindowExtUnix {
 
 impl WindowExtUnix for Window {
   fn gtk_window(&self) -> &ApplicationWindow {
-    &self.window.window
+    self.window.gtk_window()
   }
 
   fn default_vbox(&self) -> Option<&gtk4::Box> {
-    self.window.default_vbox.as_ref()
+    self.window.default_vbox()
   }
 
   fn set_skip_taskbar(&self, skip: bool) -> Result<(), ExternalError> {

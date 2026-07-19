@@ -330,7 +330,9 @@ impl<T: 'static> EventLoop<T> {
               window.set_visible(visible);
             }
             WindowRequest::Focus => {
-              window.present();
+              if window.is_visible() {
+                window.present();
+              }
             }
             WindowRequest::Resizable(resizable) => window.set_resizable(resizable),
             WindowRequest::Closable(closable) => window.set_deletable(closable),
@@ -414,9 +416,13 @@ impl<T: 'static> EventLoop<T> {
                 }
               }
             }
-            WindowRequest::BackgroundColor(css_provider, color) => {
+            WindowRequest::BackgroundColor(color) => {
               let display = RootExt::display(&window);
-              gtk4::style_context_remove_provider_for_display(&display, &css_provider);
+              let css_provider = window
+                .downcast_ref::<ApplicationWindow>()
+                .expect("Tao windows use the ApplicationWindow subclass")
+                .css_provider();
+              gtk4::style_context_remove_provider_for_display(&display, css_provider);
 
               if let Some(color) = color {
                 let theme = format!(
@@ -435,10 +441,15 @@ impl<T: 'static> EventLoop<T> {
 
                 gtk4::style_context_add_provider_for_display(
                   &display,
-                  &css_provider,
+                  css_provider,
                   gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
                 );
               }
+            }
+            WindowRequest::RunOnMainThread(callback) => callback(&window),
+            WindowRequest::Destroy(gtk) => {
+              gtk.window.destroy();
+              drop(gtk);
             }
             WindowRequest::CursorIcon(cursor) => match cursor {
               Some(cr) => window.set_cursor(Cursor::from_name(cr.to_str(), None).as_ref()),

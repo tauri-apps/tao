@@ -1,9 +1,6 @@
-use std::{
-  rc::Rc,
-  sync::{
-    atomic::{AtomicI32, Ordering},
-    OnceLock,
-  },
+use std::sync::{
+  atomic::{AtomicI32, Ordering},
+  Arc, OnceLock,
 };
 
 use gtk4::{
@@ -20,8 +17,9 @@ use libadwaita::subclass::application_window::AdwApplicationWindowImpl;
 // By implementing Default we don't have to provide a `new` fn in our
 // ObjectSubclass impl.
 pub struct ApplicationWindow {
-  pub outer_size: Rc<(AtomicI32, AtomicI32)>,
-  pub inner_size: Rc<(AtomicI32, AtomicI32)>,
+  pub outer_size: Arc<(AtomicI32, AtomicI32)>,
+  pub inner_size: Arc<(AtomicI32, AtomicI32)>,
+  pub css_provider: gtk4::CssProvider,
 }
 
 #[glib::object_subclass]

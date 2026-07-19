@@ -1,6 +1,6 @@
 mod imp;
 
-use std::{rc::Rc, sync::atomic::AtomicI32};
+use std::sync::{atomic::AtomicI32, Arc};
 
 use gtk4::{
   gio,
@@ -59,11 +59,14 @@ impl ApplicationWindow {
     window_builder.build()
   }
 
-  pub fn inner_size(&self) -> &Rc<(AtomicI32, AtomicI32)> {
+  pub fn inner_size(&self) -> &Arc<(AtomicI32, AtomicI32)> {
     &self.imp().inner_size
   }
-  pub fn outer_size(&self) -> &Rc<(AtomicI32, AtomicI32)> {
+  pub fn outer_size(&self) -> &Arc<(AtomicI32, AtomicI32)> {
     &self.imp().outer_size
+  }
+  pub fn css_provider(&self) -> &gtk4::CssProvider {
+    &self.imp().css_provider
   }
 
   pub fn connect_resized(&self, f: RustClosure) -> SignalHandlerId {

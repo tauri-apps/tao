@@ -4,14 +4,15 @@
 
 use std::{
   collections::VecDeque,
-  rc::Rc,
+  mem::{self, ManuallyDrop},
   sync::{
     atomic::{AtomicBool, AtomicI32, Ordering},
-    RwLock,
+    mpsc, Arc, RwLock,
   },
+  thread::{self, ThreadId},
 };
 
-use gtk4::{gdk, glib, prelude::*, CssProvider, Settings};
+use gtk4::{gdk, glib, prelude::*, Settings};
 
 #[cfg(feature = "libadwaita")]
 use libadwaita::prelude::AdwApplicationWindowExt;
@@ -43,17 +44,76 @@ impl WindowId {
   }
 }
 
+struct MainThreadGtk {
+  window: ManuallyDrop<ApplicationWindow>,
+  default_vbox: ManuallyDrop<Option<gtk4::Box>>,
+  thread_id: ThreadId,
+}
+
+impl MainThreadGtk {
+  fn new(window: ApplicationWindow, default_vbox: Option<gtk4::Box>) -> Self {
+    Self {
+      window: ManuallyDrop::new(window),
+      default_vbox: ManuallyDrop::new(default_vbox),
+      thread_id: thread::current().id(),
+    }
+  }
+
+  fn is_current_thread(&self) -> bool {
+    thread::current().id() == self.thread_id
+  }
+
+  fn window(&self) -> &ApplicationWindow {
+    assert!(
+      self.is_current_thread(),
+      "GTK window access is only allowed on the event-loop thread"
+    );
+    &self.window
+  }
+
+  fn default_vbox(&self) -> Option<&gtk4::Box> {
+    assert!(
+      self.is_current_thread(),
+      "GTK widget access is only allowed on the event-loop thread"
+    );
+    self.default_vbox.as_ref()
+  }
+
+  // SAFETY: The returned values must be dropped on `self.thread_id`.
+  unsafe fn take(&mut self) -> MainThreadGtkDrop {
+    MainThreadGtkDrop {
+      // SAFETY: `Window::drop` calls this exactly once.
+      window: unsafe { ManuallyDrop::take(&mut self.window) },
+      // SAFETY: `Window::drop` calls this exactly once.
+      _default_vbox: unsafe { ManuallyDrop::take(&mut self.default_vbox) },
+    }
+  }
+}
+
+// SAFETY: GTK values can only be accessed through the thread-checked methods above. Their final
+// references are transferred back to the event-loop thread by `Window::drop`.
+unsafe impl Send for MainThreadGtk {}
+unsafe impl Sync for MainThreadGtk {}
+
+pub(crate) struct MainThreadGtkDrop {
+  pub(super) window: ApplicationWindow,
+  _default_vbox: Option<gtk4::Box>,
+}
+
+// SAFETY: This value is only used as an event-loop request payload and is dropped by that loop.
+unsafe impl Send for MainThreadGtkDrop {}
+
 pub struct Window {
   /// Window id.
   pub(crate) window_id: WindowId,
-  /// Gtk application window.
-  pub(crate) window: ApplicationWindow,
-  pub(crate) default_vbox: Option<gtk4::Box>,
+  gtk: MainThreadGtk,
   /// Window requests sender
   pub(crate) window_requests_tx: async_channel::Sender<(WindowId, WindowRequest)>,
-  scale_factor: Rc<AtomicI32>,
-  maximized: Rc<AtomicBool>,
-  minimized: Rc<AtomicBool>,
+  scale_factor: Arc<AtomicI32>,
+  inner_size: Arc<(AtomicI32, AtomicI32)>,
+  outer_size: Arc<(AtomicI32, AtomicI32)>,
+  maximized: Arc<AtomicBool>,
+  minimized: Arc<AtomicBool>,
   // `Window` is `Send` and `Sync`, need a `RwLock` not a `RefCell`
   // otherwise unsynchronized &RefCell from multiple threads
   fullscreen: RwLock<Option<Fullscreen>>,
@@ -65,7 +125,6 @@ pub struct Window {
   // `Window` is `Send` and `Sync`, need a `RwLock` not a `RefCell`
   // otherwise unsynchronized &RefCell from multiple threads
   preferred_theme: RwLock<Option<Theme>>,
-  css_provider: CssProvider,
 }
 
 impl Window {
@@ -165,20 +224,22 @@ impl Window {
     }
 
     let (scale_factor, maximized, minimized) = Self::setup_signals(&window);
+    let inner_size = Arc::clone(window.inner_size());
+    let outer_size = Arc::clone(window.outer_size());
 
     let win = Self {
       window_id,
-      window,
-      default_vbox,
+      gtk: MainThreadGtk::new(window, default_vbox),
       window_requests_tx,
       draw_tx,
       scale_factor,
+      inner_size,
+      outer_size,
       maximized,
       minimized,
       fullscreen: RwLock::new(attributes.fullscreen),
       inner_size_constraints: RwLock::new(attributes.inner_size_constraints),
       preferred_theme: RwLock::new(preferred_theme),
-      css_provider: CssProvider::new(),
     };
 
     win.set_background_color(attributes.background_color);
@@ -186,12 +247,14 @@ impl Window {
     Ok(win)
   }
 
-  fn setup_signals(window: &ApplicationWindow) -> (Rc<AtomicI32>, Rc<AtomicBool>, Rc<AtomicBool>) {
+  fn setup_signals(
+    window: &ApplicationWindow,
+  ) -> (Arc<AtomicI32>, Arc<AtomicBool>, Arc<AtomicBool>) {
     let win_scale_factor = window.scale_factor();
 
     let w_max = window.is_maximized();
-    let maximized: Rc<AtomicBool> = Rc::new(w_max.into());
-    let minimized = Rc::new(AtomicBool::new(false));
+    let maximized: Arc<AtomicBool> = Arc::new(w_max.into());
+    let minimized = Arc::new(AtomicBool::new(false));
     let max_clone = maximized.clone();
     let minimized_clone = minimized.clone();
 
@@ -217,7 +280,7 @@ impl Window {
       });
     });
 
-    let scale_factor: Rc<AtomicI32> = Rc::new(win_scale_factor.into());
+    let scale_factor: Arc<AtomicI32> = Arc::new(win_scale_factor.into());
     let scale_factor_clone = scale_factor.clone();
     window.connect_scale_factor_notify(move |window| {
       scale_factor_clone.store(window.scale_factor(), Ordering::Release);
@@ -240,23 +303,55 @@ impl Window {
       .insert(window_id);
 
     let (scale_factor, maximized, minimized) = Self::setup_signals(&window);
+    let inner_size = Arc::clone(window.inner_size());
+    let outer_size = Arc::clone(window.outer_size());
 
     let win = Self {
       window_id,
-      window,
-      default_vbox: None,
+      gtk: MainThreadGtk::new(window, None),
       window_requests_tx,
       draw_tx,
       scale_factor,
+      inner_size,
+      outer_size,
       maximized,
       minimized,
       fullscreen: RwLock::new(None),
       inner_size_constraints: RwLock::new(WindowSizeConstraints::default()),
       preferred_theme: RwLock::new(None),
-      css_provider: CssProvider::new(),
     };
 
     Ok(win)
+  }
+
+  pub(crate) fn gtk_window(&self) -> &ApplicationWindow {
+    self.gtk.window()
+  }
+
+  pub(crate) fn default_vbox(&self) -> Option<&gtk4::Box> {
+    self.gtk.default_vbox()
+  }
+
+  fn run_on_main_thread<R, F>(&self, f: F) -> R
+  where
+    R: Send + 'static,
+    F: FnOnce(&gtk4::Window) -> R + Send + 'static,
+  {
+    if self.gtk.is_current_thread() {
+      return f(self.gtk.window().upcast_ref());
+    }
+
+    let (response_tx, response_rx) = mpsc::sync_channel(1);
+    let request = WindowRequest::RunOnMainThread(Box::new(move |window| {
+      let _ = response_tx.send(f(window));
+    }));
+    self
+      .window_requests_tx
+      .send_blocking((self.window_id, request))
+      .expect("event loop closed before processing a GTK window request");
+    response_rx
+      .recv()
+      .expect("event loop closed while processing a GTK window request")
   }
 
   pub fn id(&self) -> WindowId {
@@ -284,16 +379,16 @@ impl Window {
   pub fn set_outer_position<P: Into<Position>>(&self, _: P) {}
 
   pub fn set_background_color(&self, color: Option<RGBA>) {
-    if let Err(e) = self.window_requests_tx.send_blocking((
-      self.window_id,
-      WindowRequest::BackgroundColor(self.css_provider.clone(), color),
-    )) {
+    if let Err(e) = self
+      .window_requests_tx
+      .send_blocking((self.window_id, WindowRequest::BackgroundColor(color)))
+    {
       log::warn!("Fail to send size request: {}", e);
     }
   }
 
   pub fn inner_size(&self) -> PhysicalSize<u32> {
-    let (width, height) = &**self.window.inner_size();
+    let (width, height) = &*self.inner_size;
 
     LogicalSize::new(
       width.load(Ordering::Acquire) as u32,
@@ -314,7 +409,7 @@ impl Window {
   }
 
   pub fn outer_size(&self) -> PhysicalSize<u32> {
-    let (width, height) = &**self.window.outer_size();
+    let (width, height) = &*self.outer_size;
 
     LogicalSize::new(
       width.load(Ordering::Acquire) as u32,
@@ -363,11 +458,12 @@ impl Window {
   }
 
   pub fn title(&self) -> String {
-    self
-      .window
-      .title()
-      .map(|t| t.as_str().to_string())
-      .unwrap_or_default()
+    self.run_on_main_thread(|window| {
+      window
+        .title()
+        .map(|title| title.as_str().to_string())
+        .unwrap_or_default()
+    })
   }
 
   pub fn set_visible(&self, visible: bool) {
@@ -380,7 +476,7 @@ impl Window {
   }
 
   pub fn set_focus(&self) {
-    if !self.minimized.load(Ordering::Acquire) && self.window.get_visible() {
+    if !self.minimized.load(Ordering::Acquire) {
       if let Err(e) = self
         .window_requests_tx
         .send_blocking((self.window_id, WindowRequest::Focus))
@@ -391,11 +487,11 @@ impl Window {
   }
 
   pub fn set_focusable(&self, focusable: bool) {
-    self.window.set_can_focus(focusable);
+    self.run_on_main_thread(move |window| window.set_can_focus(focusable));
   }
 
   pub fn is_focused(&self) -> bool {
-    self.window.is_active()
+    self.run_on_main_thread(|window| window.is_active())
   }
 
   pub fn set_resizable(&self, resizable: bool) {
@@ -453,7 +549,7 @@ impl Window {
   }
 
   pub fn is_resizable(&self) -> bool {
-    self.window.is_resizable()
+    self.run_on_main_thread(|window| window.is_resizable())
   }
 
   pub fn is_minimizable(&self) -> bool {
@@ -464,16 +560,16 @@ impl Window {
     true
   }
   pub fn is_closable(&self) -> bool {
-    self.window.is_deletable()
+    self.run_on_main_thread(|window| window.is_deletable())
   }
 
   pub fn is_decorated(&self) -> bool {
-    self.window.is_decorated()
+    self.run_on_main_thread(|window| window.is_decorated())
   }
 
   #[inline]
   pub fn is_visible(&self) -> bool {
-    self.window.is_visible()
+    self.run_on_main_thread(|window| window.is_visible())
   }
 
   pub fn drag_window(&self) -> Result<(), ExternalError> {
@@ -582,22 +678,22 @@ impl Window {
 
   #[inline]
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
-    util::cursor_position(&self.window)
+    self.run_on_main_thread(util::cursor_position)
   }
 
   #[inline]
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
-    monitor::current_monitor(&self.window)
+    self.run_on_main_thread(monitor::current_monitor)
   }
 
   #[inline]
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
-    monitor::available_monitors(&self.display())
+    self.run_on_main_thread(|window| monitor::available_monitors(&RootExt::display(window)))
   }
 
   #[inline]
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
-    monitor::primary_monitor(&self.display())
+    self.run_on_main_thread(|window| monitor::primary_monitor(&RootExt::display(window)))
   }
 
   #[inline]
@@ -605,179 +701,90 @@ impl Window {
     None
   }
 
-  #[inline]
-  fn display(&self) -> gdk::Display {
-    RootExt::display(&self.window)
-  }
-
-  fn is_wayland(&self) -> bool {
-    self.display().backend().is_wayland()
-  }
-
   #[cfg(feature = "rwh_04")]
   #[inline]
   pub fn raw_window_handle_rwh_04(&self) -> rwh_04::RawWindowHandle {
-    if self.is_wayland() {
-      use gdk4_wayland::{prelude::WaylandSurfaceExtManual, wayland_client::Proxy};
-
-      let mut window_handle = rwh_04::WaylandHandle::empty();
-      if let Some(surface) = self.window.surface() {
-        let ptr = surface
-          .downcast::<gdk4_wayland::WaylandSurface>()
-          .unwrap()
-          .wl_surface()
-          .unwrap()
-          .id()
-          .as_ptr();
-        window_handle.surface = ptr as *mut _;
+    match self.run_on_main_thread(raw_window_handle_legacy) {
+      RawWindowHandleLegacy::Wayland(surface) => {
+        let mut handle = rwh_04::WaylandHandle::empty();
+        handle.surface = surface as *mut _;
+        rwh_04::RawWindowHandle::Wayland(handle)
       }
-
-      rwh_04::RawWindowHandle::Wayland(window_handle)
-    } else {
-      let mut window_handle = rwh_04::XlibHandle::empty();
-      if let Some(surface) = self.window.surface() {
-        window_handle.window = surface.downcast::<gdk4_x11::X11Surface>().unwrap().xid();
+      RawWindowHandleLegacy::Xlib(window) => {
+        let mut handle = rwh_04::XlibHandle::empty();
+        handle.window = window;
+        rwh_04::RawWindowHandle::Xlib(handle)
       }
-
-      rwh_04::RawWindowHandle::Xlib(window_handle)
     }
   }
 
   #[cfg(feature = "rwh_05")]
   #[inline]
   pub fn raw_window_handle_rwh_05(&self) -> rwh_05::RawWindowHandle {
-    if self.is_wayland() {
-      use gdk4_wayland::{prelude::WaylandSurfaceExtManual, wayland_client::Proxy};
-
-      let mut window_handle = rwh_05::WaylandWindowHandle::empty();
-      if let Some(surface) = self.window.surface() {
-        let ptr = surface
-          .downcast::<gdk4_wayland::WaylandSurface>()
-          .unwrap()
-          .wl_surface()
-          .unwrap()
-          .id()
-          .as_ptr();
-        window_handle.surface = ptr as *mut _;
+    match self.run_on_main_thread(raw_window_handle_legacy) {
+      RawWindowHandleLegacy::Wayland(surface) => {
+        let mut handle = rwh_05::WaylandWindowHandle::empty();
+        handle.surface = surface as *mut _;
+        handle.into()
       }
-
-      window_handle.into()
-    } else {
-      let mut window_handle = rwh_05::XlibWindowHandle::empty();
-      if let Some(surface) = self.window.surface() {
-        window_handle.window = surface.downcast::<gdk4_x11::X11Surface>().unwrap().xid();
+      RawWindowHandleLegacy::Xlib(window) => {
+        let mut handle = rwh_05::XlibWindowHandle::empty();
+        handle.window = window;
+        handle.into()
       }
-      window_handle.into()
     }
   }
 
   #[cfg(feature = "rwh_05")]
   #[inline]
   pub fn raw_display_handle_rwh_05(&self) -> rwh_05::RawDisplayHandle {
-    let display = self.display();
-    if self.is_wayland() {
-      use gdk4_wayland::wayland_client::Proxy;
-      let display = display
-        .downcast::<gdk4_wayland::WaylandDisplay>()
-        .unwrap()
-        .wl_display()
-        .unwrap()
-        .id()
-        .as_ptr();
-
-      let mut display_handle = rwh_05::WaylandDisplayHandle::empty();
-      display_handle.display = display as *mut _;
-      display_handle.into()
-    } else {
-      let display = display.downcast::<gdk4_x11::X11Display>().unwrap();
-
-      let mut display_handle = rwh_05::XlibDisplayHandle::empty();
-      display_handle.display =
-        unsafe { gdk4_x11::ffi::gdk_x11_display_get_xdisplay(display.as_ptr() as *mut _) };
-      display_handle.screen = display.screen().screen_number();
-      display_handle.into()
+    match self.run_on_main_thread(raw_display_handle_legacy) {
+      RawDisplayHandleLegacy::Wayland(display) => {
+        let mut handle = rwh_05::WaylandDisplayHandle::empty();
+        handle.display = display as *mut _;
+        handle.into()
+      }
+      RawDisplayHandleLegacy::Xlib { display, screen } => {
+        let mut handle = rwh_05::XlibDisplayHandle::empty();
+        handle.display = display as *mut _;
+        handle.screen = screen;
+        handle.into()
+      }
     }
   }
 
   #[cfg(feature = "rwh_06")]
   #[inline]
   pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
-    if let Some(surface) = self.window.surface() {
-      if self.is_wayland() {
-        use gdk4_wayland::{prelude::WaylandSurfaceExtManual, wayland_client::Proxy};
-
-        Ok(
-          rwh_06::WaylandWindowHandle::new({
-            let ptr = surface
-              .downcast::<gdk4_wayland::WaylandSurface>()
-              .unwrap()
-              .wl_surface()
-              .unwrap()
-              .id()
-              .as_ptr();
-            std::ptr::NonNull::new(ptr as *mut _).expect("wl_surface will never be null")
-          })
-          .into(),
+    self
+      .run_on_main_thread(raw_window_handle_rwh_06)
+      .map(|handle| match handle {
+        RawWindowHandleRwh06::Wayland(surface) => rwh_06::WaylandWindowHandle::new(
+          std::ptr::NonNull::new(surface as *mut _).expect("wl_surface will never be null"),
         )
-      } else {
-        #[cfg(feature = "x11")]
-        {
-          Ok(
-            rwh_06::XlibWindowHandle::new(
-              surface.downcast::<gdk4_x11::X11Surface>().unwrap().xid(),
-            )
-            .into(),
-          )
-        }
-        #[cfg(not(feature = "x11"))]
-        Err(rwh_06::HandleError::NotSupported)
-      }
-    } else {
-      Err(rwh_06::HandleError::Unavailable)
-    }
+        .into(),
+        RawWindowHandleRwh06::Xlib(window) => rwh_06::XlibWindowHandle::new(window).into(),
+      })
   }
 
   #[cfg(feature = "rwh_06")]
   #[inline]
   pub fn raw_display_handle_rwh_06(&self) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
-    let display = self.display();
-    if self.is_wayland() {
-      use gdk4_wayland::wayland_client::Proxy;
-
-      Ok(
-        rwh_06::WaylandDisplayHandle::new({
-          let ptr = display
-            .downcast::<gdk4_wayland::WaylandDisplay>()
-            .unwrap()
-            .wl_display()
-            .unwrap()
-            .id()
-            .as_ptr();
-          std::ptr::NonNull::new(ptr as *mut _).expect("wl_display will never be null")
-        })
-        .into(),
-      )
-    } else {
-      #[cfg(feature = "x11")]
-      {
-        let display = display.downcast::<gdk4_x11::X11Display>().unwrap();
-
-        Ok(
-          rwh_06::XlibDisplayHandle::new(
-            Some(
-              std::ptr::NonNull::new(unsafe {
-                gdk4_x11::ffi::gdk_x11_display_get_xdisplay(display.as_ptr() as *mut _)
-              })
-              .expect("X11 display should never be null"),
-            ),
-            display.screen().screen_number(),
-          )
-          .into(),
+    self
+      .run_on_main_thread(raw_display_handle_rwh_06)
+      .map(|handle| match handle {
+        RawDisplayHandleRwh06::Wayland(display) => rwh_06::WaylandDisplayHandle::new(
+          std::ptr::NonNull::new(display as *mut _).expect("wl_display will never be null"),
         )
-      }
-      #[cfg(not(feature = "x11"))]
-      Err(rwh_06::HandleError::NotSupported)
-    }
+        .into(),
+        RawDisplayHandleRwh06::Xlib { display, screen } => rwh_06::XlibDisplayHandle::new(
+          Some(
+            std::ptr::NonNull::new(display as *mut _).expect("X11 display should never be null"),
+          ),
+          screen,
+        )
+        .into(),
+      })
   }
 
   pub fn set_skip_taskbar(&self, _: bool) -> Result<(), ExternalError> {
@@ -812,9 +819,9 @@ impl Window {
       return portal_theme;
     }
 
-    if let Some(prefers_dark) =
-      Settings::default().map(|s| s.is_gtk_application_prefer_dark_theme())
-    {
+    if let Some(prefers_dark) = self.run_on_main_thread(|_| {
+      Settings::default().map(|settings| settings.is_gtk_application_prefer_dark_theme())
+    }) {
       if prefers_dark {
         return Theme::Dark;
       }
@@ -834,10 +841,148 @@ impl Window {
   }
 }
 
-// We need GtkWindow to initialize WebView, so we have to keep it in the field.
-// It is called on any method.
-unsafe impl Send for Window {}
-unsafe impl Sync for Window {}
+fn is_wayland(window: &gtk4::Window) -> bool {
+  RootExt::display(window).backend().is_wayland()
+}
+
+#[cfg(any(feature = "rwh_04", feature = "rwh_05"))]
+enum RawWindowHandleLegacy {
+  Wayland(usize),
+  Xlib(u64),
+}
+
+#[cfg(any(feature = "rwh_04", feature = "rwh_05"))]
+fn raw_window_handle_legacy(window: &gtk4::Window) -> RawWindowHandleLegacy {
+  if is_wayland(window) {
+    use gdk4_wayland::{prelude::WaylandSurfaceExtManual, wayland_client::Proxy};
+
+    let surface = window
+      .surface()
+      .map(|surface| {
+        surface
+          .downcast::<gdk4_wayland::WaylandSurface>()
+          .unwrap()
+          .wl_surface()
+          .unwrap()
+          .id()
+          .as_ptr() as usize
+      })
+      .unwrap_or_default();
+    RawWindowHandleLegacy::Wayland(surface)
+  } else {
+    let window = window
+      .surface()
+      .map(|surface| surface.downcast::<gdk4_x11::X11Surface>().unwrap().xid())
+      .unwrap_or_default();
+    RawWindowHandleLegacy::Xlib(window)
+  }
+}
+
+#[cfg(feature = "rwh_05")]
+enum RawDisplayHandleLegacy {
+  Wayland(usize),
+  Xlib { display: usize, screen: i32 },
+}
+
+#[cfg(feature = "rwh_05")]
+fn raw_display_handle_legacy(window: &gtk4::Window) -> RawDisplayHandleLegacy {
+  let display = RootExt::display(window);
+  if is_wayland(window) {
+    use gdk4_wayland::wayland_client::Proxy;
+    let display = display
+      .downcast::<gdk4_wayland::WaylandDisplay>()
+      .unwrap()
+      .wl_display()
+      .unwrap()
+      .id()
+      .as_ptr() as usize;
+    RawDisplayHandleLegacy::Wayland(display)
+  } else {
+    let display = display.downcast::<gdk4_x11::X11Display>().unwrap();
+    RawDisplayHandleLegacy::Xlib {
+      display: unsafe {
+        gdk4_x11::ffi::gdk_x11_display_get_xdisplay(display.as_ptr() as *mut _) as usize
+      },
+      screen: display.screen().screen_number(),
+    }
+  }
+}
+
+#[cfg(feature = "rwh_06")]
+enum RawWindowHandleRwh06 {
+  Wayland(usize),
+  Xlib(u64),
+}
+
+#[cfg(feature = "rwh_06")]
+fn raw_window_handle_rwh_06(
+  window: &gtk4::Window,
+) -> Result<RawWindowHandleRwh06, rwh_06::HandleError> {
+  if let Some(surface) = window.surface() {
+    if is_wayland(window) {
+      use gdk4_wayland::{prelude::WaylandSurfaceExtManual, wayland_client::Proxy};
+
+      let surface = surface
+        .downcast::<gdk4_wayland::WaylandSurface>()
+        .unwrap()
+        .wl_surface()
+        .unwrap()
+        .id()
+        .as_ptr() as usize;
+      Ok(RawWindowHandleRwh06::Wayland(surface))
+    } else {
+      #[cfg(feature = "x11")]
+      {
+        Ok(RawWindowHandleRwh06::Xlib(
+          surface.downcast::<gdk4_x11::X11Surface>().unwrap().xid(),
+        ))
+      }
+      #[cfg(not(feature = "x11"))]
+      Err(rwh_06::HandleError::NotSupported)
+    }
+  } else {
+    Err(rwh_06::HandleError::Unavailable)
+  }
+}
+
+#[cfg(feature = "rwh_06")]
+enum RawDisplayHandleRwh06 {
+  Wayland(usize),
+  Xlib { display: usize, screen: i32 },
+}
+
+#[cfg(feature = "rwh_06")]
+fn raw_display_handle_rwh_06(
+  window: &gtk4::Window,
+) -> Result<RawDisplayHandleRwh06, rwh_06::HandleError> {
+  let display = RootExt::display(window);
+  if is_wayland(window) {
+    use gdk4_wayland::wayland_client::Proxy;
+
+    let display = display
+      .downcast::<gdk4_wayland::WaylandDisplay>()
+      .unwrap()
+      .wl_display()
+      .unwrap()
+      .id()
+      .as_ptr() as usize;
+    Ok(RawDisplayHandleRwh06::Wayland(display))
+  } else {
+    #[cfg(feature = "x11")]
+    {
+      let display = display.downcast::<gdk4_x11::X11Display>().unwrap();
+
+      Ok(RawDisplayHandleRwh06::Xlib {
+        display: unsafe {
+          gdk4_x11::ffi::gdk_x11_display_get_xdisplay(display.as_ptr() as *mut _) as usize
+        },
+        screen: display.screen().screen_number(),
+      })
+    }
+    #[cfg(not(feature = "x11"))]
+    Err(rwh_06::HandleError::NotSupported)
+  }
+}
 
 #[non_exhaustive]
 pub enum WindowRequest {
@@ -865,11 +1010,31 @@ pub enum WindowRequest {
   ProgressBarState(ProgressBarState),
   BadgeCount(Option<i64>, Option<String>),
   SetTheme(Option<Theme>),
-  BackgroundColor(CssProvider, Option<RGBA>),
+  BackgroundColor(Option<RGBA>),
+  RunOnMainThread(Box<dyn FnOnce(&gtk4::Window) + Send>),
+  Destroy(MainThreadGtkDrop),
 }
 
 impl Drop for Window {
   fn drop(&mut self) {
-    self.window.destroy();
+    let is_main_thread = self.gtk.is_current_thread();
+    // SAFETY: This is the only place the manually dropped GTK values are taken.
+    let gtk = unsafe { self.gtk.take() };
+    if let Err(error) = self
+      .window_requests_tx
+      .send_blocking((self.window_id, WindowRequest::Destroy(gtk)))
+    {
+      log::warn!("Fail to send destroy request: {error}");
+      let (_, WindowRequest::Destroy(gtk)) = error.0 else {
+        unreachable!()
+      };
+      if is_main_thread {
+        gtk.window.destroy();
+        drop(gtk);
+      } else {
+        // Dropping GTK's final reference on this worker thread would be unsound.
+        mem::forget(gtk);
+      }
+    }
   }
 }
