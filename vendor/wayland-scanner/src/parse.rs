@@ -86,7 +86,7 @@ fn parse_protocol<R: BufRead>(mut reader: Reader<R>) -> Protocol {
                                 Ok(Event::GeneralRef(byte_ref)) => {
                                     if let Ok(Some(c)) = byte_ref.resolve_char_ref() {
                                         copyright.push(c);
-                                    } else if let Ok(content) = byte_ref.xml_content() {
+                                    } else if let Ok(content) = byte_ref.xml10_content() {
                                         if let Some(s) =
                                             quick_xml::escape::resolve_xml_entity(&content)
                                         {
@@ -409,4 +409,3 @@ mod tests {
         let _ = crate::parse::parse(protocol_file);
     }
 }
-

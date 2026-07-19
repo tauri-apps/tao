@@ -1,5 +1,6 @@
 # Vendored from crates.io wayland-scanner 0.31.10.
-# Security delta: upstream quick-xml 0.41 bump from Smithay commit d07c4f91.
+# Security delta: Smithay's parser adapter and quick-xml 0.41 security bump
+# from commits ec2d9328 and d07c4f91.
 [package]
 name = "wayland-scanner"
 version = "0.31.10"
