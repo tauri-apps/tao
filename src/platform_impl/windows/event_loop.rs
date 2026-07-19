@@ -2195,8 +2195,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
         update_theme(userdata, window, false);
         result = ProcResult::Value(LRESULT(0));
       } else if msg == *S_U_TASKBAR_RESTART {
-        let window_state = userdata.window_state.lock();
-        let _ = set_skip_taskbar(window, window_state.skip_taskbar);
+        let skip_taskbar = userdata.window_state.lock().skip_taskbar;
+        let _ = set_skip_taskbar(window, skip_taskbar);
       }
     }
   };
