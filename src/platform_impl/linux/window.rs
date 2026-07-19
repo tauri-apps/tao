@@ -107,6 +107,7 @@ pub struct Window {
   /// Window id.
   pub(crate) window_id: WindowId,
   gtk: MainThreadGtk,
+  is_wayland: bool,
   /// Window requests sender
   pub(crate) window_requests_tx: async_channel::Sender<(WindowId, WindowRequest)>,
   scale_factor: Arc<AtomicI32>,
@@ -226,10 +227,12 @@ impl Window {
     let (scale_factor, maximized, minimized) = Self::setup_signals(&window);
     let inner_size = Arc::clone(window.inner_size());
     let outer_size = Arc::clone(window.outer_size());
+    let is_wayland = is_wayland(window.upcast_ref());
 
     let win = Self {
       window_id,
       gtk: MainThreadGtk::new(window, default_vbox),
+      is_wayland,
       window_requests_tx,
       draw_tx,
       scale_factor,
@@ -305,10 +308,12 @@ impl Window {
     let (scale_factor, maximized, minimized) = Self::setup_signals(&window);
     let inner_size = Arc::clone(window.inner_size());
     let outer_size = Arc::clone(window.outer_size());
+    let is_wayland = is_wayland(window.upcast_ref());
 
     let win = Self {
       window_id,
       gtk: MainThreadGtk::new(window, None),
+      is_wayland,
       window_requests_tx,
       draw_tx,
       scale_factor,
@@ -332,26 +337,27 @@ impl Window {
     self.gtk.default_vbox()
   }
 
-  fn run_on_main_thread<R, F>(&self, f: F) -> R
+  fn run_on_main_thread<R, F>(&self, f: F) -> Option<R>
   where
     R: Send + 'static,
     F: FnOnce(&gtk4::Window) -> R + Send + 'static,
   {
     if self.gtk.is_current_thread() {
-      return f(self.gtk.window().upcast_ref());
+      return Some(f(self.gtk.window().upcast_ref()));
     }
 
     let (response_tx, response_rx) = mpsc::sync_channel(1);
     let request = WindowRequest::RunOnMainThread(Box::new(move |window| {
       let _ = response_tx.send(f(window));
     }));
-    self
+    if self
       .window_requests_tx
       .send_blocking((self.window_id, request))
-      .expect("event loop closed before processing a GTK window request");
-    response_rx
-      .recv()
-      .expect("event loop closed while processing a GTK window request")
+      .is_err()
+    {
+      return None;
+    }
+    response_rx.recv().ok()
   }
 
   pub fn id(&self) -> WindowId {
@@ -464,6 +470,7 @@ impl Window {
         .map(|title| title.as_str().to_string())
         .unwrap_or_default()
     })
+    .unwrap_or_default()
   }
 
   pub fn set_visible(&self, visible: bool) {
@@ -487,11 +494,13 @@ impl Window {
   }
 
   pub fn set_focusable(&self, focusable: bool) {
-    self.run_on_main_thread(move |window| window.set_can_focus(focusable));
+    let _ = self.run_on_main_thread(move |window| window.set_can_focus(focusable));
   }
 
   pub fn is_focused(&self) -> bool {
-    self.run_on_main_thread(|window| window.is_active())
+    self
+      .run_on_main_thread(|window| window.is_active())
+      .unwrap_or(false)
   }
 
   pub fn set_resizable(&self, resizable: bool) {
@@ -549,7 +558,9 @@ impl Window {
   }
 
   pub fn is_resizable(&self) -> bool {
-    self.run_on_main_thread(|window| window.is_resizable())
+    self
+      .run_on_main_thread(|window| window.is_resizable())
+      .unwrap_or(false)
   }
 
   pub fn is_minimizable(&self) -> bool {
@@ -560,16 +571,22 @@ impl Window {
     true
   }
   pub fn is_closable(&self) -> bool {
-    self.run_on_main_thread(|window| window.is_deletable())
+    self
+      .run_on_main_thread(|window| window.is_deletable())
+      .unwrap_or(false)
   }
 
   pub fn is_decorated(&self) -> bool {
-    self.run_on_main_thread(|window| window.is_decorated())
+    self
+      .run_on_main_thread(|window| window.is_decorated())
+      .unwrap_or(false)
   }
 
   #[inline]
   pub fn is_visible(&self) -> bool {
-    self.run_on_main_thread(|window| window.is_visible())
+    self
+      .run_on_main_thread(|window| window.is_visible())
+      .unwrap_or(false)
   }
 
   pub fn drag_window(&self) -> Result<(), ExternalError> {
@@ -678,22 +695,30 @@ impl Window {
 
   #[inline]
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
-    self.run_on_main_thread(util::cursor_position)
+    self
+      .run_on_main_thread(util::cursor_position)
+      .unwrap_or_else(|| Err(ExternalError::NotSupported(NotSupportedError::new())))
   }
 
   #[inline]
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
-    self.run_on_main_thread(monitor::current_monitor)
+    self
+      .run_on_main_thread(monitor::current_monitor)
+      .flatten()
   }
 
   #[inline]
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
-    self.run_on_main_thread(|window| monitor::available_monitors(&RootExt::display(window)))
+    self
+      .run_on_main_thread(|window| monitor::available_monitors(&RootExt::display(window)))
+      .unwrap_or_default()
   }
 
   #[inline]
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
-    self.run_on_main_thread(|window| monitor::primary_monitor(&RootExt::display(window)))
+    self
+      .run_on_main_thread(|window| monitor::primary_monitor(&RootExt::display(window)))
+      .flatten()
   }
 
   #[inline]
@@ -704,7 +729,10 @@ impl Window {
   #[cfg(feature = "rwh_04")]
   #[inline]
   pub fn raw_window_handle_rwh_04(&self) -> rwh_04::RawWindowHandle {
-    match self.run_on_main_thread(raw_window_handle_legacy) {
+    match self
+      .run_on_main_thread(raw_window_handle_legacy)
+      .unwrap_or_else(|| RawWindowHandleLegacy::empty(self.is_wayland))
+    {
       RawWindowHandleLegacy::Wayland(surface) => {
         let mut handle = rwh_04::WaylandHandle::empty();
         handle.surface = surface as *mut _;
@@ -721,7 +749,10 @@ impl Window {
   #[cfg(feature = "rwh_05")]
   #[inline]
   pub fn raw_window_handle_rwh_05(&self) -> rwh_05::RawWindowHandle {
-    match self.run_on_main_thread(raw_window_handle_legacy) {
+    match self
+      .run_on_main_thread(raw_window_handle_legacy)
+      .unwrap_or_else(|| RawWindowHandleLegacy::empty(self.is_wayland))
+    {
       RawWindowHandleLegacy::Wayland(surface) => {
         let mut handle = rwh_05::WaylandWindowHandle::empty();
         handle.surface = surface as *mut _;
@@ -738,7 +769,10 @@ impl Window {
   #[cfg(feature = "rwh_05")]
   #[inline]
   pub fn raw_display_handle_rwh_05(&self) -> rwh_05::RawDisplayHandle {
-    match self.run_on_main_thread(raw_display_handle_legacy) {
+    match self
+      .run_on_main_thread(raw_display_handle_legacy)
+      .unwrap_or_else(|| RawDisplayHandleLegacy::empty(self.is_wayland))
+    {
       RawDisplayHandleLegacy::Wayland(display) => {
         let mut handle = rwh_05::WaylandDisplayHandle::empty();
         handle.display = display as *mut _;
@@ -758,6 +792,7 @@ impl Window {
   pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
     self
       .run_on_main_thread(raw_window_handle_rwh_06)
+      .unwrap_or(Err(rwh_06::HandleError::Unavailable))
       .map(|handle| match handle {
         RawWindowHandleRwh06::Wayland(surface) => rwh_06::WaylandWindowHandle::new(
           std::ptr::NonNull::new(surface as *mut _).expect("wl_surface will never be null"),
@@ -772,6 +807,7 @@ impl Window {
   pub fn raw_display_handle_rwh_06(&self) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
     self
       .run_on_main_thread(raw_display_handle_rwh_06)
+      .unwrap_or(Err(rwh_06::HandleError::Unavailable))
       .map(|handle| match handle {
         RawDisplayHandleRwh06::Wayland(display) => rwh_06::WaylandDisplayHandle::new(
           std::ptr::NonNull::new(display as *mut _).expect("wl_display will never be null"),
@@ -819,9 +855,12 @@ impl Window {
       return portal_theme;
     }
 
-    if let Some(prefers_dark) = self.run_on_main_thread(|_| {
-      Settings::default().map(|settings| settings.is_gtk_application_prefer_dark_theme())
-    }) {
+    if let Some(prefers_dark) = self
+      .run_on_main_thread(|_| {
+        Settings::default().map(|settings| settings.is_gtk_application_prefer_dark_theme())
+      })
+      .flatten()
+    {
       if prefers_dark {
         return Theme::Dark;
       }
@@ -849,6 +888,17 @@ fn is_wayland(window: &gtk4::Window) -> bool {
 enum RawWindowHandleLegacy {
   Wayland(usize),
   Xlib(u64),
+}
+
+#[cfg(any(feature = "rwh_04", feature = "rwh_05"))]
+impl RawWindowHandleLegacy {
+  fn empty(is_wayland: bool) -> Self {
+    if is_wayland {
+      Self::Wayland(0)
+    } else {
+      Self::Xlib(0)
+    }
+  }
 }
 
 #[cfg(any(feature = "rwh_04", feature = "rwh_05"))]
@@ -882,6 +932,20 @@ fn raw_window_handle_legacy(window: &gtk4::Window) -> RawWindowHandleLegacy {
 enum RawDisplayHandleLegacy {
   Wayland(usize),
   Xlib { display: usize, screen: i32 },
+}
+
+#[cfg(feature = "rwh_05")]
+impl RawDisplayHandleLegacy {
+  fn empty(is_wayland: bool) -> Self {
+    if is_wayland {
+      Self::Wayland(0)
+    } else {
+      Self::Xlib {
+        display: 0,
+        screen: 0,
+      }
+    }
+  }
 }
 
 #[cfg(feature = "rwh_05")]
