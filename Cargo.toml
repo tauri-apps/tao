@@ -175,3 +175,6 @@ parking_lot = "0.12"
 dlopen2 = "0.8.0"
 dbus = { version = "0.9", optional = true }
 libadwaita = { version = "0.9", optional = true }
+
+[patch.crates-io]
+wayland-scanner = { git = "https://github.com/Smithay/wayland-rs", rev = "d07c4f91f28b42e5a485823ffd9d8d5a210b1053" }
