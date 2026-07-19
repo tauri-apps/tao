@@ -177,8 +177,4 @@ dbus = { version = "0.9", optional = true }
 libadwaita = { version = "0.9", optional = true }
 
 [patch.crates-io]
-wayland-backend = { git = "https://github.com/Smithay/wayland-rs", rev = "d07c4f91f28b42e5a485823ffd9d8d5a210b1053" }
-wayland-client = { git = "https://github.com/Smithay/wayland-rs", rev = "d07c4f91f28b42e5a485823ffd9d8d5a210b1053" }
-wayland-protocols = { git = "https://github.com/Smithay/wayland-rs", rev = "d07c4f91f28b42e5a485823ffd9d8d5a210b1053" }
-wayland-scanner = { git = "https://github.com/Smithay/wayland-rs", rev = "d07c4f91f28b42e5a485823ffd9d8d5a210b1053" }
-wayland-sys = { git = "https://github.com/Smithay/wayland-rs", rev = "d07c4f91f28b42e5a485823ffd9d8d5a210b1053" }
+wayland-scanner = { path = "vendor/wayland-scanner" }

@@ -134,10 +134,8 @@ impl<T> EventLoopWindowTarget<T> {
             .wl_display()
             .unwrap()
             .id()
-            .as_ptr()
-            .expect("wl_display will never be null")
-            .cast();
-          ptr
+            .as_ptr();
+          std::ptr::NonNull::new(ptr as *mut _).expect("wl_display will never be null")
         })
         .into(),
       )
