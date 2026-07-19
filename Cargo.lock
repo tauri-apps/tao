@@ -525,12 +525,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "downcast-rs"
-version = "1.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
-
-[[package]]
 name = "dpi"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2852,12 +2846,10 @@ dependencies = [
 
 [[package]]
 name = "wayland-backend"
-version = "0.3.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa75f400b7f719bcd68b3f47cd939ba654cedeef690f486db71331eec4c6a406"
+version = "0.3.15"
+source = "git+https://github.com/Smithay/wayland-rs?rev=d07c4f91f28b42e5a485823ffd9d8d5a210b1053#d07c4f91f28b42e5a485823ffd9d8d5a210b1053"
 dependencies = [
  "cc",
- "downcast-rs",
  "rustix 1.0.7",
  "scoped-tls",
  "smallvec",
@@ -2866,9 +2858,8 @@ dependencies = [
 
 [[package]]
 name = "wayland-client"
-version = "0.31.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab51d9f7c071abeee76007e2b742499e535148035bb835f97aaed1338cf516c3"
+version = "0.31.14"
+source = "git+https://github.com/Smithay/wayland-rs?rev=d07c4f91f28b42e5a485823ffd9d8d5a210b1053#d07c4f91f28b42e5a485823ffd9d8d5a210b1053"
 dependencies = [
  "bitflags 2.13.0",
  "rustix 1.0.7",
@@ -2878,9 +2869,8 @@ dependencies = [
 
 [[package]]
 name = "wayland-protocols"
-version = "0.32.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b23b5df31ceff1328f06ac607591d5ba360cf58f90c8fad4ac8d3a55a3c4aec7"
+version = "0.32.13"
+source = "git+https://github.com/Smithay/wayland-rs?rev=d07c4f91f28b42e5a485823ffd9d8d5a210b1053#d07c4f91f28b42e5a485823ffd9d8d5a210b1053"
 dependencies = [
  "bitflags 2.13.0",
  "wayland-backend",
@@ -2900,9 +2890,8 @@ dependencies = [
 
 [[package]]
 name = "wayland-sys"
-version = "0.31.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "374f6b70e8e0d6bf9461a32988fd553b59ff630964924dad6e4a4eb6bd538d17"
+version = "0.31.11"
+source = "git+https://github.com/Smithay/wayland-rs?rev=d07c4f91f28b42e5a485823ffd9d8d5a210b1053#d07c4f91f28b42e5a485823ffd9d8d5a210b1053"
 dependencies = [
  "dlib",
  "log",

@@ -714,8 +714,10 @@ impl Window {
               .wl_surface()
               .unwrap()
               .id()
-              .as_ptr();
-            std::ptr::NonNull::new(ptr as *mut _).expect("wl_surface will never be null")
+              .as_ptr()
+              .expect("wl_surface will never be null")
+              .cast();
+            ptr
           })
           .into(),
         )
@@ -752,8 +754,10 @@ impl Window {
             .wl_display()
             .unwrap()
             .id()
-            .as_ptr();
-          std::ptr::NonNull::new(ptr as *mut _).expect("wl_display will never be null")
+            .as_ptr()
+            .expect("wl_display will never be null")
+            .cast();
+          ptr
         })
         .into(),
       )
