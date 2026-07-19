@@ -107,6 +107,7 @@ pub struct Window {
   /// Window id.
   pub(crate) window_id: WindowId,
   gtk: MainThreadGtk,
+  #[cfg(any(feature = "rwh_04", feature = "rwh_05"))]
   is_wayland: bool,
   /// Window requests sender
   pub(crate) window_requests_tx: async_channel::Sender<(WindowId, WindowRequest)>,
@@ -227,11 +228,13 @@ impl Window {
     let (scale_factor, maximized, minimized) = Self::setup_signals(&window);
     let inner_size = Arc::clone(window.inner_size());
     let outer_size = Arc::clone(window.outer_size());
+    #[cfg(any(feature = "rwh_04", feature = "rwh_05"))]
     let is_wayland = is_wayland(window.upcast_ref());
 
     let win = Self {
       window_id,
       gtk: MainThreadGtk::new(window, default_vbox),
+      #[cfg(any(feature = "rwh_04", feature = "rwh_05"))]
       is_wayland,
       window_requests_tx,
       draw_tx,
@@ -308,11 +311,13 @@ impl Window {
     let (scale_factor, maximized, minimized) = Self::setup_signals(&window);
     let inner_size = Arc::clone(window.inner_size());
     let outer_size = Arc::clone(window.outer_size());
+    #[cfg(any(feature = "rwh_04", feature = "rwh_05"))]
     let is_wayland = is_wayland(window.upcast_ref());
 
     let win = Self {
       window_id,
       gtk: MainThreadGtk::new(window, None),
+      #[cfg(any(feature = "rwh_04", feature = "rwh_05"))]
       is_wayland,
       window_requests_tx,
       draw_tx,
