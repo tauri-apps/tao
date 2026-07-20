@@ -1662,6 +1662,7 @@ pub enum ResizeDirection {
   West,
 }
 
+#[cfg(any(target_os = "windows", target_os = "linux"))]
 pub(crate) fn hit_test(
   (left, top, right, bottom): (i32, i32, i32, i32),
   cx: i32,

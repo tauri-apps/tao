@@ -1,0 +1,7 @@
+[advisories]
+ignore = [
+  # quick-xml, `softbuffer > wayland-scanner > quick-xml`users are unaffected
+  "RUSTSEC-2026-0194",
+  # quick-xml, `softbuffer > wayland-scanner > quick-xml`users are unaffected
+  "RUSTSEC-2026-0195",
+]
