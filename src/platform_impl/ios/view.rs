@@ -136,7 +136,11 @@ unsafe fn get_view_class(root_view_class: &'static Class) -> &'static Class {
         let () = msg_send![super(object, superclass), layoutSubviews];
 
         let window: id = msg_send![object, window];
-        assert!(!window.is_null());
+        // UIKit can lay out a view while it is detached during window and view-controller
+        // transitions. There is no window ID or screen geometry to report until reattachment.
+        if window.is_null() {
+          return;
+        }
         let window_bounds: CGRect = msg_send![window, bounds];
         let screen: id = msg_send![window, screen];
         let screen_space: id = msg_send![screen, coordinateSpace];
