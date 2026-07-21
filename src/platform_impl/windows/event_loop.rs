@@ -33,8 +33,7 @@ use windows::{
       Controls::{self as win32c, HOVER_DEFAULT},
       Input::{KeyboardAndMouse::*, Pointer::*, Touch::*, *},
       Shell::{
-        DefSubclassProc, SHAppBarMessage, ABE_BOTTOM, ABE_LEFT, ABE_RIGHT, ABE_TOP,
-        ABM_GETAUTOHIDEBAR, APPBARDATA,
+        SHAppBarMessage, ABE_BOTTOM, ABE_LEFT, ABE_RIGHT, ABE_TOP, ABM_GETAUTOHIDEBAR, APPBARDATA,
       },
       WindowsAndMessaging::{self as win32wm, *},
     },
@@ -2294,7 +2293,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       }
 
       // Default WM_PAINT behaviour. This makes sure modals and popups are shown immediatly when opening them.
-      DefSubclassProc(window, msg, wparam, lparam)
+      DefWindowProcW(window, msg, wparam, lparam)
     }
 
     win32wm::WM_INPUT_DEVICE_CHANGE => {
@@ -2319,7 +2318,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
         let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
       }
 
-      DefSubclassProc(window, msg, wparam, lparam)
+      DefWindowProcW(window, msg, wparam, lparam)
     }
 
     // We don't process `WM_QUERYENDSESSION` yet until we introduce the same mechanism as Tauri's `ExitRequested` event
@@ -2382,7 +2381,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
       LRESULT(0)
     }
-    _ => DefSubclassProc(window, msg, wparam, lparam),
+    _ => DefWindowProcW(window, msg, wparam, lparam),
   };
 
   let result = userdata
