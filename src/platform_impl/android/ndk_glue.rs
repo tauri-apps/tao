@@ -214,6 +214,8 @@ pub type ActivityId = i32;
 
 pub(crate) static CONTEXTS: Lazy<Mutex<BTreeMap<ActivityId, AndroidContext>>> =
   Lazy::new(Default::default);
+// Keeping a reference so we can store it in ndk-context
+static APPLICATION_CONTEXT: OnceCell<GlobalRef> = OnceCell::new();
 static WINDOW_MANAGER: Lazy<Mutex<BTreeMap<ActivityId, GlobalRef>>> = Lazy::new(Default::default);
 pub(crate) static ACTIVITY_CREATED_SENDERS: Lazy<Mutex<BTreeMap<ActivityId, Sender<()>>>> =
   Lazy::new(Default::default);
@@ -388,6 +390,25 @@ pub unsafe fn onActivityCreate(
   let intent =
     jni_call_method!(env, &activity, "getIntent", "()Landroid/content/Intent;", l).unwrap();
 
+  let vm = env.get_java_vm().unwrap();
+
+  APPLICATION_CONTEXT.get_or_init(|| {
+    let application = jni_call_method!(
+      env,
+      &activity,
+      "getApplicationContext",
+      "()Landroid/content/Context;",
+      l
+    )
+    .unwrap();
+    let application = env.new_global_ref(application).unwrap();
+    ndk_context::initialize_android_context(
+      vm.get_java_vm_pointer() as *mut _,
+      application.as_obj().as_raw() as *mut _,
+    );
+    application
+  });
+
   let activity_id = jni_call_method!(env, &activity, "getId", "()I", i).unwrap();
 
   let activity_name: JString = jni_call_method!(
@@ -420,7 +441,6 @@ pub unsafe fn onActivityCreate(
     .unwrap()
     .insert(activity_id, window_manager);
   let activity = env.new_global_ref(activity).unwrap();
-  let vm = env.get_java_vm().unwrap();
   let thread_env = vm.attach_current_thread_as_daemon().unwrap();
 
   CONTEXTS.lock().unwrap().insert(
