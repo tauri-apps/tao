@@ -3,7 +3,6 @@ use std::{
   ptr,
 };
 
-use gtk::glib;
 use x11_dl::{xinput2, xlib};
 
 use crate::event::{DeviceEvent, ElementState, RawKeyEvent};
@@ -11,8 +10,8 @@ use crate::event::{DeviceEvent, ElementState, RawKeyEvent};
 use super::keycode_from_scancode;
 
 /// Spawn Device event thread. Only works on x11 since wayland doesn't have such global events.
-pub fn spawn(device_tx: glib::Sender<DeviceEvent>) {
-  std::thread::spawn(move || unsafe {
+pub fn spawn(device_tx: async_channel::Sender<DeviceEvent>) {
+  std::thread::spawn(async move || unsafe {
     let xlib = xlib::Xlib::open().unwrap();
     let xinput2 = xinput2::XInput2::open().unwrap();
     let display = (xlib.XOpenDisplay)(ptr::null());
@@ -63,7 +62,7 @@ pub fn spawn(device_tx: glib::Sender<DeviceEvent>) {
                 state,
               };
 
-              if let Err(e) = device_tx.send(DeviceEvent::Key(event)) {
+              if let Err(e) = device_tx.send_blocking(DeviceEvent::Key(event)) {
                 log::info!("Failed to send device event {} since receiver is closed. Closing x11 thread along with it", e);
                 break;
               }

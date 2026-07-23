@@ -159,8 +159,7 @@ pub struct WindowAttributes {
   ///   position.
   ///   There may be a small gap between this position and the window due to the specifics of the
   ///   Window Manager.
-  /// - **Linux**: The top left corner of the window, the window's "outer" position.
-  /// - **Linux(Wayland)**: Unsupported.
+  /// - **Linux**: Unsupported.
   /// - **Others**: Ignored.
   ///
   /// See [`Window::set_outer_position`].
@@ -718,7 +717,7 @@ impl Window {
   /// - **iOS:** Can only be called on the main thread. Returns the top left coordinates of the
   ///   window in the screen space coordinate system.
   /// - **Android:** Always returns [`NotSupportedError`].
-  /// - **Linux(Wayland)**: Has no effect, since Wayland doesn't support a global cordinate system
+  /// - **Linux**: Has no effect, since Wayland doesn't support a global cordinate system
   #[inline]
   pub fn outer_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
     self.window.outer_position()
@@ -733,7 +732,7 @@ impl Window {
   ///
   /// - **iOS:** Can only be called on the main thread. Sets the top left coordinates of the
   ///   window in the screen space coordinate system.
-  /// - **Android / Linux(Wayland):** Unsupported.
+  /// - **Android / Linux:** Unsupported.
   #[inline]
   pub fn set_outer_position<P: Into<Position>>(&self, position: P) {
     self.window.set_outer_position(position.into())
@@ -1098,9 +1097,7 @@ impl Window {
   /// ## Platform-specific
   ///
   /// - **Windows**: There is no guarantee that the window will be the bottom most but it will try to be.
-  /// - **Linux(x11):** Result depends on the system's window manager. Consider this setting a suggestion.
-  /// - **Linux(Wayland) / iOS / Android:** Unsupported.
-  // TODO: Unsupported in gtk4
+  /// - **iOS / Android / Linux:** Unsupported.
   #[inline]
   pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
     self.window.set_always_on_bottom(always_on_bottom)
@@ -1110,9 +1107,7 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux(x11):** Result depends on the system's window manager. Consider this setting a suggestion.
-  /// - **Linux(Wayland) / iOS / Android:** Unsupported.
-  // TODO: Unsupported in gtk4
+  /// - **iOS / Android / Linux:** Unsupported.
   #[inline]
   pub fn set_always_on_top(&self, always_on_top: bool) {
     self.window.set_always_on_top(always_on_top)
@@ -1173,7 +1168,6 @@ impl Window {
   ///
   /// - **iOS / Android:** Unsupported.
   /// - **macOS:** `None` has no effect.
-  /// - **Linux:** Urgency levels have the same effect.
   #[inline]
   pub fn request_user_attention(&self, request_type: Option<UserAttentionType>) {
     self.window.request_user_attention(request_type)
@@ -1223,9 +1217,9 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **iOS / Android / Windows:** Unsupported.
+  /// - **iOS / Android / Windows / Linux:** Unsupported.
   pub fn set_visible_on_all_workspaces(&self, #[allow(unused)] visible: bool) {
-    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    #[cfg(target_os = "macos")]
     self.window.set_visible_on_all_workspaces(visible)
   }
 
@@ -1336,7 +1330,8 @@ impl Window {
   ///
   /// ## Platform-specific
   ///
-  /// - **iOS / Android / Linux(Wayland)**: Unsupported, returns `0,0`.
+  /// - **iOS / Android**: Unsupported, returns `0,0`.
+  /// - **Linux**: Coordinates are relative to the window.
   #[inline]
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
     self.window.cursor_position()

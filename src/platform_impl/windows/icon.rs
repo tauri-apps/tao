@@ -56,16 +56,21 @@ pub enum IconType {
   Big = ICON_BIG as isize,
 }
 
+struct SharedIconHandle(Owned<HICON>);
+
+// SAFETY: HICON is an opaque Windows handle. WinIcon only shares and copies the
+// handle value, and Owned<HICON> releases it when the final reference drops.
+unsafe impl Send for SharedIconHandle {}
+unsafe impl Sync for SharedIconHandle {}
+
 #[derive(Clone)]
 pub struct WinIcon {
-  inner: Arc<Owned<HICON>>,
+  inner: Arc<SharedIconHandle>,
 }
-
-unsafe impl Send for WinIcon {}
 
 impl WinIcon {
   pub fn as_raw_handle(&self) -> HICON {
-    **self.inner
+    *self.inner.0
   }
 
   pub fn from_path<P: AsRef<Path>>(
@@ -126,14 +131,14 @@ impl WinIcon {
 
   fn from_handle(handle: HICON) -> Self {
     Self {
-      inner: Arc::new(unsafe { Owned::new(handle) }),
+      inner: Arc::new(SharedIconHandle(unsafe { Owned::new(handle) })),
     }
   }
 }
 
 impl fmt::Debug for WinIcon {
   fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-    (*self.inner).fmt(formatter)
+    self.inner.0.fmt(formatter)
   }
 }
 

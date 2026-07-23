@@ -2,7 +2,18 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use gtk::gdk::{self, prelude::MonitorExt, Display};
+use std::collections::VecDeque;
+
+use gtk4::{
+  gdk::{
+    self,
+    prelude::{DisplayExt, MonitorExt},
+    Monitor,
+  },
+  gio::prelude::{ListModelExt, ListModelExtManual},
+  glib::object::Cast,
+  prelude::{NativeExt, WidgetExt},
+};
 
 use crate::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize},
@@ -15,8 +26,7 @@ pub struct MonitorHandle {
 }
 
 impl MonitorHandle {
-  pub fn new(display: &gdk::Display, number: i32) -> Self {
-    let monitor = display.monitor(number).unwrap();
+  pub fn new(monitor: gdk::Monitor) -> Self {
     Self { monitor }
   }
 
@@ -84,13 +94,40 @@ impl VideoMode {
   }
 }
 
-pub fn from_point(display: &Display, x: f64, y: f64) -> Option<MonitorHandle> {
-  if let Some(monitor) = display.monitor_at_point(x as i32, y as i32) {
-    (0..display.n_monitors())
-      .map(|i| (i, display.monitor(i).unwrap()))
-      .find(|cur| cur.1.geometry() == monitor.geometry())
-      .map(|x| MonitorHandle::new(display, x.0))
-  } else {
-    None
-  }
+#[inline]
+pub fn current_monitor<W: WidgetExt + NativeExt>(window: &W) -> Option<RootMonitorHandle> {
+  // `.surface()` returns `None` if the window is invisible;
+  // we fallback to the primary monitor
+  window
+    .surface()
+    .and_then(|surface| window.display().monitor_at_surface(&surface))
+    .or_else(|| first_monitor(&window.display()))
+    .map(|monitor| {
+      let handle = MonitorHandle { monitor };
+      RootMonitorHandle { inner: handle }
+    })
+}
+
+#[inline]
+fn first_monitor<W: DisplayExt>(display: &W) -> Option<Monitor> {
+  display
+    .monitors()
+    .item(0)
+    .and_then(|m| m.dynamic_cast::<Monitor>().ok())
+}
+
+#[inline]
+pub fn primary_monitor<W: DisplayExt>(display: &W) -> Option<RootMonitorHandle> {
+  first_monitor(display).map(|monitor| RootMonitorHandle {
+    inner: MonitorHandle::new(monitor),
+  })
+}
+
+#[inline]
+pub fn available_monitors<W: DisplayExt>(display: &W) -> VecDeque<MonitorHandle> {
+  display
+    .monitors()
+    .iter::<Monitor>()
+    .map(|monitor| MonitorHandle::new(monitor.unwrap()))
+    .collect()
 }

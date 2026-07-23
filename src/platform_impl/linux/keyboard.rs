@@ -7,20 +7,11 @@ use crate::{
   event::{ElementState, KeyEvent},
   keyboard::{Key, KeyCode, KeyLocation, ModifiersState, NativeKeyCode},
 };
-use gtk::{
-  gdk::{self, keys::constants::*, EventKey},
-  glib,
-};
+use gtk4::{gdk, prelude::DisplayExtManual};
 use once_cell::sync::Lazy;
-use std::{
-  collections::HashSet,
-  ffi::c_void,
-  os::raw::{c_int, c_uint},
-  ptr, slice,
-  sync::Mutex,
-};
+use std::{collections::HashSet, sync::Mutex};
 
-pub type RawKey = gdk::keys::Key;
+pub type RawKey = gdk::Key;
 
 static KEY_STRINGS: Lazy<Mutex<HashSet<&'static str>>> = Lazy::new(|| Mutex::new(HashSet::new()));
 
@@ -37,90 +28,90 @@ fn insert_or_get_key_str(string: String) -> &'static str {
 #[allow(clippy::just_underscores_and_digits, non_upper_case_globals)]
 pub(crate) fn raw_key_to_key(gdk_key: RawKey) -> Option<Key<'static>> {
   match gdk_key {
-    Escape => Some(Key::Escape),
-    BackSpace => Some(Key::Backspace),
-    Tab | ISO_Left_Tab => Some(Key::Tab),
-    Return => Some(Key::Enter),
-    Control_L | Control_R => Some(Key::Control),
-    Alt_L | Alt_R => Some(Key::Alt),
-    Shift_L | Shift_R => Some(Key::Shift),
+    RawKey::Escape => Some(Key::Escape),
+    RawKey::BackSpace => Some(Key::Backspace),
+    RawKey::Tab | RawKey::ISO_Left_Tab => Some(Key::Tab),
+    RawKey::Return => Some(Key::Enter),
+    RawKey::Control_L | RawKey::Control_R => Some(Key::Control),
+    RawKey::Alt_L | RawKey::Alt_R => Some(Key::Alt),
+    RawKey::Shift_L | RawKey::Shift_R => Some(Key::Shift),
     // TODO: investigate mapping. Map Meta_[LR]?
-    Super_L | Super_R => Some(Key::Super),
-    Caps_Lock => Some(Key::CapsLock),
-    F1 => Some(Key::F1),
-    F2 => Some(Key::F2),
-    F3 => Some(Key::F3),
-    F4 => Some(Key::F4),
-    F5 => Some(Key::F5),
-    F6 => Some(Key::F6),
-    F7 => Some(Key::F7),
-    F8 => Some(Key::F8),
-    F9 => Some(Key::F9),
-    F10 => Some(Key::F10),
-    F11 => Some(Key::F11),
-    F12 => Some(Key::F12),
-    F13 => Some(Key::F13),
-    F14 => Some(Key::F14),
-    F15 => Some(Key::F15),
-    F16 => Some(Key::F16),
-    F17 => Some(Key::F17),
-    F18 => Some(Key::F18),
-    F19 => Some(Key::F19),
-    F20 => Some(Key::F20),
-    F21 => Some(Key::F21),
-    F22 => Some(Key::F22),
-    F23 => Some(Key::F23),
-    F24 => Some(Key::F24),
+    RawKey::Super_L | RawKey::Super_R => Some(Key::Super),
+    RawKey::Caps_Lock => Some(Key::CapsLock),
+    RawKey::F1 => Some(Key::F1),
+    RawKey::F2 => Some(Key::F2),
+    RawKey::F3 => Some(Key::F3),
+    RawKey::F4 => Some(Key::F4),
+    RawKey::F5 => Some(Key::F5),
+    RawKey::F6 => Some(Key::F6),
+    RawKey::F7 => Some(Key::F7),
+    RawKey::F8 => Some(Key::F8),
+    RawKey::F9 => Some(Key::F9),
+    RawKey::F10 => Some(Key::F10),
+    RawKey::F11 => Some(Key::F11),
+    RawKey::F12 => Some(Key::F12),
+    RawKey::F13 => Some(Key::F13),
+    RawKey::F14 => Some(Key::F14),
+    RawKey::F15 => Some(Key::F15),
+    RawKey::F16 => Some(Key::F16),
+    RawKey::F17 => Some(Key::F17),
+    RawKey::F18 => Some(Key::F18),
+    RawKey::F19 => Some(Key::F19),
+    RawKey::F20 => Some(Key::F20),
+    RawKey::F21 => Some(Key::F21),
+    RawKey::F22 => Some(Key::F22),
+    RawKey::F23 => Some(Key::F23),
+    RawKey::F24 => Some(Key::F24),
 
-    Print => Some(Key::PrintScreen),
-    Scroll_Lock => Some(Key::ScrollLock),
+    RawKey::Print => Some(Key::PrintScreen),
+    RawKey::Scroll_Lock => Some(Key::ScrollLock),
     // Pause/Break not audio.
-    Pause => Some(Key::Pause),
+    RawKey::Pause => Some(Key::Pause),
 
-    Insert => Some(Key::Insert),
-    Delete => Some(Key::Delete),
-    Home => Some(Key::Home),
-    End => Some(Key::End),
-    Page_Up => Some(Key::PageUp),
-    Page_Down => Some(Key::PageDown),
-    Num_Lock => Some(Key::NumLock),
+    RawKey::Insert => Some(Key::Insert),
+    RawKey::Delete => Some(Key::Delete),
+    RawKey::Home => Some(Key::Home),
+    RawKey::End => Some(Key::End),
+    RawKey::Page_Up => Some(Key::PageUp),
+    RawKey::Page_Down => Some(Key::PageDown),
+    RawKey::Num_Lock => Some(Key::NumLock),
 
-    Up => Some(Key::ArrowUp),
-    Down => Some(Key::ArrowDown),
-    Left => Some(Key::ArrowLeft),
-    Right => Some(Key::ArrowRight),
-    Clear => Some(Key::Clear),
+    RawKey::Up => Some(Key::ArrowUp),
+    RawKey::Down => Some(Key::ArrowDown),
+    RawKey::Left => Some(Key::ArrowLeft),
+    RawKey::Right => Some(Key::ArrowRight),
+    RawKey::Clear => Some(Key::Clear),
 
-    Menu => Some(Key::ContextMenu),
-    WakeUp => Some(Key::WakeUp),
-    Launch0 => Some(Key::LaunchApplication1),
-    Launch1 => Some(Key::LaunchApplication2),
-    ISO_Level3_Shift => Some(Key::AltGraph),
+    RawKey::Menu => Some(Key::ContextMenu),
+    RawKey::WakeUp => Some(Key::WakeUp),
+    RawKey::Launch0 => Some(Key::LaunchApplication1),
+    RawKey::Launch1 => Some(Key::LaunchApplication2),
+    RawKey::ISO_Level3_Shift => Some(Key::AltGraph),
 
-    KP_Begin => Some(Key::Clear),
-    KP_Delete => Some(Key::Delete),
-    KP_Down => Some(Key::ArrowDown),
-    KP_End => Some(Key::End),
-    KP_Enter => Some(Key::Enter),
-    KP_F1 => Some(Key::F1),
-    KP_F2 => Some(Key::F2),
-    KP_F3 => Some(Key::F3),
-    KP_F4 => Some(Key::F4),
-    KP_Home => Some(Key::Home),
-    KP_Insert => Some(Key::Insert),
-    KP_Left => Some(Key::ArrowLeft),
-    KP_Page_Down => Some(Key::PageDown),
-    KP_Page_Up => Some(Key::PageUp),
-    KP_Right => Some(Key::ArrowRight),
+    RawKey::KP_Begin => Some(Key::Clear),
+    RawKey::KP_Delete => Some(Key::Delete),
+    RawKey::KP_Down => Some(Key::ArrowDown),
+    RawKey::KP_End => Some(Key::End),
+    RawKey::KP_Enter => Some(Key::Enter),
+    RawKey::KP_F1 => Some(Key::F1),
+    RawKey::KP_F2 => Some(Key::F2),
+    RawKey::KP_F3 => Some(Key::F3),
+    RawKey::KP_F4 => Some(Key::F4),
+    RawKey::KP_Home => Some(Key::Home),
+    RawKey::KP_Insert => Some(Key::Insert),
+    RawKey::KP_Left => Some(Key::ArrowLeft),
+    RawKey::KP_Page_Down => Some(Key::PageDown),
+    RawKey::KP_Page_Up => Some(Key::PageUp),
+    RawKey::KP_Right => Some(Key::ArrowRight),
     // KP_Separator? What does it map to?
-    KP_Tab => Some(Key::Tab),
-    KP_Up => Some(Key::ArrowUp),
+    RawKey::KP_Tab => Some(Key::Tab),
+    RawKey::KP_Up => Some(Key::ArrowUp),
 
     // JIS
-    Zenkaku_Hankaku => Some(Key::ZenkakuHankaku),
-    Hiragana_Katakana => Some(Key::HiraganaKatakana),
-    Henkan => Some(Key::Convert),
-    Muhenkan => Some(Key::NonConvert),
+    RawKey::Zenkaku_Hankaku => Some(Key::ZenkakuHankaku),
+    RawKey::Hiragana_Katakana => Some(Key::HiraganaKatakana),
+    RawKey::Henkan => Some(Key::Convert),
+    RawKey::Muhenkan => Some(Key::NonConvert),
     // TODO: more mappings (media etc)
     _ => None,
   }
@@ -129,14 +120,47 @@ pub(crate) fn raw_key_to_key(gdk_key: RawKey) -> Option<Key<'static>> {
 #[allow(clippy::just_underscores_and_digits, non_upper_case_globals)]
 pub(crate) fn raw_key_to_location(raw: RawKey) -> KeyLocation {
   match raw {
-    Control_L | Shift_L | Alt_L | Super_L | Meta_L => KeyLocation::Left,
-    Control_R | Shift_R | Alt_R | Super_R | Meta_R => KeyLocation::Right,
-    KP_0 | KP_1 | KP_2 | KP_3 | KP_4 | KP_5 | KP_6 | KP_7 | KP_8 | KP_9 | KP_Add | KP_Begin
-    | KP_Decimal | KP_Delete | KP_Divide | KP_Down | KP_End | KP_Enter | KP_Equal | KP_F1
-    | KP_F2 | KP_F3 | KP_F4 | KP_Home | KP_Insert | KP_Left | KP_Multiply | KP_Page_Down
-    | KP_Page_Up | KP_Right | KP_Separator | KP_Space | KP_Subtract | KP_Tab | KP_Up => {
-      KeyLocation::Numpad
+    RawKey::Control_L | RawKey::Shift_L | RawKey::Alt_L | RawKey::Super_L | RawKey::Meta_L => {
+      KeyLocation::Left
     }
+    RawKey::Control_R | RawKey::Shift_R | RawKey::Alt_R | RawKey::Super_R | RawKey::Meta_R => {
+      KeyLocation::Right
+    }
+    RawKey::KP_0
+    | RawKey::KP_1
+    | RawKey::KP_2
+    | RawKey::KP_3
+    | RawKey::KP_4
+    | RawKey::KP_5
+    | RawKey::KP_6
+    | RawKey::KP_7
+    | RawKey::KP_8
+    | RawKey::KP_9
+    | RawKey::KP_Add
+    | RawKey::KP_Begin
+    | RawKey::KP_Decimal
+    | RawKey::KP_Delete
+    | RawKey::KP_Divide
+    | RawKey::KP_Down
+    | RawKey::KP_End
+    | RawKey::KP_Enter
+    | RawKey::KP_Equal
+    | RawKey::KP_F1
+    | RawKey::KP_F2
+    | RawKey::KP_F3
+    | RawKey::KP_F4
+    | RawKey::KP_Home
+    | RawKey::KP_Insert
+    | RawKey::KP_Left
+    | RawKey::KP_Multiply
+    | RawKey::KP_Page_Down
+    | RawKey::KP_Page_Up
+    | RawKey::KP_Right
+    | RawKey::KP_Separator
+    | RawKey::KP_Space
+    | RawKey::KP_Subtract
+    | RawKey::KP_Tab
+    | RawKey::KP_Up => KeyLocation::Numpad,
     _ => KeyLocation::Standard,
   }
 }
@@ -152,15 +176,12 @@ const MODIFIER_MAP: &[(Key<'static>, ModifiersState)] = &[
 // we need to have the modifier before the second key is entered to follow
 // other os' logic -- this way we can emit the new `ModifiersState` before
 // we receive the next key, if needed the developer can update his local state.
-pub(crate) fn get_modifiers(key: EventKey) -> ModifiersState {
+pub(crate) fn get_modifiers(key: RawKey, scancode: u16) -> ModifiersState {
   // a keycode (scancode in Windows) is a code that refers to a physical keyboard key.
-  let scancode = key.hardware_keycode();
-  // a keyval (keysym in X) is a "logical" key name, such as GDK_Enter, GDK_a, GDK_space, etc.
-  let keyval = key.keyval();
   // unicode value
-  let unicode = keyval.to_unicode();
+  let unicode = key.to_unicode();
   // translate to tao::keyboard::Key
-  let key_from_code = raw_key_to_key(keyval).unwrap_or_else(|| {
+  let key_from_code = raw_key_to_key(key).unwrap_or_else(|| {
     if let Some(key) = unicode {
       if key >= ' ' && key != '\x7f' {
         Key::Character(insert_or_get_key_str(key.to_string()))
@@ -183,20 +204,17 @@ pub(crate) fn get_modifiers(key: EventKey) -> ModifiersState {
 }
 
 pub(crate) fn make_key_event(
-  key: &EventKey,
+  key: &RawKey,
+  scancode: u16,
   is_repeat: bool,
   key_override: Option<KeyCode>,
   state: ElementState,
 ) -> Option<KeyEvent> {
   // a keycode (scancode in Windows) is a code that refers to a physical keyboard key.
-  let scancode = key.hardware_keycode();
-  // a keyval (keysym in X) is a "logical" key name, such as GDK_Enter, GDK_a, GDK_space, etc.
-  let keyval_without_modifiers = key.keyval();
-  let keyval_with_modifiers =
-    hardware_keycode_to_keyval(scancode).unwrap_or(keyval_without_modifiers);
+  let keyval_with_modifiers = hardware_keycode_to_keyval(scancode).unwrap_or(*key);
   // get unicode value, with and without modifiers
   let text_without_modifiers = keyval_with_modifiers.to_unicode();
-  let text_with_modifiers = keyval_without_modifiers.to_unicode();
+  let text_with_modifiers = key.to_unicode();
   // get physical key from the scancode (keycode)
   let physical_key = key_override.unwrap_or_else(|| KeyCode::from_scancode(scancode as u32));
 
@@ -214,7 +232,7 @@ pub(crate) fn make_key_event(
   });
 
   // extract the logical key
-  let logical_key = raw_key_to_key(keyval_without_modifiers).unwrap_or_else(|| {
+  let logical_key = raw_key_to_key(*key).unwrap_or_else(|| {
     if let Some(key) = text_with_modifiers {
       if key >= ' ' && key != '\x7f' {
         Key::Character(insert_or_get_key_str(key.to_string()))
@@ -253,41 +271,14 @@ pub(crate) fn make_key_event(
 /// Map a hardware keycode to a keyval by performing a lookup in the keymap and finding the
 /// keyval with the lowest group and level
 fn hardware_keycode_to_keyval(keycode: u16) -> Option<RawKey> {
-  use glib::translate::FromGlib;
-  unsafe {
-    let keymap = gdk::ffi::gdk_keymap_get_default();
+  let display = gdk::Display::default()?;
+  let keymap = display.map_keycode(keycode.into())?;
 
-    let mut nkeys = 0;
-    let mut keys: *mut gdk::ffi::GdkKeymapKey = ptr::null_mut();
-    let mut keyvals: *mut c_uint = ptr::null_mut();
-
-    // call into gdk to retrieve the keyvals and keymap keys
-    gdk::ffi::gdk_keymap_get_entries_for_keycode(
-      keymap,
-      c_uint::from(keycode),
-      &mut keys as *mut *mut gdk::ffi::GdkKeymapKey,
-      &mut keyvals as *mut *mut c_uint,
-      &mut nkeys as *mut c_int,
-    );
-
-    if nkeys > 0 {
-      let keyvals_slice = slice::from_raw_parts(keyvals, nkeys as usize);
-      let keys_slice = slice::from_raw_parts(keys, nkeys as usize);
-
-      let resolved_keyval = keys_slice.iter().enumerate().find_map(|(id, gdk_keymap)| {
-        if gdk_keymap.group == 0 && gdk_keymap.level == 0 {
-          Some(RawKey::from_glib(keyvals_slice[id]))
-        } else {
-          None
-        }
-      });
-
-      // notify glib to free the allocated arrays
-      glib::ffi::g_free(keyvals as *mut c_void);
-      glib::ffi::g_free(keys as *mut c_void);
-
-      return resolved_keyval;
+  keymap.iter().find_map(|(keymap_key, key)| {
+    if keymap_key.group() == 0 && keymap_key.level() == 0 {
+      Some(*key)
+    } else {
+      None
     }
-  }
-  None
+  })
 }

@@ -25,7 +25,7 @@ use crate::{
   error::{ExternalError, OsError},
   event_loop::{EventLoopBuilder, EventLoopWindowTarget},
   monitor::MonitorHandle,
-  platform_impl::{Parent, Window as UnixWindow},
+  platform_impl::{gtk_window::ApplicationWindow, Parent, Window as UnixWindow},
   window::{Window, WindowBuilder},
 };
 
@@ -72,15 +72,15 @@ pub trait WindowExtUnix {
   /// and know what they're doing.
   fn new_from_gtk_window<T: 'static>(
     event_loop_window_target: &EventLoopWindowTarget<T>,
-    window: gtk::ApplicationWindow,
+    window: ApplicationWindow,
   ) -> Result<Window, OsError>;
 
-  /// Returns the `gtk::ApplicatonWindow` from gtk crate that is used by this window.
-  fn gtk_window(&self) -> &gtk::ApplicationWindow;
+  /// Returns the `gtk4::ApplicatonWindow` from gtk crate that is used by this window.
+  fn gtk_window(&self) -> &ApplicationWindow;
 
-  /// Returns the vertical `gtk::Box` that is added by default as the sole child of this window.
-  /// Returns `None` if the default vertical `gtk::Box` creation was disabled by [`WindowBuilderExtUnix::with_default_vbox`].
-  fn default_vbox(&self) -> Option<&gtk::Box>;
+  /// Returns the vertical `gtk4::Box` that is added by default as the sole child of this window.
+  /// Returns `None` if the default vertical `gtk4::Box` creation was disabled by [`WindowBuilderExtUnix::with_default_vbox`].
+  fn default_vbox(&self) -> Option<&gtk4::Box>;
 
   /// Whether to show the window icon in the taskbar or not.
   fn set_skip_taskbar(&self, skip: bool) -> Result<(), ExternalError>;
@@ -89,12 +89,12 @@ pub trait WindowExtUnix {
 }
 
 impl WindowExtUnix for Window {
-  fn gtk_window(&self) -> &gtk::ApplicationWindow {
-    &self.window.window
+  fn gtk_window(&self) -> &ApplicationWindow {
+    self.window.gtk_window()
   }
 
-  fn default_vbox(&self) -> Option<&gtk::Box> {
-    self.window.default_vbox.as_ref()
+  fn default_vbox(&self) -> Option<&gtk4::Box> {
+    self.window.default_vbox()
   }
 
   fn set_skip_taskbar(&self, skip: bool) -> Result<(), ExternalError> {
@@ -103,7 +103,7 @@ impl WindowExtUnix for Window {
 
   fn new_from_gtk_window<T: 'static>(
     event_loop_window_target: &EventLoopWindowTarget<T>,
-    window: gtk::ApplicationWindow,
+    window: ApplicationWindow,
   ) -> Result<Window, OsError> {
     let window = UnixWindow::new_from_gtk_window(&event_loop_window_target.p, window)?;
     Ok(Window { window })
@@ -119,7 +119,7 @@ pub trait WindowBuilderExtUnix {
   fn with_skip_taskbar(self, skip: bool) -> WindowBuilder;
   /// Set this window as a transient dialog for `parent`
   /// <https://gtk-rs.org/gtk3-rs/stable/latest/docs/gdk/struct.Window.html#method.set_transient_for>
-  fn with_transient_for(self, parent: &impl gtk::glib::IsA<gtk::Window>) -> WindowBuilder;
+  fn with_transient_for(self, parent: &impl gtk4::prelude::IsA<gtk4::Window>) -> WindowBuilder;
 
   /// Whether to enable or disable the internal draw for transparent window.
   ///
@@ -152,7 +152,7 @@ pub trait WindowBuilderExtUnix {
   /// Default is `true`.
   fn with_cursor_moved_event(self, cursor_moved: bool) -> WindowBuilder;
 
-  /// Whether to create a vertical `gtk::Box` and add it as the sole child of this window.
+  /// Whether to create a vertical `gtk4::Box` and add it as the sole child of this window.
   /// Created by default.
   fn with_default_vbox(self, add: bool) -> WindowBuilder;
 }
@@ -163,8 +163,8 @@ impl WindowBuilderExtUnix for WindowBuilder {
     self
   }
 
-  fn with_transient_for(mut self, parent: &impl gtk::glib::IsA<gtk::Window>) -> WindowBuilder {
-    use gtk::glib::Cast;
+  fn with_transient_for(mut self, parent: &impl gtk4::prelude::IsA<gtk4::Window>) -> WindowBuilder {
+    use gtk4::prelude::Cast;
     self.platform_specific.parent = Parent::ChildOf(parent.clone().upcast());
     self
   }
@@ -221,7 +221,7 @@ pub trait EventLoopWindowTargetExtUnix {
   // fn wayland_display(&self) -> Option<*mut raw::c_void>;
 
   /// Returns the gtk application for this event loop.
-  fn gtk_app(&self) -> &gtk::Application;
+  fn gtk_app(&self) -> &gtk4::Application;
 
   /// Sets the badge count on the taskbar
   fn set_badge_count(&self, count: Option<i64>, desktop_filename: Option<String>);
@@ -265,8 +265,9 @@ impl<T> EventLoopWindowTargetExtUnix for EventLoopWindowTarget<T> {
   // }
 
   #[inline]
-  fn gtk_app(&self) -> &gtk::Application {
-    &self.p.app
+  fn gtk_app(&self) -> &gtk4::Application {
+    use gtk4::prelude::Cast;
+    self.p.app.upcast_ref()
   }
 
   #[inline]
@@ -297,12 +298,12 @@ unsafe extern "C" fn x_error_callback(
 /// Additional methods on `MonitorHandle` that are specific to Unix.
 pub trait MonitorHandleExtUnix {
   /// Returns the gdk handle of the monitor.
-  fn gdk_monitor(&self) -> &gtk::gdk::Monitor;
+  fn gdk_monitor(&self) -> &gtk4::gdk::Monitor;
 }
 
 impl MonitorHandleExtUnix for MonitorHandle {
   #[inline]
-  fn gdk_monitor(&self) -> &gtk::gdk::Monitor {
+  fn gdk_monitor(&self) -> &gtk4::gdk::Monitor {
     &self.inner.monitor
   }
 }

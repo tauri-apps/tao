@@ -105,7 +105,7 @@ mod constructors {
         return Err(BadIcon::DimensionsZero { width, height });
       }
 
-      if rgba.len() % PIXEL_SIZE != 0 {
+      if !rgba.len().is_multiple_of(PIXEL_SIZE) {
         return Err(BadIcon::ByteCountNotDivisibleBy4 {
           byte_count: rgba.len(),
         });
