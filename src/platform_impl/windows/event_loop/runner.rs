@@ -241,19 +241,27 @@ impl<T> EventLoopRunner<T> {
 
   unsafe fn call_event_handler(&self, event: Event<'_, T>) {
     self.catch_unwind(|| {
-            let mut control_flow = self.control_flow.take();
-            let mut event_handler = self.event_handler.take()
-                .expect("either event handler is re-entrant (likely), or no event handler is registered (very unlikely)");
+      let mut control_flow = self.control_flow.take();
+      match self.event_handler.take() {
+        Some(mut event_handler) => {
+          if let ControlFlow::ExitWithCode(code) = control_flow {
+            event_handler(event, &mut ControlFlow::ExitWithCode(code));
+          } else {
+            event_handler(event, &mut control_flow);
+          }
 
-            if let ControlFlow::ExitWithCode(code) = control_flow  {
-                event_handler(event, &mut ControlFlow::ExitWithCode(code));
-            } else {
-                event_handler(event, &mut control_flow);
-            }
-
-            assert!(self.event_handler.replace(Some(event_handler)).is_none());
-            self.control_flow.set(control_flow);
-        });
+          assert!(self.event_handler.replace(Some(event_handler)).is_none());
+          self.control_flow.set(control_flow);
+        }
+        // The handler is only taken while it is running, so a `None` here means
+        // this is a re-entrant call: a Win32 message was dispatched synchronously
+        // (e.g. by a window procedure or `PeekMessageW`) while we were already
+        // inside the user callback, or an event arrived after the loop was torn
+        // down. Skip the event instead of panicking so a re-entrant dispatch can
+        // no longer crash the whole application.
+        None => self.control_flow.set(control_flow),
+      }
+    });
   }
 
   unsafe fn dispatch_buffered_events(&self) {
@@ -368,7 +376,11 @@ impl<T> EventLoopRunner<T> {
         self.call_event_handler(Event::LoopDestroyed);
       }
 
-      (Destroyed, _) => panic!("cannot move state from Destroyed"),
+      // The event loop has already been destroyed. Late Win32 messages (for
+      // example paint flushes dispatched re-entrantly while the loop is tearing
+      // down) can still try to drive a state transition. Restore the `Destroyed`
+      // state and ignore the request instead of aborting the whole application.
+      (Destroyed, _) => self.runner_state.set(Destroyed),
     }
   }
 
