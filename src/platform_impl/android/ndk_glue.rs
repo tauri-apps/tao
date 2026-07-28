@@ -61,6 +61,7 @@ const DATA_URL_ENCODING_SET: &AsciiSet = &CONTROLS
 /// 1. android app domain name in reverse snake_case as an ident (for ex: com_example)
 /// 2. android package anme (for ex: wryapp)
 /// 3. the android activity that has external linking for the following functions and calls them:
+///       - `private external fun onFirstActivityCreate(activity: WryActivity)`
 ///       - `private external fun onCreate(activity: WryActivity)`
 ///       - `private external fun onStart(activity: WryActivity)`
 ///       - `private external fun onResume(activity: WryActivity)`
@@ -89,7 +90,7 @@ macro_rules! android_binding {
       $domain,
       $package,
       $activity,
-      create,
+      onFirstActivityCreate,
       [JObject],
       __VOID__,
       [$main],
@@ -326,7 +327,8 @@ pub enum WindowEvent {
   Destroyed,
 }
 
-pub unsafe fn create(_env: JNIEnv, _: JClass, _: JObject, main: fn()) {
+#[allow(non_snake_case)]
+pub unsafe fn onFirstActivityCreate(_env: JNIEnv, _: JClass, _: JObject, main: fn()) {
   let logpipe = {
     let mut logpipe: [RawFd; 2] = Default::default();
     libc::pipe(logpipe.as_mut_ptr());
