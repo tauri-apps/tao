@@ -194,14 +194,12 @@ define_class!(
 
   #[allow(non_snake_case)]
   unsafe impl UIWindowSceneDelegate for TaoSceneDelegate {
-    #[unsafe(method(preferredWindowingControlStyleForScene:))]
+    #[unsafe(method_id(preferredWindowingControlStyleForScene:))]
     fn preferredWindowingControlStyleForScene(
       &self,
       _window_scene: &UIWindowScene,
-    ) -> Option<std::ptr::NonNull<UISceneWindowingControlStyle>> {
-      std::ptr::NonNull::new(Retained::autorelease_ptr(
-        UISceneWindowingControlStyle::minimalStyle(),
-      ))
+    ) -> Retained<UISceneWindowingControlStyle> {
+      UISceneWindowingControlStyle::minimalStyle()
     }
   }
 );
