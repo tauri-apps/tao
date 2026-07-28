@@ -68,8 +68,8 @@ const DATA_URL_ENCODING_SET: &AsciiSet = &CONTROLS
 ///       - `private external fun onStop(activity: WryActivity)`
 ///       - `private external fun onSaveInstanceState(activity: WryActivity)`
 ///       - `private external fun onDestroy(activity: WryActivity)`
-///       - `private external fun onLowMemory(activity: WryActivity)`
 ///       - `private external fun onWindowFocusChanged(activity: WryActivity, focus: Boolean)`
+///       - `private external fun onLowMemory()`
 ///       - `private external fun onNewIntent(intent: Intent)`
 /// 4. an on_activity_create function that will be run once by the `onCreate` function above.
 /// 5. the main entry point of your android application.
@@ -111,8 +111,8 @@ macro_rules! android_binding {
     android_fn!($domain, $package, $activity, onPause, [JObject]);
     android_fn!($domain, $package, $activity, onSaveInstanceState, [JObject]);
     android_fn!($domain, $package, $activity, onDestroy, [JObject]);
-    android_fn!($domain, $package, $activity, onLowMemory, [JObject]);
-    android_fn!($domain, $package, $activity, onWindowFocusChanged, [JObject,i32]);
+    android_fn!($domain, $package, $activity, onWindowFocusChanged, [JObject, i32]);
+    android_fn!($domain, $package, $activity, onLowMemory, []);
     android_fn!($domain, $package, $activity, onNewIntent, [JObject]);
   }};
 }
@@ -757,7 +757,7 @@ pub unsafe fn onDestroy(mut env: JNIEnv, _: JClass, activity: JObject) {
 pub unsafe fn onSaveInstanceState(_: JNIEnv, _: JClass, _: JObject) {}
 
 #[allow(non_snake_case)]
-pub unsafe fn onLowMemory(_: JNIEnv, _: JClass, _: JObject) {
+pub unsafe fn onLowMemory(_: JNIEnv, _: JClass) {
   wake(Event::LowMemory);
 }
 
