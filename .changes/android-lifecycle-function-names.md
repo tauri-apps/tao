@@ -17,3 +17,4 @@ Changed the names of the Android JNI lifecycle functions exposed by `android_bin
 - `onActivityLowMemory` to `onLowMemory`
 
 `onLowMemory` no longer takes any parameters.
+`onFirstActivityCreate` no longer takes any parameters.

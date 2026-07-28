@@ -230,6 +230,14 @@ pub fn android_fn(tokens: TokenStream) -> TokenStream {
     syn::ReturnType::Default
   };
 
+  let function_before = function_before.map(|function_before| quote!(#function_before();));
+
+  let comma_before_args = if args.is_empty() {
+    None
+  } else {
+    Some(syn::token::Comma(proc_macro2::Span::call_site()))
+  };
+
   let comma_before_non_jni_args = if non_jni_args.is_empty() {
     None
   } else {
@@ -243,8 +251,8 @@ pub fn android_fn(tokens: TokenStream) -> TokenStream {
       class: JClass<'local>,
       #(#args),*
     )  #ret {
-      #function_before();
-      #function(env, class, #(#args_),*  #comma_before_non_jni_args #(#non_jni_args),*)
+      #function_before
+      #function(env, class #comma_before_args #(#args_),* #comma_before_non_jni_args #(#non_jni_args),*)
     }
 
   }
