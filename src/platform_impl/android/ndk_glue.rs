@@ -482,6 +482,9 @@ pub unsafe fn onResume(mut env: JNIEnv, _: JClass, activity: JObject) {
     wake(Event::Resume {
       id: WindowId(super::WindowId(activity_id)),
     });
+    wake(Event::Resume {
+      id: WindowId(super::WindowId(activity_id)),
+    });
   }
 }
 
