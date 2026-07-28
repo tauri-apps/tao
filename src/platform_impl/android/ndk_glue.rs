@@ -66,7 +66,6 @@ const DATA_URL_ENCODING_SET: &AsciiSet = &CONTROLS
 ///       - `private external fun onResume(activity: WryActivity)`
 ///       - `private external fun onPause(activity: WryActivity)`
 ///       - `private external fun onStop(activity: WryActivity)`
-///       - `private external fun onSaveInstanceState(activity: WryActivity)`
 ///       - `private external fun onDestroy(activity: WryActivity)`
 ///       - `private external fun onWindowFocusChanged(activity: WryActivity, focus: Boolean)`
 ///       - `private external fun onLowMemory()`
@@ -109,7 +108,6 @@ macro_rules! android_binding {
     android_fn!($domain, $package, $activity, onStop, [JObject]);
     android_fn!($domain, $package, $activity, onResume, [JObject]);
     android_fn!($domain, $package, $activity, onPause, [JObject]);
-    android_fn!($domain, $package, $activity, onSaveInstanceState, [JObject]);
     android_fn!($domain, $package, $activity, onDestroy, [JObject]);
     android_fn!($domain, $package, $activity, onWindowFocusChanged, [JObject, i32]);
     android_fn!($domain, $package, $activity, onLowMemory, []);
@@ -752,9 +750,6 @@ pub unsafe fn onDestroy(mut env: JNIEnv, _: JClass, activity: JObject) {
 ///////////////////////////////////////////////
 // Events below are not used by event loop yet.
 ///////////////////////////////////////////////
-
-#[allow(non_snake_case)]
-pub unsafe fn onSaveInstanceState(_: JNIEnv, _: JClass, _: JObject) {}
 
 #[allow(non_snake_case)]
 pub unsafe fn onLowMemory(_: JNIEnv, _: JClass) {
