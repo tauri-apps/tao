@@ -655,7 +655,7 @@ impl UnownedWindow {
 
   pub fn set_title(&self, title: &str) {
     unsafe {
-      util::set_title_async(&self.ns_window, title.to_string());
+      util::set_title_async(&self.ns_window, &self.ns_view, title.to_string());
     }
   }
 
