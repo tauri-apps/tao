@@ -93,19 +93,11 @@ define_class!(
         }
 
         if let Some(window_scene) = scene.downcast_ref::<UIWindowScene>() {
-          let windows = window_scene.windows();
-
-          if windows.is_empty() {
+          if window_scene.windows().is_empty() {
             log::debug!("`sceneDidDisconnect` called for a `UIWindowScene` with no windows; no `WindowEvent::Destroyed` events were emitted");
           }
-
-          for window in windows {
-            app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::WindowEvent {
-              window_id: RootWindowId(window.into()),
-              event: WindowEvent::Destroyed,
-            }));
-          }
         }
+        handle_scene_window_events(scene, || WindowEvent::Destroyed);
       }
     }
 
