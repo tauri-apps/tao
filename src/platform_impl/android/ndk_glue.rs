@@ -70,6 +70,7 @@ const DATA_URL_ENCODING_SET: &AsciiSet = &CONTROLS
 ///       - `private external fun onDestroy(activity: WryActivity)`
 ///       - `private external fun onLowMemory(activity: WryActivity)`
 ///       - `private external fun onWindowFocusChanged(activity: WryActivity, focus: Boolean)`
+///       - `private external fun onNewIntent(intent: Intent)`
 /// 4. an on_activity_create function that will be run once by the `onCreate` function above.
 /// 5. the main entry point of your android application.
 #[rustfmt::skip]
