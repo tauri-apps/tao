@@ -87,8 +87,19 @@ define_class!(
     #[unsafe(method(sceneDidDisconnect:))]
     fn sceneDidDisconnect(&self, scene: &UIScene) {
       unsafe {
+        if app_state::is_terminated() {
+          log::debug!("ignoring `sceneDidDisconnect` after application termination");
+          return;
+        }
+
         if let Some(window_scene) = scene.downcast_ref::<UIWindowScene>() {
-          for window in window_scene.windows() {
+          let windows = window_scene.windows();
+
+          if windows.is_empty() {
+            log::debug!("`sceneDidDisconnect` called for a `UIWindowScene` with no windows; no `WindowEvent::Destroyed` events were emitted");
+          }
+
+          for window in windows {
             app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::WindowEvent {
               window_id: RootWindowId(window.into()),
               event: WindowEvent::Destroyed,
