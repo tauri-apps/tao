@@ -61,16 +61,16 @@ const DATA_URL_ENCODING_SET: &AsciiSet = &CONTROLS
 /// 1. android app domain name in reverse snake_case as an ident (for ex: com_example)
 /// 2. android package anme (for ex: wryapp)
 /// 3. the android activity that has external linking for the following functions and calls them:
-///       - `private external fun onActivityCreate(activity: WryActivity)``
-///       - `private external fun start(activity: WryActivity)`
-///       - `private external fun resume(activity: WryActivity)`
-///       - `private external fun pause(activity: WryActivity)`
-///       - `private external fun stop(activity: WryActivity)`
-///       - `private external fun onActivitySaveInstanceState()`
-///       - `private external fun onActivityDestroy(activity: WryActivity)`
-///       - `private external fun onActivityLowMemory()`
+///       - `private external fun onCreate(activity: WryActivity)`
+///       - `private external fun onStart(activity: WryActivity)`
+///       - `private external fun onResume(activity: WryActivity)`
+///       - `private external fun onPause(activity: WryActivity)`
+///       - `private external fun onStop(activity: WryActivity)`
+///       - `private external fun onSaveInstanceState(activity: WryActivity)`
+///       - `private external fun onDestroy(activity: WryActivity)`
+///       - `private external fun onLowMemory(activity: WryActivity)`
 ///       - `private external fun onWindowFocusChanged(activity: WryActivity, focus: Boolean)`
-/// 4. a on_activity_create function that will be ran once after the `onActivityCreate` function above.
+/// 4. an on_activity_create function that will be run once by the `onCreate` function above.
 /// 5. the main entry point of your android application.
 #[rustfmt::skip]
 #[macro_export]
@@ -98,19 +98,19 @@ macro_rules! android_binding {
       $domain,
       $package,
       $activity,
-      onActivityCreate,
+      onCreate,
       [JObject],
       __VOID__,
       [$on_activity_create],
       _____tao_store_package_name__,
     );
-    android_fn!($domain, $package, $activity, start, [JObject]);
-    android_fn!($domain, $package, $activity, stop, [JObject]);
-    android_fn!($domain, $package, $activity, resume, [JObject]);
-    android_fn!($domain, $package, $activity, pause, [JObject]);
-    android_fn!($domain, $package, $activity, onActivitySaveInstanceState, [JObject]);
-    android_fn!($domain, $package, $activity, onActivityDestroy, [JObject]);
-    android_fn!($domain, $package, $activity, onActivityLowMemory, [JObject]);
+    android_fn!($domain, $package, $activity, onStart, [JObject]);
+    android_fn!($domain, $package, $activity, onStop, [JObject]);
+    android_fn!($domain, $package, $activity, onResume, [JObject]);
+    android_fn!($domain, $package, $activity, onPause, [JObject]);
+    android_fn!($domain, $package, $activity, onSaveInstanceState, [JObject]);
+    android_fn!($domain, $package, $activity, onDestroy, [JObject]);
+    android_fn!($domain, $package, $activity, onLowMemory, [JObject]);
     android_fn!($domain, $package, $activity, onWindowFocusChanged, [JObject,i32]);
     android_fn!($domain, $package, $activity, onNewIntent, [JObject]);
   }};
@@ -386,7 +386,7 @@ pub unsafe fn create(_env: JNIEnv, _: JClass, _: JObject, main: fn()) {
 }
 
 #[allow(non_snake_case)]
-pub unsafe fn onActivityCreate(
+pub unsafe fn onCreate(
   mut env: JNIEnv,
   _jclass: JClass,
   activity: JObject,
@@ -471,7 +471,8 @@ pub unsafe fn onActivityCreate(
   handle_intent(env, intent);
 }
 
-pub unsafe fn resume(mut env: JNIEnv, _: JClass, activity: JObject) {
+#[allow(non_snake_case)]
+pub unsafe fn onResume(mut env: JNIEnv, _: JClass, activity: JObject) {
   let activity_id = activity_id(&mut env, &activity);
   let did_resume = !RESUMED_ACTIVITIES.lock().unwrap().insert(activity_id);
   // first Activity onResume() is called even after onCreate()
@@ -483,7 +484,8 @@ pub unsafe fn resume(mut env: JNIEnv, _: JClass, activity: JObject) {
   }
 }
 
-pub unsafe fn pause(mut env: JNIEnv, _: JClass, activity: JObject) {
+#[allow(non_snake_case)]
+pub unsafe fn onPause(mut env: JNIEnv, _: JClass, activity: JObject) {
   let activity_id = activity_id(&mut env, &activity);
   wake(Event::Pause {
     id: WindowId(super::WindowId(activity_id)),
@@ -701,7 +703,8 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
   }
 }
 
-pub unsafe fn start(mut env: JNIEnv, _: JClass, activity: JObject) {
+#[allow(non_snake_case)]
+pub unsafe fn onStart(mut env: JNIEnv, _: JClass, activity: JObject) {
   let activity_id = activity_id(&mut env, &activity);
   wake(Event::WindowEvent {
     id: WindowId(super::WindowId(activity_id)),
@@ -709,7 +712,8 @@ pub unsafe fn start(mut env: JNIEnv, _: JClass, activity: JObject) {
   });
 }
 
-pub unsafe fn stop(mut env: JNIEnv, _: JClass, activity: JObject) {
+#[allow(non_snake_case)]
+pub unsafe fn onStop(mut env: JNIEnv, _: JClass, activity: JObject) {
   let activity_id = activity_id(&mut env, &activity);
   wake(Event::WindowEvent {
     id: WindowId(super::WindowId(activity_id)),
@@ -718,7 +722,7 @@ pub unsafe fn stop(mut env: JNIEnv, _: JClass, activity: JObject) {
 }
 
 #[allow(non_snake_case)]
-pub unsafe fn onActivityDestroy(mut env: JNIEnv, _: JClass, activity: JObject) {
+pub unsafe fn onDestroy(mut env: JNIEnv, _: JClass, activity: JObject) {
   let activity_id = env
     .call_method(&activity, "getId", "()I", &[])
     .unwrap()
@@ -746,10 +750,10 @@ pub unsafe fn onActivityDestroy(mut env: JNIEnv, _: JClass, activity: JObject) {
 ///////////////////////////////////////////////
 
 #[allow(non_snake_case)]
-pub unsafe fn onActivitySaveInstanceState(_: JNIEnv, _: JClass, _: JObject) {}
+pub unsafe fn onSaveInstanceState(_: JNIEnv, _: JClass, _: JObject) {}
 
 #[allow(non_snake_case)]
-pub unsafe fn onActivityLowMemory(_: JNIEnv, _: JClass, _: JObject) {
+pub unsafe fn onLowMemory(_: JNIEnv, _: JClass, _: JObject) {
   wake(Event::LowMemory);
 }
 
