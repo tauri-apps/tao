@@ -2,6 +2,8 @@
 "tao": minor
 ---
 
+**Breaking Change:**
+
 Changed the names of the Android JNI lifecycle functions exposed by `android_binding!` as follows:
 
 - `onActivityCreate` to `onCreate`
@@ -9,6 +11,8 @@ Changed the names of the Android JNI lifecycle functions exposed by `android_bin
 - `resume` to `onResume`
 - `pause` to `onPause`
 - `stop` to `onStop`
-- `onActivitySaveInstanceState` to `onSaveInstanceState`
+- Removed `onActivitySaveInstanceState`
 - `onActivityDestroy` to `onDestroy`
 - `onActivityLowMemory` to `onLowMemory`
+
+`onLowMemory` no longer takes any parameters.
