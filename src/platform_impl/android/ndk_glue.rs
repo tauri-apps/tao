@@ -72,7 +72,7 @@ const DATA_URL_ENCODING_SET: &AsciiSet = &CONTROLS
 ///       - `private external fun onLowMemory()`
 ///       - `private external fun onNewIntent(intent: Intent)`
 /// 4. an on_activity_create function that will be ran once after the `onCreate` function above.
-/// 5. the main entry point of your android application.
+/// 5. the main entry point of your android application that runs in `onFirstActivityCreate` after `onCreate` and `on_activity_create`.
 #[rustfmt::skip]
 #[macro_export]
 macro_rules! android_binding {
