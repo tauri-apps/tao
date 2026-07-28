@@ -123,7 +123,7 @@ pub enum Event<'a, T: 'static> {
 
   /// Emitted when the event loop is being shut down.
   ///
-  /// This is irreversable - if this event is emitted, it is guaranteed to be the last event that
+  /// This is irreversible - if this event is emitted, it is guaranteed to be the last event that
   /// gets emitted. You generally want to treat this as an "do on quit" event.
   LoopDestroyed,
 
@@ -276,7 +276,7 @@ pub enum WindowEvent<'a> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux(Wayland)**: will always be (0, 0) since Wayland doesn't support a global cordinate system.
+  /// - **Linux(Wayland)**: will always be (0, 0) since Wayland doesn't support a global coordinate system.
   Moved(PhysicalPosition<i32>),
 
   /// The window has been requested to close.
