@@ -25,10 +25,7 @@ use std::{
   fs::File,
   io::{BufRead, BufReader},
   os::unix::prelude::*,
-  sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc, Condvar, Mutex, RwLock, RwLockReadGuard,
-  },
+  sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard},
   thread,
   time::Duration,
 };
@@ -65,10 +62,10 @@ const DATA_URL_ENCODING_SET: &AsciiSet = &CONTROLS
 /// 2. android package anme (for ex: wryapp)
 /// 3. the android activity that has external linking for the following functions and calls them:
 ///       - `private external fun onActivityCreate(activity: WryActivity)``
-///       - `private external fun start()`
-///       - `private external fun resume()`
-///       - `private external fun pause()`
-///       - `private external fun stop()`
+///       - `private external fun start(activity: WryActivity)`
+///       - `private external fun resume(activity: WryActivity)`
+///       - `private external fun pause(activity: WryActivity)`
+///       - `private external fun stop(activity: WryActivity)`
 ///       - `private external fun onActivitySaveInstanceState()`
 ///       - `private external fun onActivityDestroy(activity: WryActivity)`
 ///       - `private external fun onActivityLowMemory()`
@@ -223,7 +220,7 @@ static INTENT_URLS: Lazy<Mutex<Vec<url::Url>>> = Lazy::new(Default::default);
 static INPUT_QUEUE: Lazy<RwLock<Option<InputQueue>>> = Lazy::new(Default::default);
 static CONTENT_RECT: Lazy<RwLock<Rect>> = Lazy::new(Default::default);
 static LOOPER: Lazy<Mutex<Option<ForeignLooper>>> = Lazy::new(Default::default);
-static DID_RESUME: AtomicBool = AtomicBool::new(false);
+static RESUMED_ACTIVITIES: Lazy<Mutex<HashSet<ActivityId>>> = Lazy::new(Default::default);
 
 pub fn main_window_manager() -> Option<GlobalRef> {
   WINDOW_MANAGER.lock().unwrap().values().next().cloned()
@@ -243,6 +240,14 @@ pub fn input_queue() -> RwLockReadGuard<'static, Option<InputQueue>> {
 
 pub fn content_rect() -> Rect {
   CONTENT_RECT.read().unwrap().clone()
+}
+
+fn activity_id(env: &mut JNIEnv<'_>, activity: &JObject<'_>) -> ActivityId {
+  env
+    .call_method(activity, "getId", "()I", &[])
+    .unwrap()
+    .i()
+    .unwrap()
 }
 
 pub fn main_android_context() -> Option<AndroidContext> {
@@ -268,7 +273,7 @@ pub static PIPE: Lazy<[OwnedFd; 2]> = Lazy::new(|| {
 pub fn poll_events() -> Option<Event> {
   unsafe {
     let size = std::mem::size_of::<Event>();
-    let mut event = Event::Start;
+    let mut event = Event::LowMemory;
     if libc::read(PIPE[0].as_raw_fd(), &mut event as *mut _ as *mut _, size)
       == size as libc::ssize_t
     {
@@ -302,10 +307,8 @@ pub struct Rect {
 #[derive(Clone, Debug, Eq, PartialEq, Copy)]
 #[repr(u8)]
 pub enum Event {
-  Start,
-  Resume,
-  Pause,
-  Stop,
+  Resume { id: WindowId },
+  Pause { id: WindowId },
   LowMemory,
   WindowEvent { id: WindowId, event: WindowEvent },
   ContentRectChanged,
@@ -317,8 +320,10 @@ pub enum Event {
 pub enum WindowEvent {
   Focused(bool),
   Created,
+  Started,
   Resized,
   RedrawNeeded,
+  Stopped,
   Destroyed,
 }
 
@@ -466,17 +471,23 @@ pub unsafe fn onActivityCreate(
   handle_intent(env, intent);
 }
 
-pub unsafe fn resume(_: JNIEnv, _: JClass, _: JObject) {
-  let did_resume = DID_RESUME.swap(true, Ordering::Relaxed);
+pub unsafe fn resume(mut env: JNIEnv, _: JClass, activity: JObject) {
+  let activity_id = activity_id(&mut env, &activity);
+  let did_resume = !RESUMED_ACTIVITIES.lock().unwrap().insert(activity_id);
   // first Activity onResume() is called even after onCreate()
   // to match the iOS implementation, we ignore the first resume event
   if did_resume {
-    wake(Event::Resume);
+    wake(Event::Resume {
+      id: WindowId(super::WindowId(activity_id)),
+    });
   }
 }
 
-pub unsafe fn pause(_: JNIEnv, _: JClass, _: JObject) {
-  wake(Event::Pause);
+pub unsafe fn pause(mut env: JNIEnv, _: JClass, activity: JObject) {
+  let activity_id = activity_id(&mut env, &activity);
+  wake(Event::Pause {
+    id: WindowId(super::WindowId(activity_id)),
+  });
 }
 
 #[allow(non_snake_case)]
@@ -486,7 +497,11 @@ pub unsafe fn onWindowFocusChanged(
   activity: JObject,
   has_focus: libc::c_int,
 ) {
-  let activity_id = jni_call_method!(env, &activity, "getId", "()I", i).unwrap();
+  let activity_id = env
+    .call_method(&activity, "getId", "()I", &[])
+    .unwrap()
+    .i()
+    .unwrap();
   let event = Event::WindowEvent {
     id: WindowId(super::WindowId(activity_id)),
     event: WindowEvent::Focused(has_focus != 0),
@@ -686,17 +701,29 @@ pub unsafe fn handle_intent(mut env: JNIEnv, intent: JObject) {
   }
 }
 
-pub unsafe fn start(_: JNIEnv, _: JClass, _: JObject) {
-  wake(Event::Start);
+pub unsafe fn start(mut env: JNIEnv, _: JClass, activity: JObject) {
+  let activity_id = activity_id(&mut env, &activity);
+  wake(Event::WindowEvent {
+    id: WindowId(super::WindowId(activity_id)),
+    event: WindowEvent::Started,
+  });
 }
 
-pub unsafe fn stop(_: JNIEnv, _: JClass, _: JObject) {
-  wake(Event::Stop);
+pub unsafe fn stop(mut env: JNIEnv, _: JClass, activity: JObject) {
+  let activity_id = activity_id(&mut env, &activity);
+  wake(Event::WindowEvent {
+    id: WindowId(super::WindowId(activity_id)),
+    event: WindowEvent::Stopped,
+  });
 }
 
 #[allow(non_snake_case)]
 pub unsafe fn onActivityDestroy(mut env: JNIEnv, _: JClass, activity: JObject) {
-  let activity_id = jni_call_method!(env, &activity, "getId", "()I", i).unwrap();
+  let activity_id = env
+    .call_method(&activity, "getId", "()I", &[])
+    .unwrap()
+    .i()
+    .unwrap();
 
   let is_changing_configurations =
     jni_call_method!(env, &activity, "isChangingConfigurations", "()Z", z).unwrap();
@@ -710,6 +737,7 @@ pub unsafe fn onActivityDestroy(mut env: JNIEnv, _: JClass, activity: JObject) {
     });
     CONTEXTS.lock().unwrap().remove(&activity_id);
     WINDOW_MANAGER.lock().unwrap().remove(&activity_id);
+    RESUMED_ACTIVITIES.lock().unwrap().remove(&activity_id);
   }
 }
 
