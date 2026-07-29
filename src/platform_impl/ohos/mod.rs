@@ -54,7 +54,7 @@ pub struct EventLoop<T: 'static> {
   cause: StartCause,
   user_events_sender: mpsc::Sender<T>,
   user_events_receiver: PeekableReceiver<T>,
-  event_loop: RefCell<Option<Box<dyn FnMut(event::Event<T>)>>>,
+  event_handler: RefCell<Option<Box<dyn FnMut(event::Event<T>)>>>,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -93,7 +93,7 @@ impl<T: 'static> EventLoop<T> {
       cause: StartCause::Init,
       user_events_sender,
       user_events_receiver: PeekableReceiver::from_recv(user_events_receiver),
-      event_loop: RefCell::new(None),
+      event_handler: RefCell::new(None),
     }
   }
 
@@ -140,7 +140,7 @@ impl<T: 'static> EventLoop<T> {
                 force: Some(Force::Normalized(pointer.force as f64)),
               }),
             };
-            if let Some(ref mut h) = *self.event_loop.borrow_mut() {
+            if let Some(ref mut h) = *self.event_handler.borrow_mut() {
               h(event);
             }
           }
@@ -176,7 +176,7 @@ impl<T: 'static> EventLoop<T> {
                 is_synthetic: false,
               },
             };
-            if let Some(ref mut h) = *self.event_loop.borrow_mut() {
+            if let Some(ref mut h) = *self.event_handler.borrow_mut() {
               h(event);
             }
           }
@@ -184,7 +184,7 @@ impl<T: 'static> EventLoop<T> {
       }
       InputEvent::ImeEvent(data) => match data {
         ImeEvent::TextInputEvent(s) => {
-          if let Some(ref mut h) = *self.event_loop.borrow_mut() {
+          if let Some(ref mut h) = *self.event_handler.borrow_mut() {
             h(event::Event::WindowEvent {
               window_id: window::WindowId(WindowId),
               event: event::WindowEvent::ReceivedImeText(s.text.clone()),
@@ -192,7 +192,7 @@ impl<T: 'static> EventLoop<T> {
           }
         }
         ImeEvent::BackspaceEvent(_) => {
-          if let Some(ref mut h) = *self.event_loop.borrow_mut() {
+          if let Some(ref mut h) = *self.event_handler.borrow_mut() {
             // Mock keyboard input event
             let _ = [ElementState::Pressed, ElementState::Released].map(|state| {
               h(event::Event::WindowEvent {
@@ -215,7 +215,7 @@ impl<T: 'static> EventLoop<T> {
           }
         }
         ImeEvent::EnterEvent(_) => {
-          if let Some(ref mut h) = *self.event_loop.borrow_mut() {
+          if let Some(ref mut h) = *self.event_handler.borrow_mut() {
             // Mock keyboard input event
             // Mock keyboard input event
             let _ = [ElementState::Pressed, ElementState::Released].map(|state| {
@@ -240,7 +240,7 @@ impl<T: 'static> EventLoop<T> {
         }
         ImeEvent::ImeStatusEvent(s) => match s {
           KeyboardStatus::Hide => {
-            if let Some(ref mut h) = *self.event_loop.borrow_mut() {
+            if let Some(ref mut h) = *self.event_handler.borrow_mut() {
               // Mock keyboard input event that make sure egui can receive the event and trigger onblur event
               [ElementState::Pressed, ElementState::Released].map(|state| {
                 h(event::Event::WindowEvent {
@@ -281,7 +281,7 @@ impl<T: 'static> EventLoop<T> {
     event_looper.run_return(event_handler);
   }
 
-  pub fn run_return<F>(&mut self, mut event_handle: F) -> i32
+  pub fn run_return<F>(&mut self, mut event_handler: F) -> i32
   where
     F: FnMut(event::Event<T>, &event_loop::EventLoopWindowTarget<T>, &mut ControlFlow),
   {
@@ -289,28 +289,28 @@ impl<T: 'static> EventLoop<T> {
     let target = &self.window_target;
 
     {
-      let handle = unsafe {
+      let handler = unsafe {
         std::mem::transmute::<Box<dyn FnMut(event::Event<T>)>, Box<dyn FnMut(event::Event<T>)>>(
           Box::new(move |e| {
-            event_handle(e, &target, &mut control_flow);
+            event_handler(e, &target, &mut control_flow);
             // We need to dispatch it after every event callbacks.
-            event_handle(event::Event::MainEventsCleared, &target, &mut control_flow);
+            event_handler(event::Event::MainEventsCleared, &target, &mut control_flow);
           }),
         )
       };
-      self.event_loop.replace(Some(handle));
+      self.event_handler.replace(Some(handler));
     }
 
     self.openharmony_app.clone().run_loop(|event| {
       match event {
         MainEvent::SurfaceCreate { .. } => {
-          if let Some(ref mut h) = *self.event_loop.borrow_mut() {
+          if let Some(ref mut h) = *self.event_handler.borrow_mut() {
             h(event::Event::NewEvents(StartCause::Init));
             h(event::Event::Resumed);
           }
         }
         MainEvent::SurfaceDestroy { .. } => {
-          if let Some(ref mut h) = *self.event_loop.borrow_mut() {
+          if let Some(ref mut h) = *self.event_handler.borrow_mut() {
             h(event::Event::Suspended);
           }
         }
@@ -321,14 +321,14 @@ impl<T: 'static> EventLoop<T> {
             event: event::WindowEvent::Resized(size),
           };
 
-          if let Some(ref mut h) = *self.event_loop.borrow_mut() {
+          if let Some(ref mut h) = *self.event_handler.borrow_mut() {
             h(event);
           }
         }
         MainEvent::WindowRedraw { .. } => {
           let event = event::Event::RedrawRequested(window::WindowId(WindowId));
 
-          if let Some(ref mut h) = *self.event_loop.borrow_mut() {
+          if let Some(ref mut h) = *self.event_handler.borrow_mut() {
             h(event);
           }
         }
@@ -338,7 +338,7 @@ impl<T: 'static> EventLoop<T> {
         MainEvent::GainedFocus => {
           HAS_FOCUS.store(true, Ordering::Relaxed);
 
-          if let Some(ref mut h) = *self.event_loop.borrow_mut() {
+          if let Some(ref mut h) = *self.event_handler.borrow_mut() {
             h(event::Event::WindowEvent {
               window_id: window::WindowId(WindowId),
               event: event::WindowEvent::Focused(true),
@@ -348,7 +348,7 @@ impl<T: 'static> EventLoop<T> {
         MainEvent::LostFocus => {
           HAS_FOCUS.store(false, Ordering::Relaxed);
 
-          if let Some(ref mut h) = *self.event_loop.borrow_mut() {
+          if let Some(ref mut h) = *self.event_handler.borrow_mut() {
             h(event::Event::WindowEvent {
               window_id: window::WindowId(WindowId),
               event: event::WindowEvent::Focused(true),
@@ -367,7 +367,7 @@ impl<T: 'static> EventLoop<T> {
             },
           };
 
-          if let Some(ref mut h) = *self.event_loop.borrow_mut() {
+          if let Some(ref mut h) = *self.event_handler.borrow_mut() {
             h(event);
           }
         }
@@ -376,7 +376,7 @@ impl<T: 'static> EventLoop<T> {
           warn!("TODO: forward onStart notification to application");
         }
         MainEvent::Resume { .. } => {
-          if let Some(ref mut h) = *self.event_loop.borrow_mut() {
+          if let Some(ref mut h) = *self.event_handler.borrow_mut() {
             h(event::Event::Resumed);
           }
         }
@@ -391,7 +391,7 @@ impl<T: 'static> EventLoop<T> {
           // self.running = false;
         }
         MainEvent::WindowDestroy => {
-          if let Some(ref mut h) = *self.event_loop.borrow_mut() {
+          if let Some(ref mut h) = *self.event_handler.borrow_mut() {
             let e = event::Event::WindowEvent {
               window_id: window::WindowId(WindowId),
               event: event::WindowEvent::CloseRequested,
@@ -408,7 +408,7 @@ impl<T: 'static> EventLoop<T> {
           self.handle_input_event(&input_event);
         }
         MainEvent::UserEvent { .. } => {
-          if let Some(ref mut h) = *self.event_loop.borrow_mut() {
+          if let Some(ref mut h) = *self.event_handler.borrow_mut() {
             if let Ok(event) = self.user_events_receiver.try_recv() {
               let event = event::Event::UserEvent(event);
               h(event);
@@ -421,7 +421,7 @@ impl<T: 'static> EventLoop<T> {
       };
 
       if self.window_target.p.exit.get() {
-        if let Some(ref mut h) = *self.event_loop.borrow_mut() {
+        if let Some(ref mut h) = *self.event_handler.borrow_mut() {
           h(event::Event::LoopDestroyed);
           self.openharmony_app.exit(0);
         }
