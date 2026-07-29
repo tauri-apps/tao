@@ -242,7 +242,7 @@ impl<T: 'static> EventLoop<T> {
           KeyboardStatus::Hide => {
             if let Some(ref mut h) = *self.event_handler.borrow_mut() {
               // Mock keyboard input event that make sure egui can receive the event and trigger onblur event
-              [ElementState::Pressed, ElementState::Released].map(|state| {
+              for state in [ElementState::Pressed, ElementState::Released] {
                 h(event::Event::WindowEvent {
                   window_id: window::WindowId(WindowId),
                   event: event::WindowEvent::KeyboardInput {
@@ -259,7 +259,7 @@ impl<T: 'static> EventLoop<T> {
                     is_synthetic: false,
                   },
                 });
-              });
+              }
             }
           }
           _ => {
