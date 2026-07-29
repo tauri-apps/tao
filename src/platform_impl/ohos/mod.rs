@@ -306,12 +306,18 @@ impl<T: 'static> EventLoop<T> {
         MainEvent::SurfaceCreate { .. } => {
           if let Some(ref mut h) = *self.event_handler.borrow_mut() {
             h(event::Event::NewEvents(StartCause::Init));
-            h(event::Event::Resumed);
+            h(event::Event::WindowEvent {
+              window_id: window::WindowId(WindowId),
+              event: event::WindowEvent::Resumed,
+            });
           }
         }
         MainEvent::SurfaceDestroy { .. } => {
           if let Some(ref mut h) = *self.event_handler.borrow_mut() {
-            h(event::Event::Suspended);
+            h(event::Event::WindowEvent {
+              window_id: window::WindowId(WindowId),
+              event: event::WindowEvent::Suspended,
+            });
           }
         }
         MainEvent::WindowResize(size) => {
@@ -377,7 +383,10 @@ impl<T: 'static> EventLoop<T> {
         }
         MainEvent::Resume { .. } => {
           if let Some(ref mut h) = *self.event_handler.borrow_mut() {
-            h(event::Event::Resumed);
+            h(event::Event::WindowEvent {
+              window_id: window::WindowId(WindowId),
+              event: event::WindowEvent::Resumed,
+            });
           }
         }
         MainEvent::SaveState { .. } => {
