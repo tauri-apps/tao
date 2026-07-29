@@ -194,7 +194,7 @@ impl<T: 'static> EventLoop<T> {
     thread::spawn(move || wait_thread(thread_id, HWND(send_thread_msg_target as _)));
     let wait_thread_id = get_wait_thread_id();
 
-    let runner_shared = Rc::new(EventLoopRunner::new(thread_msg_target, wait_thread_id));
+    let runner_shared = std::sync::Arc::new(EventLoopRunner::new(thread_msg_target, wait_thread_id));
 
     let thread_msg_sender =
       insert_event_target_window_data::<T>(thread_msg_target, runner_shared.clone());
