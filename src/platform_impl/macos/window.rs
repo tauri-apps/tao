@@ -402,8 +402,6 @@ pub(super) fn set_ns_theme(theme: Option<Theme>) {
 }
 
 struct WindowClass(&'static Class);
-unsafe impl Send for WindowClass {}
-unsafe impl Sync for WindowClass {}
 
 static WINDOW_CLASS: Lazy<WindowClass> = Lazy::new(|| unsafe {
   let window_superclass = class!(NSWindow);
@@ -657,7 +655,7 @@ impl UnownedWindow {
 
   pub fn set_title(&self, title: &str) {
     unsafe {
-      util::set_title_async(&self.ns_window, title.to_string());
+      util::set_title_async(&self.ns_window, &self.ns_view, title.to_string());
     }
   }
 

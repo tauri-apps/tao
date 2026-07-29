@@ -8,7 +8,6 @@ use windows::{
   core::PCWSTR,
   Win32::{
     Foundation::{HWND, LPARAM, WPARAM},
-    System::LibraryLoader::*,
     UI::WindowsAndMessaging::*,
   },
 };
@@ -97,7 +96,7 @@ impl WinIcon {
     let (width, height) = size.map(Into::into).unwrap_or((0, 0));
     let handle = unsafe {
       LoadImageW(
-        GetModuleHandleW(PCWSTR::null()).map(Into::into).ok(),
+        Some(util::get_instance_handle()),
         PCWSTR::from_raw(resource_id as usize as *const u16),
         IMAGE_ICON,
         width,

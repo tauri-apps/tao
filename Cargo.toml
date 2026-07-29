@@ -1,6 +1,6 @@
 [package]
 name = "tao"
-version = "0.35.3"
+version = "0.36.0"
 description = "Cross-platform window manager library."
 authors = [
   "Tauri Programme within The Commons Conservancy",
@@ -105,8 +105,9 @@ features = [
 jni = "0.21"
 ndk = "0.9"
 ndk-sys = "0.6"
+ndk-context = "0.1"
 percent-encoding = "2.3"
-tao-macros = { version = "0.1.0", path = "./tao-macros" }
+tao-macros = { version = "0.1.4", path = "./tao-macros" }
 
 [target."cfg(target_env = \"ohos\")".dependencies]
 openharmony-ability = { git = "https://github.com/harmony-contrib/openharmony-ability.git" }
@@ -161,6 +162,8 @@ objc2-ui-kit = { version = "0.3", features = [
   "UIScene",
   "UISceneOptions",
   "UIOpenURLContext",
+  "UISceneWindowingControlStyle",
+  "UIWindowScene",
 ] }
 objc2-foundation = { version = "0.3", default-features = false, features = [
   "NSProcessInfo",

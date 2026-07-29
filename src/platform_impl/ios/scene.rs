@@ -8,7 +8,7 @@ use objc2_foundation::{
 };
 use objc2_ui_kit::{
   UIApplication, UIOpenURLContext, UIScene, UISceneConnectionOptions, UISceneDelegate,
-  UISceneSession, UIWindowScene,
+  UISceneSession, UISceneWindowingControlStyle, UIWindowScene, UIWindowSceneDelegate,
 };
 
 use crate::{
@@ -45,6 +45,17 @@ pub unsafe fn multiple_scenes_enabled() -> bool {
 
   let num = Retained::cast_unchecked::<NSNumber>(value);
   (*num).as_bool()
+}
+
+unsafe fn handle_scene_window_events(scene: &UIScene, event: impl Fn() -> WindowEvent<'static>) {
+  if let Some(window_scene) = scene.downcast_ref::<UIWindowScene>() {
+    for window in window_scene.windows() {
+      app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::WindowEvent {
+        window_id: RootWindowId(window.into()),
+        event: event(),
+      }));
+    }
+  }
 }
 
 define_class!(
@@ -89,19 +100,17 @@ define_class!(
     #[unsafe(method(sceneWillResignActive:))]
     fn sceneWillResignActive(&self, scene: &UIScene) {
       unsafe {
-        if let Some(window_scene) = scene.downcast_ref::<UIWindowScene>() {
-          for window in window_scene.windows() {
-            app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::WindowEvent {
-              window_id: RootWindowId(window.into()),
-              event: WindowEvent::Focused(false),
-            }));
-          }
-        }
+        handle_scene_window_events(scene, || WindowEvent::Focused(false));
+        handle_scene_window_events(scene, || WindowEvent::Suspended);
       }
     }
 
     #[unsafe(method(sceneWillEnterForeground:))]
-    fn sceneWillEnterForeground(&self, _scene: &UIScene) {}
+    fn sceneWillEnterForeground(&self, scene: &UIScene) {
+      unsafe {
+        handle_scene_window_events(scene, || WindowEvent::Resumed);
+      }
+    }
 
     #[unsafe(method(sceneDidEnterBackground:))]
     fn sceneDidEnterBackground(&self, _scene: &UIScene) {}
@@ -181,5 +190,16 @@ define_class!(
 
     #[unsafe(method(scene:didUpdateUserActivity:))]
     fn scene_didUpdateUserActivity(&self, _scene: &UIScene, _user_activity: &NSUserActivity) {}
+  }
+
+  #[allow(non_snake_case)]
+  unsafe impl UIWindowSceneDelegate for TaoSceneDelegate {
+    #[unsafe(method_id(preferredWindowingControlStyleForScene:))]
+    fn preferredWindowingControlStyleForScene(
+      &self,
+      _window_scene: &UIWindowScene,
+    ) -> Retained<UISceneWindowingControlStyle> {
+      UISceneWindowingControlStyle::minimalStyle()
+    }
   }
 );

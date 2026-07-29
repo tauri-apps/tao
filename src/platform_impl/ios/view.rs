@@ -136,7 +136,11 @@ unsafe fn get_view_class(root_view_class: &'static Class) -> &'static Class {
         let () = msg_send![super(object, superclass), layoutSubviews];
 
         let window: id = msg_send![object, window];
-        assert!(!window.is_null());
+        // UIKit can lay out a view while it is detached during window and view-controller
+        // transitions. There is no window ID or screen geometry to report until reattachment.
+        if window.is_null() {
+          return;
+        }
         let window_bounds: CGRect = msg_send![window, bounds];
         let screen: id = msg_send![window, screen];
         let screen_space: id = msg_send![screen, coordinateSpace];
@@ -643,7 +647,7 @@ pub fn create_delegate_class() {
 
       // Dynamically set the delegate class name
       config.setDelegateClass(Some(super::scene::TaoSceneDelegate::class()));
-      Retained::as_ptr(&config) as _
+      Retained::autorelease_ptr(config) as _
     }
   }
 
@@ -663,6 +667,27 @@ pub fn create_delegate_class() {
 
       app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls: vec![url] }));
     }
+  }
+
+  unsafe fn handle_tao_window_events(event: impl Fn() -> WindowEvent<'static>) {
+    let app: id = msg_send![class!(UIApplication), sharedApplication];
+    let windows: id = msg_send![app, windows];
+    let windows_enum: id = msg_send![windows, objectEnumerator];
+    let mut events = Vec::new();
+    loop {
+      let window: id = msg_send![windows_enum, nextObject];
+      if window == nil {
+        break;
+      }
+      let is_tao_window: bool = msg_send![window, isKindOfClass: class!(TaoUIWindow)];
+      if is_tao_window {
+        events.push(EventWrapper::StaticEvent(Event::WindowEvent {
+          window_id: RootWindowId(window.into()),
+          event: event(),
+        }));
+      }
+    }
+    app_state::handle_nonuser_events(events);
   }
 
   // custom URL schemes
@@ -701,35 +726,16 @@ pub fn create_delegate_class() {
   }
 
   extern "C" fn will_resign_active(_: &Object, _: Sel, _: id) {
-    unsafe { app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Suspended)) }
+    unsafe { handle_tao_window_events(|| WindowEvent::Suspended) }
   }
 
   extern "C" fn will_enter_foreground(_: &Object, _: Sel, _: id) {
-    unsafe { app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Resumed)) }
+    unsafe { handle_tao_window_events(|| WindowEvent::Resumed) }
   }
-
-  extern "C" fn did_enter_background(_: &Object, _: Sel, _: id) {}
 
   extern "C" fn will_terminate(_: &Object, _: Sel, _: id) {
     unsafe {
-      let app: id = msg_send![class!(UIApplication), sharedApplication];
-      let windows: id = msg_send![app, windows];
-      let windows_enum: id = msg_send![windows, objectEnumerator];
-      let mut events = Vec::new();
-      loop {
-        let window: id = msg_send![windows_enum, nextObject];
-        if window == nil {
-          break;
-        }
-        let is_tao_window: bool = msg_send![window, isKindOfClass: class!(TaoUIWindow)];
-        if is_tao_window {
-          events.push(EventWrapper::StaticEvent(Event::WindowEvent {
-            window_id: RootWindowId(window.into()),
-            event: WindowEvent::Destroyed,
-          }));
-        }
-      }
-      app_state::handle_nonuser_events(events);
+      handle_tao_window_events(|| WindowEvent::Destroyed);
       app_state::terminated();
     }
   }
@@ -742,12 +748,14 @@ pub fn create_delegate_class() {
   .expect("Failed to declare class `AppDelegate`");
 
   unsafe {
+    let uses_scenes = multiple_scenes_enabled();
+
     decl.add_method(
       sel!(application:didFinishLaunchingWithOptions:),
       did_finish_launching as extern "C" fn(_, _, _, _) -> _,
     );
 
-    if multiple_scenes_enabled() {
+    if uses_scenes {
       decl.add_method(
         sel!(application:configurationForConnectingSceneSession:options:),
         configuration_for_connecting_scene_session as extern "C" fn(_, _, _, _, _) -> _,
@@ -764,18 +772,16 @@ pub fn create_delegate_class() {
       application_continue as extern "C" fn(_, _, _, _, _) -> _,
     );
 
-    decl.add_method(
-      sel!(applicationWillResignActive:),
-      will_resign_active as extern "C" fn(_, _, _),
-    );
-    decl.add_method(
-      sel!(applicationWillEnterForeground:),
-      will_enter_foreground as extern "C" fn(_, _, _),
-    );
-    decl.add_method(
-      sel!(applicationDidEnterBackground:),
-      did_enter_background as extern "C" fn(_, _, _),
-    );
+    if !uses_scenes {
+      decl.add_method(
+        sel!(applicationWillResignActive:),
+        will_resign_active as extern "C" fn(_, _, _),
+      );
+      decl.add_method(
+        sel!(applicationWillEnterForeground:),
+        will_enter_foreground as extern "C" fn(_, _, _),
+      );
+    }
 
     decl.add_method(
       sel!(applicationWillTerminate:),
