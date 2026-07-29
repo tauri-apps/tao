@@ -1,5 +1,9 @@
 # Changelog
 
+## \[0.1.4]
+
+- [`2b818c4e`](https://github.com/tauri-apps/tao/commit/2b818c4e84288c42365f8c790f4e7a519f6376ec) ([#1288](https://github.com/tauri-apps/tao/pull/1288) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Fix `android_fn!` with no jni args but additional args fail to compile
+
 ## \[0.1.3]
 
 - [`4cd53415`](https://github.com/tauri-apps/tao/commit/4cd534151a2d7a14ade906f960ec02655a91feae) ([#964](https://github.com/tauri-apps/tao/pull/964) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Allow Android domain names to include `_1` as escaped `_` characters - required because `_` is the separator for domain parts.
