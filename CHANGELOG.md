@@ -1,5 +1,63 @@
 # Changelog
 
+## \[0.35.3]
+
+- [`1bcd5165`](https://github.com/tauri-apps/tao/commit/1bcd51652763fa6d9512370af6adaea140053891) ([#1224](https://github.com/tauri-apps/tao/pull/1224) by [@brtinney](https://github.com/tauri-apps/tao/../../brtinney)) fix(android): don't panic on `onNewIntent` when `intent.getType()` returns null
+
+## \[0.35.2]
+
+- [`98aa0536`](https://github.com/tauri-apps/tao/commit/98aa05369aeeeaecf67ea791e43a5fecc11535af) ([#1211](https://github.com/tauri-apps/tao/pull/1211) by [@SAY-5](https://github.com/tauri-apps/tao/../../SAY-5)) fix(android): don't panic on getCurrentWindowMetrics on API<30
+
+## \[0.35.1]
+
+- [`f3363af7`](https://github.com/tauri-apps/tao/commit/f3363af78a5fc5ef9ce4829b8c72c0232742fd31) ([#1212](https://github.com/tauri-apps/tao/pull/1212) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Describe exceptions when they are raised by a JNI call.
+
+## \[0.35.0]
+
+- [`4e7c2f4a`](https://github.com/tauri-apps/tao/commit/4e7c2f4aa06e368403c6f170997fafd0c9a88418) ([#1154](https://github.com/tauri-apps/tao/pull/1154) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) **Breaking change:** The Android activity should now reference and call the following external functions:
+
+        private external fun onActivityCreate(activity)
+        private external fun start()
+        private external fun resume()
+        private external fun pause()
+        private external fun stop()
+        private external fun onActivitySaveInstanceState()
+        private external fun onActivityDestroy(activity)
+        private external fun onActivityLowMemory()
+- [`18040018`](https://github.com/tauri-apps/tao/commit/18040018831de762473189999768a4b44ad03c63) ([#1146](https://github.com/tauri-apps/tao/pull/1146) by [@JeffTsang](https://github.com/tauri-apps/tao/../../JeffTsang)) `Event::Resumed` is now only emitted when the app is actually resumed (going back to foreground) so it won't be called on app startup.
+- [`56e9840b`](https://github.com/tauri-apps/tao/commit/56e9840b356d4bb97fd9db8477f5aac8640f6b6f) ([#1141](https://github.com/tauri-apps/tao/pull/1141) by [@haecker-felix](https://github.com/tauri-apps/tao/../../haecker-felix)) Use the Linux XDG Desktop Portal to add support for the system color scheme. Needs `dbus` feature flag.
+- [`4e7c2f4a`](https://github.com/tauri-apps/tao/commit/4e7c2f4aa06e368403c6f170997fafd0c9a88418) ([#1154](https://github.com/tauri-apps/tao/pull/1154) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Added multi-window support for iOS and Android.
+
+  Leverages [scenes](https://developer.apple.com/documentation/uikit/scenes) on iOS and [Activity embedding](https://developer.android.com/develop/ui/views/layout/activity-embedding) on Android.
+
+  iOS:
+
+  - Added Event::SceneRequested (on iPad the user can request a new window to be open - e.g. by long pressing the app icon and selecting "New window")
+  - Request new scene to be created on Window::new (if needed, main scene is detected automatically) and assign the window instance later when it gets connected
+
+  Android:
+
+  - Create new activity on Window::new (if needed, main activity is detected automatically)
+  - Added builder methods to determine the activity to be created
+  - System determines what to do with the activity (new stack, next to another one.. based on the embedding rules)
+- [`9cea0358`](https://github.com/tauri-apps/tao/commit/9cea03582a3272c8fe60f20b519ff0cd562448b7) ([#1155](https://github.com/tauri-apps/tao/pull/1155) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Fire `Event::Opened` on Android, which now requires the activity to call the onNewIntent(intent) external function.
+- [`18040018`](https://github.com/tauri-apps/tao/commit/18040018831de762473189999768a4b44ad03c63) ([#1146](https://github.com/tauri-apps/tao/pull/1146) by [@JeffTsang](https://github.com/tauri-apps/tao/../../JeffTsang)) Use WillEnterForeground instead of DidBecomeActive for Event::Resumed in iOS.
+
+## \[0.34.8]
+
+- [`2fb51231`](https://github.com/tauri-apps/tao/commit/2fb512315899973e2c64d00c0e34ed382d93c893) ([#1182](https://github.com/tauri-apps/tao/pull/1182) by [@Tunglies](https://github.com/tauri-apps/tao/../../Tunglies)) Remove synchronous styleMask mutations in is_zoomed on macOS
+
+## \[0.34.7]
+
+- [`541cf20e`](https://github.com/tauri-apps/tao/commit/541cf20ed1f7bf15576db2faaac35d8beb4ab193) ([#1190](https://github.com/tauri-apps/tao/pull/1190) by [@damadczar](https://github.com/tauri-apps/tao/../../damadczar)) fix(linux): exit cleanly when GtkApplication is a remote GIO instance
+
+## \[0.34.6]
+
+- [`a4837862`](https://github.com/tauri-apps/tao/commit/a48378626f728665526e0c65fce0142282ca1f34) ([#1189](https://github.com/tauri-apps/tao/pull/1189) by [@thomaseizinger](https://github.com/tauri-apps/tao/../../thomaseizinger)) Downgrades several logs in the Windows backend from WARN to DEBUG.
+- [`e1c9cb69`](https://github.com/tauri-apps/tao/commit/e1c9cb699b6e0943f45f27fbf558efce8d617f5e) ([#1185](https://github.com/tauri-apps/tao/pull/1185) by [@kanatapple](https://github.com/tauri-apps/tao/../../kanatapple)) Prevent panics on Windows when a monitor handle becomes invalid during info retrieval.
+- [`e196538f`](https://github.com/tauri-apps/tao/commit/e196538f989894fcb92401fced54d7d3a65fc91a) ([#1165](https://github.com/tauri-apps/tao/pull/1165) by [@Slinetrac](https://github.com/tauri-apps/tao/../../Slinetrac)) fix(windows): respect default app mode via registry in dark mode detection
+- [`a133504b`](https://github.com/tauri-apps/tao/commit/a133504b6dc963a5ad7786e01e746dba72236b65) ([#1184](https://github.com/tauri-apps/tao/pull/1184) by [@Tunglies](https://github.com/tauri-apps/tao/../../Tunglies)) Replace NSString::from_str with ns_string macro in macOS. No user facing changes.
+
 ## \[0.34.5]
 
 - [`92e22209`](https://github.com/tauri-apps/tao/commit/92e22209fb58248449175b5b86697243d6a93db2) ([#1152](https://github.com/tauri-apps/tao/pull/1152) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Emit `Event::LoopDestroyed` on activity destroy on Android.

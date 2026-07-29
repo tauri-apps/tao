@@ -6,7 +6,7 @@ use crate::{
   dpi::PhysicalPosition,
   icon::Icon,
   keyboard::ModifiersState,
-  platform_impl::platform::{event_loop, minimal_ime::MinimalIme, util},
+  platform_impl::platform::{event_loop, util},
   window::{CursorIcon, Fullscreen, Theme, WindowAttributes, WindowSizeConstraints, RGBA},
 };
 use parking_lot::MutexGuard;
@@ -38,8 +38,6 @@ pub struct WindowState {
   pub fullscreen: Option<Fullscreen>,
   pub current_theme: Theme,
   pub preferred_theme: Option<Theme>,
-
-  pub ime_handler: MinimalIme,
 
   pub window_flags: WindowFlags,
 
@@ -156,7 +154,6 @@ impl WindowState {
       fullscreen: None,
       current_theme,
       preferred_theme,
-      ime_handler: MinimalIme::default(),
       window_flags: WindowFlags::empty(),
       is_active: false,
       is_focused: false,
