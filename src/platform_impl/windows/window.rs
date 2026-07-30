@@ -12,12 +12,12 @@ use std::{
   io, mem,
   os::windows::ffi::OsStrExt,
   panic,
-  sync::Arc,
+  sync::{atomic::AtomicBool, Arc},
 };
 
 use crossbeam_channel as channel;
 use windows::{
-  core::PCWSTR,
+  core::{Owned, PCWSTR},
   Win32::{
     Foundation::{self as win32f, HINSTANCE, HWND, LPARAM, POINT, POINTS, RECT, WPARAM},
     Graphics::{
@@ -93,6 +93,8 @@ pub struct Window {
 
   /// The current window state.
   window_state: Arc<Mutex<WindowState>>,
+
+  pub start_process_msg: Arc<AtomicBool>,
 
   // The events loop proxy.
   thread_executor: event_loop::EventLoopThreadExecutor,
@@ -1130,6 +1132,7 @@ impl<T> InitData<'_, T> {
       window: WindowWrapper(window),
       window_state,
       thread_executor: self.event_loop.create_thread_executor(),
+      start_process_msg: Arc::new(AtomicBool::new(false)),
     }
   }
 
@@ -1178,6 +1181,8 @@ impl<T> InitData<'_, T> {
       userdata_removed: Cell::new(false),
       recurse_depth: Cell::new(0),
       event_loop_preferred_theme: self.event_loop.preferred_theme.clone(),
+
+      start_process_msg: win.start_process_msg.clone(),
     }
   }
 
@@ -1200,32 +1205,21 @@ impl<T> InitData<'_, T> {
   pub unsafe fn on_create(&mut self) {
     let win = self.window.as_mut().expect("failed window creation");
 
-    // making the window transparent
-    if self.attributes.transparent && !self.pl_attribs.no_redirection_bitmap {
-      // Empty region for the blur effect, so the window is fully transparent
-      let region = CreateRectRgn(0, 0, -1, -1);
+    // // making the window transparent
+    // if self.attributes.transparent && !self.pl_attribs.no_redirection_bitmap {
+    //   // Empty region for the blur effect, so the window is fully transparent
+    //   let region = CreateRectRgn(0, 0, -1, -1);
 
-      let bb = DWM_BLURBEHIND {
-        dwFlags: DWM_BB_ENABLE | DWM_BB_BLURREGION,
-        fEnable: true.into(),
-        hRgnBlur: region,
-        fTransitionOnMaximized: false.into(),
-      };
+    //   let bb = DWM_BLURBEHIND {
+    //     dwFlags: DWM_BB_ENABLE | DWM_BB_BLURREGION,
+    //     fEnable: true.into(),
+    //     hRgnBlur: region,
+    //     fTransitionOnMaximized: false.into(),
+    //   };
 
-      let _ = DwmEnableBlurBehindWindow(win.hwnd(), &bb);
-      let _ = DeleteObject(region.into());
-    }
-
-    let _ = win.set_skip_taskbar(self.pl_attribs.skip_taskbar);
-    win.set_window_icon(self.attributes.window_icon.clone());
-    win.set_taskbar_icon(self.pl_attribs.taskbar_icon.clone());
-
-    if self.attributes.content_protection {
-      win.set_content_protection(true);
-    }
-
-    win.set_visible(self.attributes.visible);
-    win.set_closable(self.attributes.closable);
+    //   let _ = DwmEnableBlurBehindWindow(win.hwnd(), &bb);
+    //   let _ = DeleteObject(region.into());
+    // }
   }
 }
 
@@ -1399,6 +1393,21 @@ unsafe fn init<T: 'static>(
   // that we *must* have populated the `InitData.window` field.
   let window = initdata.window.unwrap();
 
+  // making the window transparent
+  {
+    // Empty region for the blur effect, so the window is fully transparent
+    let region = Owned::new(CreateRectRgn(0, 0, -1, -1));
+
+    let bb = DWM_BLURBEHIND {
+      dwFlags: DWM_BB_ENABLE | DWM_BB_BLURREGION,
+      fEnable: true.into(),
+      hRgnBlur: *region,
+      fTransitionOnMaximized: false.into(),
+    };
+
+    let _ = DwmEnableBlurBehindWindow(window.hwnd(), &bb);
+  }
+
   // Need to set FULLSCREEN or MAXIMIZED after CreateWindowEx
   // This is because if the size is changed in WM_CREATE, the restored size will be stored in that
   // size.
@@ -1408,6 +1417,21 @@ unsafe fn init<T: 'static>(
   } else if maximized {
     window.set_maximized(true);
   }
+
+  let _ = window.set_skip_taskbar(initdata.pl_attribs.skip_taskbar);
+  window.set_window_icon(initdata.attributes.window_icon.clone());
+  window.set_taskbar_icon(initdata.pl_attribs.taskbar_icon.clone());
+
+  if initdata.attributes.content_protection {
+    window.set_content_protection(true);
+  }
+
+  window.set_visible(initdata.attributes.visible);
+  window.set_closable(initdata.attributes.closable);
+
+  window
+    .start_process_msg
+    .store(true, std::sync::atomic::Ordering::Relaxed);
 
   Ok(window)
 }
