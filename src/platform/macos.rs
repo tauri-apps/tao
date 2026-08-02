@@ -12,7 +12,7 @@ use crate::{
   dpi::{LogicalSize, Position},
   event_loop::{EventLoop, EventLoopWindowTarget},
   monitor::MonitorHandle,
-  platform_impl::{get_aux_state_mut, set_badge_label, set_dock_visibility, Parent},
+  platform_impl::{get_aux_state_mut, set_badge_label, set_dock_menu, set_dock_visibility, Parent},
   window::{Window, WindowBuilder},
 };
 
@@ -404,6 +404,18 @@ pub trait EventLoopWindowTargetExtMacOS {
 
   /// Sets the badge label on macos dock
   fn set_badge_label(&self, label: Option<String>);
+
+  /// Sets (or clears, with `None`) the menu shown when the user right-clicks
+  /// (Control-clicks / long-presses) the application's Dock icon. Pass an
+  /// [`objc2_app_kit::NSMenu`] built with any Cocoa-menu-construction crate
+  /// (e.g. `muda`'s [`Menu::ns_menu`](https://docs.rs/muda) exposes the
+  /// underlying `NSMenu`).
+  ///
+  /// Can be called at any time after the event loop has started, including
+  /// from within a menu item's own click handler — e.g. to rebuild the menu
+  /// with an updated checkmark. The next right-click on the Dock icon picks
+  /// up the change; there is no need to re-set the menu on every click.
+  fn set_dock_menu(&self, menu: Option<objc2::rc::Retained<objc2_app_kit::NSMenu>>);
 }
 
 impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
@@ -454,5 +466,9 @@ impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
 
   fn set_badge_label(&self, label: Option<String>) {
     set_badge_label(label);
+  }
+
+  fn set_dock_menu(&self, menu: Option<objc2::rc::Retained<objc2_app_kit::NSMenu>>) {
+    set_dock_menu(menu);
   }
 }
