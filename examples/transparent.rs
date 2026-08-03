@@ -21,7 +21,7 @@ fn main() {
     .with_decorations(false)
     .with_transparent(true)
     .with_background_color((0, 0, 0, 0))
-    // .with_no_redirection_bitmap(true)
+    .with_no_redirection_bitmap(true)
     .build(&event_loop)
     .unwrap();
 
@@ -33,7 +33,7 @@ fn main() {
     (window, context, surface)
   };
 
-  window.set_title("A fantastic window!");
+  // window.set_title("A fantastic window!");
 
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Wait;

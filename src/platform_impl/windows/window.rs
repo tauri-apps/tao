@@ -1394,19 +1394,19 @@ unsafe fn init<T: 'static>(
   let window = initdata.window.unwrap();
 
   // making the window transparent
-  {
-    // Empty region for the blur effect, so the window is fully transparent
-    let region = Owned::new(CreateRectRgn(0, 0, -1, -1));
+  // {
+  //   // Empty region for the blur effect, so the window is fully transparent
+  //   let region = Owned::new(CreateRectRgn(0, 0, -1, -1));
 
-    let bb = DWM_BLURBEHIND {
-      dwFlags: DWM_BB_ENABLE | DWM_BB_BLURREGION,
-      fEnable: true.into(),
-      hRgnBlur: *region,
-      fTransitionOnMaximized: false.into(),
-    };
+  //   let bb = DWM_BLURBEHIND {
+  //     dwFlags: DWM_BB_ENABLE | DWM_BB_BLURREGION,
+  //     fEnable: true.into(),
+  //     hRgnBlur: *region,
+  //     fTransitionOnMaximized: false.into(),
+  //   };
 
-    let _ = DwmEnableBlurBehindWindow(window.hwnd(), &bb);
-  }
+  //   let _ = DwmEnableBlurBehindWindow(window.hwnd(), &bb);
+  // }
 
   // Need to set FULLSCREEN or MAXIMIZED after CreateWindowEx
   // This is because if the size is changed in WM_CREATE, the restored size will be stored in that
