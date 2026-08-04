@@ -249,6 +249,9 @@ impl WindowFlags {
     if self.contains(WindowFlags::MINIMIZABLE) {
       style |= WS_MINIMIZEBOX;
     }
+    if self.contains(WindowFlags::VISIBLE) {
+      style |= WS_VISIBLE;
+    }
     if self.contains(WindowFlags::ON_TASKBAR) {
       style_ex |= WS_EX_APPWINDOW;
     }
