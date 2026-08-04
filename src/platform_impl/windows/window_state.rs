@@ -249,6 +249,9 @@ impl WindowFlags {
     if self.contains(WindowFlags::MINIMIZABLE) {
       style |= WS_MINIMIZEBOX;
     }
+    if self.contains(WindowFlags::VISIBLE) {
+      style |= WS_VISIBLE;
+    }
     if self.contains(WindowFlags::ON_TASKBAR) {
       style_ex |= WS_EX_APPWINDOW;
     }
@@ -404,7 +407,9 @@ impl WindowFlags {
     }
 
     if diff != WindowFlags::empty() {
-      let (style, style_ex) = new.to_window_styles();
+      let (mut style, style_ex) = new.to_window_styles();
+      // Remove `WS_VISIBLE`, this is required for the `ShowWindow` below to work
+      style &= !WS_VISIBLE;
 
       unsafe {
         SendMessageW(
