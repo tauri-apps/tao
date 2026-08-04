@@ -319,13 +319,8 @@ impl WindowFlags {
       return;
     }
 
-    let visibility_changed = diff.contains(WindowFlags::VISIBLE);
-
-    // Hide before changing the frame so none of the intermediate non-client state is visible.
-    if visibility_changed && !new.contains(WindowFlags::VISIBLE) {
-      unsafe {
-        let _ = ShowWindow(window, SW_HIDE);
-      }
+    if self.contains(WindowFlags::MARKER_DONT_FOCUS) {
+      self.set(WindowFlags::MARKER_DONT_FOCUS, false);
     }
 
     if diff.contains(WindowFlags::ALWAYS_ON_TOP) {
@@ -409,6 +404,12 @@ impl WindowFlags {
       }
     }
 
+    if !new.contains(WindowFlags::VISIBLE) {
+      unsafe {
+        let _ = ShowWindow(window, SW_HIDE);
+      }
+    }
+
     if diff != WindowFlags::empty() {
       let (style, style_ex) = new.to_window_styles();
 
@@ -451,7 +452,7 @@ impl WindowFlags {
     // `SWP_FRAMECHANGED` above must run while the HWND is still hidden. It sends the initial
     // `WM_NCCALCSIZE` that converts Tao's caption-compatible styles into an undecorated client
     // frame. Showing first would expose the native caption until that recalculation completed.
-    if visibility_changed && new.contains(WindowFlags::VISIBLE) {
+    if new.contains(WindowFlags::VISIBLE) {
       unsafe {
         let _ = ShowWindow(
           window,
