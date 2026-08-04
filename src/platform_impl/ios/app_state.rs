@@ -876,6 +876,11 @@ pub unsafe fn handle_events_cleared() {
 }
 
 // requires main thread
+pub unsafe fn is_terminated() -> bool {
+  matches!(AppState::get_mut().state(), AppStateImpl::Terminated)
+}
+
+// requires main thread
 pub unsafe fn terminated() {
   let mut this = AppState::get_mut();
   let mut event_handler = this.terminated_transition();

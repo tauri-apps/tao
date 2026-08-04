@@ -49,7 +49,13 @@ pub unsafe fn multiple_scenes_enabled() -> bool {
 
 unsafe fn handle_scene_window_events(scene: &UIScene, event: impl Fn() -> WindowEvent<'static>) {
   if let Some(window_scene) = scene.downcast_ref::<UIWindowScene>() {
-    for window in window_scene.windows() {
+    let windows = window_scene.windows();
+
+    if windows.is_empty() {
+      log::debug!("scene has no windows; no window events were emitted");
+    }
+
+    for window in windows {
       app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::WindowEvent {
         window_id: RootWindowId(window.into()),
         event: event(),
@@ -80,20 +86,26 @@ define_class!(
       }
     }
 
+    // iOS may disconnect a scene because the user closed it, or because
+    // the system discarded a backgrounded scene to free resources. A
+    // restored scene goes through `scene:willConnectToSession:` again
+    // and gets a new `UIWindow` and `WindowId`.
     #[unsafe(method(sceneDidDisconnect:))]
-    fn sceneDidDisconnect(&self, _scene: &UIScene) {}
+    fn sceneDidDisconnect(&self, scene: &UIScene) {
+      unsafe {
+        if app_state::is_terminated() {
+          log::debug!("ignoring `sceneDidDisconnect` after application termination");
+          return;
+        }
+
+        handle_scene_window_events(scene, || WindowEvent::Destroyed);
+      }
+    }
 
     #[unsafe(method(sceneDidBecomeActive:))]
     fn sceneDidBecomeActive(&self, scene: &UIScene) {
       unsafe {
-        if let Some(window_scene) = scene.downcast_ref::<UIWindowScene>() {
-          for window in window_scene.windows() {
-            app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::WindowEvent {
-              window_id: RootWindowId(window.into()),
-              event: WindowEvent::Focused(true),
-            }));
-          }
-        }
+        handle_scene_window_events(scene, || WindowEvent::Focused(true));
       }
     }
 
