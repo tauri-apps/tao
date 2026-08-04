@@ -319,10 +319,6 @@ impl WindowFlags {
       return;
     }
 
-    if self.contains(WindowFlags::MARKER_DONT_FOCUS) {
-      self.set(WindowFlags::MARKER_DONT_FOCUS, false);
-    }
-
     if diff.contains(WindowFlags::ALWAYS_ON_TOP) {
       unsafe {
         let _ = SetWindowPos(
@@ -457,6 +453,7 @@ impl WindowFlags {
         let _ = ShowWindow(
           window,
           if self.contains(WindowFlags::MARKER_DONT_FOCUS) {
+            self.set(WindowFlags::MARKER_DONT_FOCUS, false);
             SW_SHOWNOACTIVATE
           } else {
             SW_SHOW
