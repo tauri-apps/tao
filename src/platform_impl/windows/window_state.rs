@@ -319,8 +319,7 @@ impl WindowFlags {
       return;
     }
 
-    let dont_focus = self.contains(WindowFlags::MARKER_DONT_FOCUS);
-    if dont_focus {
+    if self.contains(WindowFlags::MARKER_DONT_FOCUS) {
       self.set(WindowFlags::MARKER_DONT_FOCUS, false);
     }
 
@@ -457,7 +456,7 @@ impl WindowFlags {
       unsafe {
         let _ = ShowWindow(
           window,
-          if dont_focus {
+          if self.contains(WindowFlags::MARKER_DONT_FOCUS) {
             SW_SHOWNOACTIVATE
           } else {
             SW_SHOW
