@@ -992,31 +992,31 @@ unsafe fn public_window_callback_inner<T: 'static>(
     //     event: DecorationsClick,
     //   });
     // }
-    // win32wm::WM_CLOSE => {
-    //   use crate::event::WindowEvent::CloseRequested;
-    //   userdata.send_event(Event::WindowEvent {
-    //     window_id: RootWindowId(WindowId(window.0 as _)),
-    //     event: CloseRequested,
-    //   });
-    //   result = ProcResult::Value(LRESULT(0));
-    // }
+    win32wm::WM_CLOSE => {
+      use crate::event::WindowEvent::CloseRequested;
+      userdata.send_event(Event::WindowEvent {
+        window_id: RootWindowId(WindowId(window.0 as _)),
+        event: CloseRequested,
+      });
+      result = ProcResult::Value(LRESULT(0));
+    }
 
-    // win32wm::WM_DESTROY => {
-    //   use crate::event::WindowEvent::Destroyed;
-    //   let _ = RevokeDragDrop(window);
-    //   userdata.send_event(Event::WindowEvent {
-    //     window_id: RootWindowId(WindowId(window.0 as _)),
-    //     event: Destroyed,
-    //   });
-    //   userdata.event_loop_runner.remove_window(window);
-    //   result = ProcResult::Value(LRESULT(0));
-    // }
+    win32wm::WM_DESTROY => {
+      use crate::event::WindowEvent::Destroyed;
+      let _ = RevokeDragDrop(window);
+      userdata.send_event(Event::WindowEvent {
+        window_id: RootWindowId(WindowId(window.0 as _)),
+        event: Destroyed,
+      });
+      userdata.event_loop_runner.remove_window(window);
+      result = ProcResult::Value(LRESULT(0));
+    }
 
-    // win32wm::WM_NCDESTROY => {
-    //   util::SetWindowLongPtrW(window, GWL_USERDATA, 0);
-    //   userdata.userdata_removed.set(true);
-    //   result = ProcResult::Value(LRESULT(0));
-    // }
+    win32wm::WM_NCDESTROY => {
+      util::SetWindowLongPtrW(window, GWL_USERDATA, 0);
+      userdata.userdata_removed.set(true);
+      result = ProcResult::Value(LRESULT(0));
+    }
 
     // win32wm::WM_PAINT => {
     //   if userdata.event_loop_runner.should_buffer() {
@@ -2179,22 +2179,22 @@ unsafe fn public_window_callback_inner<T: 'static>(
     //   result = ProcResult::DefWindowProc;
     // }
     _ => {
-      // if msg == *DESTROY_MSG_ID {
-      //   let _ = DestroyWindow(window);
-      //   result = ProcResult::Value(LRESULT(0));
-      // } else if msg == *SET_RETAIN_STATE_ON_SIZE_MSG_ID {
-      //   let mut window_state = userdata.window_state.lock();
-      //   window_state.set_window_flags_in_place(|f| {
-      //     f.set(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE, wparam.0 != 0)
-      //   });
-      //   result = ProcResult::Value(LRESULT(0));
-      // } else if msg == *CHANGE_THEME_MSG_ID {
-      //   update_theme(userdata, window, false);
-      //   result = ProcResult::Value(LRESULT(0));
-      // } else if msg == *S_U_TASKBAR_RESTART {
-      //   let skip_taskbar = userdata.window_state.lock().skip_taskbar;
-      //   let _ = set_skip_taskbar(window, skip_taskbar);
-      // }
+      if msg == *DESTROY_MSG_ID {
+        let _ = DestroyWindow(window);
+        result = ProcResult::Value(LRESULT(0));
+      } else if msg == *SET_RETAIN_STATE_ON_SIZE_MSG_ID {
+        let mut window_state = userdata.window_state.lock();
+        window_state.set_window_flags_in_place(|f| {
+          f.set(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE, wparam.0 != 0)
+        });
+        result = ProcResult::Value(LRESULT(0));
+      } else if msg == *CHANGE_THEME_MSG_ID {
+        update_theme(userdata, window, false);
+        result = ProcResult::Value(LRESULT(0));
+      } else if msg == *S_U_TASKBAR_RESTART {
+        let skip_taskbar = userdata.window_state.lock().skip_taskbar;
+        let _ = set_skip_taskbar(window, skip_taskbar);
+      }
     }
   };
 
@@ -2263,122 +2263,122 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
   // the closure to catch_unwind directly so that the match body indendation wouldn't change and
   // the git blame and history would be preserved.
   let callback = || match msg {
-    // win32wm::WM_NCDESTROY => {
-    //   util::SetWindowLongPtrW(window, GWL_USERDATA, 0);
-    //   userdata_removed = true;
-    //   let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
-    //   LRESULT(0)
-    // }
-    // // Because WM_PAINT comes after all other messages, we use it during modal loops to detect
-    // // when the event queue has been emptied. See `process_event` for more details.
-    // win32wm::WM_PAINT => {
-    //   let _ = ValidateRect(Some(window), None);
-    //   // If the WM_PAINT handler in `public_window_callback` has already flushed the redraw
-    //   // events, `handling_events` will return false and we won't emit a second
-    //   // `RedrawEventsCleared` event.
-    //   if userdata.event_loop_runner.handling_events() {
-    //     if userdata.event_loop_runner.should_buffer() {
-    //       // This branch can be triggered when a nested win32 event loop is triggered
-    //       // inside of the `event_handler` callback.
-    //       let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
-    //     } else {
-    //       // This WM_PAINT handler will never be re-entrant because `flush_paint_messages`
-    //       // doesn't call WM_PAINT for the thread event target (i.e. this window).
-    //       assert!(flush_paint_messages(None, &userdata.event_loop_runner));
-    //       userdata.event_loop_runner.redraw_events_cleared();
-    //       process_control_flow(&userdata.event_loop_runner);
-    //     }
-    //   }
+    win32wm::WM_NCDESTROY => {
+      util::SetWindowLongPtrW(window, GWL_USERDATA, 0);
+      userdata_removed = true;
+      let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
+      LRESULT(0)
+    }
+    // Because WM_PAINT comes after all other messages, we use it during modal loops to detect
+    // when the event queue has been emptied. See `process_event` for more details.
+    win32wm::WM_PAINT => {
+      let _ = ValidateRect(Some(window), None);
+      // If the WM_PAINT handler in `public_window_callback` has already flushed the redraw
+      // events, `handling_events` will return false and we won't emit a second
+      // `RedrawEventsCleared` event.
+      if userdata.event_loop_runner.handling_events() {
+        if userdata.event_loop_runner.should_buffer() {
+          // This branch can be triggered when a nested win32 event loop is triggered
+          // inside of the `event_handler` callback.
+          let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
+        } else {
+          // This WM_PAINT handler will never be re-entrant because `flush_paint_messages`
+          // doesn't call WM_PAINT for the thread event target (i.e. this window).
+          assert!(flush_paint_messages(None, &userdata.event_loop_runner));
+          userdata.event_loop_runner.redraw_events_cleared();
+          process_control_flow(&userdata.event_loop_runner);
+        }
+      }
 
-    //   // Default WM_PAINT behaviour. This makes sure modals and popups are shown immediatly when opening them.
-    //   DefWindowProcW(window, msg, wparam, lparam)
-    // }
+      // Default WM_PAINT behaviour. This makes sure modals and popups are shown immediatly when opening them.
+      DefWindowProcW(window, msg, wparam, lparam)
+    }
 
-    // win32wm::WM_INPUT_DEVICE_CHANGE => {
-    //   let event = match wparam.0 as u32 {
-    //     win32wm::GIDC_ARRIVAL => DeviceEvent::Added,
-    //     win32wm::GIDC_REMOVAL => DeviceEvent::Removed,
-    //     _ => unreachable!(),
-    //   };
+    win32wm::WM_INPUT_DEVICE_CHANGE => {
+      let event = match wparam.0 as u32 {
+        win32wm::GIDC_ARRIVAL => DeviceEvent::Added,
+        win32wm::GIDC_REMOVAL => DeviceEvent::Removed,
+        _ => unreachable!(),
+      };
 
-    //   userdata.send_event(Event::DeviceEvent {
-    //     device_id: wrap_device_id(lparam.0),
-    //     event,
-    //   });
-    //   let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
+      userdata.send_event(Event::DeviceEvent {
+        device_id: wrap_device_id(lparam.0),
+        event,
+      });
+      let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
 
-    //   LRESULT(0)
-    // }
+      LRESULT(0)
+    }
 
-    // win32wm::WM_INPUT => {
-    //   if let Some(data) = raw_input::get_raw_input_data(HRAWINPUT(lparam.0 as _)) {
-    //     handle_raw_input(&userdata, data);
-    //     let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
-    //   }
+    win32wm::WM_INPUT => {
+      if let Some(data) = raw_input::get_raw_input_data(HRAWINPUT(lparam.0 as _)) {
+        handle_raw_input(&userdata, data);
+        let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
+      }
 
-    //   DefWindowProcW(window, msg, wparam, lparam)
-    // }
+      DefWindowProcW(window, msg, wparam, lparam)
+    }
 
-    // // We don't process `WM_QUERYENDSESSION` yet until we introduce the same mechanism as Tauri's `ExitRequested` event
-    // // win32wm::WM_QUERYENDSESSION => {}
-    // win32wm::WM_ENDSESSION => {
-    //   // `wParam` is `FALSE` is for if the shutdown gets canceled,
-    //   // and we don't need to handle that case since we didn't do anything prior in response to `WM_QUERYENDSESSION`
-    //   if wparam.0 == TRUE.0 as usize {
-    //     userdata.event_loop_runner.loop_destroyed();
-    //   }
-    //   // Note: after we return 0 here, Windows will shut us down
-    //   LRESULT(0)
-    // }
+    // We don't process `WM_QUERYENDSESSION` yet until we introduce the same mechanism as Tauri's `ExitRequested` event
+    // win32wm::WM_QUERYENDSESSION => {}
+    win32wm::WM_ENDSESSION => {
+      // `wParam` is `FALSE` is for if the shutdown gets canceled,
+      // and we don't need to handle that case since we didn't do anything prior in response to `WM_QUERYENDSESSION`
+      if wparam.0 == TRUE.0 as usize {
+        userdata.event_loop_runner.loop_destroyed();
+      }
+      // Note: after we return 0 here, Windows will shut us down
+      LRESULT(0)
+    }
 
-    // _ if msg == *USER_EVENT_MSG_ID => {
-    //   if let Ok(event) = userdata.user_event_receiver.recv() {
-    //     userdata.send_event(Event::UserEvent(event));
-    //   }
-    //   let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
-    //   LRESULT(0)
-    // }
-    // _ if msg == *EXEC_MSG_ID => {
-    //   let mut function: ThreadExecFn = Box::from_raw(wparam.0 as *mut _);
-    //   function();
-    //   let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
-    //   LRESULT(0)
-    // }
-    // _ if msg == *PROCESS_NEW_EVENTS_MSG_ID => {
-    //   let _ = PostThreadMessageW(
-    //     userdata.event_loop_runner.wait_thread_id(),
-    //     *CANCEL_WAIT_UNTIL_MSG_ID,
-    //     WPARAM(0),
-    //     LPARAM(0),
-    //   );
+    _ if msg == *USER_EVENT_MSG_ID => {
+      if let Ok(event) = userdata.user_event_receiver.recv() {
+        userdata.send_event(Event::UserEvent(event));
+      }
+      let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
+      LRESULT(0)
+    }
+    _ if msg == *EXEC_MSG_ID => {
+      let mut function: ThreadExecFn = Box::from_raw(wparam.0 as *mut _);
+      function();
+      let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
+      LRESULT(0)
+    }
+    _ if msg == *PROCESS_NEW_EVENTS_MSG_ID => {
+      let _ = PostThreadMessageW(
+        userdata.event_loop_runner.wait_thread_id(),
+        *CANCEL_WAIT_UNTIL_MSG_ID,
+        WPARAM(0),
+        LPARAM(0),
+      );
 
-    //   // if the control_flow is WaitUntil, make sure the given moment has actually passed
-    //   // before emitting NewEvents
-    //   if let ControlFlow::WaitUntil(wait_until) = userdata.event_loop_runner.control_flow() {
-    //     let mut msg = MSG::default();
-    //     while Instant::now() < wait_until {
-    //       if PeekMessageW(&mut msg, None, 0, 0, PM_NOREMOVE).as_bool() {
-    //         // This works around a "feature" in PeekMessageW. If the message PeekMessageW
-    //         // gets is a WM_PAINT message that had RDW_INTERNALPAINT set (i.e. doesn't
-    //         // have an update region), PeekMessageW will remove that window from the
-    //         // redraw queue even though we told it not to remove messages from the
-    //         // queue. We fix it by re-dispatching an internal paint message to that
-    //         // window.
-    //         if msg.message == WM_PAINT {
-    //           let mut rect = RECT::default();
-    //           if !GetUpdateRect(msg.hwnd, Some(&mut rect), false).as_bool() {
-    //             let _ = RedrawWindow(Some(msg.hwnd), None, None, RDW_INTERNALPAINT);
-    //           }
-    //         }
+      // if the control_flow is WaitUntil, make sure the given moment has actually passed
+      // before emitting NewEvents
+      if let ControlFlow::WaitUntil(wait_until) = userdata.event_loop_runner.control_flow() {
+        let mut msg = MSG::default();
+        while Instant::now() < wait_until {
+          if PeekMessageW(&mut msg, None, 0, 0, PM_NOREMOVE).as_bool() {
+            // This works around a "feature" in PeekMessageW. If the message PeekMessageW
+            // gets is a WM_PAINT message that had RDW_INTERNALPAINT set (i.e. doesn't
+            // have an update region), PeekMessageW will remove that window from the
+            // redraw queue even though we told it not to remove messages from the
+            // queue. We fix it by re-dispatching an internal paint message to that
+            // window.
+            if msg.message == WM_PAINT {
+              let mut rect = RECT::default();
+              if !GetUpdateRect(msg.hwnd, Some(&mut rect), false).as_bool() {
+                let _ = RedrawWindow(Some(msg.hwnd), None, None, RDW_INTERNALPAINT);
+              }
+            }
 
-    //         break;
-    //       }
-    //     }
-    //   }
-    //   userdata.event_loop_runner.poll();
-    //   let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
-    //   LRESULT(0)
-    // }
+            break;
+          }
+        }
+      }
+      userdata.event_loop_runner.poll();
+      let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
+      LRESULT(0)
+    }
     _ => DefWindowProcW(window, msg, wparam, lparam),
   };
 
