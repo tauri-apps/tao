@@ -249,9 +249,6 @@ impl WindowFlags {
     if self.contains(WindowFlags::MINIMIZABLE) {
       style |= WS_MINIMIZEBOX;
     }
-    if self.contains(WindowFlags::VISIBLE) {
-      style |= WS_VISIBLE;
-    }
     if self.contains(WindowFlags::ON_TASKBAR) {
       style_ex |= WS_EX_APPWINDOW;
     }
@@ -319,17 +316,12 @@ impl WindowFlags {
       return;
     }
 
-    if new.contains(WindowFlags::VISIBLE) {
+    let visibility_changed = diff.contains(WindowFlags::VISIBLE);
+
+    // Hide before changing the frame so none of the intermediate non-client state is visible.
+    if visibility_changed && !new.contains(WindowFlags::VISIBLE) {
       unsafe {
-        let _ = ShowWindow(
-          window,
-          if self.contains(WindowFlags::MARKER_DONT_FOCUS) {
-            self.set(WindowFlags::MARKER_DONT_FOCUS, false);
-            SW_SHOWNOACTIVATE
-          } else {
-            SW_SHOW
-          },
-        );
+        let _ = ShowWindow(window, SW_HIDE);
       }
     }
 
@@ -414,12 +406,6 @@ impl WindowFlags {
       }
     }
 
-    if !new.contains(WindowFlags::VISIBLE) {
-      unsafe {
-        let _ = ShowWindow(window, SW_HIDE);
-      }
-    }
-
     if diff != WindowFlags::empty() {
       let (style, style_ex) = new.to_window_styles();
 
@@ -455,6 +441,22 @@ impl WindowFlags {
           *event_loop::SET_RETAIN_STATE_ON_SIZE_MSG_ID,
           Some(WPARAM(0)),
           Some(LPARAM(0)),
+        );
+      }
+    }
+
+    // `SWP_FRAMECHANGED` above must run while the HWND is still hidden. It sends the initial
+    // `WM_NCCALCSIZE` that converts Tao's caption-compatible styles into an undecorated client
+    // frame. Showing first would expose the native caption until that recalculation completed.
+    if visibility_changed && new.contains(WindowFlags::VISIBLE) {
+      unsafe {
+        let _ = ShowWindow(
+          window,
+          if self.contains(WindowFlags::MARKER_DONT_FOCUS) {
+            SW_SHOWNOACTIVATE
+          } else {
+            SW_SHOW
+          },
         );
       }
     }
