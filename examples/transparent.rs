@@ -8,7 +8,6 @@ use std::{num::NonZeroU32, rc::Rc};
 use tao::{
   event::{Event, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
-  platform::windows::WindowBuilderExtWindows,
   window::WindowBuilder,
 };
 
@@ -20,8 +19,6 @@ fn main() {
   let window = WindowBuilder::new()
     .with_decorations(false)
     .with_transparent(true)
-    .with_background_color((0, 0, 0, 0))
-    // .with_no_redirection_bitmap(true)
     .build(&event_loop)
     .unwrap();
 
@@ -37,7 +34,7 @@ fn main() {
 
   event_loop.run(move |event, _, control_flow| {
     *control_flow = ControlFlow::Wait;
-    // println!("{event:?}");
+    println!("{event:?}");
 
     match event {
       Event::WindowEvent {
