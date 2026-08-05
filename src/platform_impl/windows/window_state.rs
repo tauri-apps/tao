@@ -309,28 +309,14 @@ impl WindowFlags {
   }
 
   /// Adjust the window client rectangle to the return value, if present.
-  fn apply_diff(mut self, window: HWND, mut new: WindowFlags) {
+  fn apply_diff(mut self, window: HWND, new: WindowFlags) {
     self = self.mask();
-    new = new.mask();
+    let new = new.mask();
 
     let mut diff = self ^ new;
 
     if diff == WindowFlags::empty() {
       return;
-    }
-
-    if new.contains(WindowFlags::VISIBLE) {
-      unsafe {
-        let _ = ShowWindow(
-          window,
-          if self.contains(WindowFlags::MARKER_DONT_FOCUS) {
-            self.set(WindowFlags::MARKER_DONT_FOCUS, false);
-            SW_SHOWNOACTIVATE
-          } else {
-            SW_SHOW
-          },
-        );
-      }
     }
 
     if diff.contains(WindowFlags::ALWAYS_ON_TOP) {
@@ -421,7 +407,9 @@ impl WindowFlags {
     }
 
     if diff != WindowFlags::empty() {
-      let (style, style_ex) = new.to_window_styles();
+      let (mut style, style_ex) = new.to_window_styles();
+      // Remove `WS_VISIBLE`, this is required for the `ShowWindow` below to work
+      style &= !WS_VISIBLE;
 
       unsafe {
         SendMessageW(
@@ -455,6 +443,22 @@ impl WindowFlags {
           *event_loop::SET_RETAIN_STATE_ON_SIZE_MSG_ID,
           Some(WPARAM(0)),
           Some(LPARAM(0)),
+        );
+      }
+    }
+
+    // This needs to be after the `SetWindowPos` above or there will be
+    // a title bar flicker on undecorated windows's creation
+    if new.contains(WindowFlags::VISIBLE) {
+      unsafe {
+        let _ = ShowWindow(
+          window,
+          if self.contains(WindowFlags::MARKER_DONT_FOCUS) {
+            self.set(WindowFlags::MARKER_DONT_FOCUS, false);
+            SW_SHOWNOACTIVATE
+          } else {
+            SW_SHOW
+          },
         );
       }
     }
