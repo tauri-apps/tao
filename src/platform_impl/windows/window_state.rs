@@ -309,9 +309,9 @@ impl WindowFlags {
   }
 
   /// Adjust the window client rectangle to the return value, if present.
-  fn apply_diff(mut self, window: HWND, mut new: WindowFlags) {
+  fn apply_diff(mut self, window: HWND, new: WindowFlags) {
     self = self.mask();
-    new = new.mask();
+    let new = new.mask();
 
     let mut diff = self ^ new;
 
