@@ -447,9 +447,8 @@ impl WindowFlags {
       }
     }
 
-    // `SWP_FRAMECHANGED` above must run while the HWND is still hidden. It sends the initial
-    // `WM_NCCALCSIZE` that converts Tao's caption-compatible styles into an undecorated client
-    // frame. Showing first would expose the native caption until that recalculation completed.
+    // This needs to be after the `SetWindowPos` above or there will be
+    // a title bar flicker on undecorated windows's creation
     if new.contains(WindowFlags::VISIBLE) {
       unsafe {
         let _ = ShowWindow(
