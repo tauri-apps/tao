@@ -1224,6 +1224,18 @@ impl<T> InitData<'_, T> {
       win.set_content_protection(true);
     }
 
+    // The last point at which the window can be changed unseen: it is configured and it
+    // is not on the screen yet. Caught rather than left to unwind, since the frame below
+    // this one is the window procedure; `init` resumes the panic once `CreateWindowExW`
+    // has returned.
+    if let Some(callback) = self.pl_attribs.window_created.clone() {
+      let hwnd = win.hwnd().0 as isize;
+      let _ = self
+        .event_loop
+        .runner_shared
+        .catch_unwind(move || callback(hwnd));
+    }
+
     win.set_visible(self.attributes.visible);
     win.set_closable(self.attributes.closable);
   }
