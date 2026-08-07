@@ -205,7 +205,16 @@ define_class!(
   }
 
   #[allow(non_snake_case)]
-  unsafe impl UIWindowSceneDelegate for TaoSceneDelegate {
+  unsafe impl UIWindowSceneDelegate for TaoSceneDelegate {}
+
+  // Registered from a plain `impl` because objc2 panics in debug builds when a
+  // protocol-block selector is missing from the runtime protocol, and this one is
+  // iOS 26+. Both paths register the same method, so iOS 26 still resolves it.
+  //
+  // TODO: Move back into the protocol block once objc2 0.7.0 fixes the check,
+  // ref <https://github.com/madsmtm/objc2/issues/645>.
+  #[allow(non_snake_case)]
+  impl TaoSceneDelegate {
     #[unsafe(method_id(preferredWindowingControlStyleForScene:))]
     fn preferredWindowingControlStyleForScene(
       &self,
