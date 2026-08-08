@@ -432,6 +432,27 @@ impl<T: 'static> EventLoop<T> {
         None => {}
       }
 
+      // FIX: Always drain pending user events after every poll iteration,
+      // not only when `first_event == Some(EventSource::User)`.
+      //
+      // On Android, `ALooper_pollAll` can return an fd event (e.g. the
+      // `ndk_glue` event pipe, ident=0) instead of `ALOOPER_POLL_WAKE` when
+      // both the wake fd and an fd are ready in the same epoll batch. In
+      // that case `Poll::Wake` is never reported and the `EventSource::User`
+      // arm above never drains `self.receiver`, so events queued via
+      // `EventLoopProxy::send_event` sit in the channel forever — breaking
+      // every IPC response, window getter, and `run_on_main_thread` call.
+      //
+      // Draining unconditionally is safe because:
+      //  * If `EventSource::User` already drained above, `try_recv` returns
+      //    immediately on an empty channel.
+      //  * User events are independent of the Callback/InputQueue
+      //    processing order — they are dispatched via `Event::UserEvent`.
+      //  * The crossbeam receiver is lock-free and `try_recv` is cheap.
+      while let Ok(event) = self.receiver.try_recv() {
+        self.call_event_handler(event_handler, control_flow, event::Event::UserEvent(event));
+      }
+
       self.call_event_handler(event_handler, control_flow, event::Event::MainEventsCleared);
 
       if let Some(window_id) = resized_window_id {
