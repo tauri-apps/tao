@@ -2328,8 +2328,14 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       // and we don't need to handle that case since we didn't do anything prior in response to `WM_QUERYENDSESSION`
       if wparam.0 == TRUE.0 as usize {
         userdata.event_loop_runner.loop_destroyed();
+        // `WM_ENDSESSION` can be sent by Windows during shutdown or by Restart Manager
+        //
+        // - From Windows shutdown: Windows will shut us down after we return `0` here
+        // - From Restart Manager: Restart Manager only sends the message but will wait for us to shutdown ourselves
+        //
+        // So, we call `exit` here directly to align this behavior
+        std::process::exit(0);
       }
-      // Note: after we return 0 here, Windows will shut us down
       LRESULT(0)
     }
 
