@@ -634,19 +634,35 @@ pub fn create_delegate_class() {
     _: &Object,
     _: Sel,
     _application: id,
-    _connecting_scene_session: id,
+    connecting_scene_session: id,
     _options: id,
   ) -> id {
     unsafe {
       let mtm = objc2_foundation::MainThreadMarker::new_unchecked();
-      let config = UISceneConfiguration::configurationWithName_sessionRole(
-        Some(&NSString::from_str("TaoScene")),
-        &NSString::from_str("UIWindowSceneSessionRoleApplication"),
-        mtm,
-      );
+      let window_role = NSString::from_str("UIWindowSceneSessionRoleApplication");
 
-      // Dynamically set the delegate class name
-      config.setDelegateClass(Some(super::scene::TaoSceneDelegate::class()));
+      // Answer for the role the system is actually asking about. This delegate
+      // method takes precedence over the app's `UIApplicationSceneManifest`, so
+      // replying with a window configuration for every role means non-window
+      // scenes — CarPlay, external displays — silently never connect.
+      let role: *mut NSString = msg_send![connecting_scene_session, role];
+      let config = if role.is_null() || (*role).isEqualToString(&window_role) {
+        let config = UISceneConfiguration::configurationWithName_sessionRole(
+          Some(&NSString::from_str("TaoScene")),
+          &window_role,
+          mtm,
+        );
+
+        // Dynamically set the delegate class name
+        config.setDelegateClass(Some(super::scene::TaoSceneDelegate::class()));
+        config
+      } else {
+        // Let the app's scene manifest describe this role. `None` as the name
+        // selects the first configuration declared there for it, so tao needs to
+        // know nothing about how the app named it.
+        UISceneConfiguration::configurationWithName_sessionRole(None, &*role, mtm)
+      };
+
       Retained::autorelease_ptr(config) as _
     }
   }
