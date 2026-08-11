@@ -17,13 +17,38 @@ use crate::{
   window::WindowId as RootWindowId,
 };
 
-pub(crate) fn emit_opened_from_url_contexts(url_contexts: &NSSet<UIOpenURLContext>) {
-  let url_strings: Vec<String> = url_contexts
+// custom URL schemes and file URLs, delivered both on cold start
+// (UISceneConnectionOptions) and while the app is running (scene:openURLContexts:)
+pub(crate) fn url_strings_from_url_contexts(url_contexts: &NSSet<UIOpenURLContext>) -> Vec<String> {
+  url_contexts
     .iter()
     .filter_map(|ctx| ctx.URL().absoluteString().map(|s| s.to_string()))
-    .collect();
+    .collect()
+}
 
-  let urls = parse_url_strings(&url_strings);
+// universal links, delivered both on cold start (UISceneConnectionOptions) and
+// while the app is running (scene:continueUserActivity:). activities that carry
+// no webpage URL, such as handoff or state restoration, are skipped
+pub(crate) fn url_strings_from_user_activities(
+  user_activities: &NSSet<NSUserActivity>,
+) -> Vec<String> {
+  user_activities
+    .iter()
+    .filter_map(|activity| webpage_url_string(&activity))
+    .collect()
+}
+
+fn webpage_url_string(user_activity: &NSUserActivity) -> Option<String> {
+  user_activity
+    .webpageURL()
+    .and_then(|url| url.absoluteString())
+    .map(|s| s.to_string())
+}
+
+// `source` names the delivery path the URLs came from, so a parse failure can be
+// traced back to the callback that produced it
+pub(crate) fn emit_opened(url_strings: &[String], source: &str) {
+  let urls = parse_url_strings(url_strings, source);
   if !urls.is_empty() {
     unsafe {
       app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls }));
@@ -122,7 +147,10 @@ define_class!(
 
     #[unsafe(method(scene:openURLContexts:))]
     fn scene_openURLContexts(&self, _scene: &UIScene, url_contexts: &NSSet<UIOpenURLContext>) {
-      emit_opened_from_url_contexts(url_contexts);
+      emit_opened(
+        &url_strings_from_url_contexts(url_contexts),
+        "scene:openURLContexts:",
+      );
     }
 
     #[unsafe(method(stateRestorationActivityForScene:))]
@@ -151,17 +179,9 @@ define_class!(
 
     #[unsafe(method(scene:continueUserActivity:))]
     fn scene_continueUserActivity(&self, _scene: &UIScene, user_activity: &NSUserActivity) {
-      unsafe {
-        // universal app links
-        if let Some(url) = user_activity
-          .webpageURL()
-          .and_then(|url| url.absoluteString())
-        {
-          let urls = parse_url_strings(&[url.to_string()]);
-          if !urls.is_empty() {
-            app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls }));
-          }
-        }
+      // universal app links
+      if let Some(url_string) = webpage_url_string(user_activity) {
+        emit_opened(&[url_string], "scene:continueUserActivity:");
       }
     }
 
@@ -192,13 +212,13 @@ define_class!(
   }
 );
 
-fn parse_url_strings(url_strings: &[String]) -> Vec<url::Url> {
+fn parse_url_strings(url_strings: &[String], source: &str) -> Vec<url::Url> {
   url_strings
     .iter()
     .filter_map(|s| {
       s.parse()
         .map_err(|e| {
-          log::error!("failed to parse URL {s}: {e}");
+          log::error!("failed to parse URL {s} from {source}: {e}");
           e
         })
         .ok()
@@ -210,6 +230,8 @@ fn parse_url_strings(url_strings: &[String]) -> Vec<url::Url> {
 mod tests {
   use super::*;
 
+  const SOURCE: &str = "test";
+
   #[test]
   fn test_parse_url_strings() {
     let input = vec![
@@ -218,7 +240,7 @@ mod tests {
       "https://another.com/path".to_string(),
     ];
 
-    let urls = parse_url_strings(&input);
+    let urls = parse_url_strings(&input, SOURCE);
     assert_eq!(urls.len(), 2);
     // url::Url normalizes an empty path to "/"
     assert_eq!(urls[0].as_str(), "https://example.com/");
@@ -227,7 +249,7 @@ mod tests {
 
   #[test]
   fn test_parse_url_strings_empty_input() {
-    assert!(parse_url_strings(&[]).is_empty());
+    assert!(parse_url_strings(&[], SOURCE).is_empty());
   }
 
   #[test]
@@ -238,7 +260,7 @@ mod tests {
       // parses up to the host, which is empty
       "https://".to_string(),
     ];
-    assert!(parse_url_strings(&input).is_empty());
+    assert!(parse_url_strings(&input, SOURCE).is_empty());
   }
 
   #[test]
@@ -254,15 +276,32 @@ mod tests {
     ];
 
     for case in cases {
-      let urls = parse_url_strings(&[case.to_string()]);
+      let urls = parse_url_strings(&[case.to_string()], SOURCE);
       assert_eq!(urls.len(), 1, "expected {case} to parse");
       assert_eq!(urls[0].as_str(), case);
     }
 
-    let urls = parse_url_strings(&["tauri://callback?token=abc".to_string()]);
+    let urls = parse_url_strings(&["tauri://callback?token=abc".to_string()], SOURCE);
     assert_eq!(urls[0].scheme(), "tauri");
     assert_eq!(urls[0].host_str(), Some("callback"));
     assert_eq!(urls[0].query(), Some("token=abc"));
+  }
+
+  #[test]
+  fn test_parse_url_strings_universal_link_round_trip() {
+    // the webpage URLs a universal link carries, whether it arrives in the
+    // connection options on cold start or in scene:continueUserActivity:
+    let cases = [
+      "https://example.com/",
+      "https://example.com/invite/abc?ref=email#section",
+      "https://example.com/%D0%BF%D1%83%D1%82%D1%8C",
+    ];
+
+    for case in cases {
+      let urls = parse_url_strings(&[case.to_string()], SOURCE);
+      assert_eq!(urls.len(), 1, "expected {case} to parse");
+      assert_eq!(urls[0].as_str(), case);
+    }
   }
 
   #[test]
@@ -275,7 +314,7 @@ mod tests {
     ];
 
     for (input, expected) in cases {
-      let urls = parse_url_strings(&[input.to_string()]);
+      let urls = parse_url_strings(&[input.to_string()], SOURCE);
       assert_eq!(urls.len(), 1, "expected {input} to parse");
       assert_eq!(urls[0].as_str(), expected);
     }
