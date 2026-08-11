@@ -4,7 +4,7 @@
 use objc2::{define_class, rc::Retained, MainThreadMarker, MainThreadOnly};
 use objc2_foundation::{
   NSBundle, NSDictionary, NSError, NSNumber, NSObject, NSObjectProtocol, NSSet, NSString,
-  NSUserActivity,
+  NSUserActivity, NSUserActivityTypeBrowsingWeb,
 };
 use objc2_ui_kit::{
   UIApplication, UIOpenURLContext, UIScene, UISceneConnectionOptions, UISceneDelegate,
@@ -27,8 +27,8 @@ pub(crate) fn url_strings_from_url_contexts(url_contexts: &NSSet<UIOpenURLContex
 }
 
 // universal links, delivered both on cold start (UISceneConnectionOptions) and
-// while the app is running (scene:continueUserActivity:). activities that carry
-// no webpage URL, such as handoff or state restoration, are skipped
+// while the app is running (scene:continueUserActivity:). activities of any
+// other type, such as handoff or state restoration, are skipped
 pub(crate) fn url_strings_from_user_activities(
   user_activities: &NSSet<NSUserActivity>,
 ) -> Vec<String> {
@@ -39,6 +39,16 @@ pub(crate) fn url_strings_from_user_activities(
 }
 
 fn webpage_url_string(user_activity: &NSUserActivity) -> Option<String> {
+  // a webpage URL alone does not make an activity a universal link: handoff
+  // activities carry one as the page to open when the app is not installed
+  // https://developer.apple.com/documentation/xcode/supporting-universal-links-in-your-app
+  if !user_activity
+    .activityType()
+    .isEqualToString(unsafe { NSUserActivityTypeBrowsingWeb })
+  {
+    return None;
+  }
+
   user_activity
     .webpageURL()
     .and_then(|url| url.absoluteString())
