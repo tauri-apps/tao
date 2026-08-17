@@ -148,7 +148,7 @@ enum EventSource {
 }
 
 fn poll(poll: Poll) -> Option<EventSource> {
-  match poll {
+  match dbg!(poll) {
     Poll::Event { ident, .. } => match ident {
       ndk_glue::NDK_GLUE_LOOPER_EVENT_PIPE_IDENT => Some(EventSource::Callback),
       ndk_glue::NDK_GLUE_LOOPER_INPUT_QUEUE_IDENT => Some(EventSource::InputQueue),
@@ -475,11 +475,11 @@ impl<T: 'static> EventLoop<T> {
           return code;
         }
         ControlFlow::Poll => {
-          self.first_event = poll(self.looper.poll_all_timeout(Duration::ZERO).unwrap());
+          self.first_event = poll(self.looper.poll_once_timeout(Duration::ZERO).unwrap());
           self.start_cause = event::StartCause::Poll;
         }
         ControlFlow::Wait => {
-          self.first_event = poll(self.looper.poll_all().unwrap());
+          self.first_event = poll(self.looper.poll_once().unwrap());
           self.start_cause = event::StartCause::WaitCancelled {
             start: Instant::now(),
             requested_resume: None,
@@ -492,7 +492,7 @@ impl<T: 'static> EventLoop<T> {
           } else {
             instant - start
           };
-          self.first_event = poll(self.looper.poll_all_timeout(duration).unwrap());
+          self.first_event = poll(self.looper.poll_once_timeout(duration).unwrap());
           self.start_cause = if self.first_event.is_some() {
             event::StartCause::WaitCancelled {
               start,
