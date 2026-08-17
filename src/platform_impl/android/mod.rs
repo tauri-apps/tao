@@ -424,31 +424,14 @@ impl<T: 'static> EventLoop<T> {
             }
           */
         }
-        Some(EventSource::User) => {
-          while let Ok(event) = self.receiver.try_recv() {
-            self.call_event_handler(event_handler, control_flow, event::Event::UserEvent(event));
-          }
-        }
-        None => {}
+        _ => {}
       }
 
-      // FIX: Always drain pending user events after every poll iteration,
-      // not only when `first_event == Some(EventSource::User)`.
+      // We need to treat every event as if they were from [`EventLoopProxy::send_event`]
       //
-      // On Android, `ALooper_pollAll` can return an fd event (e.g. the
-      // `ndk_glue` event pipe, ident=0) instead of `ALOOPER_POLL_WAKE` when
-      // both the wake fd and an fd are ready in the same epoll batch. In
-      // that case `Poll::Wake` is never reported and the `EventSource::User`
-      // arm above never drains `self.receiver`, so events queued via
-      // `EventLoopProxy::send_event` sit in the channel forever — breaking
-      // every IPC response, window getter, and `run_on_main_thread` call.
-      //
-      // Draining unconditionally is safe because:
-      //  * If `EventSource::User` already drained above, `try_recv` returns
-      //    immediately on an empty channel.
-      //  * User events are independent of the Callback/InputQueue
-      //    processing order — they are dispatched via `Event::UserEvent`.
-      //  * The crossbeam receiver is lock-free and `try_recv` is cheap.
+      // > All return values may also imply ALOOPER_POLL_WAKE. If you call this in a loop,
+      // > you must treat all return values as if they also indicated ALOOPER_POLL_WAKE.
+      // > https://developer.android.com/ndk/reference/group/looper#alooper_pollonce
       while let Ok(event) = self.receiver.try_recv() {
         self.call_event_handler(event_handler, control_flow, event::Event::UserEvent(event));
       }
