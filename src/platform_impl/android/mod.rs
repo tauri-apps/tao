@@ -144,19 +144,20 @@ impl std::fmt::Display for OsError {
 enum EventSource {
   Callback,
   InputQueue,
-  User,
+  /// Any other events, we need to treat them as if they're coming from [`EventLoopProxy::send_event`]/`ALooper_wake`
+  ///
+  /// See https://developer.android.com/ndk/reference/group/looper#alooper_pollonce
+  Others,
 }
 
-fn poll(poll: Poll) -> Option<EventSource> {
-  match dbg!(poll) {
+fn poll(poll: Poll) -> EventSource {
+  match poll {
     Poll::Event { ident, .. } => match ident {
-      ndk_glue::NDK_GLUE_LOOPER_EVENT_PIPE_IDENT => Some(EventSource::Callback),
-      ndk_glue::NDK_GLUE_LOOPER_INPUT_QUEUE_IDENT => Some(EventSource::InputQueue),
-      _ => unreachable!(),
+      ndk_glue::NDK_GLUE_LOOPER_EVENT_PIPE_IDENT => EventSource::Callback,
+      ndk_glue::NDK_GLUE_LOOPER_INPUT_QUEUE_IDENT => EventSource::InputQueue,
+      _ => EventSource::Others,
     },
-    Poll::Timeout => None,
-    Poll::Wake => Some(EventSource::User),
-    Poll::Callback => unreachable!(),
+    _ => EventSource::Others,
   }
 }
 
@@ -222,218 +223,220 @@ impl<T: 'static> EventLoop<T> {
       let mut redraw_window_id = None;
       let mut resized_window_id = None;
 
-      match self.first_event.take() {
-        Some(EventSource::Callback) => match ndk_glue::poll_events().unwrap() {
-          Event::Resume { id: window_id } => {
-            self.call_event_handler(
-              event_handler,
-              control_flow,
-              event::Event::WindowEvent {
-                window_id,
-                event: event::WindowEvent::Resumed,
-              },
-            );
-          }
-          Event::WindowEvent {
-            id: window_id,
-            event,
-          } => match event {
-            WindowEvent::Resized => resized_window_id = Some(window_id),
-            WindowEvent::RedrawNeeded => redraw_window_id = Some(window_id),
-            WindowEvent::Started => {
-              self.running.insert(window_id);
+      if let Some(event) = self.first_event.take() {
+        match event {
+          EventSource::Callback => match ndk_glue::poll_events().unwrap() {
+            Event::Resume { id: window_id } => {
               self.call_event_handler(
                 event_handler,
                 control_flow,
                 event::Event::WindowEvent {
                   window_id,
-                  event: event::WindowEvent::Started,
+                  event: event::WindowEvent::Resumed,
                 },
               );
             }
-            WindowEvent::Focused(focused) => {
+            Event::WindowEvent {
+              id: window_id,
+              event,
+            } => match event {
+              WindowEvent::Resized => resized_window_id = Some(window_id),
+              WindowEvent::RedrawNeeded => redraw_window_id = Some(window_id),
+              WindowEvent::Started => {
+                self.running.insert(window_id);
+                self.call_event_handler(
+                  event_handler,
+                  control_flow,
+                  event::Event::WindowEvent {
+                    window_id,
+                    event: event::WindowEvent::Started,
+                  },
+                );
+              }
+              WindowEvent::Focused(focused) => {
+                self.call_event_handler(
+                  event_handler,
+                  control_flow,
+                  event::Event::WindowEvent {
+                    window_id,
+                    event: event::WindowEvent::Focused(focused),
+                  },
+                );
+              }
+              WindowEvent::Stopped => {
+                self.running.remove(&window_id);
+                self.call_event_handler(
+                  event_handler,
+                  control_flow,
+                  event::Event::WindowEvent {
+                    window_id,
+                    event: event::WindowEvent::Stopped,
+                  },
+                );
+              }
+              WindowEvent::Destroyed => {
+                self.running.remove(&window_id);
+                self.call_event_handler(
+                  event_handler,
+                  control_flow,
+                  event::Event::WindowEvent {
+                    window_id,
+                    event: event::WindowEvent::Destroyed,
+                  },
+                );
+              }
+              _ => {}
+            },
+            Event::Pause { id: window_id } => {
               self.call_event_handler(
                 event_handler,
                 control_flow,
                 event::Event::WindowEvent {
                   window_id,
-                  event: event::WindowEvent::Focused(focused),
+                  event: event::WindowEvent::Suspended,
                 },
               );
             }
-            WindowEvent::Stopped => {
-              self.running.remove(&window_id);
-              self.call_event_handler(
-                event_handler,
-                control_flow,
-                event::Event::WindowEvent {
-                  window_id,
-                  event: event::WindowEvent::Stopped,
-                },
-              );
-            }
-            WindowEvent::Destroyed => {
-              self.running.remove(&window_id);
-              self.call_event_handler(
-                event_handler,
-                control_flow,
-                event::Event::WindowEvent {
-                  window_id,
-                  event: event::WindowEvent::Destroyed,
-                },
-              );
-            }
-            _ => {}
-          },
-          Event::Pause { id: window_id } => {
-            self.call_event_handler(
-              event_handler,
-              control_flow,
-              event::Event::WindowEvent {
-                window_id,
-                event: event::WindowEvent::Suspended,
-              },
-            );
-          }
-          Event::Opened => {
-            let urls = ndk_glue::take_intent_urls();
-            if !urls.is_empty() {
-              self.call_event_handler(event_handler, control_flow, event::Event::Opened { urls });
-            }
-          }
-          //Event::ConfigChanged => {
-          // #[allow(deprecated)] // TODO: use ndk-context instead
-          // let am = ndk_glue::native_activity().asset_manager();
-          // let config = Configuration::from_asset_manager(&am);
-          // let old_scale_factor = MonitorHandle.scale_factor();
-          // *CONFIG.write().unwrap() = config;
-          // let scale_factor = MonitorHandle.scale_factor();
-          // if (scale_factor - old_scale_factor).abs() < f64::EPSILON {
-          //   let mut size = MonitorHandle.size();
-          //   let event = event::Event::WindowEvent {
-          //     window_id: window::WindowId(WindowId),
-          //     event: event::WindowEvent::ScaleFactorChanged {
-          //       new_inner_size: &mut size,
-          //       scale_factor,
-          //     },
-          //   };
-          //   self.call_event_handler(event_handler, control_flow, event);
-          // }
-          //}
-          _ => {}
-        },
-
-        Some(EventSource::InputQueue) => {
-          /*
-            if let Some(input_queue) = ndk_glue::input_queue().as_ref() {
-              while let Ok(Some(event)) = input_queue.event() {
-                if let Some(event) = input_queue.pre_dispatch(event) {
-                  let mut handled = true;
-                  let window_id = window::WindowId(WindowId);
-                  let device_id = event::DeviceId(DeviceId);
-                  match &event {
-                    InputEvent::MotionEvent(motion_event) => {
-                      let phase = match motion_event.action() {
-                        MotionAction::Down | MotionAction::PointerDown => {
-                          Some(event::TouchPhase::Started)
-                        }
-                        MotionAction::Up | MotionAction::PointerUp => Some(event::TouchPhase::Ended),
-                        MotionAction::Move => Some(event::TouchPhase::Moved),
-                        MotionAction::Cancel => Some(event::TouchPhase::Cancelled),
-                        _ => {
-                          handled = false;
-                          None // TODO mouse events
-                        }
-                      };
-                      if let Some(phase) = phase {
-                        let pointers: Box<dyn Iterator<Item = ndk::event::Pointer<'_>>> = match phase
-                        {
-                          event::TouchPhase::Started | event::TouchPhase::Ended => {
-                            Box::new(std::iter::once(
-                              motion_event.pointer_at_index(motion_event.pointer_index()),
-                            ))
-                          }
-                          event::TouchPhase::Moved | event::TouchPhase::Cancelled => {
-                            Box::new(motion_event.pointers())
-                          }
-                        };
-
-                        for pointer in pointers {
-                          let location = PhysicalPosition {
-                            x: pointer.x() as _,
-                            y: pointer.y() as _,
-                          };
-                          let event = event::Event::WindowEvent {
-                            window_id,
-                            event: event::WindowEvent::Touch(event::Touch {
-                              device_id,
-                              phase,
-                              location,
-                              id: pointer.pointer_id() as u64,
-                              force: None,
-                            }),
-                          };
-                          self.call_event_handler(
-                            event_handler,
-                            control_flow,
-                            event
-                          );
-                        }
-                      }
-                    }
-                    InputEvent::KeyEvent(key) => {
-                      let state = match key.action() {
-                        KeyAction::Down => event::ElementState::Pressed,
-                        KeyAction::Up => event::ElementState::Released,
-                        _ => event::ElementState::Released,
-                      };
-
-                      let keycode = key.key_code();
-                      let native = NativeKeyCode::Android(keycode.into());
-                      let physical_key = KeyCode::Unidentified(native);
-                      let logical_key = keycode_to_logical(keycode, native);
-                      // TODO: maybe use getUnicodeChar to get the logical key
-
-                      let event = event::Event::WindowEvent {
-                        window_id,
-                        event: event::WindowEvent::KeyboardInput {
-                          device_id,
-                          event: event::KeyEvent {
-                            state,
-                            physical_key,
-                            logical_key,
-                            location: keycode_to_location(keycode),
-                            repeat: key.repeat_count() > 0,
-                            text: None,
-                            platform_specific: KeyEventExtra {},
-                          },
-                          is_synthetic: false,
-                        },
-                      };
-                      self.call_event_handler(
-                        event_handler,
-                        control_flow,
-                        event,
-                      );
-                    }
-                    _ => {}
-                  };
-                  input_queue.finish_event(event, handled);
-                }
+            Event::Opened => {
+              let urls = ndk_glue::take_intent_urls();
+              if !urls.is_empty() {
+                self.call_event_handler(event_handler, control_flow, event::Event::Opened { urls });
               }
             }
-          */
-        }
-        _ => {}
-      }
+            //Event::ConfigChanged => {
+            // #[allow(deprecated)] // TODO: use ndk-context instead
+            // let am = ndk_glue::native_activity().asset_manager();
+            // let config = Configuration::from_asset_manager(&am);
+            // let old_scale_factor = MonitorHandle.scale_factor();
+            // *CONFIG.write().unwrap() = config;
+            // let scale_factor = MonitorHandle.scale_factor();
+            // if (scale_factor - old_scale_factor).abs() < f64::EPSILON {
+            //   let mut size = MonitorHandle.size();
+            //   let event = event::Event::WindowEvent {
+            //     window_id: window::WindowId(WindowId),
+            //     event: event::WindowEvent::ScaleFactorChanged {
+            //       new_inner_size: &mut size,
+            //       scale_factor,
+            //     },
+            //   };
+            //   self.call_event_handler(event_handler, control_flow, event);
+            // }
+            //}
+            _ => {}
+          },
 
-      // We need to treat every event as if they were from [`EventLoopProxy::send_event`]
-      //
-      // > All return values may also imply ALOOPER_POLL_WAKE. If you call this in a loop,
-      // > you must treat all return values as if they also indicated ALOOPER_POLL_WAKE.
-      // > https://developer.android.com/ndk/reference/group/looper#alooper_pollonce
-      while let Ok(event) = self.receiver.try_recv() {
-        self.call_event_handler(event_handler, control_flow, event::Event::UserEvent(event));
+          EventSource::InputQueue => {
+            /*
+              if let Some(input_queue) = ndk_glue::input_queue().as_ref() {
+                while let Ok(Some(event)) = input_queue.event() {
+                  if let Some(event) = input_queue.pre_dispatch(event) {
+                    let mut handled = true;
+                    let window_id = window::WindowId(WindowId);
+                    let device_id = event::DeviceId(DeviceId);
+                    match &event {
+                      InputEvent::MotionEvent(motion_event) => {
+                        let phase = match motion_event.action() {
+                          MotionAction::Down | MotionAction::PointerDown => {
+                            Some(event::TouchPhase::Started)
+                          }
+                          MotionAction::Up | MotionAction::PointerUp => Some(event::TouchPhase::Ended),
+                          MotionAction::Move => Some(event::TouchPhase::Moved),
+                          MotionAction::Cancel => Some(event::TouchPhase::Cancelled),
+                          _ => {
+                            handled = false;
+                            None // TODO mouse events
+                          }
+                        };
+                        if let Some(phase) = phase {
+                          let pointers: Box<dyn Iterator<Item = ndk::event::Pointer<'_>>> = match phase
+                          {
+                            event::TouchPhase::Started | event::TouchPhase::Ended => {
+                              Box::new(std::iter::once(
+                                motion_event.pointer_at_index(motion_event.pointer_index()),
+                              ))
+                            }
+                            event::TouchPhase::Moved | event::TouchPhase::Cancelled => {
+                              Box::new(motion_event.pointers())
+                            }
+                          };
+
+                          for pointer in pointers {
+                            let location = PhysicalPosition {
+                              x: pointer.x() as _,
+                              y: pointer.y() as _,
+                            };
+                            let event = event::Event::WindowEvent {
+                              window_id,
+                              event: event::WindowEvent::Touch(event::Touch {
+                                device_id,
+                                phase,
+                                location,
+                                id: pointer.pointer_id() as u64,
+                                force: None,
+                              }),
+                            };
+                            self.call_event_handler(
+                              event_handler,
+                              control_flow,
+                              event
+                            );
+                          }
+                        }
+                      }
+                      InputEvent::KeyEvent(key) => {
+                        let state = match key.action() {
+                          KeyAction::Down => event::ElementState::Pressed,
+                          KeyAction::Up => event::ElementState::Released,
+                          _ => event::ElementState::Released,
+                        };
+
+                        let keycode = key.key_code();
+                        let native = NativeKeyCode::Android(keycode.into());
+                        let physical_key = KeyCode::Unidentified(native);
+                        let logical_key = keycode_to_logical(keycode, native);
+                        // TODO: maybe use getUnicodeChar to get the logical key
+
+                        let event = event::Event::WindowEvent {
+                          window_id,
+                          event: event::WindowEvent::KeyboardInput {
+                            device_id,
+                            event: event::KeyEvent {
+                              state,
+                              physical_key,
+                              logical_key,
+                              location: keycode_to_location(keycode),
+                              repeat: key.repeat_count() > 0,
+                              text: None,
+                              platform_specific: KeyEventExtra {},
+                            },
+                            is_synthetic: false,
+                          },
+                        };
+                        self.call_event_handler(
+                          event_handler,
+                          control_flow,
+                          event,
+                        );
+                      }
+                      _ => {}
+                    };
+                    input_queue.finish_event(event, handled);
+                  }
+                }
+              }
+            */
+          }
+          _ => {}
+        }
+
+        // We need to treat every event as if they were from [`EventLoopProxy::send_event`]
+        //
+        // > All return values may also imply ALOOPER_POLL_WAKE. If you call this in a loop,
+        // > you must treat all return values as if they also indicated ALOOPER_POLL_WAKE.
+        // > https://developer.android.com/ndk/reference/group/looper#alooper_pollonce
+        while let Ok(event) = self.receiver.try_recv() {
+          self.call_event_handler(event_handler, control_flow, event::Event::UserEvent(event));
+        }
       }
 
       self.call_event_handler(event_handler, control_flow, event::Event::MainEventsCleared);
@@ -464,7 +467,9 @@ impl<T: 'static> EventLoop<T> {
 
       match *control_flow {
         ControlFlow::ExitWithCode(code) => {
-          self.first_event = poll(self.looper.poll_once_timeout(Duration::ZERO).unwrap());
+          self
+            .first_event
+            .replace(poll(self.looper.poll_once_timeout(Duration::ZERO).unwrap()));
           self.start_cause = event::StartCause::WaitCancelled {
             start: Instant::now(),
             requested_resume: None,
@@ -475,11 +480,15 @@ impl<T: 'static> EventLoop<T> {
           return code;
         }
         ControlFlow::Poll => {
-          self.first_event = poll(self.looper.poll_once_timeout(Duration::ZERO).unwrap());
+          self
+            .first_event
+            .replace(poll(self.looper.poll_once_timeout(Duration::ZERO).unwrap()));
           self.start_cause = event::StartCause::Poll;
         }
         ControlFlow::Wait => {
-          self.first_event = poll(self.looper.poll_once().unwrap());
+          self
+            .first_event
+            .replace(poll(self.looper.poll_once().unwrap()));
           self.start_cause = event::StartCause::WaitCancelled {
             start: Instant::now(),
             requested_resume: None,
@@ -492,7 +501,9 @@ impl<T: 'static> EventLoop<T> {
           } else {
             instant - start
           };
-          self.first_event = poll(self.looper.poll_once_timeout(duration).unwrap());
+          self
+            .first_event
+            .replace(poll(self.looper.poll_once_timeout(duration).unwrap()));
           self.start_cause = if self.first_event.is_some() {
             event::StartCause::WaitCancelled {
               start,
