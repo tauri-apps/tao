@@ -609,7 +609,7 @@ impl WindowBuilder {
   ///
   /// ## Platform-specific
   ///
-  /// - **Android:** This claims the next currently open `Activity` if not called with [`WindowBuilderExtAndroid::with_activity_name`](crate::platform::android::WindowBuilderExtAndroid)
+  /// - **Android:** This claims the next currently open `Activity` if not called with `WindowBuilderExtAndroid::with_activity_name`
   #[inline]
   pub fn build<T: 'static>(
     self,
