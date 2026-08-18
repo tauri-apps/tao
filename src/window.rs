@@ -606,6 +606,10 @@ impl WindowBuilder {
   /// Builds the window.
   ///
   /// Possible causes of error include denied permission, incompatible system, and lack of memory.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android:** This claims the next currently open `Activity` if not called with [`WindowBuilderExtAndroid::with_activity_name`](crate::platform::android::WindowBuilderExtAndroid)
   #[inline]
   pub fn build<T: 'static>(
     self,
