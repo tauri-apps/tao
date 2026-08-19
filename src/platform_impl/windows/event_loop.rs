@@ -530,16 +530,20 @@ impl EventLoopThreadExecutor {
 
         let raw = Box::into_raw(boxed2);
 
-        let res = PostMessageW(
+        let result = PostMessageW(
           Some(self.target_window),
           *EXEC_MSG_ID,
           WPARAM(raw as _),
           LPARAM(0),
         );
-        assert!(
-          res.is_ok(),
-          "PostMessage failed ; is the messages queue full?"
-        );
+        // This can happen when we outlive the parent [`EventLoopWindowTarget`] at which point the `target_window` has already been destroyed
+        if let Err(error) = result {
+          log::error!(
+            "PostMessage failed ; is the messages queue full? Error code {} - {}",
+            error.code(),
+            error.message()
+          );
+        }
       }
     }
   }
