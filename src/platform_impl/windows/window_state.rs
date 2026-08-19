@@ -357,15 +357,18 @@ impl WindowFlags {
       }
     }
 
-    if diff.contains(WindowFlags::MAXIMIZED) || new.contains(WindowFlags::MAXIMIZED) {
-      unsafe {
-        let _ = ShowWindow(
-          window,
-          match new.contains(WindowFlags::MAXIMIZED) {
-            true => SW_MAXIMIZE,
-            false => SW_RESTORE,
-          },
-        );
+    if diff.contains(WindowFlags::MAXIMIZED) {
+      if new.contains(WindowFlags::MAXIMIZED) {
+        let _ = unsafe { ShowWindow(window, SW_MAXIMIZE) };
+      } else {
+        if self.contains(WindowFlags::MARKER_BORDERLESS_FULLSCREEN) {
+          let (style, _) = self.to_window_styles();
+          // not to set SW_RESTORE to restore the size, we keep it for borderless fullscreen
+          let unmaximized_style = style & !WS_MAXIMIZE;
+          unsafe { SetWindowLongW(window, GWL_STYLE, unmaximized_style.0 as i32) };
+        } else {
+          let _ = unsafe { ShowWindow(window, SW_RESTORE) };
+        }
       }
     }
 
