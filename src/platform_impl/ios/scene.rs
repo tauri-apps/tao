@@ -4,7 +4,7 @@
 use objc2::{define_class, rc::Retained, MainThreadMarker, MainThreadOnly};
 use objc2_foundation::{
   NSBundle, NSDictionary, NSError, NSNumber, NSObject, NSObjectProtocol, NSSet, NSString,
-  NSUserActivity,
+  NSUserActivity, NSUserActivityTypeBrowsingWeb,
 };
 use objc2_ui_kit::{
   UIApplication, UIOpenURLContext, UIScene, UISceneConnectionOptions, UISceneDelegate,
@@ -16,6 +16,55 @@ use crate::{
   platform_impl::platform::{app_state, event_loop::EventWrapper},
   window::WindowId as RootWindowId,
 };
+
+// custom URL schemes and file URLs, delivered both on cold start
+// (UISceneConnectionOptions) and while the app is running (scene:openURLContexts:)
+pub(crate) fn url_strings_from_url_contexts(url_contexts: &NSSet<UIOpenURLContext>) -> Vec<String> {
+  url_contexts
+    .iter()
+    .filter_map(|ctx| ctx.URL().absoluteString().map(|s| s.to_string()))
+    .collect()
+}
+
+// universal links, delivered both on cold start (UISceneConnectionOptions) and
+// while the app is running (scene:continueUserActivity:). activities of any
+// other type, such as handoff or state restoration, are skipped
+pub(crate) fn url_strings_from_user_activities(
+  user_activities: &NSSet<NSUserActivity>,
+) -> Vec<String> {
+  user_activities
+    .iter()
+    .filter_map(|activity| webpage_url_string(&activity))
+    .collect()
+}
+
+fn webpage_url_string(user_activity: &NSUserActivity) -> Option<String> {
+  // a webpage URL alone does not make an activity a universal link: handoff
+  // activities carry one as the page to open when the app is not installed
+  // https://developer.apple.com/documentation/xcode/supporting-universal-links-in-your-app
+  if !user_activity
+    .activityType()
+    .isEqualToString(unsafe { NSUserActivityTypeBrowsingWeb })
+  {
+    return None;
+  }
+
+  user_activity
+    .webpageURL()
+    .and_then(|url| url.absoluteString())
+    .map(|s| s.to_string())
+}
+
+// `source` names the delivery path the URLs came from, so a parse failure can be
+// traced back to the callback that produced it
+pub(crate) fn emit_opened(url_strings: &[String], source: &str) {
+  let urls = parse_url_strings(url_strings, source);
+  if !urls.is_empty() {
+    unsafe {
+      app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls }));
+    }
+  }
+}
 
 // true when the system allows the app to display multiple scenes and multiple_scenes_enabled() returns true
 // https://developer.apple.com/documentation/uikit/uiapplication/supportsmultiplescenes?language=objc
@@ -129,26 +178,10 @@ define_class!(
 
     #[unsafe(method(scene:openURLContexts:))]
     fn scene_openURLContexts(&self, _scene: &UIScene, url_contexts: &NSSet<UIOpenURLContext>) {
-      unsafe {
-        let urls: Vec<url::Url> = url_contexts
-          .iter()
-          .filter_map(|ctx| {
-            ctx.URL().absoluteString().and_then(|url| {
-              let url = url.to_string();
-              url
-                .parse()
-                .map_err(|e| {
-                  log::error!("failed to parse URL {url} from scene:openURLContexts: {e}");
-                  e
-                })
-                .ok()
-            })
-          })
-          .collect();
-        if !urls.is_empty() {
-          app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls }));
-        }
-      }
+      emit_opened(
+        &url_strings_from_url_contexts(url_contexts),
+        "scene:openURLContexts:",
+      );
     }
 
     #[unsafe(method(stateRestorationActivityForScene:))]
@@ -177,17 +210,9 @@ define_class!(
 
     #[unsafe(method(scene:continueUserActivity:))]
     fn scene_continueUserActivity(&self, _scene: &UIScene, user_activity: &NSUserActivity) {
-      unsafe {
-        // universal app links
-        if let Some(url) = user_activity
-          .webpageURL()
-          .and_then(|url| url.absoluteString())
-        {
-          let url = url.to_string().parse::<url::Url>().unwrap();
-          app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened {
-            urls: vec![url],
-          }));
-        }
+      // universal app links
+      if let Some(url_string) = webpage_url_string(user_activity) {
+        emit_opened(&[url_string], "scene:continueUserActivity:");
       }
     }
 
@@ -224,3 +249,112 @@ define_class!(
     }
   }
 );
+
+fn parse_url_strings(url_strings: &[String], source: &str) -> Vec<url::Url> {
+  url_strings
+    .iter()
+    .filter_map(|s| {
+      s.parse()
+        .map_err(|e| {
+          log::error!("failed to parse URL {s} from {source}: {e}");
+          e
+        })
+        .ok()
+    })
+    .collect()
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  const SOURCE: &str = "test";
+
+  #[test]
+  fn test_parse_url_strings() {
+    let input = vec![
+      "https://example.com".to_string(),
+      "invalid-url".to_string(),
+      "https://another.com/path".to_string(),
+    ];
+
+    let urls = parse_url_strings(&input, SOURCE);
+    assert_eq!(urls.len(), 2);
+    // url::Url normalizes an empty path to "/"
+    assert_eq!(urls[0].as_str(), "https://example.com/");
+    assert_eq!(urls[1].as_str(), "https://another.com/path");
+  }
+
+  #[test]
+  fn test_parse_url_strings_empty_input() {
+    assert!(parse_url_strings(&[], SOURCE).is_empty());
+  }
+
+  #[test]
+  fn test_parse_url_strings_all_invalid() {
+    let input = vec![
+      String::new(),
+      "not a url".to_string(),
+      // parses up to the host, which is empty
+      "https://".to_string(),
+    ];
+    assert!(parse_url_strings(&input, SOURCE).is_empty());
+  }
+
+  #[test]
+  fn test_parse_url_strings_deep_link_round_trip() {
+    // the payloads scene:openURLContexts: actually delivers: custom URL
+    // schemes, universal links with query and fragment, and file URLs
+    // from the share sheet's "Open in..."
+    let cases = [
+      "tauri://callback?token=abc",
+      "myapp:main",
+      "https://example.com/auth?code=1&state=2#frag",
+      "file:///private/var/mobile/Containers/doc%20name.pdf",
+    ];
+
+    for case in cases {
+      let urls = parse_url_strings(&[case.to_string()], SOURCE);
+      assert_eq!(urls.len(), 1, "expected {case} to parse");
+      assert_eq!(urls[0].as_str(), case);
+    }
+
+    let urls = parse_url_strings(&["tauri://callback?token=abc".to_string()], SOURCE);
+    assert_eq!(urls[0].scheme(), "tauri");
+    assert_eq!(urls[0].host_str(), Some("callback"));
+    assert_eq!(urls[0].query(), Some("token=abc"));
+  }
+
+  #[test]
+  fn test_parse_url_strings_universal_link_round_trip() {
+    // the webpage URLs a universal link carries, whether it arrives in the
+    // connection options on cold start or in scene:continueUserActivity:
+    let cases = [
+      "https://example.com/",
+      "https://example.com/invite/abc?ref=email#section",
+      "https://example.com/%D0%BF%D1%83%D1%82%D1%8C",
+    ];
+
+    for case in cases {
+      let urls = parse_url_strings(&[case.to_string()], SOURCE);
+      assert_eq!(urls.len(), 1, "expected {case} to parse");
+      assert_eq!(urls[0].as_str(), case);
+    }
+  }
+
+  #[test]
+  fn test_parse_url_strings_normalization() {
+    // consumers receive URLs normalized per the WHATWG URL spec
+    let cases = [
+      ("HTTPS://EXAMPLE.COM/Path", "https://example.com/Path"),
+      ("https://example.com/a b", "https://example.com/a%20b"),
+      ("https://example.com:443/page", "https://example.com/page"),
+    ];
+
+    for (input, expected) in cases {
+      let urls = parse_url_strings(&[input.to_string()], SOURCE);
+      assert_eq!(urls.len(), 1, "expected {input} to parse");
+      assert_eq!(urls[0].as_str(), expected);
+    }
+  }
+}

@@ -28,7 +28,10 @@ use crate::{
       CFRunLoopTimerRef, CFRunLoopTimerSetNextFireDate, CGRect, CGSize, NSInteger,
       NSOperatingSystemVersion, NSUInteger,
     },
-    scene::multiple_scenes_enabled,
+    scene::{
+      emit_opened, multiple_scenes_enabled, url_strings_from_url_contexts,
+      url_strings_from_user_activities,
+    },
   },
   window::WindowId as RootWindowId,
 };
@@ -530,6 +533,14 @@ pub unsafe fn connect_scene(scene: &UIScene, options: &UISceneConnectionOptions)
       }));
     }
   }
+
+  // on cold start every deep link arrives here instead of through the callbacks
+  // that handle them while the app is running: custom schemes and file URLs in
+  // the URL contexts, universal links in the user activities, since
+  // scene:continueUserActivity: is not called for the launch activity
+  let mut url_strings = url_strings_from_url_contexts(&options.URLContexts());
+  url_strings.extend(url_strings_from_user_activities(&options.userActivities()));
+  emit_opened(&url_strings, "scene:willConnectToSession:options:");
 }
 
 pub unsafe fn register_window_for_scene(window: id) {
