@@ -12,9 +12,8 @@ use objc2::{
   runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel},
   ClassType, MainThreadMarker,
 };
-use objc2_foundation::NSString;
 use objc2_ui_kit::{
-  UIApplication, UISceneActivationRequestOptions, UISceneConfiguration,
+  UIApplication, UISceneActivationRequestOptions, UISceneConfiguration, UISceneSession,
   UISceneSessionActivationRequest,
 };
 
@@ -29,7 +28,7 @@ use crate::{
       id, nil, CGFloat, CGPoint, CGRect, UIForceTouchCapability, UIInterfaceOrientationMask,
       UIRectEdge, UITouchPhase, UITouchType, BOOL, NO, YES,
     },
-    scene::{app_supports_multiple_scenes, multiple_scenes_enabled},
+    scene::app_supports_multiple_scenes,
     window::PlatformSpecificWindowBuilderAttributes,
     DeviceId,
   },
@@ -541,61 +540,55 @@ pub unsafe fn create_window(
     "Failed to initialize `UIWindow` instance"
   );
 
-  if multiple_scenes_enabled() {
-    // if multiple scenes is enabled in Info.plist, we need to assign it
-    // regarless of whether the device supports multiple scenes or not
-    if let Some(scene) = app_state::unitialized_scene() {
-      let _: () = msg_send![window, setWindowScene: Retained::as_ptr(&scene)];
-    } else if !app_supports_multiple_scenes() {
-      // if there's no unitialized scene and the app does not support multiple scenes
-      // we need to move this window to the main scene, otherwise it won't be visible
-      let scene = unsafe {
-        let mtm = MainThreadMarker::new().unwrap();
-        let application = UIApplication::sharedApplication(mtm);
-        application.connectedScenes().iter().next()
-      };
-      let scene = scene
+  // on the scene lifecycle a window is only displayed once it belongs to a scene, so we
+  // must always assign one - the app runs on it whenever the system connected a scene,
+  // which it may do even when the Info.plist does not declare a scene manifest
+  if let Some(scene) = app_state::unitialized_scene() {
+    let _: () = msg_send![window, setWindowScene: Retained::as_ptr(&scene)];
+  } else if app_supports_multiple_scenes() {
+    // only request a new scene if the system actually supports it
+    // otherwise it is silently ignored
+    unsafe {
+      let mtm = MainThreadMarker::new().unwrap();
+      let application = UIApplication::sharedApplication(mtm);
+      app_state::register_window_for_scene(window);
+
+      let options = UISceneActivationRequestOptions::new(mtm);
+      if let Some(scene) = platform_attributes
+        .requesting_scene_identifier
         .as_ref()
-        .map(|s| Retained::as_ptr(s))
-        .unwrap_or(std::ptr::null_mut());
+        .and_then(|id| app_state::scene_by_id(id))
+      {
+        options.setRequestingScene(Some(&scene));
+      }
 
-      let _: () = msg_send![window, setWindowScene: scene];
-    } else {
-      // only request a new scene if the system actually supports it
-      // otherwise it is silently ignored
-      unsafe {
-        let mtm = MainThreadMarker::new().unwrap();
-        let application = UIApplication::sharedApplication(mtm);
-        app_state::register_window_for_scene(window);
+      let error_handler = block2::RcBlock::new(move |error| {
+        log::error!("error activating scene: {error:?}");
+      });
 
-        let options = UISceneActivationRequestOptions::new(mtm);
-        if let Some(scene) = platform_attributes
-          .requesting_scene_identifier
-          .as_ref()
-          .and_then(|id| app_state::scene_by_id(id))
-        {
-          options.setRequestingScene(Some(&scene));
-        }
-
-        let error_handler = block2::RcBlock::new(move |error| {
-          log::error!("error activating scene: {error:?}");
-        });
-
-        if operating_system_version().0 >= 17 {
-          let request = UISceneSessionActivationRequest::request();
-          request.setOptions(Some(&options));
-          application.activateSceneSessionForRequest_errorHandler(&request, Some(&error_handler));
-        } else {
-          #[allow(deprecated)]
-          application.requestSceneSessionActivation_userActivity_options_errorHandler(
-            None,
-            None,
-            Some(&options),
-            Some(&error_handler),
-          );
-        }
+      if operating_system_version().0 >= 17 {
+        let request = UISceneSessionActivationRequest::request();
+        request.setOptions(Some(&options));
+        application.activateSceneSessionForRequest_errorHandler(&request, Some(&error_handler));
+      } else {
+        #[allow(deprecated)]
+        application.requestSceneSessionActivation_userActivity_options_errorHandler(
+          None,
+          None,
+          Some(&options),
+          Some(&error_handler),
+        );
       }
     }
+  } else if let Some(scene) = app_state::first_window_scene() {
+    // if there's no unitialized scene and the app does not support multiple scenes
+    // we need to move this window to the main scene, otherwise it won't be visible
+    let _: () = msg_send![window, setWindowScene: Retained::as_ptr(&scene)];
+  } else {
+    // no scene is connected yet, either because the app runs on the legacy lifecycle
+    // - where the system attaches the window to a scene on its own - or because it was
+    // created before the first scene connected, which then adopts it
+    app_state::register_scene_less_window(window);
   }
 
   let () = msg_send![window, setRootViewController: view_controller];
@@ -634,16 +627,18 @@ pub fn create_delegate_class() {
     _: &Object,
     _: Sel,
     _application: id,
-    _connecting_scene_session: id,
+    connecting_scene_session: id,
     _options: id,
   ) -> id {
     unsafe {
       let mtm = objc2_foundation::MainThreadMarker::new_unchecked();
-      let config = UISceneConfiguration::configurationWithName_sessionRole(
-        Some(&NSString::from_str("TaoScene")),
-        &NSString::from_str("UIWindowSceneSessionRoleApplication"),
-        mtm,
-      );
+      // keep the role of the session that is connecting instead of assuming the
+      // window scene role, so scenes such as external displays still get their own.
+      // a `None` name picks the app's own configuration for that role when its
+      // Info.plist declares one, and the default configuration when it doesn't
+      let session: &UISceneSession = &*connecting_scene_session.cast();
+      let config =
+        UISceneConfiguration::configurationWithName_sessionRole(None, &session.role(), mtm);
 
       // Dynamically set the delegate class name
       config.setDelegateClass(Some(super::scene::TaoSceneDelegate::class()));
@@ -726,11 +721,23 @@ pub fn create_delegate_class() {
   }
 
   extern "C" fn will_resign_active(_: &Object, _: Sel, _: id) {
-    unsafe { handle_tao_window_events(|| WindowEvent::Suspended) }
+    unsafe {
+      if app_state::did_first_scene_connect() {
+        // the scene delegate already emits this event for the windows of its scene
+        return;
+      }
+      handle_tao_window_events(|| WindowEvent::Suspended)
+    }
   }
 
   extern "C" fn will_enter_foreground(_: &Object, _: Sel, _: id) {
-    unsafe { handle_tao_window_events(|| WindowEvent::Resumed) }
+    unsafe {
+      if app_state::did_first_scene_connect() {
+        // the scene delegate already emits this event for the windows of its scene
+        return;
+      }
+      handle_tao_window_events(|| WindowEvent::Resumed)
+    }
   }
 
   extern "C" fn will_terminate(_: &Object, _: Sel, _: id) {
@@ -748,19 +755,23 @@ pub fn create_delegate_class() {
   .expect("Failed to declare class `AppDelegate`");
 
   unsafe {
-    let uses_scenes = multiple_scenes_enabled();
+    // register the scene delegate class in the runtime upfront, the system looks it up by
+    // name when it decodes a scene session that was encoded on a previous launch
+    let _ = super::scene::TaoSceneDelegate::class();
 
     decl.add_method(
       sel!(application:didFinishLaunchingWithOptions:),
       did_finish_launching as extern "C" fn(_, _, _, _) -> _,
     );
 
-    if uses_scenes {
-      decl.add_method(
-        sel!(application:configurationForConnectingSceneSession:options:),
-        configuration_for_connecting_scene_session as extern "C" fn(_, _, _, _, _) -> _,
-      );
-    }
+    // always answer the scene configuration request, even when the Info.plist does not
+    // declare a scene manifest: UIKit only asks for it when the app runs on the scene
+    // lifecycle, and answering it is the only way to get our scene delegate installed
+    // there. Apps that never run on scenes simply never receive this callback.
+    decl.add_method(
+      sel!(application:configurationForConnectingSceneSession:options:),
+      configuration_for_connecting_scene_session as extern "C" fn(_, _, _, _, _) -> _,
+    );
 
     decl.add_method(
       sel!(application:openURL:options:),
@@ -772,16 +783,14 @@ pub fn create_delegate_class() {
       application_continue as extern "C" fn(_, _, _, _, _) -> _,
     );
 
-    if !uses_scenes {
-      decl.add_method(
-        sel!(applicationWillResignActive:),
-        will_resign_active as extern "C" fn(_, _, _),
-      );
-      decl.add_method(
-        sel!(applicationWillEnterForeground:),
-        will_enter_foreground as extern "C" fn(_, _, _),
-      );
-    }
+    decl.add_method(
+      sel!(applicationWillResignActive:),
+      will_resign_active as extern "C" fn(_, _, _),
+    );
+    decl.add_method(
+      sel!(applicationWillEnterForeground:),
+      will_enter_foreground as extern "C" fn(_, _, _),
+    );
 
     decl.add_method(
       sel!(applicationWillTerminate:),
