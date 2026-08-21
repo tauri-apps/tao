@@ -1,6 +1,6 @@
 [package]
 name = "tao"
-version = "0.36.0"
+version = "0.37.0"
 description = "Cross-platform window manager library."
 authors = [
   "Tauri Programme within The Commons Conservancy",
