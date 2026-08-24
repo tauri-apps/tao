@@ -3,8 +3,7 @@
 
 use objc2::{define_class, rc::Retained, MainThreadMarker, MainThreadOnly};
 use objc2_foundation::{
-  NSBundle, NSDictionary, NSError, NSNumber, NSObject, NSObjectProtocol, NSSet, NSString,
-  NSUserActivity,
+  NSBundle, NSError, NSObject, NSObjectProtocol, NSSet, NSString, NSUserActivity,
 };
 use objc2_ui_kit::{
   UIApplication, UIOpenURLContext, UIScene, UISceneConnectionOptions, UISceneDelegate,
@@ -17,7 +16,8 @@ use crate::{
   window::WindowId as RootWindowId,
 };
 
-// true when the system allows the app to display multiple scenes and multiple_scenes_enabled() returns true
+// true when the app enabled `UIApplicationSupportsMultipleScenes` in its Info.plist
+// and the device allows it to display multiple scenes
 // https://developer.apple.com/documentation/uikit/uiapplication/supportsmultiplescenes?language=objc
 pub unsafe fn app_supports_multiple_scenes() -> bool {
   let mtm = MainThreadMarker::new().unwrap();
@@ -25,31 +25,32 @@ pub unsafe fn app_supports_multiple_scenes() -> bool {
   application.supportsMultipleScenes()
 }
 
-// check whether the app's Info.plist enabled multiple scenes
-pub unsafe fn multiple_scenes_enabled() -> bool {
+// check whether the app adopted the scene lifecycle by declaring a
+// `UIApplicationSceneManifest` in its Info.plist
+//
+// such apps get their windows and their lifecycle callbacks from a `UISceneDelegate`
+// instead of the application delegate, so a `UIWindow` is only visible once it is
+// attached to a scene
+// https://developer.apple.com/documentation/bundleresources/information-property-list/uiapplicationscenemanifest
+pub unsafe fn scene_lifecycle_enabled() -> bool {
   let bundle = NSBundle::mainBundle();
   let Some(info) = bundle.infoDictionary() else {
     return false;
   };
 
   let key = NSString::from_str("UIApplicationSceneManifest");
-  let Some(manifest) = (*info).objectForKey(&key) else {
-    return false;
-  };
-
-  let manifest_dict = Retained::cast_unchecked::<NSDictionary<NSString, NSObject>>(manifest);
-  let supports_key = NSString::from_str("UIApplicationSupportsMultipleScenes");
-  let Some(value) = (*manifest_dict).objectForKey(&supports_key) else {
-    return false;
-  };
-
-  let num = Retained::cast_unchecked::<NSNumber>(value);
-  (*num).as_bool()
+  (*info).objectForKey(&key).is_some()
 }
 
 unsafe fn handle_scene_window_events(scene: &UIScene, event: impl Fn() -> WindowEvent<'static>) {
   if let Some(window_scene) = scene.downcast_ref::<UIWindowScene>() {
-    for window in window_scene.windows() {
+    let windows = window_scene.windows();
+
+    if windows.is_empty() {
+      log::debug!("scene has no windows; no window events were emitted");
+    }
+
+    for window in windows {
       app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::WindowEvent {
         window_id: RootWindowId(window.into()),
         event: event(),
@@ -80,20 +81,26 @@ define_class!(
       }
     }
 
+    // iOS may disconnect a scene because the user closed it, or because
+    // the system discarded a backgrounded scene to free resources. A
+    // restored scene goes through `scene:willConnectToSession:` again
+    // and gets a new `UIWindow` and `WindowId`.
     #[unsafe(method(sceneDidDisconnect:))]
-    fn sceneDidDisconnect(&self, _scene: &UIScene) {}
+    fn sceneDidDisconnect(&self, scene: &UIScene) {
+      unsafe {
+        if app_state::is_terminated() {
+          log::debug!("ignoring `sceneDidDisconnect` after application termination");
+          return;
+        }
+
+        handle_scene_window_events(scene, || WindowEvent::Destroyed);
+      }
+    }
 
     #[unsafe(method(sceneDidBecomeActive:))]
     fn sceneDidBecomeActive(&self, scene: &UIScene) {
       unsafe {
-        if let Some(window_scene) = scene.downcast_ref::<UIWindowScene>() {
-          for window in window_scene.windows() {
-            app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::WindowEvent {
-              window_id: RootWindowId(window.into()),
-              event: WindowEvent::Focused(true),
-            }));
-          }
-        }
+        handle_scene_window_events(scene, || WindowEvent::Focused(true));
       }
     }
 
@@ -193,7 +200,16 @@ define_class!(
   }
 
   #[allow(non_snake_case)]
-  unsafe impl UIWindowSceneDelegate for TaoSceneDelegate {
+  unsafe impl UIWindowSceneDelegate for TaoSceneDelegate {}
+
+  // Registered from a plain `impl` because objc2 panics in debug builds when a
+  // protocol-block selector is missing from the runtime protocol, and this one is
+  // iOS 26+. Both paths register the same method, so iOS 26 still resolves it.
+  //
+  // TODO: Move back into the protocol block once objc2 0.7.0 fixes the check,
+  // ref <https://github.com/madsmtm/objc2/issues/645>.
+  #[allow(non_snake_case)]
+  impl TaoSceneDelegate {
     #[unsafe(method_id(preferredWindowingControlStyleForScene:))]
     fn preferredWindowingControlStyleForScene(
       &self,

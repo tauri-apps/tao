@@ -1,13 +1,13 @@
 [package]
 name = "tao"
-version = "0.36.0"
+version = "0.37.0"
 description = "Cross-platform window manager library."
 authors = [
   "Tauri Programme within The Commons Conservancy",
   "The winit contributors",
 ]
 edition = "2021"
-rust-version = "1.74"
+rust-version = "1.85"
 keywords = ["windowing"]
 license = "Apache-2.0"
 readme = "README.md"
@@ -67,10 +67,10 @@ softbuffer = "0.4"
 parking_lot = "0.12"
 unicode-segmentation = "1.11"
 windows-version = "0.1"
-windows-core = "0.61"
+windows-core = "0.62"
 
 [target."cfg(target_os = \"windows\")".dependencies.windows]
-version = "0.61"
+version = "0.62"
 features = [
   "Win32_Devices_HumanInterfaceDevice",
   "Win32_Foundation",

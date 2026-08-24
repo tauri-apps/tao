@@ -530,16 +530,20 @@ impl EventLoopThreadExecutor {
 
         let raw = Box::into_raw(boxed2);
 
-        let res = PostMessageW(
+        let result = PostMessageW(
           Some(self.target_window),
           *EXEC_MSG_ID,
           WPARAM(raw as _),
           LPARAM(0),
         );
-        assert!(
-          res.is_ok(),
-          "PostMessage failed ; is the messages queue full?"
-        );
+        // This can happen when we outlive the parent [`EventLoopWindowTarget`] at which point the `target_window` has already been destroyed
+        if let Err(error) = result {
+          log::error!(
+            "PostMessage failed ; is the messages queue full? Error code {} - {}",
+            error.code(),
+            error.message()
+          );
+        }
       }
     }
   }
@@ -2195,7 +2199,9 @@ unsafe fn public_window_callback_inner<T: 'static>(
         result = ProcResult::Value(LRESULT(0));
       } else if msg == *S_U_TASKBAR_RESTART {
         let skip_taskbar = userdata.window_state.lock().skip_taskbar;
-        let _ = set_skip_taskbar(window, skip_taskbar);
+        if skip_taskbar {
+          let _ = set_skip_taskbar(window, true);
+        }
       }
     }
   };
@@ -2328,8 +2334,14 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       // and we don't need to handle that case since we didn't do anything prior in response to `WM_QUERYENDSESSION`
       if wparam.0 == TRUE.0 as usize {
         userdata.event_loop_runner.loop_destroyed();
+        // `WM_ENDSESSION` can be sent by Windows during shutdown or by Restart Manager
+        //
+        // - From Windows shutdown: Windows will shut us down after we return `0` here
+        // - From Restart Manager: Restart Manager only sends the message but will wait for us to shutdown ourselves
+        //
+        // So, we call `exit` here directly to align this behavior
+        std::process::exit(0);
       }
-      // Note: after we return 0 here, Windows will shut us down
       LRESULT(0)
     }
 

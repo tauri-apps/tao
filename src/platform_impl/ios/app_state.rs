@@ -28,7 +28,7 @@ use crate::{
       CFRunLoopTimerRef, CFRunLoopTimerSetNextFireDate, CGRect, CGSize, NSInteger,
       NSOperatingSystemVersion, NSUInteger,
     },
-    scene::multiple_scenes_enabled,
+    scene::scene_lifecycle_enabled,
   },
   window::WindowId as RootWindowId,
 };
@@ -104,7 +104,14 @@ struct AppState {
   // Window::new might create a window before a scene is ready for it,
   // requesting a new scene to be activated and deferring the setWindowScene call to the scene delegate
   windows_for_next_scenes: Vec<id>,
+  // Stores the UIWindow instances that were created while the app had no connected scene.
+  // The system can run an app on the scene lifecycle even when its Info.plist does not
+  // adopt it, in which case the windows are created before the first scene connects
+  scene_less_windows: Vec<id>,
   did_first_scene_connect: bool,
+  // set once the queued windows were flushed and `StartCause::Init` was emitted,
+  // either from the application delegate or from the first scene connection
+  is_app_ready: bool,
 }
 
 impl Drop for AppState {
@@ -157,7 +164,9 @@ impl AppState {
           control_flow: ControlFlow::default(),
           waker,
           windows_for_next_scenes: Vec::new(),
+          scene_less_windows: Vec::new(),
           did_first_scene_connect: false,
+          is_app_ready: false,
         });
       }
       init_guard(&mut guard)
@@ -485,6 +494,16 @@ pub unsafe fn unitialized_scene() -> Option<Retained<UIWindowScene>> {
   None
 }
 
+// the first connected scene that is able to display windows
+pub unsafe fn first_window_scene() -> Option<Retained<UIWindowScene>> {
+  let mtm = MainThreadMarker::new().unwrap();
+  let application = UIApplication::sharedApplication(mtm);
+  application
+    .connectedScenes()
+    .iter()
+    .find_map(|scene| scene.downcast_ref::<UIWindowScene>().map(|s| s.retain()))
+}
+
 pub unsafe fn scene_by_id(id: &str) -> Option<Retained<UIScene>> {
   let mtm = MainThreadMarker::new().unwrap();
   let application = UIApplication::sharedApplication(mtm);
@@ -529,6 +548,18 @@ pub unsafe fn connect_scene(scene: &UIScene, options: &UISceneConnectionOptions)
         options: options.retain(),
       }));
     }
+
+    // windows that were created before any scene existed are only ever displayed once
+    // they join one, so the first scene to connect adopts all of them
+    let scene_less_windows = mem::take(&mut AppState::get_mut().scene_less_windows);
+    for window in scene_less_windows {
+      // the system might have attached the window to a scene on its own already
+      let assigned_scene: id = msg_send![window, windowScene];
+      if assigned_scene.is_null() {
+        let () = msg_send![window, setWindowScene: window_scene];
+      }
+      let () = msg_send![window, release];
+    }
   }
 }
 
@@ -536,6 +567,17 @@ pub unsafe fn register_window_for_scene(window: id) {
   AppState::get_mut()
     .windows_for_next_scenes
     .push(msg_send![window, retain]);
+}
+
+// retains window
+pub unsafe fn register_scene_less_window(window: id) {
+  AppState::get_mut()
+    .scene_less_windows
+    .push(msg_send![window, retain]);
+}
+
+pub unsafe fn did_first_scene_connect() -> bool {
+  AppState::get_mut().did_first_scene_connect
 }
 
 // requires main thread and window is a UIWindow
@@ -608,13 +650,20 @@ pub unsafe fn will_launch(queued_event_handler: Box<dyn EventHandler>) {
 // requires main thread
 pub unsafe fn did_finish_launching() {
   // when app is run in scenes lifecycle mode, we defer the did_finish_launching call to the first scene setup
-  if !multiple_scenes_enabled() {
+  if !scene_lifecycle_enabled() {
     on_app_ready();
   }
 }
 
 unsafe fn on_app_ready() {
   let mut this = AppState::get_mut();
+  // an app whose Info.plist does not declare a scene manifest is set up on
+  // `didFinishLaunchingWithOptions:` but can still be given a scene by the system,
+  // in which case the scene connection must not run this a second time
+  if this.is_app_ready {
+    return;
+  }
+  this.is_app_ready = true;
   let windows = match this.state_mut() {
     AppStateImpl::Launching { queued_windows, .. } => mem::take(queued_windows),
     s => bug!("unexpected state {:?}", s),
@@ -873,6 +922,11 @@ pub unsafe fn handle_main_events_cleared() {
 // requires main thread
 pub unsafe fn handle_events_cleared() {
   AppState::get_mut().events_cleared_transition();
+}
+
+// requires main thread
+pub unsafe fn is_terminated() -> bool {
+  matches!(AppState::get_mut().state(), AppStateImpl::Terminated)
 }
 
 // requires main thread

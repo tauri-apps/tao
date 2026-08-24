@@ -77,7 +77,7 @@ const DATA_URL_ENCODING_SET: &AsciiSet = &CONTROLS
 #[macro_export]
 macro_rules! android_binding {
   ($domain:ident, $package:ident, $activity:ident, $on_activity_create:path, $main:ident) => {
-    ::tao::android_binding!($domain, $package, $activity, $setup, $main, ::tao)
+    ::tao::android_binding!($domain, $package, $activity, $on_activity_create, $main, ::tao)
   };
   ($domain:ident, $package:ident, $activity:ident, $on_activity_create:path, $main:ident, $tao:path) => {{
     // NOTE: be careful when changing how this use statement is written
