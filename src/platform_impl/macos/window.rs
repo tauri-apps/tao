@@ -257,6 +257,7 @@ fn create_window(
       {
         *((*ns_window_ptr).get_mut_ivar::<Bool>("focusable")) = attrs.focusable.into();
       }
+      maximizable_ivar(&*ns_window_ptr).write(attrs.maximizable.into());
 
       let title = NSString::from_str(&attrs.title);
       ns_window.setReleasedWhenClosed(false);
@@ -297,11 +298,8 @@ fn create_window(
         ns_window.setSharingType(NSWindowSharingType::None);
       }
 
-      if !attrs.maximizable {
-        if let Some(button) = ns_window
-          .standardWindowButton(NSWindowButton::ZoomButton) {
-            button.setEnabled(false);
-          }
+      if let Some(button) = ns_window.standardWindowButton(NSWindowButton::ZoomButton) {
+        button.setEnabled(attrs.maximizable);
       }
 
       if let Some(increments) = pl_attrs.resize_increments {
@@ -354,6 +352,14 @@ fn screen_from_position(position: Position) -> Option<Retained<NSScreen>> {
     }
   }
   None
+}
+
+unsafe fn maximizable_ivar(window: &Object) -> *mut Bool {
+  let ivar = WINDOW_CLASS
+    .0
+    .instance_variable(CStr::from_bytes_with_nul(b"maximizable\0").unwrap())
+    .unwrap();
+  ivar.load_ptr::<Bool>(window)
 }
 
 pub(super) fn get_ns_theme() -> Theme {
@@ -419,10 +425,28 @@ static WINDOW_CLASS: Lazy<WindowClass> = Lazy::new(|| unsafe {
     is_focusable as extern "C" fn(_, _) -> _,
   );
   decl.add_method(sel!(sendEvent:), send_event as extern "C" fn(_, _, _));
+  decl.add_method(
+    sel!(setStyleMask:),
+    set_style_mask as extern "C" fn(_, _, _),
+  );
   // progress bar states, follows ProgressState
   decl.add_ivar::<Bool>(CStr::from_bytes_with_nul(b"focusable\0").unwrap());
+  decl.add_ivar::<Bool>(CStr::from_bytes_with_nul(b"maximizable\0").unwrap());
   WindowClass(decl.register())
 });
+
+extern "C" fn set_style_mask(this: &Object, _: Sel, mask: NSWindowStyleMask) {
+  unsafe {
+    let superclass = util::superclass(this);
+    let _: () = msg_send![super(this, superclass), setStyleMask: mask];
+
+    let button: id = msg_send![this, standardWindowButton: NSWindowButton::ZoomButton];
+    if !button.is_null() {
+      let enabled = maximizable_ivar(this).read().as_bool();
+      let _: () = msg_send![button, setEnabled: enabled];
+    }
+  }
+}
 
 extern "C" fn is_focusable(this: &Object, _: Sel) -> Bool {
   #[allow(deprecated)] // TODO: Use define_class!
@@ -823,6 +847,7 @@ impl UnownedWindow {
   #[inline]
   pub fn set_maximizable(&self, maximizable: bool) {
     unsafe {
+      maximizable_ivar(&self.ns_window).write(maximizable.into());
       if let Some(button) = self
         .ns_window
         .standardWindowButton(NSWindowButton::ZoomButton)
@@ -1108,7 +1133,7 @@ impl UnownedWindow {
       {
         button.isEnabled()
       } else {
-        false
+        maximizable_ivar(&self.ns_window).read().as_bool()
       }
     }
   }
