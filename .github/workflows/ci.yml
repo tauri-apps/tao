@@ -7,6 +7,9 @@ on:
     branches:
       - dev
 
+permissions:
+  contents: read
+
 jobs:
   tests:
     strategy:

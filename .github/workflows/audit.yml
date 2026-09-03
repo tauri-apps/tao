@@ -9,6 +9,9 @@ on:
       - "**/Cargo.lock"
       - "**/Cargo.toml"
 
+permissions:
+  contents: read
+
 jobs:
   audit-rust:
     runs-on: ubuntu-latest
