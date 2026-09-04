@@ -8,10 +8,10 @@ use std::{
 };
 
 use core_graphics::base::CGFloat;
-use dispatch2::{DispatchQueue, DispatchQueueAttr};
+use dispatch2::DispatchQueue;
 use objc2::{rc::autoreleasepool, Message};
 use objc2_app_kit::{NSScreen, NSView, NSWindow, NSWindowStyleMask};
-use objc2_foundation::{MainThreadMarker, NSPoint, NSSize, NSString};
+use objc2_foundation::{MainThreadMarker, NSPoint, NSRect, NSSize, NSString};
 
 use crate::{
   dpi::LogicalSize,
@@ -152,6 +152,28 @@ pub unsafe fn restore_display_mode_async(ns_screen: u32) {
   });
 }
 
+unsafe fn screen_visible_frame(ns_window: &NSWindow) -> NSRect {
+  if let Some(screen) = ns_window.screen() {
+    screen.visibleFrame()
+  } else {
+    let mtm = MainThreadMarker::new_unchecked();
+    let screen = NSScreen::mainScreen(mtm).unwrap();
+    NSScreen::visibleFrame(&screen)
+  }
+}
+
+unsafe fn animate_window_frame(ns_window: &NSWindow, new_rect: NSRect) {
+  let animation_context = class!(NSAnimationContext);
+  let _: () = msg_send![animation_context, beginGrouping];
+  let context: id = msg_send![animation_context, currentContext];
+  let duration = ns_window.animationResizeTime(new_rect);
+  let _: () = msg_send![context, setDuration: duration];
+  let _: () = msg_send![context, setAllowsImplicitAnimation: YES];
+  let animator: id = msg_send![ns_window, animator];
+  let _: () = msg_send![animator, setFrame: new_rect, display: YES];
+  let _: () = msg_send![animation_context, endGrouping];
+}
+
 // `setMaximized` is not thread-safe
 pub unsafe fn set_maximized_async(
   ns_window: &NSWindow,
@@ -173,25 +195,16 @@ pub unsafe fn set_maximized_async(
 
       shared_state_lock.maximized = maximized;
 
-      let curr_mask = ns_window.styleMask();
       if shared_state_lock.fullscreen.is_some() {
         // Handle it in window_did_exit_fullscreen
         return;
-      } else if curr_mask.contains(NSWindowStyleMask::Resizable)
-        && curr_mask.contains(NSWindowStyleMask::Titled)
-      {
-        // Just use the native zoom if resizable
-        ns_window.zoom(None);
       } else {
-        // if it's not resizable, we set the frame directly
         let new_rect = if maximized {
-          let mtm = MainThreadMarker::new_unchecked();
-          let screen = NSScreen::mainScreen(mtm).unwrap();
-          NSScreen::visibleFrame(&screen)
+          screen_visible_frame(&ns_window)
         } else {
           shared_state_lock.saved_standard_frame()
         };
-        let _: () = msg_send![&*ns_window, setFrame:new_rect, display:NO, animate: YES];
+        animate_window_frame(&ns_window, new_rect);
       }
 
       trace!("Unlocked shared state in `set_maximized`");

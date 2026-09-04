@@ -17,7 +17,7 @@ use objc2::{
 use objc2_app_kit::{
   self as appkit, NSApplicationPresentationOptions, NSPasteboard, NSView, NSWindow,
 };
-use objc2_foundation::{ns_string, NSArray, NSAutoreleasePool, NSString, NSUInteger};
+use objc2_foundation::{ns_string, NSArray, NSAutoreleasePool, NSRect, NSString, NSUInteger};
 use once_cell::sync::Lazy;
 
 use crate::{
@@ -55,10 +55,6 @@ pub struct WindowDelegateState {
 
   // Used to prevent redundant events.
   previous_scale_factor: f64,
-
-  // Used to prevent resized events from being fired
-  // when we are using our workaround in the `is_zoomed` function.
-  is_checking_zoomed_in: bool,
 }
 
 impl WindowDelegateState {
@@ -71,7 +67,6 @@ impl WindowDelegateState {
       initial_fullscreen,
       previous_position: None,
       previous_scale_factor: scale_factor,
-      is_checking_zoomed_in: false,
     };
     if (scale_factor - 1.0).abs() > f64::EPSILON {
       delegate_state.emit_static_scale_factor_changed_event();
@@ -173,17 +168,12 @@ static WINDOW_DELEGATE_CLASS: Lazy<WindowDelegateClass> = Lazy::new(|| unsafe {
     init_with_tao as extern "C" fn(_, _, _) -> _,
   );
   decl.add_method(
-    sel!(markIsCheckingZoomedIn),
-    mark_is_checking_zoomed_in as extern "C" fn(_, _),
-  );
-  decl.add_method(
-    sel!(clearIsCheckingZoomedIn),
-    clear_is_checking_zoomed_in as extern "C" fn(_, _),
-  );
-
-  decl.add_method(
     sel!(windowShouldClose:),
     window_should_close as extern "C" fn(_, _, _) -> _,
+  );
+  decl.add_method(
+    sel!(windowShouldZoom:toFrame:),
+    window_should_zoom as extern "C" fn(_, _, _, _) -> _,
   );
   decl.add_method(
     sel!(windowWillClose:),
@@ -311,22 +301,21 @@ extern "C" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void) -> id 
   }
 }
 
-extern "C" fn mark_is_checking_zoomed_in(this: &Object, _sel: Sel) {
-  with_state(&*this, |state| {
-    state.is_checking_zoomed_in = true;
-  });
-}
-
-extern "C" fn clear_is_checking_zoomed_in(this: &Object, _sel: Sel) {
-  with_state(&*this, |state| {
-    state.is_checking_zoomed_in = false;
-  });
-}
-
 extern "C" fn window_should_close(this: &Object, _: Sel, _: id) -> BOOL {
   trace!("Triggered `windowShouldClose:`");
   with_state(this, |state| state.emit_event(WindowEvent::CloseRequested));
   trace!("Completed `windowShouldClose:`");
+  NO
+}
+
+extern "C" fn window_should_zoom(this: &Object, _: Sel, _: id, _: NSRect) -> BOOL {
+  trace!("Triggered `windowShouldZoom:toFrame:`");
+  with_state(this, |state| {
+    state.with_window(|window| {
+      window.set_maximized(!window.is_zoomed());
+    });
+  });
+  trace!("Completed `windowShouldZoom:toFrame:`");
   NO
 }
 
@@ -346,10 +335,8 @@ extern "C" fn window_will_close(this: &Object, _: Sel, _: id) {
 extern "C" fn window_did_resize(this: &Object, _: Sel, _: id) {
   trace!("Triggered `windowDidResize:`");
   with_state(this, |state| {
-    if !state.is_checking_zoomed_in {
-      state.emit_resize_event();
-      state.emit_move_event();
-    }
+    state.emit_resize_event();
+    state.emit_move_event();
   });
   trace!("Completed `windowDidResize:`");
 }
