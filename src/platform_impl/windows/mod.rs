@@ -30,6 +30,10 @@ pub enum Parent {
   OwnedBy(HWND),
 }
 
+/// A callback run against the raw `HWND` of a window that has been created but not yet
+/// shown. `Arc` rather than `Box` because the builder it is stored on is `Clone`.
+pub type WindowCreatedCallback = std::sync::Arc<dyn Fn(isize) + Send + Sync + 'static>;
+
 #[derive(Clone)]
 pub struct PlatformSpecificWindowBuilderAttributes {
   pub parent: Parent,
@@ -41,6 +45,7 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub drag_and_drop: bool,
   pub decoration_shadow: bool,
   pub rtl: bool,
+  pub window_created: Option<WindowCreatedCallback>,
 }
 
 impl Default for PlatformSpecificWindowBuilderAttributes {
@@ -55,6 +60,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       window_classname: "Window Class".to_string(),
       decoration_shadow: true,
       rtl: false,
+      window_created: None,
     }
   }
 }
