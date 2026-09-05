@@ -22,7 +22,7 @@ use objc2::{
   AllocAnyThread,
 };
 use objc2_app_kit::{
-  NSApp, NSEvent, NSEventModifierFlags, NSEventPhase, NSView, NSWindow, NSWindowButton,
+  NSApp, NSEvent, NSEventModifierFlags, NSEventPhase, NSEventType, NSView, NSWindow, NSWindowButton,
 };
 use objc2_foundation::{
   ns_string, MainThreadMarker, NSAttributedString, NSInteger, NSMutableAttributedString, NSPoint,
@@ -33,7 +33,8 @@ use once_cell::sync::Lazy;
 use crate::{
   dpi::LogicalPosition,
   event::{
-    DeviceEvent, ElementState, Event, MouseButton, MouseScrollDelta, TouchPhase, WindowEvent,
+    DeviceEvent, Direction, ElementState, Event, MouseButton, MouseScrollDelta, TouchPhase,
+    WindowEvent,
   },
   keyboard::{KeyCode, ModifiersState},
   platform_impl::platform::{
@@ -236,6 +237,10 @@ static VIEW_CLASS: Lazy<ViewClass> = Lazy::new(|| unsafe {
   decl.add_method(sel!(mouseEntered:), mouse_entered as extern "C" fn(_, _, _));
   decl.add_method(sel!(mouseExited:), mouse_exited as extern "C" fn(_, _, _));
   decl.add_method(sel!(scrollWheel:), scroll_wheel as extern "C" fn(_, _, _));
+  decl.add_method(
+    sel!(swipeWithEvent:),
+    swipe_with_event as extern "C" fn(_, _, _),
+  );
   decl.add_method(
     sel!(pressureChangeWithEvent:),
     pressure_change_with_event as extern "C" fn(_, _, _),
@@ -1136,6 +1141,39 @@ extern "C" fn pressure_change_with_event(this: &NSView, _sel: Sel, event: &NSEve
     AppState::queue_event(EventWrapper::StaticEvent(window_event));
   }
   trace!("Completed `pressureChangeWithEvent`");
+}
+
+extern "C" fn swipe_with_event(this: &NSView, _sel: Sel, event: &NSEvent) {
+  trace!("Triggered `swipeWithEvent`");
+
+  unsafe {
+    let NSEventType::Swipe = event.r#type() else {
+      return;
+    };
+    use Direction::*;
+
+    match (event.deltaX() as i32, event.deltaY() as i32) {
+      (1, 0) => Left.into(),
+      (-1, 0) => Right.into(),
+      (0, 1) => Up.into(),
+      (0, -1) => Down.into(),
+      _ => None,
+    }
+    .zip({
+      let state_ptr: *mut c_void = *this.get_ivar("taoState");
+      let state = &*(state_ptr as *mut ViewState);
+      state.ns_window.load()
+    })
+    .map(|(direction, window)| (direction.into(), WindowId(get_window_id(&window))))
+    .map(|(gesture, window)| Event::WindowEvent {
+      window_id: window,
+      event: WindowEvent::TouchpadGesture(gesture),
+    })
+    .map(EventWrapper::StaticEvent)
+    .map(AppState::queue_event);
+  }
+
+  trace!("Completed `swipeWithEvent`");
 }
 
 // Allows us to receive Ctrl-Tab and Ctrl-Esc.
