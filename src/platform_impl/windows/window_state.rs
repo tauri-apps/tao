@@ -12,8 +12,8 @@ use crate::{
 use parking_lot::MutexGuard;
 use std::io;
 use windows::Win32::{
-  Foundation::{HWND, LPARAM, RECT, WPARAM},
-  Graphics::Gdi::InvalidateRgn,
+  Foundation::{HWND, LPARAM, POINT, RECT, WPARAM},
+  Graphics::Gdi::{InvalidateRgn, ScreenToClient},
   UI::WindowsAndMessaging::*,
 };
 
@@ -505,7 +505,21 @@ impl CursorFlags {
       }
     }
 
-    let cursor_in_client = self.contains(CursorFlags::IN_WINDOW);
+    let cursor_in_client = unsafe {
+      let mut pt = POINT::default();
+      if GetCursorPos(&mut pt).is_ok() {
+        let mut pt_client = pt;
+        let mut rect = RECT::default();
+        ScreenToClient(window, &mut pt_client).as_bool()
+          && GetClientRect(window, &mut rect).is_ok()
+          && pt_client.x >= 0
+          && pt_client.x < rect.right
+          && pt_client.y >= 0
+          && pt_client.y < rect.bottom
+      } else {
+        self.contains(CursorFlags::IN_WINDOW)
+      }
+    };
     if cursor_in_client {
       util::set_cursor_hidden(self.contains(CursorFlags::HIDDEN));
     } else {
