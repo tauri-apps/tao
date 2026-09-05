@@ -210,10 +210,29 @@ pub unsafe fn order_out_sync(ns_window: &NSWindow) {
 
 // `makeKeyAndOrderFront:` isn't thread-safe. Calling it from another thread
 // actually works, but with an odd delay.
-pub unsafe fn make_key_and_order_front_sync(ns_window: &NSWindow) {
+//
+// This has to be `exec_async` not `run_on_main` because showing a window from
+// a fullscreen window hangs the app since it triggers a Space transition animation
+// that needs the Cocoa run loop to pump, and synchronous calls like showing from
+// inside the event loop callback means the run loop cannot pump and thus deadlocks.
+// Async dispatch returns immediately and the show executes on the next run after the callback returns.
+pub unsafe fn make_key_and_order_front_async(ns_window: &NSWindow) {
   let ns_window = MainThreadSafe(ns_window.retain());
-  run_on_main(move || {
+  DispatchQueue::main().exec_async(move || {
     ns_window.makeKeyAndOrderFront(None);
+  });
+}
+
+// `order_front_async:` isn't thread-safe. Calling it from another thread
+// actually works, but with an odd delay.
+//
+// Non-focusing variant of `make_key_and_order_front_async`.
+// Uses async dispatch for the same reason.
+// Shows the window without making it key.
+pub unsafe fn order_front_async(ns_window: &NSWindow) {
+  let ns_window = MainThreadSafe(ns_window.retain());
+  DispatchQueue::main().exec_async(move || {
+    ns_window.orderFront(None);
   });
 }
 
@@ -233,10 +252,11 @@ pub unsafe fn set_title_async(ns_window: &NSWindow, ns_view: &NSView, title: Str
   });
 }
 
-// `setFocus:` isn't thread-safe.
+// `setFocus:` isn't thread-safe. Uses async dispatch for the same reason
+// as `make_key_and_order_front_async`.
 pub unsafe fn set_focus(ns_window: &NSWindow) {
   let ns_window = MainThreadSafe(ns_window.retain());
-  run_on_main(move || {
+  DispatchQueue::main().exec_async(move || {
     ns_window.makeKeyAndOrderFront(None);
     let app: id = msg_send![class!(NSApplication), sharedApplication];
     let () = msg_send![app, activateIgnoringOtherApps: YES];
@@ -244,10 +264,10 @@ pub unsafe fn set_focus(ns_window: &NSWindow) {
 }
 
 // `close:` is thread-safe, but we want the event to be triggered from the main
-// thread. Though, it's a good idea to look into that more...
+// thread. Uses async dispatch to avoid blocking the caller.
 pub unsafe fn close_async(ns_window: &NSWindow) {
   let ns_window = MainThreadSafe(ns_window.retain());
-  run_on_main(move || {
+  DispatchQueue::main().exec_async(move || {
     autoreleasepool(move |_| {
       ns_window.close();
     });
