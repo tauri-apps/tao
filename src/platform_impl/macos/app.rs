@@ -2,9 +2,13 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::VecDeque, ffi::CStr};
+use std::{
+  collections::VecDeque,
+  ffi::CStr,
+  sync::atomic::{AtomicBool, Ordering},
+};
 
-use objc2::runtime::{AnyClass as Class, ClassBuilder as ClassDecl, Sel};
+use objc2::runtime::{AnyClass as Class, Bool as ObjcBool, ClassBuilder as ClassDecl, Sel};
 use objc2_app_kit::{self as appkit, NSApplication, NSEvent, NSEventType};
 use once_cell::sync::Lazy;
 
@@ -15,6 +19,13 @@ pub struct AppClass(pub *const Class);
 unsafe impl Send for AppClass {}
 unsafe impl Sync for AppClass {}
 
+/// Tracks whether `NSApp` is currently dispatching `sendEvent:`.
+/// Exposed via the `isHandlingSendEvent` / `setHandlingSendEvent:`
+/// methods (the CrApp protocol Chromium / CEF expects from the host
+/// `NSApplication` subclass). A single static `AtomicBool` is correct
+/// because `NSApplication` is a process-wide singleton.
+static IS_HANDLING_SEND_EVENT: AtomicBool = AtomicBool::new(false);
+
 pub static APP_CLASS: Lazy<AppClass> = Lazy::new(|| unsafe {
   let superclass = class!(NSApplication);
   let mut decl =
@@ -22,13 +33,43 @@ pub static APP_CLASS: Lazy<AppClass> = Lazy::new(|| unsafe {
 
   decl.add_method(sel!(sendEvent:), send_event as extern "C" fn(_, _, _));
 
+  // CrApp protocol — lets a Chromium / CEF embedder coordinate its own
+  // event-pump work with the host's `sendEvent:` dispatch. Purely
+  // additive: existing tao users see no behavior change because nobody
+  // else calls these selectors.
+  decl.add_method(
+    sel!(isHandlingSendEvent),
+    is_handling_send_event as extern "C" fn(_, _) -> ObjcBool,
+  );
+  decl.add_method(
+    sel!(setHandlingSendEvent:),
+    set_handling_send_event as extern "C" fn(_, _, ObjcBool),
+  );
+
   AppClass(decl.register())
 });
+
+// `objc2::runtime::Bool` is the correct FFI type for Objective-C `BOOL`
+// (signed char). Plain Rust `bool` is not `Encode`-compatible.
+extern "C" fn is_handling_send_event(_: &NSApplication, _: Sel) -> ObjcBool {
+  ObjcBool::new(IS_HANDLING_SEND_EVENT.load(Ordering::Acquire))
+}
+
+extern "C" fn set_handling_send_event(_: &NSApplication, _: Sel, handling: ObjcBool) {
+  IS_HANDLING_SEND_EVENT.store(handling.as_bool(), Ordering::Release);
+}
 
 // Normally, holding Cmd + any key never sends us a `keyUp` event for that key.
 // Overriding `sendEvent:` like this fixes that. (https://stackoverflow.com/a/15294196)
 // Fun fact: Firefox still has this bug! (https://bugzilla.mozilla.org/show_bug.cgi?id=1299553)
+//
+// The save/restore around `IS_HANDLING_SEND_EVENT` keeps the CrApp flag
+// truthful for any embedded code that queries it during dispatch
+// (Chromium's `CrAppProtocol.mm` uses the same pattern). Restoring the
+// previous value rather than always clearing keeps re-entrant calls
+// well-behaved.
 extern "C" fn send_event(this: &NSApplication, _sel: Sel, event: &NSEvent) {
+  let prev_handling = IS_HANDLING_SEND_EVENT.swap(true, Ordering::AcqRel);
   unsafe {
     // For posterity, there are some undocumented event types
     // (https://github.com/servo/cocoa-rs/issues/155)
@@ -49,6 +90,7 @@ extern "C" fn send_event(this: &NSApplication, _sel: Sel, event: &NSEvent) {
       let _: () = msg_send![super(this, superclass), sendEvent: event];
     }
   }
+  IS_HANDLING_SEND_EVENT.store(prev_handling, Ordering::Release);
 }
 
 unsafe fn maybe_dispatch_device_event(event: &NSEvent) {
