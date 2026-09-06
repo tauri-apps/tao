@@ -630,7 +630,7 @@ impl UnownedWindow {
         // Tightly linked with `app_state::window_activation_hack`
         unsafe { window.ns_window.makeKeyAndOrderFront(None) };
       } else {
-        unsafe { window.ns_window.orderFront(None) };
+        unsafe { window.ns_window.orderBack(None) };
       }
     }
 
