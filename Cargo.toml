@@ -167,6 +167,7 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = "0.18"
+gtk-layer-shell = "0.8.2"
 gdkx11-sys = { version = "0.18", optional = true }
 gdkwayland-sys = "0.18.0"
 x11-dl = { version = "2.21", optional = true }
