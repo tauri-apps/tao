@@ -310,6 +310,9 @@ unsafe impl<T: Send> Sync for Proxy<T> {}
 impl<T> Drop for Proxy<T> {
   fn drop(&mut self) {
     unsafe {
+      let rl = CFRunLoopGetMain();
+      CFRunLoopRemoveSource(rl, self.source, kCFRunLoopCommonModes);
+      CFRunLoopSourceInvalidate(self.source);
       CFRelease(self.source as _);
     }
   }

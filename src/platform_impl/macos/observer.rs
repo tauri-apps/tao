@@ -57,7 +57,7 @@ extern "C" {
     context: *mut CFRunLoopSourceContext,
   ) -> CFRunLoopSourceRef;
   pub fn CFRunLoopAddSource(rl: CFRunLoopRef, source: CFRunLoopSourceRef, mode: CFRunLoopMode);
-  #[allow(dead_code)]
+  pub fn CFRunLoopRemoveSource(rl: CFRunLoopRef, source: CFRunLoopSourceRef, mode: CFRunLoopMode);
   pub fn CFRunLoopSourceInvalidate(source: CFRunLoopSourceRef);
   pub fn CFRunLoopSourceSignal(source: CFRunLoopSourceRef);
 
