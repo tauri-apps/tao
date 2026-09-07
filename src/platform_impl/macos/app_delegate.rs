@@ -7,6 +7,7 @@ use crate::{
   platform_impl::platform::{
     app_state::AppState,
     ffi::{id, BOOL, YES},
+    util,
   },
 };
 
@@ -119,6 +120,8 @@ extern "C" fn dealloc(this: &Object, _: Sel) {
     // As soon as the box is constructed it is immediately dropped, releasing the underlying
     // memory
     drop(Box::from_raw(state_ptr as *mut RefCell<AuxDelegateState>));
+    let superclass = util::superclass(this);
+    let _: () = msg_send![super(this, superclass), dealloc];
   }
 }
 
