@@ -6,10 +6,12 @@ use crate::{
   platform::macos::ActivationPolicy,
   platform_impl::platform::{
     app_state::AppState,
+    dock_menu::get_dock_menu,
     ffi::{id, BOOL, YES},
   },
 };
 
+use objc2::rc::Retained;
 use objc2::runtime::{
   AnyClass as Class, AnyObject as Object, Bool, ClassBuilder as ClassDecl, Sel,
 };
@@ -82,6 +84,10 @@ pub static APP_DELEGATE_CLASS: Lazy<AppDelegateClass> = Lazy::new(|| unsafe {
   decl.add_method(
     sel!(applicationSupportsSecureRestorableState:),
     application_supports_secure_restorable_state as extern "C" fn(_, _, _) -> _,
+  );
+  decl.add_method(
+    sel!(applicationDockMenu:),
+    application_dock_menu as extern "C" fn(_, _, _) -> id,
   );
   decl.add_ivar::<*mut c_void>(&CString::new(AUX_DELEGATE_STATE_NAME).unwrap());
 
@@ -219,4 +225,27 @@ extern "C" fn application_supports_secure_restorable_state(_: &Object, _: Sel, _
   trace!("Triggered `applicationSupportsSecureRestorableState`");
   trace!("Completed `applicationSupportsSecureRestorableState`");
   YES
+}
+
+/// Returns the menu shown on a right-click / Control-click / long-press of
+/// the application's Dock icon, as most recently registered via
+/// [`crate::platform::macos::EventLoopWindowTargetExtMacOS::set_dock_menu`].
+/// Returns `nil` (Cocoa's default minimal menu) if none was registered.
+extern "C" fn application_dock_menu(_: &Object, _: Sel, _: id) -> id {
+  trace!("Triggered `applicationDockMenu`");
+  // `get_dock_menu` hands back a BORROWED pointer into the module's storage
+  // (still owned there) — we must retain+autorelease our own reference before
+  // handing it to Cocoa, matching the caller's expectation that the returned
+  // object stays valid for the (synchronous, main-thread) duration of the
+  // Dock-menu display, independent of whether `set_dock_menu` replaces the
+  // stored menu the very next moment.
+  let result = match get_dock_menu() {
+    Some(ptr) => unsafe {
+      let retained: Retained<objc2::runtime::NSObject> = Retained::retain(ptr.cast()).unwrap();
+      Retained::autorelease_return(retained) as id
+    },
+    None => std::ptr::null_mut(),
+  };
+  trace!("Completed `applicationDockMenu`");
+  result
 }
