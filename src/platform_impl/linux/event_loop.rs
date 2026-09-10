@@ -13,7 +13,7 @@ use std::{
 };
 
 use cairo::{RectangleInt, Region};
-use crossbeam_channel::SendError;
+use crossbeam_channel::{SendError, TryRecvError};
 use gdk::{Cursor, CursorType, EventKey, EventMask, ScrollDirection, WindowEdge, WindowState};
 use gio::Cancellable;
 use glib::MainContext;
@@ -1102,7 +1102,7 @@ impl<T: 'static> EventLoop<T> {
                 break code;
               }
               ControlFlow::Wait => {
-                if !events.is_empty() {
+                if !events.is_empty() || !draws.is_empty() {
                   callback(
                     Event::NewEvents(StartCause::WaitCancelled {
                       start: Instant::now(),
@@ -1128,7 +1128,7 @@ impl<T: 'static> EventLoop<T> {
                     &mut control_flow,
                   );
                   state = EventState::EventQueue;
-                } else if !events.is_empty() {
+                } else if !events.is_empty() || !draws.is_empty() {
                   callback(
                     Event::NewEvents(StartCause::WaitCancelled {
                       start,
@@ -1173,12 +1173,25 @@ impl<T: 'static> EventLoop<T> {
                 break code;
               }
               _ => {
-                if let Ok(id) = draws.try_recv() {
+                // Limit this batch to the queued requests so callback-generated
+                // redraws remain for the next turn. Coalesce requests per window.
+                let mut seen = HashSet::new();
+                for _ in 0..draws.len() {
+                  let id = match draws.try_recv() {
+                    Ok(id) => id,
+                    Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
+                  };
+                  if !seen.insert(id) {
+                    continue;
+                  }
                   callback(
                     Event::RedrawRequested(RootWindowId(id)),
                     window_target,
                     &mut control_flow,
                   );
+                  if let ControlFlow::ExitWithCode(_) = control_flow {
+                    break;
+                  }
                 }
                 callback(Event::RedrawEventsCleared, window_target, &mut control_flow);
                 state = EventState::NewStart;
