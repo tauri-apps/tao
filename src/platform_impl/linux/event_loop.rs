@@ -16,7 +16,7 @@ use cairo::{RectangleInt, Region};
 use crossbeam_channel::SendError;
 use gdk::{Cursor, CursorType, EventKey, EventMask, ScrollDirection, WindowEdge, WindowState};
 use gio::Cancellable;
-use glib::{source::Priority, MainContext};
+use glib::MainContext;
 use gtk::{
   cairo, gdk, gio,
   glib::{self},
@@ -59,7 +59,7 @@ pub struct EventLoopWindowTarget<T> {
   /// Window Ids of the application
   pub(crate) windows: Rc<RefCell<HashSet<WindowId>>>,
   /// Window requests sender
-  pub(crate) window_requests_tx: glib::Sender<(WindowId, WindowRequest)>,
+  pub(crate) window_requests_tx: async_channel::Sender<(WindowId, WindowRequest)>,
   /// Draw event sender
   pub(crate) draw_tx: crossbeam_channel::Sender<WindowId>,
   _marker: std::marker::PhantomData<T>,
@@ -159,7 +159,7 @@ impl<T> EventLoopWindowTarget<T> {
   pub fn set_progress_bar(&self, progress: ProgressBarState) {
     if let Err(e) = self
       .window_requests_tx
-      .send((WindowId::dummy(), WindowRequest::ProgressBarState(progress)))
+      .send_blocking((WindowId::dummy(), WindowRequest::ProgressBarState(progress)))
     {
       log::warn!("Fail to send update progress bar request: {e}");
     }
@@ -167,7 +167,7 @@ impl<T> EventLoopWindowTarget<T> {
 
   #[inline]
   pub fn set_badge_count(&self, count: Option<i64>, desktop_filename: Option<String>) {
-    if let Err(e) = self.window_requests_tx.send((
+    if let Err(e) = self.window_requests_tx.send_blocking((
       WindowId::dummy(),
       WindowRequest::BadgeCount(count, desktop_filename),
     )) {
@@ -179,7 +179,7 @@ impl<T> EventLoopWindowTarget<T> {
   pub fn set_theme(&self, theme: Option<Theme>) {
     if let Err(e) = self
       .window_requests_tx
-      .send((WindowId::dummy(), WindowRequest::SetTheme(theme)))
+      .send_blocking((WindowId::dummy(), WindowRequest::SetTheme(theme)))
     {
       log::warn!("Fail to send update theme request: {e}");
     }
@@ -241,7 +241,7 @@ impl<T: 'static> EventLoop<T> {
     let user_event_tx = event_tx.clone();
 
     // Create event loop window target.
-    let (window_requests_tx, window_requests_rx) = glib::MainContext::channel(Priority::default());
+    let (window_requests_tx, window_requests_rx) = async_channel::unbounded();
     let display = gdk::Display::default()
       .expect("GdkDisplay not found. This usually means `gkt_init` hasn't called yet.");
     let window_target = EventLoopWindowTarget {
@@ -256,22 +256,22 @@ impl<T: 'static> EventLoop<T> {
     // Spawn x11 thread to receive Device events.
     #[cfg(feature = "x11")]
     let run_device_thread = if window_target.is_x11() {
-      let (device_tx, device_rx) = glib::MainContext::channel(glib::Priority::default());
+      let (device_tx, device_rx) = async_channel::unbounded();
       let user_event_tx = user_event_tx.clone();
       let run_device_thread = Rc::new(AtomicBool::new(true));
       let run = run_device_thread.clone();
       device::spawn(device_tx);
-      device_rx.attach(Some(&context), move |event| {
-        if let Err(e) = user_event_tx.send(Event::DeviceEvent {
-          device_id: DEVICE_ID,
-          event,
-        }) {
-          log::warn!("Fail to send device event to event channel: {}", e);
-        }
-        if run.load(Ordering::Relaxed) {
-          glib::ControlFlow::Continue
-        } else {
-          glib::ControlFlow::Break
+      context.spawn_local(async move {
+        while let Ok(event) = device_rx.recv().await {
+          if let Err(e) = user_event_tx.send(Event::DeviceEvent {
+            device_id: DEVICE_ID,
+            event,
+          }) {
+            log::warn!("Fail to send device event to event channel: {}", e);
+          }
+          if !run.load(Ordering::Relaxed) {
+            break;
+          }
         }
       });
       Some(run_device_thread)
@@ -294,7 +294,7 @@ impl<T: 'static> EventLoop<T> {
     }
 
     // Window Request
-    window_requests_rx.attach(Some(&context), move |(id, request)| {
+    let mut handle_window_request = move |(id, request)| {
       if let Some(window) = app_.window_by_id(id.0) {
         match request {
           WindowRequest::Title(title) => window.set_title(&title),
@@ -981,7 +981,11 @@ impl<T: 'static> EventLoop<T> {
           _ => unreachable!(),
         }
       }
-      glib::ControlFlow::Continue
+    };
+    context.spawn_local(async move {
+      while let Ok(request) = window_requests_rx.recv().await {
+        handle_window_request(request);
+      }
     });
 
     // Create event loop itself.
