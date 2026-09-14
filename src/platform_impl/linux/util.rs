@@ -10,7 +10,7 @@ use gtk::{
     Display,
   },
   glib::{self},
-  traits::{GtkWindowExt, WidgetExt},
+  prelude::{GtkWindowExt, WidgetExt},
 };
 use std::{cell::RefCell, rc::Rc};
 

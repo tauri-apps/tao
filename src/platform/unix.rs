@@ -167,7 +167,7 @@ impl WindowBuilderExtUnix for WindowBuilder {
     mut self,
     parent: &impl gtk::glib::object::IsA<gtk::Window>,
   ) -> WindowBuilder {
-    use gtk::glib::Cast;
+    use gtk::glib::object::Cast;
     self.platform_specific.parent = Parent::ChildOf(parent.clone().upcast());
     self
   }
