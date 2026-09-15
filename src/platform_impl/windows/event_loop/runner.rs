@@ -7,7 +7,7 @@ use std::{
   cell::{Cell, RefCell},
   collections::{HashSet, VecDeque},
   mem, panic,
-  rc::Rc,
+  sync::Arc,
   time::Instant,
 };
 
@@ -24,7 +24,17 @@ use crate::{
   window::WindowId,
 };
 
-pub(crate) type EventLoopRunnerShared<T> = Rc<EventLoopRunner<T>>;
+// `Arc` rather than `Rc`, for the refcount only. The runner stays
+// main-thread-only, but downstream stores it behind a type it declares
+// `Send + Sync` and clones that type from other threads, and a non-atomic
+// refcount cannot survive that: a lost update eventually wraps the count past
+// zero and the next clone aborts the process. See the comment on
+// `EventLoopRunner` below.
+pub(crate) type EventLoopRunnerShared<T> = Arc<EventLoopRunner<T>>;
+
+/// Interior state is `Cell`/`RefCell`, so this type is deliberately neither
+/// `Send` nor `Sync` and must still only be *used* on the event loop thread.
+/// Only the refcount of the handle above is shared across threads.
 pub(crate) struct EventLoopRunner<T: 'static> {
   // The event loop's win32 handles
   thread_msg_target: HWND,
