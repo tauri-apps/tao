@@ -972,19 +972,7 @@ impl UnownedWindow {
   }
 
   pub(crate) fn is_zoomed(&self) -> bool {
-    // Previously, is_zoomed temporarily mutated the window's styleMask(or resizable)
-    // to force macOS to return a valid result for borderless windows.
-    // This synchronous mutation could trigger unnecessary layout passes or state inconsistencies.
-    // Related issue: https://github.com/rust-windowing/winit/issues/4071 and https://github.com/tauri-apps/plugins-workspace/issues/3240
-
     unsafe {
-      let curr_mask = self.ns_window.styleMask();
-
-      let required = NSWindowStyleMask::Titled | NSWindowStyleMask::Resizable;
-      if curr_mask.contains(required) {
-        return self.ns_window.isZoomed();
-      }
-
       if let Some(screen) = self.ns_window.screen() {
         let frame = self.ns_window.frame();
         let visible_frame = screen.visibleFrame();
@@ -993,7 +981,6 @@ impl UnownedWindow {
           && (frame.size.height - visible_frame.size.height).abs() < 1.0;
       }
 
-      // Fallback to original `isZoomed` check
       self.ns_window.isZoomed()
     }
   }
