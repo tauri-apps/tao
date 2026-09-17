@@ -173,6 +173,11 @@ impl WindowState {
     let old_flags = this.window_flags;
     f(&mut this.window_flags);
     let new_flags = this.window_flags;
+    // `MARKER_DONT_FOCUS` only applies to the first show. Left set, every later
+    // `apply_diff` would `SW_SHOWNOACTIVATE`, which restores a maximized or minimized window.
+    if new_flags.contains(WindowFlags::VISIBLE) {
+      this.window_flags.remove(WindowFlags::MARKER_DONT_FOCUS);
+    }
 
     drop(this);
     old_flags.apply_diff(window, new_flags);
@@ -457,7 +462,6 @@ impl WindowFlags {
         let _ = ShowWindow(
           window,
           if self.contains(WindowFlags::MARKER_DONT_FOCUS) {
-            self.set(WindowFlags::MARKER_DONT_FOCUS, false);
             SW_SHOWNOACTIVATE
           } else {
             SW_SHOW
