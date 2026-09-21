@@ -457,7 +457,6 @@ impl WindowFlags {
         let _ = ShowWindow(
           window,
           if self.contains(WindowFlags::MARKER_DONT_FOCUS) {
-            self.set(WindowFlags::MARKER_DONT_FOCUS, false);
             SW_SHOWNOACTIVATE
           } else {
             SW_SHOW
