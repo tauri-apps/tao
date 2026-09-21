@@ -411,8 +411,10 @@ impl WindowFlags {
 
     if diff != WindowFlags::empty() {
       let (mut style, style_ex) = new.to_window_styles();
-      // Remove `WS_VISIBLE`, this is required for the `ShowWindow` below to work
-      style &= !WS_VISIBLE;
+      // Remove `WS_VISIBLE` if we were hidden, this is required for the `ShowWindow` below to work
+      if !self.contains(WindowFlags::VISIBLE) {
+        style &= !WS_VISIBLE;
+      }
 
       unsafe {
         SendMessageW(
