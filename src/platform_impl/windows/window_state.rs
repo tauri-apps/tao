@@ -264,11 +264,13 @@ impl WindowFlags {
     if self.contains(WindowFlags::CHILD) {
       style |= WS_CHILD; // This is incompatible with WS_POPUP if that gets added eventually.
 
-      // Remove decorations window styles for child
+      // Remove the caption style for an undecorated child window.
       if !self.contains(WindowFlags::MARKER_DECORATIONS) {
         style &= !WS_CAPTION;
-        style_ex &= !WS_EX_WINDOWEDGE;
       }
+    }
+    if !self.contains(WindowFlags::MARKER_DECORATIONS) {
+      style_ex &= !WS_EX_WINDOWEDGE;
     }
     if self.contains(WindowFlags::POPUP) {
       style |= WS_POPUP;
@@ -513,5 +515,42 @@ impl CursorFlags {
     }
 
     Ok(())
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn window_styles_respect_decorations_for_parent_and_child_windows() {
+    let common = WindowFlags::RESIZABLE
+      | WindowFlags::MAXIMIZABLE
+      | WindowFlags::MINIMIZABLE
+      | WindowFlags::NO_BACK_BUFFER
+      | WindowFlags::IGNORE_CURSOR_EVENT
+      | WindowFlags::FOCUSABLE;
+    let test_cases = [
+      (common, false, false),
+      (common | WindowFlags::CHILD, true, false),
+      (common | WindowFlags::MARKER_DECORATIONS, false, true),
+      (
+        common | WindowFlags::CHILD | WindowFlags::MARKER_DECORATIONS,
+        true,
+        true,
+      ),
+    ];
+
+    for (flags, is_child, is_decorated) in test_cases {
+      let (style, style_ex) = flags.to_window_styles();
+      assert_eq!(style.0 & WS_CHILD.0 != 0, is_child);
+      assert_eq!(style.0 & WS_CAPTION.0 != 0, !is_child || is_decorated);
+      assert_eq!(style_ex.0 & WS_EX_WINDOWEDGE.0 != 0, is_decorated);
+      assert_ne!(style.0 & WS_SIZEBOX.0, 0);
+      assert_ne!(style_ex.0 & WS_EX_ACCEPTFILES.0, 0);
+      assert_ne!(style_ex.0 & WS_EX_NOREDIRECTIONBITMAP.0, 0);
+      assert_ne!(style_ex.0 & WS_EX_TRANSPARENT.0, 0);
+      assert_ne!(style_ex.0 & WS_EX_LAYERED.0, 0);
+    }
   }
 }
