@@ -296,6 +296,22 @@ impl<T> EventLoopRunner<T> {
   unsafe fn move_state_to(&self, new_runner_state: RunnerState) {
     use RunnerState::{Destroyed, HandlingMainEvents, HandlingRedrawEvents, Idle, Uninitialized};
 
+    // Windows can deliver a message that drives a transition while the user's
+    // handler is already running: a blocking cross-process `SendMessageW`, a
+    // modal loop, or a COM wait that pumps the queue all re-enter `WndProc`.
+    // The handler is checked out by the outer dispatch at that point, so
+    // running a transition here would hit the `expect` in
+    // `call_event_handler` and panic the whole loop — with `panic = "abort"`
+    // that takes the process down.
+    //
+    // `send_event` already buffers in this situation, and the `WM_PAINT`
+    // branches re-post `RDW_INTERNALPAINT` rather than dispatch. Do the
+    // equivalent for the state machine: leave the state untouched and let the
+    // outer dispatch drive it when it returns.
+    if self.should_buffer() {
+      return;
+    }
+
     match (
       self.runner_state.replace(new_runner_state),
       new_runner_state,
