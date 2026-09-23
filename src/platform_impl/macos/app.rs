@@ -6,7 +6,7 @@ use std::{collections::VecDeque, ffi::CStr};
 
 use objc2::runtime::{AnyClass as Class, ClassBuilder as ClassDecl, Sel};
 use objc2_app_kit::{self as appkit, NSApplication, NSEvent, NSEventType};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 use super::{app_state::AppState, event::EventWrapper, util, DEVICE_ID};
 use crate::event::{DeviceEvent, ElementState, Event};
@@ -15,7 +15,7 @@ pub struct AppClass(pub *const Class);
 unsafe impl Send for AppClass {}
 unsafe impl Sync for AppClass {}
 
-pub static APP_CLASS: Lazy<AppClass> = Lazy::new(|| unsafe {
+pub static APP_CLASS: LazyLock<AppClass> = LazyLock::new(|| unsafe {
   let superclass = class!(NSApplication);
   let mut decl =
     ClassDecl::new(CStr::from_bytes_with_nul(b"TaoApp\0").unwrap(), superclass).unwrap();

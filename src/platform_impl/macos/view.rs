@@ -28,7 +28,7 @@ use objc2_foundation::{
   ns_string, MainThreadMarker, NSAttributedString, NSInteger, NSMutableAttributedString, NSPoint,
   NSRange, NSRect, NSSize, NSString, NSUInteger,
 };
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 use crate::{
   dpi::LogicalPosition,
@@ -136,7 +136,7 @@ struct ViewClass(&'static Class);
 unsafe impl Send for ViewClass {}
 unsafe impl Sync for ViewClass {}
 
-static VIEW_CLASS: Lazy<ViewClass> = Lazy::new(|| unsafe {
+static VIEW_CLASS: LazyLock<ViewClass> = LazyLock::new(|| unsafe {
   let superclass = class!(NSView);
   let mut decl =
     ClassDecl::new(CStr::from_bytes_with_nul(b"TaoView\0").unwrap(), superclass).unwrap();

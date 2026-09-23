@@ -7,7 +7,6 @@
 mod runner;
 
 use crossbeam_channel::{self as channel, Receiver, Sender};
-use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use std::{
   cell::Cell,
@@ -16,7 +15,7 @@ use std::{
   marker::PhantomData,
   mem, panic,
   rc::Rc,
-  sync::Arc,
+  sync::{Arc, LazyLock},
   thread,
   time::{Duration, Instant},
 };
@@ -93,16 +92,16 @@ type GetPointerTouchInfo =
 type GetPointerPenInfo =
   unsafe extern "system" fn(pointId: u32, penInfo: *mut POINTER_PEN_INFO) -> BOOL;
 
-static GET_POINTER_FRAME_INFO_HISTORY: Lazy<Option<GetPointerFrameInfoHistory>> =
-  Lazy::new(|| get_function!("user32.dll", GetPointerFrameInfoHistory));
-static SKIP_POINTER_FRAME_MESSAGES: Lazy<Option<SkipPointerFrameMessages>> =
-  Lazy::new(|| get_function!("user32.dll", SkipPointerFrameMessages));
-static GET_POINTER_DEVICE_RECTS: Lazy<Option<GetPointerDeviceRects>> =
-  Lazy::new(|| get_function!("user32.dll", GetPointerDeviceRects));
-static GET_POINTER_TOUCH_INFO: Lazy<Option<GetPointerTouchInfo>> =
-  Lazy::new(|| get_function!("user32.dll", GetPointerTouchInfo));
-static GET_POINTER_PEN_INFO: Lazy<Option<GetPointerPenInfo>> =
-  Lazy::new(|| get_function!("user32.dll", GetPointerPenInfo));
+static GET_POINTER_FRAME_INFO_HISTORY: LazyLock<Option<GetPointerFrameInfoHistory>> =
+  LazyLock::new(|| get_function!("user32.dll", GetPointerFrameInfoHistory));
+static SKIP_POINTER_FRAME_MESSAGES: LazyLock<Option<SkipPointerFrameMessages>> =
+  LazyLock::new(|| get_function!("user32.dll", SkipPointerFrameMessages));
+static GET_POINTER_DEVICE_RECTS: LazyLock<Option<GetPointerDeviceRects>> =
+  LazyLock::new(|| get_function!("user32.dll", GetPointerDeviceRects));
+static GET_POINTER_TOUCH_INFO: LazyLock<Option<GetPointerTouchInfo>> =
+  LazyLock::new(|| get_function!("user32.dll", GetPointerTouchInfo));
+static GET_POINTER_PEN_INFO: LazyLock<Option<GetPointerPenInfo>> =
+  LazyLock::new(|| get_function!("user32.dll", GetPointerPenInfo));
 
 pub(crate) struct WindowData<T: 'static> {
   pub window_state: Arc<Mutex<WindowState>>,
@@ -591,39 +590,40 @@ type WaitUntilInstantBox = Box<Instant>;
 
 /// Message sent by the `EventLoopProxy` when we want to wake up the thread.
 /// WPARAM and LPARAM are unused.
-static USER_EVENT_MSG_ID: Lazy<u32> =
-  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::WakeupMsg")) });
+static USER_EVENT_MSG_ID: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("Tao::WakeupMsg")) });
 /// Message sent when we want to execute a closure in the thread.
 /// WPARAM contains a Box<Box<dyn FnMut()>> that must be retrieved with `Box::from_raw`,
 /// and LPARAM is unused.
-static EXEC_MSG_ID: Lazy<u32> = Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::ExecMsg")) });
-static PROCESS_NEW_EVENTS_MSG_ID: Lazy<u32> =
-  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::ProcessNewEvents")) });
+static EXEC_MSG_ID: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("Tao::ExecMsg")) });
+static PROCESS_NEW_EVENTS_MSG_ID: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("Tao::ProcessNewEvents")) });
 /// lparam is the wait thread's message id.
-static SEND_WAIT_THREAD_ID_MSG_ID: Lazy<u32> =
-  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::SendWaitThreadId")) });
+static SEND_WAIT_THREAD_ID_MSG_ID: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("Tao::SendWaitThreadId")) });
 /// lparam points to a `Box<Instant>` signifying the time `PROCESS_NEW_EVENTS_MSG_ID` should
 /// be sent.
-static WAIT_UNTIL_MSG_ID: Lazy<u32> =
-  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::WaitUntil")) });
-static CANCEL_WAIT_UNTIL_MSG_ID: Lazy<u32> =
-  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::CancelWaitUntil")) });
+static WAIT_UNTIL_MSG_ID: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("Tao::WaitUntil")) });
+static CANCEL_WAIT_UNTIL_MSG_ID: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("Tao::CancelWaitUntil")) });
 /// Message sent by a `Window` when it wants to be destroyed by the main thread.
 /// WPARAM and LPARAM are unused.
-pub static DESTROY_MSG_ID: Lazy<u32> =
-  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::DestroyMsg")) });
+pub static DESTROY_MSG_ID: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("Tao::DestroyMsg")) });
 /// WPARAM is a bool specifying the `WindowFlags::MARKER_RETAIN_STATE_ON_SIZE` flag. See the
 /// documentation in the `window_state` module for more information.
-pub static SET_RETAIN_STATE_ON_SIZE_MSG_ID: Lazy<u32> =
-  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::SetRetainMaximized")) });
+pub static SET_RETAIN_STATE_ON_SIZE_MSG_ID: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("Tao::SetRetainMaximized")) });
 /// Message sent by event loop when event loop's prefered theme changed.
 /// WPARAM and LPARAM are unused.
-pub static CHANGE_THEME_MSG_ID: Lazy<u32> =
-  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::ChangeTheme")) });
+pub static CHANGE_THEME_MSG_ID: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("Tao::ChangeTheme")) });
 /// When the taskbar is created, it registers a message with the "TaskbarCreated" string and then broadcasts this message to all top-level windows
 /// When the application receives this message, it should assume that any taskbar icons it added have been removed and add them again.
-pub static S_U_TASKBAR_RESTART: Lazy<u32> =
-  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("TaskbarCreated")) });
+pub static S_U_TASKBAR_RESTART: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("TaskbarCreated")) });
 
 fn create_event_target_window<T: 'static>() -> HWND {
   let thread_event_target_window_class = w!("Tao Thread Event Target");

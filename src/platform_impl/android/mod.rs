@@ -15,12 +15,11 @@ use ndk::{
   configuration::Configuration,
   looper::{ForeignLooper, Poll, ThreadLooper},
 };
-use once_cell::sync::Lazy;
 use std::{
   collections::{HashSet, VecDeque},
   error::Error,
   fmt,
-  sync::RwLock,
+  sync::{LazyLock, RwLock},
   time::{Duration, Instant},
 };
 
@@ -123,7 +122,8 @@ macro_rules! jni_call_method {
 pub mod ndk_glue;
 use ndk_glue::{ActivityId, Event, Rect, WindowEvent};
 
-static CONFIG: Lazy<RwLock<Configuration>> = Lazy::new(|| RwLock::new(Configuration::new()));
+static CONFIG: LazyLock<RwLock<Configuration>> =
+  LazyLock::new(|| RwLock::new(Configuration::new()));
 
 #[derive(Debug)]
 pub enum OsError {
