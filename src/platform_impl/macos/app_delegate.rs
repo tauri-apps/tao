@@ -16,12 +16,11 @@ use objc2::runtime::{
 use objc2_foundation::{
   NSArray, NSError, NSString, NSUserActivity, NSUserActivityTypeBrowsingWeb, NSURL,
 };
-use once_cell::sync::Lazy;
 use std::{
   cell::{RefCell, RefMut},
   ffi::{CStr, CString},
   os::raw::c_void,
-  sync::Mutex,
+  sync::{LazyLock, Mutex},
   time::Instant,
 };
 
@@ -44,7 +43,7 @@ pub struct AppDelegateClass(pub *const Class);
 unsafe impl Send for AppDelegateClass {}
 unsafe impl Sync for AppDelegateClass {}
 
-pub static APP_DELEGATE_CLASS: Lazy<AppDelegateClass> = Lazy::new(|| unsafe {
+pub static APP_DELEGATE_CLASS: LazyLock<AppDelegateClass> = LazyLock::new(|| unsafe {
   let superclass = class!(NSResponder);
   let mut decl = ClassDecl::new(
     CStr::from_bytes_with_nul(b"TaoAppDelegateParent\0").unwrap(),
