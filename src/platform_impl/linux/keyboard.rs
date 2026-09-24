@@ -11,18 +11,18 @@ use gtk::{
   gdk::{self, keys::constants::*, EventKey},
   glib,
 };
-use once_cell::sync::Lazy;
 use std::{
   collections::HashSet,
   ffi::c_void,
   os::raw::{c_int, c_uint},
   ptr, slice,
-  sync::Mutex,
+  sync::{LazyLock, Mutex},
 };
 
 pub type RawKey = gdk::keys::Key;
 
-static KEY_STRINGS: Lazy<Mutex<HashSet<&'static str>>> = Lazy::new(|| Mutex::new(HashSet::new()));
+static KEY_STRINGS: LazyLock<Mutex<HashSet<&'static str>>> =
+  LazyLock::new(|| Mutex::new(HashSet::new()));
 
 fn insert_or_get_key_str(string: String) -> &'static str {
   let mut string_set = KEY_STRINGS.lock().unwrap();

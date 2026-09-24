@@ -18,7 +18,7 @@ use objc2_app_kit::{
   self as appkit, NSApplicationPresentationOptions, NSPasteboard, NSView, NSWindow,
 };
 use objc2_foundation::{ns_string, NSArray, NSAutoreleasePool, NSString, NSUInteger};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 use crate::{
   dpi::{LogicalPosition, LogicalSize},
@@ -159,7 +159,7 @@ struct WindowDelegateClass(*const Class);
 unsafe impl Send for WindowDelegateClass {}
 unsafe impl Sync for WindowDelegateClass {}
 
-static WINDOW_DELEGATE_CLASS: Lazy<WindowDelegateClass> = Lazy::new(|| unsafe {
+static WINDOW_DELEGATE_CLASS: LazyLock<WindowDelegateClass> = LazyLock::new(|| unsafe {
   let superclass = class!(NSResponder);
   let mut decl = ClassDecl::new(
     CStr::from_bytes_with_nul(b"TaoWindowDelegate\0").unwrap(),

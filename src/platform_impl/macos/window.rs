@@ -60,7 +60,7 @@ use objc2_foundation::{
   ns_string, MainThreadMarker, NSArray, NSAutoreleasePool, NSDictionary, NSInteger, NSPoint,
   NSRect, NSSize, NSString, NSTimeInterval, NSUInteger,
 };
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 use super::{
   ffi::{id, nil, NO},
@@ -403,7 +403,7 @@ pub(super) fn set_ns_theme(theme: Option<Theme>) {
 
 struct WindowClass(&'static Class);
 
-static WINDOW_CLASS: Lazy<WindowClass> = Lazy::new(|| unsafe {
+static WINDOW_CLASS: LazyLock<WindowClass> = LazyLock::new(|| unsafe {
   let window_superclass = class!(NSWindow);
   let mut decl = ClassDecl::new(
     CStr::from_bytes_with_nul(b"TaoWindow\0").unwrap(),

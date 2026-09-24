@@ -6,7 +6,7 @@ use std::{collections::HashSet, ffi::c_void, os::raw::c_ushort, sync::Mutex};
 
 use objc2::{msg_send, rc::Retained};
 use objc2_app_kit::{NSEvent, NSEventModifierFlags, NSWindow};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 use core_foundation::{base::CFRelease, data::CFDataGetBytePtr};
 use objc2_foundation::NSString;
@@ -18,7 +18,8 @@ use crate::{
   platform_impl::platform::{ffi, util::Never},
 };
 
-static KEY_STRINGS: Lazy<Mutex<HashSet<&'static str>>> = Lazy::new(|| Mutex::new(HashSet::new()));
+static KEY_STRINGS: LazyLock<Mutex<HashSet<&'static str>>> =
+  LazyLock::new(|| Mutex::new(HashSet::new()));
 
 fn insert_or_get_key_str(string: String) -> &'static str {
   let mut string_set = KEY_STRINGS.lock().unwrap();
