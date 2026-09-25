@@ -309,11 +309,11 @@ impl WindowFlags {
   }
 
   /// Adjust the window client rectangle to the return value, if present.
-  fn apply_diff(mut self, window: HWND, new: WindowFlags) {
-    self = self.mask();
+  fn apply_diff(self, window: HWND, new: WindowFlags) {
+    let old = self.mask();
     let new = new.mask();
 
-    let mut diff = self ^ new;
+    let mut diff = old ^ new;
 
     if diff == WindowFlags::empty() {
       return;
@@ -412,7 +412,7 @@ impl WindowFlags {
     if diff != WindowFlags::empty() {
       let (mut style, style_ex) = new.to_window_styles();
       // Remove `WS_VISIBLE` if we were hidden, this is required for the `ShowWindow` below to work
-      if !self.contains(WindowFlags::VISIBLE) {
+      if !old.contains(WindowFlags::VISIBLE) {
         style &= !WS_VISIBLE;
       }
 
@@ -458,8 +458,7 @@ impl WindowFlags {
       unsafe {
         let _ = ShowWindow(
           window,
-          if self.contains(WindowFlags::MARKER_DONT_FOCUS) {
-            self.set(WindowFlags::MARKER_DONT_FOCUS, false);
+          if old.contains(WindowFlags::MARKER_DONT_FOCUS) {
             SW_SHOWNOACTIVATE
           } else {
             SW_SHOW

@@ -1363,6 +1363,7 @@ unsafe fn init<T: 'static>(
 
   let fullscreen = attributes.fullscreen.clone();
   let maximized = attributes.maximized;
+  let focused = attributes.focused;
   let menu = pl_attribs.menu;
 
   let mut initdata = InitData {
@@ -1400,6 +1401,15 @@ unsafe fn init<T: 'static>(
   // If the handle is non-null, then window creation must have succeeded, which means
   // that we *must* have populated the `InitData.window` field.
   let window = initdata.window.unwrap();
+
+  // The initial show (in `WM_CREATE`) already used `SW_SHOWNOACTIVATE`, so reset the marker now,
+  // before the maximize below: `SW_SHOWNOACTIVATE` restores a maximized/minimized window.
+  if !focused {
+    window
+      .window_state
+      .lock()
+      .set_window_flags_in_place(|f| f.remove(WindowFlags::MARKER_DONT_FOCUS));
+  }
 
   // Need to set FULLSCREEN or MAXIMIZED after CreateWindowEx
   // This is because if the size is changed in WM_CREATE, the restored size will be stored in that
