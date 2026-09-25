@@ -451,11 +451,15 @@ impl<T: 'static> EventLoop<T> {
           }
           WindowRequest::CursorIgnoreEvents(ignore) => {
             if ignore {
-              let empty_region = Region::create_rectangle(&RectangleInt::new(0, 0, 1, 1));
-              window
-                .window()
-                .unwrap()
-                .input_shape_combine_region(&empty_region, 0, 0);
+              // `window.window()` is None until the GdkWindow is realized.
+              // Tauri/wry can send CursorIgnoreEvents before a transparent
+              // or initially-hidden window is mapped, and the bare unwrap
+              // aborts the whole GTK main loop with a non-unwinding panic.
+              // Silently skipping keeps the event loop alive.
+              if let Some(gdk_window) = window.window() {
+                let empty_region = Region::create_rectangle(&RectangleInt::new(0, 0, 1, 1));
+                gdk_window.input_shape_combine_region(&empty_region, 0, 0);
+              }
             } else {
               window.input_shape_combine_region(None)
             };
