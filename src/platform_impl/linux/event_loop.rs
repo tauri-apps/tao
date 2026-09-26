@@ -105,8 +105,10 @@ impl<T> EventLoopWindowTarget<T> {
       unsafe {
         if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
           let display = (xlib.XOpenDisplay)(std::ptr::null());
-          display_handle.display = display as _;
-          display_handle.screen = (xlib.XDefaultScreen)(display) as _;
+          if !display.is_null() {
+            display_handle.display = display as _;
+            display_handle.screen = (xlib.XDefaultScreen)(display) as _;
+          }
         }
       }
 
@@ -120,21 +122,28 @@ impl<T> EventLoopWindowTarget<T> {
       let display = unsafe {
         gdk_wayland_sys::gdk_wayland_display_get_wl_display(self.display.as_ptr() as *mut _)
       };
-      let display = unsafe { std::ptr::NonNull::new_unchecked(display) };
+      // `gdk_wayland_display_get_wl_display` returns the `wl_display` of a live
+      // GdkDisplay; it can only be null on a broken Gdk setup, which we report as
+      // `Unavailable` instead of dereferencing null (see #1347).
+      let display = std::ptr::NonNull::new(display).ok_or(rwh_06::HandleError::Unavailable)?;
       let display_handle = rwh_06::WaylandDisplayHandle::new(display);
       Ok(rwh_06::RawDisplayHandle::Wayland(display_handle))
     } else {
       #[cfg(feature = "x11")]
       unsafe {
+        // SAFETY: `XOpenDisplay` and `XDefaultScreen` are called on the Xlib handle
+        // loaded from the process. A failed `XOpenDisplay` (null return) is reported as
+        // `Unavailable` instead of calling `XDefaultScreen` with NULL and unwrapping a
+        // null pointer with `NonNull::new_unchecked`, both undefined behavior (#1347).
         if let Ok(xlib) = x11_dl::xlib::Xlib::open() {
-          let display = (xlib.XOpenDisplay)(std::ptr::null());
-          let screen = (xlib.XDefaultScreen)(display) as _;
-          let display = std::ptr::NonNull::new_unchecked(display as _);
-          let display_handle = rwh_06::XlibDisplayHandle::new(Some(display), screen);
-          Ok(rwh_06::RawDisplayHandle::Xlib(display_handle))
-        } else {
-          Err(rwh_06::HandleError::Unavailable)
+          let display_ptr = (xlib.XOpenDisplay)(std::ptr::null());
+          if let Some(display) = std::ptr::NonNull::new(display_ptr as *mut std::ffi::c_void) {
+            let screen = (xlib.XDefaultScreen)(display.as_ptr() as *mut _) as _;
+            let display_handle = rwh_06::XlibDisplayHandle::new(Some(display), screen);
+            return Ok(rwh_06::RawDisplayHandle::Xlib(display_handle));
+          }
         }
+        Err(rwh_06::HandleError::Unavailable)
       }
       #[cfg(not(feature = "x11"))]
       Err(rwh_06::HandleError::Unavailable)
