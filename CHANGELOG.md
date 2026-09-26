@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.37.1]
+
+- [`365089b6`](https://github.com/tauri-apps/tao/commit/365089b6b2218108807b6a72ef27851f5fd3cc5d) ([#1341](https://github.com/tauri-apps/tao/pull/1341) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) On Windows, fix visibility flickers when calling windowing functions
+- [`f79aa3a1`](https://github.com/tauri-apps/tao/commit/f79aa3a1a18f647199685410cf3a9b22564b6447) ([#1342](https://github.com/tauri-apps/tao/pull/1342) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) On Windows, fix `set_maximized` and `set_minimized` calls don't work if the window's built with `with_focused(false)`.
+    
+    Note: this change will also make that if the window is created through `with_focused(false)`, subsequent `window.set_visible(true)` calls will now focus the window (the current behavior is the window only gets focus if you call `window.set_focus()` or `window.set_maximized(true)`) this is consistent with the other platforms.
+
 ## [0.37.0]
 
 - [`beb88249`](https://github.com/tauri-apps/tao/commit/beb8824915150aebd3938aa46895a9bbf930c212) ([#1304](https://github.com/tauri-apps/tao/pull/1304)) Fix Android event loop hanging on first IPC call. When the `ndk_glue` event pipe and the wake fd became ready at the same time, `ALooper_pollAll` could return the fd event instead of `ALOOPER_POLL_WAKE`, so the loop never drained the user-event channel and every invoke response sat there forever. The event loop now drains pending user events on every iteration, regardless of what the poll reported.

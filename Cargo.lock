@@ -2422,7 +2422,7 @@ dependencies = [
 
 [[package]]
 name = "tao"
-version = "0.37.0"
+version = "0.37.1"
 dependencies = [
  "bitflags 2.7.0",
  "block2 0.6.2",
