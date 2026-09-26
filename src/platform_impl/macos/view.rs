@@ -269,6 +269,8 @@ extern "C" fn dealloc(this: &Object, _sel: Sel) {
     let marked_text: *mut NSMutableAttributedString = *this.get_ivar("markedText");
     let _: () = msg_send![marked_text, release];
     drop(Box::from_raw(state as *mut ViewState));
+    let superclass = util::superclass(this);
+    let _: () = msg_send![super(this, superclass), dealloc];
   }
 }
 
