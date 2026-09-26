@@ -644,27 +644,26 @@ impl Window {
   ) -> Result<Self, error::OsError> {
     // FIXME this ignores requested window attributes
 
-    let (activity_id, activity_name) = match pl_attrs.activity_name {
-      Some(activity_name) => {
-        let ctx = if let Some(created_by_activity_name) = pl_attrs.created_by_activity_name {
-          ndk_glue::CONTEXTS
-            .lock()
-            .unwrap()
-            .values()
-            .find(|ctx| ctx.activity_name == created_by_activity_name)
-            .cloned()
-        } else {
-          ndk_glue::main_android_context()
-        }
-        .ok_or_else(|| os_error!(OsError::NoAvailableActivity))?;
-        let activity_id = ctx
-          .create_activity(&activity_name)
-          .map_err(|error| os_error!(OsError::JniCallError(error)))?;
-        (activity_id, activity_name)
+    let (activity_id, activity_name) = if let Some(activity_name) = pl_attrs.activity_name {
+      let ctx = if let Some(created_by_activity_name) = pl_attrs.created_by_activity_name {
+        ndk_glue::CONTEXTS
+          .lock()
+          .unwrap()
+          .values()
+          .find(|ctx| ctx.activity_name == created_by_activity_name)
+          .cloned()
+      } else {
+        ndk_glue::main_android_context()
       }
-      None => ndk_glue::next_available_activity()
-        .map(|(activity_id, ctx)| (activity_id, ctx.activity_name.clone()))
-        .ok_or_else(|| os_error!(OsError::NoAvailableActivity))?,
+      .ok_or_else(|| os_error!(OsError::NoAvailableActivity))?;
+      let activity_id = ctx
+        .create_activity(&activity_name)
+        .map_err(|error| os_error!(OsError::JniCallError(error)))?;
+      (activity_id, activity_name)
+    } else {
+      ndk_glue::take_next_available_activity()
+        .map(|(activity_id, ctx)| (activity_id, ctx.activity_name))
+        .ok_or_else(|| os_error!(OsError::NoAvailableActivity))?
     };
     Ok(Self {
       activity_id,
