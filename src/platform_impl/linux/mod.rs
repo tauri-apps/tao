@@ -51,6 +51,7 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub rgba_visual: bool,
   pub cursor_moved: bool,
   pub default_vbox: bool,
+  pub wlr_layer_shell: bool,
 }
 
 impl Default for PlatformSpecificWindowBuilderAttributes {
@@ -64,6 +65,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       rgba_visual: false,
       cursor_moved: true,
       default_vbox: true,
+      wlr_layer_shell: Default::default(),
     }
   }
 }
