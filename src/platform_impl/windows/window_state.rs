@@ -357,6 +357,7 @@ impl WindowFlags {
       }
     }
 
+    // Skip this if the window is hidden or the window will flash
     if new.contains(WindowFlags::VISIBLE)
       && (diff.contains(WindowFlags::MAXIMIZED) || new.contains(WindowFlags::MAXIMIZED))
     {
