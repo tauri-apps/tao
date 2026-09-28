@@ -133,14 +133,28 @@ extern "C" fn application_will_terminate(_: &Object, _: Sel, _: id) {
   trace!("Completed `applicationWillTerminate`");
 }
 
+fn url_from_absolute_string(absolute_string: Option<&str>) -> Option<url::Url> {
+  absolute_string.and_then(|s| url::Url::parse(s).ok())
+}
+
+fn urls_from_nsurls(urls: &NSArray<NSURL>) -> Vec<url::Url> {
+  (0..urls.count())
+    .filter_map(|i| {
+      url_from_absolute_string(
+        urls
+          .objectAtIndex(i)
+          .absoluteString()
+          .map(|s| s.to_string())
+          .as_deref(),
+      )
+    })
+    .collect()
+}
+
 extern "C" fn application_open_urls(_: &Object, _: Sel, _: id, urls: &NSArray<NSURL>) {
   trace!("Trigger `application:openURLs:`");
 
-  let urls = unsafe {
-    (0..urls.count())
-      .flat_map(|i| url::Url::parse(&urls.objectAtIndex(i).absoluteString().unwrap().to_string()))
-      .collect::<Vec<_>>()
-  };
+  let urls = urls_from_nsurls(urls);
   trace!("Get `application:openURLs:` URLs: {:?}", urls);
   AppState::open_urls(urls);
   trace!("Completed `application:openURLs:`");
@@ -218,4 +232,28 @@ extern "C" fn application_supports_secure_restorable_state(_: &Object, _: Sel, _
   trace!("Triggered `applicationSupportsSecureRestorableState`");
   trace!("Completed `applicationSupportsSecureRestorableState`");
   YES
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn nil_absolute_string_is_skipped() {
+    assert_eq!(url_from_absolute_string(None), None);
+  }
+
+  #[test]
+  fn empty_and_invalid_absolute_strings_are_skipped() {
+    assert_eq!(url_from_absolute_string(Some("")), None);
+    assert_eq!(url_from_absolute_string(Some("not a url")), None);
+  }
+
+  #[test]
+  fn valid_absolute_string_is_parsed() {
+    let url = url_from_absolute_string(Some("https://example.com/open")).unwrap();
+    assert_eq!(url.as_str(), "https://example.com/open");
+    let deeplink = url_from_absolute_string(Some("myapp://item/1")).unwrap();
+    assert_eq!(deeplink.as_str(), "myapp://item/1");
+  }
 }
