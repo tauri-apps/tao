@@ -104,7 +104,10 @@ fn create_progress_indicator_class() -> *const Class {
     )
     .unwrap();
 
-    decl.add_method(sel!(drawRect:), draw_progress_bar as extern "C" fn(_, _, _));
+    decl.add_method(
+      sel!(drawRect:),
+      draw_progress_bar as extern "C-unwind" fn(_, _, _),
+    );
 
     // progress bar states, follows ProgressState
     decl.add_ivar::<u8>(CStr::from_bytes_with_nul(b"state\0").unwrap());
@@ -115,7 +118,7 @@ fn create_progress_indicator_class() -> *const Class {
   unsafe { APP_CLASS }
 }
 
-extern "C" fn draw_progress_bar(this: &Object, _: Sel, rect: NSRect) {
+extern "C-unwind" fn draw_progress_bar(this: &Object, _: Sel, rect: NSRect) {
   #[allow(deprecated)] // TODO: Use define_class!
   unsafe {
     let bar = NSRect::new(

@@ -412,26 +412,29 @@ static WINDOW_CLASS: LazyLock<WindowClass> = LazyLock::new(|| unsafe {
   .unwrap();
   decl.add_method(
     sel!(canBecomeMainWindow),
-    is_focusable as extern "C" fn(_, _) -> _,
+    is_focusable as extern "C-unwind" fn(_, _) -> _,
   );
   decl.add_method(
     sel!(canBecomeKeyWindow),
-    is_focusable as extern "C" fn(_, _) -> _,
+    is_focusable as extern "C-unwind" fn(_, _) -> _,
   );
-  decl.add_method(sel!(sendEvent:), send_event as extern "C" fn(_, _, _));
+  decl.add_method(
+    sel!(sendEvent:),
+    send_event as extern "C-unwind" fn(_, _, _),
+  );
   // progress bar states, follows ProgressState
   decl.add_ivar::<Bool>(CStr::from_bytes_with_nul(b"focusable\0").unwrap());
   WindowClass(decl.register())
 });
 
-extern "C" fn is_focusable(this: &Object, _: Sel) -> Bool {
+extern "C-unwind" fn is_focusable(this: &Object, _: Sel) -> Bool {
   #[allow(deprecated)] // TODO: Use define_class!
   unsafe {
     *(this.get_ivar("focusable"))
   }
 }
 
-extern "C" fn send_event(this: &Object, _sel: Sel, event: &NSEvent) {
+extern "C-unwind" fn send_event(this: &Object, _sel: Sel, event: &NSEvent) {
   unsafe {
     let event_type = event.r#type();
     if event_type == NSEventType::LeftMouseDown {

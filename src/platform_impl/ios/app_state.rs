@@ -1014,7 +1014,7 @@ impl Drop for EventLoopWaker {
 
 impl EventLoopWaker {
   fn new(rl: CFRunLoopRef) -> EventLoopWaker {
-    extern "C" fn wakeup_main_loop(_timer: CFRunLoopTimerRef, _info: *mut c_void) {}
+    extern "C-unwind" fn wakeup_main_loop(_timer: CFRunLoopTimerRef, _info: *mut c_void) {}
     unsafe {
       // Create a timer with a 0.1µs interval (1ns does not work) to mimic polling.
       // It is initially setup with a first fire time really far into the

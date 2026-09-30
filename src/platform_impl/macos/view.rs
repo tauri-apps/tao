@@ -140,121 +140,148 @@ static VIEW_CLASS: LazyLock<ViewClass> = LazyLock::new(|| unsafe {
   let superclass = class!(NSView);
   let mut decl =
     ClassDecl::new(CStr::from_bytes_with_nul(b"TaoView\0").unwrap(), superclass).unwrap();
-  decl.add_method(sel!(dealloc), dealloc as extern "C" fn(_, _));
+  decl.add_method(sel!(dealloc), dealloc as extern "C-unwind" fn(_, _));
   decl.add_method(
     sel!(initWithTao:),
-    init_with_tao as extern "C" fn(_, _, _) -> _,
+    init_with_tao as extern "C-unwind" fn(_, _, _) -> _,
   );
   decl.add_method(
     sel!(viewDidMoveToWindow),
-    view_did_move_to_window as extern "C" fn(_, _),
+    view_did_move_to_window as extern "C-unwind" fn(_, _),
   );
-  decl.add_method(sel!(drawRect:), draw_rect as extern "C" fn(_, _, _));
+  decl.add_method(sel!(drawRect:), draw_rect as extern "C-unwind" fn(_, _, _));
   decl.add_method(
     sel!(acceptsFirstResponder),
-    accepts_first_responder as extern "C" fn(_, _) -> _,
+    accepts_first_responder as extern "C-unwind" fn(_, _) -> _,
   );
-  decl.add_method(sel!(touchBar), touch_bar as extern "C" fn(_, _) -> _);
+  decl.add_method(sel!(touchBar), touch_bar as extern "C-unwind" fn(_, _) -> _);
   decl.add_method(
     sel!(resetCursorRects),
-    reset_cursor_rects as extern "C" fn(_, _),
+    reset_cursor_rects as extern "C-unwind" fn(_, _),
   );
   decl.add_method(
     sel!(hasMarkedText),
-    has_marked_text as extern "C" fn(_, _) -> _,
+    has_marked_text as extern "C-unwind" fn(_, _) -> _,
   );
-  decl.add_method(sel!(markedRange), marked_range as extern "C" fn(_, _) -> _);
+  decl.add_method(
+    sel!(markedRange),
+    marked_range as extern "C-unwind" fn(_, _) -> _,
+  );
   decl.add_method(
     sel!(selectedRange),
-    selected_range as extern "C" fn(_, _) -> _,
+    selected_range as extern "C-unwind" fn(_, _) -> _,
   );
   decl.add_method(
     sel!(setMarkedText:selectedRange:replacementRange:),
-    set_marked_text as extern "C" fn(_, _, _, _, _),
+    set_marked_text as extern "C-unwind" fn(_, _, _, _, _),
   );
-  decl.add_method(sel!(unmarkText), unmark_text as extern "C" fn(_, _));
+  decl.add_method(sel!(unmarkText), unmark_text as extern "C-unwind" fn(_, _));
   decl.add_method(
     sel!(validAttributesForMarkedText),
-    valid_attributes_for_marked_text as extern "C" fn(_, _) -> _,
+    valid_attributes_for_marked_text as extern "C-unwind" fn(_, _) -> _,
   );
   decl.add_method(
     sel!(attributedSubstringForProposedRange:actualRange:),
-    attributed_substring_for_proposed_range as extern "C" fn(_, _, _, _) -> _,
+    attributed_substring_for_proposed_range as extern "C-unwind" fn(_, _, _, _) -> _,
   );
   decl.add_method(
     sel!(insertText:replacementRange:),
-    insert_text as extern "C" fn(_, _, _, _),
+    insert_text as extern "C-unwind" fn(_, _, _, _),
   );
   decl.add_method(
     sel!(characterIndexForPoint:),
-    character_index_for_point as extern "C" fn(_, _, _) -> _,
+    character_index_for_point as extern "C-unwind" fn(_, _, _) -> _,
   );
   decl.add_method(
     sel!(firstRectForCharacterRange:actualRange:),
-    first_rect_for_character_range as extern "C" fn(_, _, _, _) -> _,
+    first_rect_for_character_range as extern "C-unwind" fn(_, _, _, _) -> _,
   );
   decl.add_method(
     sel!(doCommandBySelector:),
-    do_command_by_selector as extern "C" fn(_, _, _),
+    do_command_by_selector as extern "C-unwind" fn(_, _, _),
   );
-  decl.add_method(sel!(keyDown:), key_down as extern "C" fn(_, _, _));
-  decl.add_method(sel!(keyUp:), key_up as extern "C" fn(_, _, _));
-  decl.add_method(sel!(flagsChanged:), flags_changed as extern "C" fn(_, _, _));
-  decl.add_method(sel!(insertTab:), insert_tab as extern "C" fn(_, _, _));
+  decl.add_method(sel!(keyDown:), key_down as extern "C-unwind" fn(_, _, _));
+  decl.add_method(sel!(keyUp:), key_up as extern "C-unwind" fn(_, _, _));
+  decl.add_method(
+    sel!(flagsChanged:),
+    flags_changed as extern "C-unwind" fn(_, _, _),
+  );
+  decl.add_method(
+    sel!(insertTab:),
+    insert_tab as extern "C-unwind" fn(_, _, _),
+  );
   decl.add_method(
     sel!(insertBackTab:),
-    insert_back_tab as extern "C" fn(_, _, _),
+    insert_back_tab as extern "C-unwind" fn(_, _, _),
   );
-  decl.add_method(sel!(mouseDown:), mouse_down as extern "C" fn(_, _, _));
-  decl.add_method(sel!(mouseUp:), mouse_up as extern "C" fn(_, _, _));
+  decl.add_method(
+    sel!(mouseDown:),
+    mouse_down as extern "C-unwind" fn(_, _, _),
+  );
+  decl.add_method(sel!(mouseUp:), mouse_up as extern "C-unwind" fn(_, _, _));
   decl.add_method(
     sel!(rightMouseDown:),
-    right_mouse_down as extern "C" fn(_, _, _),
+    right_mouse_down as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(rightMouseUp:),
-    right_mouse_up as extern "C" fn(_, _, _),
+    right_mouse_up as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(otherMouseDown:),
-    other_mouse_down as extern "C" fn(_, _, _),
+    other_mouse_down as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(otherMouseUp:),
-    other_mouse_up as extern "C" fn(_, _, _),
+    other_mouse_up as extern "C-unwind" fn(_, _, _),
   );
-  decl.add_method(sel!(mouseMoved:), mouse_moved as extern "C" fn(_, _, _));
-  decl.add_method(sel!(mouseDragged:), mouse_dragged as extern "C" fn(_, _, _));
+  decl.add_method(
+    sel!(mouseMoved:),
+    mouse_moved as extern "C-unwind" fn(_, _, _),
+  );
+  decl.add_method(
+    sel!(mouseDragged:),
+    mouse_dragged as extern "C-unwind" fn(_, _, _),
+  );
   decl.add_method(
     sel!(rightMouseDragged:),
-    right_mouse_dragged as extern "C" fn(_, _, _),
+    right_mouse_dragged as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(otherMouseDragged:),
-    other_mouse_dragged as extern "C" fn(_, _, _),
+    other_mouse_dragged as extern "C-unwind" fn(_, _, _),
   );
-  decl.add_method(sel!(mouseEntered:), mouse_entered as extern "C" fn(_, _, _));
-  decl.add_method(sel!(mouseExited:), mouse_exited as extern "C" fn(_, _, _));
-  decl.add_method(sel!(scrollWheel:), scroll_wheel as extern "C" fn(_, _, _));
+  decl.add_method(
+    sel!(mouseEntered:),
+    mouse_entered as extern "C-unwind" fn(_, _, _),
+  );
+  decl.add_method(
+    sel!(mouseExited:),
+    mouse_exited as extern "C-unwind" fn(_, _, _),
+  );
+  decl.add_method(
+    sel!(scrollWheel:),
+    scroll_wheel as extern "C-unwind" fn(_, _, _),
+  );
   decl.add_method(
     sel!(pressureChangeWithEvent:),
-    pressure_change_with_event as extern "C" fn(_, _, _),
+    pressure_change_with_event as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(_wantsKeyDownForEvent:),
-    wants_key_down_for_event as extern "C" fn(_, _, _) -> _,
+    wants_key_down_for_event as extern "C-unwind" fn(_, _, _) -> _,
   );
   decl.add_method(
     sel!(cancelOperation:),
-    cancel_operation as extern "C" fn(_, _, _),
+    cancel_operation as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(frameDidChange:),
-    frame_did_change as extern "C" fn(_, _, _),
+    frame_did_change as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(acceptsFirstMouse:),
-    accepts_first_mouse as extern "C" fn(_, _, _) -> _,
+    accepts_first_mouse as extern "C-unwind" fn(_, _, _) -> _,
   );
   decl.add_ivar::<*mut c_void>(CStr::from_bytes_with_nul(b"taoState\0").unwrap());
   decl.add_ivar::<id>(CStr::from_bytes_with_nul(b"markedText\0").unwrap());
@@ -263,7 +290,7 @@ static VIEW_CLASS: LazyLock<ViewClass> = LazyLock::new(|| unsafe {
   ViewClass(decl.register())
 });
 
-extern "C" fn dealloc(this: &Object, _sel: Sel) {
+extern "C-unwind" fn dealloc(this: &Object, _sel: Sel) {
   unsafe {
     let state: *mut c_void = *this.get_ivar("taoState");
     let marked_text: *mut NSMutableAttributedString = *this.get_ivar("markedText");
@@ -272,7 +299,7 @@ extern "C" fn dealloc(this: &Object, _sel: Sel) {
   }
 }
 
-extern "C" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void) -> id {
+extern "C-unwind" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void) -> id {
   unsafe {
     let this: id = msg_send![this, init];
     if this != nil {
@@ -295,7 +322,7 @@ extern "C" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void) -> id 
   }
 }
 
-extern "C" fn view_did_move_to_window(this: &Object, _sel: Sel) {
+extern "C-unwind" fn view_did_move_to_window(this: &Object, _sel: Sel) {
   trace!("Triggered `viewDidMoveToWindow`");
   unsafe {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
@@ -317,7 +344,7 @@ extern "C" fn view_did_move_to_window(this: &Object, _sel: Sel) {
   trace!("Completed `viewDidMoveToWindow`");
 }
 
-extern "C" fn frame_did_change(this: &Object, _sel: Sel, _event: id) {
+extern "C-unwind" fn frame_did_change(this: &Object, _sel: Sel, _event: id) {
   unsafe {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
@@ -338,7 +365,7 @@ extern "C" fn frame_did_change(this: &Object, _sel: Sel, _event: id) {
   }
 }
 
-extern "C" fn draw_rect(this: &Object, _sel: Sel, rect: NSRect) {
+extern "C-unwind" fn draw_rect(this: &Object, _sel: Sel, rect: NSRect) {
   unsafe {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
@@ -355,18 +382,18 @@ extern "C" fn draw_rect(this: &Object, _sel: Sel, rect: NSRect) {
   }
 }
 
-extern "C" fn accepts_first_responder(_this: &Object, _sel: Sel) -> BOOL {
+extern "C-unwind" fn accepts_first_responder(_this: &Object, _sel: Sel) -> BOOL {
   YES
 }
 
 // This is necessary to prevent a beefy terminal error on MacBook Pros:
 // IMKInputSession [0x7fc573576ff0 presentFunctionRowItemTextInputViewWithEndpoint:completionHandler:] : [self textInputContext]=0x7fc573558e10 *NO* NSRemoteViewController to client, NSError=Error Domain=NSCocoaErrorDomain Code=4099 "The connection from pid 0 was invalidated from this process." UserInfo={NSDebugDescription=The connection from pid 0 was invalidated from this process.}, com.apple.inputmethod.EmojiFunctionRowItem
 // TODO: Add an API extension for using `NSTouchBar`
-extern "C" fn touch_bar(_this: &Object, _sel: Sel) -> id {
+extern "C-unwind" fn touch_bar(_this: &Object, _sel: Sel) -> id {
   nil
 }
 
-extern "C" fn reset_cursor_rects(this: &Object, _sel: Sel) {
+extern "C-unwind" fn reset_cursor_rects(this: &Object, _sel: Sel) {
   unsafe {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
@@ -388,7 +415,7 @@ extern "C" fn reset_cursor_rects(this: &Object, _sel: Sel) {
   }
 }
 
-extern "C" fn has_marked_text(this: &Object, _sel: Sel) -> BOOL {
+extern "C-unwind" fn has_marked_text(this: &Object, _sel: Sel) -> BOOL {
   unsafe {
     trace!("Triggered `hasMarkedText`");
     let marked_text: &NSMutableAttributedString = *this.get_ivar("markedText");
@@ -397,7 +424,7 @@ extern "C" fn has_marked_text(this: &Object, _sel: Sel) -> BOOL {
   }
 }
 
-extern "C" fn marked_range(this: &Object, _sel: Sel) -> NSRange {
+extern "C-unwind" fn marked_range(this: &Object, _sel: Sel) -> NSRange {
   unsafe {
     trace!("Triggered `markedRange`");
     let marked_text: &NSMutableAttributedString = *this.get_ivar("markedText");
@@ -411,7 +438,7 @@ extern "C" fn marked_range(this: &Object, _sel: Sel) -> NSRange {
   }
 }
 
-extern "C" fn selected_range(_this: &Object, _sel: Sel) -> NSRange {
+extern "C-unwind" fn selected_range(_this: &Object, _sel: Sel) -> NSRange {
   trace!("Triggered `selectedRange`");
   trace!("Completed `selectedRange`");
   util::EMPTY_RANGE
@@ -420,7 +447,7 @@ extern "C" fn selected_range(_this: &Object, _sel: Sel) -> NSRange {
 /// An IME pre-edit operation happened, changing the text that's
 /// currently being pre-edited. This more or less corresponds to
 /// the `compositionupdate` event on the web.
-extern "C" fn set_marked_text(
+extern "C-unwind" fn set_marked_text(
   this: &mut Object,
   _sel: Sel,
   string: id,
@@ -453,7 +480,7 @@ extern "C" fn set_marked_text(
   trace!("Completed `setMarkedText`");
 }
 
-extern "C" fn unmark_text(this: &mut Object, _sel: Sel) {
+extern "C-unwind" fn unmark_text(this: &mut Object, _sel: Sel) {
   trace!("Triggered `unmarkText`");
   unsafe {
     let marked_text_ref: &mut *mut NSMutableAttributedString = this.get_mut_ivar("markedText");
@@ -465,13 +492,13 @@ extern "C" fn unmark_text(this: &mut Object, _sel: Sel) {
   trace!("Completed `unmarkText`");
 }
 
-extern "C" fn valid_attributes_for_marked_text(_this: &Object, _sel: Sel) -> id {
+extern "C-unwind" fn valid_attributes_for_marked_text(_this: &Object, _sel: Sel) -> id {
   trace!("Triggered `validAttributesForMarkedText`");
   trace!("Completed `validAttributesForMarkedText`");
   unsafe { msg_send![class!(NSArray), array] }
 }
 
-extern "C" fn attributed_substring_for_proposed_range(
+extern "C-unwind" fn attributed_substring_for_proposed_range(
   _this: &Object,
   _sel: Sel,
   _range: NSRange,
@@ -482,13 +509,17 @@ extern "C" fn attributed_substring_for_proposed_range(
   nil
 }
 
-extern "C" fn character_index_for_point(_this: &Object, _sel: Sel, _point: NSPoint) -> NSUInteger {
+extern "C-unwind" fn character_index_for_point(
+  _this: &Object,
+  _sel: Sel,
+  _point: NSPoint,
+) -> NSUInteger {
   trace!("Triggered `characterIndexForPoint`");
   trace!("Completed `characterIndexForPoint`");
   0
 }
 
-extern "C" fn first_rect_for_character_range(
+extern "C-unwind" fn first_rect_for_character_range(
   this: &Object,
   _sel: Sel,
   _range: NSRange,
@@ -512,7 +543,7 @@ extern "C" fn first_rect_for_character_range(
   }
 }
 
-extern "C" fn insert_text(
+extern "C-unwind" fn insert_text(
   this: &Object,
   _sel: Sel,
   string: &NSString,
@@ -554,7 +585,7 @@ extern "C" fn insert_text(
   trace!("Completed `insertText`");
 }
 
-extern "C" fn do_command_by_selector(_this: &Object, _sel: Sel, _command: Sel) {
+extern "C-unwind" fn do_command_by_selector(_this: &Object, _sel: Sel, _command: Sel) {
   trace!("Triggered `doCommandBySelector`");
   // TODO: (Artur) all these inputs seem to trigger a key event with the correct text
   // content so this is not needed anymore, it seems.
@@ -665,7 +696,7 @@ fn update_potentially_stale_modifiers(state: &mut ViewState, event: &NSEvent) {
   }
 }
 
-extern "C" fn key_down(this: &mut Object, _sel: Sel, event: &NSEvent) {
+extern "C-unwind" fn key_down(this: &mut Object, _sel: Sel, event: &NSEvent) {
   trace!("Triggered `keyDown`");
   unsafe {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
@@ -726,7 +757,7 @@ extern "C" fn key_down(this: &mut Object, _sel: Sel, event: &NSEvent) {
   trace!("Completed `keyDown`");
 }
 
-extern "C" fn key_up(this: &Object, _sel: Sel, event: &NSEvent) {
+extern "C-unwind" fn key_up(this: &Object, _sel: Sel, event: &NSEvent) {
   trace!("Triggered `keyUp`");
   unsafe {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
@@ -749,7 +780,7 @@ extern "C" fn key_up(this: &Object, _sel: Sel, event: &NSEvent) {
   trace!("Completed `keyUp`");
 }
 
-extern "C" fn flags_changed(this: &Object, _sel: Sel, ns_event: &NSEvent) {
+extern "C-unwind" fn flags_changed(this: &Object, _sel: Sel, ns_event: &NSEvent) {
   use KeyCode::{
     AltLeft, AltRight, ControlLeft, ControlRight, ShiftLeft, ShiftRight, SuperLeft, SuperRight,
   };
@@ -867,7 +898,7 @@ extern "C" fn flags_changed(this: &Object, _sel: Sel, ns_event: &NSEvent) {
   trace!("Completed `flagsChanged`");
 }
 
-extern "C" fn insert_tab(this: &Object, _sel: Sel, _sender: id) {
+extern "C-unwind" fn insert_tab(this: &Object, _sel: Sel, _sender: id) {
   unsafe {
     let window: id = msg_send![this, window];
     let first_responder: id = msg_send![window, firstResponder];
@@ -878,7 +909,7 @@ extern "C" fn insert_tab(this: &Object, _sel: Sel, _sender: id) {
   }
 }
 
-extern "C" fn insert_back_tab(this: &Object, _sel: Sel, _sender: id) {
+extern "C-unwind" fn insert_back_tab(this: &Object, _sel: Sel, _sender: id) {
   unsafe {
     let window: id = msg_send![this, window];
     let first_responder: id = msg_send![window, firstResponder];
@@ -891,7 +922,7 @@ extern "C" fn insert_back_tab(this: &Object, _sel: Sel, _sender: id) {
 
 // Allows us to receive Cmd-. (the shortcut for closing a dialog)
 // https://bugs.eclipse.org/bugs/show_bug.cgi?id=300620#c6
-extern "C" fn cancel_operation(this: &Object, _sel: Sel, _sender: id) {
+extern "C-unwind" fn cancel_operation(this: &Object, _sel: Sel, _sender: id) {
   trace!("Triggered `cancelOperation`");
   unsafe {
     let mtm = MainThreadMarker::new_unchecked();
@@ -939,32 +970,32 @@ fn mouse_click(this: &Object, event: &NSEvent, button: MouseButton, button_state
   }
 }
 
-extern "C" fn mouse_down(this: &NSView, _sel: Sel, event: &NSEvent) {
+extern "C-unwind" fn mouse_down(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
   mouse_click(this, event, MouseButton::Left, ElementState::Pressed);
 }
 
-extern "C" fn mouse_up(this: &NSView, _sel: Sel, event: &NSEvent) {
+extern "C-unwind" fn mouse_up(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
   mouse_click(this, event, MouseButton::Left, ElementState::Released);
 }
 
-extern "C" fn right_mouse_down(this: &NSView, _sel: Sel, event: &NSEvent) {
+extern "C-unwind" fn right_mouse_down(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
   mouse_click(this, event, MouseButton::Right, ElementState::Pressed);
 }
 
-extern "C" fn right_mouse_up(this: &NSView, _sel: Sel, event: &NSEvent) {
+extern "C-unwind" fn right_mouse_up(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
   mouse_click(this, event, MouseButton::Right, ElementState::Released);
 }
 
-extern "C" fn other_mouse_down(this: &NSView, _sel: Sel, event: &NSEvent) {
+extern "C-unwind" fn other_mouse_down(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
   mouse_click(this, event, MouseButton::Middle, ElementState::Pressed);
 }
 
-extern "C" fn other_mouse_up(this: &NSView, _sel: Sel, event: &NSEvent) {
+extern "C-unwind" fn other_mouse_up(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
   mouse_click(this, event, MouseButton::Middle, ElementState::Released);
 }
@@ -1009,23 +1040,23 @@ fn mouse_motion(this: &NSView, event: &NSEvent) {
   }
 }
 
-extern "C" fn mouse_moved(this: &NSView, _sel: Sel, event: &NSEvent) {
+extern "C-unwind" fn mouse_moved(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
 }
 
-extern "C" fn mouse_dragged(this: &NSView, _sel: Sel, event: &NSEvent) {
+extern "C-unwind" fn mouse_dragged(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
 }
 
-extern "C" fn right_mouse_dragged(this: &NSView, _sel: Sel, event: &NSEvent) {
+extern "C-unwind" fn right_mouse_dragged(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
 }
 
-extern "C" fn other_mouse_dragged(this: &NSView, _sel: Sel, event: &NSEvent) {
+extern "C-unwind" fn other_mouse_dragged(this: &NSView, _sel: Sel, event: &NSEvent) {
   mouse_motion(this, event);
 }
 
-extern "C" fn mouse_entered(this: &Object, _sel: Sel, _event: id) {
+extern "C-unwind" fn mouse_entered(this: &Object, _sel: Sel, _event: id) {
   trace!("Triggered `mouseEntered`");
   unsafe {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
@@ -1043,7 +1074,7 @@ extern "C" fn mouse_entered(this: &Object, _sel: Sel, _event: id) {
   trace!("Completed `mouseEntered`");
 }
 
-extern "C" fn mouse_exited(this: &Object, _sel: Sel, _event: id) {
+extern "C-unwind" fn mouse_exited(this: &Object, _sel: Sel, _event: id) {
   trace!("Triggered `mouseExited`");
   unsafe {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
@@ -1061,7 +1092,7 @@ extern "C" fn mouse_exited(this: &Object, _sel: Sel, _event: id) {
   trace!("Completed `mouseExited`");
 }
 
-extern "C" fn scroll_wheel(this: &NSView, _sel: Sel, event: &NSEvent) {
+extern "C-unwind" fn scroll_wheel(this: &NSView, _sel: Sel, event: &NSEvent) {
   trace!("Triggered `scrollWheel`");
 
   mouse_motion(this, event);
@@ -1112,7 +1143,7 @@ extern "C" fn scroll_wheel(this: &NSView, _sel: Sel, event: &NSEvent) {
   trace!("Completed `scrollWheel`");
 }
 
-extern "C" fn pressure_change_with_event(this: &NSView, _sel: Sel, event: &NSEvent) {
+extern "C-unwind" fn pressure_change_with_event(this: &NSView, _sel: Sel, event: &NSEvent) {
   trace!("Triggered `pressureChangeWithEvent`");
 
   mouse_motion(this, event);
@@ -1141,11 +1172,11 @@ extern "C" fn pressure_change_with_event(this: &NSView, _sel: Sel, event: &NSEve
 // Allows us to receive Ctrl-Tab and Ctrl-Esc.
 // Note that this *doesn't* help with any missing Cmd inputs.
 // https://github.com/chromium/chromium/blob/a86a8a6bcfa438fa3ac2eba6f02b3ad1f8e0756f/ui/views/cocoa/bridged_content_view.mm#L816
-extern "C" fn wants_key_down_for_event(_this: &Object, _sel: Sel, _event: id) -> BOOL {
+extern "C-unwind" fn wants_key_down_for_event(_this: &Object, _sel: Sel, _event: id) -> BOOL {
   YES
 }
 
-extern "C" fn accepts_first_mouse(_this: &Object, _sel: Sel, _event: id) -> BOOL {
+extern "C-unwind" fn accepts_first_mouse(_this: &Object, _sel: Sel, _event: id) -> BOOL {
   YES
 }
 
