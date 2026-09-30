@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.37.2]
+
+- [`d19f4c12`](https://github.com/tauri-apps/tao/commit/d19f4c12a0d881260a436d9ccf3e8f349c58e2a4) ([#1356](https://github.com/tauri-apps/tao/pull/1356) by [@yuezk](https://github.com/tauri-apps/tao/../../yuezk)) Fix compilation on FreeBSD, OpenBSD, NetBSD, and DragonFly BSD by enabling the resize hit-test helper used by the GTK backend.
+- [`2831c7d6`](https://github.com/tauri-apps/tao/commit/2831c7d69d144a062cc8b99a070c579a0787641b) ([#1353](https://github.com/tauri-apps/tao/pull/1353) by [@zzentq](https://github.com/tauri-apps/tao/../../zzentq)) On Windows, fix a gap at the bottom of an undecorated window that goes fullscreen while maximized: the client area was clamped to the monitor work area.
+- [`2d918a69`](https://github.com/tauri-apps/tao/commit/2d918a69364832c140ee0f1df1893143112c2dbc) ([#1352](https://github.com/tauri-apps/tao/pull/1352) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) On Windows, delay unmaximizing the window if it's hidden to avoid it flashing briefly.
+
 ## [0.37.1]
 
 - [`365089b6`](https://github.com/tauri-apps/tao/commit/365089b6b2218108807b6a72ef27851f5fd3cc5d) ([#1341](https://github.com/tauri-apps/tao/pull/1341) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) On Windows, fix visibility flickers when calling windowing functions
