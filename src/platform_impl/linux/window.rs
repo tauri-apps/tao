@@ -52,7 +52,7 @@ pub struct Window {
   pub(crate) window: gtk::ApplicationWindow,
   pub(crate) default_vbox: Option<gtk::Box>,
   /// Window requests sender
-  pub(crate) window_requests_tx: glib::Sender<(WindowId, WindowRequest)>,
+  pub(crate) window_requests_tx: async_channel::Sender<(WindowId, WindowRequest)>,
   scale_factor: Rc<AtomicI32>,
   inner_position: Rc<(AtomicI32, AtomicI32)>,
   outer_position: Rc<(AtomicI32, AtomicI32)>,
@@ -247,7 +247,7 @@ impl Window {
       transparent = true;
     }
     let cursor_moved = pl_attribs.cursor_moved;
-    if let Err(e) = window_requests_tx.send((
+    if let Err(e) = window_requests_tx.send_blocking((
       window_id,
       WindowRequest::WireUpEvents {
         transparent,
@@ -477,14 +477,14 @@ impl Window {
 
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::Position((x, y))))
+      .send_blocking((self.window_id, WindowRequest::Position((x, y))))
     {
       log::warn!("Fail to send position request: {}", e);
     }
   }
 
   pub fn set_background_color(&self, color: Option<RGBA>) {
-    if let Err(e) = self.window_requests_tx.send((
+    if let Err(e) = self.window_requests_tx.send_blocking((
       self.window_id,
       WindowRequest::BackgroundColor(self.css_provider.clone(), color),
     )) {
@@ -507,7 +507,7 @@ impl Window {
 
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::Size((width, height))))
+      .send_blocking((self.window_id, WindowRequest::Size((width, height))))
     {
       log::warn!("Fail to send size request: {}", e);
     }
@@ -526,7 +526,7 @@ impl Window {
   fn set_size_constraints(&self, constraints: WindowSizeConstraints) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::SizeConstraints(constraints)))
+      .send_blocking((self.window_id, WindowRequest::SizeConstraints(constraints)))
     {
       log::warn!("Fail to send size constraint request: {}", e);
     }
@@ -556,7 +556,7 @@ impl Window {
   pub fn set_title(&self, title: &str) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::Title(title.to_string())))
+      .send_blocking((self.window_id, WindowRequest::Title(title.to_string())))
     {
       log::warn!("Fail to send title request: {}", e);
     }
@@ -573,7 +573,7 @@ impl Window {
   pub fn set_visible(&self, visible: bool) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::Visible(visible)))
+      .send_blocking((self.window_id, WindowRequest::Visible(visible)))
     {
       log::warn!("Fail to send visible request: {}", e);
     }
@@ -583,7 +583,7 @@ impl Window {
     if !self.minimized.load(Ordering::Acquire) && self.window.get_visible() {
       if let Err(e) = self
         .window_requests_tx
-        .send((self.window_id, WindowRequest::Focus))
+        .send_blocking((self.window_id, WindowRequest::Focus))
       {
         log::warn!("Fail to send visible request: {}", e);
       }
@@ -601,7 +601,7 @@ impl Window {
   pub fn set_resizable(&self, resizable: bool) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::Resizable(resizable)))
+      .send_blocking((self.window_id, WindowRequest::Resizable(resizable)))
     {
       log::warn!("Fail to send resizable request: {}", e);
     }
@@ -614,7 +614,7 @@ impl Window {
   pub fn set_closable(&self, closable: bool) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::Closable(closable)))
+      .send_blocking((self.window_id, WindowRequest::Closable(closable)))
     {
       log::warn!("Fail to send closable request: {}", e);
     }
@@ -623,7 +623,7 @@ impl Window {
   pub fn set_minimized(&self, minimized: bool) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::Minimized(minimized)))
+      .send_blocking((self.window_id, WindowRequest::Minimized(minimized)))
     {
       log::warn!("Fail to send minimized request: {}", e);
     }
@@ -632,7 +632,7 @@ impl Window {
   pub fn set_maximized(&self, maximized: bool) {
     let resizable = self.is_resizable();
 
-    if let Err(e) = self.window_requests_tx.send((
+    if let Err(e) = self.window_requests_tx.send_blocking((
       self.window_id,
       WindowRequest::Maximized(maximized, resizable),
     )) {
@@ -679,7 +679,7 @@ impl Window {
   pub fn drag_window(&self) -> Result<(), ExternalError> {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::DragWindow))
+      .send_blocking((self.window_id, WindowRequest::DragWindow))
     {
       log::warn!("Fail to send drag window request: {}", e);
     }
@@ -689,7 +689,7 @@ impl Window {
   pub fn drag_resize_window(&self, direction: ResizeDirection) -> Result<(), ExternalError> {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::DragResizeWindow(direction)))
+      .send_blocking((self.window_id, WindowRequest::DragResizeWindow(direction)))
     {
       log::warn!("Fail to send drag window request: {}", e);
     }
@@ -700,7 +700,7 @@ impl Window {
     *self.fullscreen.write().unwrap() = fullscreen.clone();
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::Fullscreen(fullscreen)))
+      .send_blocking((self.window_id, WindowRequest::Fullscreen(fullscreen)))
     {
       log::warn!("Fail to send fullscreen request: {}", e);
     }
@@ -713,14 +713,14 @@ impl Window {
   pub fn set_decorations(&self, decorations: bool) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::Decorations(decorations)))
+      .send_blocking((self.window_id, WindowRequest::Decorations(decorations)))
     {
       log::warn!("Fail to send decorations request: {}", e);
     }
   }
 
   pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
-    if let Err(e) = self.window_requests_tx.send((
+    if let Err(e) = self.window_requests_tx.send_blocking((
       self.window_id,
       WindowRequest::AlwaysOnBottom(always_on_bottom),
     )) {
@@ -731,7 +731,7 @@ impl Window {
   pub fn set_always_on_top(&self, always_on_top: bool) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::AlwaysOnTop(always_on_top)))
+      .send_blocking((self.window_id, WindowRequest::AlwaysOnTop(always_on_top)))
     {
       log::warn!("Fail to send always on top request: {}", e);
     }
@@ -740,7 +740,7 @@ impl Window {
   pub fn set_window_icon(&self, window_icon: Option<Icon>) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::WindowIcon(window_icon)))
+      .send_blocking((self.window_id, WindowRequest::WindowIcon(window_icon)))
     {
       log::warn!("Fail to send window icon request: {}", e);
     }
@@ -753,14 +753,14 @@ impl Window {
   pub fn request_user_attention(&self, request_type: Option<UserAttentionType>) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::UserAttention(request_type)))
+      .send_blocking((self.window_id, WindowRequest::UserAttention(request_type)))
     {
       log::warn!("Fail to send user attention request: {}", e);
     }
   }
 
   pub fn set_visible_on_all_workspaces(&self, visible: bool) {
-    if let Err(e) = self.window_requests_tx.send((
+    if let Err(e) = self.window_requests_tx.send_blocking((
       self.window_id,
       WindowRequest::SetVisibleOnAllWorkspaces(visible),
     )) {
@@ -770,7 +770,7 @@ impl Window {
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::CursorIcon(Some(cursor))))
+      .send_blocking((self.window_id, WindowRequest::CursorIcon(Some(cursor))))
     {
       log::warn!("Fail to send cursor icon request: {}", e);
     }
@@ -783,7 +783,7 @@ impl Window {
       .to_logical::<i32>(self.scale_factor())
       .into();
 
-    if let Err(e) = self.window_requests_tx.send((
+    if let Err(e) = self.window_requests_tx.send_blocking((
       self.window_id,
       WindowRequest::CursorPosition((x + inner_pos.x, y + inner_pos.y)),
     )) {
@@ -800,7 +800,7 @@ impl Window {
   pub fn set_ignore_cursor_events(&self, ignore: bool) -> Result<(), ExternalError> {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::CursorIgnoreEvents(ignore)))
+      .send_blocking((self.window_id, WindowRequest::CursorIgnoreEvents(ignore)))
     {
       log::warn!("Fail to send cursor position request: {}", e);
     }
@@ -816,7 +816,7 @@ impl Window {
     };
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::CursorIcon(cursor)))
+      .send_blocking((self.window_id, WindowRequest::CursorIcon(cursor)))
     {
       log::warn!("Fail to send cursor visibility request: {}", e);
     }
@@ -997,7 +997,7 @@ impl Window {
   pub fn set_skip_taskbar(&self, skip: bool) -> Result<(), ExternalError> {
     if let Err(e) = self
       .window_requests_tx
-      .send((self.window_id, WindowRequest::SetSkipTaskbar(skip)))
+      .send_blocking((self.window_id, WindowRequest::SetSkipTaskbar(skip)))
     {
       log::warn!("Fail to send skip taskbar request: {}", e);
     }
@@ -1008,14 +1008,14 @@ impl Window {
   pub fn set_progress_bar(&self, progress: ProgressBarState) {
     if let Err(e) = self
       .window_requests_tx
-      .send((WindowId::dummy(), WindowRequest::ProgressBarState(progress)))
+      .send_blocking((WindowId::dummy(), WindowRequest::ProgressBarState(progress)))
     {
       log::warn!("Fail to send update progress bar request: {}", e);
     }
   }
 
   pub fn set_badge_count(&self, count: Option<i64>, desktop_filename: Option<String>) {
-    if let Err(e) = self.window_requests_tx.send((
+    if let Err(e) = self.window_requests_tx.send_blocking((
       WindowId::dummy(),
       WindowRequest::BadgeCount(count, desktop_filename),
     )) {
@@ -1040,7 +1040,7 @@ impl Window {
     *self.preferred_theme.write().unwrap() = theme;
     if let Err(e) = self
       .window_requests_tx
-      .send((WindowId::dummy(), WindowRequest::SetTheme(theme)))
+      .send_blocking((WindowId::dummy(), WindowRequest::SetTheme(theme)))
     {
       log::warn!("Fail to send set theme request: {e}");
     }
