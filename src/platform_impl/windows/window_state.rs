@@ -357,9 +357,9 @@ impl WindowFlags {
       }
     }
 
-    if (diff.contains(WindowFlags::MAXIMIZED) || new.contains(WindowFlags::MAXIMIZED))
-      // This is to avoid the window from flashing
-      && !(new.contains(WindowFlags::MAXIMIZED) && !new.contains(WindowFlags::VISIBLE))
+    // Skip this if the window is hidden or the window will flash
+    if new.contains(WindowFlags::VISIBLE)
+      && (diff.contains(WindowFlags::MAXIMIZED) || new.contains(WindowFlags::MAXIMIZED))
     {
       unsafe {
         let _ = ShowWindow(
