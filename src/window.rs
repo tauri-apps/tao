@@ -1662,7 +1662,14 @@ pub enum ResizeDirection {
   West,
 }
 
-#[cfg(any(target_os = "windows", target_os = "linux"))]
+#[cfg(any(
+  target_os = "windows",
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
 pub(crate) fn hit_test(
   (left, top, right, bottom): (i32, i32, i32, i32),
   cx: i32,
