@@ -2077,6 +2077,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
       if wparam == WPARAM(0) || window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
         result = ProcResult::DefWindowProc;
+      } else if is_fullscreen {
+        result = ProcResult::Value(LRESULT(0));
       } else {
         // adjust the maximized borderless window so it doesn't cover the taskbar
         if util::is_maximized(window).unwrap_or(false) {
@@ -2111,7 +2113,7 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
             params.rgrc[0] = rect;
           }
-        } else if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) && !is_fullscreen {
+        } else if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) {
           let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
 
           let insets = util::calculate_window_insets(window);
