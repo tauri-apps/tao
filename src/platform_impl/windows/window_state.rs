@@ -458,7 +458,11 @@ impl WindowFlags {
       unsafe {
         let _ = ShowWindow(
           window,
-          if old.contains(WindowFlags::MARKER_DONT_FOCUS) {
+          // A window that is not focusable must never be activated by `set_visible`:
+          // `SW_SHOW` activates even a `WS_EX_NOACTIVATE` window (that style only blocks
+          // click / successor activation, not programmatic activation), which lets a
+          // passive overlay steal the foreground from the window underneath it.
+          if old.contains(WindowFlags::MARKER_DONT_FOCUS) || !new.contains(WindowFlags::FOCUSABLE) {
             SW_SHOWNOACTIVATE
           } else {
             SW_SHOW
