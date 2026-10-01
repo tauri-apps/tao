@@ -19,7 +19,7 @@ use crate::platform_impl::platform::{
 
 #[link(name = "CoreFoundation", kind = "framework")]
 extern "C" {
-  pub static kCFRunLoopCommonModes: CFRunLoopMode;
+  pub static kCFRunLoopDefaultMode: CFRunLoopMode;
 
   pub fn CFRunLoopGetMain() -> CFRunLoopRef;
   pub fn CFRunLoopWakeUp(rl: CFRunLoopRef);
@@ -63,6 +63,30 @@ extern "C" {
 
   pub fn CFAbsoluteTimeGetCurrent() -> CFAbsoluteTime;
   pub fn CFRelease(cftype: *const c_void);
+}
+
+#[link(name = "AppKit", kind = "framework")]
+extern "C" {
+  // The run loop mode AppKit uses for modal panels (e.g. `runModalForWindow:`).
+  // It is an `NSString *`, which is toll-free bridged to `CFStringRef`.
+  pub static NSModalPanelRunLoopMode: CFRunLoopMode;
+}
+
+/// Adds `source`-like objects to the run loop modes tao needs to keep the event
+/// loop responsive, *without* using `kCFRunLoopCommonModes`.
+///
+/// `kCFRunLoopCommonModes` also includes `NSEventTrackingRunLoopMode`, the mode
+/// AppKit runs its nested tracking loop in while a native menu (e.g. an
+/// `NSStatusItem`/tray-icon menu, or any `NSMenu`) is open. Registering tao's
+/// control-flow observers there makes them fire *during* menu tracking; the
+/// `BeforeWaiting` observer then pumps the event loop and processes app state,
+/// which dismisses the open menu.
+///
+/// Instead we register in the default mode and the modal-panel mode explicitly,
+/// so modal dialogs keep working while menu tracking is left untouched.
+pub(crate) unsafe fn add_to_run_loop_modes<F: Fn(CFRunLoopMode)>(add: F) {
+  add(kCFRunLoopDefaultMode);
+  add(NSModalPanelRunLoopMode);
 }
 
 pub enum CFAllocator {}
@@ -216,7 +240,7 @@ impl RunLoop {
       handler,
       context,
     );
-    CFRunLoopAddObserver(self.0, observer, kCFRunLoopCommonModes);
+    add_to_run_loop_modes(|mode| CFRunLoopAddObserver(self.0, observer, mode));
   }
 }
 
@@ -274,7 +298,8 @@ impl Default for EventLoopWaker {
         wakeup_main_loop,
         ptr::null_mut(),
       );
-      CFRunLoopAddTimer(CFRunLoopGetMain(), timer, kCFRunLoopCommonModes);
+      let main = CFRunLoopGetMain();
+      add_to_run_loop_modes(|mode| CFRunLoopAddTimer(main, timer, mode));
       EventLoopWaker { timer }
     }
   }

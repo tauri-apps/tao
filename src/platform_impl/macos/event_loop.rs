@@ -333,7 +333,7 @@ impl<T> Proxy<T> {
       let mut context: CFRunLoopSourceContext = mem::zeroed();
       context.perform = Some(event_loop_proxy_handler);
       let source = CFRunLoopSourceCreate(ptr::null_mut(), CFIndex::MAX - 1, &mut context);
-      CFRunLoopAddSource(rl, source, kCFRunLoopCommonModes);
+      add_to_run_loop_modes(|mode| CFRunLoopAddSource(rl, source, mode));
       CFRunLoopWakeUp(rl);
 
       Proxy { sender, source }
