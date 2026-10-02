@@ -155,6 +155,8 @@ pub trait WindowBuilderExtUnix {
   /// Whether to create a vertical `gtk::Box` and add it as the sole child of this window.
   /// Created by default.
   fn with_default_vbox(self, add: bool) -> WindowBuilder;
+
+  fn with_wlr_layer_shell(self, wlr_layer_shell: bool) -> WindowBuilder;
 }
 
 impl WindowBuilderExtUnix for WindowBuilder {
@@ -196,6 +198,11 @@ impl WindowBuilderExtUnix for WindowBuilder {
 
   fn with_default_vbox(mut self, add: bool) -> WindowBuilder {
     self.platform_specific.default_vbox = add;
+    self
+  }
+
+  fn with_wlr_layer_shell(mut self, wlr_layer_shell: bool) -> WindowBuilder {
+    self.platform_specific.wlr_layer_shell = wlr_layer_shell;
     self
   }
 }
