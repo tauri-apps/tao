@@ -213,6 +213,8 @@ pub trait WindowBuilderExtMacOS {
   fn with_has_shadow(self, has_shadow: bool) -> WindowBuilder;
   /// Sets the traffic light position to (x, y) relative to the upper left corner
   fn with_traffic_light_inset<P: Into<Position>>(self, inset: P) -> WindowBuilder;
+  /// Whether the window prefers compact control size metrics on macOS.
+  fn with_prefers_compact_control_size_metrics(self, enabled: bool) -> WindowBuilder;
   /// Sets whether the system can automatically organize windows into tabs.
   fn with_automatic_window_tabbing(self, automatic_tabbing: bool) -> WindowBuilder;
   /// Defines the window [tabbing identifier].
@@ -288,6 +290,12 @@ impl WindowBuilderExtMacOS for WindowBuilder {
   #[inline]
   fn with_traffic_light_inset<P: Into<Position>>(mut self, inset: P) -> WindowBuilder {
     self.platform_specific.traffic_light_inset = Some(inset.into());
+    self
+  }
+
+  #[inline]
+  fn with_prefers_compact_control_size_metrics(mut self, enabled: bool) -> WindowBuilder {
+    self.platform_specific.prefers_compact_control_size_metrics = enabled;
     self
   }
 
