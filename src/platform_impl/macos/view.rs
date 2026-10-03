@@ -265,10 +265,16 @@ static VIEW_CLASS: LazyLock<ViewClass> = LazyLock::new(|| unsafe {
 
 extern "C" fn dealloc(this: &Object, _sel: Sel) {
   unsafe {
+    let notification_center: &Object = msg_send![class!(NSNotificationCenter), defaultCenter];
+    let _: () = msg_send![notification_center, removeObserver: this];
+
     let state: *mut c_void = *this.get_ivar("taoState");
     let marked_text: *mut NSMutableAttributedString = *this.get_ivar("markedText");
     let _: () = msg_send![marked_text, release];
     drop(Box::from_raw(state as *mut ViewState));
+
+    // Let `NSView` tear itself down and free the instance.
+    let _: () = msg_send![super(this, class!(NSView)), dealloc];
   }
 }
 

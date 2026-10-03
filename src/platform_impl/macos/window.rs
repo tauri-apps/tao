@@ -252,7 +252,9 @@ fn create_window(
       defer: NO,
     ];
 
-    Retained::retain(ns_window_ptr).and_then(|r| r.downcast::<NSWindow>().ok()).map(|ns_window| {
+    // `initWithContentRect:...` returns a +1 reference: take ownership of it
+    // instead of retaining it again, or the window is never deallocated.
+    Retained::from_raw(ns_window_ptr).and_then(|r| r.downcast::<NSWindow>().ok()).map(|ns_window| {
       #[allow(deprecated)]
       {
         *((*ns_window_ptr).get_mut_ivar::<Bool>("focusable")) = attrs.focusable.into();
