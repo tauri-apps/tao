@@ -283,6 +283,10 @@ extern "C" fn dealloc(this: &Object, _sel: Sel) {
   with_state(this, |state| unsafe {
     drop(Box::from_raw(state as *mut WindowDelegateState));
   });
+  unsafe {
+    let superclass = util::superclass(this);
+    let _: () = msg_send![super(this, superclass), dealloc];
+  }
 }
 
 extern "C" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void) -> id {

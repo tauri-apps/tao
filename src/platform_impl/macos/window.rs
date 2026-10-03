@@ -252,7 +252,7 @@ fn create_window(
       defer: NO,
     ];
 
-    Retained::retain(ns_window_ptr).and_then(|r| r.downcast::<NSWindow>().ok()).map(|ns_window| {
+    Retained::<Object>::from_raw(ns_window_ptr.cast()).and_then(|r| r.downcast::<NSWindow>().ok()).map(|ns_window| {
       #[allow(deprecated)]
       {
         *((*ns_window_ptr).get_mut_ivar::<Bool>("focusable")) = attrs.focusable.into();
