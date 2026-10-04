@@ -51,7 +51,6 @@ pub struct KeyEventExtra {}
 pub struct EventLoop<T: 'static> {
   pub(crate) openharmony_app: OpenHarmonyApp,
   window_target: event_loop::EventLoopWindowTarget<T>,
-  cause: StartCause,
   user_events_sender: mpsc::Sender<T>,
   user_events_receiver: PeekableReceiver<T>,
   event_handler: RefCell<Option<Box<dyn FnMut(event::Event<T>)>>>,
@@ -84,13 +83,11 @@ impl<T: 'static> EventLoop<T> {
       window_target: event_loop::EventLoopWindowTarget {
         p: EventLoopWindowTarget {
           app: openharmony_app.clone(),
-          control_flow: Cell::new(ControlFlow::default()),
           exit: Cell::new(false),
           _marker: PhantomData,
         },
         _marker: PhantomData,
       },
-      cause: StartCause::Init,
       user_events_sender,
       user_events_receiver: PeekableReceiver::from_recv(user_events_receiver),
       event_handler: RefCell::new(None),
@@ -267,9 +264,6 @@ impl<T: 'static> EventLoop<T> {
           }
         },
       },
-      _ => {
-        warn!("Unknown openharmony_ability input event {event:?}")
-      }
     }
   }
 
@@ -475,7 +469,6 @@ impl<T: 'static> Clone for EventLoopProxy<T> {
 #[derive(Clone)]
 pub struct EventLoopWindowTarget<T: 'static> {
   pub(crate) app: OpenHarmonyApp,
-  control_flow: Cell<ControlFlow>,
   exit: Cell<bool>,
   _marker: std::marker::PhantomData<T>,
 }
