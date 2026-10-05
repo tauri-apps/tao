@@ -2075,16 +2075,24 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let window_flags = userdata.window_state.lock().window_flags();
       let is_fullscreen = userdata.window_state.lock().fullscreen.is_some();
 
-      if wparam == WPARAM(0) || window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
+      if window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
         result = ProcResult::DefWindowProc;
       } else if is_fullscreen {
         result = ProcResult::Value(LRESULT(0));
       } else {
+        // Handle both WM_NCCALCSIZE forms consistently to avoid incorrect client sizes.
+        // https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-nccalcsize
+        // https://github.com/tauri-apps/tao/issues/1359
+        let client_rect = if wparam == WPARAM(0) {
+          &mut *(lparam.0 as *mut RECT)
+        } else {
+          &mut (*(lparam.0 as *mut NCCALCSIZE_PARAMS)).rgrc[0]
+        };
+
         // adjust the maximized borderless window so it doesn't cover the taskbar
         if util::is_maximized(window).unwrap_or(false) {
-          let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
           if let Ok(monitor_info) =
-            monitor::get_monitor_info(MonitorFromRect(&params.rgrc[0], MONITOR_DEFAULTTONULL))
+            monitor::get_monitor_info(MonitorFromRect(client_rect, MONITOR_DEFAULTTONULL))
           {
             let mut rect = monitor_info.monitorInfo.rcWork;
 
@@ -2111,17 +2119,15 @@ unsafe fn public_window_callback_inner<T: 'static>(
               rect.right -= 1;
             }
 
-            params.rgrc[0] = rect;
+            *client_rect = rect;
           }
         } else if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) {
-          let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
-
           let insets = util::calculate_window_insets(window);
 
-          params.rgrc[0].left += insets.left;
-          params.rgrc[0].top += insets.top;
-          params.rgrc[0].right -= insets.right;
-          params.rgrc[0].bottom -= insets.bottom;
+          client_rect.left += insets.left;
+          client_rect.top += insets.top;
+          client_rect.right -= insets.right;
+          client_rect.bottom -= insets.bottom;
         }
         result = ProcResult::Value(LRESULT(0)); // return 0 here to make the window borderless
       }
