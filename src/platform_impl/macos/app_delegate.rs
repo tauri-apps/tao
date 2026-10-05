@@ -14,8 +14,10 @@ use objc2::runtime::{
   AnyClass as Class, AnyObject as Object, Bool, ClassBuilder as ClassDecl, Sel,
 };
 use objc2_foundation::{
-  NSArray, NSError, NSString, NSUserActivity, NSUserActivityTypeBrowsingWeb, NSURL,
+  NSArray, NSData, NSDictionary, NSError, NSJSONSerialization, NSJSONWritingOptions, NSString,
+  NSUserActivity, NSUserActivityTypeBrowsingWeb, NSURL,
 };
+
 use std::{
   cell::{RefCell, RefMut},
   ffi::{CStr, CString},
@@ -82,6 +84,18 @@ pub static APP_DELEGATE_CLASS: LazyLock<AppDelegateClass> = LazyLock::new(|| uns
     sel!(applicationSupportsSecureRestorableState:),
     application_supports_secure_restorable_state as extern "C" fn(_, _, _) -> _,
   );
+  decl.add_method(
+    sel!(application:didRegisterForRemoteNotificationsWithDeviceToken:),
+    did_register_for_apns as extern "C" fn(_, _, _, _),
+  );
+  decl.add_method(
+    sel!(application:didFailToRegisterForRemoteNotificationsWithError:),
+    did_fail_to_register_for_apns as extern "C" fn(_, _, _, _),
+  );
+  decl.add_method(
+    sel!(application:didReceiveRemoteNotification:),
+    did_receive_remote_notification as extern "C" fn(_, _, _, _),
+  );
   decl.add_ivar::<*mut c_void>(&CString::new(AUX_DELEGATE_STATE_NAME).unwrap());
 
   AppDelegateClass(decl.register())
@@ -123,6 +137,7 @@ extern "C" fn dealloc(this: &Object, _: Sel) {
 
 extern "C" fn did_finish_launching(this: &Object, _: Sel, _: id) {
   trace!("Triggered `applicationDidFinishLaunching`");
+
   AppState::launched(this);
   trace!("Completed `applicationDidFinishLaunching`");
 }
@@ -218,4 +233,46 @@ extern "C" fn application_supports_secure_restorable_state(_: &Object, _: Sel, _
   trace!("Triggered `applicationSupportsSecureRestorableState`");
   trace!("Completed `applicationSupportsSecureRestorableState`");
   YES
+}
+
+// application(_:didRegisterForRemoteNotificationsWithDeviceToken:)
+extern "C" fn did_register_for_apns(_: &Object, _: Sel, _: id, token_data: &NSData) {
+  trace!("Triggered `didRegisterForRemoteNotificationsWithDeviceToken`");
+  AppState::did_register_push_token(token_data.to_vec());
+  trace!("Completed `didRegisterForRemoteNotificationsWithDeviceToken`");
+}
+
+// application(_:didFailToRegisterForRemoteNotificationsWithError:)
+extern "C" fn did_fail_to_register_for_apns(_: &Object, _: Sel, _: id, error: &NSError) {
+  trace!("Triggered `didFailToRegisterForRemoteNotificationsWithError`");
+  AppState::did_fail_to_register_push_token(error.localizedDescription().to_string());
+  trace!("Completed `didFailToRegisterForRemoteNotificationsWithError`");
+}
+
+// application(_:didReceiveRemoteNotification:)
+extern "C" fn did_receive_remote_notification(
+  _: &Object,
+  _: Sel,
+  _: id,
+  user_info: &NSDictionary<NSString, Object>,
+) {
+  trace!("Triggered `didReceiveRemoteNotification`");
+
+  // SAFETY: `isValidJSONObject` accepts any object and never throws.
+  if unsafe { NSJSONSerialization::isValidJSONObject(user_info) } {
+    // SAFETY: `isValidJSONObject` confirmed `user_info` converts to JSON, so this cannot throw.
+    let payload = unsafe {
+      NSJSONSerialization::dataWithJSONObject_options_error(
+        user_info,
+        NSJSONWritingOptions::empty(),
+      )
+    };
+    match payload {
+      Ok(data) => AppState::did_receive_remote_notification(data.to_vec()),
+      Err(err) => trace!("Failed to serialize remote notification payload to JSON: {err:?}"),
+    }
+  } else {
+    trace!("Remote notification payload cannot be encoded as JSON, ignoring");
+  }
+  trace!("Completed `didReceiveRemoteNotification`");
 }

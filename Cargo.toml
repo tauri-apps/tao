@@ -118,10 +118,13 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
   "NSArray",
   "NSAttributedString",
   "NSAutoreleasePool",
+  "NSData",
   "NSDate",
   "NSDictionary",
   "NSEnumerator",
+  "NSError",
   "NSGeometry",
+  "NSJSONSerialization",
   "NSObjCRuntime",
   "NSRange",
   "NSString",
@@ -153,6 +156,7 @@ dispatch2 = "0.3"
 
 [target."cfg(target_os = \"ios\")".dependencies]
 objc2-ui-kit = { version = "0.3", features = [
+  "UIApplication",
   "UIResponder",
   "UIScene",
   "UISceneOptions",
@@ -161,6 +165,10 @@ objc2-ui-kit = { version = "0.3", features = [
   "UIWindowScene",
 ] }
 objc2-foundation = { version = "0.3", default-features = false, features = [
+  "NSData",
+  "NSDictionary",
+  "NSError",
+  "NSJSONSerialization",
   "NSProcessInfo",
 ] }
 

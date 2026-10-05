@@ -12,9 +12,10 @@ use objc2::{
   runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel},
   ClassType, MainThreadMarker,
 };
+use objc2_foundation::{NSData, NSDictionary, NSError, NSJSONSerialization, NSJSONWritingOptions};
 use objc2_ui_kit::{
-  UIApplication, UISceneActivationRequestOptions, UISceneConfiguration, UISceneSession,
-  UISceneSessionActivationRequest,
+  UIApplication, UIBackgroundFetchResult, UISceneActivationRequestOptions, UISceneConfiguration,
+  UISceneSession, UISceneSessionActivationRequest,
 };
 
 use crate::{
@@ -796,7 +797,107 @@ pub fn create_delegate_class() {
       sel!(applicationWillTerminate:),
       will_terminate as extern "C" fn(_, _, _),
     );
-
+    decl.add_method(
+      sel!(application:didRegisterForRemoteNotificationsWithDeviceToken:),
+      did_register_for_apns as extern "C" fn(_, _, _, _),
+    );
+    decl.add_method(
+      sel!(application:didFailToRegisterForRemoteNotificationsWithError:),
+      did_fail_to_register_for_apns as extern "C" fn(_, _, _, _),
+    );
+    decl.add_method(
+      sel!(application:didReceiveRemoteNotification:fetchCompletionHandler:),
+      did_receive_remote_notification as extern "C" fn(_, _, _, _, _),
+    );
     decl.register();
   }
+}
+
+// application(_:didRegisterForRemoteNotificationsWithDeviceToken:)
+extern "C" fn did_register_for_apns(_: &Object, _: Sel, _: id, token_data: id) {
+  trace!("Triggered `didRegisterForRemoteNotificationsWithDeviceToken`");
+  // SAFETY: the OS passes `token_data` as a valid object pointer or null, for this call only.
+  let token = unsafe { token_data.as_ref() }.and_then(|obj| obj.downcast_ref::<NSData>());
+  let Some(token) = token else {
+    trace!("Token data is null or not an NSData object");
+    return;
+  };
+  did_register_push_token(token.to_vec());
+  trace!("Completed `didRegisterForRemoteNotificationsWithDeviceToken`");
+}
+
+// application(_:didFailToRegisterForRemoteNotificationsWithError:)
+extern "C" fn did_fail_to_register_for_apns(_: &Object, _: Sel, _: id, err: *mut Object) {
+  trace!("Triggered `didFailToRegisterForRemoteNotificationsWithError`");
+  // SAFETY: the OS passes `err` as a valid object pointer or null, for this call only.
+  let error = unsafe { err.as_ref() }.and_then(|obj| obj.downcast_ref::<NSError>());
+  let error_string = match error {
+    Some(error) => error.localizedDescription().to_string(),
+    None => "Unknown error (null or invalid error object)".to_string(),
+  };
+  did_fail_to_register_push_token(error_string);
+  trace!("Completed `didFailToRegisterForRemoteNotificationsWithError`");
+}
+
+fn did_register_push_token(token_data: Vec<u8>) {
+  unsafe {
+    app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::PushRegistration(
+      token_data,
+    )));
+  }
+}
+
+fn did_fail_to_register_push_token(err: String) {
+  unsafe {
+    app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::PushRegistrationError(err)));
+  }
+}
+
+// application(_:didReceiveRemoteNotification:fetchCompletionHandler:)
+extern "C" fn did_receive_remote_notification(
+  _: &Object,
+  _: Sel,
+  _: id,
+  user_info: id,
+  completion_handler: &block2::Block<dyn Fn(UIBackgroundFetchResult)>,
+) {
+  trace!("Triggered `didReceiveRemoteNotification:fetchCompletionHandler:`");
+
+  // SAFETY: the OS passes `user_info` as a valid object pointer or null, for this call only.
+  let dict = unsafe { user_info.as_ref() }.and_then(|obj| obj.downcast_ref::<NSDictionary>());
+  let fetch_result = match dict {
+    // SAFETY: `isValidJSONObject` accepts any object and never throws.
+    Some(dict) if unsafe { NSJSONSerialization::isValidJSONObject(dict) } => {
+      // SAFETY: `isValidJSONObject` confirmed `dict` converts to JSON, so this cannot throw.
+      let payload = unsafe {
+        NSJSONSerialization::dataWithJSONObject_options_error(dict, NSJSONWritingOptions::empty())
+      };
+      match payload {
+        Ok(data) => {
+          // SAFETY: invoked only from the main-thread delegate callback.
+          unsafe {
+            app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::RemoteNotification {
+              payload: data.to_vec(),
+            }));
+          }
+          UIBackgroundFetchResult::NewData
+        }
+        Err(err) => {
+          trace!("Failed to serialize remote notification payload to JSON: {err:?}");
+          UIBackgroundFetchResult::NoData
+        }
+      }
+    }
+    Some(_) => {
+      trace!("Remote notification payload cannot be encoded as JSON, ignoring");
+      UIBackgroundFetchResult::NoData
+    }
+    None => {
+      trace!("Remote notification user info is null or not an NSDictionary object");
+      UIBackgroundFetchResult::NoData
+    }
+  };
+
+  completion_handler.call((fetch_result,));
+  trace!("Completed `didReceiveRemoteNotification:fetchCompletionHandler:`");
 }
