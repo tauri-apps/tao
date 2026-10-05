@@ -51,36 +51,36 @@ pub static APP_DELEGATE_CLASS: LazyLock<AppDelegateClass> = LazyLock::new(|| uns
   )
   .unwrap();
 
-  decl.add_class_method(sel!(new), new as extern "C" fn(_, _) -> _);
-  decl.add_method(sel!(dealloc), dealloc as extern "C" fn(_, _));
+  decl.add_class_method(sel!(new), new as extern "C-unwind" fn(_, _) -> _);
+  decl.add_method(sel!(dealloc), dealloc as extern "C-unwind" fn(_, _));
 
   decl.add_method(
     sel!(applicationDidFinishLaunching:),
-    did_finish_launching as extern "C" fn(_, _, _),
+    did_finish_launching as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(applicationWillTerminate:),
-    application_will_terminate as extern "C" fn(_, _, _),
+    application_will_terminate as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(application:openURLs:),
-    application_open_urls as extern "C" fn(_, _, _, _),
+    application_open_urls as extern "C-unwind" fn(_, _, _, _),
   );
   decl.add_method(
     sel!(application:willContinueUserActivityWithType:),
-    application_will_continue_user_activity_with_type as extern "C" fn(_, _, _, _) -> _,
+    application_will_continue_user_activity_with_type as extern "C-unwind" fn(_, _, _, _) -> _,
   );
   decl.add_method(
     sel!(application:continueUserActivity:restorationHandler:),
-    application_continue_user_activity as extern "C" fn(_, _, _, _, _) -> _,
+    application_continue_user_activity as extern "C-unwind" fn(_, _, _, _, _) -> _,
   );
   decl.add_method(
     sel!(applicationShouldHandleReopen:hasVisibleWindows:),
-    application_should_handle_reopen as extern "C" fn(_, _, _, _) -> _,
+    application_should_handle_reopen as extern "C-unwind" fn(_, _, _, _) -> _,
   );
   decl.add_method(
     sel!(applicationSupportsSecureRestorableState:),
-    application_supports_secure_restorable_state as extern "C" fn(_, _, _) -> _,
+    application_supports_secure_restorable_state as extern "C-unwind" fn(_, _, _) -> _,
   );
   decl.add_ivar::<*mut c_void>(&CString::new(AUX_DELEGATE_STATE_NAME).unwrap());
 
@@ -95,7 +95,7 @@ pub unsafe fn get_aux_state_mut(this: &Object) -> RefMut<'_, AuxDelegateState> {
   (*(ptr as *mut RefCell<AuxDelegateState>)).borrow_mut()
 }
 
-extern "C" fn new(class: &Class, _: Sel) -> id {
+extern "C-unwind" fn new(class: &Class, _: Sel) -> id {
   #[allow(deprecated)] // TODO: Use define_class!
   unsafe {
     let this: id = msg_send![class, alloc];
@@ -111,7 +111,7 @@ extern "C" fn new(class: &Class, _: Sel) -> id {
   }
 }
 
-extern "C" fn dealloc(this: &Object, _: Sel) {
+extern "C-unwind" fn dealloc(this: &Object, _: Sel) {
   #[allow(deprecated)] // TODO: Use define_class!
   unsafe {
     let state_ptr: *mut c_void = *(this.get_ivar(AUX_DELEGATE_STATE_NAME));
@@ -121,19 +121,19 @@ extern "C" fn dealloc(this: &Object, _: Sel) {
   }
 }
 
-extern "C" fn did_finish_launching(this: &Object, _: Sel, _: id) {
+extern "C-unwind" fn did_finish_launching(this: &Object, _: Sel, _: id) {
   trace!("Triggered `applicationDidFinishLaunching`");
   AppState::launched(this);
   trace!("Completed `applicationDidFinishLaunching`");
 }
 
-extern "C" fn application_will_terminate(_: &Object, _: Sel, _: id) {
+extern "C-unwind" fn application_will_terminate(_: &Object, _: Sel, _: id) {
   trace!("Triggered `applicationWillTerminate`");
   AppState::exit();
   trace!("Completed `applicationWillTerminate`");
 }
 
-extern "C" fn application_open_urls(_: &Object, _: Sel, _: id, urls: &NSArray<NSURL>) {
+extern "C-unwind" fn application_open_urls(_: &Object, _: Sel, _: id, urls: &NSArray<NSURL>) {
   trace!("Trigger `application:openURLs:`");
 
   let urls = unsafe {
@@ -146,7 +146,7 @@ extern "C" fn application_open_urls(_: &Object, _: Sel, _: id, urls: &NSArray<NS
   trace!("Completed `application:openURLs:`");
 }
 
-extern "C" fn application_will_continue_user_activity_with_type(
+extern "C-unwind" fn application_will_continue_user_activity_with_type(
   _: &Object,
   _: Sel,
   _: id,
@@ -158,7 +158,7 @@ extern "C" fn application_will_continue_user_activity_with_type(
   result
 }
 
-extern "C" fn application_continue_user_activity(
+extern "C-unwind" fn application_continue_user_activity(
   _: &Object,
   _: Sel,
   _: id,
@@ -202,7 +202,7 @@ extern "C" fn application_continue_user_activity(
   return Bool::new(true);
 }
 
-extern "C" fn application_should_handle_reopen(
+extern "C-unwind" fn application_should_handle_reopen(
   _: &Object,
   _: Sel,
   _: id,
@@ -214,7 +214,11 @@ extern "C" fn application_should_handle_reopen(
   has_visible_windows
 }
 
-extern "C" fn application_supports_secure_restorable_state(_: &Object, _: Sel, _: id) -> BOOL {
+extern "C-unwind" fn application_supports_secure_restorable_state(
+  _: &Object,
+  _: Sel,
+  _: id,
+) -> BOOL {
   trace!("Triggered `applicationSupportsSecureRestorableState`");
   trace!("Completed `applicationSupportsSecureRestorableState`");
   YES
