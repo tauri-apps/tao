@@ -2080,8 +2080,9 @@ unsafe fn public_window_callback_inner<T: 'static>(
       } else if is_fullscreen {
         result = ProcResult::Value(LRESULT(0));
       } else {
-        // The FALSE form is also used during creation of a hidden window.
-        // Both forms must calculate the same client area.
+        // Handle both WM_NCCALCSIZE forms consistently to avoid incorrect client sizes.
+        // https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-nccalcsize
+        // https://github.com/tauri-apps/tao/issues/1359
         let client_rect = if wparam == WPARAM(0) {
           &mut *(lparam.0 as *mut RECT)
         } else {
