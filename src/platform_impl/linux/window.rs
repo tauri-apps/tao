@@ -51,6 +51,10 @@ pub struct Window {
   /// Gtk application window.
   pub(crate) window: gtk::ApplicationWindow,
   pub(crate) default_vbox: Option<gtk::Box>,
+  /// Full-window `gtk::Fixed` overlay layer for positioned child webviews, so a
+  /// runtime can place them over the window instead of stacking them beside the
+  /// default box. `None` when the default `gtk::Box` creation is disabled.
+  pub(crate) content_fixed: Option<gtk::Fixed>,
   /// Window requests sender
   pub(crate) window_requests_tx: glib::Sender<(WindowId, WindowRequest)>,
   scale_factor: Rc<AtomicI32>,
@@ -162,12 +166,25 @@ impl Window {
       }
     }
 
-    let default_vbox = if pl_attribs.default_vbox {
+    let (default_vbox, content_fixed) = if pl_attribs.default_vbox {
       let box_ = gtk::Box::new(gtk::Orientation::Vertical, 0);
-      window.add(&box_);
-      Some(box_)
+      // Wrap the content in a `gtk::Overlay` so positioned child webviews can be
+      // placed over the window rather than stacking beside the default box — GTK
+      // divides a vertical box among its children, which breaks multi-webview
+      // positioning (tauri-apps/tauri#10420). The default box stays the overlay's
+      // main child, so single-webview windows are unchanged; a pass-through
+      // `gtk::Fixed` overlay layer hosts positioned child webviews.
+      let overlay = gtk::Overlay::new();
+      window.add(&overlay);
+      overlay.add(&box_);
+      let fixed = gtk::Fixed::new();
+      fixed.set_halign(gtk::Align::Fill);
+      fixed.set_valign(gtk::Align::Fill);
+      overlay.add_overlay(&fixed);
+      overlay.set_overlay_pass_through(&fixed, true);
+      (Some(box_), Some(fixed))
     } else {
-      None
+      (None, None)
     };
 
     // Rest attributes
@@ -277,6 +294,7 @@ impl Window {
       window_id,
       window,
       default_vbox,
+      content_fixed,
       window_requests_tx,
       draw_tx,
       scale_factor,
@@ -420,6 +438,7 @@ impl Window {
       window_id,
       window,
       default_vbox: None,
+      content_fixed: None,
       window_requests_tx,
       draw_tx,
       scale_factor,
