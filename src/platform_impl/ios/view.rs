@@ -592,24 +592,23 @@ pub unsafe fn create_window(
   }
 
   let () = msg_send![window, setRootViewController: view_controller];
-  match window_attributes.fullscreen {
+  let uiscreen: Option<id> = match window_attributes.fullscreen {
     Some(Fullscreen::Exclusive(ref video_mode)) => {
       let uiscreen = video_mode.monitor().ui_screen() as id;
       let () = msg_send![uiscreen, setCurrentMode: video_mode.video_mode.screen_mode.0];
-      msg_send![window, setScreen:video_mode.monitor().ui_screen()]
+      Some(uiscreen)
     }
-    Some(Fullscreen::Borderless(ref monitor)) => {
-      let uiscreen: id = match &monitor {
-        Some(monitor) => monitor.ui_screen() as id,
-        None => {
-          let uiscreen: id = msg_send![window, screen];
-          uiscreen
-        }
-      };
-
-      msg_send![window, setScreen: uiscreen]
+    Some(Fullscreen::Borderless(Some(ref monitor))) => Some(monitor.ui_screen() as id),
+    // the window is already on the screen it would be moved to
+    Some(Fullscreen::Borderless(None)) | None => None,
+  };
+  if let Some(uiscreen) = uiscreen {
+    // only move the window if the screen actually changes: an unconditional `setScreen:`
+    // leaves a window that already belongs to a scene rendering nothing on iOS 27
+    let current: id = msg_send![window, screen];
+    if uiscreen != current {
+      let () = msg_send![window, setScreen: uiscreen];
     }
-    None => (),
   }
 
   window
