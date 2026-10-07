@@ -280,9 +280,18 @@ fn with_state<F: FnOnce(&mut WindowDelegateState) -> T, T>(this: &Object, callba
 }
 
 extern "C" fn dealloc(this: &Object, _sel: Sel) {
+  unsafe {
+    let notification_center: &Object =
+      msg_send![class!(NSDistributedNotificationCenter), defaultCenter];
+    let () = msg_send![notification_center, removeObserver: this];
+  }
   with_state(this, |state| unsafe {
     drop(Box::from_raw(state as *mut WindowDelegateState));
   });
+  // Let `NSObject` free the instance.
+  unsafe {
+    let () = msg_send![super(this, class!(NSResponder)), dealloc];
+  }
 }
 
 extern "C" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void) -> id {
