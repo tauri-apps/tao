@@ -13,6 +13,7 @@ use core_foundation::{
   array::{CFArrayGetCount, CFArrayGetValueAtIndex},
   base::{CFRelease, TCFType},
   string::CFString,
+  uuid::{CFUUIDBytes, CFUUIDGetUUIDBytes, CFUUID},
 };
 use core_graphics::{
   display::{CGDirectDisplayID, CGDisplay, CGDisplayBounds},
@@ -106,15 +107,21 @@ impl VideoMode {
 #[derive(Clone)]
 pub struct MonitorHandle(CGDirectDisplayID);
 
-// `CGDirectDisplayID` changes on video mode change, so we cannot rely on that
-// for comparisons, but we can use `CGDisplayCreateUUIDFromDisplayID` to get an
-// unique identifier that persists even across system reboots
+fn display_uuid(display_id: CGDirectDisplayID) -> Option<[u8; 16]> {
+  unsafe {
+    let uuid = ffi::CGDisplayCreateUUIDFromDisplayID(display_id);
+    if uuid.is_null() {
+      return None;
+    }
+    let uuid = CFUUID::wrap_under_create_rule(uuid);
+    let bytes = CFUUIDGetUUIDBytes(uuid.as_concrete_TypeRef());
+    Some(std::mem::transmute::<CFUUIDBytes, [u8; 16]>(bytes))
+  }
+}
+
 impl PartialEq for MonitorHandle {
   fn eq(&self, other: &Self) -> bool {
-    unsafe {
-      ffi::CGDisplayCreateUUIDFromDisplayID(self.0)
-        == ffi::CGDisplayCreateUUIDFromDisplayID(other.0)
-    }
+    self.identity() == other.identity()
   }
 }
 
@@ -128,18 +135,13 @@ impl PartialOrd for MonitorHandle {
 
 impl Ord for MonitorHandle {
   fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-    unsafe {
-      ffi::CGDisplayCreateUUIDFromDisplayID(self.0)
-        .cmp(&ffi::CGDisplayCreateUUIDFromDisplayID(other.0))
-    }
+    self.identity().cmp(&other.identity())
   }
 }
 
 impl std::hash::Hash for MonitorHandle {
   fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-    unsafe {
-      ffi::CGDisplayCreateUUIDFromDisplayID(self.0).hash(state);
-    }
+    self.identity().hash(state);
   }
 }
 
@@ -198,6 +200,11 @@ impl fmt::Debug for MonitorHandle {
 }
 
 impl MonitorHandle {
+  // Display IDs may change, so use UUID values for monitor identity.
+  fn identity(&self) -> Result<[u8; 16], CGDirectDisplayID> {
+    display_uuid(self.0).ok_or(self.0)
+  }
+
   pub fn new(id: CGDirectDisplayID) -> Self {
     MonitorHandle(id)
   }
@@ -315,7 +322,7 @@ impl MonitorHandle {
     // SAFETY: TODO.
     let mtm = unsafe { MainThreadMarker::new_unchecked() };
     unsafe {
-      let uuid = ffi::CGDisplayCreateUUIDFromDisplayID(self.0);
+      let uuid = display_uuid(self.0)?;
       let screens = NSScreen::screens(mtm);
       let count: NSUInteger = msg_send![&screens, count];
       let key = ns_string!("NSScreenNumber");
@@ -325,9 +332,8 @@ impl MonitorHandle {
         let value: id = msg_send![&device_description, objectForKey: &*key];
         if value != nil {
           let other_native_id: NSUInteger = msg_send![value, unsignedIntegerValue];
-          let other_uuid =
-            ffi::CGDisplayCreateUUIDFromDisplayID(other_native_id as CGDirectDisplayID);
-          if uuid == other_uuid {
+          let other_uuid = display_uuid(other_native_id as CGDirectDisplayID);
+          if Some(uuid) == other_uuid {
             return Some(screen);
           }
         }
