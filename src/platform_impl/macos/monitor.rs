@@ -19,9 +19,9 @@ use core_graphics::{
   display::{CGDirectDisplayID, CGDisplay, CGDisplayBounds},
   geometry::CGPoint,
 };
-use objc2::{msg_send, rc::Retained};
+use objc2::{msg_send, rc::Retained, Message};
 use objc2_app_kit::NSScreen;
-use objc2_foundation::{ns_string, MainThreadMarker, NSString, NSUInteger};
+use objc2_foundation::{ns_string, MainThreadMarker, NSUInteger};
 
 #[derive(Clone)]
 pub struct VideoMode {
@@ -322,19 +322,18 @@ impl MonitorHandle {
     // SAFETY: TODO.
     let mtm = unsafe { MainThreadMarker::new_unchecked() };
     unsafe {
-      let uuid = display_uuid(self.0)?;
       let screens = NSScreen::screens(mtm);
       let count: NSUInteger = msg_send![&screens, count];
       let key = ns_string!("NSScreenNumber");
       for i in 0..count {
-        let screen: Retained<NSScreen> = msg_send![&screens, objectAtIndex: i as NSUInteger];
-        let device_description = NSScreen::deviceDescription(&screen);
+        // The retained, immutable array keeps borrowed candidates alive.
+        let screen = screens.objectAtIndex_unchecked(i as usize);
+        let device_description = NSScreen::deviceDescription(screen);
         let value: id = msg_send![&device_description, objectForKey: &*key];
         if value != nil {
           let other_native_id: NSUInteger = msg_send![value, unsignedIntegerValue];
-          let other_uuid = display_uuid(other_native_id as CGDirectDisplayID);
-          if Some(uuid) == other_uuid {
-            return Some(screen);
+          if self.0 == other_native_id as CGDirectDisplayID {
+            return Some(screen.retain());
           }
         }
       }
