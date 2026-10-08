@@ -19,7 +19,7 @@ use core_graphics::{
   display::{CGDirectDisplayID, CGDisplay, CGDisplayBounds},
   geometry::CGPoint,
 };
-use objc2::rc::Retained;
+use objc2::{rc::Retained, Message};
 use objc2_app_kit::NSScreen;
 use objc2_foundation::{ns_string, MainThreadMarker, NSNumber};
 
@@ -322,17 +322,18 @@ impl MonitorHandle {
     // SAFETY: TODO.
     let mtm = unsafe { MainThreadMarker::new_unchecked() };
     unsafe {
-      let uuid = display_uuid(self.0)?;
       let screens = NSScreen::screens(mtm);
       let key = ns_string!("NSScreenNumber");
-      for screen in screens {
-        let device_description = NSScreen::deviceDescription(&screen);
+      let count = screens.len();
+      for i in 0..count {
+        // The retained, immutable array keeps borrowed candidates alive.
+        let screen = screens.objectAtIndex_unchecked(i);
+        let device_description = NSScreen::deviceDescription(screen);
         if let Some(value) = device_description.objectForKey(key) {
           let value = value.downcast::<NSNumber>().unwrap();
           let other_native_id = value.unsignedIntegerValue();
-          let other_uuid = display_uuid(other_native_id as CGDirectDisplayID);
-          if Some(uuid) == other_uuid {
-            return Some(screen);
+          if self.0 == other_native_id as CGDirectDisplayID {
+            return Some(screen.retain());
           }
         }
       }
