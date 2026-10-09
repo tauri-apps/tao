@@ -28,6 +28,9 @@ fn main() {
     } = event
     {
       match event {
+        WindowEvent::TouchpadGesture(gesture) => {
+          println!("Window {window_id:?} TouchPad: {:?}", gesture);
+        }
         WindowEvent::CloseRequested => {
           println!("Window {window_id:?} has received the signal to close");
 
