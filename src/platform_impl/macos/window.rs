@@ -930,6 +930,12 @@ impl UnownedWindow {
     unsafe {
       let mtm = MainThreadMarker::new_unchecked();
       let mut event: id = msg_send![&NSApp(mtm), currentEvent];
+      // `currentEvent` is nil when no event is being dispatched, e.g. when the
+      // drag is requested asynchronously after the mouse-down was handled.
+      if event.is_null() {
+        log::warn!("Cannot drag the window: there is no current event");
+        return Ok(());
+      }
 
       let event_type: NSUInteger = msg_send![event, type];
       if event_type == 0x15 {
