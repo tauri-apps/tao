@@ -167,101 +167,101 @@ static WINDOW_DELEGATE_CLASS: LazyLock<WindowDelegateClass> = LazyLock::new(|| u
   )
   .unwrap();
 
-  decl.add_method(sel!(dealloc), dealloc as extern "C" fn(_, _));
+  decl.add_method(sel!(dealloc), dealloc as extern "C-unwind" fn(_, _));
   decl.add_method(
     sel!(initWithTao:),
-    init_with_tao as extern "C" fn(_, _, _) -> _,
+    init_with_tao as extern "C-unwind" fn(_, _, _) -> _,
   );
   decl.add_method(
     sel!(markIsCheckingZoomedIn),
-    mark_is_checking_zoomed_in as extern "C" fn(_, _),
+    mark_is_checking_zoomed_in as extern "C-unwind" fn(_, _),
   );
   decl.add_method(
     sel!(clearIsCheckingZoomedIn),
-    clear_is_checking_zoomed_in as extern "C" fn(_, _),
+    clear_is_checking_zoomed_in as extern "C-unwind" fn(_, _),
   );
 
   decl.add_method(
     sel!(windowShouldClose:),
-    window_should_close as extern "C" fn(_, _, _) -> _,
+    window_should_close as extern "C-unwind" fn(_, _, _) -> _,
   );
   decl.add_method(
     sel!(windowWillClose:),
-    window_will_close as extern "C" fn(_, _, _),
+    window_will_close as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(windowDidResize:),
-    window_did_resize as extern "C" fn(_, _, _),
+    window_did_resize as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(windowDidMove:),
-    window_did_move as extern "C" fn(_, _, _),
+    window_did_move as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(windowDidChangeBackingProperties:),
-    window_did_change_backing_properties as extern "C" fn(_, _, _),
+    window_did_change_backing_properties as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(windowDidBecomeKey:),
-    window_did_become_key as extern "C" fn(_, _, _),
+    window_did_become_key as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(windowDidResignKey:),
-    window_did_resign_key as extern "C" fn(_, _, _),
+    window_did_resign_key as extern "C-unwind" fn(_, _, _),
   );
 
   decl.add_method(
     sel!(draggingEntered:),
-    dragging_entered as extern "C" fn(_, _, _) -> _,
+    dragging_entered as extern "C-unwind" fn(_, _, _) -> _,
   );
   decl.add_method(
     sel!(prepareForDragOperation:),
-    prepare_for_drag_operation as extern "C" fn(_, _, _) -> _,
+    prepare_for_drag_operation as extern "C-unwind" fn(_, _, _) -> _,
   );
   decl.add_method(
     sel!(performDragOperation:),
-    perform_drag_operation as extern "C" fn(_, _, _) -> _,
+    perform_drag_operation as extern "C-unwind" fn(_, _, _) -> _,
   );
   decl.add_method(
     sel!(concludeDragOperation:),
-    conclude_drag_operation as extern "C" fn(_, _, _),
+    conclude_drag_operation as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(draggingExited:),
-    dragging_exited as extern "C" fn(_, _, _),
+    dragging_exited as extern "C-unwind" fn(_, _, _),
   );
 
   decl.add_method(
     sel!(window:willUseFullScreenPresentationOptions:),
-    window_will_use_fullscreen_presentation_options as extern "C" fn(_, _, _, _) -> _,
+    window_will_use_fullscreen_presentation_options as extern "C-unwind" fn(_, _, _, _) -> _,
   );
   decl.add_method(
     sel!(windowDidEnterFullScreen:),
-    window_did_enter_fullscreen as extern "C" fn(_, _, _),
+    window_did_enter_fullscreen as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(windowWillEnterFullScreen:),
-    window_will_enter_fullscreen as extern "C" fn(_, _, _),
+    window_will_enter_fullscreen as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(windowDidExitFullScreen:),
-    window_did_exit_fullscreen as extern "C" fn(_, _, _),
+    window_did_exit_fullscreen as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(windowWillExitFullScreen:),
-    window_will_exit_fullscreen as extern "C" fn(_, _, _),
+    window_will_exit_fullscreen as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(windowDidFailToEnterFullScreen:),
-    window_did_fail_to_enter_fullscreen as extern "C" fn(_, _, _),
+    window_did_fail_to_enter_fullscreen as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(effectiveAppearanceDidChange:),
-    effective_appearance_did_change as extern "C" fn(_, _, _),
+    effective_appearance_did_change as extern "C-unwind" fn(_, _, _),
   );
   decl.add_method(
     sel!(effectiveAppearanceDidChangedOnMainThread:),
-    effective_appearance_did_changed_on_main_thread as extern "C" fn(_, _, _),
+    effective_appearance_did_changed_on_main_thread as extern "C-unwind" fn(_, _, _),
   );
 
   decl.add_ivar::<*mut c_void>(CStr::from_bytes_with_nul(b"taoState\0").unwrap());
@@ -279,13 +279,13 @@ fn with_state<F: FnOnce(&mut WindowDelegateState) -> T, T>(this: &Object, callba
   callback(state_ptr);
 }
 
-extern "C" fn dealloc(this: &Object, _sel: Sel) {
+extern "C-unwind" fn dealloc(this: &Object, _sel: Sel) {
   with_state(this, |state| unsafe {
     drop(Box::from_raw(state as *mut WindowDelegateState));
   });
 }
 
-extern "C" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void) -> id {
+extern "C-unwind" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void) -> id {
   #[allow(deprecated)] // TODO: Use define_class!
   unsafe {
     let this: id = msg_send![this, init];
@@ -311,26 +311,26 @@ extern "C" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void) -> id 
   }
 }
 
-extern "C" fn mark_is_checking_zoomed_in(this: &Object, _sel: Sel) {
+extern "C-unwind" fn mark_is_checking_zoomed_in(this: &Object, _sel: Sel) {
   with_state(&*this, |state| {
     state.is_checking_zoomed_in = true;
   });
 }
 
-extern "C" fn clear_is_checking_zoomed_in(this: &Object, _sel: Sel) {
+extern "C-unwind" fn clear_is_checking_zoomed_in(this: &Object, _sel: Sel) {
   with_state(&*this, |state| {
     state.is_checking_zoomed_in = false;
   });
 }
 
-extern "C" fn window_should_close(this: &Object, _: Sel, _: id) -> BOOL {
+extern "C-unwind" fn window_should_close(this: &Object, _: Sel, _: id) -> BOOL {
   trace!("Triggered `windowShouldClose:`");
   with_state(this, |state| state.emit_event(WindowEvent::CloseRequested));
   trace!("Completed `windowShouldClose:`");
   NO
 }
 
-extern "C" fn window_will_close(this: &Object, _: Sel, _: id) {
+extern "C-unwind" fn window_will_close(this: &Object, _: Sel, _: id) {
   trace!("Triggered `windowWillClose:`");
   with_state(this, |state| unsafe {
     // `setDelegate:` retains the previous value and then autoreleases it
@@ -343,7 +343,7 @@ extern "C" fn window_will_close(this: &Object, _: Sel, _: id) {
   trace!("Completed `windowWillClose:`");
 }
 
-extern "C" fn window_did_resize(this: &Object, _: Sel, _: id) {
+extern "C-unwind" fn window_did_resize(this: &Object, _: Sel, _: id) {
   trace!("Triggered `windowDidResize:`");
   with_state(this, |state| {
     if !state.is_checking_zoomed_in {
@@ -355,7 +355,7 @@ extern "C" fn window_did_resize(this: &Object, _: Sel, _: id) {
 }
 
 // This won't be triggered if the move was part of a resize.
-extern "C" fn window_did_move(this: &Object, _: Sel, _: id) {
+extern "C-unwind" fn window_did_move(this: &Object, _: Sel, _: id) {
   trace!("Triggered `windowDidMove:`");
   with_state(this, |state| {
     state.emit_move_event();
@@ -363,7 +363,7 @@ extern "C" fn window_did_move(this: &Object, _: Sel, _: id) {
   trace!("Completed `windowDidMove:`");
 }
 
-extern "C" fn window_did_change_backing_properties(this: &Object, _: Sel, _: id) {
+extern "C-unwind" fn window_did_change_backing_properties(this: &Object, _: Sel, _: id) {
   trace!("Triggered `windowDidChangeBackingProperties:`");
   with_state(this, |state| {
     state.emit_static_scale_factor_changed_event();
@@ -371,7 +371,7 @@ extern "C" fn window_did_change_backing_properties(this: &Object, _: Sel, _: id)
   trace!("Completed `windowDidChangeBackingProperties:`");
 }
 
-extern "C" fn window_did_become_key(this: &Object, _: Sel, _: id) {
+extern "C-unwind" fn window_did_become_key(this: &Object, _: Sel, _: id) {
   trace!("Triggered `windowDidBecomeKey:`");
   with_state(this, |state| {
     // TODO: center the cursor if the window had mouse grab when it
@@ -381,7 +381,7 @@ extern "C" fn window_did_become_key(this: &Object, _: Sel, _: id) {
   trace!("Completed `windowDidBecomeKey:`");
 }
 
-extern "C" fn window_did_resign_key(this: &Object, _: Sel, _: id) {
+extern "C-unwind" fn window_did_resign_key(this: &Object, _: Sel, _: id) {
   trace!("Triggered `windowDidResignKey:`");
   with_state(this, |state| {
     // It happens rather often, e.g. when the user is Cmd+Tabbing, that the
@@ -414,7 +414,7 @@ extern "C" fn window_did_resign_key(this: &Object, _: Sel, _: id) {
 }
 
 /// Invoked when the dragged image enters destination bounds or frame
-extern "C" fn dragging_entered(this: &Object, _: Sel, sender: id) -> BOOL {
+extern "C-unwind" fn dragging_entered(this: &Object, _: Sel, sender: id) -> BOOL {
   trace!("Triggered `draggingEntered:`");
 
   use std::path::PathBuf;
@@ -441,14 +441,14 @@ extern "C" fn dragging_entered(this: &Object, _: Sel, sender: id) -> BOOL {
 }
 
 /// Invoked when the image is released
-extern "C" fn prepare_for_drag_operation(_: &Object, _: Sel, _: id) -> BOOL {
+extern "C-unwind" fn prepare_for_drag_operation(_: &Object, _: Sel, _: id) -> BOOL {
   trace!("Triggered `prepareForDragOperation:`");
   trace!("Completed `prepareForDragOperation:`");
   YES
 }
 
 /// Invoked after the released image has been removed from the screen
-extern "C" fn perform_drag_operation(this: &Object, _: Sel, sender: id) -> BOOL {
+extern "C-unwind" fn perform_drag_operation(this: &Object, _: Sel, sender: id) -> BOOL {
   trace!("Triggered `performDragOperation:`");
 
   use std::path::PathBuf;
@@ -475,13 +475,13 @@ extern "C" fn perform_drag_operation(this: &Object, _: Sel, sender: id) -> BOOL 
 }
 
 /// Invoked when the dragging operation is complete
-extern "C" fn conclude_drag_operation(_: &Object, _: Sel, _: id) {
+extern "C-unwind" fn conclude_drag_operation(_: &Object, _: Sel, _: id) {
   trace!("Triggered `concludeDragOperation:`");
   trace!("Completed `concludeDragOperation:`");
 }
 
 /// Invoked when the dragging operation is cancelled
-extern "C" fn dragging_exited(this: &Object, _: Sel, _: id) {
+extern "C-unwind" fn dragging_exited(this: &Object, _: Sel, _: id) {
   trace!("Triggered `draggingExited:`");
   with_state(this, |state| {
     state.emit_event(WindowEvent::HoveredFileCancelled)
@@ -490,7 +490,7 @@ extern "C" fn dragging_exited(this: &Object, _: Sel, _: id) {
 }
 
 /// Invoked when before enter fullscreen
-extern "C" fn window_will_enter_fullscreen(this: &Object, _: Sel, _: id) {
+extern "C-unwind" fn window_will_enter_fullscreen(this: &Object, _: Sel, _: id) {
   trace!("Triggered `windowWillEnterFullscreen:`");
 
   with_state(this, |state| {
@@ -522,7 +522,7 @@ extern "C" fn window_will_enter_fullscreen(this: &Object, _: Sel, _: id) {
 }
 
 /// Invoked when before exit fullscreen
-extern "C" fn window_will_exit_fullscreen(this: &Object, _: Sel, _: id) {
+extern "C-unwind" fn window_will_exit_fullscreen(this: &Object, _: Sel, _: id) {
   trace!("Triggered `windowWillExitFullScreen:`");
 
   with_state(this, |state| {
@@ -536,7 +536,7 @@ extern "C" fn window_will_exit_fullscreen(this: &Object, _: Sel, _: id) {
   trace!("Completed `windowWillExitFullScreen:`");
 }
 
-extern "C" fn window_will_use_fullscreen_presentation_options(
+extern "C-unwind" fn window_will_use_fullscreen_presentation_options(
   this: &Object,
   _: Sel,
   _: id,
@@ -569,7 +569,7 @@ extern "C" fn window_will_use_fullscreen_presentation_options(
 }
 
 /// Invoked when entered fullscreen
-extern "C" fn window_did_enter_fullscreen(this: &Object, _: Sel, _: id) {
+extern "C-unwind" fn window_did_enter_fullscreen(this: &Object, _: Sel, _: id) {
   trace!("Triggered `windowDidEnterFullscreen:`");
   with_state(this, |state| {
     state.initial_fullscreen = false;
@@ -591,7 +591,7 @@ extern "C" fn window_did_enter_fullscreen(this: &Object, _: Sel, _: id) {
 }
 
 /// Invoked when exited fullscreen
-extern "C" fn window_did_exit_fullscreen(this: &Object, _: Sel, _: id) {
+extern "C-unwind" fn window_did_exit_fullscreen(this: &Object, _: Sel, _: id) {
   trace!("Triggered `windowDidExitFullscreen:`");
   with_state(this, |state| {
     state.with_window(|window| {
@@ -631,7 +631,7 @@ extern "C" fn window_did_exit_fullscreen(this: &Object, _: Sel, _: id) {
 /// due to being in the midst of handling some other animation or user gesture.
 /// This method indicates that there was an error, and you should clean up any
 /// work you may have done to prepare to enter full-screen mode.
-extern "C" fn window_did_fail_to_enter_fullscreen(this: &Object, _: Sel, _: id) {
+extern "C-unwind" fn window_did_fail_to_enter_fullscreen(this: &Object, _: Sel, _: id) {
   trace!("Triggered `windowDidFailToEnterFullscreen:`");
   with_state(this, |state| {
     state.with_window(|window| {
@@ -658,13 +658,13 @@ extern "C" fn window_did_fail_to_enter_fullscreen(this: &Object, _: Sel, _: id) 
 }
 
 // Observe theme change
-extern "C" fn effective_appearance_did_change(this: &Object, _: Sel, _: id) {
+extern "C-unwind" fn effective_appearance_did_change(this: &Object, _: Sel, _: id) {
   trace!("Triggered `effectiveAppearDidChange:`");
   unsafe {
     let _: () = msg_send![this, performSelectorOnMainThread: sel!(effectiveAppearanceDidChangedOnMainThread:), withObject:nil, waitUntilDone:false];
   }
 }
-extern "C" fn effective_appearance_did_changed_on_main_thread(this: &Object, _: Sel, _: id) {
+extern "C-unwind" fn effective_appearance_did_changed_on_main_thread(this: &Object, _: Sel, _: id) {
   with_state(this, |state| {
     let theme = get_ns_theme();
     let current_theme = state.window.upgrade().map(|w| {

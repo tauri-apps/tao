@@ -20,7 +20,10 @@ pub static APP_CLASS: LazyLock<AppClass> = LazyLock::new(|| unsafe {
   let mut decl =
     ClassDecl::new(CStr::from_bytes_with_nul(b"TaoApp\0").unwrap(), superclass).unwrap();
 
-  decl.add_method(sel!(sendEvent:), send_event as extern "C" fn(_, _, _));
+  decl.add_method(
+    sel!(sendEvent:),
+    send_event as extern "C-unwind" fn(_, _, _),
+  );
 
   AppClass(decl.register())
 });
@@ -28,7 +31,7 @@ pub static APP_CLASS: LazyLock<AppClass> = LazyLock::new(|| unsafe {
 // Normally, holding Cmd + any key never sends us a `keyUp` event for that key.
 // Overriding `sendEvent:` like this fixes that. (https://stackoverflow.com/a/15294196)
 // Fun fact: Firefox still has this bug! (https://bugzilla.mozilla.org/show_bug.cgi?id=1299553)
-extern "C" fn send_event(this: &NSApplication, _sel: Sel, event: &NSEvent) {
+extern "C-unwind" fn send_event(this: &NSApplication, _sel: Sel, event: &NSEvent) {
   unsafe {
     // For posterity, there are some undocumented event types
     // (https://github.com/servo/cocoa-rs/issues/155)
