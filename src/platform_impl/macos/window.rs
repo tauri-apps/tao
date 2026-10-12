@@ -932,36 +932,28 @@ impl UnownedWindow {
   pub fn drag_window(&self) -> Result<(), ExternalError> {
     unsafe {
       let mtm = MainThreadMarker::new_unchecked();
-      let mut event: id = msg_send![&NSApp(mtm), currentEvent];
-      // `currentEvent` is nil when no event is being dispatched, e.g. when the
-      // drag is requested asynchronously after the mouse-down was handled.
-      if event.is_null() {
+      let Some(mut event) = NSApp(mtm).currentEvent() else {
+        // `currentEvent` is nil when no event is being dispatched, e.g. when the
+        // drag is requested asynchronously after the mouse-down was handled.
         log::warn!("Cannot drag the window: there is no current event");
         return Ok(());
+      };
+
+      if event.r#type().0 == 0x15 {
+        event = NSEvent::mouseEventWithType_location_modifierFlags_timestamp_windowNumber_context_eventNumber_clickCount_pressure(
+          NSEventType::LeftMouseDown,
+          NSEvent::mouseLocation(),
+          event.modifierFlags(),
+          event.timestamp(),
+          event.windowNumber(),
+          None,
+          NSEventSubtype::WindowExposed.0 as NSInteger,
+          1,
+          1.0,
+        ).unwrap();
       }
 
-      let event_type: NSUInteger = msg_send![event, type];
-      if event_type == 0x15 {
-        let mouse_location: NSPoint = msg_send![class!(NSEvent), mouseLocation];
-        let event_modifier_flags: NSEventModifierFlags = msg_send![event, modifierFlags];
-        let event_timestamp: NSTimeInterval = msg_send![event, timestamp];
-        let event_window_number: NSInteger = msg_send![event, windowNumber];
-
-        event = msg_send![
-            class!(NSEvent),
-            mouseEventWithType: NSEventType::LeftMouseDown,
-            location: mouse_location,
-            modifierFlags: event_modifier_flags,
-            timestamp: event_timestamp,
-            windowNumber: event_window_number,
-            context: nil,
-            eventNumber: NSEventSubtype::WindowExposed,
-            clickCount: 1,
-            pressure: 1.0,
-        ];
-      }
-
-      let _: () = msg_send![&self.ns_window, performWindowDragWithEvent: event];
+      self.ns_window.performWindowDragWithEvent(&event);
     }
 
     Ok(())
