@@ -4,7 +4,7 @@
 
 use std::{collections::VecDeque, fmt};
 
-use super::ffi::{self, id, nil, CGRectContainsPoint};
+use super::ffi::{self, CGRectContainsPoint};
 use crate::{
   dpi::{PhysicalPosition, PhysicalSize},
   monitor::{MonitorHandle as RootMonitorHandle, VideoMode as RootVideoMode},
@@ -18,9 +18,9 @@ use core_graphics::{
   display::{CGDirectDisplayID, CGDisplay, CGDisplayBounds},
   geometry::CGPoint,
 };
-use objc2::{msg_send, rc::Retained};
+use objc2::rc::Retained;
 use objc2_app_kit::NSScreen;
-use objc2_foundation::{ns_string, MainThreadMarker, NSString, NSUInteger};
+use objc2_foundation::{ns_string, MainThreadMarker, NSNumber};
 
 #[derive(Clone)]
 pub struct VideoMode {
@@ -317,14 +317,12 @@ impl MonitorHandle {
     unsafe {
       let uuid = ffi::CGDisplayCreateUUIDFromDisplayID(self.0);
       let screens = NSScreen::screens(mtm);
-      let count: NSUInteger = msg_send![&screens, count];
       let key = ns_string!("NSScreenNumber");
-      for i in 0..count {
-        let screen: Retained<NSScreen> = msg_send![&screens, objectAtIndex: i as NSUInteger];
+      for screen in screens {
         let device_description = NSScreen::deviceDescription(&screen);
-        let value: id = msg_send![&device_description, objectForKey: &*key];
-        if value != nil {
-          let other_native_id: NSUInteger = msg_send![value, unsignedIntegerValue];
+        if let Some(value) = device_description.objectForKey(&key) {
+          let value = value.downcast::<NSNumber>().unwrap();
+          let other_native_id = value.unsignedIntegerValue();
           let other_uuid =
             ffi::CGDisplayCreateUUIDFromDisplayID(other_native_id as CGDirectDisplayID);
           if uuid == other_uuid {

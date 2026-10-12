@@ -25,8 +25,8 @@ use objc2_app_kit::{
   NSApp, NSEvent, NSEventModifierFlags, NSEventPhase, NSView, NSWindow, NSWindowButton,
 };
 use objc2_foundation::{
-  ns_string, MainThreadMarker, NSAttributedString, NSInteger, NSMutableAttributedString, NSPoint,
-  NSRange, NSRect, NSSize, NSString, NSUInteger,
+  ns_string, MainThreadMarker, NSAttributedString, NSInteger, NSMutableAttributedString,
+  NSNotificationCenter, NSPoint, NSRange, NSRect, NSSize, NSString, NSUInteger,
 };
 use std::sync::LazyLock;
 
@@ -308,15 +308,14 @@ extern "C-unwind" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void)
       *(*this).get_mut_ivar("markedText") = marked_text;
       let _: () = msg_send![this, setPostsFrameChangedNotifications: YES];
 
-      let notification_center: &Object = msg_send![class!(NSNotificationCenter), defaultCenter];
+      let notification_center = NSNotificationCenter::defaultCenter();
       let notification_name = ns_string!("NSViewFrameDidChangeNotification");
-      let _: () = msg_send![
-          notification_center,
-          addObserver: this
-          selector: sel!(frameDidChange:)
-          name: &*notification_name
-          object: this
-      ];
+      notification_center.addObserver_selector_name_object(
+        &*this,
+        sel!(frameDidChange:),
+        Some(notification_name),
+        Some(&*this),
+      );
     }
     this
   }
@@ -707,7 +706,7 @@ extern "C-unwind" fn key_down(this: &mut Object, _sel: Sel, event: &NSEvent) {
     // let characters = get_characters(event, false);
     //state.raw_characters = Some(characters);
 
-    let is_repeat: bool = msg_send![event, isARepeat];
+    let is_repeat = event.isARepeat();
 
     update_potentially_stale_modifiers(state, event);
 
@@ -929,7 +928,7 @@ extern "C-unwind" fn cancel_operation(this: &Object, _sel: Sel, _sender: id) {
     let state_ptr: *mut c_void = *this.get_ivar("taoState");
     let state = &mut *(state_ptr as *mut ViewState);
 
-    let event: Retained<NSEvent> = msg_send![&NSApp(mtm), currentEvent];
+    let event = NSApp(mtm).currentEvent().unwrap();
     update_potentially_stale_modifiers(state, &event);
 
     let scancode = 0x2f;
@@ -1014,7 +1013,7 @@ fn mouse_motion(this: &NSView, event: &NSEvent) {
       || view_point.x > view_rect.size.width
       || view_point.y > view_rect.size.height
     {
-      let mouse_buttons_down: NSUInteger = msg_send![class!(NSEvent), pressedMouseButtons];
+      let mouse_buttons_down = NSEvent::pressedMouseButtons();
       if mouse_buttons_down == 0 {
         // Point is outside of the client area (view) and no buttons are pressed
         return;
@@ -1200,7 +1199,7 @@ pub unsafe fn inset_traffic_lights(window: &NSWindow, position: LogicalPosition<
   let mut title_bar_rect = NSView::frame(&title_bar_container_view);
   title_bar_rect.size.height = title_bar_frame_height;
   title_bar_rect.origin.y = window.frame().size.height - title_bar_frame_height;
-  let _: () = msg_send![&title_bar_container_view, setFrame: title_bar_rect];
+  title_bar_container_view.setFrame(title_bar_rect);
 
   let window_buttons = vec![close, miniaturize.clone(), zoom];
   let space_between = NSView::frame(&miniaturize).origin.x - close_rect.origin.x;

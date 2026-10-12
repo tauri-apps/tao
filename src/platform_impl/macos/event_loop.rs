@@ -231,7 +231,7 @@ impl<T> EventLoop<T> {
       mem::drop(callback);
 
       AppState::set_callback(weak_cb, Rc::clone(&self.window_target));
-      let () = msg_send![&app, run];
+      app.run();
 
       if let Some(panic) = self.panic_info.take() {
         drop(self._callback.take());

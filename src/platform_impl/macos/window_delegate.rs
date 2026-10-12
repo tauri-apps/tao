@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
-  f64,
   ffi::CStr,
   os::raw::c_void,
   sync::{Arc, Weak},
@@ -17,7 +16,9 @@ use objc2::{
 use objc2_app_kit::{
   self as appkit, NSApplicationPresentationOptions, NSPasteboard, NSView, NSWindow,
 };
-use objc2_foundation::{ns_string, NSArray, NSAutoreleasePool, NSString, NSUInteger};
+use objc2_foundation::{
+  ns_string, NSArray, NSAutoreleasePool, NSDistributedNotificationCenter, NSString, NSUInteger,
+};
 use std::sync::LazyLock;
 
 use crate::{
@@ -296,16 +297,14 @@ extern "C-unwind" fn init_with_tao(this: &Object, _sel: Sel, state: *mut c_void)
       });
     }
 
-    let notification_center: &Object =
-      msg_send![class!(NSDistributedNotificationCenter), defaultCenter];
+    let notification_center = NSDistributedNotificationCenter::defaultCenter();
     let notification_name = ns_string!("AppleInterfaceThemeChangedNotification");
-    let _: () = msg_send![
-        notification_center,
-        addObserver: this
-        selector: sel!(effectiveAppearanceDidChange:)
-        name: &*notification_name
-        object: nil
-    ];
+    notification_center.addObserver_selector_name_object(
+      &*this,
+      sel!(effectiveAppearanceDidChange:),
+      Some(notification_name),
+      None,
+    );
 
     this
   }
@@ -337,7 +336,7 @@ extern "C-unwind" fn window_will_close(this: &Object, _: Sel, _: id) {
     let _pool = NSAutoreleasePool::new();
     // Since El Capitan, we need to be careful that delegate methods can't
     // be called after the window closes.
-    let () = msg_send![&state.ns_window, setDelegate: nil];
+    state.ns_window.setDelegate(None);
     state.emit_event(WindowEvent::Destroyed);
   });
   trace!("Completed `windowWillClose:`");

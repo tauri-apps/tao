@@ -1094,12 +1094,12 @@ impl UnownedWindow {
 
   #[inline]
   pub fn is_resizable(&self) -> bool {
-    unsafe { msg_send![&self.ns_window, isResizable] }
+    self.ns_window.isResizable()
   }
 
   #[inline]
   pub fn is_minimizable(&self) -> bool {
-    unsafe { msg_send![&self.ns_window, isMiniaturizable] }
+    self.ns_window.isMiniaturizable()
   }
 
   #[inline]
@@ -1118,7 +1118,7 @@ impl UnownedWindow {
 
   #[inline]
   pub fn is_closable(&self) -> bool {
-    let is_closable: bool = unsafe { msg_send![&self.ns_window, hasCloseBox] };
+    let is_closable = self.ns_window.hasCloseBox();
     is_closable
   }
 
@@ -1179,7 +1179,7 @@ impl UnownedWindow {
       unsafe {
         let old_screen = NSWindow::screen(&self.ns_window);
         if old_screen.as_ref() != Some(&new_screen) {
-          let mut screen_frame: NSRect = msg_send![&new_screen, frame];
+          let mut screen_frame = new_screen.frame();
           // The coordinate system here has its origin at bottom-left
           // and Y goes up
           screen_frame.origin.y += screen_frame.size.height;
@@ -1329,10 +1329,7 @@ impl UnownedWindow {
 
         // Restore the normal window level following the Borderless fullscreen
         // `CGShieldingWindowLevel() + 1` hack.
-        let () = msg_send![
-          &self.ns_window,
-          setLevel: ffi::NSWindowLevel::NSNormalWindowLevel
-        ];
+        self.ns_window.setLevel(objc2_app_kit::NSNormalWindowLevel);
       },
       _ => {}
     }

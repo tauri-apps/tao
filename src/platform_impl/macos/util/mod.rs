@@ -14,7 +14,7 @@ use objc2::{
   class,
   runtime::{AnyClass as Class, AnyObject as Object, Sel},
 };
-use objc2_app_kit::{NSApp, NSView, NSWindow, NSWindowStyleMask};
+use objc2_app_kit::{NSApp, NSEvent, NSView, NSWindow, NSWindowStyleMask};
 use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSPoint, NSRange, NSRect, NSUInteger};
 
 use crate::{
@@ -99,7 +99,7 @@ pub fn window_position(position: LogicalPosition<f64>) -> NSPoint {
 }
 
 pub fn cursor_position() -> Result<PhysicalPosition<f64>, ExternalError> {
-  let point: NSPoint = unsafe { msg_send![class!(NSEvent), mouseLocation] };
+  let point = unsafe { NSEvent::mouseLocation() };
   let y = CGDisplay::main().pixels_high() as f64 - point.y;
   let point = LogicalPosition::new(point.x, y);
   Ok(point.to_physical(super::monitor::primary_monitor().scale_factor()))
@@ -120,7 +120,7 @@ pub unsafe fn create_input_context(view: &NSView) -> IdRef {
 pub unsafe fn open_emoji_picker() {
   // SAFETY: TODO
   let mtm = unsafe { MainThreadMarker::new_unchecked() };
-  let () = msg_send![&NSApp(mtm), orderFrontCharacterPalette: nil];
+  NSApp(mtm).orderFrontCharacterPalette(None);
 }
 
 pub extern "C-unwind" fn yes(_: &Object, _: Sel) -> BOOL {
