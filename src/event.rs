@@ -151,6 +151,28 @@ pub enum Event<'a, T: 'static> {
     /// This lets you determine why the scene was requested.
     options: objc2::rc::Retained<objc2_ui_kit::UISceneConnectionOptions>,
   },
+  /// Emitted with the application's push token once APNS registration completes.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: https://developer.apple.com/documentation/appkit/nsapplicationdelegate/application(_:didregisterforremotenotificationswithdevicetoken:)?language=objc
+  /// - **iOS**: https://developer.apple.com/documentation/uikit/uiapplicationdelegate/application(_:didregisterforremotenotificationswithdevicetoken:)?language=objc
+  /// - **Other**: Unsupported.
+  PushRegistration(Vec<u8>),
+
+  /// Emitted when push token registration fails.
+  PushRegistrationError(String),
+
+  /// Emitted when a remote notification is delivered, with its `userInfo` dictionary
+  /// re-encoded as JSON.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: https://developer.apple.com/documentation/appkit/nsapplicationdelegate/application(_:didreceiveremotenotification:)?language=objc
+  /// - **iOS**: https://developer.apple.com/documentation/uikit/uiapplicationdelegate/application(_:didreceiveremotenotification:fetchcompletionhandler:)?language=objc
+  /// - **Other**: Unsupported.
+  #[non_exhaustive]
+  RemoteNotification { payload: Vec<u8> },
 }
 
 impl<T: Clone> Clone for Event<'static, T> {
@@ -182,6 +204,11 @@ impl<T: Clone> Clone for Event<'static, T> {
         scene: scene.clone(),
         options: options.clone(),
       },
+      PushRegistration(token) => PushRegistration(token.clone()),
+      PushRegistrationError(error) => PushRegistrationError(error.clone()),
+      RemoteNotification { payload } => RemoteNotification {
+        payload: payload.clone(),
+      },
     }
   }
 }
@@ -206,6 +233,9 @@ impl<'a, T> Event<'a, T> {
       }),
       #[cfg(target_os = "ios")]
       SceneRequested { scene, options } => Ok(SceneRequested { scene, options }),
+      PushRegistration(token) => Ok(PushRegistration(token)),
+      PushRegistrationError(error) => Ok(PushRegistrationError(error)),
+      RemoteNotification { payload } => Ok(RemoteNotification { payload }),
     }
   }
 
@@ -232,6 +262,9 @@ impl<'a, T> Event<'a, T> {
       }),
       #[cfg(target_os = "ios")]
       SceneRequested { scene, options } => Some(SceneRequested { scene, options }),
+      PushRegistration(token) => Some(PushRegistration(token)),
+      PushRegistrationError(error) => Some(PushRegistrationError(error)),
+      RemoteNotification { payload } => Some(RemoteNotification { payload }),
     }
   }
 }
