@@ -252,88 +252,88 @@ fn create_window(
       defer: NO,
     ];
 
-    Retained::from_raw(ns_window_ptr).and_then(|r| r.downcast::<NSWindow>().ok()).map(|ns_window| {
-      #[allow(deprecated)]
-      {
-        *((*ns_window_ptr).get_mut_ivar::<Bool>("focusable")) = attrs.focusable.into();
-      }
+    let ns_window = Retained::from_raw(ns_window_ptr)?
+      .downcast::<NSWindow>()
+      .ok()?;
+    #[allow(deprecated)]
+    {
+      *((*ns_window_ptr).get_mut_ivar::<Bool>("focusable")) = attrs.focusable.into();
+    }
 
-      let title = NSString::from_str(&attrs.title);
-      ns_window.setReleasedWhenClosed(false);
-      ns_window.setTitle(&title);
-      ns_window.setAcceptsMouseMovedEvents(true);
+    let title = NSString::from_str(&attrs.title);
+    ns_window.setReleasedWhenClosed(false);
+    ns_window.setTitle(&title);
+    ns_window.setAcceptsMouseMovedEvents(true);
 
-      if pl_attrs.titlebar_transparent {
-        ns_window.setTitlebarAppearsTransparent(true);
-      }
-      if pl_attrs.title_hidden {
-        ns_window.setTitleVisibility(appkit::NSWindowTitleVisibility::Hidden);
-      }
-      if pl_attrs.titlebar_buttons_hidden {
-        for titlebar_button in &[
-          NSWindowFullScreenButton,
-          NSWindowButton::MiniaturizeButton,
-          NSWindowButton::CloseButton,
-          NSWindowButton::ZoomButton,
-        ] {
-          if let Some(button) = ns_window.standardWindowButton(*titlebar_button) {
-            button.setHidden(true);
-          }
+    if pl_attrs.titlebar_transparent {
+      ns_window.setTitlebarAppearsTransparent(true);
+    }
+    if pl_attrs.title_hidden {
+      ns_window.setTitleVisibility(appkit::NSWindowTitleVisibility::Hidden);
+    }
+    if pl_attrs.titlebar_buttons_hidden {
+      for titlebar_button in &[
+        NSWindowFullScreenButton,
+        NSWindowButton::MiniaturizeButton,
+        NSWindowButton::CloseButton,
+        NSWindowButton::ZoomButton,
+      ] {
+        if let Some(button) = ns_window.standardWindowButton(*titlebar_button) {
+          button.setHidden(true);
         }
       }
-      if pl_attrs.movable_by_window_background {
-        ns_window.setMovableByWindowBackground(true);
-      }
+    }
+    if pl_attrs.movable_by_window_background {
+      ns_window.setMovableByWindowBackground(true);
+    }
 
-      if attrs.always_on_top {
-        ns_window.setLevel(ffi::NSWindowLevel::NSFloatingWindowLevel as isize);
-      }
+    if attrs.always_on_top {
+      ns_window.setLevel(ffi::NSWindowLevel::NSFloatingWindowLevel as isize);
+    }
 
-      if attrs.always_on_bottom {
-        ns_window.setLevel(ffi::NSWindowLevel::BelowNormalWindowLevel as isize);
-      }
+    if attrs.always_on_bottom {
+      ns_window.setLevel(ffi::NSWindowLevel::BelowNormalWindowLevel as isize);
+    }
 
-      if attrs.content_protection  {
-        ns_window.setSharingType(NSWindowSharingType::None);
-      }
+    if attrs.content_protection {
+      ns_window.setSharingType(NSWindowSharingType::None);
+    }
 
-      if !attrs.maximizable {
-        if let Some(button) = ns_window
-          .standardWindowButton(NSWindowButton::ZoomButton) {
-            button.setEnabled(false);
-          }
+    if !attrs.maximizable {
+      if let Some(button) = ns_window.standardWindowButton(NSWindowButton::ZoomButton) {
+        button.setEnabled(false);
       }
+    }
 
-      if let Some(increments) = pl_attrs.resize_increments {
-        let (x, y) = (increments.width, increments.height);
-        if x >= 1.0 && y >= 1.0 {
-          let size = NSSize::new(x as CGFloat, y as CGFloat);
-          ns_window.setResizeIncrements(size);
-        }
+    if let Some(increments) = pl_attrs.resize_increments {
+      let (x, y) = (increments.width, increments.height);
+      if x >= 1.0 && y >= 1.0 {
+        let size = NSSize::new(x as CGFloat, y as CGFloat);
+        ns_window.setResizeIncrements(size);
       }
+    }
 
-      if let Parent::ChildOf(parent) = pl_attrs.parent {
-        let _: () =
-          msg_send![parent as id, addChildWindow: &*ns_window, ordered: NSWindowOrderingMode::Above];
-      }
+    if let Parent::ChildOf(parent) = pl_attrs.parent {
+      let _: () =
+        msg_send![parent as id, addChildWindow: &*ns_window, ordered: NSWindowOrderingMode::Above];
+    }
 
-      if !pl_attrs.automatic_tabbing {
-        NSWindow::setAllowsAutomaticWindowTabbing(false, mtm);
-      }
+    if !pl_attrs.automatic_tabbing {
+      NSWindow::setAllowsAutomaticWindowTabbing(false, mtm);
+    }
 
-      if let Some(tabbing_identifier) = &pl_attrs.tabbing_identifier {
-        ns_window.setTabbingIdentifier( &NSString::from_str(tabbing_identifier));
-      }
+    if let Some(tabbing_identifier) = &pl_attrs.tabbing_identifier {
+      ns_window.setTabbingIdentifier(&NSString::from_str(tabbing_identifier));
+    }
 
-      if !pl_attrs.has_shadow {
-        ns_window.setHasShadow(false);
-      }
-      if attrs.position.is_none() {
-        ns_window.center();
-      }
+    if !pl_attrs.has_shadow {
+      ns_window.setHasShadow(false);
+    }
+    if attrs.position.is_none() {
+      ns_window.center();
+    }
 
-      ns_window
-    })
+    Some(ns_window)
   }
 }
 
