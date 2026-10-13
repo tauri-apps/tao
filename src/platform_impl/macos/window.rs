@@ -67,6 +67,8 @@ use super::{
   view::ViewState,
 };
 
+const MAX_SAFE_INITIAL_INNER_SIZE: f64 = i32::MAX as f64;
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Id(pub usize);
 
@@ -191,12 +193,8 @@ fn create_window(
           .and_then(screen_from_position)
           .unwrap_or_else(|| appkit::NSScreen::mainScreen(mtm).unwrap());
         let scale_factor = NSScreen::backingScaleFactor(&screen) as f64;
-        let desired_size = attrs
-          .inner_size
-          .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
         let (width, height): (f64, f64) = attrs
-          .inner_size_constraints
-          .clamp(desired_size, scale_factor)
+          .initial_inner_size(scale_factor)
           .to_logical::<f64>(scale_factor)
           .into();
         let (left, bottom) = match attrs.position {
@@ -334,6 +332,80 @@ fn create_window(
 
       ns_window
     })
+  }
+}
+
+impl WindowAttributes {
+  fn initial_inner_size(&self, scale_factor: f64) -> Size {
+    let desired_size = self
+      .inner_size
+      .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
+    let size = self
+      .inner_size_constraints
+      .clamp(desired_size, scale_factor);
+    let physical_size = size.to_physical::<f64>(scale_factor);
+
+    if physical_size.width <= MAX_SAFE_INITIAL_INNER_SIZE
+      && physical_size.height <= MAX_SAFE_INITIAL_INNER_SIZE
+    {
+      size
+    } else {
+      PhysicalSize::new(
+        physical_size.width.min(MAX_SAFE_INITIAL_INNER_SIZE),
+        physical_size.height.min(MAX_SAFE_INITIAL_INNER_SIZE),
+      )
+      .into()
+    }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn initial_inner_size_preserves_safe_values() {
+    let mut attrs = WindowAttributes::default();
+    attrs.inner_size = Some(LogicalSize::new(800., 600.).into());
+
+    assert_eq!(
+      attrs.initial_inner_size(2.).to_physical::<u32>(2.),
+      PhysicalSize::new(1600, 1200)
+    );
+  }
+
+  #[test]
+  fn initial_inner_size_clamps_oversized_values() {
+    let mut attrs = WindowAttributes::default();
+    attrs.inner_size = Some(LogicalSize::new(i32::MAX as f64 + 1., 600.).into());
+
+    assert_eq!(
+      attrs.initial_inner_size(1.).to_physical::<u32>(1.),
+      PhysicalSize::new(i32::MAX as u32, 600)
+    );
+  }
+
+  #[test]
+  fn initial_inner_size_accounts_for_scale_factor() {
+    let mut attrs = WindowAttributes::default();
+    attrs.inner_size = Some(LogicalSize::new(i32::MAX as f64, 600.).into());
+
+    assert_eq!(
+      attrs.initial_inner_size(2.).to_physical::<u32>(2.),
+      PhysicalSize::new(i32::MAX as u32, 1200)
+    );
+  }
+
+  #[test]
+  fn initial_inner_size_applies_constraints_before_platform_limit() {
+    let mut attrs = WindowAttributes::default();
+    attrs.inner_size = Some(LogicalSize::new(i32::MAX as f64 + 1., 600.).into());
+    attrs.inner_size_constraints.max_width = Some(crate::dpi::LogicalUnit::new(1024.).into());
+
+    assert_eq!(
+      attrs.initial_inner_size(1.).to_physical::<u32>(1.),
+      PhysicalSize::new(1024, 600)
+    );
   }
 }
 
