@@ -1328,4 +1328,4 @@ impl ResizeDirection {
       ResizeDirection::West => WindowEdge::West,
     }
   }
-                                           }
+}
