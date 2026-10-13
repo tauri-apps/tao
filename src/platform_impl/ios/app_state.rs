@@ -14,6 +14,7 @@ use std::{
 };
 
 use objc2::{rc::Retained, runtime::AnyObject, MainThreadMarker, Message};
+use objc2_foundation::NSObjectProtocol;
 use objc2_ui_kit::{UIApplication, UIScene, UISceneConnectionOptions, UIWindowScene};
 
 use crate::{
