@@ -1136,7 +1136,12 @@ pub fn os_capabilities() -> OSCapabilities {
       //
       // The minimum required iOS version is likely to grow in the future.
       assert!(atleast_ios_8, "`tao` requires iOS version 8 or greater");
-      process_info.operatingSystemVersion()
+      let version = process_info.operatingSystemVersion();
+      NSOperatingSystemVersion {
+        major: version.major,
+        minor: version.minor,
+        patch: version.patch,
+      }
     };
     version.into()
   });
