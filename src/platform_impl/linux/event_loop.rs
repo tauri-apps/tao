@@ -556,6 +556,13 @@ impl<T: 'static> EventLoop<T> {
               glib::Propagation::Proceed
             });
             window.connect_touch_event(move |window, event| {
+              // Only begin a resize drag when the touch sequence starts. Issuing
+              // `begin_resize_drag_for_device` for every touch event re-sends
+              // `xdg_toplevel.resize` with a serial the compositor already
+              // consumed, which can take down the whole session (#1380).
+              if event.event_type() != gdk::EventType::TouchBegin {
+                return glib::Propagation::Proceed;
+              }
               if !window.is_decorated() && window.is_resizable() && !window.is_maximized() {
                 if let Some(window) = window.window() {
                   if let Some((cx, cy)) = event.root_coords() {
@@ -1321,4 +1328,4 @@ impl ResizeDirection {
       ResizeDirection::West => WindowEdge::West,
     }
   }
-}
+                                           }
