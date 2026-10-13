@@ -102,6 +102,7 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub disallow_hidpi: bool,
   pub has_shadow: bool,
   pub traffic_light_inset: Option<Position>,
+  pub prefers_compact_control_size_metrics: bool,
   pub automatic_tabbing: bool,
   pub tabbing_identifier: Option<String>,
 }
@@ -121,6 +122,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       disallow_hidpi: false,
       has_shadow: true,
       traffic_light_inset: None,
+      prefers_compact_control_size_metrics: false,
       automatic_tabbing: true,
       tabbing_identifier: None,
     }
@@ -145,6 +147,12 @@ unsafe fn create_view(
       let scale_factor = NSWindow::backingScaleFactor(ns_window);
       let position = position.to_logical(scale_factor);
       state.traffic_light_inset = Some(position);
+    }
+
+    if pl_attribs.prefers_compact_control_size_metrics {
+      let state_ptr: *mut c_void = *(**ns_view).get_ivar("taoState");
+      let state = &mut *(state_ptr as *mut ViewState);
+      state.prefers_compact_control_size_metrics = true;
     }
 
     // On Mojave, views automatically become layer-backed shortly after being added to
