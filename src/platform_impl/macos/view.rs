@@ -455,11 +455,10 @@ extern "C-unwind" fn set_marked_text(
 ) {
   trace!("Triggered `setMarkedText`");
   unsafe {
-    let has_attr: bool = msg_send![string, isKindOfClass: class!(NSAttributedString)];
-    let marked_text = if has_attr {
+    let marked_text = if let Some(string) = (*string).downcast_ref::<NSAttributedString>() {
       NSMutableAttributedString::initWithAttributedString(
         NSMutableAttributedString::alloc(),
-        &*(string as *const NSAttributedString),
+        string,
       )
     } else {
       NSMutableAttributedString::initWithString(

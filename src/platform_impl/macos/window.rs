@@ -1441,7 +1441,7 @@ impl UnownedWindow {
       let desc = NSScreen::deviceDescription(&screen);
       let key = ns_string!("NSScreenNumber");
       let value = NSDictionary::objectForKey(&desc, &key).unwrap();
-      let display_id: NSUInteger = msg_send![&value, unsignedIntegerValue];
+      let display_id = value.downcast::<NSNumber>().unwrap().unsignedIntegerValue();
       Some(RootMonitorHandle {
         inner: MonitorHandle::new(display_id.try_into().unwrap()),
       })
