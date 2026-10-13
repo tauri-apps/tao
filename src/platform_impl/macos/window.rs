@@ -52,13 +52,13 @@ use objc2::{
 };
 use objc2_app_kit::{
   self as appkit, NSApp, NSApplicationPresentationOptions, NSBackingStoreType, NSColor, NSEvent,
-  NSEventModifierFlags, NSEventSubtype, NSEventType, NSRequestUserAttentionType, NSScreen, NSView,
-  NSWindow, NSWindowButton, NSWindowCollectionBehavior, NSWindowFullScreenButton,
-  NSWindowOrderingMode, NSWindowSharingType, NSWindowStyleMask,
+  NSEventSubtype, NSEventType, NSRequestUserAttentionType, NSScreen, NSView, NSWindow,
+  NSWindowButton, NSWindowCollectionBehavior, NSWindowFullScreenButton, NSWindowOrderingMode,
+  NSWindowSharingType, NSWindowStyleMask,
 };
 use objc2_foundation::{
-  ns_string, MainThreadMarker, NSArray, NSAutoreleasePool, NSDictionary, NSInteger, NSPoint,
-  NSRect, NSSize, NSString, NSTimeInterval, NSUInteger,
+  ns_string, MainThreadMarker, NSArray, NSAutoreleasePool, NSDictionary, NSInteger, NSNumber,
+  NSPoint, NSRect, NSSize, NSString,
 };
 use std::sync::LazyLock;
 
