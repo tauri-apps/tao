@@ -1138,9 +1138,9 @@ pub fn os_capabilities() -> OSCapabilities {
       assert!(atleast_ios_8, "`tao` requires iOS version 8 or greater");
       let version = process_info.operatingSystemVersion();
       NSOperatingSystemVersion {
-        major: version.major,
-        minor: version.minor,
-        patch: version.patch,
+        major: version.majorVersion,
+        minor: version.minorVersion,
+        patch: version.patchVersion,
       }
     };
     version.into()
