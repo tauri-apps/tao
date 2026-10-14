@@ -315,6 +315,25 @@ pub trait WindowBuilderExtWindows {
 
   /// Sets right-to-left layout.
   fn with_rtl(self, rtl: bool) -> WindowBuilder;
+
+  /// Sets a callback to run against the window's `HWND` once it has been created and
+  /// fully configured, but before it is shown for the first time.
+  ///
+  /// It runs while the window is still handling `WM_CREATE`, on the thread that is
+  /// building it, so `Window::new` has not returned and there is no [`Window`] to hand
+  /// over yet - only the raw handle. It is the last point at which the window can be
+  /// changed without the change being seen: the styles, the class, the icons and the
+  /// taskbar state are all in place, and nothing has put the window on the screen.
+  ///
+  /// The callback runs for every window the builder creates, once each. A panic inside
+  /// it is caught and resumed out of `WindowBuilder::build`, rather than unwinding
+  /// through the window procedure.
+  ///
+  /// Note that `maximized` and `fullscreen` are applied after the window has been shown,
+  /// so a window built with either is not yet in that state here.
+  fn with_window_created<F>(self, callback: F) -> WindowBuilder
+  where
+    F: Fn(HWND) + Send + Sync + 'static;
 }
 
 impl WindowBuilderExtWindows for WindowBuilder {
@@ -375,6 +394,15 @@ impl WindowBuilderExtWindows for WindowBuilder {
   #[inline]
   fn with_rtl(mut self, rtl: bool) -> WindowBuilder {
     self.platform_specific.rtl = rtl;
+    self
+  }
+
+  #[inline]
+  fn with_window_created<F>(mut self, callback: F) -> WindowBuilder
+  where
+    F: Fn(HWND) + Send + Sync + 'static,
+  {
+    self.platform_specific.window_created = Some(std::sync::Arc::new(callback));
     self
   }
 }
