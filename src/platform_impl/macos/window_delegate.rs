@@ -12,6 +12,7 @@ use objc2::{
   msg_send,
   rc::Retained,
   runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel},
+  DefinedClass,
 };
 use objc2_app_kit::{
   self as appkit, NSApplicationPresentationOptions, NSPasteboard, NSView, NSWindow,
@@ -30,7 +31,7 @@ use crate::{
     event::{EventProxy, EventWrapper},
     ffi::{id, nil, BOOL, NO, YES},
     util::{self, IdRef},
-    view::{reapply_traffic_light_inset, ViewState},
+    view::{reapply_traffic_light_inset, TaoView},
     window::{get_ns_theme, get_window_id, UnownedWindow},
   },
   window::{Fullscreen, WindowId},
@@ -395,20 +396,12 @@ extern "C-unwind" fn window_did_resign_key(this: &Object, _: Sel, _: id) {
     // easily fall out of synchrony with reality.  This requires us to emit
     // a synthetic ModifiersChanged event when we lose focus.
     //
-    // Here we (very unsafely) acquire the taoState (a ViewState) from the
-    // Object referenced by state.ns_view (an IdRef, which is dereferenced
-    // to an id)
-    #[allow(deprecated)] // TODO: Use define_class!
-    let view_state: &mut ViewState = unsafe {
-      let ns_view: &Object = &state.ns_view;
-      let state_ptr: *mut c_void = *ns_view.get_ivar("taoState");
-      &mut *(state_ptr as *mut ViewState)
-    };
+    let view_state = state.ns_view.downcast_ref::<TaoView>().unwrap().ivars();
 
     // Both update the state and emit a ModifiersChanged event.
-    if !view_state.modifiers.is_empty() {
-      view_state.modifiers = ModifiersState::empty();
-      state.emit_event(WindowEvent::ModifiersChanged(view_state.modifiers));
+    if !view_state.modifiers.get().is_empty() {
+      view_state.modifiers.set(ModifiersState::empty());
+      state.emit_event(WindowEvent::ModifiersChanged(view_state.modifiers.get()));
     }
 
     state.emit_event(WindowEvent::Focused(false));

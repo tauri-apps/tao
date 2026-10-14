@@ -49,6 +49,7 @@ use objc2::{
   msg_send,
   rc::Retained,
   runtime::{AnyClass as Class, AnyObject as Object, Bool, ClassBuilder as ClassDecl, Sel},
+  DefinedClass,
 };
 use objc2_app_kit::{
   self as appkit, NSApp, NSApplicationPresentationOptions, NSBackingStoreType, NSColor, NSEvent,
@@ -64,7 +65,7 @@ use std::sync::LazyLock;
 
 use super::{
   ffi::{id, nil, NO},
-  view::ViewState,
+  view::TaoView,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -138,13 +139,11 @@ unsafe fn create_view(
       ns_view.setWantsBestResolutionOpenGLSurface(true);
     }
 
-    #[allow(deprecated)] // TODO: Use define_class!
     if let Some(position) = pl_attribs.traffic_light_inset {
-      let state_ptr: *mut c_void = *(**ns_view).get_ivar("taoState");
-      let state = &mut *(state_ptr as *mut ViewState);
+      let state = ns_view.ivars();
       let scale_factor = NSWindow::backingScaleFactor(ns_window);
       let position = position.to_logical(scale_factor);
-      state.traffic_light_inset = Some(position);
+      state.traffic_light_inset.set(Some(position));
     }
 
     // On Mojave, views automatically become layer-backed shortly after being added to
@@ -156,7 +155,7 @@ unsafe fn create_view(
       ns_view.setWantsLayer(true);
     }
 
-    (ns_view, cursor_state)
+    (Retained::into_super(ns_view), cursor_state)
   })
 }
 
@@ -1666,12 +1665,13 @@ impl WindowExtMacOS for UnownedWindow {
   #[inline]
   fn set_traffic_light_inset<P: Into<Position>>(&self, position: P) {
     let position: Position = position.into();
-    #[allow(deprecated)] // TODO: Use define_class!
-    unsafe {
-      let state_ptr: *mut c_void = *(self.ns_view).get_ivar("taoState");
-      let state = &mut *(state_ptr as *mut ViewState);
-      state.traffic_light_inset = Some(position.to_logical(self.scale_factor()));
-    }
+    self
+      .ns_view
+      .downcast_ref::<TaoView>()
+      .unwrap()
+      .ivars()
+      .traffic_light_inset
+      .set(Some(position.to_logical(self.scale_factor())));
   }
 
   #[inline]
