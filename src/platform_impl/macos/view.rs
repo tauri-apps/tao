@@ -278,7 +278,7 @@ define_class!(
           let is_preediting: bool = state.in_ime_preedit.get();
           if is_preediting && !state.key_triggered_ime.get() && !is_arrow_key {
             // In self case we should cancel the IME session.
-            let () = msg_send![self, unmarkText];
+            self.unmarkText();
             state.in_ime_preedit.set(false);
           }
         }
@@ -438,24 +438,20 @@ define_class!(
 
     #[unsafe(method(insertTab:))]
     fn insert_tab(&self, _sender: Option<&AnyObject>) {
-      unsafe {
-        let window: id = msg_send![self, window];
-        let first_responder: id = msg_send![window, firstResponder];
-        let this_ptr = self as *const _ as *mut _;
-        if first_responder == this_ptr {
-          let (): _ = msg_send![window, selectNextKeyView: self];
+      let window = self.window();
+      if let Some(first_responder) = window.firstResponder() {
+        if *first_responder == ***self {
+          window.selectNextKeyView(Some(self))
         }
       }
     }
 
     #[unsafe(method(insertBackTab:))]
     fn insert_back_tab(&self, _sender: Option<&AnyObject>) {
-      unsafe {
-        let window: id = msg_send![self, window];
-        let first_responder: id = msg_send![window, firstResponder];
-        let this_ptr = self as *const _ as *mut _;
-        if first_responder == this_ptr {
-          let (): _ = msg_send![window, selectPreviousKeyView: self];
+      let window = self.window();
+      if let Some(first_responder) = window.firstResponder() {
+        if *first_responder == ***self {
+          window.selectPreviousKeyView(Some(self))
         }
       }
     }
@@ -743,8 +739,8 @@ define_class!(
       trace!("Triggered `unmarkText`");
       unsafe {
         *self.ivars().marked_text.borrow_mut() = NSMutableAttributedString::new();
-        let input_context: id = msg_send![self, inputContext];
-        let _: () = msg_send![input_context, discardMarkedText];
+        let input_context = self.inputContext().expect("input context");
+        input_context.discardMarkedText();
       }
       trace!("Completed `unmarkText`");
     }
@@ -880,6 +876,14 @@ define_class!(
     }
   }
 );
+
+impl TaoView {
+  fn window(&self) -> Retained<NSWindow> {
+    (**self)
+      .window()
+      .expect("view must be installed in a window")
+  }
+}
 
 // Get characters
 // fn get_characters(event: id, ignore_modifiers: bool) -> String {
