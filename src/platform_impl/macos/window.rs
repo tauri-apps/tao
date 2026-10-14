@@ -131,32 +131,30 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
 unsafe fn create_view(
   ns_window: &NSWindow,
   pl_attribs: &PlatformSpecificWindowBuilderAttributes,
-) -> Option<(Retained<NSView>, Weak<Mutex<CursorState>>)> {
+) -> (Retained<NSView>, Weak<Mutex<CursorState>>) {
   let (ns_view, cursor_state) = new_view(ns_window);
-  ns_view.map(|ns_view| {
-    if !pl_attribs.disallow_hidpi {
-      #[allow(deprecated)]
-      ns_view.setWantsBestResolutionOpenGLSurface(true);
-    }
+  if !pl_attribs.disallow_hidpi {
+    #[allow(deprecated)]
+    ns_view.setWantsBestResolutionOpenGLSurface(true);
+  }
 
-    if let Some(position) = pl_attribs.traffic_light_inset {
-      let state = ns_view.ivars();
-      let scale_factor = NSWindow::backingScaleFactor(ns_window);
-      let position = position.to_logical(scale_factor);
-      state.traffic_light_inset.set(Some(position));
-    }
+  if let Some(position) = pl_attribs.traffic_light_inset {
+    let state = ns_view.ivars();
+    let scale_factor = NSWindow::backingScaleFactor(ns_window);
+    let position = position.to_logical(scale_factor);
+    state.traffic_light_inset.set(Some(position));
+  }
 
-    // On Mojave, views automatically become layer-backed shortly after being added to
-    // a window. Changing the layer-backedness of a view breaks the association between
-    // the view and its associated OpenGL context. To work around this, on Mojave we
-    // explicitly make the view layer-backed up front so that AppKit doesn't do it
-    // itself and break the association with its context.
-    if f64::floor(appkit::NSAppKitVersionNumber) > appkit::NSAppKitVersionNumber10_12 {
-      ns_view.setWantsLayer(true);
-    }
+  // On Mojave, views automatically become layer-backed shortly after being added to
+  // a window. Changing the layer-backedness of a view breaks the association between
+  // the view and its associated OpenGL context. To work around this, on Mojave we
+  // explicitly make the view layer-backed up front so that AppKit doesn't do it
+  // itself and break the association with its context.
+  if f64::floor(appkit::NSAppKitVersionNumber) > appkit::NSAppKitVersionNumber10_12 {
+    ns_view.setWantsLayer(true);
+  }
 
-    (Retained::into_super(ns_view), cursor_state)
-  })
+  (Retained::into_super(ns_view), cursor_state)
 }
 
 fn create_window(
@@ -527,8 +525,7 @@ impl UnownedWindow {
     let ns_window = create_window(&win_attribs, &pl_attribs)
       .ok_or_else(|| os_error!(OsError::CreationError("Couldn't create `NSWindow`")))?;
 
-    let (ns_view, cursor_state) = unsafe { create_view(&ns_window, &pl_attribs) }
-      .ok_or_else(|| os_error!(OsError::CreationError("Couldn't create `NSView`")))?;
+    let (ns_view, cursor_state) = unsafe { create_view(&ns_window, &pl_attribs) };
 
     // Configure the new view as the "key view" for the window
     unsafe {

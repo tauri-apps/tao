@@ -87,9 +87,7 @@ impl ViewState {
   }
 }
 
-pub(super) fn new_view(
-  ns_window: &NSWindow,
-) -> (Option<Retained<TaoView>>, Weak<Mutex<CursorState>>) {
+pub(super) fn new_view(ns_window: &NSWindow) -> (Retained<TaoView>, Weak<Mutex<CursorState>>) {
   let cursor_state = Default::default();
   let cursor_access = Arc::downgrade(&cursor_state);
   let state = ViewState {
@@ -108,16 +106,14 @@ pub(super) fn new_view(
   unsafe {
     let mtm = MainThreadMarker::from(ns_window);
     let this = TaoView::alloc(mtm).set_ivars(state);
-    let this: Option<Retained<TaoView>> = msg_send![super(this), init];
-    if let Some(this) = &this {
-      this.setPostsFrameChangedNotifications(true);
-      NSNotificationCenter::defaultCenter().addObserver_selector_name_object(
-        this,
-        sel!(frameDidChange:),
-        Some(ns_string!("NSViewFrameDidChangeNotification")),
-        Some(this),
-      );
-    }
+    let this: Retained<TaoView> = msg_send![super(this), init];
+    this.setPostsFrameChangedNotifications(true);
+    NSNotificationCenter::defaultCenter().addObserver_selector_name_object(
+      &this,
+      sel!(frameDidChange:),
+      Some(ns_string!("NSViewFrameDidChangeNotification")),
+      Some(&this),
+    );
     (this, cursor_access)
   }
 }
@@ -132,6 +128,13 @@ pub unsafe fn set_ime_position(ns_view: &NSView, input_context: id, x: f64, y: f
   let base_y = (content_rect.origin.y + content_rect.size.height) as f64;
   state.ime_spot.set(Some((base_x + x, base_y - y)));
   let _: () = msg_send![input_context, invalidateCharacterCoordinates];
+}
+
+fn is_arrow_key(keycode: KeyCode) -> bool {
+  matches!(
+    keycode,
+    KeyCode::ArrowUp | KeyCode::ArrowDown | KeyCode::ArrowLeft | KeyCode::ArrowRight
+  )
 }
 
 define_class!(
@@ -198,7 +201,7 @@ define_class!(
 
         AppState::handle_redraw(WindowId(get_window_id(&state.ns_window.load().unwrap())));
 
-        let () = msg_send![super(self), drawRect: rect];
+        // This is a direct subclass of NSView, no need to call superclass' drawRect:
       }
     }
 
@@ -801,8 +804,10 @@ define_class!(
         let state = self.ivars();
 
         let characters = if let Some(string) = string.downcast_ref::<NSAttributedString>() {
+          // This is a *mut NSAttributedString
           string.string()
         } else {
+          // This is already a *mut NSString
           Retained::from(
             string
               .downcast_ref::<NSString>()
@@ -841,17 +846,40 @@ define_class!(
       // Basically, we're sent this message whenever a keyboard event that doesn't generate a "human readable" character
       // happens, i.e. newlines, tabs, and Ctrl+C.
 
+      // unsafe {
+      //     let state_ptr: *mut c_void = *this.get_ivar("taoState");
+      //     let state = &mut *(state_ptr as *mut ViewState);
+
+      //     let mut events = VecDeque::with_capacity(1);
+      //     if command == sel!(insertNewline:) {
+      //         // The `else` condition would emit the same character, but I'm keeping this here both...
+      //         // 1) as a reminder for how `doCommandBySelector` works
+      //         // 2) to make our use of carriage return explicit
+      //         events.push_back(EventWrapper::StaticEvent(Event::WindowEvent {
+      //             window_id: WindowId(get_window_id(&state.ns_window.load().unwrap())),
+      //             event: WindowEvent::ReceivedCharacter('\r'),
+      //         }));
+      //     } else {
+      //         let raw_characters = state.raw_characters.take();
+      //         if let Some(raw_characters) = raw_characters {
+      //             for character in raw_characters
+      //                 .chars()
+      //                 .filter(|c| !is_corporate_character(*c))
+      //             {
+      //                 events.push_back(EventWrapper::StaticEvent(Event::WindowEvent {
+      //                     window_id: WindowId(get_window_id(&state.ns_window.load().unwrap())),
+      //                     event: WindowEvent::ReceivedCharacter(character),
+      //                 }));
+      //             }
+      //         }
+      //     };
+      //     AppState::queue_events(events);
+      // }
+
       trace!("Completed `doCommandBySelector`");
     }
   }
 );
-
-fn is_arrow_key(keycode: KeyCode) -> bool {
-  matches!(
-    keycode,
-    KeyCode::ArrowUp | KeyCode::ArrowDown | KeyCode::ArrowLeft | KeyCode::ArrowRight
-  )
-}
 
 // Get characters
 // fn get_characters(event: id, ignore_modifiers: bool) -> String {
