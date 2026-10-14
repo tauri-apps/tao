@@ -5,6 +5,7 @@ use objc2::{
   rc::Retained,
   runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel},
 };
+use objc2_app_kit::{NSBezierPath, NSColor};
 use objc2_foundation::{NSArray, NSInsetRect, NSPoint, NSRect, NSSize};
 
 use super::ffi::{id, nil, NO};
@@ -137,28 +138,25 @@ extern "C-unwind" fn draw_progress_bar(this: &Object, _: Sel, rect: NSRect) {
     bar_progress.size.width *= normalized_progress;
 
     // draw outer bar
-    let bg_color: id = msg_send![class!(NSColor), colorWithWhite:1.0 alpha:0.05];
-    let _: () = msg_send![bg_color, set];
+    let bg_color = NSColor::colorWithWhite_alpha(1.0, 0.05);
+    bg_color.set();
     draw_rounded_rect(bar);
     // draw inner bar
     draw_rounded_rect(bar_inner);
 
     // draw progress
     let state: u8 = *(this.get_ivar("state"));
-    let progress_color: id = match state {
-      x if x == ProgressState::Paused as u8 => msg_send![class!(NSColor), systemYellowColor],
-      x if x == ProgressState::Error as u8 => msg_send![class!(NSColor), systemRedColor],
-      _ => msg_send![class!(NSColor), systemBlueColor],
+    let progress_color = match state {
+      x if x == ProgressState::Paused as u8 => NSColor::systemYellowColor(),
+      x if x == ProgressState::Error as u8 => NSColor::systemRedColor(),
+      _ => NSColor::systemBlueColor(),
     };
-    let _: () = msg_send![progress_color, set];
+    progress_color.set();
     draw_rounded_rect(bar_progress);
   }
 }
 
 fn draw_rounded_rect(rect: NSRect) {
-  unsafe {
-    let raduis = rect.size.height / 2.0;
-    let bezier_path: id = msg_send![class!(NSBezierPath), bezierPathWithRoundedRect:rect, xRadius:raduis, yRadius:raduis];
-    let _: () = msg_send![bezier_path, fill];
-  }
+  let radius = rect.size.height / 2.0;
+  unsafe { NSBezierPath::bezierPathWithRoundedRect_xRadius_yRadius(rect, radius, radius).fill() };
 }

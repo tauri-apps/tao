@@ -14,6 +14,7 @@ use std::{
 };
 
 use objc2::{rc::Retained, runtime::AnyObject, MainThreadMarker, Message};
+use objc2_foundation::NSObjectProtocol;
 use objc2_ui_kit::{UIApplication, UIScene, UISceneConnectionOptions, UIWindowScene};
 
 use crate::{
@@ -1125,11 +1126,8 @@ pub fn os_capabilities() -> OSCapabilities {
   use std::sync::LazyLock;
   static OS_CAPABILITIES: LazyLock<OSCapabilities> = LazyLock::new(|| {
     let version: NSOperatingSystemVersion = unsafe {
-      let process_info: id = msg_send![class!(NSProcessInfo), processInfo];
-      let atleast_ios_8: bool = msg_send![
-          process_info,
-          respondsToSelector: sel!(operatingSystemVersion)
-      ];
+      let process_info = objc2_foundation::NSProcessInfo::processInfo();
+      let atleast_ios_8 = process_info.respondsToSelector(sel!(operatingSystemVersion));
       // tao requires atleast iOS 8 because no one has put the time into supporting earlier os versions.
       // Older iOS versions are increasingly difficult to test. For example, Xcode 11 does not support
       // debugging on devices with an iOS version of less than 8. Another example, in order to use an iOS
@@ -1138,7 +1136,12 @@ pub fn os_capabilities() -> OSCapabilities {
       //
       // The minimum required iOS version is likely to grow in the future.
       assert!(atleast_ios_8, "`tao` requires iOS version 8 or greater");
-      msg_send![process_info, operatingSystemVersion]
+      let version = process_info.operatingSystemVersion();
+      NSOperatingSystemVersion {
+        major: version.majorVersion,
+        minor: version.minorVersion,
+        patch: version.patchVersion,
+      }
     };
     version.into()
   });

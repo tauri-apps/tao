@@ -4,12 +4,11 @@
 
 use std::{collections::HashSet, ffi::c_void, os::raw::c_ushort, sync::Mutex};
 
-use objc2::{msg_send, rc::Retained};
+use objc2::rc::Retained;
 use objc2_app_kit::{NSEvent, NSEventModifierFlags, NSWindow};
 use std::sync::LazyLock;
 
 use core_foundation::{base::CFRelease, data::CFDataGetBytePtr};
-use objc2_foundation::NSString;
 
 use crate::{
   dpi::LogicalSize,
@@ -112,7 +111,7 @@ pub fn get_modifierless_char(scancode: u16) -> Key<'static> {
 }
 
 fn get_logical_key_char(ns_event: &NSEvent, modifierless_chars: &str) -> Key<'static> {
-  let characters: Retained<NSString> = unsafe { msg_send![ns_event, charactersIgnoringModifiers] };
+  let characters = unsafe { ns_event.charactersIgnoringModifiers().unwrap_or_default() };
   let string = characters.to_string();
   if string.is_empty() {
     // Probably a dead key
@@ -140,7 +139,7 @@ pub fn create_key_event(
     if key_override.is_some() {
       None
     } else {
-      let characters: Retained<NSString> = unsafe { msg_send![ns_event, characters] };
+      let characters = unsafe { ns_event.characters().unwrap_or_default() };
       let characters = characters.to_string();
       if characters.is_empty() {
         None
@@ -331,5 +330,5 @@ pub fn get_scancode(event: &NSEvent) -> c_ushort {
   // and there is no easy way to navtively retrieve the layout-dependent character.
   // In tao, we use keycode to refer to the key's character, and so this function aligns
   // AppKit's terminology with ours.
-  unsafe { msg_send![event, keyCode] }
+  unsafe { event.keyCode() }
 }
