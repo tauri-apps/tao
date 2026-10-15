@@ -30,7 +30,7 @@ use crate::{
       monitor::{self, MonitorHandle, VideoMode},
       util::{self, IdRef},
       view::{self, new_view, CursorState},
-      window_delegate::new_delegate,
+      window_delegate::{new_delegate, WindowDelegate},
       OsError,
     },
     set_badge_label, set_progress_indicator,
@@ -131,7 +131,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
 unsafe fn create_view(
   ns_window: &NSWindow,
   pl_attribs: &PlatformSpecificWindowBuilderAttributes,
-) -> (Retained<NSView>, Weak<Mutex<CursorState>>) {
+) -> (Retained<TaoView>, Weak<Mutex<CursorState>>) {
   let (ns_view, cursor_state) = new_view(ns_window);
   if !pl_attribs.disallow_hidpi {
     #[allow(deprecated)]
@@ -154,7 +154,7 @@ unsafe fn create_view(
     ns_view.setWantsLayer(true);
   }
 
-  (Retained::into_super(ns_view), cursor_state)
+  (ns_view, cursor_state)
 }
 
 fn create_window(
@@ -187,7 +187,7 @@ fn create_window(
           .position
           .and_then(screen_from_position)
           .unwrap_or_else(|| appkit::NSScreen::mainScreen(mtm).unwrap());
-        let scale_factor = NSScreen::backingScaleFactor(&screen) as f64;
+        let scale_factor = NSScreen::backingScaleFactor(&screen);
         let desired_size = attrs
           .inner_size
           .unwrap_or_else(|| PhysicalSize::new(800, 600).into());
@@ -498,9 +498,9 @@ impl From<WindowAttributes> for SharedState {
 }
 
 pub struct UnownedWindow {
-  pub ns_window: Retained<NSWindow>, // never changes
-  pub ns_view: Retained<NSView>,     // never changes
-  input_context: IdRef,              // never changes
+  pub ns_window: Retained<NSWindow>,     // never changes
+  pub(super) ns_view: Retained<TaoView>, // never changes
+  input_context: IdRef,                  // never changes
   pub shared_state: Arc<Mutex<SharedState>>,
   decorations: AtomicBool,
   cursor_state: Weak<Mutex<CursorState>>,
@@ -512,10 +512,10 @@ unsafe impl Send for UnownedWindow {}
 unsafe impl Sync for UnownedWindow {}
 
 impl UnownedWindow {
-  pub fn new(
+  pub(super) fn new(
     mut win_attribs: WindowAttributes,
     pl_attribs: PlatformSpecificWindowBuilderAttributes,
-  ) -> Result<(Arc<Self>, IdRef), RootOsError> {
+  ) -> Result<(Arc<Self>, Retained<WindowDelegate>), RootOsError> {
     if !util::is_main_thread() {
       panic!("Windows can only be created on the main thread on macOS");
     }
@@ -535,7 +535,7 @@ impl UnownedWindow {
 
     let input_context = unsafe { util::create_input_context(&ns_view) };
 
-    let scale_factor = unsafe { NSWindow::backingScaleFactor(&ns_window) as f64 };
+    let scale_factor = unsafe { NSWindow::backingScaleFactor(&ns_window) };
 
     unsafe {
       if win_attribs.transparent {
@@ -703,7 +703,7 @@ impl UnownedWindow {
   pub fn outer_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
     let frame_rect = unsafe { NSWindow::frame(&self.ns_window) };
     let position = LogicalPosition::new(
-      frame_rect.origin.x as f64,
+      frame_rect.origin.x,
       util::bottom_left_to_top_left(frame_rect),
     );
     let scale_factor = self.scale_factor();
@@ -715,7 +715,7 @@ impl UnownedWindow {
       NSWindow::contentRectForFrameRect(&self.ns_window, NSWindow::frame(&self.ns_window))
     };
     let position = LogicalPosition::new(
-      content_rect.origin.x as f64,
+      content_rect.origin.x,
       util::bottom_left_to_top_left(content_rect),
     );
     let scale_factor = self.scale_factor();
@@ -733,8 +733,7 @@ impl UnownedWindow {
   #[inline]
   pub fn inner_size(&self) -> PhysicalSize<u32> {
     let view_frame = unsafe { NSView::frame(&self.ns_view) };
-    let logical: LogicalSize<f64> =
-      (view_frame.size.width as f64, view_frame.size.height as f64).into();
+    let logical: LogicalSize<f64> = (view_frame.size.width, view_frame.size.height).into();
     let scale_factor = self.scale_factor();
     logical.to_physical(scale_factor)
   }
@@ -742,8 +741,7 @@ impl UnownedWindow {
   #[inline]
   pub fn outer_size(&self) -> PhysicalSize<u32> {
     let view_frame = unsafe { NSWindow::frame(&self.ns_window) };
-    let logical: LogicalSize<f64> =
-      (view_frame.size.width as f64, view_frame.size.height as f64).into();
+    let logical: LogicalSize<f64> = (view_frame.size.width, view_frame.size.height).into();
     let scale_factor = self.scale_factor();
     logical.to_physical(scale_factor)
   }
@@ -1017,7 +1015,7 @@ impl UnownedWindow {
     shared_state_lock.fullscreen = None;
 
     let maximized = shared_state_lock.maximized;
-    let mask = self.saved_style(&mut *shared_state_lock);
+    let mask = self.saved_style(&mut shared_state_lock);
 
     drop(shared_state_lock);
     trace!("Unlocked shared state in `restore_state_from_fullscreen`");
@@ -1436,7 +1434,7 @@ impl UnownedWindow {
       let screen: Retained<NSScreen> = self.ns_window.screen()?;
       let desc = NSScreen::deviceDescription(&screen);
       let key = ns_string!("NSScreenNumber");
-      let value = NSDictionary::objectForKey(&desc, &key).unwrap();
+      let value = NSDictionary::objectForKey(&desc, key).unwrap();
       let display_id = value.downcast::<NSNumber>().unwrap().unsignedIntegerValue();
       Some(RootMonitorHandle {
         inner: MonitorHandle::new(display_id.try_into().unwrap()),
@@ -1632,7 +1630,7 @@ impl WindowExtMacOS for UnownedWindow {
 
         true
       } else {
-        let new_mask = self.saved_style(&mut *shared_state_lock);
+        let new_mask = self.saved_style(&mut shared_state_lock);
         self.set_style_mask_async(new_mask);
         shared_state_lock.is_simple_fullscreen = false;
 
@@ -1765,8 +1763,8 @@ unsafe fn set_max_inner_size(window: &NSWindow, mut max_size: LogicalSize<f64>) 
   let mut current_rect = NSWindow::frame(window);
   let content_rect = NSWindow::contentRectForFrameRect(window, NSWindow::frame(window));
   // Convert from client area size to window size
-  max_size.width += (current_rect.size.width - content_rect.size.width) as f64; // this tends to be 0
-  max_size.height += (current_rect.size.height - content_rect.size.height) as f64;
+  max_size.width += current_rect.size.width - content_rect.size.width; // this tends to be 0
+  max_size.height += current_rect.size.height - content_rect.size.height;
   window.setMaxSize(NSSize {
     width: max_size.width as CGFloat,
     height: max_size.height as CGFloat,

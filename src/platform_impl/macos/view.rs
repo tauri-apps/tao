@@ -83,7 +83,7 @@ pub(super) struct ViewState {
 
 impl ViewState {
   fn get_scale_factor(&self) -> f64 {
-    (unsafe { NSWindow::backingScaleFactor(&self.ns_window.load().unwrap()) }) as f64
+    unsafe { NSWindow::backingScaleFactor(&self.ns_window.load().unwrap()) }
   }
 }
 
@@ -124,8 +124,8 @@ pub unsafe fn set_ime_position(ns_view: &NSView, input_context: id, x: f64, y: f
     &state.ns_window.load().unwrap(),
     NSWindow::frame(&state.ns_window.load().unwrap()),
   );
-  let base_x = content_rect.origin.x as f64;
-  let base_y = (content_rect.origin.y + content_rect.size.height) as f64;
+  let base_x = content_rect.origin.x;
+  let base_y = content_rect.origin.y + content_rect.size.height;
   state.ime_spot.set(Some((base_x + x, base_y - y)));
   let _: () = msg_send![input_context, invalidateCharacterCoordinates];
 }
@@ -995,8 +995,8 @@ fn mouse_motion(this: &TaoView, event: &NSEvent) {
       }
     }
 
-    let x = view_point.x as f64;
-    let y = view_rect.size.height as f64 - view_point.y as f64;
+    let x = view_point.x;
+    let y = view_rect.size.height - view_point.y;
     let logical_position = LogicalPosition::new(x, y);
 
     update_potentially_stale_modifiers(state, event);
