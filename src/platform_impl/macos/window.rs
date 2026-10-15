@@ -1087,7 +1087,6 @@ impl UnownedWindow {
 
   #[inline]
   pub fn is_closable(&self) -> bool {
-
     self.ns_window.hasCloseBox()
   }
 
