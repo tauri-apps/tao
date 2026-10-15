@@ -235,7 +235,7 @@ impl MonitorHandle {
       Some(screen) => screen,
       None => return 1.0, // default to 1.0 when we can't find the screen
     };
-    NSScreen::backingScaleFactor(&screen) as f64
+    NSScreen::backingScaleFactor(&screen)
   }
 
   pub fn video_modes(&self) -> impl Iterator<Item = RootVideoMode> {
@@ -320,7 +320,7 @@ impl MonitorHandle {
       let key = ns_string!("NSScreenNumber");
       for screen in screens {
         let device_description = NSScreen::deviceDescription(&screen);
-        if let Some(value) = device_description.objectForKey(&key) {
+        if let Some(value) = device_description.objectForKey(key) {
           let value = value.downcast::<NSNumber>().unwrap();
           let other_native_id = value.unsignedIntegerValue();
           let other_uuid =
