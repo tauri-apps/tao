@@ -163,9 +163,8 @@ impl<T> EventLoop<T> {
     setup_control_flow_observers(Rc::downgrade(&panic_info));
 
     let delegate = unsafe {
-      if !util::is_main_thread() {
-        panic!("On macOS, `EventLoop` must be created on the main thread!");
-      }
+      let mtm =
+        MainThreadMarker::new().expect("on macOS, `EventLoop` must be created on the main thread!");
 
       // This must be done before `NSApp()` (equivalent to sending
       // `sharedApplication`) is called anywhere else, or we'll end up
@@ -173,7 +172,7 @@ impl<T> EventLoop<T> {
       // be marked as main.
       let app: Retained<NSApplication> = msg_send![TaoApp::class(), sharedApplication];
 
-      let delegate = AppDelegate::new(MainThreadMarker::new().unwrap());
+      let delegate = AppDelegate::new(mtm);
       let _pool = NSAutoreleasePool::new();
       app.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
       delegate

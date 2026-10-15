@@ -12,7 +12,7 @@ use std::ops::{BitAnd, Deref};
 use core_graphics::display::CGDisplay;
 use objc2::{
   class,
-  runtime::{AnyClass as Class, AnyObject as Object, Sel},
+  runtime::{AnyObject as Object, Sel},
 };
 use objc2_app_kit::{NSApp, NSEvent, NSView, NSWindow, NSWindowStyleMask};
 use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSPoint, NSRange, NSRect, NSUInteger};
