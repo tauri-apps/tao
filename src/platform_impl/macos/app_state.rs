@@ -363,7 +363,17 @@ impl AppState {
   }
 
   pub fn handle_redraw(window_id: WindowId) {
+    // AppKit can call `drawRect:` synchronously while the event handler is already running on
+    // the main thread, for example when a sheet attaches to the window. Re-entering the handler
+    // there would lock its mutex a second time on the same thread, so queue the redraw instead;
+    // `cleared` delivers it once the handler returns. Marking `in_callback` around the direct
+    // delivery defers a draw nested inside the `RedrawRequested` handler the same way.
+    if HANDLER.in_callback.swap(true, Ordering::AcqRel) {
+      AppState::queue_redraw(window_id);
+      return;
+    }
     HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::RedrawRequested(window_id)));
+    HANDLER.set_in_callback(false);
   }
 
   pub fn queue_event(wrapper: EventWrapper) {
