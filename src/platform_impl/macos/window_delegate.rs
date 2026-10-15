@@ -19,7 +19,8 @@ use objc2_app_kit::{
   NSDraggingInfo, NSPasteboard, NSView, NSWindow, NSWindowDelegate,
 };
 use objc2_foundation::{
-  ns_string, NSArray, NSDistributedNotificationCenter, NSObject, NSObjectProtocol, NSString,
+  ns_string, NSArray, NSDistributedNotificationCenter, NSObject, NSObjectNSDelayedPerforming,
+  NSObjectNSThreadPerformAdditions, NSObjectProtocol, NSString,
 };
 
 use crate::{
@@ -29,7 +30,6 @@ use crate::{
   platform_impl::platform::{
     app_state::AppState,
     event::{EventProxy, EventWrapper},
-    ffi::nil,
     util,
     view::{reapply_traffic_light_inset, TaoView},
     window::{get_ns_theme, get_window_id, UnownedWindow},
@@ -410,14 +410,13 @@ define_class!(
         trace!("Unlocked shared state in `window_did_fail_to_enter_fullscreen`");
       });
       if state.initial_fullscreen.get() {
-        let _: () = unsafe {
-          msg_send![
-              &state.ns_window,
-              performSelector:sel!(toggleFullScreen:),
-              withObject:nil,
-              afterDelay: 0.5,
-          ]
-        };
+          unsafe {
+            state.ns_window.performSelector_withObject_afterDelay(
+              sel!(toggleFullScreen:),
+              None,
+              0.5,
+            )
+          }
       } else {
         state.with_window(|window| window.restore_state_from_fullscreen());
       }
@@ -433,7 +432,7 @@ define_class!(
 
       use std::path::PathBuf;
 
-      let pb = unsafe{ sender.draggingPasteboard() };
+      let pb = unsafe { sender.draggingPasteboard() };
       let filenames =
         unsafe { NSPasteboard::propertyListForType(&pb, appkit::NSFilenamesPboardType) }.unwrap();
 
@@ -468,7 +467,7 @@ define_class!(
 
       use std::path::PathBuf;
 
-      let pb = unsafe{ sender.draggingPasteboard() };
+      let pb = unsafe { sender.draggingPasteboard() };
       let filenames =
         unsafe { NSPasteboard::propertyListForType(&pb, appkit::NSFilenamesPboardType) }.unwrap();
 
@@ -522,9 +521,7 @@ define_class!(
     #[unsafe(method(effectiveAppearanceDidChange:))]
     fn effective_appearance_did_change(&self, _: Option<&AnyObject>) {
       trace!("Triggered `effectiveAppearDidChange:`");
-      unsafe {
-        let _: () = msg_send![self, performSelectorOnMainThread: sel!(effectiveAppearanceDidChangedOnMainThread:), withObject:nil, waitUntilDone:false];
-      }
+      unsafe { self.performSelectorOnMainThread_withObject_waitUntilDone(sel!(effectiveAppearanceDidChangedOnMainThread:), None, false) };
     }
 
     #[unsafe(method(effectiveAppearanceDidChangedOnMainThread:))]
