@@ -200,11 +200,7 @@ define_class!(
     fn scene_continueUserActivity(&self, _scene: &UIScene, user_activity: &NSUserActivity) {
       unsafe {
         // universal app links
-        if let Some(url) = user_activity
-          .webpageURL()
-          .and_then(|url| url.absoluteString())
-        {
-          let url = url.to_string().parse::<url::Url>().unwrap();
+        if let Some(url) = universal_link_url(user_activity, "scene:continueUserActivity:") {
           app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened {
             urls: vec![url],
           }));
