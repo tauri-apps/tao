@@ -160,7 +160,7 @@ pub enum ControlFlow {
   ///
   /// ## Platform-specific
   ///
-  /// - **Android / iOS / WASM**: The supplied exit code is unused.
+  /// - **iOS / WASM**: The supplied exit code is unused.
   /// - **Unix**: On most Unix-like platforms, only the 8 least significant bits will be used,
   ///   which can cause surprises with negative exit values (`-42` would end up as `214`). See
   ///   [`std::process::exit`].
@@ -212,6 +212,7 @@ impl<T> EventLoop<T> {
   ///
   /// ## Platform-specific
   ///
+  /// - **Android** terminates the process without running libc exit handlers or static destructors.
   /// - **Unix**: The program terminates with exit code 1 if the display server
   ///   disconnects.
   ///
