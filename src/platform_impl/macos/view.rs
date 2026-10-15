@@ -588,7 +588,7 @@ define_class!(
 
         let delta = {
           // macOS horizontal sign convention is the inverse of tao.
-          let (x, y) = (event.scrollingDeltaX() * -1.0, event.scrollingDeltaY());
+          let (x, y) = (-event.scrollingDeltaX(), event.scrollingDeltaY());
           if event.hasPreciseScrollingDeltas() {
             let delta = LogicalPosition::new(x, y).to_physical(state.get_scale_factor());
             MouseScrollDelta::PixelDelta(delta)

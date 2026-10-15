@@ -585,7 +585,7 @@ impl UnownedWindow {
       Some(theme) => {
         set_ns_theme(Some(theme));
         let mut state = window.shared_state.lock().unwrap();
-        state.current_theme = theme.clone();
+        state.current_theme = theme;
       }
       None => {
         let mut state = window.shared_state.lock().unwrap();
@@ -1087,8 +1087,8 @@ impl UnownedWindow {
 
   #[inline]
   pub fn is_closable(&self) -> bool {
-    let is_closable = self.ns_window.hasCloseBox();
-    is_closable
+
+    self.ns_window.hasCloseBox()
   }
 
   #[inline]
@@ -1716,8 +1716,8 @@ unsafe fn set_min_inner_size(window: &NSWindow, mut min_size: LogicalSize<f64>) 
   let mut current_rect = NSWindow::frame(window);
   let content_rect = NSWindow::contentRectForFrameRect(window, NSWindow::frame(window));
   // Convert from client area size to window size
-  min_size.width += (current_rect.size.width - content_rect.size.width) as f64; // this tends to be 0
-  min_size.height += (current_rect.size.height - content_rect.size.height) as f64;
+  min_size.width += (current_rect.size.width - content_rect.size.width); // this tends to be 0
+  min_size.height += (current_rect.size.height - content_rect.size.height);
   window.setMinSize(NSSize {
     width: min_size.width as CGFloat,
     height: min_size.height as CGFloat,
