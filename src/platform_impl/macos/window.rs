@@ -7,7 +7,6 @@ use std::{
   collections::VecDeque,
   convert::TryInto,
   f64,
-  ffi::CStr,
   os::raw::c_void,
   sync::{
     atomic::{AtomicBool, Ordering},
@@ -45,26 +44,20 @@ use core_graphics::{
   display::{CGDisplay, CGDisplayMode},
   geometry::CGPoint,
 };
-use objc2::{
-  msg_send,
-  rc::Retained,
-  runtime::{AnyClass as Class, AnyObject as Object, Bool, ClassBuilder as ClassDecl, Sel},
-  DefinedClass,
-};
+use objc2::{define_class, msg_send, rc::Retained, ClassType, DefinedClass, MainThreadOnly};
 use objc2_app_kit::{
   self as appkit, NSApp, NSApplicationPresentationOptions, NSBackingStoreType, NSColor, NSEvent,
-  NSEventSubtype, NSEventType, NSRequestUserAttentionType, NSScreen, NSView, NSWindow,
+  NSEventSubtype, NSEventType, NSRequestUserAttentionType, NSResponder, NSScreen, NSView, NSWindow,
   NSWindowButton, NSWindowCollectionBehavior, NSWindowFullScreenButton, NSWindowOrderingMode,
   NSWindowSharingType, NSWindowStyleMask,
 };
 use objc2_foundation::{
   ns_string, MainThreadMarker, NSArray, NSAutoreleasePool, NSDictionary, NSInteger, NSNumber,
-  NSPoint, NSRect, NSSize, NSString,
+  NSObject, NSPoint, NSRect, NSSize, NSString,
 };
-use std::sync::LazyLock;
 
 use super::{
-  ffi::{id, nil, NO},
+  ffi::{id, nil},
   view::TaoView,
 };
 
@@ -160,7 +153,7 @@ unsafe fn create_view(
 fn create_window(
   attrs: &WindowAttributes,
   pl_attrs: &PlatformSpecificWindowBuilderAttributes,
-) -> Option<Retained<NSWindow>> {
+) -> Retained<TaoWindow> {
   unsafe {
     let mtm = MainThreadMarker::new_unchecked();
     let _pool = NSAutoreleasePool::new();
@@ -240,22 +233,17 @@ fn create_window(
       masks |= NSWindowStyleMask::FullSizeContentView;
     }
 
-    let ns_window: id = msg_send![WINDOW_CLASS.0, alloc];
-    let ns_window_ptr: id = msg_send![
-      ns_window,
+    let state = WindowState {
+      focusable: AtomicBool::new(attrs.focusable),
+    };
+    let ns_window = TaoWindow::alloc(mtm).set_ivars(state);
+    let ns_window: Retained<TaoWindow> = msg_send![
+      super(ns_window),
       initWithContentRect: frame,
       styleMask: masks,
       backing: NSBackingStoreType::Buffered,
-      defer: NO,
+      defer: false,
     ];
-
-    let ns_window = Retained::from_raw(ns_window_ptr)?
-      .downcast::<NSWindow>()
-      .ok()?;
-    #[allow(deprecated)]
-    {
-      *((*ns_window_ptr).get_mut_ivar::<Bool>("focusable")) = attrs.focusable.into();
-    }
 
     let title = NSString::from_str(&attrs.title);
     ns_window.setReleasedWhenClosed(false);
@@ -330,7 +318,7 @@ fn create_window(
       ns_window.center();
     }
 
-    Some(ns_window)
+    ns_window
   }
 }
 
@@ -398,54 +386,45 @@ pub(super) fn set_ns_theme(theme: Option<Theme>) {
   }
 }
 
-struct WindowClass(&'static Class);
-
-static WINDOW_CLASS: LazyLock<WindowClass> = LazyLock::new(|| unsafe {
-  let window_superclass = class!(NSWindow);
-  let mut decl = ClassDecl::new(
-    CStr::from_bytes_with_nul(b"TaoWindow\0").unwrap(),
-    window_superclass,
-  )
-  .unwrap();
-  decl.add_method(
-    sel!(canBecomeMainWindow),
-    is_focusable as extern "C-unwind" fn(_, _) -> _,
-  );
-  decl.add_method(
-    sel!(canBecomeKeyWindow),
-    is_focusable as extern "C-unwind" fn(_, _) -> _,
-  );
-  decl.add_method(
-    sel!(sendEvent:),
-    send_event as extern "C-unwind" fn(_, _, _),
-  );
-  // progress bar states, follows ProgressState
-  decl.add_ivar::<Bool>(CStr::from_bytes_with_nul(b"focusable\0").unwrap());
-  WindowClass(decl.register())
-});
-
-extern "C-unwind" fn is_focusable(this: &Object, _: Sel) -> Bool {
-  #[allow(deprecated)] // TODO: Use define_class!
-  unsafe {
-    *(this.get_ivar("focusable"))
-  }
+#[derive(Debug)]
+pub(super) struct WindowState {
+  pub(super) focusable: AtomicBool,
 }
 
-extern "C-unwind" fn send_event(this: &Object, _sel: Sel, event: &NSEvent) {
-  unsafe {
-    let event_type = event.r#type();
-    if event_type == NSEventType::LeftMouseDown {
-      // When wkwebview is set on NSWindow, `WindowBuilder::with_movable_by_window_background` is not working.
-      // Because of this, we need to invoke `[NSWindow performWindowDragWithEvent]` in NSLeftMouseDown event.
-      let is_movable_window: bool = msg_send![this, isMovableByWindowBackground];
-      if is_movable_window {
-        let _: () = msg_send![this, performWindowDragWithEvent: event];
+define_class!(
+  #[unsafe(super(NSWindow, NSResponder, NSObject))]
+  #[thread_kind = MainThreadOnly]
+  #[name = "TaoWindow"]
+  #[ivars = WindowState]
+  #[derive(Debug)]
+  pub(super) struct TaoWindow;
+
+  impl TaoWindow {
+    #[unsafe(method(canBecomeMainWindow))]
+    fn can_become_main_window(&self) -> bool {
+      self.ivars().focusable.load(Ordering::Relaxed)
+    }
+
+    #[unsafe(method(canBecomeKeyWindow))]
+    fn can_become_key_window(&self) -> bool {
+      self.ivars().focusable.load(Ordering::Relaxed)
+    }
+
+    #[unsafe(method(sendEvent:))]
+    fn send_event(&self, event: &NSEvent) {
+      unsafe {
+        if event.r#type() == NSEventType::LeftMouseDown {
+          // When WKWebView is set on NSWindow, movable_by_window_background
+          // requires explicitly starting the window drag on a left mouse down.
+          if self.isMovableByWindowBackground() {
+            self.performWindowDragWithEvent(event);
+          }
+        }
+        let _: () = msg_send![super(self), sendEvent: event];
       }
     }
-    let superclass = util::superclass(this);
-    let _: () = msg_send![super(this, superclass), sendEvent: event];
   }
-}
+);
 
 #[derive(Default)]
 pub struct SharedState {
@@ -498,9 +477,9 @@ impl From<WindowAttributes> for SharedState {
 }
 
 pub struct UnownedWindow {
-  pub ns_window: Retained<NSWindow>,     // never changes
-  pub(super) ns_view: Retained<TaoView>, // never changes
-  input_context: IdRef,                  // never changes
+  pub(super) ns_window: Retained<TaoWindow>, // never changes
+  pub(super) ns_view: Retained<TaoView>,     // never changes
+  input_context: IdRef,                      // never changes
   pub shared_state: Arc<Mutex<SharedState>>,
   decorations: AtomicBool,
   cursor_state: Weak<Mutex<CursorState>>,
@@ -522,9 +501,8 @@ impl UnownedWindow {
     trace!("Creating new window");
 
     let _pool = unsafe { NSAutoreleasePool::new() };
-    let ns_window = create_window(&win_attribs, &pl_attribs)
-      .ok_or_else(|| os_error!(OsError::CreationError("Couldn't create `NSWindow`")))?;
 
+    let ns_window = create_window(&win_attribs, &pl_attribs);
     let (ns_view, cursor_state) = unsafe { create_view(&ns_window, &pl_attribs) };
 
     // Configure the new view as the "key view" for the window
@@ -683,12 +661,11 @@ impl UnownedWindow {
 
   #[inline]
   pub fn set_focusable(&self, focusable: bool) {
-    #[allow(deprecated)] // TODO: Use define_class!
-    unsafe {
-      let ns_window =
-        Retained::into_raw(Retained::cast_unchecked::<Object>(self.ns_window.clone()));
-      *((*ns_window).get_mut_ivar::<Bool>("focusable")) = focusable.into();
-    }
+    self
+      .ns_window
+      .ivars()
+      .focusable
+      .store(focusable, Ordering::Relaxed);
   }
 
   #[inline]
@@ -1550,7 +1527,7 @@ impl UnownedWindow {
 impl WindowExtMacOS for UnownedWindow {
   #[inline]
   fn ns_window(&self) -> *mut c_void {
-    &*self.ns_window as *const NSWindow as *mut _
+    self.ns_window.as_super() as *const NSWindow as *mut _
   }
 
   #[inline]

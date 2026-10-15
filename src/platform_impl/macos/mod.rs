@@ -62,6 +62,8 @@ pub struct Window {
 #[derive(Debug)]
 pub enum OsError {
   CGError(core_graphics::base::CGError),
+  #[allow(unused)]
+  // TODO: Remove
   CreationError(&'static str),
 }
 

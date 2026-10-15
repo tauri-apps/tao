@@ -32,14 +32,14 @@ use crate::{
     event::{EventProxy, EventWrapper},
     util,
     view::{reapply_traffic_light_inset, TaoView},
-    window::{get_ns_theme, get_window_id, UnownedWindow},
+    window::{get_ns_theme, get_window_id, TaoWindow, UnownedWindow},
   },
   window::{Fullscreen, WindowId},
 };
 
 pub(super) struct WindowDelegateState {
-  ns_window: Retained<NSWindow>, // never changes
-  view: Retained<TaoView>,       // never changes
+  ns_window: Retained<TaoWindow>, // never changes
+  view: Retained<TaoView>,        // never changes
 
   window: Weak<UnownedWindow>,
 
@@ -104,7 +104,7 @@ impl WindowDelegateState {
 
     self.previous_scale_factor.set(scale_factor);
     let wrapper = EventWrapper::EventProxy(EventProxy::DpiChangedProxy {
-      ns_window: self.ns_window.clone(),
+      ns_window: self.ns_window.clone().into_super(),
       suggested_size: self.view_size(),
       scale_factor,
     });
