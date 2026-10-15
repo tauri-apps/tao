@@ -2,57 +2,49 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::VecDeque, ffi::CStr};
+use std::collections::VecDeque;
 
-use objc2::runtime::{AnyClass as Class, ClassBuilder as ClassDecl, Sel};
-use objc2_app_kit::{self as appkit, NSApplication, NSEvent, NSEventType};
-use std::sync::LazyLock;
+use objc2::{define_class, ClassType, MainThreadOnly};
+use objc2_app_kit::{self as appkit, NSApplication, NSEvent, NSEventType, NSResponder};
+use objc2_foundation::NSObject;
 
 use super::{app_state::AppState, event::EventWrapper, util, DEVICE_ID};
 use crate::event::{DeviceEvent, ElementState, Event};
 
-pub struct AppClass(pub *const Class);
-unsafe impl Send for AppClass {}
-unsafe impl Sync for AppClass {}
+define_class!(
+  #[unsafe(super(NSApplication, NSResponder, NSObject))]
+  #[thread_kind = MainThreadOnly]
+  #[name = "TaoApp"]
+  pub(super) struct TaoApp;
 
-pub static APP_CLASS: LazyLock<AppClass> = LazyLock::new(|| unsafe {
-  let superclass = class!(NSApplication);
-  let mut decl =
-    ClassDecl::new(CStr::from_bytes_with_nul(b"TaoApp\0").unwrap(), superclass).unwrap();
-
-  decl.add_method(
-    sel!(sendEvent:),
-    send_event as extern "C-unwind" fn(_, _, _),
-  );
-
-  AppClass(decl.register())
-});
-
-// Normally, holding Cmd + any key never sends us a `keyUp` event for that key.
-// Overriding `sendEvent:` like this fixes that. (https://stackoverflow.com/a/15294196)
-// Fun fact: Firefox still has this bug! (https://bugzilla.mozilla.org/show_bug.cgi?id=1299553)
-extern "C-unwind" fn send_event(this: &NSApplication, _sel: Sel, event: &NSEvent) {
-  unsafe {
-    // For posterity, there are some undocumented event types
-    // (https://github.com/servo/cocoa-rs/issues/155)
-    // but that doesn't really matter here.
-    let event_type = event.r#type();
-    let modifier_flags = event.modifierFlags();
-    if event_type == appkit::NSKeyUp
-      && util::has_flag(modifier_flags, appkit::NSEventModifierFlags::Command)
-    {
-      if let Some(key_window) = this.keyWindow() {
-        key_window.sendEvent(event);
-      } else {
-        log::debug!("skip sending CMD keyEvent - app has no keyWindow");
+  impl TaoApp {
+    // Normally, holding Cmd + any key never sends us a `keyUp` event for that key.
+    // Overriding `sendEvent:` like this fixes that. (https://stackoverflow.com/a/15294196)
+    // Fun fact: Firefox still has this bug! (https://bugzilla.mozilla.org/show_bug.cgi?id=1299553)
+    #[unsafe(method(sendEvent:))]
+    fn send_event(&self, event: &NSEvent) {
+      unsafe {
+        // For posterity, there are some undocumented event types
+        // (https://github.com/servo/cocoa-rs/issues/155)
+        // but that doesn't really matter here.
+        let event_type = event.r#type();
+        let modifier_flags = event.modifierFlags();
+        if event_type == appkit::NSKeyUp
+          && util::has_flag(modifier_flags, appkit::NSEventModifierFlags::Command)
+        {
+          if let Some(key_window) = self.keyWindow() {
+            key_window.sendEvent(event);
+          } else {
+            log::debug!("skip sending CMD keyEvent - app has no keyWindow");
+          }
+        } else {
+          maybe_dispatch_device_event(event);
+          self.as_super().sendEvent(event);
+        }
       }
-    } else {
-      maybe_dispatch_device_event(event);
-      let superclass = util::superclass(this);
-      let _: () = msg_send![super(this, superclass), sendEvent: event];
     }
   }
-}
+);
 
 unsafe fn maybe_dispatch_device_event(event: &NSEvent) {
   let event_type = event.r#type();

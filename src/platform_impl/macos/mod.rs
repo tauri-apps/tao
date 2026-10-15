@@ -55,13 +55,15 @@ pub struct Window {
   window: Arc<UnownedWindow>,
   // We keep this around so that it doesn't get dropped until the window does.
   #[allow(dead_code)]
-  delegate: util::IdRef,
+  delegate: objc2::rc::Retained<window_delegate::WindowDelegate>,
 }
 
 #[non_exhaustive]
 #[derive(Debug)]
 pub enum OsError {
   CGError(core_graphics::base::CGError),
+  #[allow(unused)]
+  // TODO: Remove
   CreationError(&'static str),
 }
 
