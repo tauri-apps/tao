@@ -105,11 +105,6 @@ pub fn cursor_position() -> Result<PhysicalPosition<f64>, ExternalError> {
   Ok(point.to_physical(super::monitor::primary_monitor().scale_factor()))
 }
 
-pub unsafe fn superclass<'a>(this: &'a Object) -> &'a Class {
-  let superclass: *const Class = msg_send![this, superclass];
-  &*superclass
-}
-
 pub unsafe fn create_input_context(view: &NSView) -> IdRef {
   let input_context: id = msg_send![class!(NSTextInputContext), alloc];
   let input_context: id = msg_send![input_context, initWithClient: view];

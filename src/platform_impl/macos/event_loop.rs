@@ -15,7 +15,7 @@ use std::{
 };
 
 use crossbeam_channel::{self as channel, Receiver, Sender};
-use objc2::{msg_send, rc::Retained};
+use objc2::{msg_send, rc::Retained, runtime::ProtocolObject, ClassType};
 use objc2_app_kit::{NSApp, NSApplication, NSEventModifierFlags, NSEventSubtype, NSEventType};
 use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSInteger, NSPoint, NSTimeInterval};
 
@@ -27,13 +27,13 @@ use crate::{
   monitor::MonitorHandle as RootMonitorHandle,
   platform_impl::{
     platform::{
-      app::APP_CLASS,
-      app_delegate::APP_DELEGATE_CLASS,
+      app::TaoApp,
+      app_delegate::AppDelegate,
       app_state::AppState,
       ffi::{id, nil, YES},
       monitor::{self, MonitorHandle},
       observer::*,
-      util::{self, IdRef},
+      util,
     },
     set_badge_label, set_progress_indicator,
   },
@@ -140,7 +140,7 @@ impl<T: 'static> EventLoopWindowTarget<T> {
 }
 
 pub struct EventLoop<T: 'static> {
-  pub(crate) delegate: IdRef,
+  pub(crate) delegate: Retained<AppDelegate>,
 
   window_target: Rc<RootWindowTarget<T>>,
   panic_info: Rc<PanicInfo>,
@@ -171,11 +171,11 @@ impl<T> EventLoop<T> {
       // `sharedApplication`) is called anywhere else, or we'll end up
       // with the wrong `NSApplication` class and the wrong thread could
       // be marked as main.
-      let app: id = msg_send![APP_CLASS.0, sharedApplication];
+      let app: Retained<NSApplication> = msg_send![TaoApp::class(), sharedApplication];
 
-      let delegate = IdRef::new(msg_send![APP_DELEGATE_CLASS.0, new]);
+      let delegate = AppDelegate::new(MainThreadMarker::new().unwrap());
       let _pool = NSAutoreleasePool::new();
-      let _: () = msg_send![app, setDelegate:*delegate];
+      app.setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
       delegate
     };
 
