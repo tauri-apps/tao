@@ -148,6 +148,7 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSGraphics",
   "NSGraphicsContext",
   "NSImage",
+  "NSImageView",
   "NSOpenGLView",
   "NSPasteboard",
   "NSProgressIndicator",
