@@ -62,14 +62,36 @@ impl Drop for Inner {
           );
         }
       }
+
+      // UIKit keeps a visible window alive and listed in `scene.windows` after we release it,
+      // so the scene delegate would keep reporting events for it, `Destroyed` from
+      // `sceneDidDisconnect:` included. Hide it and detach it from its scene first.
+      let was_key = window.isKeyWindow();
+      window.setHidden(true);
+      window.setWindowScene(None);
+      // hiding the key window makes UIKit call `resignKeyWindow` right away, which already
+      // emitted `Focused(false)` for it
+      let resigned = was_key && !window.isKeyWindow();
+
       let () = msg_send![self.view, release];
       let () = msg_send![self.view_controller, release];
       let () = msg_send![self.window, release];
 
-      app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::WindowEvent {
-        window_id: RootWindowId(self.window.into()),
-        event: WindowEvent::Focused(false),
+      // the app dropped the window while its scene may stay connected (e.g. a secondary
+      // window sharing the main window's scene), so `sceneDidDisconnect:` won't report it
+      let window_id = RootWindowId(self.window.into());
+      let mut events = Vec::with_capacity(2);
+      if !resigned {
+        events.push(EventWrapper::StaticEvent(Event::WindowEvent {
+          window_id,
+          event: WindowEvent::Focused(false),
+        }));
+      }
+      events.push(EventWrapper::StaticEvent(Event::WindowEvent {
+        window_id,
+        event: WindowEvent::Destroyed,
       }));
+      app_state::handle_nonuser_events(events);
     }
   }
 }
