@@ -368,7 +368,9 @@ impl<T> EventLoopRunner<T> {
         self.call_event_handler(Event::LoopDestroyed);
       }
 
-      (Destroyed, _) => panic!("cannot move state from Destroyed"),
+      (Destroyed, state) => {
+        debug!("Eventloop is already destroyed, cannot move to {state:?}")
+      }
     }
   }
 
