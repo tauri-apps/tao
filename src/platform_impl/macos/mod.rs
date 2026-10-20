@@ -62,9 +62,6 @@ pub struct Window {
 #[derive(Debug)]
 pub enum OsError {
   CGError(core_graphics::base::CGError),
-  #[allow(unused)]
-  // TODO: Remove
-  CreationError(&'static str),
 }
 
 unsafe impl Send for Window {}
@@ -92,8 +89,7 @@ impl Window {
 impl fmt::Display for OsError {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      OsError::CGError(e) => f.pad(&format!("CGError {}", e)),
-      OsError::CreationError(e) => f.pad(e),
+      OsError::CGError(e) => f.pad(&format!("CGError {e}")),
     }
   }
 }
