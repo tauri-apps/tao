@@ -131,6 +131,7 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
   "NSThread",
   "NSURL",
   "NSValue",
+  "NSRunLoop",
 ] }
 objc2-app-kit = { version = "0.3", default-features = false, features = [
   "std",
@@ -142,6 +143,7 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSControl",
   "NSCursor",
   "NSDockTile",
+  "NSDragging",
   "NSEvent",
   "NSGraphics",
   "NSGraphicsContext",
