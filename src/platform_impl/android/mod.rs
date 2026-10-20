@@ -202,7 +202,8 @@ impl<T: 'static> EventLoop<T> {
       'static + FnMut(event::Event<'_, T>, &event_loop::EventLoopWindowTarget<T>, &mut ControlFlow),
   {
     let exit_code = self.run_return(event_handler);
-    ::std::process::exit(exit_code);
+    // SAFETY: `_exit` has no preconditions and skips ART's static destructors.
+    unsafe { libc::_exit(exit_code) }
   }
 
   pub fn run_return<F>(&mut self, mut event_handler: F) -> i32
