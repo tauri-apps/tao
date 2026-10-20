@@ -420,7 +420,7 @@ define_class!(
             self.performWindowDragWithEvent(event);
           }
         }
-        self.as_super().sendEvent(event);
+        let _: () = msg_send![super(self), sendEvent: event];
       }
     }
   }
