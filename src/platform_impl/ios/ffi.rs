@@ -299,6 +299,7 @@ impl UIScreenOverscanCompensation {
 extern "C" {
   pub static kCFRunLoopDefaultMode: CFRunLoopMode;
   pub static kCFRunLoopCommonModes: CFRunLoopMode;
+  pub static UITrackingRunLoopMode: CFRunLoopMode;
 
   pub fn UIApplicationMain(
     argc: c_int,
@@ -309,6 +310,7 @@ extern "C" {
 
   pub fn CFRunLoopGetMain() -> CFRunLoopRef;
   pub fn CFRunLoopWakeUp(rl: CFRunLoopRef);
+  pub fn CFRunLoopCopyCurrentMode(rl: CFRunLoopRef) -> CFRunLoopMode;
 
   pub fn CFRunLoopObserverCreate(
     allocator: CFAllocatorRef,
@@ -348,6 +350,7 @@ extern "C" {
 
   pub fn CFAbsoluteTimeGetCurrent() -> CFAbsoluteTime;
   pub fn CFRelease(cftype: *const c_void);
+  pub fn CFEqual(cf1: *const c_void, cf2: *const c_void) -> Boolean;
 }
 
 pub type Boolean = u8;
