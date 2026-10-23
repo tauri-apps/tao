@@ -329,7 +329,7 @@ impl MonitorHandle {
         let value = value.downcast::<NSNumber>().unwrap();
         let other_native_id = value.unsignedIntegerValue();
         if self.0 == other_native_id as CGDirectDisplayID {
-          return Some(screen.retain());
+          return Some(screen);
         }
       }
     }
