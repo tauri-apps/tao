@@ -5,6 +5,7 @@
 use std::{
   cell::Cell,
   ffi::CStr,
+  path::PathBuf,
   sync::{Arc, Weak},
 };
 
@@ -164,6 +165,29 @@ pub(super) fn new_delegate(
     );
   }
   delegate
+}
+
+/// Collects the file paths of a dragging pasteboard, empty if it carries none.
+unsafe fn collect_paths(sender: &ProtocolObject<dyn NSDraggingInfo>) -> Vec<PathBuf> {
+  let pb = sender.draggingPasteboard();
+  let Some(filenames) = NSPasteboard::propertyListForType(&pb, appkit::NSFilenamesPboardType)
+  else {
+    return Vec::new();
+  };
+  let Ok(filenames) = filenames.downcast::<NSArray>() else {
+    return Vec::new();
+  };
+
+  filenames
+    .iter()
+    .filter_map(|file| file.downcast::<NSString>().ok())
+    .map(|file| {
+      let path = CStr::from_ptr(NSString::UTF8String(&file))
+        .to_string_lossy()
+        .into_owned();
+      PathBuf::from(path)
+    })
+    .collect()
 }
 
 define_class!(
@@ -430,22 +454,8 @@ define_class!(
     fn dragging_entered(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> NSDragOperation {
       trace!("Triggered `draggingEntered:`");
 
-      use std::path::PathBuf;
-
-      let pb = unsafe { sender.draggingPasteboard() };
-      let filenames =
-        unsafe { NSPasteboard::propertyListForType(&pb, appkit::NSFilenamesPboardType) }.unwrap();
-
-      for file in unsafe { Retained::cast_unchecked::<NSArray>(filenames) } {
-        let file = unsafe { Retained::cast_unchecked::<NSString>(file) };
-
-        unsafe {
-          let f = NSString::UTF8String(&file);
-          let path = CStr::from_ptr(f).to_string_lossy().into_owned();
-
-          let state = self.ivars();
-          state.emit_event(WindowEvent::HoveredFile(PathBuf::from(path)));
-        }
+      for path in unsafe { collect_paths(sender) } {
+        self.ivars().emit_event(WindowEvent::HoveredFile(path));
       }
 
       trace!("Completed `draggingEntered:`");
@@ -465,22 +475,8 @@ define_class!(
     fn perform_drag_operation(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> bool {
       trace!("Triggered `performDragOperation:`");
 
-      use std::path::PathBuf;
-
-      let pb = unsafe { sender.draggingPasteboard() };
-      let filenames =
-        unsafe { NSPasteboard::propertyListForType(&pb, appkit::NSFilenamesPboardType) }.unwrap();
-
-      for file in unsafe { Retained::cast_unchecked::<NSArray>(filenames) } {
-        let file = unsafe { Retained::cast_unchecked::<NSString>(file) };
-
-        unsafe {
-          let f = NSString::UTF8String(&file);
-          let path = CStr::from_ptr(f).to_string_lossy().into_owned();
-
-          let state = self.ivars();
-          state.emit_event(WindowEvent::DroppedFile(PathBuf::from(path)));
-        }
+      for path in unsafe { collect_paths(sender) } {
+        self.ivars().emit_event(WindowEvent::DroppedFile(path));
       }
 
       trace!("Completed `performDragOperation:`");
