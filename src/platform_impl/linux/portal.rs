@@ -5,7 +5,7 @@ use dbus::{
   message::MatchRule,
   Error,
 };
-use gtk::glib::{ControlFlow, MainContext, Priority, Sender};
+use gtk::glib::MainContext;
 use log::warn;
 use std::{thread, time::Duration};
 
@@ -31,10 +31,12 @@ pub fn theme() -> Result<Theme, Error> {
   Ok(color_scheme_to_theme(result.0 .0 .0))
 }
 
-pub fn receive_theme_changed(window_tx: Sender<(WindowId, WindowRequest)>) -> Result<(), Error> {
+pub fn receive_theme_changed(
+  window_tx: async_channel::Sender<(WindowId, WindowRequest)>,
+) -> Result<(), Error> {
   let conn = SyncConnection::new_session()?;
   let match_rule = MatchRule::new_signal("org.freedesktop.portal.Settings", "SettingChanged");
-  let (tx, rx) = MainContext::channel(Priority::DEFAULT);
+  let (tx, rx) = async_channel::unbounded();
 
   conn.add_match(match_rule, move |_: (), _, msg| {
     let mut iter = msg.iter_init();
@@ -43,19 +45,22 @@ pub fn receive_theme_changed(window_tx: Sender<(WindowId, WindowRequest)>) -> Re
       iter.read::<&str>(),         // Key
       iter.read::<Variant<u32>>(), // Value
     ) {
-      if let Err(e) = tx.send(color_scheme_to_theme(value.0)) {
+      if let Err(e) = tx.send_blocking(color_scheme_to_theme(value.0)) {
         warn!("Failed to send theme change via channel: {}", e);
       }
     }
     true
   })?;
 
-  rx.attach(None, move |theme| {
-    if let Err(e) = window_tx.send((WindowId::dummy(), WindowRequest::SetTheme(Some(theme)))) {
-      warn!("Failed to send theme change request: {}", e);
-      ControlFlow::Break
-    } else {
-      ControlFlow::Continue
+  MainContext::default().spawn_local(async move {
+    while let Ok(theme) = rx.recv().await {
+      if let Err(e) = window_tx
+        .send((WindowId::dummy(), WindowRequest::SetTheme(Some(theme))))
+        .await
+      {
+        warn!("Failed to send theme change request: {}", e);
+        break;
+      }
     }
   });
 
