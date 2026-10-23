@@ -109,22 +109,26 @@ impl Window {
 
     window.set_default_size(width, height);
 
-    // Trying to prevent Wayland Protocol Error about mismatched xdg_surface_buffer sizes
-    let maximized = attributes.maximized;
-    let resizable = attributes.resizable;
-    let configure_handler_id = Rc::new(RefCell::new(None));
-    let configure_handler_id_ = configure_handler_id.clone();
-    let id = window.connect_configure_event(move |window, _| {
-      if let Some(id) = configure_handler_id_.take() {
-        window.disconnect(id);
-        if maximized {
+    if attributes.maximized {
+      // Keep the window resizable until its first configure before maximizing.
+      // Changing this sequence can cause mismatched Wayland buffer sizes.
+      let resizable = attributes.resizable;
+      let configure_handler_id = Rc::new(RefCell::new(None));
+      let configure_handler_id_ = configure_handler_id.clone();
+      let id = window.connect_configure_event(move |window, _| {
+        if let Some(id) = configure_handler_id_.take() {
+          window.disconnect(id);
           window.maximize();
+          window.set_resizable(resizable);
         }
-        window.set_resizable(resizable);
-      }
-      false
-    });
-    configure_handler_id.borrow_mut().replace(id);
+        false
+      });
+      configure_handler_id.borrow_mut().replace(id);
+    } else {
+      // Publish fixed-size intent before the compositor's first configure.
+      // Otherwise GTK can lock in a tiling compositor's enlarged allocation.
+      window.set_resizable(attributes.resizable);
+    }
 
     window.set_deletable(attributes.closable);
 
