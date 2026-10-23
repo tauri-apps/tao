@@ -8,7 +8,7 @@ use std::{
 };
 
 use core_graphics::base::CGFloat;
-use dispatch2::{DispatchQueue, DispatchQueueAttr};
+use dispatch2::DispatchQueue;
 use objc2::{rc::autoreleasepool, Message};
 use objc2_app_kit::{NSScreen, NSView, NSWindow, NSWindowStyleMask};
 use objc2_foundation::{MainThreadMarker, NSPoint, NSSize, NSString};
@@ -16,7 +16,8 @@ use objc2_foundation::{MainThreadMarker, NSPoint, NSSize, NSString};
 use crate::{
   dpi::LogicalSize,
   platform_impl::platform::{
-    ffi::{self, id, NO, YES},
+    ffi::{self, id, YES},
+    view::reapply_traffic_light_inset,
     window::SharedState,
   },
 };
@@ -190,7 +191,7 @@ pub unsafe fn set_maximized_async(
         } else {
           shared_state_lock.saved_standard_frame()
         };
-        let _: () = msg_send![&*ns_window, setFrame:new_rect, display:NO, animate: YES];
+        ns_window.setFrame_display_animate(new_rect, false, true);
       }
 
       trace!("Unlocked shared state in `set_maximized`");
@@ -219,11 +220,16 @@ pub unsafe fn make_key_and_order_front_sync(ns_window: &NSWindow) {
 // `setTitle:` isn't thread-safe. Calling it from another thread invalidates the
 // window drag regions, which throws an exception when not done in the main
 // thread
-pub unsafe fn set_title_async(ns_window: &NSWindow, title: String) {
+pub unsafe fn set_title_async(ns_window: &NSWindow, ns_view: &NSView, title: String) {
   let ns_window = MainThreadSafe(ns_window.retain());
+  let ns_view = MainThreadSafe(ns_view.retain());
   DispatchQueue::main().exec_async(move || {
     let title = NSString::from_str(&title);
     ns_window.setTitle(&title);
+    // `setTitle:` moves the traffic light buttons back to their default spot.
+    // Re-apply the configured inset kept on the view so the custom position
+    // survives a title change (#13044).
+    reapply_traffic_light_inset(&ns_window, &ns_view);
   });
 }
 

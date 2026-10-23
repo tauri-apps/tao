@@ -1,9 +1,9 @@
-use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use std::{
   collections::{hash_map::Entry, HashMap, HashSet},
   ffi::OsString,
   os::windows::ffi::OsStringExt,
+  sync::LazyLock,
 };
 
 use windows::Win32::{
@@ -17,8 +17,8 @@ use crate::{
   platform_impl::platform::util,
 };
 
-pub(crate) static LAYOUT_CACHE: Lazy<Mutex<LayoutCache>> =
-  Lazy::new(|| Mutex::new(LayoutCache::default()));
+pub(crate) static LAYOUT_CACHE: LazyLock<Mutex<LayoutCache>> =
+  LazyLock::new(|| Mutex::new(LayoutCache::default()));
 
 pub(crate) fn get_agnostic_mods() -> ModifiersState {
   LAYOUT_CACHE.lock().get_agnostic_mods()
@@ -47,7 +47,7 @@ const NUMPAD_VKEYS: [VIRTUAL_KEY; 16] = [
   VK_DIVIDE,
 ];
 
-static NUMPAD_KEYCODES: Lazy<HashSet<KeyCode>> = Lazy::new(|| {
+static NUMPAD_KEYCODES: LazyLock<HashSet<KeyCode>> = LazyLock::new(|| {
   let mut keycodes = HashSet::new();
   keycodes.insert(KeyCode::Numpad0);
   keycodes.insert(KeyCode::Numpad1);

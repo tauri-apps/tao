@@ -1,5 +1,76 @@
 # Changelog
 
+## [0.37.1]
+
+- [`365089b6`](https://github.com/tauri-apps/tao/commit/365089b6b2218108807b6a72ef27851f5fd3cc5d) ([#1341](https://github.com/tauri-apps/tao/pull/1341) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) On Windows, fix visibility flickers when calling windowing functions
+- [`f79aa3a1`](https://github.com/tauri-apps/tao/commit/f79aa3a1a18f647199685410cf3a9b22564b6447) ([#1342](https://github.com/tauri-apps/tao/pull/1342) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) On Windows, fix `set_maximized` and `set_minimized` calls don't work if the window's built with `with_focused(false)`.
+    
+    Note: this change will also make that if the window is created through `with_focused(false)`, subsequent `window.set_visible(true)` calls will now focus the window (the current behavior is the window only gets focus if you call `window.set_focus()` or `window.set_maximized(true)`) this is consistent with the other platforms.
+
+## [0.37.0]
+
+- [`beb88249`](https://github.com/tauri-apps/tao/commit/beb8824915150aebd3938aa46895a9bbf930c212) ([#1304](https://github.com/tauri-apps/tao/pull/1304)) Fix Android event loop hanging on first IPC call. When the `ndk_glue` event pipe and the wake fd became ready at the same time, `ALooper_pollAll` could return the fd event instead of `ALOOPER_POLL_WAKE`, so the loop never drained the user-event channel and every invoke response sat there forever. The event loop now drains pending user events on every iteration, regardless of what the poll reported.
+- [`27e4d01e`](https://github.com/tauri-apps/tao/commit/27e4d01e7ae416f09f7434d3287368c252985d52) ([#1298](https://github.com/tauri-apps/tao/pull/1298)) Fix a mismatched meta-variable name in the `android_binding` macro.
+- [`992909ac`](https://github.com/tauri-apps/tao/commit/992909acd74287711c6473bb1878dfa179885e0b) On Windows, skip `set_skip_taskbar` if `skip_taskbar` is false when creating the window and on taskbar restars.
+- [`95636d5f`](https://github.com/tauri-apps/tao/commit/95636d5fd5fa6250f77ad029848db56ca22acfac) ([#1301](https://github.com/tauri-apps/tao/pull/1301)) On iOS, fixed a startup panic in debug builds on iOS versions older than 26, caused by registering the iOS 26-only `preferredWindowingControlStyleForScene:` method inside the `UIWindowSceneDelegate` protocol block.
+- [`a3ff3f03`](https://github.com/tauri-apps/tao/commit/a3ff3f035f3f5886a45af0533532e568ca57e91b) On iOS, always implement `application:configurationForConnectingSceneSession:options:` on the application delegate, using the role of the connecting session, so the tao scene delegate is installed whenever the system runs the app on the scene lifecycle - which iOS 26 and above does even for apps whose Info.plist does not declare a `UIApplicationSceneManifest`. Windows are now attached to a scene whenever one is connected instead of only when the Info.plist enables multiple scenes, and windows created before the first scene connects are adopted by it, so they are still displayed.
+- [`eebd58f9`](https://github.com/tauri-apps/tao/commit/eebd58f99ad64b849bdafed656c81968c6a9f01d) ([#1261](https://github.com/tauri-apps/tao/pull/1261)) On iOS, emit `WindowEvent::Destroyed` for a scene's windows when the scene disconnects. Previously `sceneDidDisconnect:` was a no-op, so windows tied to a scene never reported their destruction when the system reclaimed the scene.
+- [`f6671e34`](https://github.com/tauri-apps/tao/commit/f6671e34f97ba0caef571890623ecb0192735bee) ([#1291](https://github.com/tauri-apps/tao/pull/1291)) Bumped MSRV to 1.85
+- [`04394e48`](https://github.com/tauri-apps/tao/commit/04394e48f391f28c7f9ee1cf7fe52c8358dbc6c7) ([#1313](https://github.com/tauri-apps/tao/pull/1313)) On Windows, fix `Window` functions panics after the parent event loop dropped, they log the errors instead
+- [`f8722bd3`](https://github.com/tauri-apps/tao/commit/f8722bd3628f52ff637e043a95de2e53f78cbcd3) ([#1292](https://github.com/tauri-apps/tao/pull/1292)) Updated `windows` and `windows-core` to 0.62, this drop Windows 7 support, see https://github.com/microsoft/windows-rs/issues/3808
+- [`493dc3a8`](https://github.com/tauri-apps/tao/commit/493dc3a86af589828505f251f271b048052168d3) ([#1306](https://github.com/tauri-apps/tao/pull/1306)) On Windows, delay maximizing the window if it's hidden to avoid it flashing briefly. This also changed the size and position returned to pre-maximized states if you query them with the window being hidden and called `maximize`
+- [`bd1b990b`](https://github.com/tauri-apps/tao/commit/bd1b990b05ed6ef9fd4c42999f3b4fe23eb0f1ee) ([#1296](https://github.com/tauri-apps/tao/pull/1296)) On Windows, fixed flashing title bar on undecorated windows creation
+- [`36b31b79`](https://github.com/tauri-apps/tao/commit/36b31b795f71ea52528b0d65de86c54645f3634d) ([#1157](https://github.com/tauri-apps/tao/pull/1157)) Exits the process on receiving `WM_ENDSESSION` message, this fixes the `cannot move state from Destroyed` crash after receiving the message from Restart Manager
+
+## \[0.36.0]
+
+- [`2b818c4e`](https://github.com/tauri-apps/tao/commit/2b818c4e84288c42365f8c790f4e7a519f6376ec) ([#1288](https://github.com/tauri-apps/tao/pull/1288) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) **Breaking Change:**
+
+  Changed the names of the Android JNI lifecycle functions exposed by `android_binding!` as follows:
+
+  - `create` to `onFirstActivityCreate`
+  - `onActivityCreate` to `onCreate`
+  - `start` to `onStart`
+  - `resume` to `onResume`
+  - `pause` to `onPause`
+  - `stop` to `onStop`
+  - Removed `onActivitySaveInstanceState`
+  - `onActivityDestroy` to `onDestroy`
+  - `onActivityLowMemory` to `onLowMemory`
+
+  `onLowMemory` no longer takes any parameters.
+  `onFirstActivityCreate` no longer takes any parameters.
+- [`4d5005ff`](https://github.com/tauri-apps/tao/commit/4d5005ff484ec11a2909de68251bb4477121c66d) ([#1173](https://github.com/tauri-apps/tao/pull/1173) by [@sftse](https://github.com/tauri-apps/tao/../../sftse)) `fn set_min_inner_size`, `fn set_max_inner_size`, `fn set_inner_size_constraints`,
+  `fn set_fullscreen` and `fn set_theme` on `Window` were not properly thread-safe
+  on Linux.
+- [`2ff9e3e9`](https://github.com/tauri-apps/tao/commit/2ff9e3e968d7c4ade5d3c4fb64439ce3893a8bdb) ([#1271](https://github.com/tauri-apps/tao/pull/1271) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Fix `EventLoopProxy::send_event` sometimes doesn't deliver the event until the next `EventLoopProxy::send_event` call
+- [`14a6dec2`](https://github.com/tauri-apps/tao/commit/14a6dec20897904c9041c52cb92111b81db20e13) ([#1252](https://github.com/tauri-apps/tao/pull/1252) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Fix getting the DPI internally leaks `HDC` handles on Windows. Also only call `GetDC` when on < Windows 8.1 which improves its performance.
+- [`47d38f36`](https://github.com/tauri-apps/tao/commit/47d38f369f7fb6778df90744faa39d25ab0e3bcc) ([#1228](https://github.com/tauri-apps/tao/pull/1228) by [@ushinohama966](https://github.com/tauri-apps/tao/../../ushinohama966)) fix(linux): map JIS keyboard specific keys (`Zenkaku_Hankaku`, `Hiragana_Katakana`, `Henkan`, `Muhenkan`) in `raw_key_to_key` to prevent them from becoming `Key::Unidentified`.
+- [`2ada91bf`](https://github.com/tauri-apps/tao/commit/2ada91bf6372cd9fd3071377a1da90edee601f39) ([#1254](https://github.com/tauri-apps/tao/pull/1254) by [@tenderdeve](https://github.com/tauri-apps/tao/../../tenderdeve)) On macOS, re-apply the custom traffic light inset after a title change and
+  after leaving fullscreen, so the buttons no longer jump back to their default
+  position on those events.
+- [`07f3742b`](https://github.com/tauri-apps/tao/commit/07f3742b1833b64be27b1ef991e38d557d4276c9) ([#1218](https://github.com/tauri-apps/tao/pull/1218) by [@dgerhardt](https://github.com/tauri-apps/tao/../../dgerhardt)) On Linux, multiple issues regarding window decoration handling for Wayland have been fixed
+  (#899, #1046, tauri-apps/tauri#6562, tauri-apps/tauri#13440, tauri-apps/tauri#13749, tauri-apps/tauri#14251, tauri-apps/tauri#14748).
+  Title bar buttons and changing of the title should now work as expected.
+  Furthermore, client-side decorations are no longer applied, when server-side decorations are supported.
+  SSD are no longer applied when decorations are disabled for a window during creation.
+  Toggling of SSD rendering for existing windows is however not supported at this time.
+- [`dad6b990`](https://github.com/tauri-apps/tao/commit/dad6b990d0bc0aca382de3631a86870928ef78f6) ([#1266](https://github.com/tauri-apps/tao/pull/1266) by [@FabianLars](https://github.com/tauri-apps/tao/../../FabianLars)) Tao now initializes [`ndk-context`](https://docs.rs/ndk-context) again. This happens in the first onActivityCreate call and uses an Application context instead of an Activity context.
+- [`729bbcad`](https://github.com/tauri-apps/tao/commit/729bbcad70a1c912ceb9b3c03cfc250c63e8a368) ([#1270](https://github.com/tauri-apps/tao/pull/1270) by [@ahirner](https://github.com/tauri-apps/tao/../../ahirner)) Prevent iOS apps from aborting when UIKit lays out a Tao view while it is temporarily detached from its window.
+- [`f2163508`](https://github.com/tauri-apps/tao/commit/f2163508104413ef0609178dcebdd5803b496211) ([#1245](https://github.com/tauri-apps/tao/pull/1245) by [@velocitysystems](https://github.com/tauri-apps/tao/../../velocitysystems)) Prevent use-after-free in iOS `configurationForConnectingSceneSession` that crashes release builds on launch.
+- [`3f70d07c`](https://github.com/tauri-apps/tao/commit/3f70d07c39c3062cf31bb9c83ae853fae8bcffa6) ([#1250](https://github.com/tauri-apps/tao/pull/1250) by [@velocitysystems](https://github.com/tauri-apps/tao/../../velocitysystems)) Fix iPadOS 26 system window controls overlapping `WKWebView` content by implementing `preferredWindowingControlStyleForScene:` on the scene delegate and returning the `minimal` style. The optional protocol method is a no-op on iOS versions earlier than 26.
+- [`87c46b52`](https://github.com/tauri-apps/tao/commit/87c46b52b4fc580cd79183f325cb6572ab689945) ([#1238](https://github.com/tauri-apps/tao/pull/1238) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Refactored some Windows keyboard internal implementations to catch up with winit, there should not be any behavior changes, please report if you find one
+- [`f7f8173d`](https://github.com/tauri-apps/tao/commit/f7f8173dc85287b2a18aceb9c47533097b8c123f) ([#1264](https://github.com/tauri-apps/tao/pull/1264) by [@seemoer](https://github.com/tauri-apps/tao/../../seemoer)) Release the window state lock before updating taskbar visibility on Windows to avoid a reentrant `TaskbarCreated` deadlock.
+- [`71b59efe`](https://github.com/tauri-apps/tao/commit/71b59efea161e7270024046686504250571e542a) ([#1209](https://github.com/tauri-apps/tao/pull/1209) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) Moved Android and iOS lifecycle events to `WindowEvent`, including `Started`, `Stopped`, `Suspended`, and `Resumed`, so they are emitted for the specific window whose activity or scene changed lifecycle state.
+- [`87c46b52`](https://github.com/tauri-apps/tao/commit/87c46b52b4fc580cd79183f325cb6572ab689945) ([#1238](https://github.com/tauri-apps/tao/pull/1238) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) `WindowEvent::ReceivedImeText` event's text is now coming from `ImmGetCompositionStringW` instead of a recording `WM_CHAR` and `WM_SYSCHAR` messages
+- [`5f209bd8`](https://github.com/tauri-apps/tao/commit/5f209bd8f6d087ecc1aad6610ca798e378a179cd) ([#1231](https://github.com/tauri-apps/tao/pull/1231) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Fixed `with_background_color` doesn't work on initial load on Windows
+- [`c704261c`](https://github.com/tauri-apps/tao/commit/c704261c519c58cfdd0bc2d58ba24e06a0b71c92) ([#1215](https://github.com/tauri-apps/tao/pull/1215) by [@chuwik](https://github.com/tauri-apps/tao/../../chuwik)) Avoid Windows keyboard and IME deadlocks caused by re-entrant message processing while input state locks are held.
+- [`5f209bd8`](https://github.com/tauri-apps/tao/commit/5f209bd8f6d087ecc1aad6610ca798e378a179cd) ([#1231](https://github.com/tauri-apps/tao/pull/1231) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Removed window subclassing on Windows
+
+### Dependencies
+
+- Upgraded to `tao-macros@0.1.4`
+
 ## \[0.35.3]
 
 - [`1bcd5165`](https://github.com/tauri-apps/tao/commit/1bcd51652763fa6d9512370af6adaea140053891) ([#1224](https://github.com/tauri-apps/tao/pull/1224) by [@brtinney](https://github.com/tauri-apps/tao/../../brtinney)) fix(android): don't panic on `onNewIntent` when `intent.getType()` returns null

@@ -1216,7 +1216,9 @@ impl<T> InitData<'_, T> {
       let _ = DeleteObject(region.into());
     }
 
-    let _ = win.set_skip_taskbar(self.pl_attribs.skip_taskbar);
+    if self.pl_attribs.skip_taskbar {
+      let _ = win.set_skip_taskbar(true);
+    }
     win.set_window_icon(self.attributes.window_icon.clone());
     win.set_taskbar_icon(self.pl_attribs.taskbar_icon.clone());
 
@@ -1361,6 +1363,7 @@ unsafe fn init<T: 'static>(
 
   let fullscreen = attributes.fullscreen.clone();
   let maximized = attributes.maximized;
+  let focused = attributes.focused;
   let menu = pl_attribs.menu;
 
   let mut initdata = InitData {
@@ -1407,6 +1410,13 @@ unsafe fn init<T: 'static>(
     force_window_active(window.hwnd());
   } else if maximized {
     window.set_maximized(true);
+  }
+
+  if !focused {
+    window
+      .window_state
+      .lock()
+      .set_window_flags_in_place(|f| f.remove(WindowFlags::MARKER_DONT_FOCUS));
   }
 
   Ok(window)

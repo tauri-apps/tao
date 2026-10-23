@@ -7,7 +7,6 @@
 mod runner;
 
 use crossbeam_channel::{self as channel, Receiver, Sender};
-use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use std::{
   cell::Cell,
@@ -16,7 +15,7 @@ use std::{
   marker::PhantomData,
   mem, panic,
   rc::Rc,
-  sync::Arc,
+  sync::{Arc, LazyLock},
   thread,
   time::{Duration, Instant},
 };
@@ -33,8 +32,7 @@ use windows::{
       Controls::{self as win32c, HOVER_DEFAULT},
       Input::{KeyboardAndMouse::*, Pointer::*, Touch::*, *},
       Shell::{
-        DefSubclassProc, SHAppBarMessage, ABE_BOTTOM, ABE_LEFT, ABE_RIGHT, ABE_TOP,
-        ABM_GETAUTOHIDEBAR, APPBARDATA,
+        SHAppBarMessage, ABE_BOTTOM, ABE_LEFT, ABE_RIGHT, ABE_TOP, ABM_GETAUTOHIDEBAR, APPBARDATA,
       },
       WindowsAndMessaging::{self as win32wm, *},
     },
@@ -94,16 +92,16 @@ type GetPointerTouchInfo =
 type GetPointerPenInfo =
   unsafe extern "system" fn(pointId: u32, penInfo: *mut POINTER_PEN_INFO) -> BOOL;
 
-static GET_POINTER_FRAME_INFO_HISTORY: Lazy<Option<GetPointerFrameInfoHistory>> =
-  Lazy::new(|| get_function!("user32.dll", GetPointerFrameInfoHistory));
-static SKIP_POINTER_FRAME_MESSAGES: Lazy<Option<SkipPointerFrameMessages>> =
-  Lazy::new(|| get_function!("user32.dll", SkipPointerFrameMessages));
-static GET_POINTER_DEVICE_RECTS: Lazy<Option<GetPointerDeviceRects>> =
-  Lazy::new(|| get_function!("user32.dll", GetPointerDeviceRects));
-static GET_POINTER_TOUCH_INFO: Lazy<Option<GetPointerTouchInfo>> =
-  Lazy::new(|| get_function!("user32.dll", GetPointerTouchInfo));
-static GET_POINTER_PEN_INFO: Lazy<Option<GetPointerPenInfo>> =
-  Lazy::new(|| get_function!("user32.dll", GetPointerPenInfo));
+static GET_POINTER_FRAME_INFO_HISTORY: LazyLock<Option<GetPointerFrameInfoHistory>> =
+  LazyLock::new(|| get_function!("user32.dll", GetPointerFrameInfoHistory));
+static SKIP_POINTER_FRAME_MESSAGES: LazyLock<Option<SkipPointerFrameMessages>> =
+  LazyLock::new(|| get_function!("user32.dll", SkipPointerFrameMessages));
+static GET_POINTER_DEVICE_RECTS: LazyLock<Option<GetPointerDeviceRects>> =
+  LazyLock::new(|| get_function!("user32.dll", GetPointerDeviceRects));
+static GET_POINTER_TOUCH_INFO: LazyLock<Option<GetPointerTouchInfo>> =
+  LazyLock::new(|| get_function!("user32.dll", GetPointerTouchInfo));
+static GET_POINTER_PEN_INFO: LazyLock<Option<GetPointerPenInfo>> =
+  LazyLock::new(|| get_function!("user32.dll", GetPointerPenInfo));
 
 pub(crate) struct WindowData<T: 'static> {
   pub window_state: Arc<Mutex<WindowState>>,
@@ -531,16 +529,20 @@ impl EventLoopThreadExecutor {
 
         let raw = Box::into_raw(boxed2);
 
-        let res = PostMessageW(
+        let result = PostMessageW(
           Some(self.target_window),
           *EXEC_MSG_ID,
           WPARAM(raw as _),
           LPARAM(0),
         );
-        assert!(
-          res.is_ok(),
-          "PostMessage failed ; is the messages queue full?"
-        );
+        // This can happen when we outlive the parent [`EventLoopWindowTarget`] at which point the `target_window` has already been destroyed
+        if let Err(error) = result {
+          log::error!(
+            "PostMessage failed ; is the messages queue full? Error code {} - {}",
+            error.code(),
+            error.message()
+          );
+        }
       }
     }
   }
@@ -588,39 +590,40 @@ type WaitUntilInstantBox = Box<Instant>;
 
 /// Message sent by the `EventLoopProxy` when we want to wake up the thread.
 /// WPARAM and LPARAM are unused.
-static USER_EVENT_MSG_ID: Lazy<u32> =
-  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::WakeupMsg")) });
+static USER_EVENT_MSG_ID: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("Tao::WakeupMsg")) });
 /// Message sent when we want to execute a closure in the thread.
 /// WPARAM contains a Box<Box<dyn FnMut()>> that must be retrieved with `Box::from_raw`,
 /// and LPARAM is unused.
-static EXEC_MSG_ID: Lazy<u32> = Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::ExecMsg")) });
-static PROCESS_NEW_EVENTS_MSG_ID: Lazy<u32> =
-  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::ProcessNewEvents")) });
+static EXEC_MSG_ID: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("Tao::ExecMsg")) });
+static PROCESS_NEW_EVENTS_MSG_ID: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("Tao::ProcessNewEvents")) });
 /// lparam is the wait thread's message id.
-static SEND_WAIT_THREAD_ID_MSG_ID: Lazy<u32> =
-  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::SendWaitThreadId")) });
+static SEND_WAIT_THREAD_ID_MSG_ID: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("Tao::SendWaitThreadId")) });
 /// lparam points to a `Box<Instant>` signifying the time `PROCESS_NEW_EVENTS_MSG_ID` should
 /// be sent.
-static WAIT_UNTIL_MSG_ID: Lazy<u32> =
-  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::WaitUntil")) });
-static CANCEL_WAIT_UNTIL_MSG_ID: Lazy<u32> =
-  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::CancelWaitUntil")) });
+static WAIT_UNTIL_MSG_ID: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("Tao::WaitUntil")) });
+static CANCEL_WAIT_UNTIL_MSG_ID: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("Tao::CancelWaitUntil")) });
 /// Message sent by a `Window` when it wants to be destroyed by the main thread.
 /// WPARAM and LPARAM are unused.
-pub static DESTROY_MSG_ID: Lazy<u32> =
-  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::DestroyMsg")) });
+pub static DESTROY_MSG_ID: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("Tao::DestroyMsg")) });
 /// WPARAM is a bool specifying the `WindowFlags::MARKER_RETAIN_STATE_ON_SIZE` flag. See the
 /// documentation in the `window_state` module for more information.
-pub static SET_RETAIN_STATE_ON_SIZE_MSG_ID: Lazy<u32> =
-  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::SetRetainMaximized")) });
+pub static SET_RETAIN_STATE_ON_SIZE_MSG_ID: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("Tao::SetRetainMaximized")) });
 /// Message sent by event loop when event loop's prefered theme changed.
 /// WPARAM and LPARAM are unused.
-pub static CHANGE_THEME_MSG_ID: Lazy<u32> =
-  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("Tao::ChangeTheme")) });
+pub static CHANGE_THEME_MSG_ID: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("Tao::ChangeTheme")) });
 /// When the taskbar is created, it registers a message with the "TaskbarCreated" string and then broadcasts this message to all top-level windows
 /// When the application receives this message, it should assume that any taskbar icons it added have been removed and add them again.
-pub static S_U_TASKBAR_RESTART: Lazy<u32> =
-  Lazy::new(|| unsafe { RegisterWindowMessageA(s!("TaskbarCreated")) });
+pub static S_U_TASKBAR_RESTART: LazyLock<u32> =
+  LazyLock::new(|| unsafe { RegisterWindowMessageA(s!("TaskbarCreated")) });
 
 fn create_event_target_window<T: 'static>() -> HWND {
   let thread_event_target_window_class = w!("Tao Thread Event Target");
@@ -2072,14 +2075,24 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let window_flags = userdata.window_state.lock().window_flags();
       let is_fullscreen = userdata.window_state.lock().fullscreen.is_some();
 
-      if wparam == WPARAM(0) || window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
+      if window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
         result = ProcResult::DefWindowProc;
+      } else if is_fullscreen {
+        result = ProcResult::Value(LRESULT(0));
       } else {
+        // Handle both WM_NCCALCSIZE forms consistently to avoid incorrect client sizes.
+        // https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-nccalcsize
+        // https://github.com/tauri-apps/tao/issues/1359
+        let client_rect = if wparam == WPARAM(0) {
+          &mut *(lparam.0 as *mut RECT)
+        } else {
+          &mut (*(lparam.0 as *mut NCCALCSIZE_PARAMS)).rgrc[0]
+        };
+
         // adjust the maximized borderless window so it doesn't cover the taskbar
         if util::is_maximized(window).unwrap_or(false) {
-          let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
           if let Ok(monitor_info) =
-            monitor::get_monitor_info(MonitorFromRect(&params.rgrc[0], MONITOR_DEFAULTTONULL))
+            monitor::get_monitor_info(MonitorFromRect(client_rect, MONITOR_DEFAULTTONULL))
           {
             let mut rect = monitor_info.monitorInfo.rcWork;
 
@@ -2106,17 +2119,15 @@ unsafe fn public_window_callback_inner<T: 'static>(
               rect.right -= 1;
             }
 
-            params.rgrc[0] = rect;
+            *client_rect = rect;
           }
-        } else if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) && !is_fullscreen {
-          let params = &mut *(lparam.0 as *mut NCCALCSIZE_PARAMS);
-
+        } else if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) {
           let insets = util::calculate_window_insets(window);
 
-          params.rgrc[0].left += insets.left;
-          params.rgrc[0].top += insets.top;
-          params.rgrc[0].right -= insets.right;
-          params.rgrc[0].bottom -= insets.bottom;
+          client_rect.left += insets.left;
+          client_rect.top += insets.top;
+          client_rect.right -= insets.right;
+          client_rect.bottom -= insets.bottom;
         }
         result = ProcResult::Value(LRESULT(0)); // return 0 here to make the window borderless
       }
@@ -2196,7 +2207,9 @@ unsafe fn public_window_callback_inner<T: 'static>(
         result = ProcResult::Value(LRESULT(0));
       } else if msg == *S_U_TASKBAR_RESTART {
         let skip_taskbar = userdata.window_state.lock().skip_taskbar;
-        let _ = set_skip_taskbar(window, skip_taskbar);
+        if skip_taskbar {
+          let _ = set_skip_taskbar(window, true);
+        }
       }
     }
   };
@@ -2294,7 +2307,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       }
 
       // Default WM_PAINT behaviour. This makes sure modals and popups are shown immediatly when opening them.
-      DefSubclassProc(window, msg, wparam, lparam)
+      DefWindowProcW(window, msg, wparam, lparam)
     }
 
     win32wm::WM_INPUT_DEVICE_CHANGE => {
@@ -2319,7 +2332,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
         let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
       }
 
-      DefSubclassProc(window, msg, wparam, lparam)
+      DefWindowProcW(window, msg, wparam, lparam)
     }
 
     // We don't process `WM_QUERYENDSESSION` yet until we introduce the same mechanism as Tauri's `ExitRequested` event
@@ -2329,8 +2342,14 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       // and we don't need to handle that case since we didn't do anything prior in response to `WM_QUERYENDSESSION`
       if wparam.0 == TRUE.0 as usize {
         userdata.event_loop_runner.loop_destroyed();
+        // `WM_ENDSESSION` can be sent by Windows during shutdown or by Restart Manager
+        //
+        // - From Windows shutdown: Windows will shut us down after we return `0` here
+        // - From Restart Manager: Restart Manager only sends the message but will wait for us to shutdown ourselves
+        //
+        // So, we call `exit` here directly to align this behavior
+        std::process::exit(0);
       }
-      // Note: after we return 0 here, Windows will shut us down
       LRESULT(0)
     }
 
@@ -2382,7 +2401,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
       let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
       LRESULT(0)
     }
-    _ => DefSubclassProc(window, msg, wparam, lparam),
+    _ => DefWindowProcW(window, msg, wparam, lparam),
   };
 
   let result = userdata

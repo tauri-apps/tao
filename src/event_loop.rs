@@ -403,7 +403,7 @@ impl<T> fmt::Display for EventLoopClosed<T> {
 
 impl<T: fmt::Debug> error::Error for EventLoopClosed<T> {}
 
-/// Fiter controlling the propagation of device events.
+/// Filter controlling the propagation of device events.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Default)]
 pub enum DeviceEventFilter {
   /// Always filter out device events.

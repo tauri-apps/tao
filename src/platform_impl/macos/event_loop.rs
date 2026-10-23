@@ -231,7 +231,7 @@ impl<T> EventLoop<T> {
       mem::drop(callback);
 
       AppState::set_callback(weak_cb, Rc::clone(&self.window_target));
-      let () = msg_send![&app, run];
+      app.run();
 
       if let Some(panic) = self.panic_info.take() {
         drop(self._callback.take());
@@ -325,7 +325,7 @@ impl<T> Proxy<T> {
   fn new(sender: Sender<T>) -> Self {
     unsafe {
       // just wake up the eventloop
-      extern "C" fn event_loop_proxy_handler(_: *mut c_void) {}
+      extern "C-unwind" fn event_loop_proxy_handler(_: *mut c_void) {}
 
       // adding a Source to the main CFRunLoop lets us wake it up and
       // process user events through the normal OS EventLoop mechanisms.

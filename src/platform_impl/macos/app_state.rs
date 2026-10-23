@@ -16,10 +16,10 @@ use std::{
   time::Instant,
 };
 
-use objc2::{msg_send, rc::Retained, runtime::AnyObject as Object};
+use objc2::runtime::AnyObject as Object;
 use objc2_app_kit::{NSApp, NSApplication, NSApplicationActivationPolicy, NSWindow};
 use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSSize};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 use crate::{
   dpi::LogicalSize,
@@ -31,7 +31,6 @@ use crate::{
     platform::{
       event::{EventProxy, EventWrapper},
       event_loop::{post_dummy_event, PanicInfo},
-      ffi::{id, nil},
       observer::{CFRunLoopGetMain, CFRunLoopWakeUp, EventLoopWaker},
       util::{self, Never},
       window::get_window_id,
@@ -42,7 +41,7 @@ use crate::{
 
 use super::set_dock_visibility;
 
-static HANDLER: Lazy<Handler> = Lazy::new(|| Default::default());
+static HANDLER: LazyLock<Handler> = LazyLock::new(|| Default::default());
 
 impl<'a, Never> Event<'a, Never> {
   fn userify<T: 'static>(self) -> Event<'a, T> {
@@ -405,7 +404,7 @@ impl AppState {
         let mtm = MainThreadMarker::new().unwrap();
         let app = NSApp(mtm);
         let _pool = NSAutoreleasePool::new();
-        let () = msg_send![&app, stop: nil];
+        app.stop(None);
         // To stop event loop immediately, we need to post some event here.
         post_dummy_event(&app);
       };
@@ -432,15 +431,8 @@ impl AppState {
 unsafe fn window_activation_hack(ns_app: &NSApplication) {
   // Get the application's windows
   // TODO: Proper ordering of the windows
-  let ns_windows: id = msg_send![ns_app, windows];
-  let ns_enumerator: id = msg_send![ns_windows, objectEnumerator];
-  loop {
-    // Enumerate over the windows
-    let ns_window: Option<Retained<NSWindow>> = msg_send![ns_enumerator, nextObject];
-    if ns_window.is_none() {
-      break;
-    }
-    let ns_window = ns_window.unwrap();
+  let ns_windows = ns_app.windows();
+  for ns_window in ns_windows {
     // And call `makeKeyAndOrderFront` if it was called on the window in `UnownedWindow::new`
     // This way we preserve the user's desired initial visiblity status
     // TODO: Also filter on the type/"level" of the window, and maybe other things?
