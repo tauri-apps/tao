@@ -4,7 +4,7 @@
 
 use std::collections::VecDeque;
 
-use objc2::{define_class, ClassType, MainThreadOnly};
+use objc2::{define_class, MainThreadOnly};
 use objc2_app_kit::{self as appkit, NSApplication, NSEvent, NSEventType, NSResponder};
 use objc2_foundation::NSObject;
 
