@@ -39,7 +39,7 @@ define_class!(
           }
         } else {
           maybe_dispatch_device_event(event);
-          self.as_super().sendEvent(event);
+          let _: () = msg_send![super(self), sendEvent: event];
         }
       }
     }
