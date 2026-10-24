@@ -386,6 +386,16 @@ pub trait MonitorHandleExtWindows {
 
   /// Returns the handle of the monitor - `HMONITOR`.
   fn hmonitor(&self) -> isize;
+
+  /// Returns the device interface path of the monitor, e.g.
+  /// `\\?\DISPLAY#DEL4321#5&1a2b3c4d&0&UID4353#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}`.
+  ///
+  /// Unlike [`native_id`](Self::native_id) (`\\.\DISPLAY1`), this is the monitor ID expected by
+  /// Shell APIs such as `IDesktopWallpaper`. If several monitors are attached to the same display
+  /// (e.g. duplicated displays), the first active one is returned.
+  ///
+  /// Returns `None` if the monitor is no longer available.
+  fn device_path(&self) -> Option<String>;
 }
 
 impl MonitorHandleExtWindows for MonitorHandle {
@@ -397,6 +407,11 @@ impl MonitorHandleExtWindows for MonitorHandle {
   #[inline]
   fn hmonitor(&self) -> isize {
     self.inner.hmonitor().0 as _
+  }
+
+  #[inline]
+  fn device_path(&self) -> Option<String> {
+    self.inner.device_path()
   }
 }
 

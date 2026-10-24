@@ -7,7 +7,7 @@ use windows::{
   Win32::{
     Foundation::{HWND, LPARAM, POINT, RECT},
     Graphics::Gdi::*,
-    UI::WindowsAndMessaging::USER_DEFAULT_SCREEN_DPI,
+    UI::WindowsAndMessaging::{EDD_GET_DEVICE_INTERFACE_NAME, USER_DEFAULT_SCREEN_DPI},
   },
 };
 
@@ -188,6 +188,29 @@ impl MonitorHandle {
   #[inline]
   pub fn native_identifier(&self) -> String {
     self.name().unwrap()
+  }
+
+  /// The device interface path of the first active monitor attached to this display,
+  /// e.g. `\\?\DISPLAY#...#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}`.
+  pub fn device_path(&self) -> Option<String> {
+    let monitor_info = get_monitor_info(self.hmonitor()).ok()?;
+    let device_name = PCWSTR::from_raw(monitor_info.szDevice.as_ptr());
+    let mut device = DISPLAY_DEVICEW {
+      cb: mem::size_of::<DISPLAY_DEVICEW>() as u32,
+      ..Default::default()
+    };
+    let mut i = 0;
+    while unsafe {
+      EnumDisplayDevicesW(device_name, i, &mut device, EDD_GET_DEVICE_INTERFACE_NAME).as_bool()
+    } {
+      if device.StateFlags.contains(DISPLAY_DEVICE_ACTIVE) {
+        return Some(util::wchar_ptr_to_string(PCWSTR::from_raw(
+          device.DeviceID.as_ptr(),
+        )));
+      }
+      i += 1;
+    }
+    None
   }
 
   #[inline]
