@@ -295,6 +295,12 @@ impl<T: 'static> EventLoop<T> {
               },
             );
           }
+          Event::AppSuspended => {
+            self.call_event_handler(event_handler, control_flow, event::Event::Suspended);
+          }
+          Event::AppResumed => {
+            self.call_event_handler(event_handler, control_flow, event::Event::Resumed);
+          }
           Event::Opened => {
             let urls = ndk_glue::take_intent_urls();
             if !urls.is_empty() {
