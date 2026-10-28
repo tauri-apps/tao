@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.37.3]
+
+- [`39d130f9`](https://github.com/tauri-apps/tao/commit/39d130f9bd604bea1b183581b5fb47939a193a40) ([#1309](https://github.com/tauri-apps/tao/pull/1309) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) On Android, migrated `ALooper_pollAll` calls to `ALooper_pollOnce`
+- [`7b412ce6`](https://github.com/tauri-apps/tao/commit/7b412ce68a152bc23c3660fb512e4b9aaf6efdfa) ([#1400](https://github.com/tauri-apps/tao/pull/1400) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) On Windows, fix so `drag_window` and `drag_resize_window` can be called from another thread.
+
 ## [0.37.2]
 
 - [`d19f4c12`](https://github.com/tauri-apps/tao/commit/d19f4c12a0d881260a436d9ccf3e8f349c58e2a4) ([#1356](https://github.com/tauri-apps/tao/pull/1356) by [@yuezk](https://github.com/tauri-apps/tao/../../yuezk)) Fix compilation on FreeBSD, OpenBSD, NetBSD, and DragonFly BSD by enabling the resize hit-test helper used by the GTK backend.
