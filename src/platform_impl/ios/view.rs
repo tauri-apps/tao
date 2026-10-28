@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
+  cell::Cell,
   collections::HashMap,
   ffi::{c_char, CStr, CString},
 };
@@ -12,6 +13,7 @@ use objc2::{
   runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel},
   ClassType, MainThreadMarker,
 };
+use objc2_foundation::NSString;
 use objc2_ui_kit::{
   UIApplication, UISceneActivationRequestOptions, UISceneConfiguration, UISceneSession,
   UISceneSessionActivationRequest,
@@ -618,12 +620,52 @@ pub unsafe fn create_window(
   window
 }
 
+thread_local! {
+  // whether the application is in the background, used to emit `Event::Suspended` and
+  // `Event::Resumed` in pairs
+  static APP_SUSPENDED: Cell<bool> = const { Cell::new(false) };
+}
+
 pub fn create_delegate_class() {
-  extern "C-unwind" fn did_finish_launching(_: &Object, _: Sel, _: id, _: id) -> BOOL {
+  extern "C-unwind" fn did_finish_launching(this: &Object, _: Sel, _: id, _: id) -> BOOL {
     unsafe {
+      // the application delegate methods are not called for apps that adopted the scene
+      // lifecycle, but UIKit posts these notifications regardless, deriving them from
+      // the state of all the app's scenes
+      let center: id = msg_send![class!(NSNotificationCenter), defaultCenter];
+      let observer = this as *const Object as id;
+      let _: () = msg_send![
+        center,
+        addObserver: observer,
+        selector: sel!(taoApplicationDidEnterBackground:),
+        name: &*NSString::from_str("UIApplicationDidEnterBackgroundNotification"),
+        object: nil,
+      ];
+      let _: () = msg_send![
+        center,
+        addObserver: observer,
+        selector: sel!(taoApplicationWillEnterForeground:),
+        name: &*NSString::from_str("UIApplicationWillEnterForegroundNotification"),
+        object: nil,
+      ];
+
       app_state::did_finish_launching();
     }
     YES
+  }
+
+  extern "C-unwind" fn application_did_enter_background(_: &Object, _: Sel, _: id) {
+    if !APP_SUSPENDED.replace(true) {
+      unsafe { app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Suspended)) };
+    }
+  }
+
+  extern "C-unwind" fn application_will_enter_foreground(_: &Object, _: Sel, _: id) {
+    // only resume after a suspension: UIKit posts this notification when the first
+    // scene connects, and the app is not considered suspended at launch
+    if APP_SUSPENDED.replace(false) {
+      unsafe { app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Resumed)) };
+    }
   }
 
   extern "C-unwind" fn configuration_for_connecting_scene_session(
@@ -793,6 +835,15 @@ pub fn create_delegate_class() {
     decl.add_method(
       sel!(applicationWillEnterForeground:),
       will_enter_foreground as extern "C-unwind" fn(_, _, _),
+    );
+
+    decl.add_method(
+      sel!(taoApplicationDidEnterBackground:),
+      application_did_enter_background as extern "C-unwind" fn(_, _, _),
+    );
+    decl.add_method(
+      sel!(taoApplicationWillEnterForeground:),
+      application_will_enter_foreground as extern "C-unwind" fn(_, _, _),
     );
 
     decl.add_method(

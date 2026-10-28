@@ -221,6 +221,36 @@ static INPUT_QUEUE: LazyLock<RwLock<Option<InputQueue>>> = LazyLock::new(Default
 static CONTENT_RECT: LazyLock<RwLock<Rect>> = LazyLock::new(Default::default);
 static LOOPER: LazyLock<Mutex<Option<ForeignLooper>>> = LazyLock::new(Default::default);
 static RESUMED_ACTIVITIES: LazyLock<Mutex<HashSet<ActivityId>>> = LazyLock::new(Default::default);
+// activities between `onStart` and `onStop`, used to derive the application lifecycle
+// alongside whether the application is in the background
+static APP_LIFECYCLE: LazyLock<Mutex<AppLifecycle>> = LazyLock::new(Default::default);
+
+#[derive(Default)]
+struct AppLifecycle {
+  started_activities: HashSet<ActivityId>,
+  suspended: bool,
+}
+
+impl AppLifecycle {
+  fn activity_started(&mut self, activity_id: ActivityId) {
+    self.started_activities.insert(activity_id);
+    // the application is not considered suspended at launch, so the first start is ignored
+    if self.suspended {
+      self.suspended = false;
+      unsafe { wake(Event::AppResumed) };
+    }
+  }
+
+  fn activity_stopped(&mut self, activity_id: ActivityId) {
+    if self.started_activities.remove(&activity_id)
+      && self.started_activities.is_empty()
+      && !self.suspended
+    {
+      self.suspended = true;
+      unsafe { wake(Event::AppSuspended) };
+    }
+  }
+}
 
 pub fn main_window_manager() -> Option<GlobalRef> {
   WINDOW_MANAGER.lock().unwrap().values().next().cloned()
@@ -309,6 +339,8 @@ pub struct Rect {
 pub enum Event {
   Resume { id: WindowId },
   Pause { id: WindowId },
+  AppResumed,
+  AppSuspended,
   LowMemory,
   WindowEvent { id: WindowId, event: WindowEvent },
   ContentRectChanged,
@@ -711,6 +743,7 @@ pub unsafe fn onStart(mut env: JNIEnv, _: JClass, activity: JObject) {
     id: WindowId(super::WindowId(activity_id)),
     event: WindowEvent::Started,
   });
+  APP_LIFECYCLE.lock().unwrap().activity_started(activity_id);
 }
 
 #[allow(non_snake_case)]
@@ -720,6 +753,14 @@ pub unsafe fn onStop(mut env: JNIEnv, _: JClass, activity: JObject) {
     id: WindowId(super::WindowId(activity_id)),
     event: WindowEvent::Stopped,
   });
+
+  // an activity recreated due to a configuration change keeps its id and is started again
+  // right away, so it must not move the application to the background
+  let is_changing_configurations =
+    jni_call_method!(env, &activity, "isChangingConfigurations", "()Z", z).unwrap();
+  if !is_changing_configurations {
+    APP_LIFECYCLE.lock().unwrap().activity_stopped(activity_id);
+  }
 }
 
 #[allow(non_snake_case)]
@@ -743,6 +784,7 @@ pub unsafe fn onDestroy(mut env: JNIEnv, _: JClass, activity: JObject) {
     CONTEXTS.lock().unwrap().remove(&activity_id);
     WINDOW_MANAGER.lock().unwrap().remove(&activity_id);
     RESUMED_ACTIVITIES.lock().unwrap().remove(&activity_id);
+    APP_LIFECYCLE.lock().unwrap().activity_stopped(activity_id);
   }
 }
 

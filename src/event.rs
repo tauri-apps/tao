@@ -137,6 +137,36 @@ pub enum Event<'a, T: 'static> {
   #[non_exhaustive]
   Reopen { has_visible_windows: bool },
 
+  /// The application has moved to the background.
+  ///
+  /// This is an application-wide event, unlike [`WindowEvent::Suspended`] which is emitted
+  /// for each window (activity or scene). It is emitted once when the last visible window
+  /// of the application goes away, and it is always followed by [`Event::Resumed`] when the
+  /// application comes back to the foreground.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: Emitted when the last started activity of the application is stopped
+  ///   (`onStop`). Activities that are stopped to be recreated on a configuration change are ignored.
+  /// - **iOS**: Emitted on `UIApplicationDidEnterBackgroundNotification`, which UIKit posts for
+  ///   both scene based and non-scene based applications.
+  /// - **Linux / macOS / Windows**: Unsupported.
+  Suspended,
+
+  /// The application has moved back to the foreground.
+  ///
+  /// This is an application-wide event, unlike [`WindowEvent::Resumed`] which is emitted
+  /// for each window (activity or scene). It is only emitted after [`Event::Suspended`],
+  /// so it is not emitted when the application launches.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: Emitted when the first activity of the application is started (`onStart`)
+  ///   after the application was suspended.
+  /// - **iOS**: Emitted on `UIApplicationWillEnterForegroundNotification`.
+  /// - **Linux / macOS / Windows**: Unsupported.
+  Resumed,
+
   /// Emitted when a scene is requested by the system.
   ///
   /// This event is emitted when a scene is requested by the system.
@@ -177,6 +207,8 @@ impl<T: Clone> Clone for Event<'static, T> {
       } => Reopen {
         has_visible_windows: *has_visible_windows,
       },
+      Suspended => Suspended,
+      Resumed => Resumed,
       #[cfg(target_os = "ios")]
       SceneRequested { scene, options } => SceneRequested {
         scene: scene.clone(),
@@ -204,6 +236,8 @@ impl<'a, T> Event<'a, T> {
       } => Ok(Reopen {
         has_visible_windows,
       }),
+      Suspended => Ok(Suspended),
+      Resumed => Ok(Resumed),
       #[cfg(target_os = "ios")]
       SceneRequested { scene, options } => Ok(SceneRequested { scene, options }),
     }
@@ -230,6 +264,8 @@ impl<'a, T> Event<'a, T> {
       } => Some(Reopen {
         has_visible_windows,
       }),
+      Suspended => Some(Suspended),
+      Resumed => Some(Resumed),
       #[cfg(target_os = "ios")]
       SceneRequested { scene, options } => Some(SceneRequested { scene, options }),
     }
@@ -303,8 +339,11 @@ pub enum WindowEvent<'a> {
   /// ## Platform-specific
   ///
   /// - **Android**: This is triggered by `onPause` method of the Activity.
-  /// - **iOS**: This is triggered by `applicationWillResignActive` method of the UIApplicationDelegate.
+  /// - **iOS**: This is triggered by `sceneWillResignActive` of the window's scene, or by
+  ///   `applicationWillResignActive` for applications that do not use scenes.
   /// - **Linux / macOS / Windows**: Unsupported.
+  ///
+  /// See [`Event::Suspended`] for the application-wide event.
   Suspended,
 
   /// The window has been resumed.
@@ -312,8 +351,11 @@ pub enum WindowEvent<'a> {
   /// ## Platform-specific
   ///
   /// - **Android**: This is triggered by `onResume` method of the Activity. The first onResume() is ignored to match the iOS implementation, since that is called on activity creation.
-  /// - **iOS**: This is triggered by `applicationWillEnterForeground` method of the UIApplicationDelegate.
+  /// - **iOS**: This is triggered by `sceneWillEnterForeground` of the window's scene, or by
+  ///   `applicationWillEnterForeground` for applications that do not use scenes.
   /// - **Linux / macOS / Windows**: Unsupported.
+  ///
+  /// See [`Event::Resumed`] for the application-wide event.
   Resumed,
 
   /// The window has been stopped.
