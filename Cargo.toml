@@ -63,7 +63,7 @@ env_logger = "0.11"
 softbuffer = "0.4"
 
 [target."cfg(target_os = \"windows\")".dependencies]
-parking_lot = "0.12"
+parking_lot = "0.13"
 unicode-segmentation = "1.11"
 windows-version = "0.1"
 windows-core = "0.62"
@@ -182,6 +182,6 @@ gtk = "0.18"
 gdkx11-sys = { version = "0.18", optional = true }
 gdkwayland-sys = "0.18.0"
 x11-dl = { version = "2.21", optional = true }
-parking_lot = "0.12"
+parking_lot = "0.13"
 dlopen2 = "0.8.0"
 dbus = { version = "0.9", optional = true }
