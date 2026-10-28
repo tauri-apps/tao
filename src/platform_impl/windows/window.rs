@@ -491,27 +491,41 @@ impl Window {
   }
 
   fn handle_os_dragging(&self, wparam: WPARAM) -> Result<(), ExternalError> {
-    let points = {
-      let mut pos = unsafe { mem::zeroed() };
-      unsafe { GetCursorPos(&mut pos)? };
-      pos
-    };
-    let points = POINTS {
-      x: points.x as i16,
-      y: points.y as i16,
-    };
-    unsafe { ReleaseCapture()? };
+    let window = self.window;
+    let window_state = self.window_state.clone();
 
-    self.window_state.lock().dragging = true;
+    self.thread_executor.execute_in_thread(move || {
+      {
+        let mut guard = window_state.lock();
+        if !guard.dragging {
+          guard.dragging = true;
+        } else {
+          return;
+        }
+      }
 
-    unsafe {
-      PostMessageW(
-        Some(self.hwnd()),
-        WM_NCLBUTTONDOWN,
-        wparam,
-        LPARAM(&points as *const _ as _),
-      )?
-    };
+      let points = {
+        let mut pos = unsafe { mem::zeroed() };
+        let _ = unsafe { GetCursorPos(&mut pos) };
+        pos
+      };
+      let points = POINTS {
+        x: points.x as i16,
+        y: points.y as i16,
+      };
+
+      // ReleaseCapture needs to execute on the main thread
+      let _ = unsafe { ReleaseCapture() };
+
+      let _ = unsafe {
+        PostMessageW(
+          Some(window.hwnd()),
+          WM_NCLBUTTONDOWN,
+          wparam,
+          LPARAM(&points as *const _ as _),
+        )
+      };
+    });
 
     Ok(())
   }
@@ -1363,6 +1377,7 @@ unsafe fn init<T: 'static>(
 
   let fullscreen = attributes.fullscreen.clone();
   let maximized = attributes.maximized;
+  let focused = attributes.focused;
   let menu = pl_attribs.menu;
 
   let mut initdata = InitData {
@@ -1409,6 +1424,13 @@ unsafe fn init<T: 'static>(
     force_window_active(window.hwnd());
   } else if maximized {
     window.set_maximized(true);
+  }
+
+  if !focused {
+    window
+      .window_state
+      .lock()
+      .set_window_flags_in_place(|f| f.remove(WindowFlags::MARKER_DONT_FOCUS));
   }
 
   Ok(window)

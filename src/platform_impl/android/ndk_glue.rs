@@ -17,7 +17,6 @@ use ndk::{
   input_queue::InputQueue,
   looper::{FdEvent, ForeignLooper, ThreadLooper},
 };
-use once_cell::sync::{Lazy, OnceCell};
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use std::{
   collections::{BTreeMap, HashSet},
@@ -25,14 +24,14 @@ use std::{
   fs::File,
   io::{BufRead, BufReader},
   os::unix::prelude::*,
-  sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard},
+  sync::{Arc, Condvar, LazyLock, Mutex, OnceLock, RwLock, RwLockReadGuard},
   thread,
   time::Duration,
 };
 
 /// Android pacakge name that could be used to reference classes
 /// in the android project.
-pub static PACKAGE: OnceCell<&str> = OnceCell::new();
+pub static PACKAGE: OnceLock<&str> = OnceLock::new();
 
 /// Character set for encoding text content in data URLs.
 /// Encodes all control characters and special characters that might cause issues in URLs.
@@ -209,18 +208,19 @@ unsafe impl Sync for AndroidContext {}
 
 pub type ActivityId = i32;
 
-pub(crate) static CONTEXTS: Lazy<Mutex<BTreeMap<ActivityId, AndroidContext>>> =
-  Lazy::new(Default::default);
+pub(crate) static CONTEXTS: LazyLock<Mutex<BTreeMap<ActivityId, AndroidContext>>> =
+  LazyLock::new(Default::default);
 // Keeping a reference so we can store it in ndk-context
-static APPLICATION_CONTEXT: OnceCell<GlobalRef> = OnceCell::new();
-static WINDOW_MANAGER: Lazy<Mutex<BTreeMap<ActivityId, GlobalRef>>> = Lazy::new(Default::default);
-pub(crate) static ACTIVITY_CREATED_SENDERS: Lazy<Mutex<BTreeMap<ActivityId, Sender<()>>>> =
-  Lazy::new(Default::default);
-static INTENT_URLS: Lazy<Mutex<Vec<url::Url>>> = Lazy::new(Default::default);
-static INPUT_QUEUE: Lazy<RwLock<Option<InputQueue>>> = Lazy::new(Default::default);
-static CONTENT_RECT: Lazy<RwLock<Rect>> = Lazy::new(Default::default);
-static LOOPER: Lazy<Mutex<Option<ForeignLooper>>> = Lazy::new(Default::default);
-static RESUMED_ACTIVITIES: Lazy<Mutex<HashSet<ActivityId>>> = Lazy::new(Default::default);
+static APPLICATION_CONTEXT: OnceLock<GlobalRef> = OnceLock::new();
+static WINDOW_MANAGER: LazyLock<Mutex<BTreeMap<ActivityId, GlobalRef>>> =
+  LazyLock::new(Default::default);
+pub(crate) static ACTIVITY_CREATED_SENDERS: LazyLock<Mutex<BTreeMap<ActivityId, Sender<()>>>> =
+  LazyLock::new(Default::default);
+static INTENT_URLS: LazyLock<Mutex<Vec<url::Url>>> = LazyLock::new(Default::default);
+static INPUT_QUEUE: LazyLock<RwLock<Option<InputQueue>>> = LazyLock::new(Default::default);
+static CONTENT_RECT: LazyLock<RwLock<Rect>> = LazyLock::new(Default::default);
+static LOOPER: LazyLock<Mutex<Option<ForeignLooper>>> = LazyLock::new(Default::default);
+static RESUMED_ACTIVITIES: LazyLock<Mutex<HashSet<ActivityId>>> = LazyLock::new(Default::default);
 
 pub fn main_window_manager() -> Option<GlobalRef> {
   WINDOW_MANAGER.lock().unwrap().values().next().cloned()
@@ -264,7 +264,7 @@ pub fn next_available_activity() -> Option<(ActivityId, AndroidContext)> {
     .map(|(id, ctx)| (*id, ctx.clone()))
 }
 
-pub static PIPE: Lazy<[OwnedFd; 2]> = Lazy::new(|| {
+pub static PIPE: LazyLock<[OwnedFd; 2]> = LazyLock::new(|| {
   let mut pipe: [RawFd; 2] = Default::default();
   unsafe { libc::pipe(pipe.as_mut_ptr()) };
   pipe.map(|fd| unsafe { OwnedFd::from_raw_fd(fd) })

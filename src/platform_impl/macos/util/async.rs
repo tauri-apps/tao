@@ -8,7 +8,7 @@ use std::{
 };
 
 use core_graphics::base::CGFloat;
-use dispatch2::{DispatchQueue, DispatchQueueAttr};
+use dispatch2::DispatchQueue;
 use objc2::{rc::autoreleasepool, Message};
 use objc2_app_kit::{NSScreen, NSView, NSWindow, NSWindowStyleMask};
 use objc2_foundation::{MainThreadMarker, NSPoint, NSSize, NSString};
@@ -16,7 +16,7 @@ use objc2_foundation::{MainThreadMarker, NSPoint, NSSize, NSString};
 use crate::{
   dpi::LogicalSize,
   platform_impl::platform::{
-    ffi::{self, id, NO, YES},
+    ffi::{self, id, YES},
     view::reapply_traffic_light_inset,
     window::SharedState,
   },
@@ -191,7 +191,7 @@ pub unsafe fn set_maximized_async(
         } else {
           shared_state_lock.saved_standard_frame()
         };
-        let _: () = msg_send![&*ns_window, setFrame:new_rect, display:NO, animate: YES];
+        ns_window.setFrame_display_animate(new_rect, false, true);
       }
 
       trace!("Unlocked shared state in `set_maximized`");

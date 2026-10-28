@@ -1,6 +1,6 @@
 [package]
 name = "tao"
-version = "0.36.0"
+version = "0.37.2"
 description = "Cross-platform window manager library."
 authors = [
   "Tauri Programme within The Commons Conservancy",
@@ -42,7 +42,6 @@ members = ["tao-macros"]
 [dependencies]
 libc = "0.2"
 log = "0.4"
-once_cell = "1"
 serde = { version = "1", optional = true, features = ["serde_derive"] }
 rwh_04 = { package = "raw-window-handle", version = "0.4", optional = true }
 rwh_05 = { package = "raw-window-handle", version = "0.5", features = [
@@ -121,31 +120,44 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
   "NSAutoreleasePool",
   "NSDate",
   "NSDictionary",
+  "NSDistributedNotificationCenter",
   "NSEnumerator",
   "NSGeometry",
+  "NSNotification",
   "NSObjCRuntime",
   "NSRange",
   "NSString",
+  "NSPathUtilities",
   "NSThread",
   "NSURL",
+  "NSValue",
+  "NSRunLoop",
 ] }
 objc2-app-kit = { version = "0.3", default-features = false, features = [
   "std",
   "objc2-core-foundation",
   "NSApplication",
+  "NSBezierPath",
   "NSButton",
   "NSColor",
   "NSControl",
+  "NSCursor",
+  "NSDockTile",
+  "NSDragging",
   "NSEvent",
   "NSGraphics",
+  "NSGraphicsContext",
   "NSImage",
   "NSOpenGLView",
   "NSPasteboard",
   "NSResponder",
+  "NSTextInputClient",
+  "NSTextInputContext",
   "NSRunningApplication",
   "NSScreen",
   "NSView",
   "NSWindow",
+  "NSWindowScripting",
   "NSUserActivity",
 ] }
 core-foundation = "0.10"
