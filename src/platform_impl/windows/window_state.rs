@@ -35,6 +35,11 @@ pub struct WindowState {
   pub skip_taskbar: bool,
 
   pub modifiers_state: ModifiersState,
+
+  /// The `(enabled, border_transparent)` pair last applied through
+  /// `dwm_shadow::set_undecorated_shadow`, used to skip redundant DWM calls
+  /// when the state converges checks run on every `WM_SIZE`.
+  pub applied_dwm_shadow: Option<(bool, bool)>,
   pub fullscreen: Option<Fullscreen>,
   pub current_theme: Theme,
   pub preferred_theme: Option<Theme>,
@@ -110,8 +115,10 @@ bitflags! {
 
         /// Fully decorated window (incl. caption, border and drop shadow).
         const MARKER_DECORATIONS = 1 << 20;
-        /// Drop shadow for undecorated windows.
+        /// Drop shadow for undecorated windows, anchored through DWM.
         const MARKER_UNDECORATED_SHADOW = 1 << 21;
+        /// Draws no visible border around undecorated shadowed windows.
+        const MARKER_UNDECORATED_BORDER_TRANSPARENT = 1 << 24;
 
         const RIGHT_TO_LEFT_LAYOUT = 1 << 22;
 
@@ -122,6 +129,19 @@ bitflags! {
 }
 
 impl WindowState {
+  /// Whether the DWM-drawn border of an undecorated shadowed window is
+  /// actually visible: the flags must request the ring (a non-transparent
+  /// border, restored, non-fullscreen, opaque, Windows 10) *and* the frame
+  /// extension must have been applied — the flags only describe the request,
+  /// while `applied_dwm_shadow` records what DWM actually accepted.
+  ///
+  /// The ring pixels must be painted black (see the `WM_ERASEBKGND` handler)
+  /// for the frame lines to show over them.
+  pub fn undecorated_border_ring_visible(&self) -> bool {
+    self.window_flags.undecorated_border_ring_requested()
+      && self.applied_dwm_shadow == Some((true, false))
+  }
+
   pub fn new(
     attributes: &WindowAttributes,
     taskbar_icon: Option<Icon>,
@@ -151,6 +171,7 @@ impl WindowState {
       skip_taskbar: false,
 
       modifiers_state: ModifiersState::default(),
+      applied_dwm_shadow: None,
       fullscreen: None,
       current_theme,
       preferred_theme,
@@ -468,14 +489,30 @@ impl WindowFlags {
     }
   }
 
-  pub fn undecorated_with_shadows(&self) -> bool {
-    self.contains(WindowFlags::MARKER_UNDECORATED_SHADOW)
-      && !self.contains(WindowFlags::MARKER_DECORATIONS)
+  /// Whether the requested flags would make the DWM border ring of an
+  /// undecorated shadowed window visible on Windows 10: a non-transparent
+  /// border in a state that draws it (restored, non-fullscreen, opaque,
+  /// top-level). Callers must additionally require that the frame extension
+  /// was actually applied (see `WindowState::undecorated_border_ring_visible`).
+  pub fn undecorated_border_ring_requested(&self) -> bool {
+    self.undecorated_shadow_applicable()
+      && !self.contains(WindowFlags::MARKER_UNDECORATED_BORDER_TRANSPARENT)
+      && !self.contains(WindowFlags::MAXIMIZED)
+      && !self.intersects(
+        WindowFlags::MARKER_EXCLUSIVE_FULLSCREEN | WindowFlags::MARKER_BORDERLESS_FULLSCREEN,
+      )
+      && !super::dwm_shadow::composites_border_above_content()
   }
 
-  pub fn contains_shadow(&self) -> bool {
+  /// Whether the DWM shadow can apply to a window with these flags at all
+  /// (`MARKER_UNDECORATED_SHADOW` defaults to true, so decorated, transparent
+  /// and child windows carry the flag without being DWM-shadowed). The single
+  /// source of truth shared by the creation path and the state refresh.
+  pub fn undecorated_shadow_applicable(&self) -> bool {
     self.contains(WindowFlags::MARKER_UNDECORATED_SHADOW)
-      || self.contains(WindowFlags::MARKER_DECORATIONS)
+      && !self.contains(WindowFlags::MARKER_DECORATIONS)
+      && !self.contains(WindowFlags::CHILD)
+      && !self.contains(WindowFlags::TRANSPARENT)
   }
 }
 

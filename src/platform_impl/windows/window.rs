@@ -55,9 +55,7 @@ use crate::{
   },
 };
 
-use super::{
-  event_loop::CHANGE_THEME_MSG_ID, keyboard::KeyEventBuilder, util::calculate_insets_for_dpi,
-};
+use super::{event_loop::CHANGE_THEME_MSG_ID, keyboard::KeyEventBuilder};
 
 use super::event_loop::WindowData;
 
@@ -237,29 +235,9 @@ impl Window {
   pub fn set_inner_size(&self, size: Size) {
     let scale_factor = self.scale_factor();
 
-    let (mut desired_width, mut desired_height) = size.to_physical::<i32>(scale_factor).into();
+    let (desired_width, desired_height) = size.to_physical::<i32>(scale_factor).into();
 
     let window_flags = self.window_state.lock().window_flags;
-
-    // undecorated windows with shadows have hidden offsets
-    // we need to calculate them and account for them in new size
-    //
-    // implementation derived from GPUI
-    // see <https://github.com/zed-industries/zed/blob/7bddb390cabefb177d9996dc580749d64e6ca3b6/crates/gpui/src/platform/windows/window.rs#L1167-L1180>
-    if window_flags.undecorated_with_shadows() {
-      let hwnd = self.hwnd();
-
-      let client_rect = util::client_rect(hwnd);
-      let window_rect = util::window_rect(hwnd);
-
-      let width_offset =
-        (window_rect.right - window_rect.left) - (client_rect.right - client_rect.left);
-      let height_offset =
-        (window_rect.bottom - window_rect.top) - (client_rect.bottom - client_rect.top);
-
-      desired_width += width_offset;
-      desired_height += height_offset;
-    }
 
     let window_state = Arc::clone(&self.window_state);
     let window = self.window;
@@ -584,6 +562,9 @@ impl Window {
       WindowState::set_window_flags(window_state.lock(), window.hwnd(), |f| {
         f.set(WindowFlags::MAXIMIZED, maximized)
       });
+      // Converges immediately; the WM_SIZE path re-checks and the applied
+      // cache in `WindowState` makes the extra call here cheap.
+      refresh_undecorated_shadow(window.hwnd(), &window_state);
     });
   }
 
@@ -799,6 +780,8 @@ impl Window {
       unsafe {
         taskbar_mark_fullscreen(hwnd, fullscreen.is_some());
       }
+
+      refresh_undecorated_shadow(hwnd, &window_state);
     });
   }
 
@@ -811,6 +794,7 @@ impl Window {
       WindowState::set_window_flags(window_state.lock(), window.hwnd(), |f| {
         f.set(WindowFlags::MARKER_DECORATIONS, decorations)
       });
+      refresh_undecorated_shadow(window.hwnd(), &window_state);
     });
   }
 
@@ -1052,6 +1036,7 @@ impl Window {
       WindowState::set_window_flags(window_state.lock(), window.hwnd(), |f| {
         f.set(WindowFlags::MARKER_UNDECORATED_SHADOW, shadow)
       });
+      refresh_undecorated_shadow(window.hwnd(), &window_state);
     });
   }
 
@@ -1062,6 +1047,55 @@ impl Window {
       .lock()
       .window_flags
       .contains(WindowFlags::MARKER_UNDECORATED_SHADOW)
+  }
+
+  /// Sets whether the border of an undecorated shadowed window is drawn
+  /// transparent, i.e. keeps the shadow but draws no visible border. See
+  /// [`crate::platform::windows::WindowBuilderExtWindows::with_undecorated_border_transparent`].
+  #[inline]
+  pub fn set_undecorated_border_transparent(&self, transparent: bool) {
+    let window = self.window;
+    let window_state = Arc::clone(&self.window_state);
+
+    self.thread_executor.execute_in_thread(move || {
+      WindowState::set_window_flags(window_state.lock(), window.hwnd(), |f| {
+        f.set(
+          WindowFlags::MARKER_UNDECORATED_BORDER_TRANSPARENT,
+          transparent,
+        )
+      });
+      refresh_undecorated_shadow(window.hwnd(), &window_state);
+    });
+  }
+
+  #[inline]
+  pub fn has_undecorated_border_transparent(&self) -> bool {
+    self
+      .window_state
+      .lock()
+      .window_flags
+      .contains(WindowFlags::MARKER_UNDECORATED_BORDER_TRANSPARENT)
+  }
+
+  /// Returns the content inset, in physical pixels, that keeps the window
+  /// content clear of the DWM-drawn border of an undecorated shadowed window,
+  /// as `(left, top, right, bottom)`.
+  ///
+  /// The shadow of an undecorated window is anchored by extending the DWM
+  /// frame one pixel into the client area on every edge. Windows 11 composites
+  /// the border above the client content, so no inset is needed there, while
+  /// on Windows 10 the lines are drawn inside the client area and the content
+  /// has to leave those pixels uncovered for the border to be visible. The
+  /// inset is zero when no border is drawn at all: transparent borders,
+  /// maximized and fullscreen windows included.
+  #[inline]
+  pub fn undecorated_frame_inset(&self) -> (i32, i32, i32, i32) {
+    let window_state = self.window_state.lock();
+    if !window_state.undecorated_border_ring_visible() {
+      return (0, 0, 0, 0);
+    }
+    let ring = super::dwm_shadow::RING_PX;
+    (ring, ring, ring, ring)
   }
 
   pub fn set_content_protection(&self, enabled: bool) {
@@ -1259,6 +1293,10 @@ unsafe fn init<T: 'static>(
     WindowFlags::MARKER_UNDECORATED_SHADOW,
     pl_attribs.decoration_shadow,
   );
+  window_flags.set(
+    WindowFlags::MARKER_UNDECORATED_BORDER_TRANSPARENT,
+    pl_attribs.undecorated_border_transparent,
+  );
   window_flags.set(WindowFlags::ALWAYS_ON_BOTTOM, attributes.always_on_bottom);
   window_flags.set(WindowFlags::ALWAYS_ON_TOP, attributes.always_on_top);
   window_flags.set(
@@ -1313,7 +1351,7 @@ unsafe fn init<T: 'static>(
           let (x, y): (i32, i32) = monitor.position().into();
           let (width, height): (i32, i32) = monitor.size().into();
 
-          let frame_thickness = if window_flags.contains_shadow() {
+          let frame_thickness = if window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
             util::get_frame_thickness(dpi)
           } else {
             0
@@ -1365,11 +1403,6 @@ unsafe fn init<T: 'static>(
 
       w = rect.right - rect.left;
       h = rect.bottom - rect.top;
-    } else if window_flags.undecorated_with_shadows() {
-      let dpi = target_monitor.dpi();
-      let insets = calculate_insets_for_dpi(dpi);
-      w += insets.left + insets.right;
-      h += insets.top + insets.bottom;
     }
 
     (w, h)
@@ -1416,6 +1449,79 @@ unsafe fn init<T: 'static>(
   // that we *must* have populated the `InitData.window` field.
   let window = initdata.window.unwrap();
 
+  // The shadow of an undecorated window is anchored through DWM attributes.
+  // Recalculate the nonclient area as well: before this point WM_NCCALCSIZE
+  // fell through to DefWindowProc (the window userdata is only installed once
+  // `CreateWindowExW` returns), which sized the client with the native frame
+  // styles the undecorated window still carries — and a hidden window never
+  // gets a second chance to fix that until it is shown.
+  // The DWM state of windows the shadow can never apply to (decorated,
+  // transparent, child) must not be touched at all — `decoration_shadow`
+  // defaults to true, so this exclusion cannot ride on
+  // `MARKER_UNDECORATED_SHADOW` alone.
+  let shadow_requested = window_flags.undecorated_shadow_applicable();
+  let border_transparent =
+    window_flags.contains(WindowFlags::MARKER_UNDECORATED_BORDER_TRANSPARENT);
+  // The values that will actually be applied: `MAXIMIZED` and fullscreen are
+  // applied further down, after this point.
+  // The exclusions already rode in on `shadow_requested`.
+  let shadow_enabled = shadow_requested && fullscreen.is_none() && !maximized;
+  let mut shadow_applied = None;
+  if shadow_requested {
+    shadow_applied =
+      super::dwm_shadow::set_undecorated_shadow(window.hwnd(), shadow_enabled, border_transparent)
+        .then_some((shadow_enabled, border_transparent));
+    // Prime the applied-state cache, but only record a successful apply: a
+    // failure must stay retryable, matching `refresh_undecorated_shadow`'s
+    // rollback.
+    if shadow_applied.is_some() {
+      window.window_state.lock().applied_dwm_shadow = shadow_applied;
+    }
+  }
+  if !window_flags.contains(WindowFlags::MARKER_DECORATIONS) {
+    let _ = SetWindowPos(
+      window.hwnd(),
+      None,
+      0,
+      0,
+      0,
+      0,
+      SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
+    );
+    // Paint the DWM border ring black right away: nothing else draws these
+    // pixels, and on Windows 10 the frame lines only show over black ones.
+    // The interior keeps the configured background color, mirroring the
+    // `WM_ERASEBKGND` handler. Gate on the values that were actually applied:
+    // the local flags do not carry `MAXIMIZED`/fullscreen yet (both are
+    // applied further down), so re-deriving the predicate here would be stale.
+    if shadow_applied.is_some_and(|(applied, _)| applied)
+      && !border_transparent
+      && !super::dwm_shadow::composites_border_above_content()
+    {
+      let hdc = GetDC(Some(window.hwnd()));
+      let background_color = window.window_state.lock().background_color;
+      let mut rc = RECT::default();
+      if !hdc.is_invalid() && GetClientRect(window.hwnd(), &mut rc).is_ok() {
+        // Best-effort: a failed paint here is retried by the erase handler.
+        if let Some(color) = background_color {
+          let brush = CreateSolidBrush(util::RGB(color.0, color.1, color.2));
+          if !brush.is_invalid() {
+            FillRect(hdc, &rc, brush);
+          }
+          let _ = DeleteObject(brush.into());
+        }
+        // SAFETY: `hdc` is the window's device context and `rc` its client
+        // rect.
+        unsafe {
+          super::dwm_shadow::paint_border_ring(hdc, &rc);
+        }
+      }
+      if !hdc.is_invalid() {
+        ReleaseDC(Some(window.hwnd()), hdc);
+      }
+    }
+  }
+
   // Need to set FULLSCREEN or MAXIMIZED after CreateWindowEx
   // This is because if the size is changed in WM_CREATE, the restored size will be stored in that
   // size.
@@ -1434,6 +1540,75 @@ unsafe fn init<T: 'static>(
   }
 
   Ok(window)
+}
+
+/// Recomputes the DWM-anchored shadow of an undecorated window from its
+/// current state. The shadow is suppressed while the window is maximized or
+/// fullscreen (transparent windows keep the system default shadow behavior),
+/// matching how the system treats native maximized windows (no border, no
+/// shadow); it comes back on restore.
+///
+/// Runs on every `WM_SIZE` and after every state-changing call: the applied
+/// state cached in `WindowState` makes this a no-op unless something actually
+/// changed. The state is copied out under the lock and released before the
+/// DWM calls, since a frame change can synchronously re-enter the window
+/// procedure and the state mutex is non-reentrant.
+pub(super) fn refresh_undecorated_shadow(hwnd: HWND, window_state: &Arc<Mutex<WindowState>>) {
+  let (flags, fullscreen, applied) = {
+    let state = window_state.lock();
+    (
+      state.window_flags,
+      state.fullscreen.is_some(),
+      state.applied_dwm_shadow,
+    )
+  };
+  // `MARKER_UNDECORATED_SHADOW` defaults to true, so decorated, transparent
+  // and child windows carry the flag without ever being DWM-shadowed: only
+  // touch windows the shadow can actually apply to (unless a previous apply
+  // left state behind that must be reset, e.g. after a decorations toggle).
+  let applicable = flags.undecorated_shadow_applicable();
+  if !applicable && applied.is_none() {
+    return;
+  }
+  let enabled = applicable && !flags.contains(WindowFlags::MAXIMIZED) && !fullscreen;
+  let border_transparent = flags.contains(WindowFlags::MARKER_UNDECORATED_BORDER_TRANSPARENT);
+  let next = (enabled, border_transparent);
+  if applied == Some(next) {
+    return;
+  }
+  // Cache the target state before the DWM calls: they may synchronously
+  // re-enter the window procedure, and a nested refresh must observe the
+  // target state instead of recursing into the DWM sequence.
+  window_state.lock().applied_dwm_shadow = Some(next);
+  if !super::dwm_shadow::set_undecorated_shadow(hwnd, enabled, border_transparent) {
+    // Do not leave a failed apply recorded as applied, otherwise no later
+    // refresh retries it until the target state changes. Restoring the
+    // previously observed value (instead of clearing it) keeps the window
+    // marked as customized and retryable.
+    {
+      // Only restore our own write: a nested refresh during the DWM calls may
+      // legitimately have recorded a newer target.
+      let mut state = window_state.lock();
+      if state.applied_dwm_shadow == Some(next) {
+        state.applied_dwm_shadow = applied;
+      }
+    }
+  } else {
+    // The ring switches between visible (applied == Some((true, false))) and
+    // not; when it flips, the black one-pixel ring must be (re)painted or
+    // the stale pixels sit under the DWM glass lines. `bErase = true` is
+    // required so the erase handler is actually delivered.
+    // The ring only exists on systems where the border is not composited
+    // above the client content (see `composites_border_above_content`).
+    let ring_drawn = !super::dwm_shadow::composites_border_above_content();
+    let ring_before = ring_drawn && applied == Some((true, false));
+    let ring_after = ring_drawn && next == (true, false);
+    if ring_before != ring_after {
+      unsafe {
+        let _ = InvalidateRgn(hwnd, None, true);
+      }
+    }
+  }
 }
 
 unsafe fn register_window_class<T: 'static>(window_classname: &str) -> Vec<u16> {
