@@ -25,14 +25,20 @@ impl RgbaIcon {
   fn into_windows_icon(self) -> Result<WinIcon, BadIcon> {
     let mut rgba = self.rgba;
     let pixel_count = rgba.len() / PIXEL_SIZE;
-    let mut and_mask = Vec::with_capacity(pixel_count);
+    let width = self.width as usize;
+    // The AND mask is a monochrome bitmap: one bit per pixel, set where the pixel is
+    // transparent, with each row padded to a WORD boundary.
+    let mask_stride = width.div_ceil(16) * 2;
+    let mut and_mask = vec![0u8; mask_stride * self.height as usize];
     let pixels =
       unsafe { std::slice::from_raw_parts_mut(rgba.as_mut_ptr() as *mut Pixel, pixel_count) };
-    for pixel in pixels {
-      and_mask.push(pixel.a.wrapping_sub(u8::MAX)); // invert alpha channel
+    for (i, pixel) in pixels.iter_mut().enumerate() {
+      if pixel.a == 0 {
+        let (x, y) = (i % width, i / width);
+        and_mask[y * mask_stride + x / 8] |= 0x80 >> (x % 8);
+      }
       pixel.to_bgra();
     }
-    assert_eq!(and_mask.len(), pixel_count);
     let handle = unsafe {
       CreateIcon(
         None,
