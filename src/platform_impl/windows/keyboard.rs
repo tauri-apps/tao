@@ -170,11 +170,21 @@ impl KeyEventBuilder {
           MatchResult::TokenToRemove(pending_token)
         }
         WM_DEADCHAR | WM_SYSDEADCHAR => {
-          let pending_token = self.pending.add_pending();
-          *result = ProcResult::Value(LRESULT(0));
           // At this point, we know that there isn't going to be any more events related
           // to this key press
-          let event_info = self.event_info.lock().take().unwrap();
+          let Some(event_info) = self.event_info.lock().take() else {
+            // The key-down handler only keeps `event_info` when it sees this message
+            // queued behind the key-down (`next_kbd_msg`). Without it, the key-down was
+            // dispatched on its own (or never seen), and there is nothing left to finish.
+            // Same as `WM_CHAR` below: ignore it instead of panicking.
+            trace!(
+              "Received a DEADCHAR message but no `event_info` was available. The \
+                             key-down was not kept for it, returning."
+            );
+            return MatchResult::Nothing;
+          };
+          let pending_token = self.pending.add_pending();
+          *result = ProcResult::Value(LRESULT(0));
           let mut layouts = LAYOUT_CACHE.lock();
           let ev = event_info.finalize(&mut layouts.strings);
           MatchResult::MessagesToDispatch(self.pending.complete_pending(
