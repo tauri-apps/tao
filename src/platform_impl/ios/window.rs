@@ -632,10 +632,17 @@ impl Window {
       let scale_factor: f64 = scale_factor.into();
       if scale_factor != 1.0 {
         let bounds: CGRect = msg_send![view, bounds];
-        let screen: id = msg_send![window, screen];
-        let screen_space: id = msg_send![screen, coordinateSpace];
-        let screen_frame: CGRect =
-          msg_send![view, convertRect:bounds, toCoordinateSpace:screen_space];
+        // a window created before any scene connected (see `create_window`) is not part of
+        // the screen's coordinate space yet, and converting to it yields an empty rect; the
+        // suggested size would then shrink the view to 0x0 until the scene adopts the window
+        let window_scene: id = msg_send![window, windowScene];
+        let screen_frame: CGRect = if window_scene.is_null() {
+          bounds
+        } else {
+          let screen: id = msg_send![window, screen];
+          let screen_space: id = msg_send![screen, coordinateSpace];
+          msg_send![view, convertRect:bounds, toCoordinateSpace:screen_space]
+        };
         let size = crate::dpi::LogicalSize {
           width: screen_frame.size.width as _,
           height: screen_frame.size.height as _,
