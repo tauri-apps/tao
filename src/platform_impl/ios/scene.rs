@@ -1,7 +1,7 @@
 // Copyright 2021-2025 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use objc2::{define_class, rc::Retained, MainThreadMarker, MainThreadOnly};
+use objc2::{define_class, msg_send, rc::Retained, MainThreadMarker, MainThreadOnly};
 use objc2_foundation::{
   NSBundle, NSError, NSObject, NSObjectProtocol, NSSet, NSString, NSUserActivity,
 };
@@ -125,24 +125,7 @@ define_class!(
     #[unsafe(method(scene:openURLContexts:))]
     fn scene_openURLContexts(&self, _scene: &UIScene, url_contexts: &NSSet<UIOpenURLContext>) {
       unsafe {
-        let urls: Vec<url::Url> = url_contexts
-          .iter()
-          .filter_map(|ctx| {
-            ctx.URL().absoluteString().and_then(|url| {
-              let url = url.to_string();
-              url
-                .parse()
-                .map_err(|e| {
-                  log::error!("failed to parse URL {url} from scene:openURLContexts: {e}");
-                  e
-                })
-                .ok()
-            })
-          })
-          .collect();
-        if !urls.is_empty() {
-          app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls }));
-        }
+        emit_opened(urls_from_contexts(url_contexts));
       }
     }
 
@@ -219,3 +202,45 @@ define_class!(
     }
   }
 );
+
+unsafe fn urls_from_contexts(url_contexts: &NSSet<UIOpenURLContext>) -> Vec<url::Url> {
+  url_contexts
+    .iter()
+    .filter_map(|ctx| {
+      ctx.URL().absoluteString().and_then(|url| {
+        let url = url.to_string();
+        url
+          .parse()
+          .inspect_err(|e| log::error!("failed to parse URL {url} from a scene URL context: {e}"))
+          .ok()
+      })
+    })
+    .collect()
+}
+
+unsafe fn emit_opened(urls: Vec<url::Url>) {
+  if !urls.is_empty() {
+    app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls }));
+  }
+}
+
+// a scene that is launched to open a URL or continue a universal link receives it in its
+// connection options, `scene:openURLContexts:` and `scene:continueUserActivity:` are only
+// called for scenes that are already connected
+// both sets are nil when the scene was launched without a URL or an activity, even though
+// the generated bindings declare them as non-null
+pub unsafe fn emit_launch_urls(options: &UISceneConnectionOptions) {
+  let url_contexts: Option<Retained<NSSet<UIOpenURLContext>>> = msg_send![options, URLContexts];
+  let activities: Option<Retained<NSSet<NSUserActivity>>> = msg_send![options, userActivities];
+  let mut urls = url_contexts
+    .map(|contexts| urls_from_contexts(&contexts))
+    .unwrap_or_default();
+  urls.extend(
+    activities
+      .iter()
+      .flat_map(|activities| activities.iter())
+      .filter_map(|activity| activity.webpageURL()?.absoluteString())
+      .filter_map(|url| url.to_string().parse::<url::Url>().ok()),
+  );
+  emit_opened(urls);
+}

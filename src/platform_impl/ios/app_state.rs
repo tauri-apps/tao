@@ -562,6 +562,8 @@ pub unsafe fn connect_scene(scene: &UIScene, options: &UISceneConnectionOptions)
       let () = msg_send![window, release];
     }
   }
+
+  super::scene::emit_launch_urls(options);
 }
 
 pub unsafe fn register_window_for_scene(window: id) {
