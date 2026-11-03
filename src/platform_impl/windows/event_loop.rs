@@ -569,9 +569,6 @@ impl<T: 'static> Clone for EventLoopProxy<T> {
 impl<T: 'static> EventLoopProxy<T> {
   pub fn send_event(&self, event: T) -> Result<(), EventLoopClosed<T>> {
     unsafe {
-      if !IsWindow(Some(self.target_window)).as_bool() {
-        return Err(EventLoopClosed(event));
-      }
       // Queue the event before posting the message that delivers it. The other way round, a
       // thread preempted between the two calls left the event loop thread waiting for it.
       if let Err(err) = self.event_send.send(event) {
