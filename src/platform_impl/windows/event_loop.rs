@@ -574,7 +574,9 @@ impl<T: 'static> EventLoopProxy<T> {
       }
       // Queue the event before posting the message that delivers it. The other way round, a
       // thread preempted between the two calls left the event loop thread waiting for it.
-      self.event_send.send(event).ok();
+      if let Err(err) = self.event_send.send(event) {
+        return Err(EventLoopClosed(err.0));
+      }
       let _ = PostMessageW(
         Some(self.target_window),
         *USER_EVENT_MSG_ID,
@@ -2354,8 +2356,6 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
     }
 
     _ if msg == *USER_EVENT_MSG_ID => {
-      // Never block here: deliver what is queued. A message whose event an earlier message
-      // already delivered finds nothing.
       while let Ok(event) = userdata.user_event_receiver.try_recv() {
         userdata.send_event(Event::UserEvent(event));
       }
