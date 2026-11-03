@@ -20,6 +20,7 @@ pub(crate) use self::{
 pub use self::icon::WinIcon as PlatformIcon;
 
 use crate::{event::DeviceId as RootDeviceId, icon::Icon, keyboard::Key};
+mod dwm_shadow;
 mod keycode;
 
 #[non_exhaustive]
@@ -40,6 +41,11 @@ pub struct PlatformSpecificWindowBuilderAttributes {
   pub no_redirection_bitmap: bool,
   pub drag_and_drop: bool,
   pub decoration_shadow: bool,
+  /// Draws no visible border around undecorated shadowed windows. Windows 11
+  /// hides the border line through `DWMWA_BORDER_COLOR`; on Windows 10 the
+  /// glass lines simply stay underneath the client content. See
+  /// `Window::undecorated_frame_inset` for the content inset this implies.
+  pub undecorated_border_transparent: bool,
   pub rtl: bool,
 }
 
@@ -54,6 +60,7 @@ impl Default for PlatformSpecificWindowBuilderAttributes {
       skip_taskbar: false,
       window_classname: "Window Class".to_string(),
       decoration_shadow: true,
+      undecorated_border_transparent: false,
       rtl: false,
     }
   }

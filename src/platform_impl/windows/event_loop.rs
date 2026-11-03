@@ -54,7 +54,7 @@ use crate::{
     keyboard_layout::get_agnostic_mods,
     monitor::{self, MonitorHandle},
     raw_input, util,
-    window::{set_skip_taskbar, InitData},
+    window::{refresh_undecorated_shadow, set_skip_taskbar, InitData},
     window_state::{CursorFlags, WindowFlags, WindowState},
     wrap_device_id, WindowId, DEVICE_ID,
   },
@@ -1040,8 +1040,42 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     win32wm::WM_ERASEBKGND => {
-      let w = userdata.window_state.lock();
-      if let Some(color) = w.background_color {
+      // Copy the paint decision out under the lock and release it before the
+      // GDI calls: paint work can synchronously re-enter the window
+      // procedure and the state mutex is non-reentrant.
+      let (ring_visible, background_color) = {
+        let w = userdata.window_state.lock();
+        // The DWM border ring of an undecorated shadowed window (Windows 10
+        // only, see `undecorated_border_ring_visible`) is covered by neither
+        // the webview nor any other content: the frame lines show over these
+        // pixels, which must be black or the region renders as stale garbage.
+        (w.undecorated_border_ring_visible(), w.background_color)
+      };
+      if ring_visible {
+        let hdc = HDC(wparam.0 as *mut _);
+        let mut rc = RECT::default();
+        if GetClientRect(window, &mut rc).is_ok() {
+          // Interior: the app's background color if configured (avoids a dark
+          // flash before the webview paints). Left untouched otherwise — the
+          // webview covers it.
+          let mut painted = true;
+          if let Some(color) = background_color {
+            let brush = CreateSolidBrush(util::RGB(color.0, color.1, color.2));
+            painted = !brush.is_invalid() && FillRect(hdc, &rc, brush) != 0;
+            let _ = DeleteObject(brush.into());
+          }
+          // SAFETY: `hdc` is the erase device context and `rc` its client
+          // rect.
+          let ring_painted = unsafe { super::dwm_shadow::paint_border_ring(hdc, &rc) };
+          result = if painted && ring_painted {
+            ProcResult::Value(LRESULT(1))
+          } else {
+            ProcResult::DefWindowProc
+          };
+        } else {
+          result = ProcResult::DefWindowProc;
+        }
+      } else if let Some(color) = background_color {
         let hdc = HDC(wparam.0 as *mut _);
         let mut rc = RECT::default();
         if GetClientRect(window, &mut rc).is_ok() {
@@ -1184,6 +1218,14 @@ unsafe fn public_window_callback_inner<T: 'static>(
           w.set_window_flags_in_place(|f| f.set(WindowFlags::MAXIMIZED, maximized));
         }
       }
+
+      // Converge the DWM-anchored border and shadow of an undecorated shadowed
+      // window with the (possibly just changed) state on every size
+      // transition: restore paths that clear `MAXIMIZED` through
+      // `set_window_flags` (e.g. `set_inner_size`) never produce a clean
+      // transition here, so this cannot rely on transition detection. The
+      // applied-state cache makes the call a no-op while nothing changes.
+      refresh_undecorated_shadow(window, &userdata.window_state);
 
       userdata.send_event(event);
       result = ProcResult::Value(LRESULT(0));
@@ -2121,14 +2163,10 @@ unsafe fn public_window_callback_inner<T: 'static>(
 
             *client_rect = rect;
           }
-        } else if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) {
-          let insets = util::calculate_window_insets(window);
-
-          client_rect.left += insets.left;
-          client_rect.top += insets.top;
-          client_rect.right -= insets.right;
-          client_rect.bottom -= insets.bottom;
         }
+        // Undecorated windows keep their full client area: the shadow is
+        // anchored through DWM (see `dwm_shadow`), which needs no non-client
+        // space.
         result = ProcResult::Value(LRESULT(0)); // return 0 here to make the window borderless
       }
     }
@@ -2150,38 +2188,35 @@ unsafe fn public_window_callback_inner<T: 'static>(
         );
 
         let dpi = hwnd_dpi(window);
-        let border_y = get_system_metrics_for_dpi(SM_CYFRAME, dpi);
-
-        // if we have undecorated shadows, we only need to handle the top edge
-        if window_flags.contains(WindowFlags::MARKER_UNDECORATED_SHADOW) {
-          let rect = util::client_rect(window);
-          let mut cursor_pt = POINT { x: cx, y: cy };
-          if ScreenToClient(window, &mut cursor_pt).as_bool()
-            && cursor_pt.y >= 0
-            && cursor_pt.y <= border_y
-            && cursor_pt.x >= 0
-            && cursor_pt.x <= rect.right
-          {
-            result = ProcResult::Value(LRESULT(HTTOP as _));
-          }
-        }
-        // otherwise do full hit testing
-        else {
-          let border_x = get_system_metrics_for_dpi(SM_CXFRAME, dpi);
-          let rect = util::window_rect(window);
-          let hit_result = crate::window::hit_test(
-            (rect.left, rect.top, rect.right, rect.bottom),
-            cx,
-            cy,
-            border_x,
-            border_y,
+        // Shadowed undecorated windows used to carry a non-client frame
+        // `get_frame_thickness` wide (sizing frame + padded border), so their
+        // grab band keeps that width. Plain undecorated windows never had one
+        // and keep the per-axis `SM_CXFRAME`/`SM_CYFRAME` band they always had.
+        // Both bands derive from the same predicate so they cannot disagree.
+        let (border, border_y) = if window_flags.undecorated_shadow_applicable() {
+          let thickness = util::get_frame_thickness(dpi);
+          (thickness, thickness)
+        } else {
+          (
+            get_system_metrics_for_dpi(SM_CXFRAME, dpi),
+            get_system_metrics_for_dpi(SM_CYFRAME, dpi),
           )
-          .map(|d| d.to_win32());
+        };
+        // Full hit testing on every edge: undecorated windows keep their full
+        // client area, so there is no top-only special case anymore.
+        let rect = util::window_rect(window);
+        let hit_result = crate::window::hit_test(
+          (rect.left, rect.top, rect.right, rect.bottom),
+          cx,
+          cy,
+          border,
+          border_y,
+        )
+        .map(|d| d.to_win32());
 
-          result = hit_result
-            .map(|r| ProcResult::Value(LRESULT(r as _)))
-            .unwrap_or(ProcResult::DefWindowProc);
-        }
+        result = hit_result
+          .map(|r| ProcResult::Value(LRESULT(r as _)))
+          .unwrap_or(ProcResult::DefWindowProc);
       } else {
         result = ProcResult::DefWindowProc;
       }
