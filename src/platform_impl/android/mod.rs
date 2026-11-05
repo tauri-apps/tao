@@ -655,8 +655,17 @@ impl Window {
   ) -> Result<Self, error::OsError> {
     // FIXME this ignores requested window attributes
 
-    let (activity_id, activity_name) = match pl_attrs.activity_name {
-      Some(activity_name) => {
+    // an activity the system started on its own (the launcher activity on app start) hosts the first window
+    // that does not ask for a specific activity; any other window gets an activity in a new task
+    let available_activity = pl_attrs
+      .activity_name
+      .is_none()
+      .then(ndk_glue::next_available_activity)
+      .flatten();
+
+    let activity_id = match available_activity {
+      Some((activity_id, _)) => activity_id,
+      None => {
         let ctx = if let Some(created_by_activity_name) = pl_attrs.created_by_activity_name {
           ndk_glue::CONTEXTS
             .lock()
@@ -668,18 +677,43 @@ impl Window {
           ndk_glue::main_android_context()
         }
         .ok_or_else(|| os_error!(OsError::NoAvailableActivity))?;
-        let activity_id = ctx
-          .create_activity(&activity_name)
-          .map_err(|error| os_error!(OsError::JniCallError(error)))?;
-        (activity_id, activity_name)
+        ctx
+          .create_activity(
+            pl_attrs.activity_name.as_deref(),
+            ndk_glue::ActivityLaunch::NewTask,
+          )
+          .map_err(|error| os_error!(OsError::JniCallError(error)))?
       }
-      None => ndk_glue::next_available_activity()
-        .map(|(activity_id, ctx)| (activity_id, ctx.activity_name.clone()))
-        .ok_or_else(|| os_error!(OsError::NoAvailableActivity))?,
     };
+
+    let ctx = ndk_glue::claim_activity(activity_id)
+      .ok_or_else(|| os_error!(OsError::NoAvailableActivity))?;
+
     Ok(Self {
       activity_id,
-      activity_name,
+      activity_name: ctx.activity_name,
+    })
+  }
+
+  /// Starts an activity in this window's task, to host a webview next to the window's own.
+  pub fn create_embedded_activity(
+    &self,
+    activity_name: &str,
+  ) -> Result<EmbeddedActivity, error::OsError> {
+    let ctx = ndk_glue::CONTEXTS
+      .lock()
+      .unwrap()
+      .get(&self.activity_id)
+      .cloned()
+      .ok_or_else(|| os_error!(OsError::NoAvailableActivity))?;
+    let activity_id = ctx
+      .create_activity(Some(activity_name), ndk_glue::ActivityLaunch::SameTask)
+      .map_err(|error| os_error!(OsError::JniCallError(error)))?;
+    let ctx = ndk_glue::claim_activity(activity_id)
+      .ok_or_else(|| os_error!(OsError::NoAvailableActivity))?;
+    Ok(EmbeddedActivity {
+      activity_id,
+      activity_name: ctx.activity_name,
     })
   }
 
@@ -926,16 +960,7 @@ impl Window {
 
   #[cfg(feature = "rwh_06")]
   pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
-    // TODO: Use main activity instead?
-    if let Some(w) = ndk_glue::activity_window_manager(self.activity_id).as_ref() {
-      let native_window =
-        unsafe { std::ptr::NonNull::new_unchecked(w.as_obj().as_raw() as *mut _) };
-      // native_window shuldn't be null
-      let handle = rwh_06::AndroidNdkWindowHandle::new(native_window);
-      Ok(rwh_06::RawWindowHandle::AndroidNdk(handle))
-    } else {
-      Err(rwh_06::HandleError::Unavailable)
-    }
+    activity_raw_window_handle_rwh_06(self.activity_id)
   }
 
   #[cfg(feature = "rwh_06")]
@@ -958,6 +983,67 @@ impl Window {
 
   pub fn theme(&self) -> Theme {
     Theme::Light
+  }
+}
+
+impl Drop for Window {
+  fn drop(&mut self) {
+    // the window owns its task: closing it removes the task, so it is gone from Recents too.
+    // When the activity was destroyed first (the user closed the window), there is nothing left to finish.
+    ndk_glue::close_activity(self.activity_id, true);
+  }
+}
+
+#[cfg(feature = "rwh_06")]
+fn activity_raw_window_handle_rwh_06(
+  activity_id: ActivityId,
+) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
+  if let Some(w) = ndk_glue::activity_window_manager(activity_id).as_ref() {
+    let native_window = unsafe { std::ptr::NonNull::new_unchecked(w.as_obj().as_raw() as *mut _) };
+    // native_window shuldn't be null
+    let handle = rwh_06::AndroidNdkWindowHandle::new(native_window);
+    Ok(rwh_06::RawWindowHandle::AndroidNdk(handle))
+  } else {
+    Err(rwh_06::HandleError::Unavailable)
+  }
+}
+
+/// An activity started in a window's task by [`Window::create_embedded_activity`].
+///
+/// The activity is finished when this is dropped.
+pub struct EmbeddedActivity {
+  activity_id: ActivityId,
+  activity_name: String,
+}
+
+impl EmbeddedActivity {
+  pub fn id(&self) -> window::WindowId {
+    window::WindowId(WindowId(self.activity_id))
+  }
+
+  pub fn activity_name(&self) -> &str {
+    &self.activity_name
+  }
+
+  #[cfg(feature = "rwh_06")]
+  pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
+    activity_raw_window_handle_rwh_06(self.activity_id)
+  }
+}
+
+#[cfg(feature = "rwh_06")]
+impl rwh_06::HasWindowHandle for EmbeddedActivity {
+  fn window_handle(&self) -> Result<rwh_06::WindowHandle<'_>, rwh_06::HandleError> {
+    let raw = self.raw_window_handle_rwh_06()?;
+    // SAFETY: as for `Window`, the handle is the activity's window manager, which is kept alive until the activity
+    // is destroyed (`window_handle` then returns `HandleError::Unavailable`)
+    Ok(unsafe { rwh_06::WindowHandle::borrow_raw(raw) })
+  }
+}
+
+impl Drop for EmbeddedActivity {
+  fn drop(&mut self) {
+    ndk_glue::close_activity(self.activity_id, false);
   }
 }
 
