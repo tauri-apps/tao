@@ -12,7 +12,7 @@ use std::ops::{BitAnd, Deref};
 use core_graphics::display::CGDisplay;
 use objc2::{
   class,
-  runtime::{AnyClass as Class, AnyObject as Object, Sel},
+  runtime::{AnyObject as Object, Sel},
 };
 use objc2_app_kit::{NSApp, NSEvent, NSView, NSWindow, NSWindowStyleMask};
 use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSPoint, NSRange, NSRect, NSUInteger};
@@ -103,11 +103,6 @@ pub fn cursor_position() -> Result<PhysicalPosition<f64>, ExternalError> {
   let y = CGDisplay::main().pixels_high() as f64 - point.y;
   let point = LogicalPosition::new(point.x, y);
   Ok(point.to_physical(super::monitor::primary_monitor().scale_factor()))
-}
-
-pub unsafe fn superclass<'a>(this: &'a Object) -> &'a Class {
-  let superclass: *const Class = msg_send![this, superclass];
-  &*superclass
 }
 
 pub unsafe fn create_input_context(view: &NSView) -> IdRef {
