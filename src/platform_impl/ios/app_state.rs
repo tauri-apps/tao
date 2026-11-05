@@ -24,10 +24,10 @@ use crate::{
   platform_impl::platform::{
     event_loop::{EventHandler, EventProxy, EventWrapper},
     ffi::{
-      id, kCFRunLoopCommonModes, CFAbsoluteTimeGetCurrent, CFRelease, CFRunLoopAddTimer,
-      CFRunLoopGetMain, CFRunLoopRef, CFRunLoopTimerCreate, CFRunLoopTimerInvalidate,
-      CFRunLoopTimerRef, CFRunLoopTimerSetNextFireDate, CGRect, CGSize, NSInteger,
-      NSOperatingSystemVersion, NSUInteger,
+      id, kCFRunLoopCommonModes, CFAbsoluteTimeGetCurrent, CFEqual, CFRelease, CFRunLoopAddTimer,
+      CFRunLoopCopyCurrentMode, CFRunLoopGetMain, CFRunLoopRef, CFRunLoopTimerCreate,
+      CFRunLoopTimerInvalidate, CFRunLoopTimerRef, CFRunLoopTimerSetNextFireDate, CGRect, CGSize,
+      NSInteger, NSOperatingSystemVersion, NSUInteger, UITrackingRunLoopMode,
     },
     scene::scene_lifecycle_enabled,
   },
@@ -887,6 +887,28 @@ unsafe fn handle_user_events() {
     }
     event_handler.handle_user_events(&mut control_flow);
   }
+}
+
+pub unsafe fn handle_user_events_while_tracking() {
+  if !main_loop_is_tracking() {
+    return;
+  }
+  let this = AppState::get_mut();
+  if !matches!(this.state(), &AppStateImpl::ProcessingEvents { .. }) {
+    return;
+  }
+  drop(this);
+  handle_user_events();
+}
+
+unsafe fn main_loop_is_tracking() -> bool {
+  let mode = CFRunLoopCopyCurrentMode(CFRunLoopGetMain());
+  if mode.is_null() {
+    return false;
+  }
+  let tracking = CFEqual(mode as _, UITrackingRunLoopMode as _) != 0;
+  CFRelease(mode as _);
+  tracking
 }
 
 // requires main thread
