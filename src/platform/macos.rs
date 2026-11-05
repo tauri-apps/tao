@@ -363,7 +363,7 @@ impl<T> EventLoopExtMacOS for EventLoop<T> {
 pub trait MonitorHandleExtMacOS {
   /// Returns the identifier of the monitor for Cocoa.
   fn native_id(&self) -> u32;
-  /// Returns a pointer to the NSScreen representing this monitor.
+  /// Returns a borrowed `NSScreen` pointer for this monitor, valid until the current autorelease pool drains.
   fn ns_screen(&self) -> Option<*mut c_void>;
 }
 
@@ -377,7 +377,7 @@ impl MonitorHandleExtMacOS for MonitorHandle {
     self
       .inner
       .ns_screen()
-      .map(|s| objc2::rc::Retained::into_raw(s) as *mut c_void)
+      .map(|s| objc2::rc::Retained::autorelease_ptr(s) as *mut c_void)
   }
 }
 
