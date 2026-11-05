@@ -569,19 +569,18 @@ impl<T: 'static> Clone for EventLoopProxy<T> {
 impl<T: 'static> EventLoopProxy<T> {
   pub fn send_event(&self, event: T) -> Result<(), EventLoopClosed<T>> {
     unsafe {
-      if PostMessageW(
+      // Queue the event before posting the message that delivers it. The other way round, a
+      // thread preempted between the two calls left the event loop thread waiting for it.
+      if let Err(err) = self.event_send.send(event) {
+        return Err(EventLoopClosed(err.0));
+      }
+      let _ = PostMessageW(
         Some(self.target_window),
         *USER_EVENT_MSG_ID,
         WPARAM(0),
         LPARAM(0),
-      )
-      .is_ok()
-      {
-        self.event_send.send(event).ok();
-        Ok(())
-      } else {
-        Err(EventLoopClosed(event))
-      }
+      );
+      Ok(())
     }
   }
 }
@@ -2354,7 +2353,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
     }
 
     _ if msg == *USER_EVENT_MSG_ID => {
-      if let Ok(event) = userdata.user_event_receiver.recv() {
+      while let Ok(event) = userdata.user_event_receiver.try_recv() {
         userdata.send_event(Event::UserEvent(event));
       }
       let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
