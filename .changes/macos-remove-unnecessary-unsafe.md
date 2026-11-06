@@ -2,4 +2,4 @@
 "tao": patch
 ---
 
-On macOS, remove unnecessary `unsafe` around AppKit/Foundation calls that are safe in objc2 0.3.2.
+On macOS, require objc2-app-kit/objc2-foundation 0.3.2 and remove unnecessary `unsafe` around calls that became safe there.
