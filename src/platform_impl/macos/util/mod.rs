@@ -99,7 +99,7 @@ pub fn window_position(position: LogicalPosition<f64>) -> NSPoint {
 }
 
 pub fn cursor_position() -> Result<PhysicalPosition<f64>, ExternalError> {
-  let point = unsafe { NSEvent::mouseLocation() };
+  let point = NSEvent::mouseLocation();
   let y = CGDisplay::main().pixels_high() as f64 - point.y;
   let point = LogicalPosition::new(point.x, y);
   Ok(point.to_physical(super::monitor::primary_monitor().scale_factor()))
