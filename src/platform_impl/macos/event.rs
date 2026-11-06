@@ -162,7 +162,7 @@ pub fn create_key_event(
     //#[cfg(debug_assertions)] println!("Couldn't get key from code: {:?}", physical_key);
     key_without_modifiers = get_modifierless_char(scancode);
 
-    let modifiers = unsafe { NSEvent::modifierFlags(ns_event) };
+    let modifiers = NSEvent::modifierFlags(ns_event);
     let has_alt = modifiers.contains(NSEventModifierFlags::Option);
     let has_ctrl = modifiers.contains(NSEventModifierFlags::Control);
     if has_alt || has_ctrl || text_with_all_modifiers.is_none() || !is_press {
@@ -304,7 +304,7 @@ pub fn extra_function_key_to_code(scancode: u16, string: &str) -> KeyCode {
 }
 
 pub fn event_mods(event: &NSEvent) -> ModifiersState {
-  let flags = unsafe { NSEvent::modifierFlags(event) };
+  let flags = NSEvent::modifierFlags(event);
   let mut m = ModifiersState::empty();
   m.set(
     ModifiersState::SHIFT,
