@@ -285,8 +285,10 @@ fn create_window(
       ns_window.setSharingType(NSWindowSharingType::None);
     }
 
-    if let Some(button) = ns_window.standardWindowButton(NSWindowButton::ZoomButton) {
-      button.setEnabled(attrs.maximizable);
+    if !attrs.maximizable {
+      if let Some(button) = ns_window.standardWindowButton(NSWindowButton::ZoomButton) {
+        button.setEnabled(false);
+      }
     }
 
     if let Some(increments) = pl_attrs.resize_increments {
