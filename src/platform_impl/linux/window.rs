@@ -208,13 +208,14 @@ impl Window {
       window.stick();
     }
 
-    // Set initial `preferred_theme` value to current portal color-scheme
+    // A window built without a theme follows the system's: `theme()` asks the portal for it
+    let preferred_theme = attributes.preferred_theme;
     #[cfg(feature = "dbus")]
-    let preferred_theme = super::portal::theme().ok();
+    let initial_theme = preferred_theme.or_else(|| super::portal::theme().ok());
     #[cfg(not(feature = "dbus"))]
-    let preferred_theme = None;
+    let initial_theme = preferred_theme;
 
-    if let Some(theme) = preferred_theme {
+    if let Some(theme) = initial_theme {
       if let Some(settings) = Settings::default() {
         settings.set_gtk_application_prefer_dark_theme(theme == Theme::Dark);
       }
