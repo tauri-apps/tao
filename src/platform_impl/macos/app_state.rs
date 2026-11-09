@@ -16,7 +16,6 @@ use std::{
   time::Instant,
 };
 
-use objc2::runtime::AnyObject as Object;
 use objc2_app_kit::{NSApp, NSApplication, NSApplicationActivationPolicy, NSWindow};
 use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSSize};
 use std::sync::LazyLock;
@@ -29,6 +28,7 @@ use crate::{
   platform_impl::{
     get_aux_state_mut,
     platform::{
+      app_delegate::AppDelegate,
       event::{EventProxy, EventWrapper},
       event_loop::{post_dummy_event, PanicInfo},
       observer::{CFRunLoopGetMain, CFRunLoopWakeUp, EventLoopWaker},
@@ -280,7 +280,7 @@ impl AppState {
     }
   }
 
-  pub fn launched(app_delegate: &Object) {
+  pub fn launched(app_delegate: &AppDelegate) {
     apply_activation_policy(app_delegate);
 
     unsafe {
@@ -444,7 +444,7 @@ unsafe fn window_activation_hack(ns_app: &NSApplication) {
     }
   }
 }
-fn apply_activation_policy(app_delegate: &Object) {
+fn apply_activation_policy(app_delegate: &AppDelegate) {
   unsafe {
     let mtm = MainThreadMarker::new().unwrap();
     let ns_app = NSApp(mtm);
