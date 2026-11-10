@@ -63,7 +63,10 @@ impl WindowDelegateState {
   pub fn new(window: &Arc<UnownedWindow>, initial_fullscreen: bool) -> Self {
     let scale_factor = window.scale_factor();
     let delegate_state = WindowDelegateState {
-      ns_window: window.ns_window.clone(),
+      ns_window: window
+        .ns_window
+        .get(MainThreadMarker::new().unwrap())
+        .clone(),
       view: window.ns_view.clone(),
       window: Arc::downgrade(window),
       initial_fullscreen: Cell::new(initial_fullscreen),
@@ -148,11 +151,13 @@ pub(super) fn new_delegate(
   initial_fullscreen: bool,
 ) -> Retained<WindowDelegate> {
   let state = WindowDelegateState::new(window, initial_fullscreen);
-  let mtm = MainThreadMarker::from(&*window.ns_window);
+  let ns_window = &state.ns_window;
+  let mtm = MainThreadMarker::from(ns_window.as_super());
   let delegate = WindowDelegate::alloc(mtm).set_ivars(state);
   let delegate: Retained<WindowDelegate> = unsafe { msg_send![super(delegate), init] };
   window
     .ns_window
+    .get(mtm)
     .setDelegate(Some(ProtocolObject::from_ref(&*delegate)));
   unsafe {
     let notification_center = NSDistributedNotificationCenter::defaultCenter();
@@ -398,7 +403,9 @@ define_class!(
         }
         // Leaving fullscreen resets the traffic light buttons to their default
         // position without a `drawRect:`, so re-apply the custom inset (#15451).
-        unsafe { reapply_traffic_light_inset(&window.ns_window, &window.ns_view) };
+        window.ns_window.get_on_main(|ns_window| unsafe {
+          reapply_traffic_light_inset(ns_window, &window.ns_view)
+        });
       });
       state.emit_resize_event();
       state.emit_move_event();
