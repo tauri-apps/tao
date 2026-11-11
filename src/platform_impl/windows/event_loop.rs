@@ -569,11 +569,10 @@ impl<T: 'static> Clone for EventLoopProxy<T> {
 impl<T: 'static> EventLoopProxy<T> {
   pub fn send_event(&self, event: T) -> Result<(), EventLoopClosed<T>> {
     unsafe {
-      // Queue the event before posting the message that delivers it. The other way round, a
-      // thread preempted between the two calls left the event loop thread waiting for it.
-      if let Err(err) = self.event_send.send(event) {
-        return Err(EventLoopClosed(err.0));
-      }
+      self
+        .event_send
+        .send(event)
+        .map_err(|channel::SendError(x)| EventLoopClosed(x))?;
       let _ = PostMessageW(
         Some(self.target_window),
         *USER_EVENT_MSG_ID,
