@@ -629,7 +629,7 @@ impl WindowDelegate {
       let is_visible = self.window().isVisible();
       if !is_minimized && is_visible {
         self.window().makeKeyAndOrderFront(None);
-        let mtm = MainThreadMarker::from(self.window());
+        let mtm = MainThreadMarker::from(self);
         #[allow(deprecated)]
         NSApp(mtm).activateIgnoringOtherApps(true);
       }
@@ -880,7 +880,7 @@ impl WindowDelegate {
   #[inline]
   pub fn drag_window(&self) -> Result<(), ExternalError> {
     unsafe {
-      let mtm = MainThreadMarker::from(self.window());
+      let mtm = MainThreadMarker::from(self);
       let Some(mut event) = NSApp(mtm).currentEvent() else {
         // `currentEvent` is nil when no event is being dispatched, e.g. when the
         // drag is requested asynchronously after the mouse-down was handled.
@@ -1018,7 +1018,7 @@ impl WindowDelegate {
         self.window().zoom(None);
       } else {
         let frame = if maximized {
-          let mtm = MainThreadMarker::from(self.window());
+          let mtm = MainThreadMarker::from(self);
           NSScreen::mainScreen(mtm).unwrap().visibleFrame()
         } else {
           standard_frame
@@ -1089,7 +1089,7 @@ impl WindowDelegate {
 
   #[inline]
   pub fn set_fullscreen(&self, fullscreen: Option<Fullscreen>) {
-    let mtm = MainThreadMarker::from(self.window());
+    let mtm = MainThreadMarker::from(self);
 
     if self.ivars().is_simple_fullscreen.get() {
       return;
@@ -1367,7 +1367,7 @@ impl WindowDelegate {
     });
     {
       unsafe {
-        let mtm = MainThreadMarker::from(self.window());
+        let mtm = MainThreadMarker::from(self);
         if let Some(ty) = ns_request_type {
           NSApp(mtm).requestUserAttention(ty);
         }
@@ -1484,7 +1484,7 @@ impl WindowExtMacOS for WindowDelegate {
   #[inline]
   fn set_simple_fullscreen(&self, fullscreen: bool) -> bool {
     unsafe {
-      let mtm = MainThreadMarker::from(self.window());
+      let mtm = MainThreadMarker::from(self);
       let app = NSApp(mtm);
       let is_native_fullscreen = self.ivars().fullscreen.borrow().is_some();
       let is_simple_fullscreen = self.ivars().is_simple_fullscreen.get();
@@ -1612,13 +1612,13 @@ impl WindowExtMacOS for WindowDelegate {
 
   #[inline]
   fn set_allows_automatic_window_tabbing(&self, enabled: bool) {
-    let mtm = MainThreadMarker::from(self.window());
+    let mtm = MainThreadMarker::from(self);
     NSWindow::setAllowsAutomaticWindowTabbing(enabled, mtm)
   }
 
   #[inline]
   fn allows_automatic_window_tabbing(&self) -> bool {
-    let mtm = MainThreadMarker::from(self.window());
+    let mtm = MainThreadMarker::from(self);
     NSWindow::allowsAutomaticWindowTabbing(mtm)
   }
 
