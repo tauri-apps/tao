@@ -495,7 +495,7 @@ impl From<WindowAttributes> for SharedState {
 
 pub struct UnownedWindow {
   pub(super) ns_window: MainThreadBound<Retained<TaoWindow>>, // never changes
-  pub(super) ns_view: Retained<TaoView>,                      // never changes
+  pub(super) ns_view: MainThreadBound<Retained<TaoView>>,     // never changes
   input_context: IdRef,                                       // never changes
   pub shared_state: Arc<Mutex<SharedState>>,
   decorations: AtomicBool,
@@ -587,7 +587,7 @@ impl UnownedWindow {
     let cloned_preferred_theme = win_attribs.preferred_theme;
 
     let window = Arc::new(UnownedWindow {
-      ns_view,
+      ns_view: MainThreadBound::new(ns_view, mtm),
       ns_window: MainThreadBound::new(ns_window.retain(), mtm),
       input_context,
       shared_state: Arc::new(Mutex::new(win_attribs.into())),
@@ -638,7 +638,11 @@ impl UnownedWindow {
     self.ns_window.get_on_main(|ns_window| unsafe {
       ns_window.setStyleMask(mask);
       // Restore keyboard handling after changing the window style.
-      ns_window.makeFirstResponder(Some(&self.ns_view));
+      ns_window.makeFirstResponder(Some(
+        self
+          .ns_view
+          .get(MainThreadMarker::from(ns_window.as_super())),
+      ));
     })
   }
 
@@ -652,7 +656,12 @@ impl UnownedWindow {
     self.ns_window.get_on_main(|ns_window| unsafe {
       ns_window.setTitle(&NSString::from_str(title));
       // Setting the title resets the traffic light buttons to their default position.
-      view::reapply_traffic_light_inset(ns_window, &self.ns_view);
+      view::reapply_traffic_light_inset(
+        ns_window,
+        self
+          .ns_view
+          .get(MainThreadMarker::from(ns_window.as_super())),
+      );
     })
   }
 
@@ -742,10 +751,11 @@ impl UnownedWindow {
 
   #[inline]
   pub fn inner_size(&self) -> PhysicalSize<u32> {
-    let view_frame = unsafe { NSView::frame(&self.ns_view) };
-    let logical: LogicalSize<f64> = (view_frame.size.width, view_frame.size.height).into();
-    let scale_factor = self.scale_factor();
-    logical.to_physical(scale_factor)
+    self.ns_view.get_on_main(|ns_view| {
+      let view_frame = unsafe { NSView::frame(ns_view) };
+      let logical: LogicalSize<f64> = (view_frame.size.width, view_frame.size.height).into();
+      logical.to_physical(self.scale_factor())
+    })
   }
 
   #[inline]
@@ -875,7 +885,11 @@ impl UnownedWindow {
         cursor_access.lock().unwrap().cursor = cursor;
       }
       unsafe {
-        ns_window.invalidateCursorRectsForView(&self.ns_view);
+        ns_window.invalidateCursorRectsForView(
+          self
+            .ns_view
+            .get(MainThreadMarker::from(ns_window.as_super())),
+        );
       }
     })
   }
@@ -896,7 +910,11 @@ impl UnownedWindow {
           cursor_state.visible = visible;
           drop(cursor_state);
           unsafe {
-            ns_window.invalidateCursorRectsForView(&self.ns_view);
+            ns_window.invalidateCursorRectsForView(
+              self
+                .ns_view
+                .get(MainThreadMarker::from(ns_window.as_super())),
+            );
           }
         }
       }
@@ -1333,7 +1351,7 @@ impl UnownedWindow {
         (&None, &Some(_)) => unsafe {
           util::toggle_full_screen_async(
             ns_window,
-            &self.ns_view,
+            self.ns_view.get(mtm),
             old_fullscreen.is_none(),
             Arc::downgrade(&self.shared_state),
           );
@@ -1342,7 +1360,7 @@ impl UnownedWindow {
           // State is restored by `window_did_exit_fullscreen`
           util::toggle_full_screen_async(
             ns_window,
-            &self.ns_view,
+            self.ns_view.get(mtm),
             old_fullscreen.is_none(),
             Arc::downgrade(&self.shared_state),
           );
@@ -1352,7 +1370,7 @@ impl UnownedWindow {
           // Rest of the state is restored by `window_did_exit_fullscreen`
           util::toggle_full_screen_async(
             ns_window,
-            &self.ns_view,
+            self.ns_view.get(mtm),
             old_fullscreen.is_none(),
             Arc::downgrade(&self.shared_state),
           );
@@ -1478,16 +1496,12 @@ impl UnownedWindow {
 
   #[inline]
   pub fn set_ime_position(&self, spot: Position) {
-    let scale_factor = self.scale_factor();
-    let logical_spot = spot.to_logical(scale_factor);
-    unsafe {
-      view::set_ime_position(
-        &self.ns_view,
-        *self.input_context,
-        logical_spot.x,
-        logical_spot.y,
-      );
-    }
+    self.ns_view.get_on_main(|ns_view| {
+      let logical_spot = spot.to_logical(self.scale_factor());
+      unsafe {
+        view::set_ime_position(ns_view, *self.input_context, logical_spot.x, logical_spot.y);
+      }
+    })
   }
 
   #[inline]
@@ -1687,7 +1701,12 @@ impl WindowExtMacOS for UnownedWindow {
           app.setPresentationOptions(presentation_options);
 
           // Hide the titlebar
-          util::toggle_style_mask(ns_window, &self.ns_view, NSWindowStyleMask::Titled, false);
+          util::toggle_style_mask(
+            ns_window,
+            self.ns_view.get(mtm),
+            NSWindowStyleMask::Titled,
+            false,
+          );
 
           // Set the window frame to the screen frame size
           let screen = ns_window.screen().unwrap();
@@ -1697,13 +1716,13 @@ impl WindowExtMacOS for UnownedWindow {
           // Fullscreen windows can't be resized, minimized, or moved
           util::toggle_style_mask(
             ns_window,
-            &self.ns_view,
+            self.ns_view.get(mtm),
             NSWindowStyleMask::Miniaturizable,
             false,
           );
           util::toggle_style_mask(
             ns_window,
-            &self.ns_view,
+            self.ns_view.get(mtm),
             NSWindowStyleMask::Resizable,
             false,
           );
@@ -1749,13 +1768,12 @@ impl WindowExtMacOS for UnownedWindow {
   #[inline]
   fn set_traffic_light_inset<P: Into<Position>>(&self, position: P) {
     let position: Position = position.into();
-    self
-      .ns_view
-      .downcast_ref::<TaoView>()
-      .unwrap()
-      .ivars()
-      .traffic_light_inset
-      .set(Some(position.to_logical(self.scale_factor())));
+    self.ns_view.get_on_main(|ns_view| {
+      ns_view
+        .ivars()
+        .traffic_light_inset
+        .set(Some(position.to_logical(self.scale_factor())));
+    });
   }
 
   #[inline]

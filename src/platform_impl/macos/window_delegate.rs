@@ -67,7 +67,7 @@ impl WindowDelegateState {
         .ns_window
         .get(MainThreadMarker::new().unwrap())
         .clone(),
-      view: window.ns_view.clone(),
+      view: window.ns_view.get(MainThreadMarker::new().unwrap()).clone(),
       window: Arc::downgrade(window),
       initial_fullscreen: Cell::new(initial_fullscreen),
       previous_position: Cell::new(None),
@@ -404,7 +404,8 @@ define_class!(
         // Leaving fullscreen resets the traffic light buttons to their default
         // position without a `drawRect:`, so re-apply the custom inset (#15451).
         window.ns_window.get_on_main(|ns_window| unsafe {
-          reapply_traffic_light_inset(ns_window, &window.ns_view)
+          let mtm = MainThreadMarker::from(ns_window.as_super());
+          reapply_traffic_light_inset(ns_window, window.ns_view.get(mtm))
         });
       });
       state.emit_resize_event();
