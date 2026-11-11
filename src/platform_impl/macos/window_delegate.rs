@@ -1,6 +1,7 @@
 // Copyright 2014-2021 The winit contributors
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
+#![allow(unused_unsafe)]
 
 use std::{
   cell::{Cell, RefCell},
@@ -43,7 +44,7 @@ use objc2::{
   define_class, msg_send,
   rc::{autoreleasepool, Retained},
   runtime::{AnyObject, ProtocolObject},
-  ClassType, DefinedClass, MainThreadOnly, Message,
+  DefinedClass, MainThreadOnly, Message,
 };
 use objc2_app_kit::{
   self as appkit, NSApp, NSApplicationPresentationOptions, NSBackingStoreType, NSColor,
