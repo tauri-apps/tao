@@ -403,10 +403,7 @@ define_class!(
         }
         // Leaving fullscreen resets the traffic light buttons to their default
         // position without a `drawRect:`, so re-apply the custom inset (#15451).
-        window.ns_window.get_on_main(|ns_window| unsafe {
-          let mtm = MainThreadMarker::from(ns_window.as_super());
-          reapply_traffic_light_inset(ns_window, window.ns_view.get(mtm))
-        });
+        unsafe { reapply_traffic_light_inset(&state.ns_window, &state.view) };
       });
       state.emit_resize_event();
       state.emit_move_event();
