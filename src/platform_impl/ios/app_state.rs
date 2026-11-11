@@ -14,8 +14,10 @@ use std::{
 };
 
 use objc2::{rc::Retained, runtime::AnyObject, MainThreadMarker, Message};
-use objc2_foundation::NSObjectProtocol;
-use objc2_ui_kit::{UIApplication, UIScene, UISceneConnectionOptions, UIWindowScene};
+use objc2_foundation::{NSObjectProtocol, NSSet, NSUserActivity};
+use objc2_ui_kit::{
+  UIApplication, UIOpenURLContext, UIScene, UISceneConnectionOptions, UIWindowScene,
+};
 
 use crate::{
   dpi::LogicalSize,
@@ -29,7 +31,7 @@ use crate::{
       CFRunLoopTimerRef, CFRunLoopTimerSetNextFireDate, CGRect, CGSize, NSInteger,
       NSOperatingSystemVersion, NSUInteger,
     },
-    scene::scene_lifecycle_enabled,
+    scene::{self, scene_lifecycle_enabled},
   },
   window::WindowId as RootWindowId,
 };
@@ -561,6 +563,28 @@ pub unsafe fn connect_scene(scene: &UIScene, options: &UISceneConnectionOptions)
       }
       let () = msg_send![window, release];
     }
+  }
+
+  // a URL that launches the app (or opens a new scene) is handed over here, in the connection
+  // options: scene:openURLContexts: is only called for URLs received by a scene that is already
+  // connected, so without this they would be lost
+  //
+  // UIKit returns nil for both sets when the app is launched without a link, although the objc2
+  // bindings declare them non-null: read them as optional, the bindings would panic on nil
+  let url_contexts: Option<Retained<NSSet<UIOpenURLContext>>> = msg_send![options, URLContexts];
+  let user_activities: Option<Retained<NSSet<NSUserActivity>>> = msg_send![options, userActivities];
+  let source = "the scene connection options";
+  let mut urls = url_contexts
+    .map(|contexts| scene::urls_from_contexts(&contexts, source))
+    .unwrap_or_default();
+  urls.extend(
+    user_activities
+      .iter()
+      .flat_map(|activities| activities.iter())
+      .filter_map(|activity| scene::universal_link_url(&activity, source)),
+  );
+  if !urls.is_empty() {
+    handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls }));
   }
 }
 
