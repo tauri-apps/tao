@@ -8,6 +8,7 @@ use std::{
   fmt::{self, Debug},
   marker::PhantomData,
   mem, ptr,
+  sync::atomic::{AtomicUsize, Ordering},
 };
 
 use crossbeam_channel::{self as channel, Receiver, Sender};
@@ -209,14 +210,21 @@ impl<T> Drop for EventLoopProxy<T> {
 impl<T> EventLoopProxy<T> {
   fn new(sender: Sender<T>) -> EventLoopProxy<T> {
     unsafe {
-      // just wake up the eventloop
-      extern "C-unwind" fn event_loop_proxy_handler(_: *mut c_void) {}
+      // wake up the eventloop, and deliver the user events at once while UIKit runs it in
+      // `UITrackingRunLoopMode`, where the observers that normally deliver them never run
+      extern "C-unwind" fn event_loop_proxy_handler(_: *mut c_void) {
+        unsafe { app_state::handle_user_events_while_tracking() }
+      }
 
       // adding a Source to the main CFRunLoop lets us wake it up and
       // process user events through the normal OS EventLoop mechanisms.
       let rl = CFRunLoopGetMain();
-      // we want all the members of context to be zero/null, except one
+      // we want all the members of context to be zero/null, except the handler and an `info`
+      // of its own: the run loop takes sources with equal contexts for the same source, so
+      // without it only the first proxy's source would ever be scheduled
+      static SOURCES_CREATED: AtomicUsize = AtomicUsize::new(1);
       let mut context: CFRunLoopSourceContext = mem::zeroed();
+      context.info = SOURCES_CREATED.fetch_add(1, Ordering::Relaxed) as *mut c_void;
       context.perform = Some(event_loop_proxy_handler);
       let source = CFRunLoopSourceCreate(ptr::null_mut(), CFIndex::MAX - 1, &mut context);
       CFRunLoopAddSource(rl, source, kCFRunLoopCommonModes);
