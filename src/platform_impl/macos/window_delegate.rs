@@ -13,7 +13,7 @@ use objc2::{
   define_class, msg_send,
   rc::{autoreleasepool, Retained},
   runtime::{AnyObject, ProtocolObject},
-  DefinedClass, MainThreadMarker, MainThreadOnly,
+  ClassType, DefinedClass, MainThreadMarker, MainThreadOnly,
 };
 use objc2_app_kit::{
   self as appkit, NSApplicationPresentationOptions, NSDragOperation, NSDraggingDestination,
