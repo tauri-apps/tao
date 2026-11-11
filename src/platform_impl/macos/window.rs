@@ -48,7 +48,7 @@ use dispatch2::MainThreadBound;
 use objc2::{
   define_class, msg_send,
   rc::{autoreleasepool, Retained},
-  ClassType, DefinedClass, MainThreadOnly,
+  ClassType, DefinedClass, MainThreadOnly, Message,
 };
 use objc2_app_kit::{
   self as appkit, NSApp, NSApplicationPresentationOptions, NSBackingStoreType, NSColor, NSEvent,
@@ -588,7 +588,7 @@ impl UnownedWindow {
 
     let window = Arc::new(UnownedWindow {
       ns_view,
-      ns_window: MainThreadBound::new(ns_window, mtm),
+      ns_window: MainThreadBound::new(ns_window.retain(), mtm),
       input_context,
       shared_state: Arc::new(Mutex::new(win_attribs.into())),
       decorations: AtomicBool::new(decorations),
@@ -621,13 +621,9 @@ impl UnownedWindow {
     if visible {
       if focused {
         // Tightly linked with `app_state::window_activation_hack`
-        window
-          .ns_window
-          .get_on_main(|ns_window| unsafe { ns_window.makeKeyAndOrderFront(None) });
+        unsafe { ns_window.makeKeyAndOrderFront(None) };
       } else {
-        window
-          .ns_window
-          .get_on_main(|ns_window| unsafe { ns_window.orderFront(None) });
+        unsafe { ns_window.orderFront(None) };
       }
     }
 
@@ -638,15 +634,11 @@ impl UnownedWindow {
     Ok((window, delegate))
   }
 
-  fn set_style_mask_async(&self, mask: NSWindowStyleMask) {
+  fn set_style_mask(&self, mask: NSWindowStyleMask) {
     self.ns_window.get_on_main(|ns_window| unsafe {
-      util::set_style_mask_async(ns_window, &self.ns_view, mask);
-    })
-  }
-
-  fn set_style_mask_sync(&self, mask: NSWindowStyleMask) {
-    self.ns_window.get_on_main(|ns_window| unsafe {
-      util::set_style_mask_sync(ns_window, &self.ns_view, mask);
+      ns_window.setStyleMask(mask);
+      // Restore keyboard handling after changing the window style.
+      ns_window.makeFirstResponder(Some(&self.ns_view));
     })
   }
 
@@ -658,7 +650,9 @@ impl UnownedWindow {
 
   pub fn set_title(&self, title: &str) {
     self.ns_window.get_on_main(|ns_window| unsafe {
-      util::set_title_async(ns_window, &self.ns_view, title.to_string());
+      ns_window.setTitle(&NSString::from_str(title));
+      // Setting the title resets the traffic light buttons to their default position.
+      view::reapply_traffic_light_inset(ns_window, &self.ns_view);
     })
   }
 
@@ -670,8 +664,8 @@ impl UnownedWindow {
 
   pub fn set_visible(&self, visible: bool) {
     self.ns_window.get_on_main(|ns_window| match visible {
-      true => unsafe { util::make_key_and_order_front_sync(ns_window) },
-      false => unsafe { util::order_out_sync(ns_window) },
+      true => unsafe { ns_window.makeKeyAndOrderFront(None) },
+      false => unsafe { ns_window.orderOut(None) },
     })
   }
 
@@ -682,7 +676,10 @@ impl UnownedWindow {
       let is_minimized = ns_window.isMiniaturized();
       let is_visible = ns_window.isVisible();
       if !is_minimized && is_visible {
-        util::set_focus(ns_window);
+        ns_window.makeKeyAndOrderFront(None);
+        let mtm = MainThreadMarker::from(ns_window.as_super());
+        #[allow(deprecated)]
+        NSApp(mtm).activateIgnoringOtherApps(true);
       }
     })
   }
@@ -738,7 +735,7 @@ impl UnownedWindow {
       let scale_factor = self.scale_factor();
       let position = position.to_logical(scale_factor);
       unsafe {
-        util::set_frame_top_left_point_async(ns_window, util::window_position(position));
+        ns_window.setFrameTopLeftPoint(util::window_position(position));
       }
     })
   }
@@ -765,7 +762,8 @@ impl UnownedWindow {
   pub fn set_inner_size(&self, size: Size) {
     self.ns_window.get_on_main(|ns_window| unsafe {
       let scale_factor = self.scale_factor();
-      util::set_content_size_async(ns_window, size.to_logical(scale_factor));
+      let size = size.to_logical::<CGFloat>(scale_factor);
+      ns_window.setContentSize(NSSize::new(size.width, size.height));
     })
   }
 
@@ -824,7 +822,7 @@ impl UnownedWindow {
         } else {
           mask &= !NSWindowStyleMask::Resizable;
         }
-        self.set_style_mask_sync(mask);
+        self.set_style_mask(mask);
       } // Otherwise, we don't change the mask until we exit fullscreen.
     })
   }
@@ -838,7 +836,7 @@ impl UnownedWindow {
       } else {
         mask &= !NSWindowStyleMask::Miniaturizable;
       }
-      self.set_style_mask_sync(mask);
+      self.set_style_mask(mask);
     })
   }
 
@@ -866,7 +864,7 @@ impl UnownedWindow {
       } else {
         mask &= !NSWindowStyleMask::Closable;
       }
-      self.set_style_mask_sync(mask);
+      self.set_style_mask(mask);
     })
   }
 
@@ -999,7 +997,7 @@ impl UnownedWindow {
   pub fn set_ignore_cursor_events(&self, ignore: bool) -> Result<(), ExternalError> {
     self.ns_window.get_on_main(|ns_window| {
       unsafe {
-        util::set_ignore_mouse_events(ns_window, ignore);
+        ns_window.setIgnoresMouseEvents(ignore);
       }
 
       Ok(())
@@ -1064,7 +1062,7 @@ impl UnownedWindow {
     drop(shared_state_lock);
     trace!("Unlocked shared state in `restore_state_from_fullscreen`");
 
-    self.set_style_mask_async(mask);
+    self.set_style_mask(mask);
     self.set_maximized(maximized);
   }
 
@@ -1096,12 +1094,30 @@ impl UnownedWindow {
         return;
       };
       unsafe {
-        util::set_maximized_async(
-          ns_window,
-          is_zoomed,
-          maximized,
-          Arc::downgrade(&self.shared_state),
-        );
+        let mut shared_state = self.shared_state.lock().unwrap();
+        if !is_zoomed {
+          shared_state.standard_frame = Some(ns_window.frame());
+        }
+        shared_state.maximized = maximized;
+        if shared_state.fullscreen.is_some() {
+          // Apply the requested state when native fullscreen ends.
+          return;
+        }
+        let standard_frame = shared_state.saved_standard_frame();
+        drop(shared_state);
+
+        let required = NSWindowStyleMask::Resizable | NSWindowStyleMask::Titled;
+        if ns_window.styleMask().contains(required) {
+          ns_window.zoom(None);
+        } else {
+          let frame = if maximized {
+            let mtm = MainThreadMarker::from(ns_window.as_super());
+            NSScreen::mainScreen(mtm).unwrap().visibleFrame()
+          } else {
+            standard_frame
+          };
+          ns_window.setFrame_display_animate(frame, false, true);
+        }
       }
     })
   }
@@ -1232,7 +1248,7 @@ impl UnownedWindow {
             // The coordinate system here has its origin at bottom-left
             // and Y goes up
             screen_frame.origin.y += screen_frame.size.height;
-            util::set_frame_top_left_point_async(ns_window, screen_frame.origin);
+            ns_window.setFrameTopLeftPoint(screen_frame.origin);
           }
         }
       }
@@ -1420,7 +1436,7 @@ impl UnownedWindow {
         }
         new_mask
       };
-      self.set_style_mask_async(new_mask);
+      self.set_style_mask(new_mask);
     }
   }
 
@@ -1432,7 +1448,7 @@ impl UnownedWindow {
       } else {
         ffi::NSWindowLevel::NSNormalWindowLevel
       };
-      unsafe { util::set_level_async(ns_window, level) };
+      unsafe { ns_window.setLevel(level as _) };
     })
   }
 
@@ -1444,7 +1460,7 @@ impl UnownedWindow {
       } else {
         ffi::NSWindowLevel::NSNormalWindowLevel
       };
-      unsafe { util::set_level_async(ns_window, level) };
+      unsafe { ns_window.setLevel(level as _) };
     })
   }
 
@@ -1663,6 +1679,7 @@ impl WindowExtMacOS for UnownedWindow {
 
           // Tell our window's state that we're in fullscreen
           shared_state_lock.is_simple_fullscreen = true;
+          drop(shared_state_lock);
 
           // Simulate pre-Lion fullscreen by hiding the dock and menu bar
           let presentation_options = NSApplicationPresentationOptions::AutoHideDock
@@ -1695,16 +1712,19 @@ impl WindowExtMacOS for UnownedWindow {
           true
         } else {
           let new_mask = self.saved_style(&mut shared_state_lock);
-          self.set_style_mask_async(new_mask);
           shared_state_lock.is_simple_fullscreen = false;
 
-          if let Some(presentation_opts) = shared_state_lock.save_presentation_opts {
+          let presentation_opts = shared_state_lock.save_presentation_opts;
+          let frame = shared_state_lock.saved_standard_frame();
+          drop(shared_state_lock);
+
+          if let Some(presentation_opts) = presentation_opts {
             app.setPresentationOptions(presentation_opts);
           }
 
-          let frame = shared_state_lock.saved_standard_frame();
-          NSWindow::setFrame_display(ns_window, frame, true);
-          NSWindow::setMovable(ns_window, true);
+          ns_window.setFrame_display(frame, true);
+          ns_window.setMovable(true);
+          self.set_style_mask(new_mask);
 
           true
         }
@@ -1792,7 +1812,7 @@ impl WindowExtMacOS for UnownedWindow {
       } else {
         mask &= !NSWindowStyleMask::FullSizeContentView;
       }
-      self.set_style_mask_sync(mask);
+      self.set_style_mask(mask);
     })
   }
 
