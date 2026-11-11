@@ -433,7 +433,7 @@ unsafe fn window_activation_hack(ns_app: &NSApplication) {
   // TODO: Proper ordering of the windows
   let ns_windows = ns_app.windows();
   for ns_window in ns_windows {
-    // And call `makeKeyAndOrderFront` if it was called on the window in `UnownedWindow::new`
+    // And call `makeKeyAndOrderFront` if it was called on the window in `WindowDelegate::new`
     // This way we preserve the user's desired initial visiblity status
     // TODO: Also filter on the type/"level" of the window, and maybe other things?
     if ns_window.isVisible() {

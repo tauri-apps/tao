@@ -20,7 +20,7 @@ mod view;
 mod window;
 mod window_delegate;
 
-use std::{fmt, ops::Deref, sync::Arc};
+use std::fmt;
 
 pub(crate) use self::event_loop::PlatformSpecificEventLoopAttributes;
 pub use self::{
@@ -30,11 +30,10 @@ pub use self::{
   keycode::{keycode_from_scancode, keycode_to_scancode},
   monitor::{MonitorHandle, VideoMode},
   progress_bar::set_progress_indicator,
-  window::{Id as WindowId, Parent, PlatformSpecificWindowBuilderAttributes, UnownedWindow},
+  window::{Id as WindowId, Window},
+  window_delegate::{Parent, PlatformSpecificWindowBuilderAttributes},
 };
-use crate::{
-  error::OsError as RootOsError, event::DeviceId as RootDeviceId, window::WindowAttributes,
-};
+use crate::event::DeviceId as RootDeviceId;
 pub(crate) use badge::set_badge_label;
 pub(crate) use dock::set_dock_visibility;
 pub(crate) use icon::PlatformIcon;
@@ -51,39 +50,10 @@ impl DeviceId {
 // Constant device ID; to be removed when if backend is updated to report real device IDs.
 pub(crate) const DEVICE_ID: RootDeviceId = RootDeviceId(DeviceId);
 
-pub struct Window {
-  window: Arc<UnownedWindow>,
-  // We keep this around so that it doesn't get dropped until the window does.
-  #[allow(dead_code)]
-  delegate: objc2::rc::Retained<window_delegate::WindowDelegate>,
-}
-
 #[non_exhaustive]
 #[derive(Debug)]
 pub enum OsError {
   CGError(core_graphics::base::CGError),
-}
-
-unsafe impl Send for Window {}
-unsafe impl Sync for Window {}
-
-impl Deref for Window {
-  type Target = UnownedWindow;
-  #[inline]
-  fn deref(&self) -> &Self::Target {
-    &self.window
-  }
-}
-
-impl Window {
-  pub fn new<T: 'static>(
-    _window_target: &EventLoopWindowTarget<T>,
-    attributes: WindowAttributes,
-    pl_attribs: PlatformSpecificWindowBuilderAttributes,
-  ) -> Result<Self, RootOsError> {
-    let (window, delegate) = UnownedWindow::new(attributes, pl_attribs)?;
-    Ok(Window { window, delegate })
-  }
 }
 
 impl fmt::Display for OsError {
