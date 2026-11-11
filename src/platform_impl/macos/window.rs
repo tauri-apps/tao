@@ -43,6 +43,57 @@ pub fn get_window_id(window_cocoa_id: &NSWindow) -> Id {
   Id(window_cocoa_id as *const NSWindow as _)
 }
 
+#[derive(Debug)]
+pub(super) struct WindowState {
+  pub(super) focusable: Cell<bool>,
+  pub(super) maximizable: Cell<bool>,
+}
+
+define_class!(
+  #[unsafe(super(NSWindow, NSResponder, NSObject))]
+  #[thread_kind = MainThreadOnly]
+  #[name = "TaoWindow"]
+  #[ivars = WindowState]
+  #[derive(Debug)]
+  pub(super) struct TaoWindow;
+
+  impl TaoWindow {
+    #[unsafe(method(setStyleMask:))]
+    fn set_style_mask(&self, mask: NSWindowStyleMask) {
+      unsafe {
+        let _: () = msg_send![super(self), setStyleMask: mask];
+        if let Some(button) = self.standardWindowButton(NSWindowButton::ZoomButton) {
+          button.setEnabled(self.ivars().maximizable.get());
+        }
+      }
+    }
+
+    #[unsafe(method(canBecomeMainWindow))]
+    fn can_become_main_window(&self) -> bool {
+      self.ivars().focusable.get()
+    }
+
+    #[unsafe(method(canBecomeKeyWindow))]
+    fn can_become_key_window(&self) -> bool {
+      self.ivars().focusable.get()
+    }
+
+    #[unsafe(method(sendEvent:))]
+    fn send_event(&self, event: &NSEvent) {
+      unsafe {
+        if event.r#type() == NSEventType::LeftMouseDown {
+          // When WKWebView is set on NSWindow, movable_by_window_background
+          // requires explicitly starting the window drag on a left mouse down.
+          if self.isMovableByWindowBackground() {
+            self.performWindowDragWithEvent(event);
+          }
+        }
+        let _: () = msg_send![super(self), sendEvent: event];
+      }
+    }
+  }
+);
+
 pub struct Window {
   // NSWindow keeps a weak delegate reference, so retain it for the window's lifetime.
   delegate: MainThreadBound<Retained<WindowDelegate>>,
@@ -406,40 +457,6 @@ impl Window {
       .get_on_main(|delegate| delegate.primary_monitor())
   }
 
-  #[inline]
-  pub fn theme(&self) -> Theme {
-    self.delegate.get_on_main(|delegate| delegate.theme())
-  }
-
-  pub fn set_theme(&self, theme: Option<Theme>) {
-    self
-      .delegate
-      .get_on_main(|delegate| delegate.set_theme(theme))
-  }
-
-  pub fn set_content_protection(&self, enabled: bool) {
-    self
-      .delegate
-      .get_on_main(|delegate| delegate.set_content_protection(enabled))
-  }
-
-  pub fn set_visible_on_all_workspaces(&self, visible: bool) {
-    self
-      .delegate
-      .get_on_main(|delegate| delegate.set_visible_on_all_workspaces(visible))
-  }
-
-  pub fn set_progress_bar(&self, progress: ProgressBarState) {
-    self
-      .delegate
-      .get_on_main(|delegate| delegate.set_progress_bar(progress))
-  }
-
-  pub fn set_badge_label(&self, label: Option<String>) {
-    self
-      .delegate
-      .get_on_main(|delegate| delegate.set_badge_label(label))
-  }
   #[cfg(feature = "rwh_04")]
   #[inline]
   pub fn raw_window_handle_rwh_04(&self) -> rwh_04::RawWindowHandle {
@@ -483,6 +500,41 @@ impl Window {
     Ok(rwh_06::RawDisplayHandle::AppKit(
       rwh_06::AppKitDisplayHandle::new(),
     ))
+  }
+
+  #[inline]
+  pub fn theme(&self) -> Theme {
+    self.delegate.get_on_main(|delegate| delegate.theme())
+  }
+
+  pub fn set_theme(&self, theme: Option<Theme>) {
+    self
+      .delegate
+      .get_on_main(|delegate| delegate.set_theme(theme))
+  }
+
+  pub fn set_content_protection(&self, enabled: bool) {
+    self
+      .delegate
+      .get_on_main(|delegate| delegate.set_content_protection(enabled))
+  }
+
+  pub fn set_visible_on_all_workspaces(&self, visible: bool) {
+    self
+      .delegate
+      .get_on_main(|delegate| delegate.set_visible_on_all_workspaces(visible))
+  }
+
+  pub fn set_progress_bar(&self, progress: ProgressBarState) {
+    self
+      .delegate
+      .get_on_main(|delegate| delegate.set_progress_bar(progress))
+  }
+
+  pub fn set_badge_label(&self, label: Option<String>) {
+    self
+      .delegate
+      .get_on_main(|delegate| delegate.set_badge_label(label))
   }
 }
 
@@ -605,54 +657,3 @@ impl Drop for Window {
       .get_on_main(|delegate| autoreleasepool(|_| delegate.close()));
   }
 }
-
-#[derive(Debug)]
-pub(super) struct WindowState {
-  pub(super) focusable: Cell<bool>,
-  pub(super) maximizable: Cell<bool>,
-}
-
-define_class!(
-  #[unsafe(super(NSWindow, NSResponder, NSObject))]
-  #[thread_kind = MainThreadOnly]
-  #[name = "TaoWindow"]
-  #[ivars = WindowState]
-  #[derive(Debug)]
-  pub(super) struct TaoWindow;
-
-  impl TaoWindow {
-    #[unsafe(method(setStyleMask:))]
-    fn set_style_mask(&self, mask: NSWindowStyleMask) {
-      unsafe {
-        let _: () = msg_send![super(self), setStyleMask: mask];
-        if let Some(button) = self.standardWindowButton(NSWindowButton::ZoomButton) {
-          button.setEnabled(self.ivars().maximizable.get());
-        }
-      }
-    }
-
-    #[unsafe(method(canBecomeMainWindow))]
-    fn can_become_main_window(&self) -> bool {
-      self.ivars().focusable.get()
-    }
-
-    #[unsafe(method(canBecomeKeyWindow))]
-    fn can_become_key_window(&self) -> bool {
-      self.ivars().focusable.get()
-    }
-
-    #[unsafe(method(sendEvent:))]
-    fn send_event(&self, event: &NSEvent) {
-      unsafe {
-        if event.r#type() == NSEventType::LeftMouseDown {
-          // When WKWebView is set on NSWindow, movable_by_window_background
-          // requires explicitly starting the window drag on a left mouse down.
-          if self.isMovableByWindowBackground() {
-            self.performWindowDragWithEvent(event);
-          }
-        }
-        let _: () = msg_send![super(self), sendEvent: event];
-      }
-    }
-  }
-);
