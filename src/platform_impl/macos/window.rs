@@ -484,14 +484,11 @@ impl Window {
   #[cfg(feature = "rwh_06")]
   #[inline]
   pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
-    if MainThreadMarker::new().is_none() {
-      return Err(rwh_06::HandleError::Unavailable);
+    if let Some(mtm) = MainThreadMarker::new() {
+      Ok(self.delegate.get(mtm).raw_window_handle_rwh_06())
+    } else {
+      Err(rwh_06::HandleError::Unavailable)
     }
-    let window_handle = rwh_06::AppKitWindowHandle::new({
-      let ptr = self.ns_view();
-      std::ptr::NonNull::new(ptr).expect("Id<T> should never be null")
-    });
-    Ok(rwh_06::RawWindowHandle::AppKit(window_handle))
   }
 
   #[cfg(feature = "rwh_06")]

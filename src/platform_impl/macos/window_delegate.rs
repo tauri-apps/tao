@@ -1410,6 +1410,16 @@ impl WindowDelegate {
     Some(RootMonitorHandle { inner: monitor })
   }
 
+  #[cfg(feature = "rwh_06")]
+  #[inline]
+  pub fn raw_window_handle_rwh_06(&self) -> rwh_06::RawWindowHandle {
+    let window_handle = rwh_06::AppKitWindowHandle::new({
+      let ptr = self.ns_view();
+      std::ptr::NonNull::new(ptr).expect("Id<T> should never be null")
+    });
+    rwh_06::RawWindowHandle::AppKit(window_handle)
+  }
+
   #[inline]
   pub fn theme(&self) -> Theme {
     self.ivars().current_theme.get()
