@@ -111,7 +111,7 @@ pub fn get_modifierless_char(scancode: u16) -> Key<'static> {
 }
 
 fn get_logical_key_char(ns_event: &NSEvent, modifierless_chars: &str) -> Key<'static> {
-  let characters = unsafe { ns_event.charactersIgnoringModifiers().unwrap_or_default() };
+  let characters = ns_event.charactersIgnoringModifiers().unwrap_or_default();
   let string = characters.to_string();
   if string.is_empty() {
     // Probably a dead key
@@ -139,7 +139,7 @@ pub fn create_key_event(
     if key_override.is_some() {
       None
     } else {
-      let characters = unsafe { ns_event.characters().unwrap_or_default() };
+      let characters = ns_event.characters().unwrap_or_default();
       let characters = characters.to_string();
       if characters.is_empty() {
         None
@@ -162,7 +162,7 @@ pub fn create_key_event(
     //#[cfg(debug_assertions)] println!("Couldn't get key from code: {:?}", physical_key);
     key_without_modifiers = get_modifierless_char(scancode);
 
-    let modifiers = unsafe { NSEvent::modifierFlags(ns_event) };
+    let modifiers = NSEvent::modifierFlags(ns_event);
     let has_alt = modifiers.contains(NSEventModifierFlags::Option);
     let has_ctrl = modifiers.contains(NSEventModifierFlags::Control);
     if has_alt || has_ctrl || text_with_all_modifiers.is_none() || !is_press {
@@ -304,7 +304,7 @@ pub fn extra_function_key_to_code(scancode: u16, string: &str) -> KeyCode {
 }
 
 pub fn event_mods(event: &NSEvent) -> ModifiersState {
-  let flags = unsafe { NSEvent::modifierFlags(event) };
+  let flags = NSEvent::modifierFlags(event);
   let mut m = ModifiersState::empty();
   m.set(
     ModifiersState::SHIFT,
@@ -330,5 +330,5 @@ pub fn get_scancode(event: &NSEvent) -> c_ushort {
   // and there is no easy way to navtively retrieve the layout-dependent character.
   // In tao, we use keycode to refer to the key's character, and so this function aligns
   // AppKit's terminology with ours.
-  unsafe { event.keyCode() }
+  event.keyCode()
 }
