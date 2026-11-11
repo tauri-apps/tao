@@ -376,61 +376,30 @@ pub(super) fn set_ns_theme(theme: Option<Theme>) {
   }
 }
 
-#[derive(Default)]
-struct FullscreenState {
-  pub resizable: bool,
-  pub fullscreen: Option<Fullscreen>,
+pub(super) struct WindowDelegateState {
+  pub(super) ns_window: Retained<TaoWindow>, // never changes
+  pub(super) ns_view: Retained<TaoView>,     // never changes
+  input_context: IdRef,                      // never changes
+  resizable: Cell<bool>,
+  fullscreen: RefCell<Option<Fullscreen>>,
   // This is true between windowWillEnterFullScreen and windowDidEnterFullScreen
   // or windowWillExitFullScreen and windowDidExitFullScreen.
   // We must not toggle fullscreen when this is true.
-  pub in_fullscreen_transition: bool,
+  in_fullscreen_transition: Cell<bool>,
   // If it is attempted to toggle fullscreen when in_fullscreen_transition is true,
   // Set target_fullscreen and do after fullscreen transition is end.
-  pub target_fullscreen: Option<Option<Fullscreen>>,
-  pub maximized: bool,
-  pub standard_frame: Option<NSRect>,
-  is_simple_fullscreen: bool,
-  pub saved_style: Option<NSWindowStyleMask>,
+  target_fullscreen: RefCell<Option<Option<Fullscreen>>>,
+  maximized: Cell<bool>,
+  standard_frame: Cell<Option<NSRect>>,
+  is_simple_fullscreen: Cell<bool>,
+  saved_style: Cell<Option<NSWindowStyleMask>>,
   /// Presentation options saved before entering `set_simple_fullscreen`, and
   /// restored upon exiting it. Also used when transitioning from Borderless to
   /// Exclusive fullscreen in `set_fullscreen` because we need to disable the menu
   /// bar in exclusive fullscreen but want to restore the original options when
   /// transitioning back to borderless fullscreen.
-  save_presentation_opts: Option<NSApplicationPresentationOptions>,
-  pub current_theme: Theme,
-}
-
-impl FullscreenState {
-  pub fn saved_standard_frame(&self) -> NSRect {
-    self
-      .standard_frame
-      .unwrap_or_else(|| NSRect::new(NSPoint::new(50.0, 50.0), NSSize::new(800.0, 600.0)))
-  }
-}
-
-impl From<WindowAttributes> for FullscreenState {
-  fn from(attribs: WindowAttributes) -> Self {
-    FullscreenState {
-      resizable: attribs.resizable,
-      // This fullscreen field tracks the current state of the window
-      // (as seen by `WindowDelegate`), and since the window hasn't
-      // actually been fullscreened yet, we can't set it yet. This is
-      // necessary for state transitions to work right, since otherwise
-      // the initial value and the first `set_fullscreen` call would be
-      // identical, resulting in a no-op.
-      fullscreen: None,
-      maximized: attribs.maximized,
-      ..Default::default()
-    }
-  }
-}
-
-pub(super) struct WindowDelegateState {
-  pub(super) ns_window: Retained<TaoWindow>, // never changes
-  pub(super) ns_view: Retained<TaoView>,     // never changes
-  input_context: IdRef,                      // never changes
-  // Release state borrows before calling AppKit methods that can invoke delegate callbacks.
-  fullscreen_state: RefCell<FullscreenState>,
+  save_presentation_opts: Cell<Option<NSApplicationPresentationOptions>>,
+  current_theme: Cell<Theme>,
   decorations: Cell<bool>,
   cursor_state: Weak<Mutex<CursorState>>,
   transparent: bool,
@@ -525,7 +494,17 @@ impl WindowDelegate {
       ns_view,
       ns_window: ns_window.retain(),
       input_context,
-      fullscreen_state: RefCell::new(win_attribs.into()),
+      resizable: Cell::new(win_attribs.resizable),
+      // The window has not entered fullscreen yet. Initial fullscreen is applied below.
+      fullscreen: RefCell::new(None),
+      in_fullscreen_transition: Cell::new(false),
+      target_fullscreen: RefCell::new(None),
+      maximized: Cell::new(maximized),
+      standard_frame: Cell::new(None),
+      is_simple_fullscreen: Cell::new(false),
+      saved_style: Cell::new(None),
+      save_presentation_opts: Cell::new(None),
+      current_theme: Cell::new(Theme::default()),
       decorations: Cell::new(decorations),
       cursor_state,
       transparent,
@@ -541,12 +520,10 @@ impl WindowDelegate {
     match cloned_preferred_theme {
       Some(theme) => {
         set_ns_theme(Some(theme));
-        let mut state = window.fullscreen_state.borrow_mut();
-        state.current_theme = theme;
+        window.current_theme.set(theme);
       }
       None => {
-        let mut state = window.fullscreen_state.borrow_mut();
-        state.current_theme = get_ns_theme();
+        window.current_theme.set(get_ns_theme());
       }
     }
 
@@ -598,9 +575,9 @@ impl WindowDelegateState {
     unsafe {
       let curr_mask = self.ns_window.styleMask();
       let required = NSWindowStyleMask::Titled | NSWindowStyleMask::Resizable;
-      if self.fullscreen_state.borrow().fullscreen.is_some() && !curr_mask.contains(required) {
+      if self.fullscreen.borrow().is_some() && !curr_mask.contains(required) {
         self.set_style_mask(required);
-        self.fullscreen_state.borrow_mut().saved_style = Some(curr_mask);
+        self.saved_style.set(Some(curr_mask));
       }
       self.ns_window.setLevel(objc2_app_kit::NSNormalWindowLevel);
       self.ns_window.toggleFullScreen(None);
@@ -782,12 +759,8 @@ impl WindowDelegateState {
   pub fn set_resizable(&self, resizable: bool) {
     let ns_window = &*self.ns_window;
 
-    let fullscreen = {
-      let mut shared_state_lock = self.fullscreen_state.borrow_mut();
-      shared_state_lock.resizable = resizable;
-
-      shared_state_lock.fullscreen.is_some()
-    };
+    self.resizable.set(resizable);
+    let fullscreen = self.fullscreen.borrow().is_some();
     if !fullscreen {
       let mut mask = unsafe { ns_window.styleMask() };
       if resizable {
@@ -1002,14 +975,14 @@ impl WindowDelegateState {
     }
   }
 
-  fn saved_style(&self, shared_state: &mut FullscreenState) -> NSWindowStyleMask {
+  fn saved_style(&self) -> NSWindowStyleMask {
     let ns_window = &*self.ns_window;
 
-    let base_mask = shared_state
+    let base_mask = self
       .saved_style
       .take()
       .unwrap_or_else(|| unsafe { ns_window.styleMask() });
-    if shared_state.resizable {
+    if self.resizable.get() {
       base_mask | NSWindowStyleMask::Resizable
     } else {
       base_mask & !NSWindowStyleMask::Resizable
@@ -1020,14 +993,10 @@ impl WindowDelegateState {
   /// user clicking on the green fullscreen button or programmatically by
   /// `toggleFullScreen:`
   pub(crate) fn restore_state_from_fullscreen(&self) {
-    let mut shared_state_lock = self.fullscreen_state.borrow_mut();
+    self.fullscreen.replace(None);
 
-    shared_state_lock.fullscreen = None;
-
-    let maximized = shared_state_lock.maximized;
-    let mask = self.saved_style(&mut shared_state_lock);
-
-    drop(shared_state_lock);
+    let maximized = self.maximized.get();
+    let mask = self.saved_style();
 
     self.set_style_mask(mask);
     self.set_maximized(maximized);
@@ -1062,17 +1031,15 @@ impl WindowDelegateState {
       return;
     };
     unsafe {
-      let mut shared_state = self.fullscreen_state.borrow_mut();
       if !is_zoomed {
-        shared_state.standard_frame = Some(ns_window.frame());
+        self.standard_frame.set(Some(ns_window.frame()));
       }
-      shared_state.maximized = maximized;
-      if shared_state.fullscreen.is_some() {
+      self.maximized.set(maximized);
+      if self.fullscreen.borrow().is_some() {
         // Apply the requested state when native fullscreen ends.
         return;
       }
-      let standard_frame = shared_state.saved_standard_frame();
-      drop(shared_state);
+      let standard_frame = self.standard_frame.get().unwrap_or(DEFAULT_STANDARD_FRAME);
 
       let required = NSWindowStyleMask::Resizable | NSWindowStyleMask::Titled;
       if ns_window.styleMask().contains(required) {
@@ -1091,8 +1058,7 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn fullscreen(&self) -> Option<Fullscreen> {
-    let shared_state_lock = self.fullscreen_state.borrow();
-    shared_state_lock.fullscreen.clone()
+    self.fullscreen.borrow().clone()
   }
 
   #[inline]
@@ -1159,23 +1125,20 @@ impl WindowDelegateState {
 
     let mtm = MainThreadMarker::from(ns_window.as_super());
 
-    let mut shared_state_lock = self.fullscreen_state.borrow_mut();
-    if shared_state_lock.is_simple_fullscreen {
+    if self.is_simple_fullscreen.get() {
       return;
     }
-    if shared_state_lock.in_fullscreen_transition {
+    if self.in_fullscreen_transition.get() {
       // We can't set fullscreen here.
       // Set fullscreen after transition.
-      shared_state_lock.target_fullscreen = Some(fullscreen);
+      self.target_fullscreen.replace(Some(fullscreen));
 
       return;
     }
-    let old_fullscreen = shared_state_lock.fullscreen.clone();
+    let old_fullscreen = self.fullscreen.borrow().clone();
     if fullscreen == old_fullscreen {
       return;
     }
-
-    drop(shared_state_lock);
 
     // If the fullscreen is on a different monitor, we must move the window
     // to that monitor before we toggle fullscreen (as `toggleFullScreen`
@@ -1234,8 +1197,9 @@ impl WindowDelegateState {
         unsafe {
           let app = NSApp(mtm);
 
-          let mut shared_state_lock = self.fullscreen_state.borrow_mut();
-          shared_state_lock.save_presentation_opts = Some(app.presentationOptions());
+          self
+            .save_presentation_opts
+            .set(Some(app.presentationOptions()));
         }
       }
 
@@ -1284,9 +1248,7 @@ impl WindowDelegateState {
       }
     }
 
-    let mut shared_state_lock = self.fullscreen_state.borrow_mut();
-    shared_state_lock.fullscreen = fullscreen.clone();
-    drop(shared_state_lock);
+    self.fullscreen.replace(fullscreen.clone());
 
     match (&old_fullscreen, &fullscreen) {
       (&None, &Some(_)) => unsafe {
@@ -1312,7 +1274,9 @@ impl WindowDelegateState {
         // delegate in `window:willUseFullScreenPresentationOptions:`.
         let app = NSApp(mtm);
 
-        self.fullscreen_state.borrow_mut().save_presentation_opts = Some(app.presentationOptions());
+        self
+          .save_presentation_opts
+          .set(Some(app.presentationOptions()));
 
         let presentation_options = NSApplicationPresentationOptions::FullScreen
           | NSApplicationPresentationOptions::HideDock
@@ -1325,15 +1289,11 @@ impl WindowDelegateState {
         &Some(Fullscreen::Exclusive(RootVideoMode { ref video_mode })),
         &Some(Fullscreen::Borderless(_)),
       ) => unsafe {
-        let presentation_options = self
-          .fullscreen_state
-          .borrow()
-          .save_presentation_opts
-          .unwrap_or_else(|| {
-            NSApplicationPresentationOptions::FullScreen
-              | NSApplicationPresentationOptions::AutoHideDock
-              | NSApplicationPresentationOptions::AutoHideMenuBar
-          });
+        let presentation_options = self.save_presentation_opts.get().unwrap_or_else(|| {
+          NSApplicationPresentationOptions::FullScreen
+            | NSApplicationPresentationOptions::AutoHideDock
+            | NSApplicationPresentationOptions::AutoHideMenuBar
+        });
         NSApp(mtm).setPresentationOptions(presentation_options);
 
         util::restore_display_mode(video_mode.monitor().inner.native_identifier());
@@ -1351,14 +1311,8 @@ impl WindowDelegateState {
     if decorations != self.decorations.get() {
       self.decorations.set(decorations);
 
-      let (fullscreen, resizable) = {
-        let shared_state_lock = self.fullscreen_state.borrow();
-
-        (
-          shared_state_lock.fullscreen.is_some(),
-          shared_state_lock.resizable,
-        )
-      };
+      let fullscreen = self.fullscreen.borrow().is_some();
+      let resizable = self.resizable.get();
 
       // If we're in fullscreen mode, we wait to apply decoration changes
       // until we're in `window_did_exit_fullscreen`.
@@ -1485,14 +1439,13 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn theme(&self) -> Theme {
-    let state = self.fullscreen_state.borrow();
-    state.current_theme
+    self.current_theme.get()
   }
 
   pub fn set_theme(&self, theme: Option<Theme>) {
     set_ns_theme(theme);
-    let mut state = self.fullscreen_state.borrow_mut();
-    state.current_theme = theme.unwrap_or_else(get_ns_theme);
+
+    self.current_theme.set(theme.unwrap_or_else(get_ns_theme));
   }
 
   pub fn set_content_protection(&self, enabled: bool) {
@@ -1541,21 +1494,18 @@ impl WindowExtMacOS for WindowDelegateState {
 
   #[inline]
   fn simple_fullscreen(&self) -> bool {
-    let shared_state_lock = self.fullscreen_state.borrow();
-    shared_state_lock.is_simple_fullscreen
+    self.is_simple_fullscreen.get()
   }
 
   #[inline]
   fn set_simple_fullscreen(&self, fullscreen: bool) -> bool {
     let ns_window = &*self.ns_window;
 
-    let mut shared_state_lock = self.fullscreen_state.borrow_mut();
-
     unsafe {
       let mtm = MainThreadMarker::from(ns_window.as_super());
       let app = NSApp(mtm);
-      let is_native_fullscreen = shared_state_lock.fullscreen.is_some();
-      let is_simple_fullscreen = shared_state_lock.is_simple_fullscreen;
+      let is_native_fullscreen = self.fullscreen.borrow().is_some();
+      let is_simple_fullscreen = self.is_simple_fullscreen.get();
 
       // Do nothing if native fullscreen is active.
       if is_native_fullscreen
@@ -1568,16 +1518,19 @@ impl WindowExtMacOS for WindowDelegateState {
       if fullscreen {
         // Remember the original window's settings
         // Exclude title bar
-        shared_state_lock.standard_frame = Some(NSWindow::contentRectForFrameRect(
-          ns_window,
-          NSWindow::frame(ns_window),
-        ));
-        shared_state_lock.saved_style = Some(ns_window.styleMask());
-        shared_state_lock.save_presentation_opts = Some(app.presentationOptions());
+        self
+          .standard_frame
+          .set(Some(NSWindow::contentRectForFrameRect(
+            ns_window,
+            NSWindow::frame(ns_window),
+          )));
+        self.saved_style.set(Some(ns_window.styleMask()));
+        self
+          .save_presentation_opts
+          .set(Some(app.presentationOptions()));
 
         // Tell our window's state that we're in fullscreen
-        shared_state_lock.is_simple_fullscreen = true;
-        drop(shared_state_lock);
+        self.is_simple_fullscreen.set(true);
 
         // Simulate pre-Lion fullscreen by hiding the dock and menu bar
         let presentation_options = NSApplicationPresentationOptions::AutoHideDock
@@ -1609,12 +1562,11 @@ impl WindowExtMacOS for WindowDelegateState {
 
         true
       } else {
-        let new_mask = self.saved_style(&mut shared_state_lock);
-        shared_state_lock.is_simple_fullscreen = false;
+        let new_mask = self.saved_style();
+        self.is_simple_fullscreen.set(false);
 
-        let presentation_opts = shared_state_lock.save_presentation_opts;
-        let frame = shared_state_lock.saved_standard_frame();
-        drop(shared_state_lock);
+        let presentation_opts = self.save_presentation_opts.get();
+        let frame = self.standard_frame.get().unwrap_or(DEFAULT_STANDARD_FRAME);
 
         if let Some(presentation_opts) = presentation_opts {
           app.setPresentationOptions(presentation_opts);
@@ -1901,27 +1853,25 @@ define_class!(
       trace!("Triggered `windowWillEnterFullscreen:`");
 
       let state = self.ivars();
-      {
-        let mut shared_state = state.fullscreen_state.borrow_mut();
-        shared_state.maximized = state.is_zoomed();
-        match shared_state.fullscreen {
-          // Exclusive mode sets the state in `set_fullscreen` as the user
-          // can't enter exclusive mode by other means (like the
-          // fullscreen button on the window decorations)
-          Some(Fullscreen::Exclusive(_)) => (),
-          // `window_will_enter_fullscreen` was triggered and we're already
-          // in fullscreen, so we must've reached here by `set_fullscreen`
-          // as it updates the state
-          Some(Fullscreen::Borderless(_)) => (),
-          // Otherwise, we must've reached fullscreen by the user clicking
-          // on the green fullscreen button. Update state!
-          None => {
-            let current_monitor = state.current_monitor_inner();
-            shared_state.fullscreen = Some(Fullscreen::Borderless(current_monitor))
-          }
+      state.maximized.set(state.is_zoomed());
+      let fullscreen = state.fullscreen.borrow().clone();
+      match fullscreen {
+        // Exclusive mode sets the state in `set_fullscreen` as the user
+        // can't enter exclusive mode by other means (like the
+        // fullscreen button on the window decorations)
+        Some(Fullscreen::Exclusive(_)) => (),
+        // `window_will_enter_fullscreen` was triggered and we're already
+        // in fullscreen, so we must've reached here by `set_fullscreen`
+        // as it updates the state
+        Some(Fullscreen::Borderless(_)) => (),
+        // Otherwise, we must've reached fullscreen by the user clicking
+        // on the green fullscreen button. Update state!
+        None => {
+          let current_monitor = state.current_monitor_inner();
+          state.fullscreen.replace(Some(Fullscreen::Borderless(current_monitor)));
         }
-        shared_state.in_fullscreen_transition = true;
       }
+      state.in_fullscreen_transition.set(true);
       trace!("Completed `windowWillEnterFullscreen:`");
     }
 
@@ -1931,10 +1881,7 @@ define_class!(
       trace!("Triggered `windowWillExitFullScreen:`");
 
       let state = self.ivars();
-      {
-        let mut shared_state = state.fullscreen_state.borrow_mut();
-        shared_state.in_fullscreen_transition = true;
-      }
+      state.in_fullscreen_transition.set(true);
       trace!("Completed `windowWillExitFullScreen:`");
     }
 
@@ -1954,13 +1901,10 @@ define_class!(
       // user-provided options are ignored in exclusive fullscreen.
       let mut options = proposed_options;
       let state = self.ivars();
-      {
-        let shared_state = state.fullscreen_state.borrow();
-        if let Some(Fullscreen::Exclusive(_)) = shared_state.fullscreen {
-          options = NSApplicationPresentationOptions::FullScreen
-            | NSApplicationPresentationOptions::HideDock
-            | NSApplicationPresentationOptions::HideMenuBar;
-        }
+      if let Some(Fullscreen::Exclusive(_)) = *state.fullscreen.borrow() {
+        options = NSApplicationPresentationOptions::FullScreen
+          | NSApplicationPresentationOptions::HideDock
+          | NSApplicationPresentationOptions::HideMenuBar;
       }
 
       options
@@ -1972,15 +1916,11 @@ define_class!(
       trace!("Triggered `windowDidEnterFullscreen:`");
       let state = self.ivars();
       state.initial_fullscreen.set(false);
-      {
-        let mut shared_state = state.fullscreen_state.borrow_mut();
-        shared_state.in_fullscreen_transition = false;
-        let target_fullscreen = shared_state.target_fullscreen.take();
+      state.in_fullscreen_transition.set(false);
+      let target_fullscreen = state.target_fullscreen.borrow_mut().take();
 
-        drop(shared_state);
-        if let Some(target_fullscreen) = target_fullscreen {
-          state.set_fullscreen(target_fullscreen);
-        }
+      if let Some(target_fullscreen) = target_fullscreen {
+        state.set_fullscreen(target_fullscreen);
       }
       state.emit_resize_event();
       state.emit_move_event();
@@ -1992,21 +1932,17 @@ define_class!(
     fn window_did_exit_fullscreen(&self, _: Option<&AnyObject>) {
       trace!("Triggered `windowDidExitFullscreen:`");
       let state = self.ivars();
-      {
-        state.restore_state_from_fullscreen();
+      state.restore_state_from_fullscreen();
 
-        let mut shared_state = state.fullscreen_state.borrow_mut();
-        shared_state.in_fullscreen_transition = false;
-        let target_fullscreen = shared_state.target_fullscreen.take();
+      state.in_fullscreen_transition.set(false);
+      let target_fullscreen = state.target_fullscreen.borrow_mut().take();
 
-        drop(shared_state);
-        if let Some(target_fullscreen) = target_fullscreen {
-          state.set_fullscreen(target_fullscreen);
-        }
-        // Leaving fullscreen resets the traffic light buttons to their default
-        // position without a `drawRect:`, so re-apply the custom inset (#15451).
-        unsafe { reapply_traffic_light_inset(&state.ns_window, &state.ns_view) };
+      if let Some(target_fullscreen) = target_fullscreen {
+        state.set_fullscreen(target_fullscreen);
       }
+      // Leaving fullscreen resets the traffic light buttons to their default
+      // position without a `drawRect:`, so re-apply the custom inset (#15451).
+      unsafe { reapply_traffic_light_inset(&state.ns_window, &state.ns_view) };
       state.emit_resize_event();
       state.emit_move_event();
       trace!("Completed `windowDidExitFullscreen:`");
@@ -2033,11 +1969,8 @@ define_class!(
     fn window_did_fail_to_enter_fullscreen(&self, _: Option<&AnyObject>) {
       trace!("Triggered `windowDidFailToEnterFullscreen:`");
       let state = self.ivars();
-      {
-        let mut shared_state = state.fullscreen_state.borrow_mut();
-        shared_state.in_fullscreen_transition = false;
-        shared_state.target_fullscreen = None;
-      }
+      state.in_fullscreen_transition.set(false);
+      state.target_fullscreen.replace(None);
       if state.initial_fullscreen.get() {
           unsafe {
             state.ns_window.performSelector_withObject_afterDelay(
@@ -2129,12 +2062,7 @@ define_class!(
     fn effective_appearance_did_changed_on_main_thread(&self, _: Option<&AnyObject>) {
       let state = self.ivars();
       let theme = get_ns_theme();
-      let current_theme = {
-        let mut fullscreen_state = state.fullscreen_state.borrow_mut();
-        let current_theme = fullscreen_state.current_theme;
-        fullscreen_state.current_theme = theme;
-        current_theme
-      };
+      let current_theme = state.current_theme.replace(theme);
       if current_theme != theme {
         state.emit_event(WindowEvent::ThemeChanged(theme));
       }
@@ -2190,3 +2118,6 @@ unsafe fn set_max_inner_size(window: &NSWindow, mut max_size: LogicalSize<f64>) 
     window.setFrame_display(current_rect, false)
   }
 }
+
+const DEFAULT_STANDARD_FRAME: NSRect =
+  NSRect::new(NSPoint::new(50.0, 50.0), NSSize::new(800.0, 600.0));
