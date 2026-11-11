@@ -40,7 +40,7 @@ use crate::{
   window::{ProgressBarState, Theme},
 };
 
-use super::window::set_ns_theme;
+use super::window_delegate::set_ns_theme;
 
 #[derive(Default)]
 pub struct PanicInfo {
