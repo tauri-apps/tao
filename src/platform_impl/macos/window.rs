@@ -63,402 +63,382 @@ impl Window {
   }
 
   pub fn id(&self) -> Id {
-    self.delegate.get_on_main(|delegate| delegate.ivars().id())
+    self.delegate.get_on_main(|delegate| delegate.id())
   }
 
   pub fn set_title(&self, title: &str) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_title(title))
+      .get_on_main(|delegate| delegate.set_title(title))
   }
 
   pub fn title(&self) -> String {
-    self
-      .delegate
-      .get_on_main(|delegate| delegate.ivars().title())
+    self.delegate.get_on_main(|delegate| delegate.title())
   }
 
   pub fn set_visible(&self, visible: bool) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_visible(visible))
+      .get_on_main(|delegate| delegate.set_visible(visible))
   }
 
   pub fn set_focus(&self) {
-    self
-      .delegate
-      .get_on_main(|delegate| delegate.ivars().set_focus())
+    self.delegate.get_on_main(|delegate| delegate.set_focus())
   }
 
   #[inline]
   pub fn set_focusable(&self, focusable: bool) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_focusable(focusable))
+      .get_on_main(|delegate| delegate.set_focusable(focusable))
   }
 
   #[inline]
   pub fn is_focused(&self) -> bool {
-    self
-      .delegate
-      .get_on_main(|delegate| delegate.ivars().is_focused())
+    self.delegate.get_on_main(|delegate| delegate.is_focused())
   }
 
   pub fn request_redraw(&self) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().request_redraw())
+      .get_on_main(|delegate| delegate.request_redraw())
   }
 
   pub fn outer_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().outer_position())
+      .get_on_main(|delegate| delegate.outer_position())
   }
 
   pub fn inner_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().inner_position())
+      .get_on_main(|delegate| delegate.inner_position())
   }
 
   pub fn set_outer_position(&self, position: Position) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_outer_position(position))
+      .get_on_main(|delegate| delegate.set_outer_position(position))
   }
 
   #[inline]
   pub fn inner_size(&self) -> PhysicalSize<u32> {
-    self
-      .delegate
-      .get_on_main(|delegate| delegate.ivars().inner_size())
+    self.delegate.get_on_main(|delegate| delegate.inner_size())
   }
 
   #[inline]
   pub fn outer_size(&self) -> PhysicalSize<u32> {
-    self
-      .delegate
-      .get_on_main(|delegate| delegate.ivars().outer_size())
+    self.delegate.get_on_main(|delegate| delegate.outer_size())
   }
 
   #[inline]
   pub fn set_inner_size(&self, size: Size) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_inner_size(size))
+      .get_on_main(|delegate| delegate.set_inner_size(size))
   }
 
   pub fn set_min_inner_size(&self, dimensions: Option<Size>) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_min_inner_size(dimensions))
+      .get_on_main(|delegate| delegate.set_min_inner_size(dimensions))
   }
 
   pub fn set_max_inner_size(&self, dimensions: Option<Size>) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_max_inner_size(dimensions))
+      .get_on_main(|delegate| delegate.set_max_inner_size(dimensions))
   }
 
   pub fn set_inner_size_constraints(&self, constraints: WindowSizeConstraints) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_inner_size_constraints(constraints))
+      .get_on_main(|delegate| delegate.set_inner_size_constraints(constraints))
   }
 
   #[inline]
   pub fn set_resizable(&self, resizable: bool) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_resizable(resizable))
+      .get_on_main(|delegate| delegate.set_resizable(resizable))
   }
 
   #[inline]
   pub fn set_minimizable(&self, minimizable: bool) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_minimizable(minimizable))
+      .get_on_main(|delegate| delegate.set_minimizable(minimizable))
   }
 
   #[inline]
   pub fn set_maximizable(&self, maximizable: bool) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_maximizable(maximizable))
+      .get_on_main(|delegate| delegate.set_maximizable(maximizable))
   }
 
   #[inline]
   pub fn set_closable(&self, closable: bool) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_closable(closable))
+      .get_on_main(|delegate| delegate.set_closable(closable))
   }
 
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_cursor_icon(cursor))
+      .get_on_main(|delegate| delegate.set_cursor_icon(cursor))
   }
 
   #[inline]
   pub fn set_cursor_grab(&self, grab: bool) -> Result<(), ExternalError> {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_cursor_grab(grab))
+      .get_on_main(|delegate| delegate.set_cursor_grab(grab))
   }
 
   #[inline]
   pub fn set_cursor_visible(&self, visible: bool) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_cursor_visible(visible))
+      .get_on_main(|delegate| delegate.set_cursor_visible(visible))
   }
 
   #[inline]
   pub fn cursor_position(&self) -> Result<PhysicalPosition<f64>, ExternalError> {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().cursor_position())
+      .get_on_main(|delegate| delegate.cursor_position())
   }
 
   #[inline]
   pub fn scale_factor(&self) -> f64 {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().scale_factor())
+      .get_on_main(|delegate| delegate.scale_factor())
   }
 
   #[inline]
   pub fn set_cursor_position(&self, cursor_position: Position) -> Result<(), ExternalError> {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_cursor_position(cursor_position))
+      .get_on_main(|delegate| delegate.set_cursor_position(cursor_position))
   }
 
   #[inline]
   pub fn set_background_color(&self, color: Option<crate::window::RGBA>) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_background_color(color))
+      .get_on_main(|delegate| delegate.set_background_color(color))
   }
 
   #[inline]
   pub fn drag_window(&self) -> Result<(), ExternalError> {
-    self
-      .delegate
-      .get_on_main(|delegate| delegate.ivars().drag_window())
+    self.delegate.get_on_main(|delegate| delegate.drag_window())
   }
 
   pub fn drag_resize_window(&self, _direction: ResizeDirection) -> Result<(), ExternalError> {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().drag_resize_window(_direction))
+      .get_on_main(|delegate| delegate.drag_resize_window(_direction))
   }
 
   #[inline]
   pub fn set_ignore_cursor_events(&self, ignore: bool) -> Result<(), ExternalError> {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_ignore_cursor_events(ignore))
+      .get_on_main(|delegate| delegate.set_ignore_cursor_events(ignore))
   }
 
   #[inline]
   pub fn set_minimized(&self, minimized: bool) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_minimized(minimized))
+      .get_on_main(|delegate| delegate.set_minimized(minimized))
   }
 
   #[inline]
   pub fn set_maximized(&self, maximized: bool) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_maximized(maximized))
+      .get_on_main(|delegate| delegate.set_maximized(maximized))
   }
 
   #[inline]
   pub fn fullscreen(&self) -> Option<Fullscreen> {
-    self
-      .delegate
-      .get_on_main(|delegate| delegate.ivars().fullscreen())
+    self.delegate.get_on_main(|delegate| delegate.fullscreen())
   }
 
   #[inline]
   pub fn is_visible(&self) -> bool {
-    self
-      .delegate
-      .get_on_main(|delegate| delegate.ivars().is_visible())
+    self.delegate.get_on_main(|delegate| delegate.is_visible())
   }
 
   #[inline]
   pub fn is_always_on_top(&self) -> bool {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().is_always_on_top())
+      .get_on_main(|delegate| delegate.is_always_on_top())
   }
 
   #[inline]
   pub fn is_maximized(&self) -> bool {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().is_maximized())
+      .get_on_main(|delegate| delegate.is_maximized())
   }
 
   #[inline]
   pub fn is_minimized(&self) -> bool {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().is_minimized())
+      .get_on_main(|delegate| delegate.is_minimized())
   }
 
   #[inline]
   pub fn is_resizable(&self) -> bool {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().is_resizable())
+      .get_on_main(|delegate| delegate.is_resizable())
   }
 
   #[inline]
   pub fn is_minimizable(&self) -> bool {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().is_minimizable())
+      .get_on_main(|delegate| delegate.is_minimizable())
   }
 
   #[inline]
   pub fn is_maximizable(&self) -> bool {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().is_maximizable())
+      .get_on_main(|delegate| delegate.is_maximizable())
   }
 
   #[inline]
   pub fn is_closable(&self) -> bool {
-    self
-      .delegate
-      .get_on_main(|delegate| delegate.ivars().is_closable())
+    self.delegate.get_on_main(|delegate| delegate.is_closable())
   }
 
   #[inline]
   pub fn is_decorated(&self) -> bool {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().is_decorated())
+      .get_on_main(|delegate| delegate.is_decorated())
   }
 
   #[inline]
   pub fn set_fullscreen(&self, fullscreen: Option<Fullscreen>) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_fullscreen(fullscreen))
+      .get_on_main(|delegate| delegate.set_fullscreen(fullscreen))
   }
 
   #[inline]
   pub fn set_decorations(&self, decorations: bool) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_decorations(decorations))
+      .get_on_main(|delegate| delegate.set_decorations(decorations))
   }
 
   #[inline]
   pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_always_on_bottom(always_on_bottom))
+      .get_on_main(|delegate| delegate.set_always_on_bottom(always_on_bottom))
   }
 
   #[inline]
   pub fn set_always_on_top(&self, always_on_top: bool) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_always_on_top(always_on_top))
+      .get_on_main(|delegate| delegate.set_always_on_top(always_on_top))
   }
 
   #[inline]
   pub fn set_window_icon(&self, _icon: Option<Icon>) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_window_icon(_icon))
+      .get_on_main(|delegate| delegate.set_window_icon(_icon))
   }
 
   #[inline]
   pub fn set_ime_position(&self, spot: Position) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_ime_position(spot))
+      .get_on_main(|delegate| delegate.set_ime_position(spot))
   }
 
   #[inline]
   pub fn request_user_attention(&self, request_type: Option<UserAttentionType>) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().request_user_attention(request_type))
+      .get_on_main(|delegate| delegate.request_user_attention(request_type))
   }
 
   #[inline]
   pub fn current_monitor(&self) -> Option<RootMonitorHandle> {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().current_monitor())
+      .get_on_main(|delegate| delegate.current_monitor())
   }
 
   #[inline]
   pub fn monitor_from_point(&self, x: f64, y: f64) -> Option<RootMonitorHandle> {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().monitor_from_point(x, y))
+      .get_on_main(|delegate| delegate.monitor_from_point(x, y))
   }
 
   #[inline]
   pub fn available_monitors(&self) -> VecDeque<MonitorHandle> {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().available_monitors())
+      .get_on_main(|delegate| delegate.available_monitors())
   }
 
   #[inline]
   pub fn primary_monitor(&self) -> Option<RootMonitorHandle> {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().primary_monitor())
+      .get_on_main(|delegate| delegate.primary_monitor())
   }
 
   #[inline]
   pub fn theme(&self) -> Theme {
-    self
-      .delegate
-      .get_on_main(|delegate| delegate.ivars().theme())
+    self.delegate.get_on_main(|delegate| delegate.theme())
   }
 
   pub fn set_theme(&self, theme: Option<Theme>) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_theme(theme))
+      .get_on_main(|delegate| delegate.set_theme(theme))
   }
 
   pub fn set_content_protection(&self, enabled: bool) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_content_protection(enabled))
+      .get_on_main(|delegate| delegate.set_content_protection(enabled))
   }
 
   pub fn set_visible_on_all_workspaces(&self, visible: bool) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_visible_on_all_workspaces(visible))
+      .get_on_main(|delegate| delegate.set_visible_on_all_workspaces(visible))
   }
 
   pub fn set_progress_bar(&self, progress: ProgressBarState) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_progress_bar(progress))
+      .get_on_main(|delegate| delegate.set_progress_bar(progress))
   }
 
   pub fn set_badge_label(&self, label: Option<String>) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_badge_label(label))
+      .get_on_main(|delegate| delegate.set_badge_label(label))
   }
   #[cfg(feature = "rwh_04")]
   #[inline]
@@ -511,42 +491,40 @@ impl WindowExtMacOS for Window {
   fn ns_window(&self) -> *mut c_void {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().ns_window() as usize) as *mut c_void
+      .get_on_main(|delegate| delegate.ns_window() as usize) as *mut c_void
   }
 
   #[inline]
   fn ns_view(&self) -> *mut c_void {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().ns_view() as usize) as *mut c_void
+      .get_on_main(|delegate| delegate.ns_view() as usize) as *mut c_void
   }
 
   #[inline]
   fn simple_fullscreen(&self) -> bool {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().simple_fullscreen())
+      .get_on_main(|delegate| delegate.simple_fullscreen())
   }
 
   #[inline]
   fn set_simple_fullscreen(&self, fullscreen: bool) -> bool {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_simple_fullscreen(fullscreen))
+      .get_on_main(|delegate| delegate.set_simple_fullscreen(fullscreen))
   }
 
   #[inline]
   fn has_shadow(&self) -> bool {
-    self
-      .delegate
-      .get_on_main(|delegate| delegate.ivars().has_shadow())
+    self.delegate.get_on_main(|delegate| delegate.has_shadow())
   }
 
   #[inline]
   fn set_has_shadow(&self, has_shadow: bool) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_has_shadow(has_shadow))
+      .get_on_main(|delegate| delegate.set_has_shadow(has_shadow))
   }
 
   #[inline]
@@ -554,71 +532,69 @@ impl WindowExtMacOS for Window {
     let position: Position = position.into();
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_traffic_light_inset(position))
+      .get_on_main(|delegate| delegate.set_traffic_light_inset(position))
   }
 
   #[inline]
   fn set_is_document_edited(&self, edited: bool) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_is_document_edited(edited))
+      .get_on_main(|delegate| delegate.set_is_document_edited(edited))
   }
 
   #[inline]
   fn is_document_edited(&self) -> bool {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().is_document_edited())
+      .get_on_main(|delegate| delegate.is_document_edited())
   }
 
   #[inline]
   fn set_allows_automatic_window_tabbing(&self, enabled: bool) {
-    self.delegate.get_on_main(|delegate| {
-      delegate
-        .ivars()
-        .set_allows_automatic_window_tabbing(enabled)
-    })
+    self
+      .delegate
+      .get_on_main(|delegate| delegate.set_allows_automatic_window_tabbing(enabled))
   }
 
   #[inline]
   fn allows_automatic_window_tabbing(&self) -> bool {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().allows_automatic_window_tabbing())
+      .get_on_main(|delegate| delegate.allows_automatic_window_tabbing())
   }
 
   #[inline]
   fn set_tabbing_identifier(&self, identifier: &str) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_tabbing_identifier(identifier))
+      .get_on_main(|delegate| delegate.set_tabbing_identifier(identifier))
   }
 
   #[inline]
   fn tabbing_identifier(&self) -> String {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().tabbing_identifier())
+      .get_on_main(|delegate| delegate.tabbing_identifier())
   }
 
   #[inline]
   fn set_fullsize_content_view(&self, fullsize: bool) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_fullsize_content_view(fullsize))
+      .get_on_main(|delegate| delegate.set_fullsize_content_view(fullsize))
   }
 
   #[inline]
   fn set_titlebar_transparent(&self, transparent: bool) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_titlebar_transparent(transparent))
+      .get_on_main(|delegate| delegate.set_titlebar_transparent(transparent))
   }
 
   fn set_badge_label(&self, label: Option<String>) {
     self
       .delegate
-      .get_on_main(|delegate| delegate.ivars().set_badge_label(label))
+      .get_on_main(|delegate| delegate.set_badge_label(label))
   }
 }
 
@@ -626,7 +602,7 @@ impl Drop for Window {
   fn drop(&mut self) {
     self
       .delegate
-      .get_on_main(|delegate| autoreleasepool(|_| delegate.ivars().close()));
+      .get_on_main(|delegate| autoreleasepool(|_| delegate.close()));
   }
 }
 

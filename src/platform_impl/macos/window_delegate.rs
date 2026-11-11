@@ -376,7 +376,7 @@ pub(super) fn set_ns_theme(theme: Option<Theme>) {
   }
 }
 
-pub(super) struct WindowDelegateState {
+pub(super) struct State {
   pub(super) ns_window: Retained<TaoWindow>, // never changes
   pub(super) ns_view: Retained<TaoView>,     // never changes
   input_context: IdRef,                      // never changes
@@ -490,7 +490,7 @@ impl WindowDelegate {
 
     let cloned_preferred_theme = win_attribs.preferred_theme;
 
-    let state = WindowDelegateState {
+    let state = State {
       ns_view,
       ns_window: ns_window.retain(),
       input_context,
@@ -539,12 +539,12 @@ impl WindowDelegate {
       );
     }
     if (scale_factor - 1.0).abs() > f64::EPSILON {
-      window.emit_static_scale_factor_changed_event();
+      delegate.emit_static_scale_factor_changed_event();
     }
 
     // Set fullscreen mode after we setup everything
-    window.set_fullscreen(fullscreen);
-    window.set_visible_on_all_workspaces(visible_on_all_workspaces);
+    delegate.set_fullscreen(fullscreen);
+    delegate.set_visible_on_all_workspaces(visible_on_all_workspaces);
 
     // Setting the window as key has to happen *after* we set the fullscreen
     // state, since otherwise we'll briefly see the window at normal size
@@ -559,61 +559,64 @@ impl WindowDelegate {
     }
 
     if maximized {
-      window.set_maximized(maximized);
+      delegate.set_maximized(maximized);
     }
 
     Ok(delegate)
   }
 }
 
-impl WindowDelegateState {
+impl WindowDelegate {
   pub(super) fn close(&self) {
-    self.ns_window.close();
+    self.ivars().ns_window.close();
   }
 
   fn toggle_fullscreen(&self) {
     unsafe {
-      let curr_mask = self.ns_window.styleMask();
+      let curr_mask = self.ivars().ns_window.styleMask();
       let required = NSWindowStyleMask::Titled | NSWindowStyleMask::Resizable;
-      if self.fullscreen.borrow().is_some() && !curr_mask.contains(required) {
+      if self.ivars().fullscreen.borrow().is_some() && !curr_mask.contains(required) {
         self.set_style_mask(required);
-        self.saved_style.set(Some(curr_mask));
+        self.ivars().saved_style.set(Some(curr_mask));
       }
-      self.ns_window.setLevel(objc2_app_kit::NSNormalWindowLevel);
-      self.ns_window.toggleFullScreen(None);
+      self
+        .ivars()
+        .ns_window
+        .setLevel(objc2_app_kit::NSNormalWindowLevel);
+      self.ivars().ns_window.toggleFullScreen(None);
     }
   }
 
   fn set_style_mask(&self, mask: NSWindowStyleMask) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     unsafe {
       ns_window.setStyleMask(mask);
       // Restore keyboard handling after changing the window style.
-      ns_window.makeFirstResponder(Some(&self.ns_view));
+      ns_window.makeFirstResponder(Some(&self.ivars().ns_view));
     }
   }
 
   pub fn id(&self) -> Id {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     get_window_id(ns_window)
   }
 
   pub fn set_title(&self, title: &str) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     unsafe {
       ns_window.setTitle(&NSString::from_str(title));
       // Setting the title resets the traffic light buttons to their default position.
-      view::reapply_traffic_light_inset(ns_window, &self.ns_view);
+      view::reapply_traffic_light_inset(ns_window, &self.ivars().ns_view);
     }
   }
 
   pub fn title(&self) -> String {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     ns_window.title().to_string()
   }
 
   pub fn set_visible(&self, visible: bool) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     match visible {
       true => unsafe { ns_window.makeKeyAndOrderFront(None) },
       false => unsafe { ns_window.orderOut(None) },
@@ -623,7 +626,7 @@ impl WindowDelegateState {
   #[inline]
   // Shortener for set_visible(true)
   pub fn set_focus(&self) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     unsafe {
       let is_minimized = ns_window.isMiniaturized();
       let is_visible = ns_window.isVisible();
@@ -638,14 +641,14 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn set_focusable(&self, focusable: bool) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     ns_window.ivars().focusable.set(focusable);
   }
 
   #[inline]
   pub fn is_focused(&self) -> bool {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     unsafe { ns_window.isKeyWindow() }
   }
 
@@ -654,7 +657,7 @@ impl WindowDelegateState {
   }
 
   pub fn outer_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let frame_rect = unsafe { NSWindow::frame(ns_window) };
     let position = LogicalPosition::new(
@@ -666,7 +669,7 @@ impl WindowDelegateState {
   }
 
   pub fn inner_position(&self) -> Result<PhysicalPosition<i32>, NotSupportedError> {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let content_rect =
       unsafe { NSWindow::contentRectForFrameRect(ns_window, NSWindow::frame(ns_window)) };
@@ -679,7 +682,7 @@ impl WindowDelegateState {
   }
 
   pub fn set_outer_position(&self, position: Position) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let scale_factor = self.scale_factor();
     let position = position.to_logical(scale_factor);
@@ -690,7 +693,7 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn inner_size(&self) -> PhysicalSize<u32> {
-    let ns_view = &*self.ns_view;
+    let ns_view = &*self.ivars().ns_view;
 
     let view_frame = unsafe { NSView::frame(ns_view) };
     let logical: LogicalSize<f64> = (view_frame.size.width, view_frame.size.height).into();
@@ -699,7 +702,7 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn outer_size(&self) -> PhysicalSize<u32> {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let view_frame = unsafe { NSWindow::frame(ns_window) };
     let logical: LogicalSize<f64> = (view_frame.size.width, view_frame.size.height).into();
@@ -709,7 +712,7 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn set_inner_size(&self, size: Size) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     unsafe {
       let scale_factor = self.scale_factor();
       let size = size.to_logical::<CGFloat>(scale_factor);
@@ -718,7 +721,7 @@ impl WindowDelegateState {
   }
 
   pub fn set_min_inner_size(&self, dimensions: Option<Size>) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let dimensions = dimensions.unwrap_or(Logical(LogicalSize {
       width: 0.0,
@@ -731,7 +734,7 @@ impl WindowDelegateState {
   }
 
   pub fn set_max_inner_size(&self, dimensions: Option<Size>) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let dimensions = dimensions.unwrap_or(Logical(LogicalSize {
       width: f32::MAX as f64,
@@ -744,7 +747,7 @@ impl WindowDelegateState {
   }
 
   pub fn set_inner_size_constraints(&self, constraints: WindowSizeConstraints) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let scale_factor = self.scale_factor();
     unsafe {
@@ -757,10 +760,10 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn set_resizable(&self, resizable: bool) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
-    self.resizable.set(resizable);
-    let fullscreen = self.fullscreen.borrow().is_some();
+    self.ivars().resizable.set(resizable);
+    let fullscreen = self.ivars().fullscreen.borrow().is_some();
     if !fullscreen {
       let mut mask = unsafe { ns_window.styleMask() };
       if resizable {
@@ -774,7 +777,7 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn set_minimizable(&self, minimizable: bool) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let mut mask = unsafe { ns_window.styleMask() };
     if minimizable {
@@ -787,7 +790,7 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn set_maximizable(&self, maximizable: bool) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     ns_window.ivars().maximizable.set(maximizable);
     unsafe {
@@ -799,7 +802,7 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn set_closable(&self, closable: bool) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let mut mask = unsafe { ns_window.styleMask() };
     if closable {
@@ -811,14 +814,14 @@ impl WindowDelegateState {
   }
 
   pub fn set_cursor_icon(&self, cursor: CursorIcon) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let cursor = util::Cursor::from(cursor);
-    if let Some(cursor_access) = self.cursor_state.upgrade() {
+    if let Some(cursor_access) = self.ivars().cursor_state.upgrade() {
       cursor_access.lock().unwrap().cursor = cursor;
     }
     unsafe {
-      ns_window.invalidateCursorRectsForView(&self.ns_view);
+      ns_window.invalidateCursorRectsForView(&self.ivars().ns_view);
     }
   }
 
@@ -831,15 +834,15 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn set_cursor_visible(&self, visible: bool) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
-    if let Some(cursor_access) = self.cursor_state.upgrade() {
+    if let Some(cursor_access) = self.ivars().cursor_state.upgrade() {
       let mut cursor_state = cursor_access.lock().unwrap();
       if visible != cursor_state.visible {
         cursor_state.visible = visible;
         drop(cursor_state);
         unsafe {
-          ns_window.invalidateCursorRectsForView(&self.ns_view);
+          ns_window.invalidateCursorRectsForView(&self.ivars().ns_view);
         }
       }
     }
@@ -852,7 +855,7 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn scale_factor(&self) -> f64 {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     NSWindow::backingScaleFactor(ns_window) as _
   }
 
@@ -876,7 +879,7 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn set_background_color(&self, color: Option<crate::window::RGBA>) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     unsafe {
       let color = color
         .map(|(r, g, b, a)| {
@@ -888,7 +891,7 @@ impl WindowDelegateState {
           ))
         })
         .unwrap_or_else(|| {
-          if self.transparent {
+          if self.ivars().transparent {
             Some(NSColor::clearColor())
           } else {
             None
@@ -900,7 +903,7 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn drag_window(&self) -> Result<(), ExternalError> {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     unsafe {
       let mtm = MainThreadMarker::from(ns_window.as_super());
@@ -937,7 +940,7 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn set_ignore_cursor_events(&self, ignore: bool) -> Result<(), ExternalError> {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     unsafe {
       ns_window.setIgnoresMouseEvents(ignore);
@@ -947,7 +950,7 @@ impl WindowDelegateState {
   }
 
   pub(crate) fn is_zoomed(&self) -> bool {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     // Previously, is_zoomed temporarily mutated the window's styleMask(or resizable)
     // to force macOS to return a valid result for borderless windows.
@@ -976,13 +979,14 @@ impl WindowDelegateState {
   }
 
   fn saved_style(&self) -> NSWindowStyleMask {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let base_mask = self
+      .ivars()
       .saved_style
       .take()
       .unwrap_or_else(|| unsafe { ns_window.styleMask() });
-    if self.resizable.get() {
+    if self.ivars().resizable.get() {
       base_mask | NSWindowStyleMask::Resizable
     } else {
       base_mask & !NSWindowStyleMask::Resizable
@@ -993,9 +997,9 @@ impl WindowDelegateState {
   /// user clicking on the green fullscreen button or programmatically by
   /// `toggleFullScreen:`
   pub(crate) fn restore_state_from_fullscreen(&self) {
-    self.fullscreen.replace(None);
+    self.ivars().fullscreen.replace(None);
 
-    let maximized = self.maximized.get();
+    let maximized = self.ivars().maximized.get();
     let mask = self.saved_style();
 
     self.set_style_mask(mask);
@@ -1004,7 +1008,7 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn set_minimized(&self, minimized: bool) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let is_minimized: bool = unsafe { ns_window.isMiniaturized() };
     if is_minimized == minimized {
@@ -1024,7 +1028,7 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn set_maximized(&self, maximized: bool) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let is_zoomed = self.is_zoomed();
     if is_zoomed == maximized {
@@ -1032,14 +1036,18 @@ impl WindowDelegateState {
     };
     unsafe {
       if !is_zoomed {
-        self.standard_frame.set(Some(ns_window.frame()));
+        self.ivars().standard_frame.set(Some(ns_window.frame()));
       }
-      self.maximized.set(maximized);
-      if self.fullscreen.borrow().is_some() {
+      self.ivars().maximized.set(maximized);
+      if self.ivars().fullscreen.borrow().is_some() {
         // Apply the requested state when native fullscreen ends.
         return;
       }
-      let standard_frame = self.standard_frame.get().unwrap_or(DEFAULT_STANDARD_FRAME);
+      let standard_frame = self
+        .ivars()
+        .standard_frame
+        .get()
+        .unwrap_or(DEFAULT_STANDARD_FRAME);
 
       let required = NSWindowStyleMask::Resizable | NSWindowStyleMask::Titled;
       if ns_window.styleMask().contains(required) {
@@ -1058,18 +1066,18 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn fullscreen(&self) -> Option<Fullscreen> {
-    self.fullscreen.borrow().clone()
+    self.ivars().fullscreen.borrow().clone()
   }
 
   #[inline]
   pub fn is_visible(&self) -> bool {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     unsafe { ns_window.isVisible() }
   }
 
   #[inline]
   pub fn is_always_on_top(&self) -> bool {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     unsafe { ns_window.level() == ffi::kCGFloatingWindowLevelKey }
   }
 
@@ -1080,25 +1088,25 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn is_minimized(&self) -> bool {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     unsafe { ns_window.isMiniaturized() }
   }
 
   #[inline]
   pub fn is_resizable(&self) -> bool {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     ns_window.isResizable()
   }
 
   #[inline]
   pub fn is_minimizable(&self) -> bool {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     ns_window.isMiniaturizable()
   }
 
   #[inline]
   pub fn is_maximizable(&self) -> bool {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     unsafe {
       if let Some(button) = ns_window.standardWindowButton(NSWindowButton::ZoomButton) {
         button.isEnabled()
@@ -1110,32 +1118,32 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn is_closable(&self) -> bool {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     ns_window.hasCloseBox()
   }
 
   #[inline]
   pub fn is_decorated(&self) -> bool {
-    self.decorations.get()
+    self.ivars().decorations.get()
   }
 
   #[inline]
   pub fn set_fullscreen(&self, fullscreen: Option<Fullscreen>) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let mtm = MainThreadMarker::from(ns_window.as_super());
 
-    if self.is_simple_fullscreen.get() {
+    if self.ivars().is_simple_fullscreen.get() {
       return;
     }
-    if self.in_fullscreen_transition.get() {
+    if self.ivars().in_fullscreen_transition.get() {
       // We can't set fullscreen here.
       // Set fullscreen after transition.
-      self.target_fullscreen.replace(Some(fullscreen));
+      self.ivars().target_fullscreen.replace(Some(fullscreen));
 
       return;
     }
-    let old_fullscreen = self.fullscreen.borrow().clone();
+    let old_fullscreen = self.ivars().fullscreen.borrow().clone();
     if fullscreen == old_fullscreen {
       return;
     }
@@ -1198,6 +1206,7 @@ impl WindowDelegateState {
           let app = NSApp(mtm);
 
           self
+            .ivars()
             .save_presentation_opts
             .set(Some(app.presentationOptions()));
         }
@@ -1248,7 +1257,7 @@ impl WindowDelegateState {
       }
     }
 
-    self.fullscreen.replace(fullscreen.clone());
+    self.ivars().fullscreen.replace(fullscreen.clone());
 
     match (&old_fullscreen, &fullscreen) {
       (&None, &Some(_)) => unsafe {
@@ -1275,6 +1284,7 @@ impl WindowDelegateState {
         let app = NSApp(mtm);
 
         self
+          .ivars()
           .save_presentation_opts
           .set(Some(app.presentationOptions()));
 
@@ -1289,11 +1299,15 @@ impl WindowDelegateState {
         &Some(Fullscreen::Exclusive(RootVideoMode { ref video_mode })),
         &Some(Fullscreen::Borderless(_)),
       ) => unsafe {
-        let presentation_options = self.save_presentation_opts.get().unwrap_or_else(|| {
-          NSApplicationPresentationOptions::FullScreen
-            | NSApplicationPresentationOptions::AutoHideDock
-            | NSApplicationPresentationOptions::AutoHideMenuBar
-        });
+        let presentation_options = self
+          .ivars()
+          .save_presentation_opts
+          .get()
+          .unwrap_or_else(|| {
+            NSApplicationPresentationOptions::FullScreen
+              | NSApplicationPresentationOptions::AutoHideDock
+              | NSApplicationPresentationOptions::AutoHideMenuBar
+          });
         NSApp(mtm).setPresentationOptions(presentation_options);
 
         util::restore_display_mode(video_mode.monitor().inner.native_identifier());
@@ -1308,11 +1322,11 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn set_decorations(&self, decorations: bool) {
-    if decorations != self.decorations.get() {
-      self.decorations.set(decorations);
+    if decorations != self.ivars().decorations.get() {
+      self.ivars().decorations.set(decorations);
 
-      let fullscreen = self.fullscreen.borrow().is_some();
-      let resizable = self.resizable.get();
+      let fullscreen = self.ivars().fullscreen.borrow().is_some();
+      let resizable = self.ivars().resizable.get();
 
       // If we're in fullscreen mode, we wait to apply decoration changes
       // until we're in `window_did_exit_fullscreen`.
@@ -1340,7 +1354,7 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let level = if always_on_bottom {
       ffi::NSWindowLevel::BelowNormalWindowLevel
@@ -1352,7 +1366,7 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn set_always_on_top(&self, always_on_top: bool) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let level = if always_on_top {
       ffi::NSWindowLevel::NSFloatingWindowLevel
@@ -1376,11 +1390,16 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn set_ime_position(&self, spot: Position) {
-    let ns_view = &*self.ns_view;
+    let ns_view = &*self.ivars().ns_view;
 
     let logical_spot = spot.to_logical(self.scale_factor());
     unsafe {
-      view::set_ime_position(ns_view, *self.input_context, logical_spot.x, logical_spot.y);
+      view::set_ime_position(
+        ns_view,
+        *self.ivars().input_context,
+        logical_spot.x,
+        logical_spot.y,
+      );
     }
   }
 
@@ -1391,7 +1410,7 @@ impl WindowDelegateState {
       UserAttentionType::Informational => NSRequestUserAttentionType::InformationalRequest,
     });
     {
-      let ns_window = &*self.ns_window;
+      let ns_window = &*self.ivars().ns_window;
       unsafe {
         let mtm = MainThreadMarker::from(ns_window.as_super());
         if let Some(ty) = ns_request_type {
@@ -1404,7 +1423,7 @@ impl WindowDelegateState {
   #[inline]
   // Allow directly accessing the current monitor internally without unwrapping.
   pub(crate) fn current_monitor_inner(&self) -> Option<RootMonitorHandle> {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     unsafe {
       let screen: Retained<NSScreen> = ns_window.screen()?;
       let desc = NSScreen::deviceDescription(&screen);
@@ -1439,17 +1458,20 @@ impl WindowDelegateState {
 
   #[inline]
   pub fn theme(&self) -> Theme {
-    self.current_theme.get()
+    self.ivars().current_theme.get()
   }
 
   pub fn set_theme(&self, theme: Option<Theme>) {
     set_ns_theme(theme);
 
-    self.current_theme.set(theme.unwrap_or_else(get_ns_theme));
+    self
+      .ivars()
+      .current_theme
+      .set(theme.unwrap_or_else(get_ns_theme));
   }
 
   pub fn set_content_protection(&self, enabled: bool) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     unsafe {
       ns_window.setSharingType(if enabled {
         NSWindowSharingType::None
@@ -1460,7 +1482,7 @@ impl WindowDelegateState {
   }
 
   pub fn set_visible_on_all_workspaces(&self, visible: bool) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     unsafe {
       let mut collection_behavior = ns_window.collectionBehavior();
       if visible {
@@ -1481,31 +1503,31 @@ impl WindowDelegateState {
   }
 }
 
-impl WindowExtMacOS for WindowDelegateState {
+impl WindowExtMacOS for WindowDelegate {
   #[inline]
   fn ns_window(&self) -> *mut c_void {
-    self.ns_window.as_super() as *const NSWindow as *mut c_void
+    self.ivars().ns_window.as_super() as *const NSWindow as *mut c_void
   }
 
   #[inline]
   fn ns_view(&self) -> *mut c_void {
-    &*self.ns_window.contentView().unwrap() as *const NSView as *mut c_void
+    &*self.ivars().ns_window.contentView().unwrap() as *const NSView as *mut c_void
   }
 
   #[inline]
   fn simple_fullscreen(&self) -> bool {
-    self.is_simple_fullscreen.get()
+    self.ivars().is_simple_fullscreen.get()
   }
 
   #[inline]
   fn set_simple_fullscreen(&self, fullscreen: bool) -> bool {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     unsafe {
       let mtm = MainThreadMarker::from(ns_window.as_super());
       let app = NSApp(mtm);
-      let is_native_fullscreen = self.fullscreen.borrow().is_some();
-      let is_simple_fullscreen = self.is_simple_fullscreen.get();
+      let is_native_fullscreen = self.ivars().fullscreen.borrow().is_some();
+      let is_simple_fullscreen = self.ivars().is_simple_fullscreen.get();
 
       // Do nothing if native fullscreen is active.
       if is_native_fullscreen
@@ -1519,18 +1541,20 @@ impl WindowExtMacOS for WindowDelegateState {
         // Remember the original window's settings
         // Exclude title bar
         self
+          .ivars()
           .standard_frame
           .set(Some(NSWindow::contentRectForFrameRect(
             ns_window,
             NSWindow::frame(ns_window),
           )));
-        self.saved_style.set(Some(ns_window.styleMask()));
+        self.ivars().saved_style.set(Some(ns_window.styleMask()));
         self
+          .ivars()
           .save_presentation_opts
           .set(Some(app.presentationOptions()));
 
         // Tell our window's state that we're in fullscreen
-        self.is_simple_fullscreen.set(true);
+        self.ivars().is_simple_fullscreen.set(true);
 
         // Simulate pre-Lion fullscreen by hiding the dock and menu bar
         let presentation_options = NSApplicationPresentationOptions::AutoHideDock
@@ -1538,7 +1562,12 @@ impl WindowExtMacOS for WindowDelegateState {
         app.setPresentationOptions(presentation_options);
 
         // Hide the titlebar
-        util::toggle_style_mask(ns_window, &self.ns_view, NSWindowStyleMask::Titled, false);
+        util::toggle_style_mask(
+          ns_window,
+          &self.ivars().ns_view,
+          NSWindowStyleMask::Titled,
+          false,
+        );
 
         // Set the window frame to the screen frame size
         let screen = ns_window.screen().unwrap();
@@ -1548,13 +1577,13 @@ impl WindowExtMacOS for WindowDelegateState {
         // Fullscreen windows can't be resized, minimized, or moved
         util::toggle_style_mask(
           ns_window,
-          &self.ns_view,
+          &self.ivars().ns_view,
           NSWindowStyleMask::Miniaturizable,
           false,
         );
         util::toggle_style_mask(
           ns_window,
-          &self.ns_view,
+          &self.ivars().ns_view,
           NSWindowStyleMask::Resizable,
           false,
         );
@@ -1563,10 +1592,14 @@ impl WindowExtMacOS for WindowDelegateState {
         true
       } else {
         let new_mask = self.saved_style();
-        self.is_simple_fullscreen.set(false);
+        self.ivars().is_simple_fullscreen.set(false);
 
-        let presentation_opts = self.save_presentation_opts.get();
-        let frame = self.standard_frame.get().unwrap_or(DEFAULT_STANDARD_FRAME);
+        let presentation_opts = self.ivars().save_presentation_opts.get();
+        let frame = self
+          .ivars()
+          .standard_frame
+          .get()
+          .unwrap_or(DEFAULT_STANDARD_FRAME);
 
         if let Some(presentation_opts) = presentation_opts {
           app.setPresentationOptions(presentation_opts);
@@ -1583,13 +1616,13 @@ impl WindowExtMacOS for WindowDelegateState {
 
   #[inline]
   fn has_shadow(&self) -> bool {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     ns_window.hasShadow()
   }
 
   #[inline]
   fn set_has_shadow(&self, has_shadow: bool) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     ns_window.setHasShadow(has_shadow)
   }
 
@@ -1597,7 +1630,7 @@ impl WindowExtMacOS for WindowDelegateState {
   fn set_traffic_light_inset<P: Into<Position>>(&self, position: P) {
     let position: Position = position.into();
     {
-      let ns_view = &*self.ns_view;
+      let ns_view = &*self.ivars().ns_view;
 
       ns_view
         .ivars()
@@ -1608,19 +1641,19 @@ impl WindowExtMacOS for WindowDelegateState {
 
   #[inline]
   fn set_is_document_edited(&self, edited: bool) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     ns_window.setDocumentEdited(edited)
   }
 
   #[inline]
   fn is_document_edited(&self) -> bool {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     unsafe { ns_window.isDocumentEdited() }
   }
 
   #[inline]
   fn set_allows_automatic_window_tabbing(&self, enabled: bool) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let mtm = MainThreadMarker::from(ns_window.as_super());
     NSWindow::setAllowsAutomaticWindowTabbing(enabled, mtm)
@@ -1628,7 +1661,7 @@ impl WindowExtMacOS for WindowDelegateState {
 
   #[inline]
   fn allows_automatic_window_tabbing(&self) -> bool {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let mtm = MainThreadMarker::from(ns_window.as_super());
     NSWindow::allowsAutomaticWindowTabbing(mtm)
@@ -1636,7 +1669,7 @@ impl WindowExtMacOS for WindowDelegateState {
 
   #[inline]
   fn set_tabbing_identifier(&self, identifier: &str) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
     unsafe {
       ns_window.setTabbingIdentifier(&NSString::from_str(identifier));
     }
@@ -1644,7 +1677,7 @@ impl WindowExtMacOS for WindowDelegateState {
 
   #[inline]
   fn tabbing_identifier(&self) -> String {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let tabbing_identifier = NSWindow::tabbingIdentifier(ns_window);
     tabbing_identifier.to_string()
@@ -1652,7 +1685,7 @@ impl WindowExtMacOS for WindowDelegateState {
 
   #[inline]
   fn set_fullsize_content_view(&self, fullsize: bool) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     let mut mask = ns_window.styleMask();
     if fullsize {
@@ -1665,7 +1698,7 @@ impl WindowExtMacOS for WindowDelegateState {
 
   #[inline]
   fn set_titlebar_transparent(&self, transparent: bool) {
-    let ns_window = &*self.ns_window;
+    let ns_window = &*self.ivars().ns_window;
 
     ns_window.setTitlebarAppearsTransparent(transparent);
   }
@@ -1675,13 +1708,13 @@ impl WindowExtMacOS for WindowDelegateState {
   }
 }
 
-impl WindowDelegateState {
+impl WindowDelegate {
   fn content_view(&self) -> Retained<NSView> {
-    self.ns_window.contentView().unwrap()
+    self.ivars().ns_window.contentView().unwrap()
   }
   pub fn emit_event(&self, event: WindowEvent<'static>) {
     let event = Event::WindowEvent {
-      window_id: WindowId(get_window_id(&self.ns_window)),
+      window_id: WindowId(get_window_id(&self.ivars().ns_window)),
       event,
     };
     AppState::queue_event(EventWrapper::StaticEvent(event));
@@ -1689,13 +1722,13 @@ impl WindowDelegateState {
 
   pub fn emit_static_scale_factor_changed_event(&self) {
     let scale_factor = self.get_scale_factor();
-    if (scale_factor - self.previous_scale_factor.get()).abs() < f64::EPSILON {
+    if (scale_factor - self.ivars().previous_scale_factor.get()).abs() < f64::EPSILON {
       return;
     };
 
-    self.previous_scale_factor.set(scale_factor);
+    self.ivars().previous_scale_factor.set(scale_factor);
     let wrapper = EventWrapper::EventProxy(EventProxy::DpiChangedProxy {
-      ns_window: self.ns_window.clone().into_super(),
+      ns_window: self.ivars().ns_window.clone().into_super(),
       suggested_size: self.view_size(),
       scale_factor,
     });
@@ -1711,12 +1744,12 @@ impl WindowDelegateState {
   }
 
   fn emit_move_event(&self) {
-    let rect = NSWindow::frame(&self.ns_window);
+    let rect = NSWindow::frame(&self.ivars().ns_window);
     let x = rect.origin.x;
     let y = util::bottom_left_to_top_left(rect);
-    let moved = self.previous_position.get() != Some((x, y));
+    let moved = self.ivars().previous_position.get() != Some((x, y));
     if moved {
-      self.previous_position.set(Some((x, y)));
+      self.ivars().previous_position.set(Some((x, y)));
       let scale_factor = self.get_scale_factor();
       let physical_pos = LogicalPosition::<f64>::from((x, y)).to_physical(scale_factor);
       self.emit_event(WindowEvent::Moved(physical_pos));
@@ -1724,7 +1757,7 @@ impl WindowDelegateState {
   }
 
   fn get_scale_factor(&self) -> f64 {
-    NSWindow::backingScaleFactor(&self.ns_window)
+    NSWindow::backingScaleFactor(&self.ivars().ns_window)
   }
 
   fn view_size(&self) -> LogicalSize<f64> {
@@ -1760,7 +1793,7 @@ define_class!(
   #[unsafe(super(NSObject))]
   #[thread_kind = MainThreadOnly]
   #[name = "TaoWindowDelegate"]
-  #[ivars = WindowDelegateState]
+  #[ivars = State]
   pub(super) struct WindowDelegate;
 
   unsafe impl NSObjectProtocol for WindowDelegate {}
@@ -1769,7 +1802,7 @@ define_class!(
     #[unsafe(method(windowShouldClose:))]
     fn window_should_close(&self, _: Option<&AnyObject>) -> bool {
       trace!("Triggered `windowShouldClose:`");
-      self.ivars().emit_event(WindowEvent::CloseRequested);
+      self.emit_event(WindowEvent::CloseRequested);
       trace!("Completed `windowShouldClose:`");
       false
     }
@@ -1781,7 +1814,7 @@ define_class!(
       // `setDelegate:` retains the previous value and then autoreleases it.
       // Since El Capitan, prevent delegate callbacks after the window closes.
       autoreleasepool(|_| state.ns_window.setDelegate(None));
-      state.emit_event(WindowEvent::Destroyed);
+      self.emit_event(WindowEvent::Destroyed);
       trace!("Completed `windowWillClose:`");
     }
 
@@ -1790,8 +1823,8 @@ define_class!(
       trace!("Triggered `windowDidResize:`");
       let state = self.ivars();
       if !state.is_checking_zoomed_in.get() {
-        state.emit_resize_event();
-        state.emit_move_event();
+        self.emit_resize_event();
+        self.emit_move_event();
       }
       trace!("Completed `windowDidResize:`");
     }
@@ -1800,26 +1833,23 @@ define_class!(
     #[unsafe(method(windowDidMove:))]
     fn window_did_move(&self, _: Option<&AnyObject>) {
       trace!("Triggered `windowDidMove:`");
-      let state = self.ivars();
-      state.emit_move_event();
+      self.emit_move_event();
       trace!("Completed `windowDidMove:`");
     }
 
     #[unsafe(method(windowDidChangeBackingProperties:))]
     fn window_did_change_backing_properties(&self, _: Option<&AnyObject>) {
       trace!("Triggered `windowDidChangeBackingProperties:`");
-      let state = self.ivars();
-      state.emit_static_scale_factor_changed_event();
+      self.emit_static_scale_factor_changed_event();
       trace!("Completed `windowDidChangeBackingProperties:`");
     }
 
     #[unsafe(method(windowDidBecomeKey:))]
     fn window_did_become_key(&self, _: Option<&AnyObject>) {
       trace!("Triggered `windowDidBecomeKey:`");
-      let state = self.ivars();
       // TODO: center the cursor if the window had mouse grab when it
       // lost focus
-      state.emit_event(WindowEvent::Focused(true));
+      self.emit_event(WindowEvent::Focused(true));
       trace!("Completed `windowDidBecomeKey:`");
     }
 
@@ -1840,10 +1870,10 @@ define_class!(
       // Both update the state and emit a ModifiersChanged event.
       if !view_state.modifiers.get().is_empty() {
         view_state.modifiers.set(ModifiersState::empty());
-        state.emit_event(WindowEvent::ModifiersChanged(view_state.modifiers.get()));
+        self.emit_event(WindowEvent::ModifiersChanged(view_state.modifiers.get()));
       }
 
-      state.emit_event(WindowEvent::Focused(false));
+      self.emit_event(WindowEvent::Focused(false));
       trace!("Completed `windowDidResignKey:`");
     }
 
@@ -1853,7 +1883,7 @@ define_class!(
       trace!("Triggered `windowWillEnterFullscreen:`");
 
       let state = self.ivars();
-      state.maximized.set(state.is_zoomed());
+      state.maximized.set(self.is_zoomed());
       let fullscreen = state.fullscreen.borrow().clone();
       match fullscreen {
         // Exclusive mode sets the state in `set_fullscreen` as the user
@@ -1867,7 +1897,7 @@ define_class!(
         // Otherwise, we must've reached fullscreen by the user clicking
         // on the green fullscreen button. Update state!
         None => {
-          let current_monitor = state.current_monitor_inner();
+          let current_monitor = self.current_monitor_inner();
           state.fullscreen.replace(Some(Fullscreen::Borderless(current_monitor)));
         }
       }
@@ -1920,10 +1950,10 @@ define_class!(
       let target_fullscreen = state.target_fullscreen.borrow_mut().take();
 
       if let Some(target_fullscreen) = target_fullscreen {
-        state.set_fullscreen(target_fullscreen);
+        self.set_fullscreen(target_fullscreen);
       }
-      state.emit_resize_event();
-      state.emit_move_event();
+      self.emit_resize_event();
+      self.emit_move_event();
       trace!("Completed `windowDidEnterFullscreen:`");
     }
 
@@ -1932,19 +1962,19 @@ define_class!(
     fn window_did_exit_fullscreen(&self, _: Option<&AnyObject>) {
       trace!("Triggered `windowDidExitFullscreen:`");
       let state = self.ivars();
-      state.restore_state_from_fullscreen();
+      self.restore_state_from_fullscreen();
 
       state.in_fullscreen_transition.set(false);
       let target_fullscreen = state.target_fullscreen.borrow_mut().take();
 
       if let Some(target_fullscreen) = target_fullscreen {
-        state.set_fullscreen(target_fullscreen);
+        self.set_fullscreen(target_fullscreen);
       }
       // Leaving fullscreen resets the traffic light buttons to their default
       // position without a `drawRect:`, so re-apply the custom inset (#15451).
       unsafe { reapply_traffic_light_inset(&state.ns_window, &state.ns_view) };
-      state.emit_resize_event();
-      state.emit_move_event();
+      self.emit_resize_event();
+      self.emit_move_event();
       trace!("Completed `windowDidExitFullscreen:`");
     }
 
@@ -1980,7 +2010,7 @@ define_class!(
             )
           }
       } else {
-        state.restore_state_from_fullscreen();
+        self.restore_state_from_fullscreen();
       }
       trace!("Completed `windowDidFailToEnterFullscreen:`");
     }
@@ -1993,7 +2023,7 @@ define_class!(
       trace!("Triggered `draggingEntered:`");
 
       for path in unsafe { collect_paths(sender) } {
-        self.ivars().emit_event(WindowEvent::HoveredFile(path));
+        self.emit_event(WindowEvent::HoveredFile(path));
       }
 
       trace!("Completed `draggingEntered:`");
@@ -2014,7 +2044,7 @@ define_class!(
       trace!("Triggered `performDragOperation:`");
 
       for path in unsafe { collect_paths(sender) } {
-        self.ivars().emit_event(WindowEvent::DroppedFile(path));
+        self.emit_event(WindowEvent::DroppedFile(path));
       }
 
       trace!("Completed `performDragOperation:`");
@@ -2032,8 +2062,7 @@ define_class!(
     #[unsafe(method(draggingExited:))]
     fn dragging_exited(&self, _: Option<&ProtocolObject<dyn NSDraggingInfo>>) {
       trace!("Triggered `draggingExited:`");
-      let state = self.ivars();
-      state.emit_event(WindowEvent::HoveredFileCancelled);
+      self.emit_event(WindowEvent::HoveredFileCancelled);
       trace!("Completed `draggingExited:`");
     }
   }
@@ -2064,7 +2093,7 @@ define_class!(
       let theme = get_ns_theme();
       let current_theme = state.current_theme.replace(theme);
       if current_theme != theme {
-        state.emit_event(WindowEvent::ThemeChanged(theme));
+        self.emit_event(WindowEvent::ThemeChanged(theme));
       }
       trace!("Completed `effectiveAppearDidChange:`");
     }
