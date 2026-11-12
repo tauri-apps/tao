@@ -95,7 +95,6 @@ define_class!(
 );
 
 pub struct Window {
-  // NSWindow keeps a weak delegate reference, so retain it for the window's lifetime.
   delegate: MainThreadBound<Retained<WindowDelegate>>,
 }
 
