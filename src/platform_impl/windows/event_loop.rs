@@ -1736,7 +1736,17 @@ unsafe fn public_window_callback_inner<T: 'static>(
           lose_active_focus(window, userdata);
         }
       }
-      result = ProcResult::DefWindowProc;
+
+      let decorated = userdata
+        .window_state
+        .lock()
+        .window_flags()
+        .contains(WindowFlags::MARKER_DECORATIONS);
+      result = if decorated {
+        ProcResult::DefWindowProc
+      } else {
+        ProcResult::Value(DefWindowProcW(window, msg, wparam, LPARAM(-1)))
+      };
     }
 
     win32wm::WM_SETFOCUS => {
