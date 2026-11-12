@@ -188,7 +188,6 @@ impl Window {
         window.fullscreen();
       }
     }
-    window.set_visible(attributes.visible);
     window.set_decorated(attributes.decorations);
     if window.display().backend().is_wayland() && !attributes.decorations {
       // Enable CSD to prevent compositor from rendering server-side decorations
