@@ -1299,6 +1299,35 @@ unsafe fn public_window_callback_inner<T: 'static>(
       result = ProcResult::Value(LRESULT(0));
     }
 
+    // When the cursor moves over non-client area (title bar, resize borders),
+    // refresh cursor visibility so ShowCursor counter is reset appropriately.
+    // Also request WM_NCMOUSELEAVE so we can re-hide when leaving non-client area.
+    win32wm::WM_NCMOUSEMOVE => {
+      {
+        let mut w = userdata.window_state.lock();
+        w.mouse.set_cursor_flags(window, |f| *f = *f).ok();
+      }
+
+      let _ = TrackMouseEvent(&mut TRACKMOUSEEVENT {
+        cbSize: mem::size_of::<TRACKMOUSEEVENT>() as u32,
+        dwFlags: TME_LEAVE | TME_NONCLIENT,
+        hwndTrack: window,
+        dwHoverTime: HOVER_DEFAULT,
+      });
+
+      result = ProcResult::DefWindowProc;
+    }
+
+    // When the cursor leaves non-client area (returns to client area or leaves window),
+    // refresh cursor visibility to re-apply ShowCursor(FALSE) if needed.
+    win32wm::WM_NCMOUSELEAVE => {
+      {
+        let mut w = userdata.window_state.lock();
+        w.mouse.set_cursor_flags(window, |f| *f = *f).ok();
+      }
+      result = ProcResult::Value(LRESULT(0));
+    }
+
     win32wm::WM_MOUSEWHEEL => {
       use crate::event::MouseScrollDelta::LineDelta;
 
@@ -1756,27 +1785,31 @@ unsafe fn public_window_callback_inner<T: 'static>(
     }
 
     win32wm::WM_SETCURSOR => {
-      let set_cursor_to = {
-        let window_state = userdata.window_state.lock();
-        // The return value for the preceding `WM_NCHITTEST` message is conveniently
-        // provided through the low-order word of lParam. We use that here since
-        // `WM_MOUSEMOVE` seems to come after `WM_SETCURSOR` for a given cursor movement.
-        let in_client_area = u32::from(util::LOWORD(lparam.0 as u32)) == HTCLIENT;
-        if in_client_area {
-          Some(window_state.mouse.cursor)
-        } else {
-          None
-        }
-      };
+      let window_state = userdata.window_state.lock();
+      // The low-order word of lParam contains the hit-test result (e.g., HTCLIENT).
+      // Additionally, wParam contains the HWND under the cursor. If it is not
+      // our own window (e.g., it's a child window like WebView2), we delegate
+      // to DefWindowProc to avoid overwriting its cursor settings.
+      let in_client_area = u32::from(util::LOWORD(lparam.0 as u32)) == HTCLIENT;
+      let is_hidden = window_state
+        .mouse
+        .cursor_flags()
+        .contains(CursorFlags::HIDDEN);
+      let cursor = window_state.mouse.cursor;
+      drop(window_state);
 
-      match set_cursor_to {
-        Some(cursor) => {
-          if let Ok(cursor) = LoadCursorW(None, cursor.to_windows_cursor()) {
-            SetCursor(Some(cursor));
-          }
-          result = ProcResult::Value(LRESULT(0));
-        }
-        None => result = ProcResult::DefWindowProc,
+      let is_cursor_over_foreign_hwnd = HWND(wparam.0 as *mut _) != window;
+
+      if is_hidden && in_client_area {
+        SetCursor(None);
+        result = ProcResult::Value(LRESULT(1));
+      } else if is_cursor_over_foreign_hwnd || !in_client_area {
+        result = ProcResult::DefWindowProc;
+      } else if let Ok(cursor) = LoadCursorW(None, cursor.to_windows_cursor()) {
+        SetCursor(Some(cursor));
+        result = ProcResult::Value(LRESULT(1));
+      } else {
+        result = ProcResult::DefWindowProc;
       }
     }
 
