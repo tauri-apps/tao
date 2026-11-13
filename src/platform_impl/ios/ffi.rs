@@ -378,9 +378,12 @@ pub const kCFRunLoopBeforeWaiting: CFRunLoopActivity = 1 << 5;
 pub const kCFRunLoopAfterWaiting: CFRunLoopActivity = 1 << 6;
 pub const kCFRunLoopExit: CFRunLoopActivity = 1 << 7;
 
-pub type CFRunLoopObserverCallBack =
-  extern "C" fn(observer: CFRunLoopObserverRef, activity: CFRunLoopActivity, info: *mut c_void);
-pub type CFRunLoopTimerCallBack = extern "C" fn(timer: CFRunLoopTimerRef, info: *mut c_void);
+pub type CFRunLoopObserverCallBack = extern "C-unwind" fn(
+  observer: CFRunLoopObserverRef,
+  activity: CFRunLoopActivity,
+  info: *mut c_void,
+);
+pub type CFRunLoopTimerCallBack = extern "C-unwind" fn(timer: CFRunLoopTimerRef, info: *mut c_void);
 
 pub enum CFRunLoopObserverContext {}
 pub enum CFRunLoopTimerContext {}
@@ -389,14 +392,14 @@ pub enum CFRunLoopTimerContext {}
 pub struct CFRunLoopSourceContext {
   pub version: CFIndex,
   pub info: *mut c_void,
-  pub retain: Option<extern "C" fn(*const c_void) -> *const c_void>,
-  pub release: Option<extern "C" fn(*const c_void)>,
-  pub copyDescription: Option<extern "C" fn(*const c_void) -> CFStringRef>,
-  pub equal: Option<extern "C" fn(*const c_void, *const c_void) -> Boolean>,
-  pub hash: Option<extern "C" fn(*const c_void) -> CFHashCode>,
-  pub schedule: Option<extern "C" fn(*mut c_void, CFRunLoopRef, CFRunLoopMode)>,
-  pub cancel: Option<extern "C" fn(*mut c_void, CFRunLoopRef, CFRunLoopMode)>,
-  pub perform: Option<extern "C" fn(*mut c_void)>,
+  pub retain: Option<extern "C-unwind" fn(*const c_void) -> *const c_void>,
+  pub release: Option<extern "C-unwind" fn(*const c_void)>,
+  pub copyDescription: Option<extern "C-unwind" fn(*const c_void) -> CFStringRef>,
+  pub equal: Option<extern "C-unwind" fn(*const c_void, *const c_void) -> Boolean>,
+  pub hash: Option<extern "C-unwind" fn(*const c_void) -> CFHashCode>,
+  pub schedule: Option<extern "C-unwind" fn(*mut c_void, CFRunLoopRef, CFRunLoopMode)>,
+  pub cancel: Option<extern "C-unwind" fn(*mut c_void, CFRunLoopRef, CFRunLoopMode)>,
+  pub perform: Option<extern "C-unwind" fn(*mut c_void)>,
 }
 
 // This is named NSStringRust rather than NSString because the "Debug View Heirarchy" feature of

@@ -6,8 +6,6 @@
 
 use std::os::raw::c_void;
 
-use objc2_foundation::NSObject;
-
 use crate::{
   dpi::{LogicalSize, Position},
   event_loop::{EventLoop, EventLoopWindowTarget},
@@ -340,21 +338,21 @@ impl<T> EventLoopExtMacOS for EventLoop<T> {
   #[inline]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
     unsafe {
-      get_aux_state_mut(&**self.event_loop.delegate).activation_policy = activation_policy;
+      get_aux_state_mut(&*self.event_loop.delegate).activation_policy = activation_policy;
     }
   }
 
   #[inline]
   fn set_dock_visibility(&mut self, visible: bool) {
     unsafe {
-      get_aux_state_mut(&**self.event_loop.delegate).dock_visibility = visible;
+      get_aux_state_mut(&*self.event_loop.delegate).dock_visibility = visible;
     }
   }
 
   #[inline]
   fn set_activate_ignoring_other_apps(&mut self, ignore: bool) {
     unsafe {
-      get_aux_state_mut(&**self.event_loop.delegate).activate_ignoring_other_apps = ignore;
+      get_aux_state_mut(&*self.event_loop.delegate).activate_ignoring_other_apps = ignore;
     }
   }
 }
@@ -445,7 +443,7 @@ impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
       let mtm = objc2_foundation::MainThreadMarker::new_unchecked();
       objc2_app_kit::NSApplication::sharedApplication(mtm)
         .delegate()
-        .map(|delegate| delegate.downcast::<NSObject>())
+        .map(|delegate| delegate.downcast())
     }) else {
       return;
     };
