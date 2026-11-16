@@ -1106,38 +1106,19 @@ impl UnownedWindow {
 
   #[inline]
   pub fn set_maximized(&self, maximized: bool) {
-    self.ns_window.get_on_main(|ns_window| {
-      let is_zoomed = self.is_zoomed();
-      if is_zoomed == maximized {
-        return;
-      };
-      unsafe {
-        let mut shared_state = self.shared_state.lock().unwrap();
-        if !is_zoomed {
-          shared_state.standard_frame = Some(ns_window.frame());
-        }
-        shared_state.maximized = maximized;
-        if shared_state.fullscreen.is_some() {
-          // Apply the requested state when native fullscreen ends.
-          return;
-        }
-        let standard_frame = shared_state.saved_standard_frame();
-        drop(shared_state);
-
-        let required = NSWindowStyleMask::Resizable | NSWindowStyleMask::Titled;
-        if ns_window.styleMask().contains(required) {
-          ns_window.zoom(None);
-        } else {
-          let frame = if maximized {
-            let mtm = MainThreadMarker::from(ns_window.as_super());
-            NSScreen::mainScreen(mtm).unwrap().visibleFrame()
-          } else {
-            standard_frame
-          };
-          ns_window.setFrame_display_animate(frame, false, true);
-        }
-      }
-    })
+    let is_zoomed = self.is_zoomed();
+    if is_zoomed == maximized {
+      return;
+    };
+    unsafe {
+      util::set_maximized_async(
+        // SAFETY: we make sure to not use this NSWindow off main thread
+        self.ns_window.get(MainThreadMarker::new_unchecked()),
+        is_zoomed,
+        maximized,
+        Arc::downgrade(&self.shared_state),
+      );
+    }
   }
 
   #[inline]

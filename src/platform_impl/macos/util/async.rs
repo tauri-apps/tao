@@ -8,8 +8,8 @@ use std::{
 };
 
 use dispatch2::DispatchQueue;
-use objc2::Message;
-use objc2_app_kit::{NSView, NSWindow, NSWindowStyleMask};
+use objc2::{MainThreadMarker, Message};
+use objc2_app_kit::{NSScreen, NSView, NSWindow, NSWindowStyleMask};
 
 use crate::platform_impl::platform::{ffi, window::SharedState};
 
@@ -79,5 +79,52 @@ pub unsafe fn restore_display_mode_async(ns_screen: u32) {
   DispatchQueue::main().exec_async(move || {
     ffi::CGRestorePermanentDisplayConfiguration();
     assert_eq!(ffi::CGDisplayRelease(ns_screen), ffi::kCGErrorSuccess);
+  });
+}
+
+// `setMaximized` is not thread-safe
+pub unsafe fn set_maximized_async(
+  ns_window: &NSWindow,
+  is_zoomed: bool,
+  maximized: bool,
+  shared_state: Weak<Mutex<SharedState>>,
+) {
+  let ns_window = MainThreadSafe(ns_window.retain());
+  let shared_state = MainThreadSafe(shared_state);
+  DispatchQueue::main().exec_async(move || {
+    if let Some(shared_state) = shared_state.upgrade() {
+      trace!("Locked shared state in `set_maximized`");
+      let mut shared_state_lock = shared_state.lock().unwrap();
+
+      // Save the standard frame sized if it is not zoomed
+      if !is_zoomed {
+        shared_state_lock.standard_frame = Some(NSWindow::frame(&ns_window));
+      }
+
+      shared_state_lock.maximized = maximized;
+
+      let curr_mask = ns_window.styleMask();
+      if shared_state_lock.fullscreen.is_some() {
+        // Handle it in window_did_exit_fullscreen
+        return;
+      } else if curr_mask.contains(NSWindowStyleMask::Resizable)
+        && curr_mask.contains(NSWindowStyleMask::Titled)
+      {
+        // Just use the native zoom if resizable
+        ns_window.zoom(None);
+      } else {
+        // if it's not resizable, we set the frame directly
+        let new_rect = if maximized {
+          let mtm = MainThreadMarker::new_unchecked();
+          let screen = NSScreen::mainScreen(mtm).unwrap();
+          NSScreen::visibleFrame(&screen)
+        } else {
+          shared_state_lock.saved_standard_frame()
+        };
+        ns_window.setFrame_display_animate(new_rect, false, true);
+      }
+
+      trace!("Unlocked shared state in `set_maximized`");
+    }
   });
 }
