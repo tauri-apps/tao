@@ -12,8 +12,6 @@ The following APIs now blocking wait for the operations to finish when called of
 - `Window::set_always_on_bottom`
 - `Window::set_always_on_top`
 - `Window::set_ignore_cursor_events`
-- `Window::set_decorations`
-- `Window::set_fullscreen`
-- `WindowExtMacOS::set_simple_fullscreen`
-
-See https://github.com/tauri-apps/tao/pull/1420#discussion_r4533635133
+- `Window::set_decorations` (applying the window style mask)
+- `Window::set_fullscreen` (positioning the window when switching between fullscreen monitors)
+- `WindowExtMacOS::set_simple_fullscreen` (restoring the window style mask when leaving simple fullscreen)
