@@ -138,3 +138,13 @@ pub unsafe fn toggle_style_mask(
   // If we don't do this, key handling will break. Therefore, never call `setStyleMask` directly!
   window.makeFirstResponder(Some(view));
 }
+
+// Window operations and delegate callbacks run on the main thread.
+pub fn is_main_thread() -> bool {
+  MainThreadMarker::new().is_some()
+}
+
+pub unsafe fn restore_display_mode(ns_screen: u32) {
+  ffi::CGRestorePermanentDisplayConfiguration();
+  assert_eq!(ffi::CGDisplayRelease(ns_screen), ffi::kCGErrorSuccess);
+}
