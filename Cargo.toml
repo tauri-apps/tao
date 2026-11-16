@@ -59,6 +59,10 @@ dpi = "0.1"
 image = "0.25"
 env_logger = "0.11"
 
+[[test]]
+name = "macos_traffic_lights"
+harness = false
+
 [target."cfg(target_os = \"windows\")".dev-dependencies]
 softbuffer = "0.4"
 

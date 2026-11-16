@@ -122,10 +122,9 @@ unsafe fn create_view(
   }
 
   if let Some(position) = pl_attribs.traffic_light_inset {
-    let state = ns_view.ivars();
     let scale_factor = NSWindow::backingScaleFactor(ns_window);
     let position = position.to_logical(scale_factor);
-    state.traffic_light_inset.set(Some(position));
+    ns_view.set_traffic_light_inset(Some(position));
   }
 
   // On Mojave, views automatically become layer-backed shortly after being added to
@@ -573,6 +572,7 @@ impl WindowDelegate {
   }
 
   pub(super) fn close(&self) {
+    self.ivars().ns_view.set_traffic_light_inset(None);
     self.window().close();
   }
 
@@ -1552,14 +1552,10 @@ impl WindowExtMacOS for WindowDelegate {
   #[inline]
   fn set_traffic_light_inset<P: Into<Position>>(&self, position: P) {
     let position: Position = position.into();
-    {
-      let ns_view = &*self.ivars().ns_view;
-
-      ns_view
-        .ivars()
-        .traffic_light_inset
-        .set(Some(position.to_logical(self.scale_factor())));
-    };
+    self
+      .ivars()
+      .ns_view
+      .set_traffic_light_inset(Some(position.to_logical(self.scale_factor())));
   }
 
   #[inline]
@@ -1722,6 +1718,7 @@ define_class!(
     #[unsafe(method(windowWillClose:))]
     fn window_will_close(&self, _: Option<&AnyObject>) {
       trace!("Triggered `windowWillClose:`");
+      self.ivars().ns_view.set_traffic_light_inset(None);
       // `setDelegate:` retains the previous value and then autoreleases it.
       // Since El Capitan, prevent delegate callbacks after the window closes.
       autoreleasepool(|_| self.window().setDelegate(None));
