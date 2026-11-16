@@ -7,20 +7,11 @@ use std::{
   sync::{Mutex, Weak},
 };
 
-use core_graphics::base::CGFloat;
 use dispatch2::DispatchQueue;
-use objc2::{rc::autoreleasepool, Message};
+use objc2::{MainThreadMarker, Message};
 use objc2_app_kit::{NSScreen, NSView, NSWindow, NSWindowStyleMask};
-use objc2_foundation::{MainThreadMarker, NSPoint, NSSize, NSString};
 
-use crate::{
-  dpi::LogicalSize,
-  platform_impl::platform::{
-    ffi::{self, id, YES},
-    view::reapply_traffic_light_inset,
-    window::SharedState,
-  },
-};
+use crate::platform_impl::platform::{ffi, window::SharedState};
 
 pub fn is_main_thread() -> bool {
   unsafe { msg_send!(class!(NSThread), isMainThread) }
@@ -41,14 +32,6 @@ impl<T> Deref for MainThreadSafe<T> {
   }
 }
 
-fn run_on_main<F: Send + FnOnce()>(f: F) {
-  if is_main_thread() {
-    f();
-  } else {
-    DispatchQueue::main().exec_sync(f);
-  }
-}
-
 unsafe fn set_style_mask(ns_window: &NSWindow, ns_view: &NSView, mask: NSWindowStyleMask) {
   ns_window.setStyleMask(mask);
   // If we don't do this, key handling will break
@@ -56,61 +39,8 @@ unsafe fn set_style_mask(ns_window: &NSWindow, ns_view: &NSView, mask: NSWindowS
   ns_window.makeFirstResponder(Some(ns_view));
 }
 
-// Always use this function instead of trying to modify `styleMask` directly!
-// `setStyleMask:` isn't thread-safe, so we have to use Grand Central Dispatch.
-// Otherwise, this would vomit out errors about not being on the main thread
-// and fail to do anything.
-pub unsafe fn set_style_mask_async(
-  ns_window: &NSWindow,
-  ns_view: &NSView,
-  mask: NSWindowStyleMask,
-) {
-  let ns_window = MainThreadSafe(ns_window.retain());
-  let ns_view = MainThreadSafe(ns_view.retain());
-  DispatchQueue::main().exec_async(move || {
-    set_style_mask(&ns_window, &ns_view, mask);
-  });
-}
-pub unsafe fn set_style_mask_sync(ns_window: &NSWindow, ns_view: &NSView, mask: NSWindowStyleMask) {
-  if is_main_thread() {
-    set_style_mask(ns_window, ns_view, mask);
-  } else {
-    let ns_window = MainThreadSafe(ns_window.retain());
-    let ns_view = MainThreadSafe(ns_view.retain());
-    DispatchQueue::main().exec_sync(move || {
-      set_style_mask(&ns_window, &ns_view, mask);
-    })
-  }
-}
-
-// `setContentSize:` isn't thread-safe either, though it doesn't log any errors
-// and just fails silently. Anyway, GCD to the rescue!
-pub unsafe fn set_content_size_async(ns_window: &NSWindow, size: LogicalSize<f64>) {
-  let ns_window = MainThreadSafe(ns_window.retain());
-  DispatchQueue::main().exec_async(move || {
-    ns_window.setContentSize(NSSize::new(size.width as CGFloat, size.height as CGFloat));
-  });
-}
-
-// `setFrameTopLeftPoint:` isn't thread-safe, but fortunately has the courtesy
-// to log errors.
-pub unsafe fn set_frame_top_left_point_async(ns_window: &NSWindow, point: NSPoint) {
-  let ns_window = MainThreadSafe(ns_window.retain());
-  DispatchQueue::main().exec_async(move || {
-    ns_window.setFrameTopLeftPoint(point);
-  });
-}
-
-// `setFrameTopLeftPoint:` isn't thread-safe, and fails silently.
-pub unsafe fn set_level_async(ns_window: &NSWindow, level: ffi::NSWindowLevel) {
-  let ns_window = MainThreadSafe(ns_window.retain());
-  DispatchQueue::main().exec_async(move || {
-    ns_window.setLevel(level as _);
-  });
-}
-
-// `toggleFullScreen` is thread-safe, but our additional logic to account for
-// window styles isn't.
+// Defer fullscreen changes until the caller has released the shared-state lock;
+// changing styles or toggling fullscreen can invoke window delegate callbacks.
 pub unsafe fn toggle_full_screen_async(
   ns_window: &NSWindow,
   ns_view: &NSView,
@@ -196,68 +126,5 @@ pub unsafe fn set_maximized_async(
 
       trace!("Unlocked shared state in `set_maximized`");
     }
-  });
-}
-
-// `orderOut:` isn't thread-safe. Calling it from another thread actually works,
-// but with an odd delay.
-pub unsafe fn order_out_sync(ns_window: &NSWindow) {
-  let ns_window = MainThreadSafe(ns_window.retain());
-  run_on_main(move || {
-    ns_window.orderOut(None);
-  });
-}
-
-// `makeKeyAndOrderFront:` isn't thread-safe. Calling it from another thread
-// actually works, but with an odd delay.
-pub unsafe fn make_key_and_order_front_sync(ns_window: &NSWindow) {
-  let ns_window = MainThreadSafe(ns_window.retain());
-  run_on_main(move || {
-    ns_window.makeKeyAndOrderFront(None);
-  });
-}
-
-// `setTitle:` isn't thread-safe. Calling it from another thread invalidates the
-// window drag regions, which throws an exception when not done in the main
-// thread
-pub unsafe fn set_title_async(ns_window: &NSWindow, ns_view: &NSView, title: String) {
-  let ns_window = MainThreadSafe(ns_window.retain());
-  let ns_view = MainThreadSafe(ns_view.retain());
-  DispatchQueue::main().exec_async(move || {
-    let title = NSString::from_str(&title);
-    ns_window.setTitle(&title);
-    // `setTitle:` moves the traffic light buttons back to their default spot.
-    // Re-apply the configured inset kept on the view so the custom position
-    // survives a title change (#13044).
-    reapply_traffic_light_inset(&ns_window, &ns_view);
-  });
-}
-
-// `setFocus:` isn't thread-safe.
-pub unsafe fn set_focus(ns_window: &NSWindow) {
-  let ns_window = MainThreadSafe(ns_window.retain());
-  run_on_main(move || {
-    ns_window.makeKeyAndOrderFront(None);
-    let app: id = msg_send![class!(NSApplication), sharedApplication];
-    let () = msg_send![app, activateIgnoringOtherApps: YES];
-  });
-}
-
-// `close:` is thread-safe, but we want the event to be triggered from the main
-// thread. Though, it's a good idea to look into that more...
-pub unsafe fn close_async(ns_window: &NSWindow) {
-  let ns_window = MainThreadSafe(ns_window.retain());
-  run_on_main(move || {
-    autoreleasepool(move |_| {
-      ns_window.close();
-    });
-  });
-}
-
-// `setIgnoresMouseEvents_:` isn't thread-safe, and fails silently.
-pub unsafe fn set_ignore_mouse_events(ns_window: &NSWindow, ignore: bool) {
-  let ns_window = MainThreadSafe(ns_window.retain());
-  DispatchQueue::main().exec_async(move || {
-    ns_window.setIgnoresMouseEvents(ignore);
   });
 }
