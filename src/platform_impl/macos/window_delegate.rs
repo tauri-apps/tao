@@ -393,7 +393,7 @@ pub(super) struct State {
   maximized: Cell<bool>,
   standard_frame: Cell<Option<NSRect>>,
   is_simple_fullscreen: Cell<bool>,
-  saved_style: Cell<Option<NSWindowStyleMask>>,
+  pub(super) saved_style: Cell<Option<NSWindowStyleMask>>,
   /// Presentation options saved before entering `set_simple_fullscreen`, and
   /// restored upon exiting it. Also used when transitioning from Borderless to
   /// Exclusive fullscreen in `set_fullscreen` because we need to disable the menu
@@ -576,20 +576,7 @@ impl WindowDelegate {
     self.window().close();
   }
 
-  fn toggle_fullscreen(&self) {
-    unsafe {
-      let curr_mask = self.window().styleMask();
-      let required = NSWindowStyleMask::Titled | NSWindowStyleMask::Resizable;
-      if self.ivars().fullscreen.borrow().is_some() && !curr_mask.contains(required) {
-        self.set_style_mask(required);
-        self.ivars().saved_style.set(Some(curr_mask));
-      }
-      self.window().setLevel(objc2_app_kit::NSNormalWindowLevel);
-      self.window().toggleFullScreen(None);
-    }
-  }
-
-  fn set_style_mask(&self, mask: NSWindowStyleMask) {
+  pub(super) fn set_style_mask(&self, mask: NSWindowStyleMask) {
     unsafe {
       self.window().setStyleMask(mask);
       // Restore keyboard handling after changing the window style.
@@ -1220,16 +1207,16 @@ impl WindowDelegate {
 
     match (&old_fullscreen, &fullscreen) {
       (&None, &Some(_)) => unsafe {
-        self.toggle_fullscreen();
+        util::toggle_full_screen_async(self.retain(), old_fullscreen.is_none());
       },
       (&Some(Fullscreen::Borderless(_)), &None) => unsafe {
         // State is restored by `window_did_exit_fullscreen`
-        self.toggle_fullscreen();
+        util::toggle_full_screen_async(self.retain(), old_fullscreen.is_none());
       },
       (&Some(Fullscreen::Exclusive(RootVideoMode { ref video_mode })), &None) => unsafe {
         util::restore_display_mode(video_mode.monitor().inner.native_identifier());
         // Rest of the state is restored by `window_did_exit_fullscreen`
-        self.toggle_fullscreen();
+        util::toggle_full_screen_async(self.retain(), old_fullscreen.is_none());
       },
       (&Some(Fullscreen::Borderless(_)), &Some(Fullscreen::Exclusive(_))) => unsafe {
         // If we're already in fullscreen mode, calling

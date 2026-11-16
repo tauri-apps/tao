@@ -32,53 +32,30 @@ impl<T> Deref for MainThreadSafe<T> {
   }
 }
 
-unsafe fn set_style_mask(ns_window: &NSWindow, ns_view: &NSView, mask: NSWindowStyleMask) {
-  ns_window.setStyleMask(mask);
-  // If we don't do this, key handling will break
-  // (at least until the window is clicked again/etc.)
-  ns_window.makeFirstResponder(Some(ns_view));
-}
-
-// Defer fullscreen changes until the caller has released the shared-state lock;
-// changing styles or toggling fullscreen can invoke window delegate callbacks.
+// `toggleFullScreen` is thread-safe, but our additional logic to account for
+// window styles isn't.
 pub unsafe fn toggle_full_screen_async(
-  ns_window: &NSWindow,
-  ns_view: &NSView,
+  window_delegate: Retained<WindowDelegate>,
   not_fullscreen: bool,
-  shared_state: Weak<Mutex<SharedState>>,
 ) {
-  let ns_window = MainThreadSafe(ns_window.retain());
-  let ns_view = MainThreadSafe(ns_view.retain());
-  let shared_state = MainThreadSafe(shared_state);
+  let window_delegate = MainThreadSafe(window_delegate);
   DispatchQueue::main().exec_async(move || {
     // `toggleFullScreen` doesn't work if the `StyleMask` is none, so we
     // set a normal style temporarily. The previous state will be
     // restored in `WindowDelegate::window_did_exit_fullscreen`.
     if not_fullscreen {
-      let curr_mask = ns_window.styleMask();
+      let curr_mask = window_delegate.window().styleMask();
       let required = NSWindowStyleMask::Titled | NSWindowStyleMask::Resizable;
       if !curr_mask.contains(required) {
-        set_style_mask(&ns_window, &ns_view, required);
-        if let Some(shared_state) = shared_state.upgrade() {
-          trace!("Locked shared state in `toggle_full_screen_callback`");
-          let mut shared_state_lock = shared_state.lock().unwrap();
-          shared_state_lock.saved_style = Some(curr_mask);
-          trace!("Unlocked shared state in `toggle_full_screen_callback`");
-        }
+        window_delegate.set_style_mask(required);
+        window_delegate.ivars().saved_style.set(Some(curr_mask));
       }
     }
     // Window level must be restored from `CGShieldingWindowLevel()
     // + 1` back to normal in order for `toggleFullScreen` to do
     // anything
-    ns_window.setLevel(0);
-    ns_window.toggleFullScreen(None);
-  });
-}
-
-pub unsafe fn restore_display_mode_async(ns_screen: u32) {
-  DispatchQueue::main().exec_async(move || {
-    ffi::CGRestorePermanentDisplayConfiguration();
-    assert_eq!(ffi::CGDisplayRelease(ns_screen), ffi::kCGErrorSuccess);
+    window_delegate.window().setLevel(0);
+    window_delegate.window().toggleFullScreen(None);
   });
 }
 
