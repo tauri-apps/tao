@@ -974,6 +974,9 @@ impl<T: 'static> EventLoop<T> {
             taskbar.update_count(count, desktop_filename);
           }
           WindowRequest::SetTheme(theme) => {
+            // `None` means "follow the system", not light.
+            #[cfg(feature = "dbus")]
+            let theme = theme.or_else(|| super::portal::theme().ok());
             if let Some(settings) = Settings::default() {
               settings.set_gtk_application_prefer_dark_theme(theme == Some(Theme::Dark));
               // The dark preference is the application's, so every window changes with it.
