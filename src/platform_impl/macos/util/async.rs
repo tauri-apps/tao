@@ -2,20 +2,15 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{
-  ops::Deref,
-  sync::{Mutex, Weak},
-};
+// TODO: Migrate this to https://github.com/rust-windowing/winit/pull/4589
+
+use std::ops::Deref;
 
 use dispatch2::DispatchQueue;
-use objc2::{MainThreadMarker, Message};
-use objc2_app_kit::{NSScreen, NSView, NSWindow, NSWindowStyleMask};
+use objc2::{rc::Retained, DefinedClass, MainThreadMarker};
+use objc2_app_kit::{NSScreen, NSWindowStyleMask};
 
-use crate::platform_impl::platform::{ffi, window::SharedState};
-
-pub fn is_main_thread() -> bool {
-  unsafe { msg_send!(class!(NSThread), isMainThread) }
-}
+use crate::platform_impl::platform::window_delegate::{WindowDelegate, DEFAULT_STANDARD_FRAME};
 
 // Unsafe wrapper type that allows us to dispatch things that aren't Send.
 // This should *only* be used to dispatch to the main queue.
@@ -61,47 +56,44 @@ pub unsafe fn toggle_full_screen_async(
 
 // `setMaximized` is not thread-safe
 pub unsafe fn set_maximized_async(
-  ns_window: &NSWindow,
+  window_delegate: Retained<WindowDelegate>,
   is_zoomed: bool,
   maximized: bool,
-  shared_state: Weak<Mutex<SharedState>>,
 ) {
-  let ns_window = MainThreadSafe(ns_window.retain());
-  let shared_state = MainThreadSafe(shared_state);
+  let window_delegate = MainThreadSafe(window_delegate);
   DispatchQueue::main().exec_async(move || {
-    if let Some(shared_state) = shared_state.upgrade() {
-      trace!("Locked shared state in `set_maximized`");
-      let mut shared_state_lock = shared_state.lock().unwrap();
-
-      // Save the standard frame sized if it is not zoomed
+    unsafe {
       if !is_zoomed {
-        shared_state_lock.standard_frame = Some(NSWindow::frame(&ns_window));
+        window_delegate
+          .ivars()
+          .standard_frame
+          .set(Some(window_delegate.window().frame()));
       }
-
-      shared_state_lock.maximized = maximized;
-
-      let curr_mask = ns_window.styleMask();
-      if shared_state_lock.fullscreen.is_some() {
-        // Handle it in window_did_exit_fullscreen
+      window_delegate.ivars().maximized.set(maximized);
+      if window_delegate.ivars().fullscreen.borrow().is_some() {
+        // Apply the requested state when native fullscreen ends.
         return;
-      } else if curr_mask.contains(NSWindowStyleMask::Resizable)
-        && curr_mask.contains(NSWindowStyleMask::Titled)
-      {
-        // Just use the native zoom if resizable
-        ns_window.zoom(None);
-      } else {
-        // if it's not resizable, we set the frame directly
-        let new_rect = if maximized {
-          let mtm = MainThreadMarker::new_unchecked();
-          let screen = NSScreen::mainScreen(mtm).unwrap();
-          NSScreen::visibleFrame(&screen)
-        } else {
-          shared_state_lock.saved_standard_frame()
-        };
-        ns_window.setFrame_display_animate(new_rect, false, true);
       }
+      let standard_frame = window_delegate
+        .ivars()
+        .standard_frame
+        .get()
+        .unwrap_or(DEFAULT_STANDARD_FRAME);
 
-      trace!("Unlocked shared state in `set_maximized`");
+      let required = NSWindowStyleMask::Resizable | NSWindowStyleMask::Titled;
+      if window_delegate.window().styleMask().contains(required) {
+        window_delegate.window().zoom(None);
+      } else {
+        let frame = if maximized {
+          let mtm = MainThreadMarker::from(window_delegate.window());
+          NSScreen::mainScreen(mtm).unwrap().visibleFrame()
+        } else {
+          standard_frame
+        };
+        window_delegate
+          .window()
+          .setFrame_display_animate(frame, false, true);
+      }
     }
   });
 }

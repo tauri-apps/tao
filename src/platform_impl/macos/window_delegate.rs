@@ -382,7 +382,7 @@ pub(super) struct State {
   pub(super) ns_view: Retained<TaoView>,     // never changes
   input_context: IdRef,                      // never changes
   resizable: Cell<bool>,
-  fullscreen: RefCell<Option<Fullscreen>>,
+  pub(super) fullscreen: RefCell<Option<Fullscreen>>,
   // This is true between windowWillEnterFullScreen and windowDidEnterFullScreen
   // or windowWillExitFullScreen and windowDidExitFullScreen.
   // We must not toggle fullscreen when this is true.
@@ -390,8 +390,8 @@ pub(super) struct State {
   // If it is attempted to toggle fullscreen when in_fullscreen_transition is true,
   // Set target_fullscreen and do after fullscreen transition is end.
   target_fullscreen: RefCell<Option<Option<Fullscreen>>>,
-  maximized: Cell<bool>,
-  standard_frame: Cell<Option<NSRect>>,
+  pub(super) maximized: Cell<bool>,
+  pub(super) standard_frame: Cell<Option<NSRect>>,
   is_simple_fullscreen: Cell<bool>,
   pub(super) saved_style: Cell<Option<NSWindowStyleMask>>,
   /// Presentation options saved before entering `set_simple_fullscreen`, and
@@ -986,34 +986,8 @@ impl WindowDelegate {
     if is_zoomed == maximized {
       return;
     };
-    unsafe {
-      if !is_zoomed {
-        self.ivars().standard_frame.set(Some(self.window().frame()));
-      }
-      self.ivars().maximized.set(maximized);
-      if self.ivars().fullscreen.borrow().is_some() {
-        // Apply the requested state when native fullscreen ends.
-        return;
-      }
-      let standard_frame = self
-        .ivars()
-        .standard_frame
-        .get()
-        .unwrap_or(DEFAULT_STANDARD_FRAME);
 
-      let required = NSWindowStyleMask::Resizable | NSWindowStyleMask::Titled;
-      if self.window().styleMask().contains(required) {
-        self.window().zoom(None);
-      } else {
-        let frame = if maximized {
-          let mtm = MainThreadMarker::from(self);
-          NSScreen::mainScreen(mtm).unwrap().visibleFrame()
-        } else {
-          standard_frame
-        };
-        self.window().setFrame_display_animate(frame, false, true);
-      }
-    }
+    unsafe { util::set_maximized_async(self.retain(), is_zoomed, maximized) };
   }
 
   #[inline]
@@ -2085,5 +2059,5 @@ unsafe fn set_max_inner_size(window: &NSWindow, mut max_size: LogicalSize<f64>) 
   }
 }
 
-const DEFAULT_STANDARD_FRAME: NSRect =
+pub(super) const DEFAULT_STANDARD_FRAME: NSRect =
   NSRect::new(NSPoint::new(50.0, 50.0), NSSize::new(800.0, 600.0));
