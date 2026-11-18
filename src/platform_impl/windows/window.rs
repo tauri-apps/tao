@@ -887,9 +887,18 @@ impl Window {
         ptCurrentPos: POINT { x, y },
         rcArea: RECT::default(),
       };
+      // The composition form only moves the composition window; the candidate
+      // list has its own form and stays where it was until it is given one.
+      let candidate_form = CANDIDATEFORM {
+        dwIndex: 0,
+        dwStyle: CFS_CANDIDATEPOS,
+        ptCurrentPos: POINT { x, y },
+        rcArea: RECT::default(),
+      };
       unsafe {
         let himc = ImmGetContext(self.hwnd());
         let _ = ImmSetCompositionWindow(himc, &composition_form);
+        let _ = ImmSetCandidateWindow(himc, &candidate_form);
         let _ = ImmReleaseContext(self.hwnd(), himc);
       }
     }
