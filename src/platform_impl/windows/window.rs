@@ -247,15 +247,7 @@ impl Window {
     // implementation derived from GPUI
     // see <https://github.com/zed-industries/zed/blob/7bddb390cabefb177d9996dc580749d64e6ca3b6/crates/gpui/src/platform/windows/window.rs#L1167-L1180>
     if window_flags.undecorated_with_shadows() {
-      let hwnd = self.hwnd();
-
-      let client_rect = util::client_rect(hwnd);
-      let window_rect = util::window_rect(hwnd);
-
-      let width_offset =
-        (window_rect.right - window_rect.left) - (client_rect.right - client_rect.left);
-      let height_offset =
-        (window_rect.bottom - window_rect.top) - (client_rect.bottom - client_rect.top);
+      let (width_offset, height_offset) = util::window_size_offsets(self.hwnd());
 
       desired_width += width_offset;
       desired_height += height_offset;

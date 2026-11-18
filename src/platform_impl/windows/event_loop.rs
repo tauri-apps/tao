@@ -1784,11 +1784,17 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let mmi = lparam.0 as *mut MINMAXINFO;
 
       let window_state = userdata.window_state.lock();
-      let is_decorated = window_state
-        .window_flags()
-        .contains(WindowFlags::MARKER_DECORATIONS);
+      let window_flags = window_state.window_flags();
+      let is_decorated = window_flags.contains(WindowFlags::MARKER_DECORATIONS);
 
       let size_constraints = window_state.size_constraints;
+      let (width_offset, height_offset) = if window_flags.undecorated_with_shadows()
+        && (size_constraints.has_min() || size_constraints.has_max())
+      {
+        util::window_size_offsets(window)
+      } else {
+        (0, 0)
+      };
 
       if size_constraints.has_min() {
         let min_size = PhysicalSize::new(
@@ -1805,8 +1811,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
         );
         let (width, height): (u32, u32) = util::adjust_size(window, min_size, is_decorated).into();
         (*mmi).ptMinTrackSize = POINT {
-          x: width as i32,
-          y: height as i32,
+          x: width as i32 + width_offset,
+          y: height as i32 + height_offset,
         };
       }
       if size_constraints.has_max() {
@@ -1824,8 +1830,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
         );
         let (width, height): (u32, u32) = util::adjust_size(window, max_size, is_decorated).into();
         (*mmi).ptMaxTrackSize = POINT {
-          x: width as i32,
-          y: height as i32,
+          x: width as i32 + width_offset,
+          y: height as i32 + height_offset,
         };
       }
 
