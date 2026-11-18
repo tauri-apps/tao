@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.37.3]
+
+- [`39d130f9`](https://github.com/tauri-apps/tao/commit/39d130f9bd604bea1b183581b5fb47939a193a40) ([#1309](https://github.com/tauri-apps/tao/pull/1309) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) On Android, migrated `ALooper_pollAll` calls to `ALooper_pollOnce`
+- [`d12848aa`](https://github.com/tauri-apps/tao/commit/d12848aabf0263b1ed5436fd8dcead054c2ba5d9) ([#1397](https://github.com/tauri-apps/tao/pull/1397) by [@armadavalor](https://github.com/tauri-apps/tao/../../armadavalor)) Fix logical `with_position` on Windows choosing the wrong monitor when monitors have different scale factors. Monitor selection now uses the closest matching origin instead of enumeration order.
+- [`880e3674`](https://github.com/tauri-apps/tao/commit/880e3674ceb64808b023a183eed23df8ab7a3bb1) ([#1378](https://github.com/tauri-apps/tao/pull/1378) by [@jay-tau](https://github.com/tauri-apps/tao/../../jay-tau)) On Linux and BSD, `Window::set_theme(None)` and `EventLoopWindowTarget::set_theme(None)` now use the XDG desktop portal's color scheme (with the `dbus` feature) instead of turning off GTK's dark preference and emitting `ThemeChanged(Light)`.
+- [`16b432cb`](https://github.com/tauri-apps/tao/commit/16b432cb00a5f0dabaf46db74484ca95dca5910b) ([#1413](https://github.com/tauri-apps/tao/pull/1413) by [@R1cK-ChaN](https://github.com/tauri-apps/tao/../../R1cK-ChaN)) On Linux, `WindowEvent::ThemeChanged` is sent to each window under its own id instead of a dummy one that matches no window.
+- [`16b432cb`](https://github.com/tauri-apps/tao/commit/16b432cb00a5f0dabaf46db74484ca95dca5910b) ([#1413](https://github.com/tauri-apps/tao/pull/1413) by [@R1cK-ChaN](https://github.com/tauri-apps/tao/../../R1cK-ChaN)) On Linux, a window built with `WindowBuilder::with_theme` keeps that theme, and `Window::theme` of a window built without one follows the system's color scheme instead of keeping the one it had when the window was built.
+- [`fa199029`](https://github.com/tauri-apps/tao/commit/fa199029ff32eeee2f7a66d626d2723faeefa666) ([#1411](https://github.com/tauri-apps/tao/pull/1411) by [@Tunglies](https://github.com/tauri-apps/tao/../../Tunglies)) Fixed maximizable detection for macOS windows without a native zoom button and preserved the maximizable setting when toggling window decorations.
+- [`c708b94d`](https://github.com/tauri-apps/tao/commit/c708b94d20c1dc897d2cfa124dfca4c193496544) ([#1434](https://github.com/tauri-apps/tao/pull/1434) by [@sproctor](https://github.com/tauri-apps/tao/../../sproctor)) On macOS, report mouse buttons past the third (such as the back and forward side buttons) as `MouseButton::Other` with their AppKit button number, instead of as `MouseButton::Middle`.
+- [`2f60c2d5`](https://github.com/tauri-apps/tao/commit/2f60c2d5a2d582dcd6f3fd6ac18045d085d01c21) ([#1386](https://github.com/tauri-apps/tao/pull/1386) by [@DeVoresyah](https://github.com/tauri-apps/tao/../../DeVoresyah)) On macOS, a redraw that arrives through `drawRect:` while the event handler is already running on the main thread is now queued and delivered after the handler returns, instead of re-entering the handler and locking its mutex a second time on the same thread. This fixes a deadlock seen when AppKit displayed the window synchronously inside a user-event closure, for example while attaching an open panel as a sheet.
+- [`3f64e677`](https://github.com/tauri-apps/tao/commit/3f64e677ee25d7a3e29fd58aa8313676247569c0) ([#1420](https://github.com/tauri-apps/tao/pull/1420) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) On macOS, make all window methods usable from other threads.
+    
+    The following APIs now blocking wait for the operations to finish when called off main thread:
+    
+    - `Window::set_title`
+    - `Window::set_outer_position`
+    - `Window::set_inner_size`
+    - `Window::set_always_on_bottom`
+    - `Window::set_always_on_top`
+    - `Window::set_ignore_cursor_events`
+    - `Window::set_decorations` (applying the window style mask)
+    - `Window::set_fullscreen` (positioning the window when switching between fullscreen monitors)
+    - `WindowExtMacOS::set_simple_fullscreen` (restoring the window style mask when leaving simple fullscreen)
+- [`7b412ce6`](https://github.com/tauri-apps/tao/commit/7b412ce68a152bc23c3660fb512e4b9aaf6efdfa) ([#1400](https://github.com/tauri-apps/tao/pull/1400) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) On Windows, fix so `drag_window` and `drag_resize_window` can be called from another thread.
+- [`bf0cff0b`](https://github.com/tauri-apps/tao/commit/bf0cff0be13b409916347fd31207f364790c2fc1) ([#1437](https://github.com/tauri-apps/tao/pull/1437) by [@sproctor](https://github.com/tauri-apps/tao/../../sproctor)) On Windows, `Window::set_ime_position` now also moves the IME candidate window, as documented. It only moved the composition window.
+- [`717db2b6`](https://github.com/tauri-apps/tao/commit/717db2b6bf81ff219f67f13ad1e0a0ee73ebe2a5) ([#1436](https://github.com/tauri-apps/tao/pull/1436) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) On Windows, fix minimum and maximum inner size constraints for undecorated windows with shadows by accounting for hidden border offsets.
+
 ## [0.37.2]
 
 - [`d19f4c12`](https://github.com/tauri-apps/tao/commit/d19f4c12a0d881260a436d9ccf3e8f349c58e2a4) ([#1356](https://github.com/tauri-apps/tao/pull/1356) by [@yuezk](https://github.com/tauri-apps/tao/../../yuezk)) Fix compilation on FreeBSD, OpenBSD, NetBSD, and DragonFly BSD by enabling the resize hit-test helper used by the GTK backend.
