@@ -1181,7 +1181,13 @@ unsafe fn public_window_callback_inner<T: 'static>(
           .contains(WindowFlags::MARKER_RETAIN_STATE_ON_SIZE)
         {
           let maximized = wparam.0 == win32wm::SIZE_MAXIMIZED as _;
-          w.set_window_flags_in_place(|f| f.set(WindowFlags::MAXIMIZED, maximized));
+          // Minimize/restore doesn't always go through `WM_SYSCOMMAND`, e.g. `ShowWindow` from
+          // another process or Win+D, so keep the cached state in sync with the real one here.
+          let minimized = wparam.0 == win32wm::SIZE_MINIMIZED as _;
+          w.set_window_flags_in_place(|f| {
+            f.set(WindowFlags::MAXIMIZED, maximized);
+            f.set(WindowFlags::MINIMIZED, minimized);
+          });
         }
       }
 
