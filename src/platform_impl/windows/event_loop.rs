@@ -2303,12 +2303,11 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
           // This branch can be triggered when a nested win32 event loop is triggered
           // inside of the `event_handler` callback.
           let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
-        } else {
-          // This WM_PAINT handler will never be re-entrant because `flush_paint_messages`
-          // doesn't call WM_PAINT for the thread event target (i.e. this window).
-          assert!(flush_paint_messages(None, &userdata.event_loop_runner));
+        } else if flush_paint_messages(None, &userdata.event_loop_runner) {
           userdata.event_loop_runner.redraw_events_cleared();
           process_control_flow(&userdata.event_loop_runner);
+        } else {
+          warn!("WM_PAINT re-entered while flushing redraw events");
         }
       }
 
