@@ -868,6 +868,15 @@ impl WindowDelegate {
   #[inline]
   pub fn drag_window(&self) -> Result<(), ExternalError> {
     unsafe {
+      // A drag requested once the left button is already up has nothing to
+      // move, e.g. when Tauri's `start_dragging` arrives over IPC after a
+      // quick click. AppKit would only log "Window move completed without
+      // beginning".
+      if NSEvent::pressedMouseButtons() & 1 == 0 {
+        log::warn!("Cannot drag the window: the left mouse button is not pressed");
+        return Ok(());
+      }
+
       let mtm = MainThreadMarker::from(self);
       let Some(mut event) = NSApp(mtm).currentEvent() else {
         // `currentEvent` is nil when no event is being dispatched, e.g. when the
