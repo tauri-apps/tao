@@ -16,7 +16,6 @@ use std::{
   time::Instant,
 };
 
-use objc2::runtime::AnyObject as Object;
 use objc2_app_kit::{NSApp, NSApplication, NSApplicationActivationPolicy, NSWindow};
 use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSSize};
 use std::sync::LazyLock;
@@ -29,6 +28,7 @@ use crate::{
   platform_impl::{
     get_aux_state_mut,
     platform::{
+      app_delegate::AppDelegate,
       event::{EventProxy, EventWrapper},
       event_loop::{post_dummy_event, PanicInfo},
       observer::{CFRunLoopGetMain, CFRunLoopWakeUp, EventLoopWaker},
@@ -280,7 +280,7 @@ impl AppState {
     }
   }
 
-  pub fn launched(app_delegate: &Object) {
+  pub fn launched(app_delegate: &AppDelegate) {
     apply_activation_policy(app_delegate);
 
     unsafe {
@@ -363,7 +363,16 @@ impl AppState {
   }
 
   pub fn handle_redraw(window_id: WindowId) {
+    // AppKit can call `drawRect:` synchronously while the event handler is already running on
+    // the main thread, for example when a sheet attaches to the window. Re-entering the handler
+    // there would lock its mutex a second time on the same thread, so queue the redraw instead.
+    // Note that winit drops the redraw instead.
+    if HANDLER.in_callback.swap(true, Ordering::AcqRel) {
+      AppState::queue_redraw(window_id);
+      return;
+    }
     HANDLER.handle_nonuser_event(EventWrapper::StaticEvent(Event::RedrawRequested(window_id)));
+    HANDLER.set_in_callback(false);
   }
 
   pub fn queue_event(wrapper: EventWrapper) {
@@ -433,7 +442,7 @@ unsafe fn window_activation_hack(ns_app: &NSApplication) {
   // TODO: Proper ordering of the windows
   let ns_windows = ns_app.windows();
   for ns_window in ns_windows {
-    // And call `makeKeyAndOrderFront` if it was called on the window in `UnownedWindow::new`
+    // And call `makeKeyAndOrderFront` if it was called on the window in `WindowDelegate::new`
     // This way we preserve the user's desired initial visiblity status
     // TODO: Also filter on the type/"level" of the window, and maybe other things?
     if ns_window.isVisible() {
@@ -444,7 +453,7 @@ unsafe fn window_activation_hack(ns_app: &NSApplication) {
     }
   }
 }
-fn apply_activation_policy(app_delegate: &Object) {
+fn apply_activation_policy(app_delegate: &AppDelegate) {
   unsafe {
     let mtm = MainThreadMarker::new().unwrap();
     let ns_app = NSApp(mtm);

@@ -96,14 +96,18 @@ fn main() {
             size.width * size.height
           }
 
-          let monitor = window.current_monitor().unwrap();
-          if let Some(mode) = monitor
-            .video_modes()
-            .max_by(|a, b| area(a.size()).cmp(&area(b.size())))
-          {
-            window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
+          if window.fullscreen().is_some() {
+            window.set_fullscreen(None);
           } else {
-            eprintln!("no video modes available");
+            let monitor = window.current_monitor().unwrap();
+            if let Some(mode) = monitor
+              .video_modes()
+              .max_by(|a, b| area(a.size()).cmp(&area(b.size())))
+            {
+              window.set_fullscreen(Some(Fullscreen::Exclusive(mode)));
+            } else {
+              eprintln!("no video modes available");
+            }
           }
         }
         "f" => {
