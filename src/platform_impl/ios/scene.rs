@@ -4,6 +4,7 @@
 use objc2::{define_class, rc::Retained, MainThreadMarker, MainThreadOnly};
 use objc2_foundation::{
   NSBundle, NSError, NSObject, NSObjectProtocol, NSSet, NSString, NSUserActivity,
+  NSUserActivityTypeBrowsingWeb,
 };
 use objc2_ui_kit::{
   UIApplication, UIOpenURLContext, UIScene, UISceneConnectionOptions, UISceneDelegate,
@@ -57,6 +58,45 @@ unsafe fn handle_scene_window_events(scene: &UIScene, event: impl Fn() -> Window
       }));
     }
   }
+}
+
+// parses the URLs carried by the given contexts, skipping (and logging) the ones that are not
+// valid; `source` names the delivery path in the log
+pub unsafe fn urls_from_contexts(
+  url_contexts: &NSSet<UIOpenURLContext>,
+  source: &str,
+) -> Vec<url::Url> {
+  url_contexts
+    .iter()
+    .filter_map(|ctx| {
+      ctx
+        .URL()
+        .absoluteString()
+        .and_then(|url| parse_url(&url.to_string(), source))
+    })
+    .collect()
+}
+
+// the URL of a universal link activity, if `activity` is one: other activities, such as
+// Handoff, can carry a web page URL too and are not links that opened the app
+pub unsafe fn universal_link_url(activity: &NSUserActivity, source: &str) -> Option<url::Url> {
+  if !activity
+    .activityType()
+    .isEqualToString(NSUserActivityTypeBrowsingWeb)
+  {
+    return None;
+  }
+  activity
+    .webpageURL()
+    .and_then(|url| url.absoluteString())
+    .and_then(|url| parse_url(&url.to_string(), source))
+}
+
+fn parse_url(url: &str, source: &str) -> Option<url::Url> {
+  url
+    .parse()
+    .map_err(|e| log::error!("failed to parse URL {url} from {source}: {e}"))
+    .ok()
 }
 
 define_class!(
@@ -125,21 +165,7 @@ define_class!(
     #[unsafe(method(scene:openURLContexts:))]
     fn scene_openURLContexts(&self, _scene: &UIScene, url_contexts: &NSSet<UIOpenURLContext>) {
       unsafe {
-        let urls: Vec<url::Url> = url_contexts
-          .iter()
-          .filter_map(|ctx| {
-            ctx.URL().absoluteString().and_then(|url| {
-              let url = url.to_string();
-              url
-                .parse()
-                .map_err(|e| {
-                  log::error!("failed to parse URL {url} from scene:openURLContexts: {e}");
-                  e
-                })
-                .ok()
-            })
-          })
-          .collect();
+        let urls = urls_from_contexts(url_contexts, "scene:openURLContexts:");
         if !urls.is_empty() {
           app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls }));
         }
@@ -174,11 +200,7 @@ define_class!(
     fn scene_continueUserActivity(&self, _scene: &UIScene, user_activity: &NSUserActivity) {
       unsafe {
         // universal app links
-        if let Some(url) = user_activity
-          .webpageURL()
-          .and_then(|url| url.absoluteString())
-        {
-          let url = url.to_string().parse::<url::Url>().unwrap();
+        if let Some(url) = universal_link_url(user_activity, "scene:continueUserActivity:") {
           app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened {
             urls: vec![url],
           }));
