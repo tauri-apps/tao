@@ -2304,11 +2304,10 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
           // inside of the `event_handler` callback.
           let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
         } else if flush_paint_messages(None, &userdata.event_loop_runner) {
-          // Focusing a text field can open the IME and re-enter this handler while a
-          // redraw is already in progress. flush_paint_messages returns false then;
-          // panicking there closes the process.
           userdata.event_loop_runner.redraw_events_cleared();
           process_control_flow(&userdata.event_loop_runner);
+        } else {
+          warn!("WM_PAINT re-entered while flushing redraw events");
         }
       }
 
