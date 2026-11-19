@@ -263,7 +263,17 @@ impl Drop for EventLoopWaker {
 
 impl Default for EventLoopWaker {
   fn default() -> EventLoopWaker {
-    extern "C-unwind" fn wakeup_main_loop(_timer: CFRunLoopTimerRef, _info: *mut c_void) {}
+    // Re-arm the timer from its own callout. When a repeating CFRunLoopTimer fires late and
+    // the callout leaves its fire date alone, CoreFoundation re-arms it by stepping the fire
+    // date forward one interval at a time until it passes the current time. With the 0.1µs
+    // interval below, a main thread that was blocked for hours (e.g. on a modal keychain
+    // prompt while the Mac sat idle) spins at 100% CPU for minutes when it resumes (~4ms per
+    // second of stall). Setting the next fire date here skips that catch-up; `Poll` still
+    // fires on every run loop pass, and `Wait`/`WaitUntil` are still set by the observers
+    // through `stop`/`start_at`.
+    extern "C-unwind" fn wakeup_main_loop(timer: CFRunLoopTimerRef, _info: *mut c_void) {
+      unsafe { CFRunLoopTimerSetNextFireDate(timer, CFAbsoluteTimeGetCurrent()) }
+    }
     unsafe {
       // Create a timer with a 0.1µs interval (1ns does not work) to mimic polling.
       // It is initially setup with a first fire time really far into the
