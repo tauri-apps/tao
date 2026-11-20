@@ -210,7 +210,7 @@ impl<T> EventLoopProxy<T> {
   fn new(sender: Sender<T>) -> EventLoopProxy<T> {
     unsafe {
       // just wake up the eventloop
-      extern "C" fn event_loop_proxy_handler(_: *mut c_void) {}
+      extern "C-unwind" fn event_loop_proxy_handler(_: *mut c_void) {}
 
       // adding a Source to the main CFRunLoop lets us wake it up and
       // process user events through the normal OS EventLoop mechanisms.
@@ -244,7 +244,7 @@ impl<T> EventLoopProxy<T> {
 fn setup_control_flow_observers() {
   unsafe {
     // begin is queued with the highest priority to ensure it is processed before other observers
-    extern "C" fn control_flow_begin_handler(
+    extern "C-unwind" fn control_flow_begin_handler(
       _: CFRunLoopObserverRef,
       activity: CFRunLoopActivity,
       _: *mut c_void,
@@ -270,7 +270,7 @@ fn setup_control_flow_observers() {
     // registers for every `CFRunLoopAddObserver` call on an iPad Air 2 running iOS 11.4.
     //
     // Also tested to be `0x1e8480` on iPhone 8, iOS 13 beta 4.
-    extern "C" fn control_flow_main_end_handler(
+    extern "C-unwind" fn control_flow_main_end_handler(
       _: CFRunLoopObserverRef,
       activity: CFRunLoopActivity,
       _: *mut c_void,
@@ -286,7 +286,7 @@ fn setup_control_flow_observers() {
     }
 
     // end is queued with the lowest priority to ensure it is processed after other observers
-    extern "C" fn control_flow_end_handler(
+    extern "C-unwind" fn control_flow_end_handler(
       _: CFRunLoopObserverRef,
       activity: CFRunLoopActivity,
       _: *mut c_void,

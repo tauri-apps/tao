@@ -96,9 +96,12 @@ pub const kCFRunLoopAfterWaiting: CFRunLoopActivity = 1 << 6;
 #[allow(non_upper_case_globals)]
 pub const kCFRunLoopExit: CFRunLoopActivity = 1 << 7;
 
-pub type CFRunLoopObserverCallBack =
-  extern "C" fn(observer: CFRunLoopObserverRef, activity: CFRunLoopActivity, info: *mut c_void);
-pub type CFRunLoopTimerCallBack = extern "C" fn(timer: CFRunLoopTimerRef, info: *mut c_void);
+pub type CFRunLoopObserverCallBack = extern "C-unwind" fn(
+  observer: CFRunLoopObserverRef,
+  activity: CFRunLoopActivity,
+  info: *mut c_void,
+);
+pub type CFRunLoopTimerCallBack = extern "C-unwind" fn(timer: CFRunLoopTimerRef, info: *mut c_void);
 
 pub enum CFRunLoopTimerContext {}
 
@@ -109,9 +112,9 @@ pub enum CFRunLoopTimerContext {}
 pub struct CFRunLoopObserverContext {
   pub version: CFIndex,
   pub info: *mut c_void,
-  pub retain: Option<extern "C" fn(info: *const c_void) -> *const c_void>,
-  pub release: Option<extern "C" fn(info: *const c_void)>,
-  pub copyDescription: Option<extern "C" fn(info: *const c_void) -> CFStringRef>,
+  pub retain: Option<extern "C-unwind" fn(info: *const c_void) -> *const c_void>,
+  pub release: Option<extern "C-unwind" fn(info: *const c_void)>,
+  pub copyDescription: Option<extern "C-unwind" fn(info: *const c_void) -> CFStringRef>,
 }
 
 #[allow(non_snake_case)]
@@ -119,14 +122,14 @@ pub struct CFRunLoopObserverContext {
 pub struct CFRunLoopSourceContext {
   pub version: CFIndex,
   pub info: *mut c_void,
-  pub retain: Option<extern "C" fn(*const c_void) -> *const c_void>,
-  pub release: Option<extern "C" fn(*const c_void)>,
-  pub copyDescription: Option<extern "C" fn(*const c_void) -> CFStringRef>,
-  pub equal: Option<extern "C" fn(*const c_void, *const c_void) -> ffi::Boolean>,
-  pub hash: Option<extern "C" fn(*const c_void) -> CFHashCode>,
-  pub schedule: Option<extern "C" fn(*mut c_void, CFRunLoopRef, CFRunLoopMode)>,
-  pub cancel: Option<extern "C" fn(*mut c_void, CFRunLoopRef, CFRunLoopMode)>,
-  pub perform: Option<extern "C" fn(*mut c_void)>,
+  pub retain: Option<extern "C-unwind" fn(*const c_void) -> *const c_void>,
+  pub release: Option<extern "C-unwind" fn(*const c_void)>,
+  pub copyDescription: Option<extern "C-unwind" fn(*const c_void) -> CFStringRef>,
+  pub equal: Option<extern "C-unwind" fn(*const c_void, *const c_void) -> ffi::Boolean>,
+  pub hash: Option<extern "C-unwind" fn(*const c_void) -> CFHashCode>,
+  pub schedule: Option<extern "C-unwind" fn(*mut c_void, CFRunLoopRef, CFRunLoopMode)>,
+  pub cancel: Option<extern "C-unwind" fn(*mut c_void, CFRunLoopRef, CFRunLoopMode)>,
+  pub perform: Option<extern "C-unwind" fn(*mut c_void)>,
 }
 
 unsafe fn control_flow_handler<F>(panic_info: *mut c_void, f: F)
@@ -150,7 +153,7 @@ where
 }
 
 // begin is queued with the highest priority to ensure it is processed before other observers
-extern "C" fn control_flow_begin_handler(
+extern "C-unwind" fn control_flow_begin_handler(
   _: CFRunLoopObserverRef,
   activity: CFRunLoopActivity,
   panic_info: *mut c_void,
@@ -173,7 +176,7 @@ extern "C" fn control_flow_begin_handler(
 
 // end is queued with the lowest priority to ensure it is processed after other observers
 // without that, LoopDestroyed would  get sent after MainEventsCleared
-extern "C" fn control_flow_end_handler(
+extern "C-unwind" fn control_flow_end_handler(
   _: CFRunLoopObserverRef,
   activity: CFRunLoopActivity,
   panic_info: *mut c_void,
@@ -260,7 +263,7 @@ impl Drop for EventLoopWaker {
 
 impl Default for EventLoopWaker {
   fn default() -> EventLoopWaker {
-    extern "C" fn wakeup_main_loop(_timer: CFRunLoopTimerRef, _info: *mut c_void) {}
+    extern "C-unwind" fn wakeup_main_loop(_timer: CFRunLoopTimerRef, _info: *mut c_void) {}
     unsafe {
       // Create a timer with a 0.1µs interval (1ns does not work) to mimic polling.
       // It is initially setup with a first fire time really far into the

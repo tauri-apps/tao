@@ -7,6 +7,9 @@ on:
     branches:
       - dev
 
+permissions:
+  contents: read
+
 jobs:
   tests:
     strategy:
@@ -63,7 +66,7 @@ jobs:
         if: contains(matrix.platform.target, 'android')
         run: cargo install cargo-apk
 
-      - uses: dtolnay/rust-toolchain@1.85
+      - uses: dtolnay/rust-toolchain@1.92
         with:
           targets: ${{ matrix.platform.target }}
 

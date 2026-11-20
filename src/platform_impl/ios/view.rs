@@ -12,9 +12,8 @@ use objc2::{
   runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel},
   ClassType, MainThreadMarker,
 };
-use objc2_foundation::NSString;
 use objc2_ui_kit::{
-  UIApplication, UISceneActivationRequestOptions, UISceneConfiguration,
+  UIApplication, UISceneActivationRequestOptions, UISceneConfiguration, UISceneSession,
   UISceneSessionActivationRequest,
 };
 
@@ -29,7 +28,7 @@ use crate::{
       id, nil, CGFloat, CGPoint, CGRect, UIForceTouchCapability, UIInterfaceOrientationMask,
       UIRectEdge, UITouchPhase, UITouchType, BOOL, NO, YES,
     },
-    scene::{app_supports_multiple_scenes, multiple_scenes_enabled},
+    scene::app_supports_multiple_scenes,
     window::PlatformSpecificWindowBuilderAttributes,
     DeviceId,
   },
@@ -61,7 +60,7 @@ macro_rules! add_property {
             $decl.add_ivar::<$t>(&CString::new(VAR_NAME).unwrap());
             let setter = if $capability {
                 #[allow(non_snake_case)]
-                extern "C" fn $setter_name($object: &mut Object, _: Sel, value: $t) {
+                extern "C-unwind" fn $setter_name($object: &mut Object, _: Sel, value: $t) {
                     #[allow(deprecated)] // TODO: define_class!
                     unsafe {
                         *$object.get_mut_ivar::<$t>(VAR_NAME) = value;
@@ -71,7 +70,7 @@ macro_rules! add_property {
                 $setter_name
             } else {
                 #[allow(non_snake_case)]
-                extern "C" fn $setter_name($object: &mut Object, _: Sel, value: $t) {
+                extern "C-unwind" fn $setter_name($object: &mut Object, _: Sel, value: $t) {
                     #[allow(deprecated)] // TODO: define_class!
                     unsafe {
                         *$object.get_mut_ivar::<$t>(VAR_NAME) = value;
@@ -81,17 +80,17 @@ macro_rules! add_property {
                 $setter_name
             };
             #[allow(non_snake_case)]
-            extern "C" fn $getter_name($object: &Object, _: Sel) -> $t {
+            extern "C-unwind" fn $getter_name($object: &Object, _: Sel) -> $t {
                 #[allow(deprecated)] // TODO: define_class!
                 unsafe { *$object.get_ivar::<$t>(VAR_NAME) }
             }
             $decl.add_method(
                 sel!($setter_name:),
-                setter as extern "C" fn(_, _, _),
+                setter as extern "C-unwind" fn(_, _, _),
             );
             $decl.add_method(
                 sel!($getter_name),
-                $getter_name as extern "C" fn(_, _) -> _,
+                $getter_name as extern "C-unwind" fn(_, _) -> _,
             );
         }
     };
@@ -113,7 +112,7 @@ unsafe fn get_view_class(root_view_class: &'static Class) -> &'static Class {
     let is_uiview: bool = msg_send![root_view_class, isSubclassOfClass: uiview_class];
     assert!(is_uiview, "`root_view_class` must inherit from `UIView`");
 
-    extern "C" fn draw_rect(object: &Object, _: Sel, rect: CGRect) {
+    extern "C-unwind" fn draw_rect(object: &Object, _: Sel, rect: CGRect) {
       unsafe {
         let window: id = msg_send![object, window];
         assert!(!window.is_null());
@@ -130,7 +129,7 @@ unsafe fn get_view_class(root_view_class: &'static Class) -> &'static Class {
       }
     }
 
-    extern "C" fn layout_subviews(object: &Object, _: Sel) {
+    extern "C-unwind" fn layout_subviews(object: &Object, _: Sel) {
       unsafe {
         let superclass: &'static Class = msg_send![object, superclass];
         let () = msg_send![super(object, superclass), layoutSubviews];
@@ -168,7 +167,7 @@ unsafe fn get_view_class(root_view_class: &'static Class) -> &'static Class {
       }
     }
 
-    extern "C" fn set_content_scale_factor(
+    extern "C-unwind" fn set_content_scale_factor(
       object: &Object,
       _: Sel,
       untrusted_scale_factor: CGFloat,
@@ -224,7 +223,7 @@ unsafe fn get_view_class(root_view_class: &'static Class) -> &'static Class {
       }
     }
 
-    extern "C" fn handle_touches(object: &Object, _: Sel, touches: id, _: id) {
+    extern "C-unwind" fn handle_touches(object: &Object, _: Sel, touches: id, _: id) {
       unsafe {
         let window: id = msg_send![object, window];
         assert!(!window.is_null());
@@ -303,28 +302,31 @@ unsafe fn get_view_class(root_view_class: &'static Class) -> &'static Class {
     )
     .expect("Failed to declare class `TaoUIView`");
     ID += 1;
-    decl.add_method(sel!(drawRect:), draw_rect as extern "C" fn(_, _, _));
-    decl.add_method(sel!(layoutSubviews), layout_subviews as extern "C" fn(_, _));
+    decl.add_method(sel!(drawRect:), draw_rect as extern "C-unwind" fn(_, _, _));
+    decl.add_method(
+      sel!(layoutSubviews),
+      layout_subviews as extern "C-unwind" fn(_, _),
+    );
     decl.add_method(
       sel!(setContentScaleFactor:),
-      set_content_scale_factor as extern "C" fn(_, _, _),
+      set_content_scale_factor as extern "C-unwind" fn(_, _, _),
     );
 
     decl.add_method(
       sel!(touchesBegan:withEvent:),
-      handle_touches as extern "C" fn(_, _, _, _),
+      handle_touches as extern "C-unwind" fn(_, _, _, _),
     );
     decl.add_method(
       sel!(touchesMoved:withEvent:),
-      handle_touches as extern "C" fn(_, _, _, _),
+      handle_touches as extern "C-unwind" fn(_, _, _, _),
     );
     decl.add_method(
       sel!(touchesEnded:withEvent:),
-      handle_touches as extern "C" fn(_, _, _, _),
+      handle_touches as extern "C-unwind" fn(_, _, _, _),
     );
     decl.add_method(
       sel!(touchesCancelled:withEvent:),
-      handle_touches as extern "C" fn(_, _, _, _),
+      handle_touches as extern "C-unwind" fn(_, _, _, _),
     );
 
     decl.register()
@@ -339,7 +341,7 @@ unsafe fn get_view_controller_class() -> &'static Class {
 
     let uiviewcontroller_class = class!(UIViewController);
 
-    extern "C" fn should_autorotate(_: &Object, _: Sel) -> BOOL {
+    extern "C-unwind" fn should_autorotate(_: &Object, _: Sel) -> BOOL {
       YES
     }
 
@@ -350,7 +352,7 @@ unsafe fn get_view_controller_class() -> &'static Class {
     .expect("Failed to declare class `TaoUIViewController`");
     decl.add_method(
       sel!(shouldAutorotate),
-      should_autorotate as extern "C" fn(_, _) -> _,
+      should_autorotate as extern "C-unwind" fn(_, _) -> _,
     );
     add_property! {
         decl,
@@ -409,7 +411,7 @@ unsafe fn get_window_class() -> &'static Class {
   if CLASS.is_none() {
     let uiwindow_class = class!(UIWindow);
 
-    extern "C" fn become_key_window(object: &Object, _: Sel) {
+    extern "C-unwind" fn become_key_window(object: &Object, _: Sel) {
       unsafe {
         app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::WindowEvent {
           window_id: RootWindowId(object.into()),
@@ -419,7 +421,7 @@ unsafe fn get_window_class() -> &'static Class {
       }
     }
 
-    extern "C" fn resign_key_window(object: &Object, _: Sel) {
+    extern "C-unwind" fn resign_key_window(object: &Object, _: Sel) {
       unsafe {
         app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::WindowEvent {
           window_id: RootWindowId(object.into()),
@@ -436,11 +438,11 @@ unsafe fn get_window_class() -> &'static Class {
     .expect("Failed to declare class `TaoUIWindow`");
     decl.add_method(
       sel!(becomeKeyWindow),
-      become_key_window as extern "C" fn(_, _),
+      become_key_window as extern "C-unwind" fn(_, _),
     );
     decl.add_method(
       sel!(resignKeyWindow),
-      resign_key_window as extern "C" fn(_, _),
+      resign_key_window as extern "C-unwind" fn(_, _),
     );
 
     CLASS = Some(decl.register());
@@ -541,61 +543,55 @@ pub unsafe fn create_window(
     "Failed to initialize `UIWindow` instance"
   );
 
-  if multiple_scenes_enabled() {
-    // if multiple scenes is enabled in Info.plist, we need to assign it
-    // regarless of whether the device supports multiple scenes or not
-    if let Some(scene) = app_state::unitialized_scene() {
-      let _: () = msg_send![window, setWindowScene: Retained::as_ptr(&scene)];
-    } else if !app_supports_multiple_scenes() {
-      // if there's no unitialized scene and the app does not support multiple scenes
-      // we need to move this window to the main scene, otherwise it won't be visible
-      let scene = unsafe {
-        let mtm = MainThreadMarker::new().unwrap();
-        let application = UIApplication::sharedApplication(mtm);
-        application.connectedScenes().iter().next()
-      };
-      let scene = scene
+  // on the scene lifecycle a window is only displayed once it belongs to a scene, so we
+  // must always assign one - the app runs on it whenever the system connected a scene,
+  // which it may do even when the Info.plist does not declare a scene manifest
+  if let Some(scene) = app_state::unitialized_scene() {
+    let _: () = msg_send![window, setWindowScene: Retained::as_ptr(&scene)];
+  } else if app_supports_multiple_scenes() {
+    // only request a new scene if the system actually supports it
+    // otherwise it is silently ignored
+    unsafe {
+      let mtm = MainThreadMarker::new().unwrap();
+      let application = UIApplication::sharedApplication(mtm);
+      app_state::register_window_for_scene(window);
+
+      let options = UISceneActivationRequestOptions::new(mtm);
+      if let Some(scene) = platform_attributes
+        .requesting_scene_identifier
         .as_ref()
-        .map(|s| Retained::as_ptr(s))
-        .unwrap_or(std::ptr::null_mut());
+        .and_then(|id| app_state::scene_by_id(id))
+      {
+        options.setRequestingScene(Some(&scene));
+      }
 
-      let _: () = msg_send![window, setWindowScene: scene];
-    } else {
-      // only request a new scene if the system actually supports it
-      // otherwise it is silently ignored
-      unsafe {
-        let mtm = MainThreadMarker::new().unwrap();
-        let application = UIApplication::sharedApplication(mtm);
-        app_state::register_window_for_scene(window);
+      let error_handler = block2::RcBlock::new(move |error| {
+        log::error!("error activating scene: {error:?}");
+      });
 
-        let options = UISceneActivationRequestOptions::new(mtm);
-        if let Some(scene) = platform_attributes
-          .requesting_scene_identifier
-          .as_ref()
-          .and_then(|id| app_state::scene_by_id(id))
-        {
-          options.setRequestingScene(Some(&scene));
-        }
-
-        let error_handler = block2::RcBlock::new(move |error| {
-          log::error!("error activating scene: {error:?}");
-        });
-
-        if operating_system_version().0 >= 17 {
-          let request = UISceneSessionActivationRequest::request();
-          request.setOptions(Some(&options));
-          application.activateSceneSessionForRequest_errorHandler(&request, Some(&error_handler));
-        } else {
-          #[allow(deprecated)]
-          application.requestSceneSessionActivation_userActivity_options_errorHandler(
-            None,
-            None,
-            Some(&options),
-            Some(&error_handler),
-          );
-        }
+      if operating_system_version().0 >= 17 {
+        let request = UISceneSessionActivationRequest::request();
+        request.setOptions(Some(&options));
+        application.activateSceneSessionForRequest_errorHandler(&request, Some(&error_handler));
+      } else {
+        #[allow(deprecated)]
+        application.requestSceneSessionActivation_userActivity_options_errorHandler(
+          None,
+          None,
+          Some(&options),
+          Some(&error_handler),
+        );
       }
     }
+  } else if let Some(scene) = app_state::first_window_scene() {
+    // if there's no unitialized scene and the app does not support multiple scenes
+    // we need to move this window to the main scene, otherwise it won't be visible
+    let _: () = msg_send![window, setWindowScene: Retained::as_ptr(&scene)];
+  } else {
+    // no scene is connected yet, either because the app runs on the legacy lifecycle
+    // - where the system attaches the window to a scene on its own - or because it was
+    // created before the first scene connected, which then adopts it
+    app_state::register_scene_less_window(window);
   }
 
   let () = msg_send![window, setRootViewController: view_controller];
@@ -623,27 +619,29 @@ pub unsafe fn create_window(
 }
 
 pub fn create_delegate_class() {
-  extern "C" fn did_finish_launching(_: &Object, _: Sel, _: id, _: id) -> BOOL {
+  extern "C-unwind" fn did_finish_launching(_: &Object, _: Sel, _: id, _: id) -> BOOL {
     unsafe {
       app_state::did_finish_launching();
     }
     YES
   }
 
-  extern "C" fn configuration_for_connecting_scene_session(
+  extern "C-unwind" fn configuration_for_connecting_scene_session(
     _: &Object,
     _: Sel,
     _application: id,
-    _connecting_scene_session: id,
+    connecting_scene_session: id,
     _options: id,
   ) -> id {
     unsafe {
       let mtm = objc2_foundation::MainThreadMarker::new_unchecked();
-      let config = UISceneConfiguration::configurationWithName_sessionRole(
-        Some(&NSString::from_str("TaoScene")),
-        &NSString::from_str("UIWindowSceneSessionRoleApplication"),
-        mtm,
-      );
+      // keep the role of the session that is connecting instead of assuming the
+      // window scene role, so scenes such as external displays still get their own.
+      // a `None` name picks the app's own configuration for that role when its
+      // Info.plist declares one, and the default configuration when it doesn't
+      let session: &UISceneSession = &*connecting_scene_session.cast();
+      let config =
+        UISceneConfiguration::configurationWithName_sessionRole(None, &session.role(), mtm);
 
       // Dynamically set the delegate class name
       config.setDelegateClass(Some(super::scene::TaoSceneDelegate::class()));
@@ -692,7 +690,7 @@ pub fn create_delegate_class() {
 
   // custom URL schemes
   // https://developer.apple.com/documentation/xcode/defining-a-custom-url-scheme-for-your-app
-  extern "C" fn application_open_url(
+  extern "C-unwind" fn application_open_url(
     _self: &Object,
     _cmd: Sel,
     _app: id,
@@ -706,7 +704,7 @@ pub fn create_delegate_class() {
 
   // universal links
   // https://developer.apple.com/documentation/xcode/supporting-universal-links-in-your-app
-  extern "C" fn application_continue(
+  extern "C-unwind" fn application_continue(
     _: &Object,
     _: Sel,
     _application: id,
@@ -725,15 +723,27 @@ pub fn create_delegate_class() {
     }
   }
 
-  extern "C" fn will_resign_active(_: &Object, _: Sel, _: id) {
-    unsafe { handle_tao_window_events(|| WindowEvent::Suspended) }
+  extern "C-unwind" fn will_resign_active(_: &Object, _: Sel, _: id) {
+    unsafe {
+      if app_state::did_first_scene_connect() {
+        // the scene delegate already emits this event for the windows of its scene
+        return;
+      }
+      handle_tao_window_events(|| WindowEvent::Suspended)
+    }
   }
 
-  extern "C" fn will_enter_foreground(_: &Object, _: Sel, _: id) {
-    unsafe { handle_tao_window_events(|| WindowEvent::Resumed) }
+  extern "C-unwind" fn will_enter_foreground(_: &Object, _: Sel, _: id) {
+    unsafe {
+      if app_state::did_first_scene_connect() {
+        // the scene delegate already emits this event for the windows of its scene
+        return;
+      }
+      handle_tao_window_events(|| WindowEvent::Resumed)
+    }
   }
 
-  extern "C" fn will_terminate(_: &Object, _: Sel, _: id) {
+  extern "C-unwind" fn will_terminate(_: &Object, _: Sel, _: id) {
     unsafe {
       handle_tao_window_events(|| WindowEvent::Destroyed);
       app_state::terminated();
@@ -748,44 +758,46 @@ pub fn create_delegate_class() {
   .expect("Failed to declare class `AppDelegate`");
 
   unsafe {
-    let uses_scenes = multiple_scenes_enabled();
+    // register the scene delegate class in the runtime upfront, the system looks it up by
+    // name when it decodes a scene session that was encoded on a previous launch
+    let _ = super::scene::TaoSceneDelegate::class();
 
     decl.add_method(
       sel!(application:didFinishLaunchingWithOptions:),
-      did_finish_launching as extern "C" fn(_, _, _, _) -> _,
+      did_finish_launching as extern "C-unwind" fn(_, _, _, _) -> _,
     );
 
-    if uses_scenes {
-      decl.add_method(
-        sel!(application:configurationForConnectingSceneSession:options:),
-        configuration_for_connecting_scene_session as extern "C" fn(_, _, _, _, _) -> _,
-      );
-    }
+    // always answer the scene configuration request, even when the Info.plist does not
+    // declare a scene manifest: UIKit only asks for it when the app runs on the scene
+    // lifecycle, and answering it is the only way to get our scene delegate installed
+    // there. Apps that never run on scenes simply never receive this callback.
+    decl.add_method(
+      sel!(application:configurationForConnectingSceneSession:options:),
+      configuration_for_connecting_scene_session as extern "C-unwind" fn(_, _, _, _, _) -> _,
+    );
 
     decl.add_method(
       sel!(application:openURL:options:),
-      application_open_url as extern "C" fn(_, _, _, _, _) -> _,
+      application_open_url as extern "C-unwind" fn(_, _, _, _, _) -> _,
     );
 
     decl.add_method(
       sel!(application:continueUserActivity:restorationHandler:),
-      application_continue as extern "C" fn(_, _, _, _, _) -> _,
+      application_continue as extern "C-unwind" fn(_, _, _, _, _) -> _,
     );
 
-    if !uses_scenes {
-      decl.add_method(
-        sel!(applicationWillResignActive:),
-        will_resign_active as extern "C" fn(_, _, _),
-      );
-      decl.add_method(
-        sel!(applicationWillEnterForeground:),
-        will_enter_foreground as extern "C" fn(_, _, _),
-      );
-    }
+    decl.add_method(
+      sel!(applicationWillResignActive:),
+      will_resign_active as extern "C-unwind" fn(_, _, _),
+    );
+    decl.add_method(
+      sel!(applicationWillEnterForeground:),
+      will_enter_foreground as extern "C-unwind" fn(_, _, _),
+    );
 
     decl.add_method(
       sel!(applicationWillTerminate:),
-      will_terminate as extern "C" fn(_, _, _),
+      will_terminate as extern "C-unwind" fn(_, _, _),
     );
 
     decl.register();

@@ -3,8 +3,8 @@
 
 use objc2::{define_class, rc::Retained, MainThreadMarker, MainThreadOnly};
 use objc2_foundation::{
-  NSBundle, NSDictionary, NSError, NSNumber, NSObject, NSObjectProtocol, NSSet, NSString,
-  NSUserActivity,
+  NSBundle, NSError, NSObject, NSObjectProtocol, NSSet, NSString, NSUserActivity,
+  NSUserActivityTypeBrowsingWeb,
 };
 use objc2_ui_kit::{
   UIApplication, UIOpenURLContext, UIScene, UISceneConnectionOptions, UISceneDelegate,
@@ -17,7 +17,8 @@ use crate::{
   window::WindowId as RootWindowId,
 };
 
-// true when the system allows the app to display multiple scenes and multiple_scenes_enabled() returns true
+// true when the app enabled `UIApplicationSupportsMultipleScenes` in its Info.plist
+// and the device allows it to display multiple scenes
 // https://developer.apple.com/documentation/uikit/uiapplication/supportsmultiplescenes?language=objc
 pub unsafe fn app_supports_multiple_scenes() -> bool {
   let mtm = MainThreadMarker::new().unwrap();
@@ -25,26 +26,21 @@ pub unsafe fn app_supports_multiple_scenes() -> bool {
   application.supportsMultipleScenes()
 }
 
-// check whether the app's Info.plist enabled multiple scenes
-pub unsafe fn multiple_scenes_enabled() -> bool {
+// check whether the app adopted the scene lifecycle by declaring a
+// `UIApplicationSceneManifest` in its Info.plist
+//
+// such apps get their windows and their lifecycle callbacks from a `UISceneDelegate`
+// instead of the application delegate, so a `UIWindow` is only visible once it is
+// attached to a scene
+// https://developer.apple.com/documentation/bundleresources/information-property-list/uiapplicationscenemanifest
+pub unsafe fn scene_lifecycle_enabled() -> bool {
   let bundle = NSBundle::mainBundle();
   let Some(info) = bundle.infoDictionary() else {
     return false;
   };
 
   let key = NSString::from_str("UIApplicationSceneManifest");
-  let Some(manifest) = (*info).objectForKey(&key) else {
-    return false;
-  };
-
-  let manifest_dict = Retained::cast_unchecked::<NSDictionary<NSString, NSObject>>(manifest);
-  let supports_key = NSString::from_str("UIApplicationSupportsMultipleScenes");
-  let Some(value) = (*manifest_dict).objectForKey(&supports_key) else {
-    return false;
-  };
-
-  let num = Retained::cast_unchecked::<NSNumber>(value);
-  (*num).as_bool()
+  (*info).objectForKey(&key).is_some()
 }
 
 unsafe fn handle_scene_window_events(scene: &UIScene, event: impl Fn() -> WindowEvent<'static>) {
@@ -62,6 +58,45 @@ unsafe fn handle_scene_window_events(scene: &UIScene, event: impl Fn() -> Window
       }));
     }
   }
+}
+
+// parses the URLs carried by the given contexts, skipping (and logging) the ones that are not
+// valid; `source` names the delivery path in the log
+pub unsafe fn urls_from_contexts(
+  url_contexts: &NSSet<UIOpenURLContext>,
+  source: &str,
+) -> Vec<url::Url> {
+  url_contexts
+    .iter()
+    .filter_map(|ctx| {
+      ctx
+        .URL()
+        .absoluteString()
+        .and_then(|url| parse_url(&url.to_string(), source))
+    })
+    .collect()
+}
+
+// the URL of a universal link activity, if `activity` is one: other activities, such as
+// Handoff, can carry a web page URL too and are not links that opened the app
+pub unsafe fn universal_link_url(activity: &NSUserActivity, source: &str) -> Option<url::Url> {
+  if !activity
+    .activityType()
+    .isEqualToString(NSUserActivityTypeBrowsingWeb)
+  {
+    return None;
+  }
+  activity
+    .webpageURL()
+    .and_then(|url| url.absoluteString())
+    .and_then(|url| parse_url(&url.to_string(), source))
+}
+
+fn parse_url(url: &str, source: &str) -> Option<url::Url> {
+  url
+    .parse()
+    .map_err(|e| log::error!("failed to parse URL {url} from {source}: {e}"))
+    .ok()
 }
 
 define_class!(
@@ -130,21 +165,7 @@ define_class!(
     #[unsafe(method(scene:openURLContexts:))]
     fn scene_openURLContexts(&self, _scene: &UIScene, url_contexts: &NSSet<UIOpenURLContext>) {
       unsafe {
-        let urls: Vec<url::Url> = url_contexts
-          .iter()
-          .filter_map(|ctx| {
-            ctx.URL().absoluteString().and_then(|url| {
-              let url = url.to_string();
-              url
-                .parse()
-                .map_err(|e| {
-                  log::error!("failed to parse URL {url} from scene:openURLContexts: {e}");
-                  e
-                })
-                .ok()
-            })
-          })
-          .collect();
+        let urls = urls_from_contexts(url_contexts, "scene:openURLContexts:");
         if !urls.is_empty() {
           app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened { urls }));
         }
@@ -179,11 +200,7 @@ define_class!(
     fn scene_continueUserActivity(&self, _scene: &UIScene, user_activity: &NSUserActivity) {
       unsafe {
         // universal app links
-        if let Some(url) = user_activity
-          .webpageURL()
-          .and_then(|url| url.absoluteString())
-        {
-          let url = url.to_string().parse::<url::Url>().unwrap();
+        if let Some(url) = universal_link_url(user_activity, "scene:continueUserActivity:") {
           app_state::handle_nonuser_event(EventWrapper::StaticEvent(Event::Opened {
             urls: vec![url],
           }));

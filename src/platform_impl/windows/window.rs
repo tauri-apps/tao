@@ -247,15 +247,7 @@ impl Window {
     // implementation derived from GPUI
     // see <https://github.com/zed-industries/zed/blob/7bddb390cabefb177d9996dc580749d64e6ca3b6/crates/gpui/src/platform/windows/window.rs#L1167-L1180>
     if window_flags.undecorated_with_shadows() {
-      let hwnd = self.hwnd();
-
-      let client_rect = util::client_rect(hwnd);
-      let window_rect = util::window_rect(hwnd);
-
-      let width_offset =
-        (window_rect.right - window_rect.left) - (client_rect.right - client_rect.left);
-      let height_offset =
-        (window_rect.bottom - window_rect.top) - (client_rect.bottom - client_rect.top);
+      let (width_offset, height_offset) = util::window_size_offsets(self.hwnd());
 
       desired_width += width_offset;
       desired_height += height_offset;
@@ -491,27 +483,41 @@ impl Window {
   }
 
   fn handle_os_dragging(&self, wparam: WPARAM) -> Result<(), ExternalError> {
-    let points = {
-      let mut pos = unsafe { mem::zeroed() };
-      unsafe { GetCursorPos(&mut pos)? };
-      pos
-    };
-    let points = POINTS {
-      x: points.x as i16,
-      y: points.y as i16,
-    };
-    unsafe { ReleaseCapture()? };
+    let window = self.window;
+    let window_state = self.window_state.clone();
 
-    self.window_state.lock().dragging = true;
+    self.thread_executor.execute_in_thread(move || {
+      {
+        let mut guard = window_state.lock();
+        if !guard.dragging {
+          guard.dragging = true;
+        } else {
+          return;
+        }
+      }
 
-    unsafe {
-      PostMessageW(
-        Some(self.hwnd()),
-        WM_NCLBUTTONDOWN,
-        wparam,
-        LPARAM(&points as *const _ as _),
-      )?
-    };
+      let points = {
+        let mut pos = unsafe { mem::zeroed() };
+        let _ = unsafe { GetCursorPos(&mut pos) };
+        pos
+      };
+      let points = POINTS {
+        x: points.x as i16,
+        y: points.y as i16,
+      };
+
+      // ReleaseCapture needs to execute on the main thread
+      let _ = unsafe { ReleaseCapture() };
+
+      let _ = unsafe {
+        PostMessageW(
+          Some(window.hwnd()),
+          WM_NCLBUTTONDOWN,
+          wparam,
+          LPARAM(&points as *const _ as _),
+        )
+      };
+    });
 
     Ok(())
   }
@@ -873,9 +879,18 @@ impl Window {
         ptCurrentPos: POINT { x, y },
         rcArea: RECT::default(),
       };
+      // The composition form only moves the composition window; the candidate
+      // list has its own form and stays where it was until it is given one.
+      let candidate_form = CANDIDATEFORM {
+        dwIndex: 0,
+        dwStyle: CFS_CANDIDATEPOS,
+        ptCurrentPos: POINT { x, y },
+        rcArea: RECT::default(),
+      };
       unsafe {
         let himc = ImmGetContext(self.hwnd());
         let _ = ImmSetCompositionWindow(himc, &composition_form);
+        let _ = ImmSetCandidateWindow(himc, &candidate_form);
         let _ = ImmReleaseContext(self.hwnd(), himc);
       }
     }
@@ -1290,32 +1305,29 @@ unsafe fn init<T: 'static>(
   let (target_monitor, position) = attributes
     .position
     .and_then(|p| {
+      // A logical position carries no monitor, so several monitors with different scale factors
+      // can contain it. Pick the one the position is closest to its origin on, which does not
+      // depend on the (unspecified) enumeration order.
       monitor::available_monitors()
         .into_iter()
-        .find_map(|monitor| {
+        .filter_map(|monitor| {
           let dpi = monitor.dpi();
-          let scale_factor = dpi_to_scale_factor(dpi);
-          let position = p.to_physical::<i32>(scale_factor);
-          let (x, y): (i32, i32) = monitor.position().into();
-          let (width, height): (i32, i32) = monitor.size().into();
-
           let frame_thickness = if window_flags.contains_shadow() {
             util::get_frame_thickness(dpi)
           } else {
             0
           };
-
-          // Only the starting position x needs to be accounted
-          if x <= position.x + frame_thickness
-            && position.x <= x + width
-            && y <= position.y
-            && position.y <= y + height
-          {
-            Some((monitor, position.into()))
-          } else {
-            None
-          }
+          let (position, distance) = position_on_monitor(
+            p,
+            dpi,
+            monitor.position().into(),
+            monitor.size().into(),
+            frame_thickness,
+          )?;
+          Some((distance, monitor, position.into()))
         })
+        .min_by(|(a, ..), (b, ..)| a.total_cmp(b))
+        .map(|(_, monitor, position)| (monitor, position))
     })
     .unwrap_or_else(|| (monitor::primary_monitor(), (CW_USEDEFAULT, CW_USEDEFAULT)));
 
@@ -1363,6 +1375,7 @@ unsafe fn init<T: 'static>(
 
   let fullscreen = attributes.fullscreen.clone();
   let maximized = attributes.maximized;
+  let focused = attributes.focused;
   let menu = pl_attribs.menu;
 
   let mut initdata = InitData {
@@ -1409,6 +1422,13 @@ unsafe fn init<T: 'static>(
     force_window_active(window.hwnd());
   } else if maximized {
     window.set_maximized(true);
+  }
+
+  if !focused {
+    window
+      .window_state
+      .lock()
+      .set_window_flags_in_place(|f| f.remove(WindowFlags::MARKER_DONT_FOCUS));
   }
 
   Ok(window)
@@ -1556,5 +1576,52 @@ impl ResizeDirection {
       ResizeDirection::SouthWest => HTBOTTOMLEFT,
       ResizeDirection::West => HTLEFT,
     }
+  }
+}
+
+/// Converts `position` to physical pixels with the scale factor of a monitor and returns it with
+/// its distance to the monitor's origin, or `None` if the monitor doesn't contain it.
+fn position_on_monitor(
+  position: Position,
+  dpi: u32,
+  (x, y): (i32, i32),
+  (width, height): (i32, i32),
+  frame_thickness: i32,
+) -> Option<(PhysicalPosition<i32>, f64)> {
+  let position = position.to_physical::<i32>(dpi_to_scale_factor(dpi));
+
+  // Only the starting position x needs to be accounted
+  if x <= position.x + frame_thickness
+    && position.x <= x + width
+    && y <= position.y
+    && position.y <= y + height
+  {
+    let dx = f64::from(position.x - x).powi(2);
+    let dy = f64::from(position.y - y).powi(2);
+    let distance = (dx + dy).sqrt();
+    Some((position, distance))
+  } else {
+    None
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::dpi::LogicalPosition;
+
+  #[test]
+  fn logical_position_is_closest_to_the_monitor_it_was_derived_from() {
+    // 1920x1080 @ 100% primary, 3840x2160 @ 150% to its right; physical x = 1920 is logical 1280.
+    let position = Position::Logical(LogicalPosition::new(1280.0, 0.0));
+    let primary = position_on_monitor(position, 96, (0, 0), (1920, 1080), 0);
+    let external = position_on_monitor(position, 144, (1920, 0), (3840, 2160), 0);
+
+    // both monitors contain the position, so only the distance tells them apart
+    let (_, primary_distance) = primary.unwrap();
+    let (physical, external_distance) = external.unwrap();
+    assert_eq!(physical, PhysicalPosition::new(1920, 0));
+    assert_eq!(external_distance, 0.0);
+    assert!(external_distance < primary_distance);
   }
 }
