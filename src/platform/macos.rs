@@ -414,7 +414,7 @@ impl<T> EventLoopWindowTargetExtMacOS for EventLoopWindowTarget<T> {
   fn show_application(&self) {
     // TODO: Safety.
     let mtm = unsafe { objc2_foundation::MainThreadMarker::new_unchecked() };
-    unsafe { objc2_app_kit::NSApplication::sharedApplication(mtm).unhide(None) }
+    objc2_app_kit::NSApplication::sharedApplication(mtm).unhide(None)
   }
 
   fn hide_other_applications(&self) {
