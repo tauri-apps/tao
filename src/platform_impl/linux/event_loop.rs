@@ -452,15 +452,23 @@ impl<T: 'static> EventLoop<T> {
             }
           }
           WindowRequest::CursorIgnoreEvents(ignore) => {
-            if ignore {
-              let empty_region = Region::create_rectangle(&RectangleInt::new(0, 0, 1, 1));
-              window
-                .window()
-                .unwrap()
-                .input_shape_combine_region(&empty_region, 0, 0);
-            } else {
-              window.input_shape_combine_region(None)
-            };
+            let region = ignore.then(|| Region::create_rectangle(&RectangleInt::new(0, 0, 1, 1)));
+            // Set on the widget, not its `GdkWindow`: a window that was never shown has none yet.
+            window.input_shape_combine_region(region.as_ref());
+
+            // Showing the window realizes its children, and GTK then resets the shape of the
+            // `GdkWindow` they share with it (e.g. the default vbox), so set it again once mapped.
+            if !window.is_mapped() {
+              let handler = Rc::new(RefCell::new(None));
+              let handler_ = handler.clone();
+              let id = window.connect_map(move |window| {
+                window.input_shape_combine_region(region.as_ref());
+                if let Some(id) = handler_.take() {
+                  window.disconnect(id);
+                }
+              });
+              handler.replace(Some(id));
+            }
           }
           WindowRequest::ProgressBarState(_) => unreachable!(),
           WindowRequest::BadgeCount(_, _) => unreachable!(),
