@@ -15,13 +15,13 @@ pub fn set_progress_indicator(progress_state: ProgressBarState) {
   DispatchQueue::main().exec_async(move || {
     let mtm = unsafe { MainThreadMarker::new_unchecked() };
     let app = NSApplication::sharedApplication(mtm);
-    let dock_tile = unsafe { app.dockTile() };
+    let dock_tile = app.dockTile();
     // check progress indicator is already set or create new one
     let progress_indicator = get_existing_progress_indicator(&dock_tile, mtm)
       .unwrap_or_else(|| create_progress_indicator(&app, &dock_tile, mtm));
 
     if let Some(progress) = progress_state.progress {
-      unsafe { progress_indicator.setDoubleValue(progress.clamp(0, 100) as f64) };
+      progress_indicator.setDoubleValue(progress.clamp(0, 100) as f64);
       progress_indicator.setHidden(false);
     }
     if let Some(state) = progress_state.state {
@@ -29,7 +29,7 @@ pub fn set_progress_indicator(progress_state: ProgressBarState) {
       progress_indicator.setHidden(matches!(state, ProgressState::None));
     }
 
-    unsafe { dock_tile.display() };
+    dock_tile.display();
   });
 }
 
@@ -38,19 +38,17 @@ fn create_progress_indicator(
   dock_tile: &NSDockTile,
   mtm: MainThreadMarker,
 ) -> Retained<TaoProgressIndicator> {
-  let content_view = unsafe {
-    dock_tile.contentView(mtm).unwrap_or_else(|| {
-      // create new dock tile view with current app icon
-      let app_icon_image = app.applicationIconImage().unwrap();
-      let image_view = NSImageView::imageViewWithImage(&app_icon_image, mtm);
-      dock_tile.setContentView(Some(&image_view));
-      image_view.into_super().into_super()
-    })
-  };
+  let content_view = dock_tile.contentView(mtm).unwrap_or_else(|| {
+    // create new dock tile view with current app icon
+    let app_icon_image = app.applicationIconImage().unwrap();
+    let image_view = NSImageView::imageViewWithImage(&app_icon_image, mtm);
+    dock_tile.setContentView(Some(&image_view));
+    image_view.into_super().into_super()
+  });
 
   let frame = NSRect::new(
     NSPoint::new(0.0, 0.0),
-    NSSize::new(unsafe { dock_tile.size() }.width, 15.0),
+    NSSize::new(dock_tile.size().width, 15.0),
   );
   let progress_indicator =
     TaoProgressIndicator::alloc(mtm).set_ivars(Cell::new(ProgressState::None));
@@ -58,7 +56,7 @@ fn create_progress_indicator(
     unsafe { msg_send![super(progress_indicator), initWithFrame: frame] };
 
   // set progress indicator to the dock tile
-  unsafe { content_view.addSubview(&progress_indicator) };
+  content_view.addSubview(&progress_indicator);
 
   progress_indicator
 }
@@ -67,7 +65,9 @@ fn get_existing_progress_indicator(
   dock_tile: &NSDockTile,
   mtm: MainThreadMarker,
 ) -> Option<Retained<TaoProgressIndicator>> {
-  unsafe { dock_tile.contentView(mtm)?.subviews() }
+  dock_tile
+    .contentView(mtm)?
+    .subviews()
     .into_iter()
     .find_map(|view| view.downcast::<TaoProgressIndicator>().ok())
 }
@@ -93,26 +93,24 @@ define_class!(
       let mut bar_progress = NSInsetRect(bar, 1.0, 1.0);
 
       // set progress width
-      let current_progress = unsafe { self.doubleValue() };
+      let current_progress = self.doubleValue();
       let normalized_progress = (current_progress / 100.0).clamp(0.0, 1.0);
       bar_progress.size.width *= normalized_progress;
 
-    // draw outer bar
-      unsafe {
-        let bg_color = NSColor::colorWithWhite_alpha(1.0, 0.05);
-        bg_color.set();
-      }
+      // draw outer bar
+      let bg_color = NSColor::colorWithWhite_alpha(1.0, 0.05);
+      bg_color.set();
       draw_rounded_rect(bar);
       // draw inner bar
       draw_rounded_rect(bar_inner);
 
       // draw progress
       let progress_color = match self.ivars().get() {
-        ProgressState::Paused => unsafe { NSColor::systemYellowColor() },
-        ProgressState::Error => unsafe { NSColor::systemRedColor() },
-        _ => unsafe { NSColor::systemBlueColor() },
+        ProgressState::Paused => NSColor::systemYellowColor(),
+        ProgressState::Error => NSColor::systemRedColor(),
+        _ => NSColor::systemBlueColor(),
       };
-      unsafe { progress_color.set() };
+      progress_color.set();
       draw_rounded_rect(bar_progress);
     }
   }
@@ -120,5 +118,5 @@ define_class!(
 
 fn draw_rounded_rect(rect: NSRect) {
   let radius = rect.size.height / 2.0;
-  unsafe { NSBezierPath::bezierPathWithRoundedRect_xRadius_yRadius(rect, radius, radius).fill() };
+  NSBezierPath::bezierPathWithRoundedRect_xRadius_yRadius(rect, radius, radius).fill();
 }

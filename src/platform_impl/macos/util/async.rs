@@ -62,38 +62,36 @@ pub unsafe fn set_maximized_async(
 ) {
   let window_delegate = MainThreadSafe(window_delegate);
   DispatchQueue::main().exec_async(move || {
-    unsafe {
-      if !is_zoomed {
-        window_delegate
-          .ivars()
-          .standard_frame
-          .set(Some(window_delegate.window().frame()));
-      }
-      window_delegate.ivars().maximized.set(maximized);
-      if window_delegate.ivars().fullscreen.borrow().is_some() {
-        // Apply the requested state when native fullscreen ends.
-        return;
-      }
-      let standard_frame = window_delegate
+    if !is_zoomed {
+      window_delegate
         .ivars()
         .standard_frame
-        .get()
-        .unwrap_or(DEFAULT_STANDARD_FRAME);
+        .set(Some(window_delegate.window().frame()));
+    }
+    window_delegate.ivars().maximized.set(maximized);
+    if window_delegate.ivars().fullscreen.borrow().is_some() {
+      // Apply the requested state when native fullscreen ends.
+      return;
+    }
+    let standard_frame = window_delegate
+      .ivars()
+      .standard_frame
+      .get()
+      .unwrap_or(DEFAULT_STANDARD_FRAME);
 
-      let required = NSWindowStyleMask::Resizable | NSWindowStyleMask::Titled;
-      if window_delegate.window().styleMask().contains(required) {
-        window_delegate.window().zoom(None);
+    let required = NSWindowStyleMask::Resizable | NSWindowStyleMask::Titled;
+    if window_delegate.window().styleMask().contains(required) {
+      window_delegate.window().zoom(None);
+    } else {
+      let frame = if maximized {
+        let mtm = MainThreadMarker::from(window_delegate.window());
+        NSScreen::mainScreen(mtm).unwrap().visibleFrame()
       } else {
-        let frame = if maximized {
-          let mtm = MainThreadMarker::from(window_delegate.window());
-          NSScreen::mainScreen(mtm).unwrap().visibleFrame()
-        } else {
-          standard_frame
-        };
-        window_delegate
-          .window()
-          .setFrame_display_animate(frame, false, true);
-      }
+        standard_frame
+      };
+      window_delegate
+        .window()
+        .setFrame_display_animate(frame, false, true);
     }
   });
 }

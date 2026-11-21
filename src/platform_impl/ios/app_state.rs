@@ -1149,7 +1149,7 @@ impl NSOperatingSystemVersion {
 pub fn os_capabilities() -> OSCapabilities {
   use std::sync::LazyLock;
   static OS_CAPABILITIES: LazyLock<OSCapabilities> = LazyLock::new(|| {
-    let version: NSOperatingSystemVersion = unsafe {
+    let version: NSOperatingSystemVersion = {
       let process_info = objc2_foundation::NSProcessInfo::processInfo();
       let atleast_ios_8 = process_info.respondsToSelector(sel!(operatingSystemVersion));
       // tao requires atleast iOS 8 because no one has put the time into supporting earlier os versions.

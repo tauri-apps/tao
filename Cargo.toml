@@ -113,7 +113,7 @@ objc2 = "0.6"
 block2 = "0.6"
 
 [target."cfg(target_os = \"macos\")".dependencies]
-objc2-foundation = { version = "0.3", default-features = false, features = [
+objc2-foundation = { version = "0.3.2", default-features = false, features = [
   "std",
   "NSArray",
   "NSAttributedString",
@@ -133,7 +133,7 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
   "NSValue",
   "NSRunLoop",
 ] }
-objc2-app-kit = { version = "0.3", default-features = false, features = [
+objc2-app-kit = { version = "0.3.2", default-features = false, features = [
   "std",
   "objc2-core-foundation",
   "NSApplication",
@@ -167,7 +167,7 @@ core-graphics = "0.25"
 dispatch2 = "0.3"
 
 [target."cfg(target_os = \"ios\")".dependencies]
-objc2-ui-kit = { version = "0.3", features = [
+objc2-ui-kit = { version = "0.3.2", features = [
   "UIResponder",
   "UIScene",
   "UISceneOptions",
@@ -175,7 +175,7 @@ objc2-ui-kit = { version = "0.3", features = [
   "UISceneWindowingControlStyle",
   "UIWindowScene",
 ] }
-objc2-foundation = { version = "0.3", default-features = false, features = [
+objc2-foundation = { version = "0.3.2", default-features = false, features = [
   "NSProcessInfo",
 ] }
 
