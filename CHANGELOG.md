@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.38.0]
+
+- [`c89d64c5`](https://github.com/tauri-apps/tao/commit/c89d64c517cb176c07547360bb6b809c2c91d41f) ([#1332](https://github.com/tauri-apps/tao/pull/1332) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Updated gtk crates to 0.19
+- [`03cdd986`](https://github.com/tauri-apps/tao/commit/03cdd986ff9a751092f71c72c43bc4c6b981d6d7) ([#1376](https://github.com/tauri-apps/tao/pull/1376) by [@TartanLeGrand](https://github.com/tauri-apps/tao/../../TartanLeGrand)) On iOS, emit `Event::Opened` for the URLs and universal links found in the `UISceneConnectionOptions` of a connecting scene. When the app is launched by a URL, UIKit hands it over there and does not call `scene:openURLContexts:`, so the URL was lost. `scene:continueUserActivity:` now goes through the same check: it skips a URL that does not parse instead of panicking, and ignores activities that are not universal links, such as Handoff.
+- [`a7191d06`](https://github.com/tauri-apps/tao/commit/a7191d06b7a2455f7de1a9a2cdff97cc8c654b34) ([#1418](https://github.com/tauri-apps/tao/pull/1418) by [@bayashi](https://github.com/tauri-apps/tao/../../bayashi)) Require objc2-app-kit/objc2-foundation/objc2-ui-kit 0.3.2 on Apple platforms and remove unnecessary `unsafe` around calls that became safe there.
+- [`c89d64c5`](https://github.com/tauri-apps/tao/commit/c89d64c517cb176c07547360bb6b809c2c91d41f) ([#1332](https://github.com/tauri-apps/tao/pull/1332) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) Increased MSRV to 1.92
+- [`7315d1f5`](https://github.com/tauri-apps/tao/commit/7315d1f5130760f0a80e8b3b68c3253fa4334bc7) ([#1394](https://github.com/tauri-apps/tao/pull/1394) by [@Dishairano](https://github.com/tauri-apps/tao/../../Dishairano)) On Windows, fix the event loop sometimes freezing while waiting for an `EventLoopProxy::send_event` event that had not arrived yet.
+- [`4a66a05a`](https://github.com/tauri-apps/tao/commit/4a66a05a823c690823d4f94f38038f7ec4f72353) ([#1410](https://github.com/tauri-apps/tao/pull/1410) by [@bayashi](https://github.com/tauri-apps/tao/../../bayashi)) On Windows, do not panic when `WM_PAINT` re-enters while flushing redraws (for example when focusing a text field opens the IME).
+
 ## [0.37.3]
 
 - [`39d130f9`](https://github.com/tauri-apps/tao/commit/39d130f9bd604bea1b183581b5fb47939a193a40) ([#1309](https://github.com/tauri-apps/tao/pull/1309) by [@Legend-Master](https://github.com/tauri-apps/tao/../../Legend-Master)) On Android, migrated `ALooper_pollAll` calls to `ALooper_pollOnce`
