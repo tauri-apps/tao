@@ -2486,7 +2486,7 @@ dependencies = [
 
 [[package]]
 name = "tao"
-version = "0.37.3"
+version = "0.38.0"
 dependencies = [
  "async-channel",
  "bitflags 2.13.2",
