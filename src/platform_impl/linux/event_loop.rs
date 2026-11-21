@@ -660,8 +660,18 @@ impl<T: 'static> EventLoop<T> {
               glib::Propagation::Proceed
             });
 
+            // The hardware keycodes of the keys held down in this window. GDK
+            // has no repeat flag, but a held key arrives as a run of presses
+            // and a single release, so a press of a key that is already held
+            // is an auto-repeat.
+            let held_keys = Rc::new(RefCell::new(HashSet::<u16>::new()));
+
             let tx_clone = event_tx.clone();
+            let held_keys_focus = held_keys.clone();
             window.connect_focus_out_event(move |_, _| {
+              // A key released while another window has the focus never
+              // reports its release here.
+              held_keys_focus.borrow_mut().clear();
               if let Err(e) = tx_clone.send(Event::WindowEvent {
                 window_id: RootWindowId(id),
                 event: WindowEvent::Focused(false),
@@ -821,7 +831,7 @@ impl<T: 'static> EventLoop<T> {
             });
 
             let tx_clone = event_tx.clone();
-            let keyboard_handler = Rc::new(move |event_key: EventKey, element_state| {
+            let keyboard_handler = Rc::new(move |event_key: EventKey, element_state, is_repeat| {
               // if we have a modifier lets send it
               let mut mods = keyboard::get_modifiers(event_key.clone());
               if !mods.is_empty() {
@@ -845,8 +855,7 @@ impl<T: 'static> EventLoop<T> {
                 }
               }
 
-              // todo: implement repeat?
-              let event = keyboard::make_key_event(&event_key, false, None, element_state);
+              let event = keyboard::make_key_event(&event_key, is_repeat, None, element_state);
 
               if let Some(event) = event {
                 if let Err(e) = tx_clone.send(Event::WindowEvent {
@@ -881,8 +890,12 @@ impl<T: 'static> EventLoop<T> {
             });
 
             let handler = keyboard_handler.clone();
+            let held_keys_press = held_keys.clone();
             window.connect_key_press_event(move |_, event_key| {
-              handler(event_key.to_owned(), ElementState::Pressed);
+              let is_repeat = !held_keys_press
+                .borrow_mut()
+                .insert(event_key.hardware_keycode());
+              handler(event_key.to_owned(), ElementState::Pressed, is_repeat);
               ime.filter_keypress(event_key);
 
               glib::Propagation::Proceed
@@ -890,7 +903,8 @@ impl<T: 'static> EventLoop<T> {
 
             let handler = keyboard_handler.clone();
             window.connect_key_release_event(move |_, event_key| {
-              handler(event_key.to_owned(), ElementState::Released);
+              held_keys.borrow_mut().remove(&event_key.hardware_keycode());
+              handler(event_key.to_owned(), ElementState::Released, false);
               glib::Propagation::Proceed
             });
 
