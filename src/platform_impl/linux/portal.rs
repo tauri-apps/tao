@@ -55,7 +55,7 @@ pub fn receive_theme_changed(
   MainContext::default().spawn_local(async move {
     while let Ok(theme) = rx.recv().await {
       if let Err(e) = window_tx
-        .send((WindowId::dummy(), WindowRequest::SetTheme(Some(theme))))
+        .send((WindowId::dummy(), WindowRequest::SystemThemeChanged(theme)))
         .await
       {
         warn!("Failed to send theme change request: {}", e);

@@ -210,10 +210,15 @@ impl Window {
 
     // A window built without a theme follows the system's: `theme()` asks the portal for it
     let preferred_theme = attributes.preferred_theme;
+    if preferred_theme.is_some() {
+      event_loop_window_target.explicit_theme.set(preferred_theme);
+    }
+    // A theme the application already set wins over the system's
+    let app_theme = event_loop_window_target.explicit_theme.get();
     #[cfg(feature = "dbus")]
-    let initial_theme = preferred_theme.or_else(|| super::portal::theme().ok());
+    let initial_theme = app_theme.or_else(|| super::portal::theme().ok());
     #[cfg(not(feature = "dbus"))]
-    let initial_theme = preferred_theme;
+    let initial_theme = app_theme;
 
     if let Some(theme) = initial_theme {
       if let Some(settings) = Settings::default() {
@@ -1088,6 +1093,9 @@ pub enum WindowRequest {
   ProgressBarState(ProgressBarState),
   BadgeCount(Option<i64>, Option<String>),
   SetTheme(Option<Theme>),
+  /// The system color scheme changed. Ignored while the application has set a theme.
+  #[cfg_attr(not(feature = "dbus"), allow(dead_code))]
+  SystemThemeChanged(Theme),
   BackgroundColor(CssProvider, Option<RGBA>),
 }
 

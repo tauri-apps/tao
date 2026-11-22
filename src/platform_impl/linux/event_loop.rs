@@ -62,6 +62,8 @@ pub struct EventLoopWindowTarget<T> {
   pub(crate) window_requests_tx: async_channel::Sender<(WindowId, WindowRequest)>,
   /// Draw event sender
   pub(crate) draw_tx: crossbeam_channel::Sender<WindowId>,
+  /// Theme set by the application, which system theme changes must not override
+  pub(crate) explicit_theme: Rc<Cell<Option<Theme>>>,
   _marker: std::marker::PhantomData<T>,
 }
 
@@ -188,6 +190,25 @@ impl<T> EventLoopWindowTarget<T> {
   }
 }
 
+/// Returns the theme a theme request should apply, or `None` if it must be ignored.
+///
+/// A theme the application set explicitly wins over the system's, until the
+/// application sets `None` to follow the system again.
+fn resolve_theme_request(
+  explicit_theme: &Cell<Option<Theme>>,
+  request: &WindowRequest,
+) -> Option<Option<Theme>> {
+  match *request {
+    WindowRequest::SetTheme(theme) => {
+      explicit_theme.set(theme);
+      Some(theme)
+    }
+    WindowRequest::SystemThemeChanged(_) if explicit_theme.get().is_some() => None,
+    WindowRequest::SystemThemeChanged(theme) => Some(Some(theme)),
+    _ => None,
+  }
+}
+
 pub struct EventLoop<T: 'static> {
   /// Window target.
   window_target: RootELW<T>,
@@ -252,6 +273,7 @@ impl<T: 'static> EventLoop<T> {
       windows: Rc::new(RefCell::new(HashSet::new())),
       window_requests_tx,
       draw_tx: draw_tx_,
+      explicit_theme: Rc::new(Cell::new(None)),
       _marker: std::marker::PhantomData,
     };
 
@@ -294,6 +316,8 @@ impl<T: 'static> EventLoop<T> {
         log::debug!("Unable to receive theme changed events: {e}");
       }
     }
+
+    let explicit_theme = window_target.explicit_theme.clone();
 
     // Window Request
     let mut handle_window_request = move |(id, request): (WindowId, _)| {
@@ -465,6 +489,7 @@ impl<T: 'static> EventLoop<T> {
           WindowRequest::ProgressBarState(_) => unreachable!(),
           WindowRequest::BadgeCount(_, _) => unreachable!(),
           WindowRequest::SetTheme(_) => unreachable!(),
+          WindowRequest::SystemThemeChanged(_) => unreachable!(),
           WindowRequest::WireUpEvents {
             transparent,
             fullscreen,
@@ -973,7 +998,10 @@ impl<T: 'static> EventLoop<T> {
           WindowRequest::BadgeCount(count, desktop_filename) => {
             taskbar.update_count(count, desktop_filename);
           }
-          WindowRequest::SetTheme(theme) => {
+          WindowRequest::SetTheme(_) | WindowRequest::SystemThemeChanged(_) => {
+            let Some(theme) = resolve_theme_request(&explicit_theme, &request) else {
+              return;
+            };
             // `None` means "follow the system", not light.
             #[cfg(feature = "dbus")]
             let theme = theme.or_else(|| super::portal::theme().ok());
@@ -1342,5 +1370,53 @@ impl ResizeDirection {
       ResizeDirection::SouthWest => WindowEdge::SouthWest,
       ResizeDirection::West => WindowEdge::West,
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn explicit_theme_wins_over_system_theme_changes() {
+    let explicit_theme = Cell::new(None);
+
+    // Following the system: system changes apply.
+    assert_eq!(
+      resolve_theme_request(
+        &explicit_theme,
+        &WindowRequest::SystemThemeChanged(Theme::Dark)
+      ),
+      Some(Some(Theme::Dark))
+    );
+
+    // An explicit theme is applied and then kept when the system changes.
+    assert_eq!(
+      resolve_theme_request(
+        &explicit_theme,
+        &WindowRequest::SetTheme(Some(Theme::Light))
+      ),
+      Some(Some(Theme::Light))
+    );
+    assert_eq!(
+      resolve_theme_request(
+        &explicit_theme,
+        &WindowRequest::SystemThemeChanged(Theme::Dark)
+      ),
+      None
+    );
+
+    // `None` follows the system again.
+    assert_eq!(
+      resolve_theme_request(&explicit_theme, &WindowRequest::SetTheme(None)),
+      Some(None)
+    );
+    assert_eq!(
+      resolve_theme_request(
+        &explicit_theme,
+        &WindowRequest::SystemThemeChanged(Theme::Dark)
+      ),
+      Some(Some(Theme::Dark))
+    );
   }
 }
