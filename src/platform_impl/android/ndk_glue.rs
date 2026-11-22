@@ -24,7 +24,10 @@ use std::{
   fs::File,
   io::{BufRead, BufReader},
   os::unix::prelude::*,
-  sync::{Arc, Condvar, LazyLock, Mutex, OnceLock, RwLock, RwLockReadGuard},
+  sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Condvar, LazyLock, Mutex, OnceLock, RwLock, RwLockReadGuard,
+  },
   thread,
   time::Duration,
 };
@@ -177,6 +180,9 @@ impl AndroidContext {
       format!("{}/{activity_name}", PACKAGE.get().unwrap()),
     )?;
 
+    // keep the senders locked until the sender is registered so `onCreate` (main thread)
+    // can tell this activity was requested by a window, even if it runs before we're done here
+    let mut senders = ACTIVITY_CREATED_SENDERS.lock().unwrap();
     let activity_id = jni_call_method!(
       env,
       &main_activity,
@@ -187,10 +193,8 @@ impl AndroidContext {
     )?;
 
     let (tx, rx) = crossbeam_channel::bounded(1);
-    ACTIVITY_CREATED_SENDERS
-      .lock()
-      .unwrap()
-      .insert(activity_id, tx);
+    senders.insert(activity_id, tx);
+    drop(senders);
     rx.recv_timeout(Duration::from_secs(5)).map_err(|e| {
       log::error!("failed to create activity {activity_name}: {e}");
       super::JniCallError::new(
@@ -221,6 +225,8 @@ static INPUT_QUEUE: LazyLock<RwLock<Option<InputQueue>>> = LazyLock::new(Default
 static CONTENT_RECT: LazyLock<RwLock<Rect>> = LazyLock::new(Default::default);
 static LOOPER: LazyLock<Mutex<Option<ForeignLooper>>> = LazyLock::new(Default::default);
 static RESUMED_ACTIVITIES: LazyLock<Mutex<HashSet<ActivityId>>> = LazyLock::new(Default::default);
+/// Whether the activity that launched the app was created - it is claimed by the app's entry point.
+static FIRST_ACTIVITY_CREATED: AtomicBool = AtomicBool::new(false);
 
 pub fn main_window_manager() -> Option<GlobalRef> {
   WINDOW_MANAGER.lock().unwrap().values().next().cloned()
@@ -259,9 +265,36 @@ pub fn next_available_activity() -> Option<(ActivityId, AndroidContext)> {
     .lock()
     .unwrap()
     .iter()
-    .filter(|(_, ctx)| !ctx.window_created)
-    .next()
+    .find(|(_, ctx)| !ctx.window_created)
     .map(|(id, ctx)| (*id, ctx.clone()))
+}
+
+/// Marks the activity as claimed by a window. Returns its context if it exists and was not claimed yet.
+pub(crate) fn claim_activity(activity_id: ActivityId) -> Option<AndroidContext> {
+  let mut contexts = CONTEXTS.lock().unwrap();
+  let ctx = contexts.get_mut(&activity_id)?;
+  if ctx.window_created {
+    return None;
+  }
+  ctx.window_created = true;
+  Some(ctx.clone())
+}
+
+/// Marks the activity as available for a new window.
+pub(crate) fn release_activity(activity_id: ActivityId) {
+  if let Some(ctx) = CONTEXTS.lock().unwrap().get_mut(&activity_id) {
+    ctx.window_created = false;
+  }
+}
+
+/// Name of the activity if it exists and is not claimed by a window.
+pub(crate) fn available_activity_name(activity_id: ActivityId) -> Option<String> {
+  CONTEXTS
+    .lock()
+    .unwrap()
+    .get(&activity_id)
+    .filter(|ctx| !ctx.window_created)
+    .map(|ctx| ctx.activity_name.clone())
 }
 
 pub static PIPE: LazyLock<[OwnedFd; 2]> = LazyLock::new(|| {
@@ -313,6 +346,7 @@ pub enum Event {
   WindowEvent { id: WindowId, event: WindowEvent },
   ContentRectChanged,
   Opened,
+  ActivityRequested { id: WindowId },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Copy)]
@@ -449,24 +483,44 @@ pub unsafe fn onCreate(
   let activity = env.new_global_ref(activity).unwrap();
   let thread_env = vm.attach_current_thread_as_daemon().unwrap();
 
-  CONTEXTS.lock().unwrap().insert(
-    activity_id,
-    AndroidContext {
-      java_vm: vm.get_java_vm_pointer() as *mut _,
-      context_jobject: activity.as_obj().as_raw() as *mut _,
-      activity_name,
-      window_created: false,
-    },
-  );
+  let is_first_activity = !FIRST_ACTIVITY_CREATED.swap(true, Ordering::SeqCst);
+  let is_recreated = {
+    let mut contexts = CONTEXTS.lock().unwrap();
+    // the activity keeps its ID when it is recreated due to a configuration change,
+    // so it stays attached to its window
+    let previous = contexts.insert(
+      activity_id,
+      AndroidContext {
+        java_vm: vm.get_java_vm_pointer() as *mut _,
+        context_jobject: activity.as_obj().as_raw() as *mut _,
+        activity_name,
+        window_created: false,
+      },
+    );
+    if let Some(previous) = &previous {
+      contexts.get_mut(&activity_id).unwrap().window_created = previous.window_created;
+    }
+    previous.is_some()
+  };
   let looper = ThreadLooper::for_thread().unwrap();
   setup(PACKAGE.get().unwrap(), thread_env, &looper, activity);
 
-  if let Some(tx) = ACTIVITY_CREATED_SENDERS
+  let created_by_window = if let Some(tx) = ACTIVITY_CREATED_SENDERS
     .lock()
     .unwrap()
     .remove(&activity_id)
   {
     let _ = tx.send(());
+    true
+  } else {
+    false
+  };
+
+  // the first activity is handled by the app's entry point
+  if !is_first_activity && !is_recreated && !created_by_window {
+    wake(Event::ActivityRequested {
+      id: WindowId(super::WindowId(activity_id)),
+    });
   }
 
   handle_intent(env, intent);

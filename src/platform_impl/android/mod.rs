@@ -297,6 +297,20 @@ impl<T: 'static> EventLoop<T> {
                 },
               );
             }
+            Event::ActivityRequested { id: window_id } => {
+              let activity_id = window_id.0 .0;
+              // the activity might have been destroyed or claimed by a window in the meantime
+              if let Some(activity_name) = ndk_glue::available_activity_name(activity_id) {
+                self.call_event_handler(
+                  event_handler,
+                  control_flow,
+                  event::Event::ActivityRequested {
+                    activity_id,
+                    activity_name,
+                  },
+                );
+              }
+            }
             Event::Opened => {
               let urls = ndk_glue::take_intent_urls();
               if !urls.is_empty() {
@@ -647,6 +661,13 @@ pub struct Window {
   activity_name: String,
 }
 
+impl Drop for Window {
+  fn drop(&mut self) {
+    // the activity can be claimed by a new window
+    ndk_glue::release_activity(self.activity_id);
+  }
+}
+
 impl Window {
   pub fn new<T: 'static>(
     _el: &EventLoopWindowTarget<T>,
@@ -655,8 +676,13 @@ impl Window {
   ) -> Result<Self, error::OsError> {
     // FIXME this ignores requested window attributes
 
-    let (activity_id, activity_name) = match pl_attrs.activity_name {
-      Some(activity_name) => {
+    let (activity_id, activity_name) = match (pl_attrs.activity_id, pl_attrs.activity_name) {
+      (Some(activity_id), _) => {
+        let ctx = ndk_glue::claim_activity(activity_id)
+          .ok_or_else(|| os_error!(OsError::NoAvailableActivity))?;
+        (activity_id, ctx.activity_name)
+      }
+      (None, Some(activity_name)) => {
         let ctx = if let Some(created_by_activity_name) = pl_attrs.created_by_activity_name {
           ndk_glue::CONTEXTS
             .lock()
@@ -671,10 +697,13 @@ impl Window {
         let activity_id = ctx
           .create_activity(&activity_name)
           .map_err(|error| os_error!(OsError::JniCallError(error)))?;
+        ndk_glue::claim_activity(activity_id);
         (activity_id, activity_name)
       }
-      None => ndk_glue::next_available_activity()
-        .map(|(activity_id, ctx)| (activity_id, ctx.activity_name.clone()))
+      (None, None) => ndk_glue::next_available_activity()
+        .and_then(|(activity_id, _)| {
+          ndk_glue::claim_activity(activity_id).map(|ctx| (activity_id, ctx.activity_name))
+        })
         .ok_or_else(|| os_error!(OsError::NoAvailableActivity))?,
     };
     Ok(Self {
