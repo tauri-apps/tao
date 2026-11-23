@@ -116,19 +116,6 @@ wait_for_pid() {
   return 1
 }
 
-# the activity in the background saved its state, so it is restored if the process dies
-wait_for_saved_state() {
-  local deadline=$((SECONDS + 10))
-  while ((SECONDS < deadline)); do
-    if sh_ dumpsys activity activities | grep -A40 "Hist .*u0 $ACTIVITY" | grep -m1 mHaveState | grep -q 'mHaveState=true'; then
-      return 0
-    fi
-    sleep 0.5
-  done
-  fail "timed out waiting for the activity to save its state"
-  return 1
-}
-
 ui_dump() {
   sh_ uiautomator dump /sdcard/tao-e2e.xml >/dev/null 2>&1 || true
   sh_ cat /sdcard/tao-e2e.xml
@@ -408,7 +395,7 @@ process_death() {
   local before
   before=$(ids window-created | head -1)
   sh_ input keyevent KEYCODE_HOME
-  wait_for_saved_state || return
+  wait_for state-saved || return
   kill_in_background || return
   clear_logs
   launch_from_launcher

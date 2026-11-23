@@ -8,6 +8,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Gravity;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -137,6 +138,8 @@ public class MainActivity extends Activity {
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putInt(ACTIVITY_ID_KEY, id);
+        // e2e/android.sh waits for this before killing the process
+        Log.i("tao-mobile", "[e2e] state-saved activity=" + id);
     }
 
     // keeps the process alive when the app is removed from the recents screen
