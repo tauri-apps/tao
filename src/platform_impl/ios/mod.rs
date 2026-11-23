@@ -54,6 +54,8 @@
 //!  - sceneWillResignActive is WindowEvent::Suspended for each window in the scene
 //!  - applicationWillEnterForeground is WindowEvent::Resumed for each window in non-scene apps
 //!  - applicationWillResignActive is WindowEvent::Suspended for each window in non-scene apps
+//!  - UIApplicationDidEnterBackgroundNotification is Event::Suspended
+//!  - UIApplicationWillEnterForegroundNotification is Event::Resumed, only after Event::Suspended
 //!  - applicationWillTerminate is LoopDestroyed
 //!
 //! Keep in mind that after LoopDestroyed event is received every attempt to draw with
