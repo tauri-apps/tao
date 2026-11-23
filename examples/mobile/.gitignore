@@ -16,3 +16,4 @@ Cargo.lock
 !/gen/android/app/src/release/
 /gen/android/app/src/main/*
 !/gen/android/app/src/main/java/
+/e2e-artifacts/

@@ -12,6 +12,8 @@
 # Usage: e2e/android.sh [--no-build] [scenario...]
 #   --no-build  use the APK that is already installed
 #   scenario    run only these scenarios (see `SCENARIOS` below)
+#
+# Set ARTIFACTS_DIR to save the full logcat and a screenshot of each failure there.
 
 set -euo pipefail
 
@@ -23,6 +25,7 @@ TAG=tao-mobile
 ADB=${ADB:-adb}
 # how long to wait for events that must *not* happen
 SETTLE_SECS=${SETTLE_SECS:-3}
+ARTIFACTS_DIR=${ARTIFACTS_DIR:-}
 
 SCENARIOS=(
   cold_launch
@@ -47,6 +50,9 @@ fail() {
   printf '  \033[31mFAIL\033[0m %s\n' "$*"
   failures=$((failures + 1))
   failed_scenarios+=("$current_scenario")
+  if [[ -n $ARTIFACTS_DIR ]]; then
+    $ADB exec-out screencap -p >"$ARTIFACTS_DIR/$failures-$current_scenario.png" || true
+  fi
 }
 failed_scenarios=()
 
@@ -56,12 +62,32 @@ sh_() { $ADB shell "$@" | tr -d '\r'; }
 
 app_pid() { sh_ pidof "$PKG" || true; }
 
-clear_logs() { $ADB logcat -c; }
+# `logcat -c` does not reliably drop lines logged right before it (e.g. Android 11),
+# so log a marker instead and only look at the lines after it
+run_id="$$-$RANDOM"
+mark=0
+clear_logs() {
+  mark=$((mark + 1))
+  sh_ log -t tao-e2e "mark $run_id-$mark"
+}
 
-e2e_logs() { $ADB logcat -d -s "$TAG:I" | grep -F '[e2e]' || true; }
+e2e_logs() {
+  $ADB logcat -d -s "$TAG:I" tao-e2e:I |
+    awk -v m="mark $run_id-$mark" 'index($0, "tao-e2e") && substr($0, length($0) - length(m) + 1) == m { f = 1; next } f; END { if (!f) print "[e2e] log-marker-missing" }' |
+    grep -F '[e2e]' || true
+}
 
 # number of `[e2e] <event>` lines since the logs were cleared
-count() { e2e_logs | grep -c -- "\[e2e\] $1\b" || true; }
+# -1 when the logs since `clear_logs` are not available, so no expected count matches
+count() {
+  local logs
+  logs=$(e2e_logs)
+  if grep -qF '[e2e] log-marker-missing' <<<"$logs"; then
+    echo -1
+  else
+    grep -c -- "\[e2e\] $1\b" <<<"$logs" || true
+  fi
+}
 
 # activity IDs of the `[e2e] <event>` lines since the logs were cleared
 ids() { e2e_logs | grep -- "\[e2e\] $1\b" | grep -oE 'activity=-?[0-9]+' | cut -d= -f2 || true; }
@@ -135,6 +161,20 @@ swipe_away_from_recents() {
   sh_ input swipe $((w / 2)) $((h / 2)) $((w / 2)) $((h / 20)) 200
   sleep 1
   sh_ input keyevent KEYCODE_HOME
+}
+
+# like the low memory killer: `am kill` only kills cached processes, which takes a moment after
+# the app goes to the background, and `run-as` is not allowed to kill it on some versions
+kill_in_background() {
+  local deadline=$((SECONDS + 10)) pid
+  while ((SECONDS < deadline)); do
+    sh_ am kill "$PKG"
+    sleep 1
+    [[ -z $(app_pid) ]] && return 0
+  done
+  pid=$(app_pid)
+  [[ -n $pid ]] && sh_ run-as "$PKG" kill -9 "$pid"
+  wait_for_pid none
 }
 
 reset_app() {
@@ -369,9 +409,7 @@ process_death() {
   before=$(ids window-created | head -1)
   sh_ input keyevent KEYCODE_HOME
   wait_for_saved_state || return
-  # like the low memory killer; `am kill` does not reliably kill it right away
-  sh_ run-as "$PKG" kill -9 "$(app_pid)"
-  wait_for_pid none || return
+  kill_in_background || return
   clear_logs
   launch_from_launcher
   wait_for window-created || return
@@ -407,6 +445,9 @@ if [[ -z $($ADB get-state 2>/dev/null || true) ]]; then
   exit 1
 fi
 
+# room for the logs of a whole scenario, see `clear_logs`
+$ADB logcat -G 16M >/dev/null 2>&1 || true
+
 if ((build)); then
   case $(sh_ getprop ro.product.cpu.abi) in
   arm64-v8a) target=aarch64 ;;
@@ -419,16 +460,27 @@ if ((build)); then
   $ADB install -r gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk
 fi
 
+logcat_pid=
+if [[ -n $ARTIFACTS_DIR ]]; then
+  mkdir -p "$ARTIFACTS_DIR"
+  # keeps streaming when the scenarios clear the log buffer
+  $ADB logcat -v threadtime >"$ARTIFACTS_DIR/logcat.txt" 2>&1 &
+  logcat_pid=$!
+fi
+
 cleanup() {
   sh_ settings put system user_rotation 0 || true
   sh_ cmd uimode night no >/dev/null || true
   sh_ am force-stop "$PKG" || true
+  if [[ -n $logcat_pid ]]; then kill "$logcat_pid" 2>/dev/null || true; fi
 }
 trap cleanup EXIT
 
 for scenario in "${selected[@]}"; do
   current_scenario=$scenario
   step "$scenario"
+  # marks the scenario in the saved logcat
+  sh_ log -t tao-e2e "== $scenario" || true
   # a scenario returns early when a step fails, the failure is already counted
   "$scenario" || true
 done
