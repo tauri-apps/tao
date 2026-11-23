@@ -119,6 +119,66 @@ jobs:
         shell: bash
         run: cargo +nightly miri test --target ${{ matrix.platform.target }} $OPTIONS --features $FEATURES
 
+  # runs examples/mobile/e2e/android.sh on an emulator, see examples/mobile/README.md
+  android_e2e:
+    name: android e2e (API ${{ matrix.api-level }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # Android 11 (back destroys the root activity) and Android 16
+        api-level: [30, 36]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@1.92
+        with:
+          targets: x86_64-linux-android
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: examples/mobile
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install cargo-mobile2
+        run: cargo install cargo-mobile2 --version 0.23.0 --locked
+
+      - name: Build the example
+        working-directory: examples/mobile
+        run: |
+          export NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          cargo mobile init --non-interactive --skip-dev-tools --skip-targets-install
+          cargo android apk build x86_64
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run e2e tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          target: google_apis
+          arch: x86_64
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          working-directory: examples/mobile
+          script: adb install -r gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk && ARTIFACTS_DIR=e2e-artifacts ./e2e/android.sh --no-build
+
+      - name: Upload logcat and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-e2e-api-${{ matrix.api-level }}
+          path: examples/mobile/e2e-artifacts
+
   test_tao_macros:
     runs-on: ubuntu-latest
     steps:
