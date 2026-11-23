@@ -6,6 +6,7 @@ package app.tauri.tao_mobile;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.widget.Button;
@@ -16,6 +17,8 @@ import android.widget.TextView;
 // and implements the methods tao calls through JNI.
 public class MainActivity extends Activity {
     private static final String ACTIVITY_ID_KEY = "__taoActivityId";
+    // set by the e2e tests to start the background task on launch
+    private static final String START_BACKGROUND_TASK_KEY = "startBackgroundTask";
     private static boolean firstActivityCreated = false;
 
     private int id;
@@ -33,7 +36,7 @@ public class MainActivity extends Activity {
             id = getIntent().getIntExtra(ACTIVITY_ID_KEY, 0);
         } else {
             // created by the system
-            id = hashCode();
+            id = new java.util.Random().nextInt();
         }
 
         LinearLayout layout = new LinearLayout(this);
@@ -58,12 +61,21 @@ public class MainActivity extends Activity {
         newWindow.setOnClickListener(v -> Rust.requestWindow());
         layout.addView(newWindow);
 
+        Button backgroundTask = new Button(this);
+        backgroundTask.setText("Start background task");
+        backgroundTask.setOnClickListener(v -> startBackgroundTask());
+        layout.addView(backgroundTask);
+
         Button finish = new Button(this);
         finish.setText("Finish activity");
         finish.setOnClickListener(v -> finishAndRemoveTask());
         layout.addView(finish);
 
         setContentView(layout);
+
+        if (getIntent().getBooleanExtra(START_BACKGROUND_TASK_KEY, false)) {
+            startBackgroundTask();
+        }
 
         Rust.onCreate(this);
         // the Rust entry point runs once per process
@@ -125,6 +137,16 @@ public class MainActivity extends Activity {
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putInt(ACTIVITY_ID_KEY, id);
+    }
+
+    // keeps the process alive when the app is removed from the recents screen
+    private void startBackgroundTask() {
+        Intent intent = new Intent(this, BackgroundTaskService.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent);
+        } else {
+            startService(intent);
+        }
     }
 
     // Called by tao through JNI

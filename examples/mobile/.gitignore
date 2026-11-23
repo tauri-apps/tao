@@ -12,5 +12,7 @@ Cargo.lock
 !/gen/android/app/src/
 /gen/android/app/src/*
 !/gen/android/app/src/main/
+!/gen/android/app/src/debug/
+!/gen/android/app/src/release/
 /gen/android/app/src/main/*
 !/gen/android/app/src/main/java/

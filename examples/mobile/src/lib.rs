@@ -88,7 +88,7 @@ pub fn main() {
         activity_name,
       } => {
         use tao::platform::android::WindowBuilderExtAndroid;
-        log::info!("activity requested: {activity_name} ({activity_id})");
+        log::info!("[e2e] activity-requested activity={activity_id} name={activity_name}");
         add_window(
           &mut windows,
           target,
@@ -99,7 +99,7 @@ pub fn main() {
       // e.g. on iPad the user requested a new window from the app icon
       #[cfg(target_os = "ios")]
       Event::SceneRequested { scene, .. } => {
-        log::info!("scene requested: {scene:?}");
+        log::info!("[e2e] scene-requested scene={scene:?}");
       }
 
       Event::Opened { urls } => log::info!("opened: {urls:?}"),
@@ -121,7 +121,7 @@ pub fn main() {
         ..
       } => {
         if let Some(window) = windows.remove(&window_id) {
-          log::info!("window {window_id:?} closed");
+          log::info!("[e2e] window-closed {}", describe(&window));
           #[cfg(target_os = "android")]
           android::window_detached(&window);
           drop(window);
@@ -145,13 +145,24 @@ fn add_window(
 ) {
   match builder.with_title("tao mobile").build(target) {
     Ok(window) => {
-      log::info!("window {:?} created", window.id());
+      log::info!("[e2e] window-created {}", describe(&window));
       #[cfg(target_os = "android")]
       android::window_attached(&window);
       windows.insert(window.id(), window);
     }
-    Err(e) => log::error!("failed to create window: {e}"),
+    Err(e) => log::error!("[e2e] window-create-failed error={e}"),
   }
+}
+
+/// Identifies a window in the logs, which are checked by the e2e tests (see the README).
+fn describe(window: &Window) -> String {
+  #[cfg(target_os = "android")]
+  {
+    use tao::platform::android::WindowExtAndroid;
+    format!("activity={}", window.activity_id())
+  }
+  #[cfg(not(target_os = "android"))]
+  format!("window={:?}", window.id())
 }
 
 #[cfg(target_os = "android")]
@@ -206,9 +217,11 @@ mod android {
     _looper: &ThreadLooper,
     activity: GlobalRef,
   ) {
+    // runs before `main` for the first activity
+    super::init_logging();
     let _ = VM.set(env.get_java_vm().unwrap());
     let id = activity_id(&mut env, &activity);
-    log::info!("activity {id} created");
+    log::info!("[e2e] activity-created activity={id}");
 
     let mut activities = ACTIVITIES.lock().unwrap();
     // an activity recreated due to a configuration change keeps its ID and its window
