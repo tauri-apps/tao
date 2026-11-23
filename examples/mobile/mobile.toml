@@ -1,0 +1,5 @@
+[app]
+name = "tao-mobile"
+stylized-name = "Tao Mobile"
+identifier = "app.tauri.tao_mobile"
+template-pack = "winit"

@@ -1,0 +1,26 @@
+[package]
+name = "tao-mobile"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# not part of tao's workspace so it can have its own lockfile and `crate-type`
+[workspace]
+
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+tao = { path = "../.." }
+log = "0.4"
+
+[target.'cfg(target_os = "android")'.dependencies]
+android_logger = "0.15"
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+env_logger = "0.11"
+
+[package.metadata.cargo-android]
+app-activity-name = "app.tauri.tao_mobile.MainActivity"
+# no dependencies needed, but cargo-mobile2 only packages the Java sources when this is set
+app-dependencies = []
