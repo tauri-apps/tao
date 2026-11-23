@@ -140,6 +140,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: examples/mobile
+          key: cargo-mobile2-0.23.0
+          # cargo-mobile2's templates, installed with the binary cached in ~/.cargo/bin
+          cache-directories: ~/.cargo/.cargo-mobile2
 
       - uses: actions/setup-java@v5
         with:
