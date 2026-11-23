@@ -162,45 +162,110 @@ pub struct AndroidContext {
   pub java_vm: *mut c_void,
   pub context_jobject: *mut c_void,
   pub activity_name: String,
+  /// Whether the activity already hosts something: a window, or the webview of an embedded activity.
   pub window_created: bool,
 }
 
+/// Where a new activity is placed relative to the activity that starts it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ActivityLaunch {
+  /// In a task of its own, which the system shows as a separate window:
+  /// its own entry in Recents, its own split-screen pane and its own desktop window.
+  NewTask,
+  /// On top of the starting activity, in its task. Activity embedding rules can show the two side by side.
+  SameTask,
+}
+
 impl AndroidContext {
-  pub fn create_activity(&self, activity_name: &str) -> Result<ActivityId, super::JniCallError> {
+  /// Starts an activity of the given class, or of the app's launcher activity when `activity_name` is `None`,
+  /// and waits for it to be created.
+  pub fn create_activity(
+    &self,
+    activity_name: Option<&str>,
+    launch: ActivityLaunch,
+  ) -> Result<ActivityId, super::JniCallError> {
     let vm = unsafe { jni::JavaVM::from_raw(self.java_vm.cast()) }?;
     let mut env = vm.attach_current_thread_as_daemon()?;
-    let main_activity = unsafe { JObject::from_raw(self.context_jobject.cast()) };
+    let activity = unsafe { JObject::from_raw(self.context_jobject.cast()) };
 
-    let activity_class = find_class(
-      &mut env,
-      &main_activity,
-      format!("{}/{activity_name}", PACKAGE.get().unwrap()),
-    )?;
-
-    let activity_id = jni_call_method!(
-      env,
-      &main_activity,
-      "startActivity",
-      "(Ljava/lang/Class;)I",
-      &[(&activity_class).into()],
-      i
-    )?;
+    let activity_class = match activity_name {
+      Some(activity_name) => find_class(
+        &mut env,
+        &activity,
+        format!("{}/{activity_name}", PACKAGE.get().unwrap()),
+      )?,
+      None => JClass::from(JObject::null()),
+    };
 
     let (tx, rx) = crossbeam_channel::bounded(1);
-    ACTIVITY_CREATED_SENDERS
-      .lock()
-      .unwrap()
-      .insert(activity_id, tx);
+    // the sender must be registered before `onCreate` looks it up, and `onCreate` needs this lock
+    let mut senders = ACTIVITY_CREATED_SENDERS.lock().unwrap();
+    let activity_id = jni_call_method!(
+      env,
+      &activity,
+      "startActivity",
+      "(Ljava/lang/Class;Z)I",
+      &[
+        (&activity_class).into(),
+        (launch == ActivityLaunch::NewTask).into()
+      ],
+      i
+    )?;
+    senders.insert(activity_id, tx);
+    drop(senders);
+
+    let activity_name = activity_name.unwrap_or("the launcher activity");
     rx.recv_timeout(Duration::from_secs(5)).map_err(|e| {
+      ACTIVITY_CREATED_SENDERS
+        .lock()
+        .unwrap()
+        .remove(&activity_id);
       log::error!("failed to create activity {activity_name}: {e}");
       super::JniCallError::new(
         jni::errors::Error::JniCall(jni::errors::JniError::Unknown),
-        Some(e.to_string()),
+        Some(format!(
+          "{activity_name} was not created ({e}); make sure it is declared in AndroidManifest.xml and that its launchMode allows more than one instance (standard, or singleInstancePerTask for a new task)"
+        )),
       )
     })?;
 
     Ok(activity_id)
   }
+
+  /// Finishes the activity, on the UI thread. With `remove_task`, an activity that is the root of its task
+  /// removes the whole task, so the window is gone from Recents too.
+  fn close(&self, remove_task: bool) -> Result<(), super::JniCallError> {
+    let vm = unsafe { jni::JavaVM::from_raw(self.java_vm.cast()) }?;
+    let mut env = vm.attach_current_thread_as_daemon()?;
+    let activity = unsafe { JObject::from_raw(self.context_jobject.cast()) };
+    jni_call_method!(
+      env,
+      &activity,
+      "closeActivity",
+      "(Z)V",
+      &[remove_task.into()],
+      v
+    )
+  }
+}
+
+/// Finishes the activity with the given ID, if it is still alive.
+pub(crate) fn close_activity(activity_id: ActivityId, remove_task: bool) {
+  // held during the call so `onDestroy` can't release the activity in the meantime
+  let contexts = CONTEXTS.lock().unwrap();
+  if let Some(ctx) = contexts.get(&activity_id) {
+    if let Err(e) = ctx.close(remove_task) {
+      log::error!("failed to close activity {}: {e}", ctx.activity_name);
+    }
+  }
+}
+
+/// Marks the activity as hosting a window (or an embedded webview) so it is not handed out to another window.
+pub(crate) fn claim_activity(activity_id: ActivityId) -> Option<AndroidContext> {
+  CONTEXTS.lock().unwrap().get_mut(&activity_id).map(|ctx| {
+    ctx.window_created = true;
+    ctx.clone()
+  })
 }
 
 unsafe impl Send for AndroidContext {}
@@ -449,15 +514,22 @@ pub unsafe fn onCreate(
   let activity = env.new_global_ref(activity).unwrap();
   let thread_env = vm.attach_current_thread_as_daemon().unwrap();
 
-  CONTEXTS.lock().unwrap().insert(
-    activity_id,
-    AndroidContext {
+  CONTEXTS
+    .lock()
+    .unwrap()
+    .entry(activity_id)
+    // recreated after a configuration change: the window it hosts is still alive
+    .and_modify(|ctx| {
+      ctx.java_vm = vm.get_java_vm_pointer() as *mut _;
+      ctx.context_jobject = activity.as_obj().as_raw() as *mut _;
+      ctx.activity_name = activity_name.clone();
+    })
+    .or_insert_with(|| AndroidContext {
       java_vm: vm.get_java_vm_pointer() as *mut _,
       context_jobject: activity.as_obj().as_raw() as *mut _,
       activity_name,
       window_created: false,
-    },
-  );
+    });
   let looper = ThreadLooper::for_thread().unwrap();
   setup(PACKAGE.get().unwrap(), thread_env, &looper, activity);
 
@@ -736,13 +808,14 @@ pub unsafe fn onDestroy(mut env: JNIEnv, _: JClass, activity: JObject) {
   // keep our Rust window references alive when the activity is going to be recreated due to configuration changes
   // e.g. rotation, multi window mode change etc
   if !is_changing_configurations {
+    // removed before the event is sent, so dropping the window in response doesn't try to finish this activity again
+    CONTEXTS.lock().unwrap().remove(&activity_id);
+    WINDOW_MANAGER.lock().unwrap().remove(&activity_id);
+    RESUMED_ACTIVITIES.lock().unwrap().remove(&activity_id);
     wake(Event::WindowEvent {
       id: WindowId(super::WindowId(activity_id)),
       event: WindowEvent::Destroyed,
     });
-    CONTEXTS.lock().unwrap().remove(&activity_id);
-    WINDOW_MANAGER.lock().unwrap().remove(&activity_id);
-    RESUMED_ACTIVITIES.lock().unwrap().remove(&activity_id);
   }
 }
 
