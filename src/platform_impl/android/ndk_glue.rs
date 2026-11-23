@@ -260,13 +260,14 @@ pub fn main_android_context() -> Option<AndroidContext> {
   CONTEXTS.lock().unwrap().values().next().cloned()
 }
 
-pub fn next_available_activity() -> Option<(ActivityId, AndroidContext)> {
-  CONTEXTS
-    .lock()
-    .unwrap()
-    .iter()
-    .find(|(_, ctx)| !ctx.window_created)
-    .map(|(id, ctx)| (*id, ctx.clone()))
+pub fn take_next_available_activity() -> Option<(ActivityId, AndroidContext)> {
+  let mut context_locked = CONTEXTS.lock().unwrap();
+  let (activity_id, context) = context_locked
+    .iter_mut()
+    .filter(|(_, ctx)| !ctx.window_created)
+    .next()?;
+  context.window_created = true;
+  Some((*activity_id, context.clone()))
 }
 
 /// Marks the activity as claimed by a window. Returns its context if it exists and was not claimed yet.

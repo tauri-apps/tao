@@ -700,10 +700,8 @@ impl Window {
         ndk_glue::claim_activity(activity_id);
         (activity_id, activity_name)
       }
-      (None, None) => ndk_glue::next_available_activity()
-        .and_then(|(activity_id, _)| {
-          ndk_glue::claim_activity(activity_id).map(|ctx| (activity_id, ctx.activity_name))
-        })
+      (None, None) => ndk_glue::take_next_available_activity()
+        .map(|(activity_id, ctx)| (activity_id, ctx.activity_name))
         .ok_or_else(|| os_error!(OsError::NoAvailableActivity))?,
     };
     Ok(Self {
