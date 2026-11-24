@@ -138,16 +138,29 @@ launch_from_launcher() {
   sh_ monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
 }
 
+in_recents() { sh_ dumpsys activity recents | grep -qE "Recent #.*[ :=]$PKG\b"; }
+
+# the launcher sometimes drops the swipe (e.g. while the recents animation settles),
+# so retry until the task is gone
 swipe_away_from_recents() {
-  sh_ input keyevent KEYCODE_APP_SWITCH
-  sleep 2
-  local size w h
+  local size w h _
   size=$(sh_ wm size | grep -oE '[0-9]+x[0-9]+' | tail -1)
   w=${size%x*}
   h=${size#*x}
-  sh_ input swipe $((w / 2)) $((h / 2)) $((w / 2)) $((h / 20)) 200
-  sleep 1
-  sh_ input keyevent KEYCODE_HOME
+  for _ in 1 2 3; do
+    sh_ input keyevent KEYCODE_APP_SWITCH
+    sleep 2
+    sh_ input swipe $((w / 2)) $((h / 2)) $((w / 2)) $((h / 20)) 200
+    sleep 1
+    sh_ input keyevent KEYCODE_HOME
+    local deadline=$((SECONDS + 3))
+    while ((SECONDS < deadline)); do
+      in_recents || return 0
+      sleep 0.5
+    done
+  done
+  fail "task not removed from the recents screen"
+  return 1
 }
 
 # like the low memory killer: `am kill` only kills cached processes, which takes a moment after
@@ -359,7 +372,7 @@ swipe_away_with_background_task() {
   local pid
   pid=$(app_pid)
   clear_logs
-  swipe_away_from_recents
+  swipe_away_from_recents || return
   wait_for window-closed || return
   expect_same_pid "$pid"
   launch_from_launcher
@@ -376,7 +389,7 @@ swipe_away_without_background_task() {
   reset_app
   launch_from_launcher
   wait_for window-created || return
-  swipe_away_from_recents
+  swipe_away_from_recents || return
   wait_for_pid none || return
   clear_logs
   launch_from_launcher
