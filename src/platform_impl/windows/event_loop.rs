@@ -569,19 +569,17 @@ impl<T: 'static> Clone for EventLoopProxy<T> {
 impl<T: 'static> EventLoopProxy<T> {
   pub fn send_event(&self, event: T) -> Result<(), EventLoopClosed<T>> {
     unsafe {
-      if PostMessageW(
+      self
+        .event_send
+        .send(event)
+        .map_err(|channel::SendError(x)| EventLoopClosed(x))?;
+      let _ = PostMessageW(
         Some(self.target_window),
         *USER_EVENT_MSG_ID,
         WPARAM(0),
         LPARAM(0),
-      )
-      .is_ok()
-      {
-        self.event_send.send(event).ok();
-        Ok(())
-      } else {
-        Err(EventLoopClosed(event))
-      }
+      );
+      Ok(())
     }
   }
 }
@@ -1784,11 +1782,17 @@ unsafe fn public_window_callback_inner<T: 'static>(
       let mmi = lparam.0 as *mut MINMAXINFO;
 
       let window_state = userdata.window_state.lock();
-      let is_decorated = window_state
-        .window_flags()
-        .contains(WindowFlags::MARKER_DECORATIONS);
+      let window_flags = window_state.window_flags();
+      let is_decorated = window_flags.contains(WindowFlags::MARKER_DECORATIONS);
 
       let size_constraints = window_state.size_constraints;
+      let (width_offset, height_offset) = if window_flags.undecorated_with_shadows()
+        && (size_constraints.has_min() || size_constraints.has_max())
+      {
+        util::window_size_offsets(window)
+      } else {
+        (0, 0)
+      };
 
       if size_constraints.has_min() {
         let min_size = PhysicalSize::new(
@@ -1805,8 +1809,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
         );
         let (width, height): (u32, u32) = util::adjust_size(window, min_size, is_decorated).into();
         (*mmi).ptMinTrackSize = POINT {
-          x: width as i32,
-          y: height as i32,
+          x: width as i32 + width_offset,
+          y: height as i32 + height_offset,
         };
       }
       if size_constraints.has_max() {
@@ -1824,8 +1828,8 @@ unsafe fn public_window_callback_inner<T: 'static>(
         );
         let (width, height): (u32, u32) = util::adjust_size(window, max_size, is_decorated).into();
         (*mmi).ptMaxTrackSize = POINT {
-          x: width as i32,
-          y: height as i32,
+          x: width as i32 + width_offset,
+          y: height as i32 + height_offset,
         };
       }
 
@@ -2297,12 +2301,11 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
           // This branch can be triggered when a nested win32 event loop is triggered
           // inside of the `event_handler` callback.
           let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);
-        } else {
-          // This WM_PAINT handler will never be re-entrant because `flush_paint_messages`
-          // doesn't call WM_PAINT for the thread event target (i.e. this window).
-          assert!(flush_paint_messages(None, &userdata.event_loop_runner));
+        } else if flush_paint_messages(None, &userdata.event_loop_runner) {
           userdata.event_loop_runner.redraw_events_cleared();
           process_control_flow(&userdata.event_loop_runner);
+        } else {
+          warn!("WM_PAINT re-entered while flushing redraw events");
         }
       }
 
@@ -2354,7 +2357,7 @@ unsafe extern "system" fn thread_event_target_callback<T: 'static>(
     }
 
     _ if msg == *USER_EVENT_MSG_ID => {
-      if let Ok(event) = userdata.user_event_receiver.recv() {
+      while let Ok(event) = userdata.user_event_receiver.try_recv() {
         userdata.send_event(Event::UserEvent(event));
       }
       let _ = RedrawWindow(Some(window), None, None, RDW_INTERNALPAINT);

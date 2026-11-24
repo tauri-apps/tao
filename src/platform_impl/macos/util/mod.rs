@@ -12,7 +12,7 @@ use std::ops::{BitAnd, Deref};
 use core_graphics::display::CGDisplay;
 use objc2::{
   class,
-  runtime::{AnyClass as Class, AnyObject as Object, Sel},
+  runtime::{AnyObject as Object, Sel},
 };
 use objc2_app_kit::{NSApp, NSEvent, NSView, NSWindow, NSWindowStyleMask};
 use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSPoint, NSRange, NSRect, NSUInteger};
@@ -99,15 +99,10 @@ pub fn window_position(position: LogicalPosition<f64>) -> NSPoint {
 }
 
 pub fn cursor_position() -> Result<PhysicalPosition<f64>, ExternalError> {
-  let point = unsafe { NSEvent::mouseLocation() };
+  let point = NSEvent::mouseLocation();
   let y = CGDisplay::main().pixels_high() as f64 - point.y;
   let point = LogicalPosition::new(point.x, y);
   Ok(point.to_physical(super::monitor::primary_monitor().scale_factor()))
-}
-
-pub unsafe fn superclass<'a>(this: &'a Object) -> &'a Class {
-  let superclass: *const Class = msg_send![this, superclass];
-  &*superclass
 }
 
 pub unsafe fn create_input_context(view: &NSView) -> IdRef {
@@ -142,4 +137,14 @@ pub unsafe fn toggle_style_mask(
 
   // If we don't do this, key handling will break. Therefore, never call `setStyleMask` directly!
   window.makeFirstResponder(Some(view));
+}
+
+// Window operations and delegate callbacks run on the main thread.
+pub fn is_main_thread() -> bool {
+  MainThreadMarker::new().is_some()
+}
+
+pub unsafe fn restore_display_mode(ns_screen: u32) {
+  ffi::CGRestorePermanentDisplayConfiguration();
+  assert_eq!(ffi::CGDisplayRelease(ns_screen), ffi::kCGErrorSuccess);
 }

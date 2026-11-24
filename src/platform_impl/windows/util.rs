@@ -456,6 +456,19 @@ pub fn calculate_window_insets(window: HWND) -> RECT {
   calculate_insets_for_dpi(dpi)
 }
 
+/// Returns the difference between the outer and client sizes, including hidden shadow borders.
+///
+/// Derived of GPUI implementation
+/// see <https://github.com/zed-industries/zed/blob/7bddb390cabefb177d9996dc580749d64e6ca3b6/crates/gpui/src/platform/windows/window.rs#L1013-L1029>
+pub fn window_size_offsets(hwnd: HWND) -> (i32, i32) {
+  let client_rect = client_rect(hwnd);
+  let window_rect = window_rect(hwnd);
+  (
+    (window_rect.right - window_rect.left) - (client_rect.right - client_rect.left),
+    (window_rect.bottom - window_rect.top) - (client_rect.bottom - client_rect.top),
+  )
+}
+
 pub fn window_rect(hwnd: HWND) -> RECT {
   unsafe {
     let mut rect = RECT::default();

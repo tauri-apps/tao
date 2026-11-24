@@ -5,8 +5,10 @@ use std::{
   time::{Duration, Instant},
 };
 
-use objc2::{runtime::AnyObject, MainThreadMarker};
+use objc2::MainThreadMarker;
 use objc2_app_kit::NSApplication;
+
+use crate::platform_impl::platform::app_delegate::AppDelegate;
 
 use super::get_aux_state_mut;
 
@@ -30,7 +32,7 @@ pub const kProcessTransformToUIElementApplication: i32 = 4;
 /// https://developer.apple.com/documentation/applicationservices/1501117-anonymous/kprocesstransformtoforegroundapplication?language=objc
 pub const kProcessTransformToForegroundApplication: i32 = 1;
 
-pub fn set_dock_visibility(app_delegate: &AnyObject, visible: bool) {
+pub fn set_dock_visibility(app_delegate: &AppDelegate, visible: bool) {
   let last_dock_show = unsafe { &get_aux_state_mut(app_delegate).last_dock_show };
   if visible {
     set_dock_show(last_dock_show);

@@ -1,13 +1,13 @@
 [package]
 name = "tao"
-version = "0.37.1"
+version = "0.37.3"
 description = "Cross-platform window manager library."
 authors = [
   "Tauri Programme within The Commons Conservancy",
   "The winit contributors",
 ]
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.92"
 keywords = ["windowing"]
 license = "Apache-2.0"
 readme = "README.md"
@@ -113,7 +113,7 @@ objc2 = "0.6"
 block2 = "0.6"
 
 [target."cfg(target_os = \"macos\")".dependencies]
-objc2-foundation = { version = "0.3", default-features = false, features = [
+objc2-foundation = { version = "0.3.2", default-features = false, features = [
   "std",
   "NSArray",
   "NSAttributedString",
@@ -133,7 +133,7 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
   "NSValue",
   "NSRunLoop",
 ] }
-objc2-app-kit = { version = "0.3", default-features = false, features = [
+objc2-app-kit = { version = "0.3.2", default-features = false, features = [
   "std",
   "objc2-core-foundation",
   "NSApplication",
@@ -148,8 +148,10 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSGraphics",
   "NSGraphicsContext",
   "NSImage",
+  "NSImageView",
   "NSOpenGLView",
   "NSPasteboard",
+  "NSProgressIndicator",
   "NSResponder",
   "NSTextInputClient",
   "NSTextInputContext",
@@ -165,7 +167,7 @@ core-graphics = "0.25"
 dispatch2 = "0.3"
 
 [target."cfg(target_os = \"ios\")".dependencies]
-objc2-ui-kit = { version = "0.3", features = [
+objc2-ui-kit = { version = "0.3.2", features = [
   "UIResponder",
   "UIScene",
   "UISceneOptions",
@@ -173,14 +175,15 @@ objc2-ui-kit = { version = "0.3", features = [
   "UISceneWindowingControlStyle",
   "UIWindowScene",
 ] }
-objc2-foundation = { version = "0.3", default-features = false, features = [
+objc2-foundation = { version = "0.3.2", default-features = false, features = [
   "NSProcessInfo",
 ] }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = "0.18"
-gdkx11-sys = { version = "0.18", optional = true }
-gdkwayland-sys = "0.18.0"
+async-channel = "2"
+gtk = "0.19.0"
+gdkx11-sys = { version = "0.19.0", optional = true }
+gdkwayland-sys = "0.19.0"
 x11-dl = { version = "2.21", optional = true }
 parking_lot = "0.12"
 dlopen2 = "0.8.0"
