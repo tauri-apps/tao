@@ -151,6 +151,23 @@ pub enum Event<'a, T: 'static> {
     /// This lets you determine why the scene was requested.
     options: objc2::rc::Retained<objc2_ui_kit::UISceneConnectionOptions>,
   },
+
+  /// Emitted when the system created an activity that is not attached to any window.
+  ///
+  /// This happens when the app is launched again while its process is still alive
+  /// but all of its activities were destroyed - for instance when a foreground service keeps
+  /// the process running after the user removed the app from the recents screen.
+  /// Create a [`Window`](crate::window::Window) to claim the activity, otherwise it stays blank.
+  ///
+  /// Not emitted for the activity that launched the app, for activities created by `Window::new`
+  /// or for activities that are recreated due to a configuration change.
+  #[cfg(target_os = "android")]
+  ActivityRequested {
+    /// Identifier of the activity, see [`WindowBuilderExtAndroid::with_activity_id`](crate::platform::android::WindowBuilderExtAndroid::with_activity_id).
+    activity_id: i32,
+    /// Name of the activity class, relative to the app package.
+    activity_name: String,
+  },
 }
 
 impl<T: Clone> Clone for Event<'static, T> {
@@ -182,6 +199,14 @@ impl<T: Clone> Clone for Event<'static, T> {
         scene: scene.clone(),
         options: options.clone(),
       },
+      #[cfg(target_os = "android")]
+      ActivityRequested {
+        activity_id,
+        activity_name,
+      } => ActivityRequested {
+        activity_id: *activity_id,
+        activity_name: activity_name.clone(),
+      },
     }
   }
 }
@@ -206,6 +231,14 @@ impl<'a, T> Event<'a, T> {
       }),
       #[cfg(target_os = "ios")]
       SceneRequested { scene, options } => Ok(SceneRequested { scene, options }),
+      #[cfg(target_os = "android")]
+      ActivityRequested {
+        activity_id,
+        activity_name,
+      } => Ok(ActivityRequested {
+        activity_id,
+        activity_name,
+      }),
     }
   }
 
@@ -232,6 +265,14 @@ impl<'a, T> Event<'a, T> {
       }),
       #[cfg(target_os = "ios")]
       SceneRequested { scene, options } => Some(SceneRequested { scene, options }),
+      #[cfg(target_os = "android")]
+      ActivityRequested {
+        activity_id,
+        activity_name,
+      } => Some(ActivityRequested {
+        activity_id,
+        activity_name,
+      }),
     }
   }
 }

@@ -94,39 +94,37 @@ impl Inner {
   }
 
   pub fn set_focus(&self) {
-    unsafe {
-      let window = self.window();
-      // only call makeKeyAndVisible() when Info.plist was not set up to support scenes
-      let Some(scene) = window.windowScene() else {
-        window.makeKeyAndVisible();
-        return;
-      };
-      let mtm = MainThreadMarker::new().unwrap();
-      let application = UIApplication::sharedApplication(mtm);
+    let window = self.window();
+    // only call makeKeyAndVisible() when Info.plist was not set up to support scenes
+    let Some(scene) = window.windowScene() else {
+      window.makeKeyAndVisible();
+      return;
+    };
+    let mtm = MainThreadMarker::new().unwrap();
+    let application = UIApplication::sharedApplication(mtm);
 
-      let error_handler = block2::RcBlock::new(move |error| {
-        log::error!("error activating scene: {error:?}");
-      });
+    let error_handler = block2::RcBlock::new(move |error| {
+      log::error!("error activating scene: {error:?}");
+    });
 
-      // when we support multiple scenes, request the activation of this window's scene
-      if application.supportsMultipleScenes() {
-        if operating_system_version().0 >= 17 {
-          application.activateSceneSessionForRequest_errorHandler(
-            &UISceneSessionActivationRequest::request(),
-            Some(&error_handler),
-          );
-        } else {
-          #[allow(deprecated)]
-          application.requestSceneSessionActivation_userActivity_options_errorHandler(
-            Some(&scene.session()),
-            None,
-            None,
-            Some(&error_handler),
-          );
-        }
+    // when we support multiple scenes, request the activation of this window's scene
+    if application.supportsMultipleScenes() {
+      if operating_system_version().0 >= 17 {
+        application.activateSceneSessionForRequest_errorHandler(
+          &UISceneSessionActivationRequest::request(),
+          Some(&error_handler),
+        );
       } else {
-        window.makeKeyAndVisible();
+        #[allow(deprecated)]
+        application.requestSceneSessionActivation_userActivity_options_errorHandler(
+          Some(&scene.session()),
+          None,
+          None,
+          Some(&error_handler),
+        );
       }
+    } else {
+      window.makeKeyAndVisible();
     }
   }
 
@@ -135,13 +133,11 @@ impl Inner {
   }
 
   pub fn is_focused(&self) -> bool {
-    unsafe {
-      self
-        .window()
-        .windowScene()
-        .map(|scene| scene.activationState() == UISceneActivationState::ForegroundActive)
-        .unwrap_or_default()
-    }
+    self
+      .window()
+      .windowScene()
+      .map(|scene| scene.activationState() == UISceneActivationState::ForegroundActive)
+      .unwrap_or_default()
   }
 
   pub fn is_always_on_top(&self) -> bool {
@@ -515,13 +511,11 @@ impl Inner {
   // instead of returning an Option here, we default to an empty string
   // scene lifecycle will be enforced anyway soon (iOS 27)
   pub fn scene_identifier(&self) -> String {
-    unsafe {
-      let window = self.window();
-      let Some(scene) = window.windowScene() else {
-        return "".into();
-      };
-      scene.session().persistentIdentifier().to_string()
-    }
+    let window = self.window();
+    let Some(scene) = window.windowScene() else {
+      return "".into();
+    };
+    scene.session().persistentIdentifier().to_string()
   }
 }
 

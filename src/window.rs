@@ -63,6 +63,11 @@ pub struct ProgressBarState {
 ///     }
 /// });
 /// ```
+///
+/// ## Platform-specific
+///
+/// - **Android:** Dropping the window does not finish its `Activity`. The activity stays open
+///   and is released so it can be claimed by a new window.
 pub struct Window {
   pub(crate) window: platform_impl::Window,
 }
@@ -606,6 +611,10 @@ impl WindowBuilder {
   /// Builds the window.
   ///
   /// Possible causes of error include denied permission, incompatible system, and lack of memory.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android:** This claims the next currently open `Activity` if not called with `WindowBuilderExtAndroid::with_activity_name`
   #[inline]
   pub fn build<T: 'static>(
     self,

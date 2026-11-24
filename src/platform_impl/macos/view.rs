@@ -512,13 +512,23 @@ define_class!(
     #[unsafe(method(otherMouseDown:))]
     fn other_mouse_down(&self, event: &NSEvent) {
       mouse_motion(self, event);
-      mouse_click(self, event, MouseButton::Middle, ElementState::Pressed);
+      mouse_click(
+        self,
+        event,
+        other_mouse_button(event),
+        ElementState::Pressed,
+      );
     }
 
     #[unsafe(method(otherMouseUp:))]
     fn other_mouse_up(&self, event: &NSEvent) {
       mouse_motion(self, event);
-      mouse_click(self, event, MouseButton::Middle, ElementState::Released);
+      mouse_click(
+        self,
+        event,
+        other_mouse_button(event),
+        ElementState::Released,
+      );
     }
 
     #[unsafe(method(mouseMoved:))]
@@ -952,6 +962,15 @@ fn update_potentially_stale_modifiers(state: &ViewState, event: &NSEvent) {
       window_id: WindowId(get_window_id(&state.ns_window.load().unwrap())),
       event: WindowEvent::ModifiersChanged(state.modifiers.get()),
     }));
+  }
+}
+
+/// The button of an `otherMouseDown:` or `otherMouseUp:` event. Back and
+/// forward are usually 3 and 4.
+fn other_mouse_button(event: &NSEvent) -> MouseButton {
+  match unsafe { event.buttonNumber() } {
+    2 => MouseButton::Middle,
+    n => MouseButton::Other(n as u16),
   }
 }
 

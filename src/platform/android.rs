@@ -57,6 +57,14 @@ pub trait WindowBuilderExtAndroid {
   ///
   /// This is important to define which stack the activity will be created on.
   fn with_created_by_activity_name(self, created_by_activity_name: String) -> Self;
+
+  /// Attach the window to an existing activity that is not claimed by a window yet,
+  /// e.g. the one from [`Event::ActivityRequested`](crate::event::Event::ActivityRequested).
+  ///
+  /// By default the window is attached to the first activity that is not claimed by a window,
+  /// or a new activity is created if [`Self::with_activity_name`] is set.
+  /// This takes precedence over [`Self::with_activity_name`].
+  fn with_activity_id(self, activity_id: i32) -> Self;
 }
 
 impl WindowBuilderExtAndroid for WindowBuilder {
@@ -67,6 +75,11 @@ impl WindowBuilderExtAndroid for WindowBuilder {
 
   fn with_created_by_activity_name(mut self, created_by_activity_name: String) -> Self {
     self.platform_specific.created_by_activity_name = Some(created_by_activity_name);
+    self
+  }
+
+  fn with_activity_id(mut self, activity_id: i32) -> Self {
+    self.platform_specific.activity_id = Some(activity_id);
     self
   }
 }
