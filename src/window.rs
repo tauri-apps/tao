@@ -63,6 +63,11 @@ pub struct ProgressBarState {
 ///     }
 /// });
 /// ```
+///
+/// ## Platform-specific
+///
+/// - **Android:** Dropping the window does not finish its `Activity`. The activity stays open
+///   and is released so it can be claimed by a new window.
 pub struct Window {
   pub(crate) window: platform_impl::Window,
 }
