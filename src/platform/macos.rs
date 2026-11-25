@@ -359,7 +359,7 @@ impl<T> EventLoopExtMacOS for EventLoop<T> {
 
 /// Additional methods on `MonitorHandle` that are specific to MacOS.
 pub trait MonitorHandleExtMacOS {
-  /// Returns the identifier of the monitor for Cocoa.
+  /// Returns the current identifier of the monitor for Cocoa, or `0` if a known monitor is offline.
   fn native_id(&self) -> u32;
   /// Returns a borrowed `NSScreen` pointer for this monitor, valid until the current autorelease pool drains.
   fn ns_screen(&self) -> Option<*mut c_void>;

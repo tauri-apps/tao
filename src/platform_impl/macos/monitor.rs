@@ -2,7 +2,7 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::VecDeque, fmt};
+use std::{collections::VecDeque, fmt, ptr::NonNull};
 
 use super::ffi::{self, CGRectContainsPoint};
 use crate::{
@@ -13,14 +13,14 @@ use core_foundation::{
   array::{CFArrayGetCount, CFArrayGetValueAtIndex},
   base::{CFRelease, TCFType},
   string::CFString,
-  uuid::{CFUUIDBytes, CFUUIDGetUUIDBytes, CFUUID},
 };
 use core_graphics::{
   display::{CGDirectDisplayID, CGDisplay, CGDisplayBounds},
   geometry::CGPoint,
 };
-use objc2::{rc::Retained, Message};
+use objc2::rc::Retained;
 use objc2_app_kit::NSScreen;
+use objc2_core_foundation::{CFRetained, CFUUID};
 use objc2_foundation::{ns_string, MainThreadMarker, NSNumber};
 
 #[derive(Clone)]
@@ -30,6 +30,7 @@ pub struct VideoMode {
   pub(crate) refresh_rate: u16,
   pub(crate) monitor: MonitorHandle,
   pub(crate) native_mode: NativeDisplayMode,
+  display_id: CGDirectDisplayID,
 }
 
 impl PartialEq for VideoMode {
@@ -85,6 +86,14 @@ impl Clone for NativeDisplayMode {
 }
 
 impl VideoMode {
+  // The native configuration belongs to the display ID from which it was enumerated.
+  pub(super) fn display_id(&self) -> Option<CGDirectDisplayID> {
+    self
+      .monitor
+      .display_id()
+      .filter(|&id| id == self.display_id)
+  }
+
   pub fn size(&self) -> PhysicalSize<u32> {
     self.size.into()
   }
@@ -104,19 +113,18 @@ impl VideoMode {
   }
 }
 
+// Keep construction infallible when CoreGraphics cannot provide a UUID.
 #[derive(Clone)]
-pub struct MonitorHandle(CGDirectDisplayID);
+pub struct MonitorHandle(Result<CFRetained<CFUUID>, CGDirectDisplayID>);
 
-fn display_uuid(display_id: CGDirectDisplayID) -> Option<[u8; 16]> {
-  unsafe {
-    let uuid = ffi::CGDisplayCreateUUIDFromDisplayID(display_id);
-    if uuid.is_null() {
-      return None;
-    }
-    let uuid = CFUUID::wrap_under_create_rule(uuid);
-    let bytes = CFUUIDGetUUIDBytes(uuid.as_concrete_TypeRef());
-    Some(std::mem::transmute::<CFUUIDBytes, [u8; 16]>(bytes))
-  }
+// CFUUID is immutable.
+impl std::panic::UnwindSafe for MonitorHandle {}
+impl std::panic::RefUnwindSafe for MonitorHandle {}
+
+fn display_uuid(display_id: CGDirectDisplayID) -> Option<CFRetained<CFUUID>> {
+  let ptr = NonNull::new(unsafe { ffi::CGDisplayCreateUUIDFromDisplayID(display_id) })?;
+  // SAFETY: The Create function returns an owned (+1) reference.
+  Some(unsafe { CFRetained::from_raw(ptr) })
 }
 
 impl PartialEq for MonitorHandle {
@@ -149,7 +157,7 @@ pub fn available_monitors() -> VecDeque<MonitorHandle> {
   if let Ok(displays) = CGDisplay::active_displays() {
     let mut monitors = VecDeque::with_capacity(displays.len());
     for display in displays {
-      monitors.push_back(MonitorHandle(display));
+      monitors.push_back(MonitorHandle::new(display));
     }
     monitors
   } else {
@@ -158,14 +166,17 @@ pub fn available_monitors() -> VecDeque<MonitorHandle> {
 }
 
 pub fn primary_monitor() -> MonitorHandle {
-  MonitorHandle(CGDisplay::main().id)
+  MonitorHandle::new(CGDisplay::main().id)
 }
 
 // `from_point` get a monitor handle which contains the given point.
 pub fn from_point(x: f64, y: f64) -> Option<MonitorHandle> {
   unsafe {
     for monitor in available_monitors() {
-      let bound = CGDisplayBounds(monitor.0);
+      let Some(display_id) = monitor.display_id() else {
+        continue;
+      };
+      let bound = CGDisplayBounds(display_id);
       if CGRectContainsPoint(bound, CGPoint::new(x, y)) > 0 {
         return Some(monitor);
       }
@@ -202,26 +213,40 @@ impl fmt::Debug for MonitorHandle {
 impl MonitorHandle {
   // Display IDs may change, so use UUID values for monitor identity.
   fn identity(&self) -> Result<[u8; 16], CGDirectDisplayID> {
-    display_uuid(self.0).ok_or(self.0)
+    self
+      .0
+      .as_ref()
+      .map(|uuid| uuid.uuid_bytes().into())
+      .map_err(|id| *id)
   }
 
   pub fn new(id: CGDirectDisplayID) -> Self {
-    MonitorHandle(id)
+    Self(display_uuid(id).ok_or(id))
+  }
+
+  pub(super) fn display_id(&self) -> Option<CGDirectDisplayID> {
+    let id = match &self.0 {
+      Ok(uuid) => unsafe { ffi::CGDisplayGetDisplayIDFromUUID(uuid) },
+      Err(id) => *id,
+    };
+    // An offline UUID resolves to kCGNullDirectDisplay.
+    (id != 0).then_some(id)
   }
 
   pub fn name(&self) -> Option<String> {
-    let MonitorHandle(display_id) = *self;
-    let screen_num = CGDisplay::new(display_id).model_number();
+    let screen_num = CGDisplay::new(self.display_id()?).model_number();
     Some(format!("Monitor #{}", screen_num))
   }
 
   #[inline]
   pub fn native_identifier(&self) -> u32 {
-    self.0
+    self.display_id().unwrap_or(0)
   }
 
   pub fn size(&self) -> PhysicalSize<u32> {
-    let MonitorHandle(display_id) = *self;
+    let Some(display_id) = self.display_id() else {
+      return PhysicalSize::new(0, 0);
+    };
     let display = CGDisplay::new(display_id);
     let height = display.pixels_high();
     let width = display.pixels_wide();
@@ -230,7 +255,10 @@ impl MonitorHandle {
 
   #[inline]
   pub fn position(&self) -> PhysicalPosition<i32> {
-    let bounds = unsafe { CGDisplayBounds(self.native_identifier()) };
+    let Some(display_id) = self.display_id() else {
+      return PhysicalPosition::new(0, 0);
+    };
+    let bounds = unsafe { CGDisplayBounds(display_id) };
     PhysicalPosition::from_logical::<_, f64>(
       (bounds.origin.x as f64, bounds.origin.y as f64),
       self.scale_factor(),
@@ -246,10 +274,21 @@ impl MonitorHandle {
   }
 
   pub fn video_modes(&self) -> impl Iterator<Item = RootVideoMode> {
+    self
+      .display_id()
+      .map(|id| self.video_modes_for_display(id))
+      .into_iter()
+      .flatten()
+  }
+
+  fn video_modes_for_display(
+    &self,
+    display_id: CGDirectDisplayID,
+  ) -> impl Iterator<Item = RootVideoMode> {
     let cv_refresh_rate = unsafe {
       let mut display_link = std::ptr::null_mut();
       assert_eq!(
-        ffi::CVDisplayLinkCreateWithCGDisplay(self.0, &mut display_link),
+        ffi::CVDisplayLinkCreateWithCGDisplay(display_id, &mut display_link),
         ffi::kCVReturnSuccess
       );
       let time = ffi::CVDisplayLinkGetNominalOutputVideoRefreshPeriod(display_link);
@@ -265,7 +304,7 @@ impl MonitorHandle {
 
     unsafe {
       let modes = {
-        let array = ffi::CGDisplayCopyAllDisplayModes(self.0, std::ptr::null());
+        let array = ffi::CGDisplayCopyAllDisplayModes(display_id, std::ptr::null());
         assert!(!array.is_null(), "failed to get list of display modes");
         let array_count = CFArrayGetCount(array);
         let modes: Vec<_> = (0..array_count)
@@ -311,6 +350,7 @@ impl MonitorHandle {
           bit_depth,
           monitor: monitor.clone(),
           native_mode: NativeDisplayMode(mode),
+          display_id,
         };
 
         RootVideoMode { video_mode }
@@ -319,20 +359,45 @@ impl MonitorHandle {
   }
 
   pub(crate) fn ns_screen(&self) -> Option<Retained<NSScreen>> {
-    // SAFETY: TODO.
+    let uuid = self.0.as_ref().ok()?;
     let mtm = unsafe { MainThreadMarker::new_unchecked() };
     let screens = NSScreen::screens(mtm);
     let key = ns_string!("NSScreenNumber");
     for screen in screens {
-      let device_description = NSScreen::deviceDescription(&screen);
-      if let Some(value) = device_description.objectForKey(key) {
-        let value = value.downcast::<NSNumber>().unwrap();
-        let other_native_id = value.unsignedIntegerValue();
-        if self.0 == other_native_id as CGDirectDisplayID {
+      if let Some(value) = screen.deviceDescription().objectForKey(key) {
+        let display_id = value.downcast::<NSNumber>().unwrap().as_u32();
+        if display_uuid(display_id).as_ref() == Some(uuid) {
           return Some(screen);
         }
       }
     }
     None
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::collections::{BTreeSet, HashSet};
+
+  #[test]
+  fn monitor_identity_and_invalid_display() {
+    fn assert_handle_traits<T: Send + Sync + std::panic::UnwindSafe + std::panic::RefUnwindSafe>() {
+    }
+    assert_handle_traits::<RootMonitorHandle>();
+
+    let uuid = CFUUID::new(None).unwrap();
+    let same_uuid = CFUUID::from_uuid_bytes(None, uuid.uuid_bytes()).unwrap();
+    let offline = MonitorHandle(Ok(uuid));
+    let same_monitor = MonitorHandle(Ok(same_uuid));
+    let invalid = MonitorHandle(Err(10_000));
+    let other_invalid = MonitorHandle(Err(10_001));
+    let handles = [offline.clone(), same_monitor, invalid, other_invalid];
+    assert_eq!(handles.iter().cloned().collect::<HashSet<_>>().len(), 3);
+    assert_eq!(handles.into_iter().collect::<BTreeSet<_>>().len(), 3);
+    let invalid = MonitorHandle(Err(0));
+    assert_eq!(invalid.display_id(), None);
+    assert_eq!(invalid.native_identifier(), 0);
+    assert!(invalid.video_modes().next().is_none());
   }
 }

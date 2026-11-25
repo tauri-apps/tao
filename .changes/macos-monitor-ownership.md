@@ -2,4 +2,4 @@
 "tao": patch
 ---
 
-On macOS, fix reference leaks in monitor queries.
+On macOS, fix monitor reference leaks and use stable UUIDs for display identity.
