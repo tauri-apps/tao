@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.38.1]
+
+- [`d65ff15b`](https://github.com/tauri-apps/tao/commit/d65ff15bdc53f4a2cda9e9fe41948e1347796775) ([#1419](https://github.com/tauri-apps/tao/pull/1419) by [@armadavalor](https://github.com/tauri-apps/tao/../../armadavalor)) On Windows, keep the cached minimized state in sync when the window is minimized or restored without `WM_SYSCOMMAND` (e.g. `ShowWindow` from another process or Win+D). A stale state made later calls such as `set_resizable` and `set_decorations` silently do nothing.
+
 ## [0.38.0]
 
 - [`81d63857`](https://github.com/tauri-apps/tao/commit/81d638576b2e5f3de3d3631460ba85cb51187180) ([#1444](https://github.com/tauri-apps/tao/pull/1444) by [@lucasfernog](https://github.com/tauri-apps/tao/../../lucasfernog)) On Android, added `Event::ActivityRequested`, emitted when the system creates an activity that is not attached to a window, for instance when the app is launched again while a foreground service kept its process alive. Added `WindowBuilderExtAndroid::with_activity_id` to attach a window to that activity.
