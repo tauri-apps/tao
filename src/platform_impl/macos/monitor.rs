@@ -211,7 +211,6 @@ impl fmt::Debug for MonitorHandle {
 }
 
 impl MonitorHandle {
-  // Display IDs may change, so use UUID values for monitor identity.
   fn identity(&self) -> Result<[u8; 16], CGDirectDisplayID> {
     self
       .0
