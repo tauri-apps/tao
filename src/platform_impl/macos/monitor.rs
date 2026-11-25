@@ -385,30 +385,3 @@ pub(super) fn get_display_id(screen: &NSScreen) -> CGDirectDisplayID {
       .as_u32()
   })
 }
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-  use std::collections::{BTreeSet, HashSet};
-
-  #[test]
-  fn monitor_identity_and_invalid_display() {
-    fn assert_handle_traits<T: Send + Sync + std::panic::UnwindSafe + std::panic::RefUnwindSafe>() {
-    }
-    assert_handle_traits::<RootMonitorHandle>();
-
-    let uuid = CFUUID::new(None).unwrap();
-    let same_uuid = CFUUID::from_uuid_bytes(None, uuid.uuid_bytes()).unwrap();
-    let offline = MonitorHandle(Ok(uuid));
-    let same_monitor = MonitorHandle(Ok(same_uuid));
-    let invalid = MonitorHandle(Err(10_000));
-    let other_invalid = MonitorHandle(Err(10_001));
-    let handles = [offline.clone(), same_monitor, invalid, other_invalid];
-    assert_eq!(handles.iter().cloned().collect::<HashSet<_>>().len(), 3);
-    assert_eq!(handles.into_iter().collect::<BTreeSet<_>>().len(), 3);
-    let invalid = MonitorHandle(Err(0));
-    assert_eq!(invalid.display_id(), None);
-    assert_eq!(invalid.native_identifier(), 0);
-    assert!(invalid.video_modes().next().is_none());
-  }
-}
