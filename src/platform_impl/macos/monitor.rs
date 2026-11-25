@@ -200,24 +200,31 @@ impl fmt::Debug for MonitorHandle {
 }
 
 impl MonitorHandle {
-  fn uuid(&self) -> [u8; 16] {
-    self.0.uuid_bytes().into()
-  }
-
-  #[track_caller]
-  pub(super) fn new(display_id: CGDirectDisplayID) -> Option<Self> {
-    if display_id == 0 {
-      warn!("constructing monitor from invalid display ID 0; falling back to main monitor");
-    }
-    let ptr = NonNull::new(unsafe { ffi::CGDisplayCreateUUIDFromDisplayID(display_id) })?;
-    // SAFETY: The Create function returns an owned (+1) reference.
-    Some(Self(unsafe { CFRetained::from_raw(ptr) }))
+  /// Internal comparisons of [`MonitorHandle`]s are done first requesting a UUID for the handle.
+  fn uuid(&self) -> u128 {
+    u128::from_ne_bytes(self.0.uuid_bytes().into())
   }
 
   pub(super) fn display_id(&self) -> Option<CGDirectDisplayID> {
     let id = unsafe { ffi::CGDisplayGetDisplayIDFromUUID(&self.0) };
     // An offline UUID resolves to kCGNullDirectDisplay.
     (id != 0).then_some(id)
+  }
+
+  #[track_caller]
+  pub(super) fn new(display_id: CGDirectDisplayID) -> Option<Self> {
+    // kCGNullDirectDisplay
+    if display_id == 0 {
+      // `CGDisplayCreateUUIDFromDisplayID` checks kCGNullDirectDisplay internally.
+      warn!("constructing monitor from invalid display ID 0; falling back to main monitor");
+    }
+    // SAFETY: Valid to call.
+    let ptr = unsafe { ffi::CGDisplayCreateUUIDFromDisplayID(display_id) };
+    let ptr = NonNull::new(ptr)?;
+    // SAFETY: `CGDisplayCreateUUIDFromDisplayID` is a "create" function, so the pointer has
+    // +1 retain count.
+    let uuid = unsafe { CFRetained::from_raw(ptr) };
+    Some(Self(uuid))
   }
 
   pub fn name(&self) -> Option<String> {
