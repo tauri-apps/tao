@@ -2,7 +2,16 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{platform::macos::ActivationPolicy, platform_impl::platform::app_state::AppState};
+use crate::{
+  event::{Event, WindowEvent},
+  platform::macos::ActivationPolicy,
+  platform_impl::platform::{
+    app_state::AppState,
+    event::EventWrapper,
+    window::{get_window_id, TaoWindow},
+  },
+  window::WindowId,
+};
 
 use objc2::{
   define_class, msg_send,
@@ -10,7 +19,10 @@ use objc2::{
   runtime::{AnyObject, Bool, ProtocolObject},
   DefinedClass, MainThreadMarker, MainThreadOnly,
 };
-use objc2_app_kit::{NSApplication, NSApplicationDelegate, NSResponder, NSUserActivityRestoring};
+use objc2_app_kit::{
+  NSApplication, NSApplicationDelegate, NSApplicationTerminateReply, NSResponder,
+  NSUserActivityRestoring,
+};
 use objc2_foundation::{
   NSArray, NSObject, NSObjectProtocol, NSString, NSUserActivity, NSUserActivityTypeBrowsingWeb,
   NSURL,
@@ -78,6 +90,35 @@ define_class!(
       trace!("Triggered `applicationWillTerminate`");
       AppState::exit();
       trace!("Completed `applicationWillTerminate`");
+    }
+
+    /// Cocoa calls this for Dock Quit, logout, shutdown and the predefined Quit
+    /// menu item, before it terminates the process. Route the request through
+    /// the preventable `CloseRequested` event of each Tao window and cancel the
+    /// Cocoa termination, so the application can resolve unsaved state. With no
+    /// Tao window, termination proceeds as before.
+    #[unsafe(method(applicationShouldTerminate:))]
+    fn application_should_terminate(
+      &self,
+      application: &NSApplication,
+    ) -> NSApplicationTerminateReply {
+      trace!("Triggered `applicationShouldTerminate`");
+      let mut requested = false;
+      for window in application.windows().iter() {
+        if window.downcast_ref::<TaoWindow>().is_some() {
+          AppState::queue_event(EventWrapper::StaticEvent(Event::WindowEvent {
+            window_id: WindowId(get_window_id(&window)),
+            event: WindowEvent::CloseRequested,
+          }));
+          requested = true;
+        }
+      }
+      trace!("Completed `applicationShouldTerminate`");
+      if requested {
+        NSApplicationTerminateReply::TerminateCancel
+      } else {
+        NSApplicationTerminateReply::TerminateNow
+      }
     }
 
     #[unsafe(method(application:openURLs:))]
