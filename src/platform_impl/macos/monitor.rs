@@ -18,6 +18,7 @@ use core_graphics::{
   display::{CGDirectDisplayID, CGDisplay, CGDisplayBounds},
   geometry::CGPoint,
 };
+use dispatch2::run_on_main;
 use objc2::rc::Retained;
 use objc2_app_kit::NSScreen;
 use objc2_core_foundation::{CFRetained, CFUUID};
@@ -243,12 +244,12 @@ impl MonitorHandle {
   }
 
   pub fn scale_factor(&self) -> f64 {
-    let mtm = unsafe { MainThreadMarker::new_unchecked() };
-    let screen = match self.ns_screen(mtm) {
-      Some(screen) => screen,
-      None => return 1.0, // default to 1.0 when we can't find the screen
-    };
-    NSScreen::backingScaleFactor(&screen)
+    run_on_main(|mtm| {
+      match self.ns_screen(mtm) {
+        Some(screen) => screen.backingScaleFactor() as f64,
+        None => 1.0, // default to 1.0 when we can't find the screen
+      }
+    })
   }
 
   pub fn video_modes(&self) -> impl Iterator<Item = RootVideoMode> {
