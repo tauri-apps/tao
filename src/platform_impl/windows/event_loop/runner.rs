@@ -201,8 +201,14 @@ impl<T> EventLoopRunner<T> {
 
 /// Event dispatch functions.
 impl<T> EventLoopRunner<T> {
-  pub(crate) unsafe fn poll(&self) {
+  // A nested pump inside the event handler (wry's wait_with_pump) can deliver
+  // PROCESS_NEW_EVENTS while the handler is taken; moving state would call it and panic.
+  pub(crate) unsafe fn poll(&self) -> bool {
+    if self.should_buffer() {
+      return false;
+    }
     self.move_state_to(RunnerState::HandlingMainEvents);
+    true
   }
 
   pub(crate) unsafe fn send_event(&self, event: Event<'_, T>) {
@@ -446,5 +452,20 @@ impl<T> BufferedEvent<T> {
         }
       }
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use windows::Win32::Foundation::HWND;
+
+  #[test]
+  fn poll_without_a_handler_is_skipped_not_a_panic() {
+    let runner = EventLoopRunner::<()>::new(HWND::default(), 0);
+    unsafe {
+      assert!(!runner.poll());
+    }
+    assert_eq!(runner.runner_state.get(), RunnerState::Uninitialized);
   }
 }
