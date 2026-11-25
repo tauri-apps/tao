@@ -18,13 +18,13 @@ use objc2::{
   AllocAnyThread, DefinedClass, MainThreadOnly,
 };
 use objc2_app_kit::{
-  NSApp, NSEvent, NSEventModifierFlags, NSEventPhase, NSResponder, NSTextInputClient, NSView,
-  NSWindow, NSWindowButton,
+  NSApp, NSButton, NSEvent, NSEventModifierFlags, NSEventPhase, NSResponder, NSTextInputClient,
+  NSView, NSViewFrameDidChangeNotification, NSWindow, NSWindowButton, NSWindowStyleMask,
 };
 use objc2_foundation::{
   ns_string, MainThreadMarker, NSArray, NSAttributedString, NSAttributedStringKey, NSInteger,
-  NSMutableAttributedString, NSNotificationCenter, NSObject, NSPoint, NSRange, NSRect, NSSize,
-  NSString, NSUInteger,
+  NSMutableAttributedString, NSNotification, NSNotificationCenter, NSObject,
+  NSObjectNSDelayedPerforming, NSPoint, NSRange, NSRect, NSSize, NSString, NSUInteger,
 };
 
 use crate::{
@@ -78,7 +78,10 @@ pub(super) struct ViewState {
   pub(super) modifiers: Cell<ModifiersState>,
   phys_modifiers: RefCell<HashSet<KeyCode>>,
   tracking_rect: Cell<Option<NSInteger>>,
-  pub(super) traffic_light_inset: Cell<Option<LogicalPosition<f64>>>,
+  traffic_light_inset: Cell<Option<LogicalPosition<f64>>>,
+  restoring_traffic_lights: Cell<bool>,
+  traffic_light_restore_pending: Cell<bool>,
+  traffic_light_observers: RefCell<Vec<objc2::rc::Weak<NSView>>>,
 }
 
 impl ViewState {
@@ -102,6 +105,9 @@ pub(super) fn new_view(ns_window: &NSWindow) -> (Retained<TaoView>, Weak<Mutex<C
     phys_modifiers: Default::default(),
     tracking_rect: Cell::new(None),
     traffic_light_inset: Cell::new(None),
+    restoring_traffic_lights: Cell::new(false),
+    traffic_light_restore_pending: Cell::new(false),
+    traffic_light_observers: RefCell::new(Vec::new()),
   };
   unsafe {
     let mtm = MainThreadMarker::from(ns_window);
@@ -150,6 +156,7 @@ define_class!(
     fn view_did_move_to_window(&self) {
       trace!("Triggered `viewDidMoveToWindow`");
       unsafe {
+        let _: () = msg_send![super(self), viewDidMoveToWindow];
         let state = self.ivars();
 
         if let Some(tracking_rect) = state.tracking_rect.take() {
@@ -165,7 +172,19 @@ define_class!(
         );
         state.tracking_rect.set(Some(tracking_rect));
       }
+      self.observe_traffic_lights();
       trace!("Completed `viewDidMoveToWindow`");
+    }
+
+    #[unsafe(method(trafficLightFrameChanged:))]
+    fn traffic_light_frame_changed(&self, _notification: &NSNotification) {
+      self.schedule_traffic_light_restore();
+    }
+
+    #[unsafe(method(restoreTrafficLights:))]
+    fn restore_traffic_lights_callback(&self, _object: Option<&NSObject>) {
+      self.ivars().traffic_light_restore_pending.set(false);
+      self.restore_traffic_lights();
     }
 
     #[unsafe(method(frameDidChange:))]
@@ -194,10 +213,7 @@ define_class!(
       unsafe {
         let state = self.ivars();
 
-        if let Some(position) = state.traffic_light_inset.get() {
-          let window = state.ns_window.load().unwrap();
-          inset_traffic_lights(&window, position);
-        }
+        self.restore_traffic_lights();
 
         AppState::handle_redraw(WindowId(get_window_id(&state.ns_window.load().unwrap())));
 
@@ -1033,35 +1049,163 @@ fn mouse_motion(this: &TaoView, event: &NSEvent) {
   }
 }
 
-pub unsafe fn inset_traffic_lights(window: &NSWindow, position: LogicalPosition<f64>) {
+impl TaoView {
+  pub(super) fn set_traffic_light_inset(&self, position: Option<LogicalPosition<f64>>) {
+    self.ivars().traffic_light_inset.set(position);
+    self.observe_traffic_lights();
+    self.restore_traffic_lights();
+  }
+
+  fn stop_observing_traffic_lights(&self) {
+    unsafe {
+      let center = NSNotificationCenter::defaultCenter();
+      for view in self.ivars().traffic_light_observers.take() {
+        if let Some(view) = view.load() {
+          center.removeObserver_name_object(
+            self,
+            Some(NSViewFrameDidChangeNotification),
+            Some(&view),
+          );
+        }
+      }
+      NSObject::cancelPreviousPerformRequestsWithTarget_selector_object(
+        self,
+        sel!(restoreTrafficLights:),
+        None,
+      );
+    }
+    self.ivars().traffic_light_restore_pending.set(false);
+  }
+
+  fn traffic_light_window(&self) -> Option<Retained<NSWindow>> {
+    let window = NSView::window(self)?;
+    if self.ivars().ns_window.load().as_deref() != Some(&*window) {
+      return None;
+    }
+    Some(window)
+  }
+
+  fn observe_traffic_lights(&self) {
+    self.stop_observing_traffic_lights();
+    if self.ivars().traffic_light_inset.get().is_none() {
+      return;
+    }
+    let Some(window) = self.traffic_light_window() else {
+      return;
+    };
+    unsafe {
+      let Some((buttons, container)) = traffic_light_views(&window) else {
+        return;
+      };
+      let center = NSNotificationCenter::defaultCenter();
+      for view in [
+        &*container,
+        &*buttons[0] as &NSView,
+        &*buttons[1] as &NSView,
+        &*buttons[2] as &NSView,
+      ] {
+        view.setPostsFrameChangedNotifications(true);
+        center.addObserver_selector_name_object(
+          self,
+          sel!(trafficLightFrameChanged:),
+          Some(NSViewFrameDidChangeNotification),
+          Some(view),
+        );
+        self
+          .ivars()
+          .traffic_light_observers
+          .borrow_mut()
+          .push(objc2::rc::Weak::from(view));
+      }
+    }
+    self.schedule_traffic_light_restore();
+  }
+
+  fn schedule_traffic_light_restore(&self) {
+    let state = self.ivars();
+    if state.traffic_light_inset.get().is_none()
+      || state.restoring_traffic_lights.get()
+      || state.traffic_light_restore_pending.replace(true)
+    {
+      return;
+    }
+    // Let AppKit finish its layout pass; ignore notifications from our own repair.
+    unsafe {
+      self.performSelector_withObject_afterDelay(sel!(restoreTrafficLights:), None, 0.0);
+    }
+  }
+
+  fn restore_traffic_lights(&self) {
+    let state = self.ivars();
+    if state.restoring_traffic_lights.replace(true) {
+      return;
+    }
+    if let (Some(position), Some(window)) =
+      (state.traffic_light_inset.get(), self.traffic_light_window())
+    {
+      unsafe { inset_traffic_lights(&window, position) };
+    }
+    state.restoring_traffic_lights.set(false);
+  }
+}
+
+impl Drop for TaoView {
+  fn drop(&mut self) {
+    self.stop_observing_traffic_lights();
+    unsafe { NSNotificationCenter::defaultCenter().removeObserver(self) };
+  }
+}
+
+unsafe fn traffic_light_views(
+  window: &NSWindow,
+) -> Option<([Retained<NSButton>; 3], Retained<NSView>)> {
+  // AppKit owns the controls in the fullscreen toolbar, which may be in another window.
+  if window.styleMask().contains(NSWindowStyleMask::FullScreen) {
+    return None;
+  }
+  let buttons = [
+    window.standardWindowButton(NSWindowButton::CloseButton)?,
+    window.standardWindowButton(NSWindowButton::MiniaturizeButton)?,
+    window.standardWindowButton(NSWindowButton::ZoomButton)?,
+  ];
+  let buttons_view = buttons[0].superview()?;
+  if buttons.iter().any(|button| {
+    button.window().as_deref() != Some(window)
+      || button.superview().as_deref() != Some(&*buttons_view)
+  }) {
+    return None;
+  }
+  let container = buttons_view.superview()?;
+  let window_frame_view = window.contentView()?.superview()?;
+  if container.superview().as_deref() != Some(&*window_frame_view) {
+    return None;
+  }
+  Some((buttons, container))
+}
+
+unsafe fn inset_traffic_lights(window: &NSWindow, position: LogicalPosition<f64>) {
+  let Some(([close, miniaturize, zoom], title_bar_container_view)) = traffic_light_views(window)
+  else {
+    return;
+  };
   let (x, y) = (position.x, position.y);
 
-  let close = window
-    .standardWindowButton(NSWindowButton::CloseButton)
-    .unwrap();
-  let miniaturize = window
-    .standardWindowButton(NSWindowButton::MiniaturizeButton)
-    .unwrap();
-  let zoom = window
-    .standardWindowButton(NSWindowButton::ZoomButton)
-    .unwrap();
-
-  let title_bar_container_view = close.superview().unwrap().superview().unwrap();
-
   let close_rect = NSView::frame(&close);
+  let space_between = NSView::frame(&miniaturize).origin.x - close_rect.origin.x;
   let title_bar_frame_height = close_rect.size.height + y;
   let mut title_bar_rect = NSView::frame(&title_bar_container_view);
   title_bar_rect.size.height = title_bar_frame_height;
   title_bar_rect.origin.y = window.frame().size.height - title_bar_frame_height;
-  title_bar_container_view.setFrame(title_bar_rect);
+  if title_bar_container_view.frame() != title_bar_rect {
+    title_bar_container_view.setFrame(title_bar_rect);
+  }
 
-  let window_buttons = vec![close, miniaturize.clone(), zoom];
-  let space_between = NSView::frame(&miniaturize).origin.x - close_rect.origin.x;
-
-  for (i, button) in window_buttons.into_iter().enumerate() {
+  for (i, button) in [close, miniaturize, zoom].into_iter().enumerate() {
     let mut rect = NSView::frame(&button);
     rect.origin.x = x + (i as f64 * space_between);
-    button.setFrameOrigin(rect.origin);
+    if NSView::frame(&button).origin != rect.origin {
+      button.setFrameOrigin(rect.origin);
+    }
   }
 }
 
@@ -1069,12 +1213,10 @@ pub unsafe fn inset_traffic_lights(window: &NSWindow, position: LogicalPosition<
 // AppKit resets the buttons to their default position on some events (title
 // change, leaving fullscreen) without triggering a `drawRect:`, so callers use
 // this to restore the configured position afterwards (#13044, #15451).
-pub unsafe fn reapply_traffic_light_inset(ns_window: &NSWindow, ns_view: &NSView) {
+pub unsafe fn reapply_traffic_light_inset(_ns_window: &NSWindow, ns_view: &NSView) {
   let Some(view) = ns_view.downcast_ref::<TaoView>() else {
     return;
   };
-  let state = view.ivars();
-  if let Some(position) = state.traffic_light_inset.get() {
-    inset_traffic_lights(ns_window, position);
-  }
+  view.observe_traffic_lights();
+  view.restore_traffic_lights();
 }
