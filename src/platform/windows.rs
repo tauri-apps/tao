@@ -179,11 +179,38 @@ pub trait WindowExtWindows {
 
   /// Shows or hides the background drop shadow for undecorated windows.
   ///
-  /// Enabling the shadow causes a thin 1px line to appear on the top of the window.
+  /// The shadow is anchored through DWM: the client area of an undecorated
+  /// shadowed window always equals the window rect, and the window gets a
+  /// symmetric border on every edge unless
+  /// [`set_undecorated_border_transparent`] was set. The shadow is
+  /// suppressed while the window is maximized or fullscreen. Transparent
+  /// windows keep the system default shadow behavior.
+  ///
+  /// [`set_undecorated_border_transparent`]: WindowExtWindows::set_undecorated_border_transparent
   fn set_undecorated_shadow(&self, shadow: bool);
 
   /// Returns whether this window has shadow for undecorated windows.
   fn has_undecorated_shadow(&self) -> bool;
+
+  /// Sets whether the border of an undecorated shadowed window is drawn
+  /// transparent, i.e. keeps the DWM-anchored shadow but draws no visible
+  /// border.
+  fn set_undecorated_border_transparent(&self, transparent: bool);
+
+  /// Returns whether the border of this undecorated shadowed window is drawn
+  /// transparent.
+  fn has_undecorated_border_transparent(&self) -> bool;
+
+  /// Returns the content inset, in physical pixels, that keeps the window
+  /// content clear of the DWM-drawn border of an undecorated shadowed window,
+  /// as `(left, top, right, bottom)`.
+  ///
+  /// Windows 11 composites the border above the client content, so this is
+  /// zero there; on Windows 10 the border lines are drawn inside the client
+  /// area and the content has to leave those pixels uncovered for the border
+  /// to be visible. The inset is zero whenever no border is drawn: transparent
+  /// borders, maximized and fullscreen windows included.
+  fn undecorated_frame_inset(&self) -> (i32, i32, i32, i32);
 
   /// Sets right-to-left layout.
   ///
@@ -242,6 +269,21 @@ impl WindowExtWindows for Window {
   #[inline]
   fn has_undecorated_shadow(&self) -> bool {
     self.window.has_undecorated_shadow()
+  }
+
+  #[inline]
+  fn set_undecorated_border_transparent(&self, transparent: bool) {
+    self.window.set_undecorated_border_transparent(transparent)
+  }
+
+  #[inline]
+  fn has_undecorated_border_transparent(&self) -> bool {
+    self.window.has_undecorated_border_transparent()
+  }
+
+  #[inline]
+  fn undecorated_frame_inset(&self) -> (i32, i32, i32, i32) {
+    self.window.undecorated_frame_inset()
   }
 
   #[inline]
@@ -309,9 +351,24 @@ pub trait WindowBuilderExtWindows {
 
   /// Shows or hides the background drop shadow for undecorated windows.
   ///
-  /// The shadow is hidden by default.
-  /// Enabling the shadow causes a thin 1px line to appear on the top of the window.
+  /// The shadow is enabled by default. It is anchored through DWM: the client
+  /// area of an undecorated shadowed window always equals the window rect, and
+  /// the window gets a symmetric border on every edge unless
+  /// [`with_undecorated_border_transparent`] is set. Transparent windows keep
+  /// the system default shadow behavior.
+  ///
+  /// [`with_undecorated_border_transparent`]: WindowBuilderExtWindows::with_undecorated_border_transparent
   fn with_undecorated_shadow(self, shadow: bool) -> WindowBuilder;
+
+  /// Sets whether the border of an undecorated shadowed window is drawn
+  /// transparent, i.e. keeps the DWM-anchored shadow but draws no visible
+  /// border.
+  ///
+  /// Windows 11 hides the border line through `DWMWA_BORDER_COLOR`; on
+  /// Windows 10 the glass lines simply stay underneath the client content
+  /// (see [`WindowExtWindows::undecorated_frame_inset`]). Borders are visible
+  /// by default.
+  fn with_undecorated_border_transparent(self, transparent: bool) -> WindowBuilder;
 
   /// Sets right-to-left layout.
   fn with_rtl(self, rtl: bool) -> WindowBuilder;
@@ -369,6 +426,12 @@ impl WindowBuilderExtWindows for WindowBuilder {
   #[inline]
   fn with_undecorated_shadow(mut self, shadow: bool) -> WindowBuilder {
     self.platform_specific.decoration_shadow = shadow;
+    self
+  }
+
+  #[inline]
+  fn with_undecorated_border_transparent(mut self, transparent: bool) -> WindowBuilder {
+    self.platform_specific.undecorated_border_transparent = transparent;
     self
   }
 
