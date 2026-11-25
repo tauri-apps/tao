@@ -266,7 +266,8 @@ impl MonitorHandle {
   }
 
   pub fn scale_factor(&self) -> f64 {
-    let screen = match self.ns_screen() {
+    let mtm = unsafe { MainThreadMarker::new_unchecked() };
+    let screen = match self.ns_screen(mtm) {
       Some(screen) => screen,
       None => return 1.0, // default to 1.0 when we can't find the screen
     };
@@ -358,21 +359,31 @@ impl MonitorHandle {
     }
   }
 
-  pub(crate) fn ns_screen(&self) -> Option<Retained<NSScreen>> {
+  pub(crate) fn ns_screen(&self, mtm: MainThreadMarker) -> Option<Retained<NSScreen>> {
     let uuid = self.0.as_ref().ok()?;
-    let mtm = unsafe { MainThreadMarker::new_unchecked() };
-    let screens = NSScreen::screens(mtm);
-    let key = ns_string!("NSScreenNumber");
-    for screen in screens {
-      if let Some(value) = screen.deviceDescription().objectForKey(key) {
-        let display_id = value.downcast::<NSNumber>().unwrap().as_u32();
-        if display_uuid(display_id).as_ref() == Some(uuid) {
-          return Some(screen);
-        }
+    NSScreen::screens(mtm).into_iter().find(|screen| {
+      let display_id = get_display_id(screen);
+      if let Some(other) = display_uuid(display_id) {
+        *uuid == other
+      } else {
+        warn!("comparing against screen with invalid display ID {display_id}");
+        false
       }
-    }
-    None
+    })
   }
+}
+
+pub(super) fn get_display_id(screen: &NSScreen) -> CGDirectDisplayID {
+  let key = ns_string!("NSScreenNumber");
+  objc2::rc::autoreleasepool(|_| {
+    screen
+      .deviceDescription()
+      .objectForKey(key)
+      .expect("failed getting screen display id from device description")
+      .downcast::<NSNumber>()
+      .expect("NSScreenNumber must be NSNumber")
+      .as_u32()
+  })
 }
 
 #[cfg(test)]

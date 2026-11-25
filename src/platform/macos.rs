@@ -361,7 +361,10 @@ impl<T> EventLoopExtMacOS for EventLoop<T> {
 pub trait MonitorHandleExtMacOS {
   /// Returns the current identifier of the monitor for Cocoa, or `0` if a known monitor is offline.
   fn native_id(&self) -> u32;
-  /// Returns a borrowed `NSScreen` pointer for this monitor, valid until the current autorelease pool drains.
+
+  /// Returns a borrowed pointer to this monitor's `NSScreen`, or `None` off the main
+  /// thread or if the screen is unavailable. Do not release it. It is valid only
+  /// while another owner keeps the screen alive.
   fn ns_screen(&self) -> Option<*mut c_void>;
 }
 
@@ -372,10 +375,11 @@ impl MonitorHandleExtMacOS for MonitorHandle {
   }
 
   fn ns_screen(&self) -> Option<*mut c_void> {
+    let mtm = objc2_foundation::MainThreadMarker::new()?;
     self
       .inner
-      .ns_screen()
-      .map(|s| objc2::rc::Retained::autorelease_ptr(s) as *mut c_void)
+      .ns_screen(mtm)
+      .map(|screen| objc2::rc::Retained::as_ptr(&screen) as *mut c_void)
   }
 }
 

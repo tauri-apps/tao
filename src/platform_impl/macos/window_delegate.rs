@@ -54,9 +54,9 @@ use objc2_app_kit::{
   NSWindowSharingType, NSWindowStyleMask,
 };
 use objc2_foundation::{
-  ns_string, MainThreadMarker, NSArray, NSAutoreleasePool, NSDictionary,
-  NSDistributedNotificationCenter, NSInteger, NSNumber, NSObject, NSObjectNSDelayedPerforming,
-  NSObjectNSThreadPerformAdditions, NSObjectProtocol, NSPoint, NSRect, NSSize, NSString,
+  ns_string, MainThreadMarker, NSArray, NSAutoreleasePool, NSDistributedNotificationCenter,
+  NSInteger, NSObject, NSObjectNSDelayedPerforming, NSObjectNSThreadPerformAdditions,
+  NSObjectProtocol, NSPoint, NSRect, NSSize, NSString,
 };
 
 use super::{
@@ -152,13 +152,13 @@ fn create_window(
       | Some(Fullscreen::Exclusive(RootVideoMode {
         video_mode: VideoMode { ref monitor, .. },
       })) => {
-        let monitor_screen = monitor.ns_screen();
+        let monitor_screen = monitor.ns_screen(mtm);
         Some(monitor_screen.unwrap_or_else(|| appkit::NSScreen::mainScreen(mtm).unwrap()))
       }
       Some(Fullscreen::Borderless(None)) => Some(
         attrs
           .position
-          .and_then(screen_from_position)
+          .and_then(|position| screen_from_position(position, mtm))
           .unwrap_or_else(|| appkit::NSScreen::mainScreen(mtm).unwrap()),
       ),
       None => None,
@@ -168,7 +168,7 @@ fn create_window(
       None => {
         let screen = attrs
           .position
-          .and_then(screen_from_position)
+          .and_then(|position| screen_from_position(position, mtm))
           .unwrap_or_else(|| appkit::NSScreen::mainScreen(mtm).unwrap());
         let scale_factor = NSScreen::backingScaleFactor(&screen);
         let desired_size = attrs
@@ -313,7 +313,7 @@ fn create_window(
   }
 }
 
-fn screen_from_position(position: Position) -> Option<Retained<NSScreen>> {
+fn screen_from_position(position: Position, mtm: MainThreadMarker) -> Option<Retained<NSScreen>> {
   for m in monitor::available_monitors() {
     let monitor_pos = m.position();
     let monitor_size = m.size();
@@ -326,7 +326,7 @@ fn screen_from_position(position: Position) -> Option<Retained<NSScreen>> {
       && monitor_pos.y <= window_position.y
       && window_position.y < monitor_pos.y + monitor_size.height as i32;
     if is_in_monitor {
-      return m.ns_screen();
+      return m.ns_screen(mtm);
     }
   }
   None
@@ -1088,11 +1088,11 @@ impl WindowDelegate {
     // does not take a screen parameter, but uses the current screen)
     if let Some(ref fullscreen) = fullscreen {
       let new_screen = match fullscreen {
-        Fullscreen::Borderless(Some(monitor)) => monitor.inner.ns_screen(),
+        Fullscreen::Borderless(Some(monitor)) => monitor.inner.ns_screen(mtm),
         Fullscreen::Borderless(None) => self
           .current_monitor_inner()
-          .and_then(|monitor| monitor.inner.ns_screen()),
-        Fullscreen::Exclusive(mode) => mode.video_mode.monitor.ns_screen(),
+          .and_then(|monitor| monitor.inner.ns_screen(mtm)),
+        Fullscreen::Exclusive(mode) => mode.video_mode.monitor.ns_screen(mtm),
       };
       let Some(new_screen) = new_screen else {
         return;
@@ -1345,16 +1345,11 @@ impl WindowDelegate {
   #[inline]
   // Allow directly accessing the current monitor internally without unwrapping.
   pub(crate) fn current_monitor_inner(&self) -> Option<RootMonitorHandle> {
-    unsafe {
-      let screen: Retained<NSScreen> = self.window().screen()?;
-      let desc = NSScreen::deviceDescription(&screen);
-      let key = ns_string!("NSScreenNumber");
-      let value = NSDictionary::objectForKey(&desc, key).unwrap();
-      let display_id = value.downcast::<NSNumber>().unwrap().unsignedIntegerValue();
-      Some(RootMonitorHandle {
-        inner: MonitorHandle::new(display_id.try_into().unwrap()),
-      })
-    }
+    let screen = self.window().screen()?;
+    let display_id = monitor::get_display_id(&screen);
+    Some(RootMonitorHandle {
+      inner: MonitorHandle::new(display_id),
+    })
   }
 
   #[inline]
