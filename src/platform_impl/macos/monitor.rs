@@ -113,27 +113,12 @@ impl VideoMode {
   }
 }
 
-// Keep construction infallible when CoreGraphics cannot provide a UUID.
-#[derive(Clone)]
-pub struct MonitorHandle(Result<CFRetained<CFUUID>, CGDirectDisplayID>);
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct MonitorHandle(CFRetained<CFUUID>);
 
 // CFUUID is immutable.
 impl std::panic::UnwindSafe for MonitorHandle {}
 impl std::panic::RefUnwindSafe for MonitorHandle {}
-
-fn display_uuid(display_id: CGDirectDisplayID) -> Option<CFRetained<CFUUID>> {
-  let ptr = NonNull::new(unsafe { ffi::CGDisplayCreateUUIDFromDisplayID(display_id) })?;
-  // SAFETY: The Create function returns an owned (+1) reference.
-  Some(unsafe { CFRetained::from_raw(ptr) })
-}
-
-impl PartialEq for MonitorHandle {
-  fn eq(&self, other: &Self) -> bool {
-    self.identity() == other.identity()
-  }
-}
-
-impl Eq for MonitorHandle {}
 
 impl PartialOrd for MonitorHandle {
   fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
@@ -143,13 +128,7 @@ impl PartialOrd for MonitorHandle {
 
 impl Ord for MonitorHandle {
   fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-    self.identity().cmp(&other.identity())
-  }
-}
-
-impl std::hash::Hash for MonitorHandle {
-  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-    self.identity().hash(state);
+    self.uuid().cmp(&other.uuid())
   }
 }
 
@@ -157,7 +136,7 @@ pub fn available_monitors() -> VecDeque<MonitorHandle> {
   if let Ok(displays) = CGDisplay::active_displays() {
     let mut monitors = VecDeque::with_capacity(displays.len());
     for display in displays {
-      monitors.push_back(MonitorHandle::new(display));
+      monitors.push_back(MonitorHandle::new(display).expect("invalid display ID"));
     }
     monitors
   } else {
@@ -166,7 +145,7 @@ pub fn available_monitors() -> VecDeque<MonitorHandle> {
 }
 
 pub fn primary_monitor() -> MonitorHandle {
-  MonitorHandle::new(CGDisplay::main().id)
+  MonitorHandle::new(CGDisplay::main().id).expect("invalid display ID")
 }
 
 // `from_point` get a monitor handle which contains the given point.
@@ -211,23 +190,22 @@ impl fmt::Debug for MonitorHandle {
 }
 
 impl MonitorHandle {
-  fn identity(&self) -> Result<[u8; 16], CGDirectDisplayID> {
-    self
-      .0
-      .as_ref()
-      .map(|uuid| uuid.uuid_bytes().into())
-      .map_err(|id| *id)
+  fn uuid(&self) -> [u8; 16] {
+    self.0.uuid_bytes().into()
   }
 
-  pub fn new(id: CGDirectDisplayID) -> Self {
-    Self(display_uuid(id).ok_or(id))
+  #[track_caller]
+  pub(super) fn new(display_id: CGDirectDisplayID) -> Option<Self> {
+    if display_id == 0 {
+      warn!("constructing monitor from invalid display ID 0; falling back to main monitor");
+    }
+    let ptr = NonNull::new(unsafe { ffi::CGDisplayCreateUUIDFromDisplayID(display_id) })?;
+    // SAFETY: The Create function returns an owned (+1) reference.
+    Some(Self(unsafe { CFRetained::from_raw(ptr) }))
   }
 
   pub(super) fn display_id(&self) -> Option<CGDirectDisplayID> {
-    let id = match &self.0 {
-      Ok(uuid) => unsafe { ffi::CGDisplayGetDisplayIDFromUUID(uuid) },
-      Err(id) => *id,
-    };
+    let id = unsafe { ffi::CGDisplayGetDisplayIDFromUUID(&self.0) };
     // An offline UUID resolves to kCGNullDirectDisplay.
     (id != 0).then_some(id)
   }
@@ -359,11 +337,11 @@ impl MonitorHandle {
   }
 
   pub(crate) fn ns_screen(&self, mtm: MainThreadMarker) -> Option<Retained<NSScreen>> {
-    let uuid = self.0.as_ref().ok()?;
+    let uuid = self.uuid();
     NSScreen::screens(mtm).into_iter().find(|screen| {
       let display_id = get_display_id(screen);
-      if let Some(other) = display_uuid(display_id) {
-        *uuid == other
+      if let Some(other) = Self::new(display_id) {
+        uuid == other.uuid()
       } else {
         warn!("comparing against screen with invalid display ID {display_id}");
         false

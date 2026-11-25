@@ -6,7 +6,6 @@
 use std::{
   cell::{Cell, RefCell},
   collections::VecDeque,
-  convert::TryInto,
   ffi::CStr,
   os::raw::c_void,
   path::PathBuf,
@@ -1347,9 +1346,11 @@ impl WindowDelegate {
   pub(crate) fn current_monitor_inner(&self) -> Option<RootMonitorHandle> {
     let screen = self.window().screen()?;
     let display_id = monitor::get_display_id(&screen);
-    Some(RootMonitorHandle {
-      inner: MonitorHandle::new(display_id),
-    })
+    let Some(inner) = MonitorHandle::new(display_id) else {
+      warn!("got screen with invalid display ID {display_id}");
+      return None;
+    };
+    Some(RootMonitorHandle { inner })
   }
 
   #[inline]
