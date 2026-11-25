@@ -114,6 +114,15 @@ impl VideoMode {
   }
 }
 
+/// `CGDirectDisplayID` is documented as:
+/// > a framebuffer, a color correction (gamma) table, and possibly an attached monitor.
+///
+/// That is, it doesn't actually represent the monitor itself. Instead, we use the UUID of the
+/// monitor, as retrieved from `CGDisplayCreateUUIDFromDisplayID` (this makes the monitor ID stable,
+/// even across reboots and video mode changes).
+///
+/// NOTE: I'd be perfectly valid to store `[u8; 16]` in here instead, we only store `CFUUID` to
+/// avoid having to re-create it when we want to fetch the display ID.Ï
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct MonitorHandle(CFRetained<CFUUID>);
 
