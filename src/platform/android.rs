@@ -30,6 +30,9 @@ pub trait WindowExtAndroid {
   fn config(&self) -> Configuration;
 
   fn activity_name(&self) -> String;
+
+  /// Identifier of the activity this window is attached to, see [`WindowBuilderExtAndroid::with_activity_id`].
+  fn activity_id(&self) -> i32;
 }
 
 impl WindowExtAndroid for Window {
@@ -43,6 +46,10 @@ impl WindowExtAndroid for Window {
 
   fn activity_name(&self) -> String {
     self.window.activity_name().to_string()
+  }
+
+  fn activity_id(&self) -> i32 {
+    self.window.activity_id()
   }
 }
 

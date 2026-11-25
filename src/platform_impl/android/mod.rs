@@ -983,6 +983,10 @@ impl Window {
     &self.activity_name
   }
 
+  pub fn activity_id(&self) -> ActivityId {
+    self.activity_id
+  }
+
   pub fn theme(&self) -> Theme {
     Theme::Light
   }
