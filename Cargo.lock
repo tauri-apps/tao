@@ -2511,6 +2511,7 @@ dependencies = [
  "ndk-sys",
  "objc2 0.6.4",
  "objc2-app-kit",
+ "objc2-core-foundation",
  "objc2-foundation 0.3.2",
  "objc2-ui-kit",
  "parking_lot",

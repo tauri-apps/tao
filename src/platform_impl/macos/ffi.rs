@@ -15,7 +15,6 @@ use std::{ffi::c_void, ptr};
 
 use core_foundation::{
   array::CFArrayRef, data::CFDataRef, dictionary::CFDictionaryRef, string::CFStringRef,
-  uuid::CFUUIDRef,
 };
 use core_graphics::{
   base::CGError,
@@ -26,6 +25,7 @@ use objc2::{
   encode::{Encode, Encoding},
   runtime::{AnyObject, Bool},
 };
+use objc2_core_foundation::CFUUID;
 use objc2_foundation::NSInteger;
 
 #[allow(non_camel_case_types)]
@@ -135,7 +135,8 @@ pub type CGDisplayModeRef = *mut libc::c_void;
 // https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/OSX_Technology_Overview/SystemFrameworks/SystemFrameworks.html#//apple_ref/doc/uid/TP40001067-CH210-BBCFFIEG
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
-  pub fn CGDisplayCreateUUIDFromDisplayID(display: CGDirectDisplayID) -> CFUUIDRef;
+  pub fn CGDisplayCreateUUIDFromDisplayID(display: CGDirectDisplayID) -> *mut CFUUID;
+  pub fn CGDisplayGetDisplayIDFromUUID(uuid: &CFUUID) -> CGDirectDisplayID;
 }
 
 #[link(name = "CoreGraphics", kind = "framework")]

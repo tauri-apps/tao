@@ -359,9 +359,12 @@ impl<T> EventLoopExtMacOS for EventLoop<T> {
 
 /// Additional methods on `MonitorHandle` that are specific to MacOS.
 pub trait MonitorHandleExtMacOS {
-  /// Returns the identifier of the monitor for Cocoa.
+  /// Returns the current identifier of the monitor for Cocoa, or `0` if a known monitor is offline.
   fn native_id(&self) -> u32;
-  /// Returns a pointer to the NSScreen representing this monitor.
+
+  /// Returns a borrowed pointer to this monitor's `NSScreen`, or `None` off the main
+  /// thread or if the screen is unavailable. Do not release it. It is valid only
+  /// while another owner keeps the screen alive.
   fn ns_screen(&self) -> Option<*mut c_void>;
 }
 
@@ -372,10 +375,14 @@ impl MonitorHandleExtMacOS for MonitorHandle {
   }
 
   fn ns_screen(&self) -> Option<*mut c_void> {
+    // TODO: `NSScreen::screens` likely requires the main thread; winit doesn't
+    // check here either, worth discussing with them upstream.
+    // SAFETY: We only use the marker to get a pointer
+    let mtm = unsafe { objc2_foundation::MainThreadMarker::new_unchecked() };
     self
       .inner
-      .ns_screen()
-      .map(|s| objc2::rc::Retained::into_raw(s) as *mut c_void)
+      .ns_screen(mtm)
+      .map(|s| objc2::rc::Retained::as_ptr(&s) as _)
   }
 }
 
