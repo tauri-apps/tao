@@ -145,6 +145,7 @@ pub fn available_monitors() -> VecDeque<MonitorHandle> {
 }
 
 pub fn primary_monitor() -> MonitorHandle {
+  // TODO: we need migrate to `objc2_core_graphics` to align with winit
   MonitorHandle::new(CGDisplay::main().id).expect("invalid display ID")
 }
 
