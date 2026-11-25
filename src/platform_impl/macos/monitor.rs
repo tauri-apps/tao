@@ -150,14 +150,13 @@ pub fn primary_monitor() -> MonitorHandle {
 
 // `from_point` get a monitor handle which contains the given point.
 pub fn from_point(x: f64, y: f64) -> Option<MonitorHandle> {
+  let displays = CGDisplay::active_displays().ok()?;
+  let point = CGPoint::new(x, y);
   unsafe {
-    for monitor in available_monitors() {
-      let Some(display_id) = monitor.display_id() else {
-        continue;
-      };
+    for display_id in displays {
       let bound = CGDisplayBounds(display_id);
-      if CGRectContainsPoint(bound, CGPoint::new(x, y)) > 0 {
-        return Some(monitor);
+      if CGRectContainsPoint(bound, point) > 0 {
+        return MonitorHandle::new(display_id);
       }
     }
   }
