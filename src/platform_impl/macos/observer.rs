@@ -37,6 +37,7 @@ extern "C" {
     observer: CFRunLoopObserverRef,
     mode: CFRunLoopMode,
   );
+  pub fn CFRunLoopObserverInvalidate(observer: CFRunLoopObserverRef);
 
   pub fn CFRunLoopTimerCreate(
     allocator: CFAllocatorRef,
@@ -210,7 +211,7 @@ impl RunLoop {
     priority: CFIndex,
     handler: CFRunLoopObserverCallBack,
     context: *mut CFRunLoopObserverContext,
-  ) {
+  ) -> CFRunLoopObserverRef {
     let observer = CFRunLoopObserverCreate(
       ptr::null_mut(),
       flags,
@@ -220,31 +221,61 @@ impl RunLoop {
       context,
     );
     CFRunLoopAddObserver(self.0, observer, kCFRunLoopCommonModes);
+    observer
   }
 }
 
-pub fn setup_control_flow_observers(panic_info: Weak<PanicInfo>) {
+/// The run loop observers that drive an `EventLoop`. They hold the event
+/// loop's `PanicInfo` only weakly, so they must not outlive it: dropping this
+/// removes them from the run loop, which may well keep running after the
+/// `EventLoop` is gone (e.g. after `run_return` has returned).
+pub struct ControlFlowObservers {
+  begin: CFRunLoopObserverRef,
+  end: CFRunLoopObserverRef,
+  panic_info: *const PanicInfo,
+}
+
+impl Drop for ControlFlowObservers {
+  fn drop(&mut self) {
+    unsafe {
+      for observer in [self.begin, self.end] {
+        CFRunLoopObserverInvalidate(observer);
+        CFRelease(observer as _);
+      }
+      // Both observers shared the one `Weak` handed to them as context.
+      drop(Weak::from_raw(self.panic_info));
+    }
+  }
+}
+
+pub fn setup_control_flow_observers(panic_info: Weak<PanicInfo>) -> ControlFlowObservers {
   unsafe {
+    let panic_info = Weak::into_raw(panic_info);
     let mut context = CFRunLoopObserverContext {
-      info: Weak::into_raw(panic_info) as *mut _,
+      info: panic_info as *mut _,
       version: 0,
       retain: None,
       release: None,
       copyDescription: None,
     };
     let run_loop = RunLoop::get();
-    run_loop.add_observer(
+    let begin = run_loop.add_observer(
       kCFRunLoopEntry | kCFRunLoopAfterWaiting,
       CFIndex::MIN,
       control_flow_begin_handler,
       &mut context as *mut _,
     );
-    run_loop.add_observer(
+    let end = run_loop.add_observer(
       kCFRunLoopExit | kCFRunLoopBeforeWaiting,
       CFIndex::MAX,
       control_flow_end_handler,
       &mut context as *mut _,
     );
+    ControlFlowObservers {
+      begin,
+      end,
+      panic_info,
+    }
   }
 }
 
