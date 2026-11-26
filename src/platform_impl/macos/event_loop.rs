@@ -292,9 +292,10 @@ pub fn stop_app_on_panic<F: FnOnce() -> R + UnwindSafe, R>(
         panic_info.set_panic(e);
       }
       unsafe {
-        let app_class = class!(NSApplication);
-        let app: Retained<NSApplication> = msg_send![app_class, sharedApplication];
-        let () = msg_send![&app, stop: ptr::null_mut::<AnyObject>()];
+        // SAFETY: TODO.
+        let mtm = MainThreadMarker::new_unchecked();
+        let app = NSApplication::sharedApplication(mtm);
+        app.stop(None);
 
         // Posting a dummy event to get `stop` to take effect immediately.
         // See: https://stackoverflow.com/questions/48041279/stopping-the-nsapplication-main-event-loop/48064752#48064752
