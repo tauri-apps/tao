@@ -289,22 +289,20 @@ impl MonitorHandle {
   pub(crate) fn ns_screen(&self) -> Option<Retained<NSScreen>> {
     // SAFETY: TODO.
     let mtm = unsafe { MainThreadMarker::new_unchecked() };
-    unsafe {
-      let uuid = self.uuid()?;
-      let screens = NSScreen::screens(mtm);
-      let key = ns_string!("NSScreenNumber");
-      for screen in screens {
-        let device_description = NSScreen::deviceDescription(&screen);
-        if let Some(value) = device_description.objectForKey(key) {
-          let value = value.downcast::<NSNumber>().unwrap();
-          let other_native_id = value.unsignedIntegerValue();
-          let other = Self(other_native_id as CGDirectDisplayID);
-          if Some(uuid) == other.uuid() {
-            return Some(screen);
-          }
+    let uuid = self.uuid()?;
+    let screens = NSScreen::screens(mtm);
+    let key = ns_string!("NSScreenNumber");
+    for screen in screens {
+      let device_description = NSScreen::deviceDescription(&screen);
+      if let Some(value) = device_description.objectForKey(key) {
+        let value = value.downcast::<NSNumber>().unwrap();
+        let other_native_id = value.unsignedIntegerValue();
+        let other = Self(other_native_id as CGDirectDisplayID);
+        if Some(uuid) == other.uuid() {
+          return Some(screen);
         }
       }
-      None
     }
+    None
   }
 }
