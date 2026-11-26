@@ -26,7 +26,6 @@ use crate::{
   platform_impl::{
     platform::{
       app_state::AppState,
-      ffi,
       monitor::{self, MonitorHandle, VideoMode},
       util::{self, IdRef},
       view::{self, new_view, CursorState},
@@ -39,7 +38,6 @@ use crate::{
     WindowAttributes, WindowId, WindowId as RootWindowId, WindowSizeConstraints,
   },
 };
-use core_graphics::{base::CGFloat, display::CGDisplay, geometry::CGPoint};
 use objc2::{
   define_class, msg_send,
   rc::{autoreleasepool, Retained},
@@ -53,6 +51,13 @@ use objc2_app_kit::{
   NSWindowCollectionBehavior, NSWindowDelegate, NSWindowFullScreenButton, NSWindowOrderingMode,
   NSWindowSharingType, NSWindowStyleMask,
 };
+use objc2_core_foundation::{CGFloat, CGPoint};
+use objc2_core_graphics::{
+  kCGDisplayBlendNormal, kCGDisplayBlendSolidColor, kCGDisplayFadeReservationInvalidToken,
+  kCGFloatingWindowLevel, kCGNormalWindowLevel, CGAcquireDisplayFadeReservation,
+  CGAssociateMouseAndMouseCursorPosition, CGDisplayCapture, CGDisplayFade, CGDisplaySetDisplayMode,
+  CGError, CGReleaseDisplayFadeReservation, CGShieldingWindowLevel, CGWarpMouseCursorPosition,
+};
 use objc2_foundation::{
   ns_string, MainThreadMarker, NSArray, NSAutoreleasePool, NSDictionary,
   NSDistributedNotificationCenter, NSInteger, NSNumber, NSObject, NSObjectNSDelayedPerforming,
@@ -61,7 +66,6 @@ use objc2_foundation::{
 
 use super::{
   event::{EventProxy, EventWrapper},
-  ffi::{id, nil},
   view::{reapply_traffic_light_inset, TaoView},
   window::{get_window_id, Id, TaoWindow, WindowState},
 };
@@ -264,11 +268,11 @@ fn create_window(
     }
 
     if attrs.always_on_top {
-      ns_window.setLevel(ffi::NSWindowLevel::NSFloatingWindowLevel as isize);
+      ns_window.setLevel(kCGFloatingWindowLevel as isize);
     }
 
     if attrs.always_on_bottom {
-      ns_window.setLevel(ffi::NSWindowLevel::BelowNormalWindowLevel as isize);
+      ns_window.setLevel((kCGNormalWindowLevel - 1) as isize);
     }
 
     if attrs.content_protection {
@@ -290,8 +294,9 @@ fn create_window(
     }
 
     if let Parent::ChildOf(parent) = pl_attrs.parent {
+      let parent = parent.cast::<AnyObject>();
       let _: () =
-        msg_send![parent as id, addChildWindow: &*ns_window, ordered: NSWindowOrderingMode::Above];
+        msg_send![parent, addChildWindow: &*ns_window, ordered: NSWindowOrderingMode::Above];
     }
 
     if !pl_attrs.automatic_tabbing {
@@ -339,12 +344,12 @@ pub(super) fn get_ns_theme() -> Theme {
       NSString::from_str("NSAppearanceNameDarkAqua"),
     ];
     let app_class = class!(NSApplication);
-    let app: id = msg_send![app_class, sharedApplication];
+    let app: *mut AnyObject = msg_send![app_class, sharedApplication];
     let has_theme: bool = msg_send![app, respondsToSelector: sel!(effectiveAppearance)];
     if !has_theme {
       return Theme::Light;
     }
-    let appearance: id = msg_send![app, effectiveAppearance];
+    let appearance: *mut AnyObject = msg_send![app, effectiveAppearance];
     let name: Retained<NSString> = msg_send![
       appearance,
       bestMatchFromAppearancesWithNames: &*NSArray::from_retained_slice(&appearances)
@@ -360,7 +365,7 @@ pub(super) fn get_ns_theme() -> Theme {
 pub(super) fn set_ns_theme(theme: Option<Theme>) {
   unsafe {
     let app_class = class!(NSApplication);
-    let app: id = msg_send![app_class, sharedApplication];
+    let app: *mut AnyObject = msg_send![app_class, sharedApplication];
     let has_theme: bool = msg_send![app, respondsToSelector: sel!(effectiveAppearance)];
     if has_theme {
       let appearance = if let Some(theme) = theme {
@@ -370,7 +375,7 @@ pub(super) fn set_ns_theme(theme: Option<Theme>) {
         });
         msg_send![class!(NSAppearance), appearanceNamed: &*name]
       } else {
-        nil
+        std::ptr::null_mut::<AnyObject>()
       };
       let _: () = msg_send![app, setAppearance: appearance];
     }
@@ -794,8 +799,10 @@ impl WindowDelegate {
   #[inline]
   pub fn set_cursor_grab(&self, grab: bool) -> Result<(), ExternalError> {
     // TODO: Do this for real https://stackoverflow.com/a/40922095/5435443
-    CGDisplay::associate_mouse_and_mouse_cursor_position(!grab)
-      .map_err(|status| ExternalError::Os(os_error!(OsError::CGError(status))))
+    let status = CGAssociateMouseAndMouseCursorPosition(!grab);
+    (status == CGError::Success)
+      .then_some(())
+      .ok_or_else(|| ExternalError::Os(os_error!(OsError::CGError(status))))
   }
 
   #[inline]
@@ -834,12 +841,12 @@ impl WindowDelegate {
       x: logical_cursor_position.x + window_position.x,
       y: logical_cursor_position.y + window_position.y,
     };
-    CGDisplay::warp_mouse_cursor_position(point)
-      .map_err(|e| ExternalError::Os(os_error!(OsError::CGError(e))))?;
-    CGDisplay::associate_mouse_and_mouse_cursor_position(true)
-      .map_err(|e| ExternalError::Os(os_error!(OsError::CGError(e))))?;
+    let status = CGWarpMouseCursorPosition(point);
+    if status != CGError::Success {
+      return Err(ExternalError::Os(os_error!(OsError::CGError(status))));
+    }
 
-    Ok(())
+    self.set_cursor_grab(false)
   }
 
   #[inline]
@@ -1002,7 +1009,7 @@ impl WindowDelegate {
 
   #[inline]
   pub fn is_always_on_top(&self) -> bool {
-    unsafe { self.window().level() == ffi::kCGFloatingWindowLevelKey }
+    unsafe { self.window().level() == kCGFloatingWindowLevel as NSInteger }
   }
 
   #[inline]
@@ -1119,7 +1126,7 @@ impl WindowDelegate {
 
       let display_id = video_mode.monitor().inner.native_identifier();
 
-      let mut fade_token = ffi::kCGDisplayFadeReservationInvalidToken;
+      let mut fade_token = kCGDisplayFadeReservationInvalidToken;
 
       if matches!(old_fullscreen, Some(Fullscreen::Borderless(_))) {
         unsafe {
@@ -1135,44 +1142,41 @@ impl WindowDelegate {
       unsafe {
         // Fade to black (and wait for the fade to complete) to hide the
         // flicker from capturing the display and switching display mode
-        if ffi::CGAcquireDisplayFadeReservation(5.0, &mut fade_token) == ffi::kCGErrorSuccess {
-          ffi::CGDisplayFade(
+        if CGAcquireDisplayFadeReservation(5.0, &mut fade_token) == CGError::Success {
+          CGDisplayFade(
             fade_token,
             0.3,
-            ffi::kCGDisplayBlendNormal,
-            ffi::kCGDisplayBlendSolidColor,
+            kCGDisplayBlendNormal,
+            kCGDisplayBlendSolidColor,
             0.0,
             0.0,
             0.0,
-            ffi::TRUE,
+            true,
           );
         }
 
-        assert_eq!(ffi::CGDisplayCapture(display_id), ffi::kCGErrorSuccess);
+        assert_eq!(CGDisplayCapture(display_id), CGError::Success);
       }
 
       unsafe {
-        let result = ffi::CGDisplaySetDisplayMode(
-          display_id,
-          video_mode.video_mode.native_mode.0,
-          std::ptr::null(),
-        );
-        assert!(result == ffi::kCGErrorSuccess, "failed to set video mode");
+        let result =
+          CGDisplaySetDisplayMode(display_id, Some(&video_mode.video_mode.native_mode.0), None);
+        assert!(result == CGError::Success, "failed to set video mode");
 
         // After the display has been configured, fade back in
         // asynchronously
-        if fade_token != ffi::kCGDisplayFadeReservationInvalidToken {
-          ffi::CGDisplayFade(
+        if fade_token != kCGDisplayFadeReservationInvalidToken {
+          CGDisplayFade(
             fade_token,
             0.6,
-            ffi::kCGDisplayBlendSolidColor,
-            ffi::kCGDisplayBlendNormal,
+            kCGDisplayBlendSolidColor,
+            kCGDisplayBlendNormal,
             0.0,
             0.0,
             0.0,
-            ffi::FALSE,
+            false,
           );
-          ffi::CGReleaseDisplayFadeReservation(fade_token);
+          CGReleaseDisplayFadeReservation(fade_token);
         }
       }
     }
@@ -1215,7 +1219,7 @@ impl WindowDelegate {
 
         self
           .window()
-          .setLevel(ffi::CGShieldingWindowLevel() as isize + 1);
+          .setLevel(CGShieldingWindowLevel() as isize + 1);
       },
       (
         &Some(Fullscreen::Exclusive(RootVideoMode { ref video_mode })),
@@ -1277,9 +1281,9 @@ impl WindowDelegate {
   #[inline]
   pub fn set_always_on_bottom(&self, always_on_bottom: bool) {
     let level = if always_on_bottom {
-      ffi::NSWindowLevel::BelowNormalWindowLevel
+      kCGNormalWindowLevel - 1
     } else {
-      ffi::NSWindowLevel::NSNormalWindowLevel
+      kCGNormalWindowLevel
     };
     unsafe { self.window().setLevel(level as _) };
   }
@@ -1287,9 +1291,9 @@ impl WindowDelegate {
   #[inline]
   pub fn set_always_on_top(&self, always_on_top: bool) {
     let level = if always_on_top {
-      ffi::NSWindowLevel::NSFloatingWindowLevel
+      kCGFloatingWindowLevel
     } else {
-      ffi::NSWindowLevel::NSNormalWindowLevel
+      kCGNormalWindowLevel
     };
     unsafe { self.window().setLevel(level as _) };
   }

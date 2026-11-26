@@ -36,7 +36,6 @@ use crate::{
   platform_impl::platform::{
     app_state::AppState,
     event::{code_to_key, create_key_event, event_mods, get_scancode, EventWrapper},
-    ffi::*,
     util::{self},
     window::get_window_id,
     DEVICE_ID,
@@ -118,7 +117,7 @@ pub(super) fn new_view(ns_window: &NSWindow) -> (Retained<TaoView>, Weak<Mutex<C
   }
 }
 
-pub unsafe fn set_ime_position(ns_view: &NSView, input_context: id, x: f64, y: f64) {
+pub unsafe fn set_ime_position(ns_view: &NSView, input_context: *mut AnyObject, x: f64, y: f64) {
   let state = ns_view.downcast_ref::<TaoView>().unwrap().ivars();
   let content_rect = NSWindow::contentRectForFrameRect(
     &state.ns_window.load().unwrap(),
@@ -552,7 +551,7 @@ define_class!(
     }
 
     #[unsafe(method(mouseEntered:))]
-    fn mouse_entered(&self, _event: id) {
+    fn mouse_entered(&self, _event: &NSEvent) {
       trace!("Triggered `mouseEntered`");
       unsafe {
         let state = self.ivars();
@@ -570,7 +569,7 @@ define_class!(
     }
 
     #[unsafe(method(mouseExited:))]
-    fn mouse_exited(&self, _event: id) {
+    fn mouse_exited(&self, _event: &NSEvent) {
       trace!("Triggered `mouseExited`");
       unsafe {
         let state = self.ivars();

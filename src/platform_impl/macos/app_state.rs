@@ -11,14 +11,14 @@ use std::{
   rc::{Rc, Weak},
   sync::{
     atomic::{AtomicBool, Ordering},
-    Mutex, MutexGuard,
+    LazyLock, Mutex, MutexGuard,
   },
   time::Instant,
 };
 
 use objc2_app_kit::{NSApp, NSApplication, NSApplicationActivationPolicy, NSWindow};
+use objc2_core_foundation::CFRunLoop;
 use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSSize};
-use std::sync::LazyLock;
 
 use crate::{
   dpi::LogicalSize,
@@ -31,7 +31,7 @@ use crate::{
       app_delegate::AppDelegate,
       event::{EventProxy, EventWrapper},
       event_loop::{post_dummy_event, PanicInfo},
-      observer::{CFRunLoopGetMain, CFRunLoopWakeUp, EventLoopWaker},
+      observer::EventLoopWaker,
       util::{self, Never},
       window::get_window_id,
     },
@@ -356,10 +356,7 @@ impl AppState {
     if !pending_redraw.contains(&window_id) {
       pending_redraw.push(window_id);
     }
-    unsafe {
-      let rl = CFRunLoopGetMain();
-      CFRunLoopWakeUp(rl);
-    }
+    CFRunLoop::main().unwrap().wake_up();
   }
 
   pub fn handle_redraw(window_id: WindowId) {
