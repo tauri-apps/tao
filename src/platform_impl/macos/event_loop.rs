@@ -10,22 +10,19 @@ use std::{
   mem,
   os::raw::c_void,
   panic::{catch_unwind, resume_unwind, RefUnwindSafe, UnwindSafe},
-  process, ptr,
+  process,
   rc::{Rc, Weak},
 };
 
 use crossbeam_channel::{self as channel, Receiver, Sender};
-use objc2::{
-  msg_send,
-  rc::Retained,
-  runtime::{AnyObject, ProtocolObject},
-  ClassType,
+use objc2::{msg_send, rc::Retained, runtime::ProtocolObject, ClassType};
+use objc2_app_kit::{
+  NSApp, NSApplication, NSEvent, NSEventModifierFlags, NSEventSubtype, NSEventType,
 };
-use objc2_app_kit::{NSApp, NSApplication, NSEventModifierFlags, NSEventSubtype, NSEventType};
 use objc2_core_foundation::{
   kCFRunLoopCommonModes, CFIndex, CFRetained, CFRunLoop, CFRunLoopSource, CFRunLoopSourceContext,
 };
-use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSInteger, NSPoint, NSTimeInterval};
+use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSPoint};
 
 use crate::{
   dpi::PhysicalPosition,
@@ -256,21 +253,21 @@ impl<T> EventLoop<T> {
 }
 
 #[inline]
-pub unsafe fn post_dummy_event(target: &NSApplication) {
-  let event_class = class!(NSEvent);
-  let dummy_event: *mut AnyObject = msg_send![
-      event_class,
-      otherEventWithType: NSEventType::ApplicationDefined,
-      location: NSPoint::new(0.0, 0.0),
-      modifierFlags: NSEventModifierFlags::empty(),
-      timestamp: 0 as NSTimeInterval,
-      windowNumber: 0 as NSInteger,
-      context: ptr::null_mut::<AnyObject>(),
-      subtype: NSEventSubtype::WindowExposed,
-      data1: 0 as NSInteger,
-      data2: 0 as NSInteger,
-  ];
-  let () = msg_send![target, postEvent: dummy_event, atStart: true];
+pub fn post_dummy_event(target: &NSApplication) {
+  let dummy_event =
+    NSEvent::otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2(
+      NSEventType::ApplicationDefined,
+      NSPoint::new(0.0, 0.0),
+      NSEventModifierFlags::empty(),
+      0.0,
+      0,
+      None,
+      NSEventSubtype::WindowExposed.0,
+      0,
+      0,
+    )
+    .unwrap();
+  target.postEvent_atStart(&dummy_event, true);
 }
 
 /// Catches panics that happen inside `f` and when a panic
@@ -344,7 +341,7 @@ impl<T> Proxy<T> {
       .sender
       .send(event)
       .map_err(|channel::SendError(x)| EventLoopClosed(x))?;
-    // Let the main thread know there's a new event.
+    // let the main thread know there's a new event
     self.source.signal();
     CFRunLoop::main().unwrap().wake_up();
     Ok(())
