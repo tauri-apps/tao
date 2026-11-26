@@ -25,6 +25,7 @@ use objc2_foundation::{
 use crate::{
   dpi::{LogicalPosition, PhysicalPosition},
   error::ExternalError,
+  platform_impl::OsError,
 };
 
 // Replace with `!` once stable
@@ -151,4 +152,13 @@ pub fn is_main_thread() -> bool {
 pub unsafe fn restore_display_mode(ns_screen: u32) {
   CGRestorePermanentDisplayConfiguration();
   assert_eq!(CGDisplayRelease(ns_screen), CGError::Success);
+}
+
+#[track_caller]
+pub(crate) fn cgerr(err: CGError) -> Result<(), ExternalError> {
+  if err == CGError::Success {
+    Ok(())
+  } else {
+    Err(ExternalError::Os(os_error!(OsError::CGError(err))))
+  }
 }

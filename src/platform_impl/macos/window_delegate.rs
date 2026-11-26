@@ -29,7 +29,6 @@ use crate::{
       monitor::{self, MonitorHandle, VideoMode},
       util::{self, IdRef},
       view::{self, new_view, CursorState},
-      OsError,
     },
     set_badge_label, set_progress_indicator,
   },
@@ -791,10 +790,7 @@ impl WindowDelegate {
   #[inline]
   pub fn set_cursor_grab(&self, grab: bool) -> Result<(), ExternalError> {
     // TODO: Do this for real https://stackoverflow.com/a/40922095/5435443
-    let status = CGAssociateMouseAndMouseCursorPosition(!grab);
-    (status == CGError::Success)
-      .then_some(())
-      .ok_or_else(|| ExternalError::Os(os_error!(OsError::CGError(status))))
+    util::cgerr(CGAssociateMouseAndMouseCursorPosition(!grab))
   }
 
   #[inline]
@@ -833,11 +829,7 @@ impl WindowDelegate {
       x: logical_cursor_position.x + window_position.x,
       y: logical_cursor_position.y + window_position.y,
     };
-    let status = CGWarpMouseCursorPosition(point);
-    if status != CGError::Success {
-      return Err(ExternalError::Os(os_error!(OsError::CGError(status))));
-    }
-
+    util::cgerr(CGWarpMouseCursorPosition(point))?;
     self.set_cursor_grab(false)
   }
 
