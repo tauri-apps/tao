@@ -10,14 +10,19 @@ use std::{
   mem,
   os::raw::c_void,
   panic::{catch_unwind, resume_unwind, RefUnwindSafe, UnwindSafe},
-  process, ptr,
+  process,
   rc::{Rc, Weak},
 };
 
 use crossbeam_channel::{self as channel, Receiver, Sender};
 use objc2::{msg_send, rc::Retained, runtime::ProtocolObject, ClassType};
-use objc2_app_kit::{NSApp, NSApplication, NSEventModifierFlags, NSEventSubtype, NSEventType};
-use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSInteger, NSPoint, NSTimeInterval};
+use objc2_app_kit::{
+  NSApp, NSApplication, NSEvent, NSEventModifierFlags, NSEventSubtype, NSEventType,
+};
+use objc2_core_foundation::{
+  kCFRunLoopCommonModes, CFIndex, CFRetained, CFRunLoop, CFRunLoopSource, CFRunLoopSourceContext,
+};
+use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSPoint};
 
 use crate::{
   dpi::PhysicalPosition,
@@ -30,9 +35,8 @@ use crate::{
       app::TaoApp,
       app_delegate::AppDelegate,
       app_state::AppState,
-      ffi::{id, nil, YES},
       monitor::{self, MonitorHandle},
-      observer::*,
+      observer::setup_control_flow_observers,
       util,
     },
     set_badge_label, set_progress_indicator,
@@ -249,21 +253,21 @@ impl<T> EventLoop<T> {
 }
 
 #[inline]
-pub unsafe fn post_dummy_event(target: &NSApplication) {
-  let event_class = class!(NSEvent);
-  let dummy_event: id = msg_send![
-      event_class,
-      otherEventWithType: NSEventType::ApplicationDefined,
-      location: NSPoint::new(0.0, 0.0),
-      modifierFlags: NSEventModifierFlags::empty(),
-      timestamp: 0 as NSTimeInterval,
-      windowNumber: 0 as NSInteger,
-      context: nil,
-      subtype: NSEventSubtype::WindowExposed,
-      data1: 0 as NSInteger,
-      data2: 0 as NSInteger,
-  ];
-  let () = msg_send![target, postEvent: dummy_event, atStart: YES];
+pub fn post_dummy_event(target: &NSApplication) {
+  let dummy_event =
+    NSEvent::otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2(
+      NSEventType::ApplicationDefined,
+      NSPoint::new(0.0, 0.0),
+      NSEventModifierFlags::empty(),
+      0.0,
+      0,
+      None,
+      NSEventSubtype::WindowExposed.0,
+      0,
+      0,
+    )
+    .unwrap();
+  target.postEvent_atStart(&dummy_event, true);
 }
 
 /// Catches panics that happen inside `f` and when a panic
@@ -285,9 +289,10 @@ pub fn stop_app_on_panic<F: FnOnce() -> R + UnwindSafe, R>(
         panic_info.set_panic(e);
       }
       unsafe {
-        let app_class = class!(NSApplication);
-        let app: Retained<NSApplication> = msg_send![app_class, sharedApplication];
-        let () = msg_send![&app, stop: nil];
+        // SAFETY: TODO.
+        let mtm = MainThreadMarker::new_unchecked();
+        let app = NSApplication::sharedApplication(mtm);
+        app.stop(None);
 
         // Posting a dummy event to get `stop` to take effect immediately.
         // See: https://stackoverflow.com/questions/48041279/stopping-the-nsapplication-main-event-loop/48064752#48064752
@@ -300,19 +305,11 @@ pub fn stop_app_on_panic<F: FnOnce() -> R + UnwindSafe, R>(
 
 pub struct Proxy<T> {
   sender: Sender<T>,
-  source: CFRunLoopSourceRef,
+  source: CFRetained<CFRunLoopSource>,
 }
 
 unsafe impl<T: Send> Send for Proxy<T> {}
 unsafe impl<T: Send> Sync for Proxy<T> {}
-
-impl<T> Drop for Proxy<T> {
-  fn drop(&mut self) {
-    unsafe {
-      CFRelease(self.source as _);
-    }
-  }
-}
 
 impl<T> Clone for Proxy<T> {
   fn clone(&self) -> Self {
@@ -328,12 +325,12 @@ impl<T> Proxy<T> {
 
       // adding a Source to the main CFRunLoop lets us wake it up and
       // process user events through the normal OS EventLoop mechanisms.
-      let rl = CFRunLoopGetMain();
+      let rl = CFRunLoop::main().unwrap();
       let mut context: CFRunLoopSourceContext = mem::zeroed();
       context.perform = Some(event_loop_proxy_handler);
-      let source = CFRunLoopSourceCreate(ptr::null_mut(), CFIndex::MAX - 1, &mut context);
-      CFRunLoopAddSource(rl, source, kCFRunLoopCommonModes);
-      CFRunLoopWakeUp(rl);
+      let source = CFRunLoopSource::new(None, CFIndex::MAX - 1, &mut context).unwrap();
+      rl.add_source(Some(&source), kCFRunLoopCommonModes);
+      rl.wake_up();
 
       Proxy { sender, source }
     }
@@ -344,12 +341,9 @@ impl<T> Proxy<T> {
       .sender
       .send(event)
       .map_err(|channel::SendError(x)| EventLoopClosed(x))?;
-    unsafe {
-      // let the main thread know there's a new event
-      CFRunLoopSourceSignal(self.source);
-      let rl = CFRunLoopGetMain();
-      CFRunLoopWakeUp(rl);
-    }
+    // let the main thread know there's a new event
+    self.source.signal();
+    CFRunLoop::main().unwrap().wake_up();
     Ok(())
   }
 }

@@ -9,18 +9,23 @@ pub use self::{cursor::*, r#async::*};
 
 use std::ops::{BitAnd, Deref};
 
-use core_graphics::display::CGDisplay;
 use objc2::{
   class,
-  runtime::{AnyObject as Object, Sel},
+  runtime::{AnyObject as Object, Bool, Sel},
 };
 use objc2_app_kit::{NSApp, NSEvent, NSView, NSWindow, NSWindowStyleMask};
-use objc2_foundation::{MainThreadMarker, NSAutoreleasePool, NSPoint, NSRange, NSRect, NSUInteger};
+use objc2_core_graphics::{
+  CGDisplayPixelsHigh, CGDisplayRelease, CGError, CGMainDisplayID,
+  CGRestorePermanentDisplayConfiguration,
+};
+use objc2_foundation::{
+  MainThreadMarker, NSAutoreleasePool, NSNotFound, NSPoint, NSRange, NSRect, NSUInteger,
+};
 
 use crate::{
   dpi::{LogicalPosition, PhysicalPosition},
   error::ExternalError,
-  platform_impl::platform::ffi::{self, id, nil, BOOL, YES},
+  platform_impl::OsError,
 };
 
 // Replace with `!` once stable
@@ -35,22 +40,22 @@ where
 }
 
 pub const EMPTY_RANGE: NSRange = NSRange {
-  location: ffi::NSNotFound as NSUInteger,
+  location: NSNotFound as NSUInteger,
   length: 0,
 };
 
 #[derive(Debug, PartialEq)]
-pub struct IdRef(id);
+pub struct IdRef(*mut Object);
 
 impl IdRef {
-  pub fn new(inner: id) -> IdRef {
+  pub fn new(inner: *mut Object) -> IdRef {
     IdRef(inner)
   }
 
   #[allow(dead_code)]
-  pub fn retain(inner: id) -> IdRef {
-    if inner != nil {
-      let _: id = unsafe { msg_send![inner, retain] };
+  pub fn retain(inner: *mut Object) -> IdRef {
+    if !inner.is_null() {
+      let _: *mut Object = unsafe { msg_send![inner, retain] };
     }
     IdRef(inner)
   }
@@ -58,7 +63,7 @@ impl IdRef {
 
 impl Drop for IdRef {
   fn drop(&mut self) {
-    if self.0 != nil {
+    if !self.0.is_null() {
       unsafe {
         let _pool = NSAutoreleasePool::new();
         let () = msg_send![self.0, release];
@@ -68,9 +73,9 @@ impl Drop for IdRef {
 }
 
 impl Deref for IdRef {
-  type Target = id;
+  type Target = *mut Object;
   #[allow(clippy::needless_lifetimes)]
-  fn deref<'a>(&'a self) -> &'a id {
+  fn deref<'a>(&'a self) -> &'a *mut Object {
     &self.0
   }
 }
@@ -85,7 +90,7 @@ impl Clone for IdRef {
 // 1. translate the bottom-left window corner into the top-left window corner
 // 2. translate the coordinate from a bottom-left origin coordinate system to a top-left one
 pub fn bottom_left_to_top_left(rect: NSRect) -> f64 {
-  CGDisplay::main().pixels_high() as f64 - (rect.origin.y + rect.size.height)
+  CGDisplayPixelsHigh(CGMainDisplayID()) as f64 - (rect.origin.y + rect.size.height)
 }
 
 /// Converts from tao screen-coordinates to macOS screen-coordinates.
@@ -94,20 +99,20 @@ pub fn bottom_left_to_top_left(rect: NSRect) -> f64 {
 pub fn window_position(position: LogicalPosition<f64>) -> NSPoint {
   NSPoint::new(
     position.x,
-    CGDisplay::main().pixels_high() as f64 - position.y,
+    CGDisplayPixelsHigh(CGMainDisplayID()) as f64 - position.y,
   )
 }
 
 pub fn cursor_position() -> Result<PhysicalPosition<f64>, ExternalError> {
   let point = NSEvent::mouseLocation();
-  let y = CGDisplay::main().pixels_high() as f64 - point.y;
+  let y = CGDisplayPixelsHigh(CGMainDisplayID()) as f64 - point.y;
   let point = LogicalPosition::new(point.x, y);
   Ok(point.to_physical(super::monitor::primary_monitor().scale_factor()))
 }
 
 pub unsafe fn create_input_context(view: &NSView) -> IdRef {
-  let input_context: id = msg_send![class!(NSTextInputContext), alloc];
-  let input_context: id = msg_send![input_context, initWithClient: view];
+  let input_context: *mut Object = msg_send![class!(NSTextInputContext), alloc];
+  let input_context: *mut Object = msg_send![input_context, initWithClient: view];
   IdRef::new(input_context)
 }
 
@@ -118,8 +123,8 @@ pub unsafe fn open_emoji_picker() {
   NSApp(mtm).orderFrontCharacterPalette(None);
 }
 
-pub extern "C-unwind" fn yes(_: &Object, _: Sel) -> BOOL {
-  YES
+pub extern "C-unwind" fn yes(_: &Object, _: Sel) -> Bool {
+  Bool::new(true)
 }
 
 pub unsafe fn toggle_style_mask(
@@ -145,6 +150,15 @@ pub fn is_main_thread() -> bool {
 }
 
 pub unsafe fn restore_display_mode(ns_screen: u32) {
-  ffi::CGRestorePermanentDisplayConfiguration();
-  assert_eq!(ffi::CGDisplayRelease(ns_screen), ffi::kCGErrorSuccess);
+  CGRestorePermanentDisplayConfiguration();
+  assert_eq!(CGDisplayRelease(ns_screen), CGError::Success);
+}
+
+#[track_caller]
+pub(crate) fn cgerr(err: CGError) -> Result<(), ExternalError> {
+  if err == CGError::Success {
+    Ok(())
+  } else {
+    Err(ExternalError::Os(os_error!(OsError::CGError(err))))
+  }
 }

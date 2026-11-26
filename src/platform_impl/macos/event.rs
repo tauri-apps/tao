@@ -2,13 +2,13 @@
 // Copyright 2021-2023 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashSet, ffi::c_void, os::raw::c_ushort, sync::Mutex};
+use std::{collections::HashSet, os::raw::c_ushort, ptr::NonNull, sync::Mutex};
 
 use objc2::rc::Retained;
 use objc2_app_kit::{NSEvent, NSEventModifierFlags, NSWindow};
 use std::sync::LazyLock;
 
-use core_foundation::{base::CFRelease, data::CFDataGetBytePtr};
+use objc2_core_foundation::{CFData, CFRetained};
 
 use crate::{
   dpi::LogicalSize,
@@ -55,29 +55,27 @@ pub struct KeyEventExtra {
 }
 
 pub fn get_modifierless_char(scancode: u16) -> Key<'static> {
-  let mut string = [0; 16];
-  let input_source;
-  let layout;
-  unsafe {
-    input_source = ffi::TISCopyCurrentKeyboardLayoutInputSource();
-    if input_source.is_null() {
-      log::error!("`TISCopyCurrentKeyboardLayoutInputSource` returned null ptr");
-      return Key::Unidentified(NativeKeyCode::MacOS(scancode));
-    }
-    let layout_data =
-      ffi::TISGetInputSourceProperty(input_source, ffi::kTISPropertyUnicodeKeyLayoutData);
-    if layout_data.is_null() {
-      CFRelease(input_source as *mut c_void);
-      log::error!("`TISGetInputSourceProperty` returned null ptr");
-      return Key::Unidentified(NativeKeyCode::MacOS(scancode));
-    }
-    layout = CFDataGetBytePtr(layout_data) as *const ffi::UCKeyboardLayout;
-  }
+  let input_source = unsafe { ffi::TISCopyCurrentKeyboardLayoutInputSource() };
+  let Some(ptr) = NonNull::new(input_source) else {
+    log::error!("`TISCopyCurrentKeyboardLayoutInputSource` returned null ptr");
+    return Key::Unidentified(NativeKeyCode::MacOS(scancode));
+  };
+  let input_source = unsafe { CFRetained::from_raw(ptr) };
+
+  let layout_data =
+    unsafe { ffi::TISGetInputSourceProperty(&input_source, ffi::kTISPropertyUnicodeKeyLayoutData) };
+  let Some(layout_data) = (unsafe { layout_data.cast::<CFData>().as_ref() }) else {
+    log::error!("`TISGetInputSourceProperty` returned null ptr");
+    return Key::Unidentified(NativeKeyCode::MacOS(scancode));
+  };
+
+  let layout = layout_data.byte_ptr().cast();
   let keyboard_type = unsafe { ffi::LMGetKbdType() };
 
   let mut result_len = 0;
   let mut dead_keys = 0;
   let modifiers = 0;
+  let mut string = [0; 16];
   let translate_result = unsafe {
     ffi::UCKeyTranslate(
       layout,
@@ -92,9 +90,6 @@ pub fn get_modifierless_char(scancode: u16) -> Key<'static> {
       string.as_mut_ptr(),
     )
   };
-  unsafe {
-    CFRelease(input_source as *mut c_void);
-  }
   if translate_result != 0 {
     log::error!(
       "`UCKeyTranslate` returned with the non-zero value: {}",

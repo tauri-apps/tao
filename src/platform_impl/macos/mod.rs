@@ -53,13 +53,13 @@ pub(crate) const DEVICE_ID: RootDeviceId = RootDeviceId(DeviceId);
 #[non_exhaustive]
 #[derive(Debug)]
 pub enum OsError {
-  CGError(core_graphics::base::CGError),
+  CGError(objc2_core_graphics::CGError),
 }
 
 impl fmt::Display for OsError {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      OsError::CGError(e) => f.pad(&format!("CGError {e}")),
+      OsError::CGError(e) => f.pad(&format!("CGError {}", e.0)),
     }
   }
 }
