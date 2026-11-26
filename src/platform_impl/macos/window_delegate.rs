@@ -45,11 +45,11 @@ use objc2::{
   DefinedClass, MainThreadOnly, Message,
 };
 use objc2_app_kit::{
-  self as appkit, NSApp, NSApplicationPresentationOptions, NSBackingStoreType, NSColor,
-  NSDragOperation, NSDraggingDestination, NSDraggingInfo, NSEvent, NSEventSubtype, NSEventType,
-  NSPasteboard, NSRequestUserAttentionType, NSScreen, NSView, NSWindow, NSWindowButton,
-  NSWindowCollectionBehavior, NSWindowDelegate, NSWindowFullScreenButton, NSWindowOrderingMode,
-  NSWindowSharingType, NSWindowStyleMask,
+  self as appkit, NSApp, NSApplication, NSApplicationPresentationOptions, NSBackingStoreType,
+  NSColor, NSDragOperation, NSDraggingDestination, NSDraggingInfo, NSEvent, NSEventSubtype,
+  NSEventType, NSPasteboard, NSRequestUserAttentionType, NSScreen, NSView, NSWindow,
+  NSWindowButton, NSWindowCollectionBehavior, NSWindowDelegate, NSWindowFullScreenButton,
+  NSWindowOrderingMode, NSWindowSharingType, NSWindowStyleMask,
 };
 use objc2_core_foundation::{CGFloat, CGPoint};
 use objc2_core_graphics::{
@@ -294,9 +294,7 @@ fn create_window(
     }
 
     if let Parent::ChildOf(parent) = pl_attrs.parent {
-      let parent = parent.cast::<AnyObject>();
-      let _: () =
-        msg_send![parent, addChildWindow: &*ns_window, ordered: NSWindowOrderingMode::Above];
+      let _: () = msg_send![parent as *mut AnyObject, addChildWindow: &*ns_window, ordered: NSWindowOrderingMode::Above];
     }
 
     if !pl_attrs.automatic_tabbing {
@@ -338,47 +336,41 @@ fn screen_from_position(position: Position) -> Option<Retained<NSScreen>> {
 }
 
 pub(super) fn get_ns_theme() -> Theme {
-  unsafe {
-    let appearances: Vec<Retained<NSString>> = vec![
-      NSString::from_str("NSAppearanceNameAqua"),
-      NSString::from_str("NSAppearanceNameDarkAqua"),
-    ];
-    let app_class = class!(NSApplication);
-    let app: *mut AnyObject = msg_send![app_class, sharedApplication];
-    let has_theme: bool = msg_send![app, respondsToSelector: sel!(effectiveAppearance)];
-    if !has_theme {
-      return Theme::Light;
-    }
-    let appearance: *mut AnyObject = msg_send![app, effectiveAppearance];
-    let name: Retained<NSString> = msg_send![
-      appearance,
-      bestMatchFromAppearancesWithNames: &*NSArray::from_retained_slice(&appearances)
-    ];
-    let name = name.to_string();
-    match &*name {
-      "NSAppearanceNameDarkAqua" => Theme::Dark,
-      _ => Theme::Light,
-    }
+  // SAFETY: TODO.
+  let mtm = unsafe { MainThreadMarker::new_unchecked() };
+  let appearances: Vec<Retained<NSString>> = vec![
+    NSString::from_str("NSAppearanceNameAqua"),
+    NSString::from_str("NSAppearanceNameDarkAqua"),
+  ];
+  let app = NSApplication::sharedApplication(mtm);
+  let has_theme = app.respondsToSelector(sel!(effectiveAppearance));
+  if !has_theme {
+    return Theme::Light;
+  }
+  let name = app
+    .effectiveAppearance()
+    .bestMatchFromAppearancesWithNames(&NSArray::from_retained_slice(&appearances));
+  if name.is_some_and(|name| name.to_string() == "NSAppearanceNameDarkAqua") {
+    Theme::Dark
+  } else {
+    Theme::Light
   }
 }
 
 pub(super) fn set_ns_theme(theme: Option<Theme>) {
-  unsafe {
-    let app_class = class!(NSApplication);
-    let app: *mut AnyObject = msg_send![app_class, sharedApplication];
-    let has_theme: bool = msg_send![app, respondsToSelector: sel!(effectiveAppearance)];
-    if has_theme {
-      let appearance = if let Some(theme) = theme {
-        let name = NSString::from_str(match theme {
-          Theme::Dark => "NSAppearanceNameDarkAqua",
-          Theme::Light => "NSAppearanceNameAqua",
-        });
-        msg_send![class!(NSAppearance), appearanceNamed: &*name]
-      } else {
-        std::ptr::null_mut::<AnyObject>()
+  // SAFETY: TODO.
+  let mtm = unsafe { MainThreadMarker::new_unchecked() };
+  let app = NSApplication::sharedApplication(mtm);
+  let has_theme = app.respondsToSelector(sel!(effectiveAppearance));
+  if has_theme {
+    let appearance = theme.and_then(|theme| {
+      let name = match theme {
+        Theme::Dark => ns_string!("NSAppearanceNameDarkAqua"),
+        Theme::Light => ns_string!("NSAppearanceNameAqua"),
       };
-      let _: () = msg_send![app, setAppearance: appearance];
-    }
+      appkit::NSAppearance::appearanceNamed(name)
+    });
+    app.setAppearance(appearance.as_deref());
   }
 }
 
